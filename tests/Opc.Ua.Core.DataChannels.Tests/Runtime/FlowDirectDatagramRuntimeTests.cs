@@ -5,6 +5,7 @@ using System.Buffers.Binary;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.DataChannels;
 using Opc.Ua.DataChannels.Wire;
@@ -408,15 +409,28 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         public async Task FailedReceiveRegistrationCanRecoverWithoutReplacingContext(bool refuseAcceptor)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var failureLog = new ReceiveRegistrationFailureLog(deadline.Token);
             await using var pair = new FlowLoopback(DataChannelCarrierKind.QuicUasc,
-                enableDirectBinding: true, enableDirectStreams: true, enableDirectDatagrams: true);
+                enableDirectBinding: true, enableDirectStreams: true, enableDirectDatagrams: true,
+                configureLogging: builder => builder.SetMinimumLevel(LogLevel.Warning).AddProvider(failureLog));
             TestFlowCarrier refused = refuseAcceptor ? pair.AcceptorCarrier : pair.InitiatorCarrier;
             refused.DirectDatagramReceiveResult = DataChannelResult.WouldBlock;
             await pair.StartAsync().ConfigureAwait(false);
+            Task<DataChannel> opening = pair.Initiator.OpenAsync(FlowLoopback.Parameters(
+                delivery: DataChannelDeliveryMode.Datagram, rate: 100000), cancellationToken: deadline.Token).AsTask();
+            try
+            {
+                await failureLog.Entered.WaitAsync(deadline.Token).ConfigureAwait(false);
+                Task settled = await Task.WhenAny(opening, Task.Delay(100, deadline.Token)).ConfigureAwait(false);
+                Assert.That(settled, Is.Not.SameAs(opening),
+                    "Registration failure must not escape before its receive worker has retired.");
+            }
+            finally
+            {
+                failureLog.Release();
+            }
             DataChannelException failure = await Assert.ThrowsAsync<DataChannelException>(async () =>
-                await pair.Initiator.OpenAsync(FlowLoopback.Parameters(
-                    delivery: DataChannelDeliveryMode.Datagram, rate: 100000), cancellationToken: deadline.Token)
-                    .ConfigureAwait(false));
+                await opening.ConfigureAwait(false));
             Assert.Multiple(() =>
             {
                 Assert.That(failure.Result, Is.EqualTo(DataChannelResult.Closed));
@@ -517,6 +531,73 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(flow.Remote.GetDiagnostics().ReplayDrops, Is.EqualTo(2));
                 Assert.That(flow.Remote.StateData.Incoming, Is.Empty);
             });
+        }
+
+        /// <summary>
+        /// Holds a failed receive worker after publishing its registration result.
+        /// </summary>
+        private sealed class ReceiveRegistrationFailureLog : ILoggerProvider, ILogger
+        {
+            /// <summary>
+            /// Creates a bounded synchronous logging gate, not a blocked asynchronous provider.
+            /// </summary>
+            public ReceiveRegistrationFailureLog(CancellationToken cancellationToken)
+            {
+                m_cancellationToken = cancellationToken;
+            }
+
+            /// <summary>
+            /// Gets the signal that the failed receive worker is still retiring.
+            /// </summary>
+            internal Task Entered => m_entered.Task;
+
+            /// <inheritdoc/>
+            public ILogger CreateLogger(string categoryName) => this;
+
+            /// <inheritdoc/>
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+            /// <inheritdoc/>
+            public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Warning;
+
+            /// <inheritdoc/>
+            public void Log<TState>(
+                LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+                Func<TState, Exception?, string> formatter)
+            {
+                if (exception is DataChannelException { Result: DataChannelResult.WouldBlock })
+                {
+                    m_entered.TrySetResult(true);
+                    m_release.Wait(m_cancellationToken);
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    m_release.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Allows the receive worker to finish retiring.
+            /// </summary>
+            internal void Release() => m_release.Set();
+
+            /// <summary>The finite bound on the logging gate.</summary>
+            private readonly CancellationToken m_cancellationToken;
+
+            /// <summary>The failed worker has reached its retirement log.</summary>
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>The synchronous logger release, independent of asynchronous receive completion.</summary>
+            private readonly ManualResetEventSlim m_release = new();
+
+            /// <summary>Both the fixture and telemetry may dispose the shared provider.</summary>
+            private int m_disposed;
         }
     }
 }

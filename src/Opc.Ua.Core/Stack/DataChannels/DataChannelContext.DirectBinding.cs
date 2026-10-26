@@ -42,7 +42,7 @@ namespace Opc.Ua.DataChannels
             m_carrier.Kind is DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc;
 
         /// <summary>
-        /// Starts the initiator proof after HELLO without delaying baseline readiness.
+        /// Starts the optional initiator proof or reports an unsupported exporter without delaying baseline readiness.
         /// </summary>
         private void StartDirectBindingLocked()
         {
@@ -50,7 +50,20 @@ namespace Opc.Ua.DataChannels
                 m_carrier.Identity is null ||
                 m_carrier.Kind is not (DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc))
             {
-                m_directBinding.TrySetResult(DataChannelResult.Unsupported);
+                if (m_carrier.Identity is { IsTransportInitiator: true } &&
+                    m_carrier.Kind is DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
+                {
+                    m_directBindingStarted = true;
+                    var unsupported = new FlowOutcome(
+                        FlowOperation.Status, 0, FlowWireStatus.Unsupported);
+                    m_directBindingTask = CompleteUnsupportedDirectBindingAsync(
+                        QueueControlLocked(
+                            unsupported, 0, 0, DataChannelPath.Management));
+                }
+                else
+                {
+                    m_directBinding.TrySetResult(DataChannelResult.Unsupported);
+                }
                 return;
             }
             if (m_carrier.Identity.IsTransportInitiator && !m_directBindingStarted)
@@ -80,7 +93,7 @@ namespace Opc.Ua.DataChannels
                 byte[]? exporterKey = TakeExporterKey(exporter);
                 if (exporterKey == null)
                 {
-                    CompleteDirectBinding(DataChannelResult.Unsupported);
+                    await SendUnsupportedDirectBindingStatusAsync().ConfigureAwait(false);
                     return;
                 }
 
@@ -131,7 +144,14 @@ namespace Opc.Ua.DataChannels
             }
             catch (DataChannelException exception)
             {
-                CompleteDirectBinding(exception.Result);
+                if (exception.Result == DataChannelResult.Unsupported)
+                {
+                    await SendUnsupportedDirectBindingStatusAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    CompleteDirectBinding(exception.Result);
+                }
             }
             catch (FlowCodecException)
             {
@@ -140,12 +160,12 @@ namespace Opc.Ua.DataChannels
             catch (Exception exception)
             {
                 m_logger.FlowCarrierFailure(exception);
-                CompleteDirectBinding(DataChannelResult.Unsupported);
+                await SendUnsupportedDirectBindingStatusAsync().ConfigureAwait(false);
             }
         }
 
         /// <summary>
-        /// Handles a peer proof or its explicit unsupported result outside the ingress lock.
+        /// Handles a peer proof or its terminal refusal outside the ingress lock.
         /// </summary>
         private async ValueTask<DataChannelResult> ReceiveDirectBindingAsync(
             FlowControl control,
@@ -158,7 +178,8 @@ namespace Opc.Ua.DataChannels
                 {
                     if (m_carrier.Identity.IsTransportInitiator &&
                         record.MessageId == m_directBindingOperationId &&
-                        !m_directBindingReady)
+                        !m_directBindingReady &&
+                        (m_directBindingResponse is not FlowOutcome recorded || recorded.Status == status.Status))
                     {
                         DataChannelResult result = status.Status switch
                         {
@@ -170,9 +191,30 @@ namespace Opc.Ua.DataChannels
                         {
                             CloseLocked(result);
                         }
+                        m_directBindingResponse ??= status;
                         CompleteDirectBindingLocked(result);
                         m_peerControlId = Math.Max(m_peerControlId, record.MessageId);
                         return result == DataChannelResult.SecurityFailure ? result : DataChannelResult.Good;
+                    }
+                    if (!m_carrier.Identity.IsTransportInitiator &&
+                        !m_directBindingStarted &&
+                        record.MessageId > m_peerControlId &&
+                        status.Status == FlowWireStatus.Unsupported)
+                    {
+                        m_directBindingStarted = true;
+                        m_directPeerBindingOperationId = record.MessageId;
+                        m_directBindingResponse = status;
+                        m_peerControlId = record.MessageId;
+                        CompleteDirectBindingLocked(DataChannelResult.Unsupported);
+                        return DataChannelResult.Good;
+                    }
+                    if (!m_carrier.Identity.IsTransportInitiator &&
+                        m_directBindingStarted &&
+                        record.MessageId == m_directPeerBindingOperationId &&
+                        m_directBindingResponse is FlowOutcome { Status: FlowWireStatus.Unsupported } &&
+                        status.Status == FlowWireStatus.Unsupported)
+                    {
+                        return DataChannelResult.Good;
                     }
                     CloseLocked(DataChannelResult.SecurityFailure);
                     CompleteDirectBindingLocked(DataChannelResult.SecurityFailure);
@@ -187,6 +229,37 @@ namespace Opc.Ua.DataChannels
             return m_carrier.Identity.IsTransportInitiator
                 ? await ReceiveDirectBindingResponseAsync(binding, record, cancellationToken).ConfigureAwait(false)
                 : await ReceiveDirectBindingRequestAsync(binding, record, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reports that an available exporter provider cannot produce binding material.
+        /// </summary>
+        private async Task SendUnsupportedDirectBindingStatusAsync()
+        {
+            Task<DataChannelResult> sent;
+            lock (m_gate)
+            {
+                if (m_closed)
+                {
+                    CompleteDirectBindingLocked(DataChannelResult.Closed);
+                    return;
+                }
+                var unsupported = new FlowOutcome(
+                    FlowOperation.Status, 0, FlowWireStatus.Unsupported);
+                sent = QueueControlLocked(unsupported, 0, 0, DataChannelPath.Management);
+            }
+            await CompleteUnsupportedDirectBindingAsync(sent).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Completes local binding after the optional-capability refusal is sent on the baseline.
+        /// </summary>
+        private async Task CompleteUnsupportedDirectBindingAsync(Task<DataChannelResult> sent)
+        {
+            DataChannelResult result = await sent.ConfigureAwait(false);
+            CompleteDirectBinding(result == DataChannelResult.Good
+                ? DataChannelResult.Unsupported
+                : result);
         }
 
         /// <summary>
@@ -242,7 +315,7 @@ namespace Opc.Ua.DataChannels
         {
             using var deadline = new CancellationTokenSource(m_options.OpenTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
-            FlowBinding? duplicateResponse = null;
+            FlowControl? duplicateResponse = null;
             IDataChannelDirectBindingProvider? provider =
                 m_carrier as IDataChannelDirectBindingProvider;
             lock (m_gate)
@@ -263,22 +336,20 @@ namespace Opc.Ua.DataChannels
                     return QueueDuplicateDirectBindingResponseLocked(
                         duplicateResponse, record.MessageId);
                 }
-                if (m_directBindingStarted || record.MessageId <= m_peerControlId ||
-                    binding.Role != 0 || provider == null || !provider.IsAvailable)
+                if (m_directBindingStarted || record.MessageId <= m_peerControlId || binding.Role != 0)
                 {
-                    if (binding.Role != 0 || m_directBindingStarted ||
-                        record.MessageId <= m_peerControlId)
-                    {
-                        CloseLocked(DataChannelResult.SecurityFailure);
-                        CompleteDirectBindingLocked(DataChannelResult.SecurityFailure);
-                        return DataChannelResult.SecurityFailure;
-                    }
-                    return QueueDirectBindingStatusLocked(record.MessageId, DataChannelResult.Unsupported);
+                    CloseLocked(DataChannelResult.SecurityFailure);
+                    CompleteDirectBindingLocked(DataChannelResult.SecurityFailure);
+                    return DataChannelResult.SecurityFailure;
                 }
                 m_directBindingStarted = true;
                 m_directPeerBindingOperationId = record.MessageId;
                 m_directPeerBinding = new FlowBinding(
                     binding.Role, binding.TranscriptDigest.Copy(), binding.Proof.Copy());
+                if (provider == null || !provider.IsAvailable)
+                {
+                    return QueueDirectBindingStatusLocked(record.MessageId, DataChannelResult.Unsupported);
+                }
             }
 
             try
@@ -395,10 +466,10 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Replays the cached proof response for an exact duplicate operation.
+        /// Replays the cached proof or refusal for an exact duplicate operation.
         /// </summary>
         private DataChannelResult QueueDuplicateDirectBindingResponseLocked(
-            FlowBinding response,
+            FlowControl response,
             uint operationId)
         {
             if (operationId > m_localControlId)
@@ -406,11 +477,11 @@ namespace Opc.Ua.DataChannels
                 m_localControlId = operationId;
             }
             QueueControlLocked(response, 0, operationId, DataChannelPath.Management);
-            return DataChannelResult.Good;
+            return response is FlowOutcome outcome ? FlowModel.FromWire(outcome.Status) : DataChannelResult.Good;
         }
 
         /// <summary>
-        /// Returns an explicit unsupported outcome without closing the baseline context.
+        /// Records and sends a terminal refusal without accepting direct capability.
         /// </summary>
         private DataChannelResult QueueDirectBindingStatusLocked(
             uint operationId,
@@ -426,8 +497,10 @@ namespace Opc.Ua.DataChannels
                 DataChannelResult.Timeout => FlowWireStatus.Timeout,
                 _ => FlowWireStatus.SecurityFailure
             };
+            var response = new FlowOutcome(FlowOperation.Status, 0, status);
+            m_directBindingResponse = response;
             QueueControlLocked(
-                new FlowOutcome(FlowOperation.Status, 0, status),
+                response,
                 0,
                 operationId,
                 DataChannelPath.Management);
@@ -530,11 +603,11 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Compares the exact contents of a repeated binding message.
         /// </summary>
-        private static bool SameBinding(FlowBinding left, FlowBinding? right)
+        private static bool SameBinding(FlowBinding left, FlowControl? right)
         {
-            return right != null && left.Role == right.Role &&
-                left.TranscriptDigest == right.TranscriptDigest &&
-                left.Proof == right.Proof;
+            return right is FlowBinding binding && left.Role == binding.Role &&
+                left.TranscriptDigest == binding.TranscriptDigest &&
+                left.Proof == binding.Proof;
         }
 
         private readonly TaskCompletionSource<DataChannelResult> m_directBinding =
@@ -543,7 +616,7 @@ namespace Opc.Ua.DataChannels
         private ByteString m_directBindingDigest;
         private byte[]? m_directBindingExporter;
         private FlowBinding? m_directPeerBinding;
-        private FlowBinding? m_directBindingResponse;
+        private FlowControl? m_directBindingResponse;
         private uint m_directPeerBindingOperationId;
         private uint m_directBindingOperationId;
         private bool m_directBindingStarted;

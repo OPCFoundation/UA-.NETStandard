@@ -284,6 +284,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     opts.InlineConfiguration ?? new PubSubConfigurationDataType());
             });
             services.TryAddSingleton<IPubSubIdAllocator, InMemoryPubSubIdAllocator>();
+            services.TryAddSingleton<IPubSubCommunicationIdReservations>(sp =>
+                new InMemoryPubSubCommunicationIdReservations(sp.GetService<IPubSubDefaultPublisherIdPolicy>()));
             services.TryAddSingleton<IPubSubRuntimeStateStore, InMemoryPubSubRuntimeStateStore>();
             services.TryAddSingleton<IPubSubSecurityKeyStore, InMemoryPubSubSecurityKeyStore>();
             services.TryAddSingleton<IPubSubActivationCoordinator>(AlwaysActiveCoordinator.Instance);
@@ -320,12 +322,14 @@ namespace Microsoft.Extensions.DependencyInjection
                     dataSetSinkProvider: sp.GetService<IDataSetSinkProvider>(),
                     securityWrapperResolver:
                         sp.GetRequiredService<IPubSubSecurityWrapperResolver>(),
+                    maxNetworkMessageSizeResolver: null,
                     configurationStore: store,
                     runtimeStateStore: sp.GetRequiredService<IPubSubRuntimeStateStore>(),
                     activationCoordinator:
                         sp.GetRequiredService<IPubSubActivationCoordinator>(),
                     writerCheckpointStore:
-                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    communicationIds: sp.GetRequiredService<IPubSubCommunicationIdReservations>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();

@@ -43,10 +43,9 @@ namespace Opc.Ua.PubSub.Server
     /// <see cref="IPubSubKeyServiceServer"/>.
     /// </summary>
     /// <remarks>
-    /// Mirrors the WoT Connectivity factory pattern. The factory
-    /// itself does not own any namespaces beyond the PubSub server
-    /// vendor URI; the standard PubSub nodes are loaded by the
-    /// hosting server's diagnostics node manager.
+    /// The standard PubSub nodes are loaded by the hosting server's
+    /// diagnostics node manager. When enabled, the factory also declares
+    /// the namespaces used by the generated FX model.
     /// </remarks>
     public sealed class PubSubNodeManagerFactory : INodeManagerFactory
     {
@@ -100,7 +99,10 @@ namespace Opc.Ua.PubSub.Server
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris => new string[] { PubSubNodeManager.NamespaceUri };
+        public ArrayOf<string> NamespacesUris
+        {
+            get => PubSubNodeManager.GetNamespaceUris(m_options);
+        }
 
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)

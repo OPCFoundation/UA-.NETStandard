@@ -690,11 +690,14 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             DataChannelDirection.Duplex, false)]
         [TestCase(DataChannelDeliveryMode.Datagram, DataChannelProfiles.UadpAvApplicationPayload,
             DataChannelDirection.Duplex, true)]
+        [TestCase(DataChannelDeliveryMode.Ordered, DataChannelProfiles.UadpOpaqueApplicationPayload,
+            DataChannelDirection.Duplex, false, true)]
         public async Task NativeBaselineCarriesSecureChannelServicesAndConfiguredFlowWithoutTlsIdentity(
             DataChannelDeliveryMode delivery,
             string protocol = DataChannelProfiles.UadpPayload,
             DataChannelDirection direction = DataChannelDirection.Duplex,
-            bool serverOpens = false)
+            bool serverOpens = false,
+            bool maximumMessageSize = false)
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
@@ -820,7 +823,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             using IDisposable publisherRoute = serverContext.RegisterUascPublisherRoute(
                 WebTransportTestEnvironment.ResourceUri, new Variant(42u));
             using IDisposable reversePublisherRoute = clientContext.RegisterUascPublisherRoute(
-                WebTransportTestEnvironment.ResourceUri, new Variant(42u));
+                WebTransportTestEnvironment.ResourceUri, new Variant(17u));
             DataChannelContext opener = serverOpens ? serverContext : clientContext;
             DataChannelContext acceptor = serverOpens ? clientContext : serverContext;
             Task<DataChannel?> acceptingFlow = acceptor.AcceptAsync(deadline.Token).AsTask();
@@ -835,6 +838,11 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             flowParameters.Direction = direction;
             flowParameters.Delivery = delivery;
             flowParameters.MaxRate = delivery == DataChannelDeliveryMode.Datagram ? 100000 : 0;
+            if (maximumMessageSize)
+            {
+                flowParameters.MaxMessageSize = 65536;
+                flowParameters.MaxReceiveBytes = 131072;
+            }
             await using DataChannel openedFlow = await opener.OpenAsync(
                 flowParameters, cancellationToken: deadline.Token).ConfigureAwait(false);
             await using DataChannel acceptedFlow = await acceptingFlow.ConfigureAwait(false) ??
@@ -844,6 +852,27 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             byte[] payload = protocol == DataChannelProfiles.UadpPayload
                 ? [0x91, 0x82, 0, 42, 0, 0, 0, 0x10, 0x20, 0, 0x40, 0xff]
                 : [0x91, 0x82, 0x0c, 42, 0, 0, 0, 0, 0xff, 0x01, 0x7f];
+            if (maximumMessageSize)
+            {
+                Array.Resize(ref payload, checked((int)openedFlow.Parameters.MaxMessageSize));
+                for (int i = 11; i < payload.Length; i++)
+                {
+                    payload[i] = (byte)(i % 251);
+                }
+                byte[] oversizedPayload = [.. payload, 0];
+                Assert.That(await sender.SendAsync(
+                    new ByteString(oversizedPayload),
+                    cancellationToken: deadline.Token).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.TooLarge));
+                Assert.That(openedFlow.State, Is.EqualTo(DataChannelState.Open));
+            }
+            DataChannelContext senderContext = direction == DataChannelDirection.AcceptorToOpener
+                ? acceptor : opener;
+            DataChannelContext receiverContext = direction == DataChannelDirection.AcceptorToOpener
+                ? opener : acceptor;
+            payload[3] = (byte)(ReferenceEquals(senderContext, clientContext) ? 42 : 17);
+            byte[] reversePayload = [.. payload];
+            reversePayload[3] = (byte)(ReferenceEquals(receiverContext, clientContext) ? 42 : 17);
             Assert.That(
                 await sender.SendAsync(new ByteString(payload), cancellationToken: deadline.Token)
                     .ConfigureAwait(false),
@@ -853,7 +882,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             if (direction == DataChannelDirection.Duplex)
             {
                 Assert.That(
-                    await receiver.SendAsync(new ByteString(payload), cancellationToken: deadline.Token)
+                    await receiver.SendAsync(new ByteString(reversePayload), cancellationToken: deadline.Token)
                         .ConfigureAwait(false),
                     Is.EqualTo(DataChannelResult.Good));
             }
@@ -861,8 +890,12 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 ? await sender.ReadAsync(deadline.Token).ConfigureAwait(false) : null;
             if (direction == DataChannelDirection.Duplex)
             {
-                Assert.That(reverseReceived!.Payload.Span.ToArray(), Is.EqualTo(payload));
+                Assert.That(reverseReceived!.Payload.Span.ToArray(), Is.EqualTo(reversePayload));
             }
+            byte[] revisionPayload = maximumMessageSize
+                ? [0x91, 0x82, 0x0c, 42, 0, 0, 0, 0, 0xff, 0x01, 0x7f]
+                : payload;
+            revisionPayload[3] = (byte)(ReferenceEquals(senderContext, clientContext) ? 42 : 17);
             DataChannelParametersDataType revised = openedFlow.Parameters;
             revised.MaxMessageSize = 128;
             var peerUpdated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -894,12 +927,12 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                     Assert.That(reverseReceived!.Revision, Is.EqualTo(1u));
                 }
             });
-            Assert.That(await sender.SendAsync(new ByteString(payload), cancellationToken: deadline.Token)
+            Assert.That(await sender.SendAsync(new ByteString(revisionPayload), cancellationToken: deadline.Token)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using (DataChannelMessage? current = await receiver.ReadAsync(deadline.Token).ConfigureAwait(false))
             {
                 Assert.That(current!.Revision, Is.EqualTo(2u));
-                Assert.That(current.Payload.Span.ToArray(), Is.EqualTo(payload));
+                Assert.That(current.Payload.Span.ToArray(), Is.EqualTo(revisionPayload));
             }
             Assert.That(await sender.EndAsync(deadline.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));

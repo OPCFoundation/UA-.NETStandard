@@ -406,6 +406,7 @@ namespace Microsoft.Extensions.DependencyInjection
                         telemetry,
                         sp.GetService<IPubSubSecurityPolicyRegistry>())
                     .WithTimeProvider(clock)
+                    .WithCommunicationIdReservations(sp.GetRequiredService<IPubSubCommunicationIdReservations>())
                     .WithDiagnosticsLevel(options.DiagnosticsLevel);
                 IDataSetSourceProvider? sourceProvider = sp.GetService<IDataSetSourceProvider>();
                 if (sourceProvider is not null)

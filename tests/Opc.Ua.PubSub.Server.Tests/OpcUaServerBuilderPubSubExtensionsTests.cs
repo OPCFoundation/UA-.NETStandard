@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security.Sks;
@@ -338,6 +339,61 @@ namespace Opc.Ua.PubSub.Server.Tests
         {
             Assert.That(
                 () => PubSubServerBuilderExtensions.WithSecurityKeyServiceServer(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public async Task FxReservationBuilderRegistersOneSingletonWithoutEnablingModelOrMethods()
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            IPubSubServerBuilder builder = services.AddOpcUa().AddServer(_ => { })
+                .AddPubSub(options => options.ExposeConfigurationMethods = false);
+            Assert.That(builder.WithFxCommunicationIdReservations(), Is.SameAs(builder));
+            builder.WithFxCommunicationIdReservations();
+            Assert.That(services.Count(descriptor => descriptor.ServiceType == typeof(PubSubFxReservationMethods)),
+                Is.EqualTo(1));
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            PubSubFxReservationMethods methods = provider.GetRequiredService<PubSubFxReservationMethods>();
+            Assert.That(provider.GetRequiredService<PubSubFxReservationMethods>(), Is.SameAs(methods));
+            PubSubServerOptions options = provider.GetRequiredService<IOptions<PubSubServerOptions>>().Value;
+            Assert.That(options.ExposeFxModel, Is.False);
+            Assert.That(options.ExposeConfigurationMethods, Is.False);
+        }
+
+        [Test]
+        public async Task FxLifecycleBuilderRegistersHostTransactionForDependencyInjection()
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            IPubSubServerBuilder builder = services.AddOpcUa().AddServer(_ => { })
+                .AddPubSub(options => options.ExposeConfigurationMethods = true);
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>().Object;
+
+            Assert.That(builder.WithFxConnectionLifecycle(lifecycle), Is.SameAs(builder));
+            builder.WithFxCommunicationIdReservations();
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<IPubSubFxConnectionLifecycle>(), Is.SameAs(lifecycle));
+            PubSubFxReservationMethods methods = provider.GetRequiredService<PubSubFxReservationMethods>();
+            Assert.That(provider.GetRequiredService<PubSubFxReservationMethods>(), Is.SameAs(methods));
+        }
+
+        [Test]
+        public void FxReservationBuilderRejectsMissingBuilder()
+        {
+            Assert.That(() => PubSubServerBuilderExtensions.WithFxCommunicationIdReservations(null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void FxLifecycleBuilderRejectsNullArguments()
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            IPubSubServerBuilder builder = services.AddOpcUa().AddServer(_ => { })
+                .AddPubSub(_ => { });
+
+            Assert.That(() => PubSubServerBuilderExtensions.WithFxConnectionLifecycle(null!, new Mock<IPubSubFxConnectionLifecycle>().Object),
+                Throws.ArgumentNullException);
+            Assert.That(() => builder.WithFxConnectionLifecycle(null!),
                 Throws.ArgumentNullException);
         }
 

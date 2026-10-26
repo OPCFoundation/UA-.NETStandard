@@ -64,6 +64,23 @@ namespace Opc.Ua.PubSub.Server
         public bool ExposeConfigurationMethods { get; set; } = true;
 
         /// <summary>
+        /// When <see langword="true"/>, loads the OPC UA FX Data, AutomationComponent,
+        /// and ConnectionManager model declarations into the server address space.
+        /// This exposes model contracts only; it does not enable Part 81 lifecycle methods.
+        /// </summary>
+        public bool ExposeFxModel { get; set; }
+
+        /// <summary>
+        /// Maximum retained bytes for one configuration-file handle.
+        /// </summary>
+        public int MaxConfigurationFileSize { get; set; } = 16 * 1024 * 1024;
+
+        /// <summary>
+        /// Maximum number of simultaneously open configuration files across all Sessions, from 1 to 65,535.
+        /// </summary>
+        public int MaxConfigurationFileHandles { get; set; } = 64;
+
+        /// <summary>
         /// Optional convenience: when set and
         /// <see cref="ExposeSecurityKeyService"/> is
         /// <see langword="true"/>, a SecurityGroup with this

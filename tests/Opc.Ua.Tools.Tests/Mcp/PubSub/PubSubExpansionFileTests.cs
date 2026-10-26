@@ -198,7 +198,8 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(peer.WriteCalls, Is.GreaterThan(1));
             Assert.That(peer.CommitCalls, Is.EqualTo(1));
             Assert.That(peer.RequireCompleteUpdate, Is.EqualTo(!partial));
-            Assert.That(peer.CloseCalls, Is.Zero, "An acknowledged CloseAndUpdate consumes the remote handle.");
+            Assert.That(peer.CloseCalls, Is.EqualTo(1),
+                "The read handle is closed before the acknowledged CloseAndUpdate consumes the write handle.");
             Assert.That(peer.PendingBytes, Is.Zero);
             Assert.That(peer.OpenMode, Is.EqualTo(6));
             Assert.That(await File.ReadAllBytesAsync(peer.Path("import.xml")).ConfigureAwait(false),
@@ -219,7 +220,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             RemoteModelTestSession.Error(result, StatusCodes.BadCommunicationError);
             Assert.That(peer.WriteCalls, Is.EqualTo(failedWrite));
             Assert.That(peer.CommitCalls, Is.Zero);
-            Assert.That(peer.CloseCalls, Is.EqualTo(1));
+            Assert.That(peer.CloseCalls, Is.EqualTo(2));
             Assert.That(peer.PendingBytes, Is.Zero);
             Assert.That(peer.Model.Connections[0].Name, Is.EqualTo("McpConnection"));
             Assert.That(peer.Context.Remote.Calls[^1].MethodId, Is.EqualTo(MethodIds.FileType_Close));
@@ -239,7 +240,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             RemoteModelTestSession.Error(result, StatusCodes.BadTimeout);
             Assert.That(peer.CommitCalls, Is.EqualTo(1));
-            Assert.That(peer.CloseCalls, Is.EqualTo(1));
+            Assert.That(peer.CloseCalls, Is.EqualTo(2));
             Assert.That(peer.PendingBytes, Is.Zero);
             Assert.That(peer.Model.Connections[0].Name, Is.EqualTo(consumed ? "replacement" : "McpConnection"));
             Assert.That(RemoteModelTestSession.Payload(result).TryGetProperty(
@@ -264,7 +265,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             Assert.That(peer.WriteCalls, Is.EqualTo(1));
             Assert.That(peer.CommitCalls, Is.Zero);
-            Assert.That(peer.CloseCalls, Is.EqualTo(1));
+            Assert.That(peer.CloseCalls, Is.EqualTo(2));
             Assert.That(peer.Context.Remote.CallTokens[^1].IsCancellationRequested, Is.False);
             Assert.That(peer.PendingBytes, Is.Zero);
             Assert.That(peer.Model.Connections[0].Name, Is.EqualTo("McpConnection"));
@@ -306,7 +307,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(result.IsError, Is.False);
             Assert.That(peer.Model.Connections[0].Name, Is.EqualTo("replacement"));
             Assert.That(peer.CommitCalls, Is.EqualTo(1));
-            Assert.That(peer.CloseCalls, Is.Zero);
+            Assert.That(peer.CloseCalls, Is.EqualTo(1));
 
             async Task<CallResponse> CommitAsync(CallMethodRequest request, CancellationToken token)
             {
@@ -342,7 +343,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 });
             }
             peer.RefreshDownload();
-            byte[] source = kind == "invalid-xml" ? Encoding.UTF8.GetBytes("invalid") : peer.Download;
+            byte[] source = kind == "invalid-xml" ? Encoding.UTF8.GetBytes("invalid") : peer.EncodeArtifact();
             await File.WriteAllBytesAsync(peer.Path("import.xml"), source).ConfigureAwait(false);
 
             CallToolResult result = await peer.Tools.ImportAsync(
@@ -479,7 +480,9 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             internal void RefreshDownload()
             {
-                Download = Encode(Model);
+                using var stream = new MemoryStream();
+                McpPubSubRemote.EncodeBinary(Model, Context.Remote.Session.Object, stream);
+                Download = stream.ToArray();
             }
 
             internal byte[] EncodeReplacement()
@@ -487,6 +490,11 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 var replacement = (PubSubConfigurationDataType)Model.Clone();
                 replacement.Connections[0].Name = "replacement";
                 return Encode(replacement);
+            }
+
+            internal byte[] EncodeArtifact()
+            {
+                return Encode(Model);
             }
 
             internal PubSubConfigurationDataType Decode(byte[] bytes)
@@ -559,13 +567,13 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 Assert.That(input[1].TryGetValue(out bool complete), Is.True);
                 RequireCompleteUpdate = complete;
                 Assert.That(input[2].TryGetValue(out ArrayOf<ExtensionObject> references), Is.True);
-                Assert.That(references, Is.Empty);
+                Assert.That(references, Has.Count.GreaterThan(0));
                 CommitCalls++;
                 if (!CommitFailure || ConsumeOnFailure)
                 {
                     if (Apply)
                     {
-                        Model = Decode(m_staged.ToArray());
+                        Model = McpPubSubRemote.DecodeBinary(m_staged.ToArray(), Context.Remote.Session.Object);
                     }
                     m_staged.SetLength(0);
                     m_open = false;

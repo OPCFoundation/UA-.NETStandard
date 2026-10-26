@@ -79,6 +79,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Server\Opc.Ua.PubSub.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />

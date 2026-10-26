@@ -29,11 +29,14 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Di;
+using Opc.Ua.Fx.Ac;
+using Opc.Ua.Fx.Cm;
+using Opc.Ua.Fx.Data;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
@@ -65,7 +68,7 @@ namespace Opc.Ua.PubSub.Server
     /// <see cref="IServerInternal.NamespaceUris"/> but contains no
     /// predefined nodes.
     /// </remarks>
-    public sealed class PubSubNodeManager : AsyncCustomNodeManager
+    public sealed partial class PubSubNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Vendor namespace URI registered by the PubSub server
@@ -140,7 +143,7 @@ namespace Opc.Ua.PubSub.Server
                   configuration,
                   (telemetry ?? throw new ArgumentNullException(nameof(telemetry)))
                       .CreateLogger<PubSubNodeManager>(),
-                  NamespaceUri)
+                  GetNamespaceUris(options))
         {
             if (pubSubApplication is null)
             {
@@ -150,6 +153,12 @@ namespace Opc.Ua.PubSub.Server
             {
                 throw new ArgumentNullException(nameof(options));
             }
+            if (options.MaxConfigurationFileSize <= 0 ||
+                options.MaxConfigurationFileHandles is <= 0 or > ushort.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    "Configuration file byte and handle limits must be positive.");
+            }
             m_application = pubSubApplication;
             m_keyService = sksServer;
             m_options = options;
@@ -158,6 +167,11 @@ namespace Opc.Ua.PubSub.Server
                 ?? [];
             m_pushKeyProviders = pushKeyProviders?.ToArray() ?? [];
             m_idAllocator = idAllocator ?? new InMemoryPubSubIdAllocator();
+            m_sessionManager = server.SessionManager;
+            if (m_sessionManager is not null)
+            {
+                m_sessionManager.SessionClosing += OnReservationSessionClosing;
+            }
             MethodHandlers = new PubSubMethodHandlers(
                 pubSubApplication,
                 options.ExposeSecurityKeyService ? sksServer : null,
@@ -205,6 +219,15 @@ namespace Opc.Ua.PubSub.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
+            if (m_options.ExposeFxModel)
+            {
+                Server.Factory.Builder
+                    .AddOpcUaDi()
+                    .AddOpcUaFxData()
+                    .AddOpcUaFxAc()
+                    .AddOpcUaFxCm()
+                    .Commit();
+            }
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -254,11 +277,48 @@ namespace Opc.Ua.PubSub.Server
             await RebuildKeyPushTargetAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Returns the namespace set owned by this manager for its configured models.
+        /// </summary>
+        /// <summary>
+        /// Returns the namespace set shared by the node manager and its factory.
+        /// </summary>
+        internal static string[] GetNamespaceUris(PubSubServerOptions options)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (!options.ExposeFxModel)
+            {
+                return [NamespaceUri];
+            }
+            return
+            [
+                NamespaceUri,
+                Opc.Ua.Di.Namespaces.OpcUaDi,
+                Opc.Ua.Fx.Data.Namespaces.FxData,
+                Opc.Ua.Fx.Ac.Namespaces.FxAc,
+                Opc.Ua.Fx.Cm.Namespaces.FxCm
+            ];
+        }
+
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                DisposeFxStatusBindings();
+                lock (m_addressSpaceGate)
+                {
+                    m_configurationFilesDisposed = true;
+                    m_fileHandles.Clear();
+                    m_closedConfigurationFileSessions.Clear();
+                }
+                if (m_sessionManager is not null)
+                {
+                    m_sessionManager.SessionClosing -= OnReservationSessionClosing;
+                }
                 m_statusBinding?.Dispose();
                 m_statusBinding = null;
                 m_application.ConfigurationChanged -= OnConfigurationChanged;
@@ -292,19 +352,7 @@ namespace Opc.Ua.PubSub.Server
             PubSubConfigurationState file = publishSubscribe.PubSubConfiguration ??
                 throw new ServiceResultException(StatusCodes.BadConfigurationError,
                     "The generated PubSubConfiguration node was not created.");
-            if (file.Writable is not { } writable || file.UserWritable is not { } userWritable)
-            {
-                throw new ServiceResultException(StatusCodes.BadConfigurationError,
-                    "The generated PubSubConfiguration node is missing mandatory writable attributes.");
-            }
-            writable.Value = true;
-            userWritable.Value = true;
-            BindStandardMethod(file.Open, OnOpenPubSubConfigurationFile);
-            BindStandardMethod(file.Close, OnClosePubSubConfigurationFile);
-            BindStandardMethod(file.Read, OnReadPubSubConfigurationFile);
-            BindStandardMethod(file.Write, OnWritePubSubConfigurationFile);
-            BindStandardMethod(file.ReserveIds, OnReservePubSubConfigurationIds);
-            BindStandardMethod(file.CloseAndUpdate, OnCloseAndUpdatePubSubConfigurationFile);
+            BindConfigurationFile(file);
             diagnosticsNodeManager.AddNode(file);
 
             // The DataSetFolderType methods of PublishSubscribe.PublishedDataSets
@@ -316,6 +364,7 @@ namespace Opc.Ua.PubSub.Server
                     diagnosticsNodeManager.AddNode(method);
                 }
             }
+
         }
 
         /// <summary>
@@ -449,7 +498,7 @@ namespace Opc.Ua.PubSub.Server
                         }
                     ];
                 }
-                BindStandardMethod(addConn, MethodHandlers.OnAddConnection);
+                BindAsyncConfigurationMethod(addConn, OnConfigurationMutationAsync);
                 BindStandardMethod(removeConn, MethodHandlers.OnRemoveConnection);
                 BindPublishedDataSetFolderMethods(diagnosticsNodeManager);
             }
@@ -661,11 +710,13 @@ namespace Opc.Ua.PubSub.Server
                 }
             }
 
-            BaseObjectState configurationFile = CreateObject(
-                publishSubscribe,
-                new NodeId("pubsub:configuration", NamespaceIndexes[0]),
-                "PubSubConfiguration",
-                new NodeId(25482u));
+            var configurationFile = new PubSubConfigurationState(publishSubscribe);
+            configurationFile.Create(SystemContext, new NodeId("pubsub:configuration", NamespaceIndexes[0]),
+                new QualifiedName(BrowseNames.PubSubConfiguration),
+                new LocalizedText(BrowseNames.PubSubConfiguration), true);
+            publishSubscribe.AddChild(configurationFile);
+            configurationFile.AddMimeType(SystemContext);
+            AssignConfigurationFileInstanceIds(configurationFile);
             BindPubSubConfigurationFileMethods(configurationFile);
             newRoots.Add(configurationFile);
 
@@ -944,6 +995,9 @@ namespace Opc.Ua.PubSub.Server
             return new NodeId(14509u);
         }
 
+        /// <summary>
+        /// Binds an asynchronous status transition and reports the resulting runtime state.
+        /// </summary>
         private void AddStatusMethod(
             BaseObjectState status,
             string browseName,
@@ -960,17 +1014,20 @@ namespace Opc.Ua.PubSub.Server
                 DisplayName = new LocalizedText(browseName),
                 Executable = true,
                 UserExecutable = true,
-                OnCallMethod = (_, _, _, _) =>
+                OnCallMethod2Async = async (_, _, _, _, _, ct) =>
                 {
                     try
                     {
-                        ApplyStatusTransition(componentId, target, CancellationToken.None)
-                            .AsTask()
-                            .GetAwaiter()
-                            .GetResult();
-                        state.Value = Variant.From((int)target);
+                        ct.ThrowIfCancellationRequested();
+                        PubSubState actual = await ApplyStatusTransition(componentId, target, ct)
+                            .ConfigureAwait(false);
+                        state.Value = Variant.From((int)actual);
                         state.Timestamp = DateTime.UtcNow;
                         return ServiceResult.Good;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        return new ServiceResult(StatusCodes.BadRequestCancelledByClient);
                     }
                     catch (Exception ex)
                     {
@@ -982,245 +1039,21 @@ namespace Opc.Ua.PubSub.Server
             status.AddChild(method);
         }
 
-        private async ValueTask ApplyStatusTransition(
+        /// <summary>
+        /// Applies enablement or disablement without substituting the requested state for component health.
+        /// </summary>
+        private ValueTask<PubSubState> ApplyStatusTransition(
             NodeId componentId,
             PubSubState target,
             CancellationToken cancellationToken)
         {
-            if (target == PubSubState.PreOperational)
+            if (m_application is not IPubSubRuntimeControlApplication runtimeControl)
             {
-                await EnableComponentAsync(componentId, cancellationToken).ConfigureAwait(false);
-                return;
+                throw new NotSupportedException(
+                    "The PubSub application does not provide serialized runtime component control.");
             }
-
-            await DisableComponentAsync(componentId, cancellationToken).ConfigureAwait(false);
-        }
-
-        private async ValueTask EnableComponentAsync(NodeId componentId, CancellationToken cancellationToken)
-        {
-            if (TryGetConnection(componentId, out IPubSubConnection? connection))
-            {
-                await connection!.EnableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetWriterGroup(componentId, out WriterGroup? writerGroup))
-            {
-                await writerGroup!.EnableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetReaderGroup(componentId, out ReaderGroup? readerGroup))
-            {
-                await readerGroup!.EnableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetDataSetWriter(componentId, out IDataSetWriter? writer))
-            {
-                _ = writer!.State.TryEnable();
-                _ = writer.State.TryMarkOperational();
-                return;
-            }
-
-            if (TryGetDataSetReader(componentId, out IDataSetReader? reader))
-            {
-                _ = reader!.State.TryEnable();
-                _ = reader.State.TryMarkOperational();
-                return;
-            }
-
-            throw new ArgumentException("The specified PubSub component does not exist.", nameof(componentId));
-        }
-
-        private async ValueTask DisableComponentAsync(NodeId componentId, CancellationToken cancellationToken)
-        {
-            if (TryGetConnection(componentId, out IPubSubConnection? connection))
-            {
-                await connection!.DisableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetWriterGroup(componentId, out WriterGroup? writerGroup))
-            {
-                await writerGroup!.DisableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetReaderGroup(componentId, out ReaderGroup? readerGroup))
-            {
-                await readerGroup!.DisableAsync(cancellationToken).ConfigureAwait(false);
-                return;
-            }
-
-            if (TryGetDataSetWriter(componentId, out IDataSetWriter? writer))
-            {
-                _ = writer!.State.TryDisable();
-                return;
-            }
-
-            if (TryGetDataSetReader(componentId, out IDataSetReader? reader))
-            {
-                _ = reader!.State.TryDisable();
-                return;
-            }
-
-            throw new ArgumentException("The specified PubSub component does not exist.", nameof(componentId));
-        }
-
-        private bool TryGetConnection(NodeId componentId, out IPubSubConnection? connection)
-        {
-            string? id = componentId.IdentifierAsString;
-            const string prefix = "pubsub:connection:";
-            if (id is not null && id.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                string connectionName = id[prefix.Length..];
-                connection = m_application.Connections.FirstOrDefault(c =>
-                    StringComparer.Ordinal.Equals(c.Name, connectionName));
-                return connection is not null;
-            }
-
-            connection = null;
-            return false;
-        }
-
-        private bool TryGetWriterGroup(NodeId componentId, out WriterGroup? writerGroup)
-        {
-            string[] parts = SplitNodeId(componentId);
-            if (parts.Length == 4 &&
-                parts[0] == "pubsub" &&
-                parts[1] == "writer-group")
-            {
-                foreach (IPubSubConnection connection in m_application.Connections)
-                {
-                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
-                    {
-                        continue;
-                    }
-
-                    foreach (IWriterGroup group in connection.WriterGroups)
-                    {
-                        if (group is WriterGroup runtimeGroup &&
-                            StringComparer.Ordinal.Equals(runtimeGroup.Name, parts[3]))
-                        {
-                            writerGroup = runtimeGroup;
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            writerGroup = null;
-            return false;
-        }
-
-        private bool TryGetReaderGroup(NodeId componentId, out ReaderGroup? readerGroup)
-        {
-            string[] parts = SplitNodeId(componentId);
-            if (parts.Length == 4 &&
-                parts[0] == "pubsub" &&
-                parts[1] == "reader-group")
-            {
-                foreach (IPubSubConnection connection in m_application.Connections)
-                {
-                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
-                    {
-                        continue;
-                    }
-
-                    foreach (IReaderGroup group in connection.ReaderGroups)
-                    {
-                        if (group is ReaderGroup runtimeGroup &&
-                            StringComparer.Ordinal.Equals(runtimeGroup.Name, parts[3]))
-                        {
-                            readerGroup = runtimeGroup;
-                            return true;
-                        }
-                    }
-                }
-            }
-
-            readerGroup = null;
-            return false;
-        }
-
-        private bool TryGetDataSetWriter(NodeId componentId, out IDataSetWriter? writer)
-        {
-            string[] parts = SplitNodeId(componentId);
-            if (parts.Length == 5 &&
-                parts[0] == "pubsub" &&
-                parts[1] == "writer")
-            {
-                foreach (IPubSubConnection connection in m_application.Connections)
-                {
-                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
-                    {
-                        continue;
-                    }
-
-                    foreach (IWriterGroup group in connection.WriterGroups)
-                    {
-                        if (!StringComparer.Ordinal.Equals(group.Name, parts[3]))
-                        {
-                            continue;
-                        }
-
-                        foreach (IDataSetWriter candidate in group.DataSetWriters)
-                        {
-                            if (StringComparer.Ordinal.Equals(candidate.Name, parts[4]))
-                            {
-                                writer = candidate;
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            writer = null;
-            return false;
-        }
-
-        private bool TryGetDataSetReader(NodeId componentId, out IDataSetReader? reader)
-        {
-            string[] parts = SplitNodeId(componentId);
-            if (parts.Length == 5 &&
-                parts[0] == "pubsub" &&
-                parts[1] == "reader")
-            {
-                foreach (IPubSubConnection connection in m_application.Connections)
-                {
-                    if (!StringComparer.Ordinal.Equals(connection.Name, parts[2]))
-                    {
-                        continue;
-                    }
-
-                    foreach (IReaderGroup group in connection.ReaderGroups)
-                    {
-                        if (!StringComparer.Ordinal.Equals(group.Name, parts[3]))
-                        {
-                            continue;
-                        }
-
-                        foreach (IDataSetReader candidate in group.DataSetReaders)
-                        {
-                            if (StringComparer.Ordinal.Equals(candidate.Name, parts[4]))
-                            {
-                                reader = candidate;
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            reader = null;
-            return false;
-        }
-
-        private static string[] SplitNodeId(NodeId componentId)
-        {
-            return componentId.IdentifierAsString?.Split(':') ?? [];
+            return runtimeControl.SetComponentEnabledAsync(
+                componentId, target == PubSubState.PreOperational, cancellationToken);
         }
 
         private NodeId CreateSecurityGroupNodeId(string securityGroupId)
@@ -1310,9 +1143,12 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindConnectionMethods(BaseObjectState connectionNode)
         {
-            AddInjectedMethod(connectionNode, "AddWriterGroup", MethodHandlers.OnAddWriterGroup, connectionNode.NodeId);
-            AddInjectedMethod(connectionNode, "AddReaderGroup", MethodHandlers.OnAddReaderGroup, connectionNode.NodeId);
-            AddPlainMethod(connectionNode, "RemoveGroup", MethodHandlers.OnRemoveGroup);
+            AddAsyncConfigurationMethod(connectionNode, "AddWriterGroup",
+                new PubSubConnectionTypeAddWriterGroupMethodState(connectionNode), OnConfigurationMutationAsync);
+            AddAsyncConfigurationMethod(connectionNode, BrowseNames.AddReaderGroup,
+                new PubSubConnectionAddReaderGroupGroupMethodState(connectionNode), OnConfigurationMutationAsync);
+            AddAsyncConfigurationMethod(connectionNode, BrowseNames.RemoveGroup,
+                new PubSubConnectionTypeRemoveGroupMethodState(connectionNode), OnConfigurationRemovalAsync);
         }
 
         private void BindDataSetFolderMethods(BaseObjectState folderNode)
@@ -1331,16 +1167,11 @@ namespace Opc.Ua.PubSub.Server
             AddPlainMethod(dataSetNode, "RemoveVariables", MethodHandlers.OnRemoveVariables);
         }
 
-        private void BindPubSubConfigurationFileMethods(BaseObjectState fileNode)
+        private void BindPubSubConfigurationFileMethods(PubSubConfigurationState fileNode)
         {
-            AddPlainMethod(fileNode, "SetConfiguration", MethodHandlers.OnSetConfiguration);
+            AddVendorSetConfigurationMethod(fileNode);
             AddPlainMethod(fileNode, "GetConfiguration", MethodHandlers.OnGetConfiguration);
-            AddPlainMethod(fileNode, "Open", OnOpenPubSubConfigurationFile);
-            AddPlainMethod(fileNode, "Read", OnReadPubSubConfigurationFile);
-            AddPlainMethod(fileNode, "Write", OnWritePubSubConfigurationFile);
-            AddPlainMethod(fileNode, "Close", OnClosePubSubConfigurationFile);
-            AddPlainMethod(fileNode, "ReserveIds", OnReservePubSubConfigurationIds);
-            AddPlainMethod(fileNode, "CloseAndUpdate", OnCloseAndUpdatePubSubConfigurationFile);
+            BindConfigurationFile(fileNode);
         }
 
         private void BindSecurityGroupMethods(BaseObjectState securityGroupNode)
@@ -1360,35 +1191,18 @@ namespace Opc.Ua.PubSub.Server
 
         private void BindWriterGroupMethods(BaseObjectState writerGroupNode)
         {
-            AddInjectedMethod(
-                writerGroupNode, "AddDataSetWriter", MethodHandlers.OnAddDataSetWriter, writerGroupNode.NodeId);
-            AddPlainMethod(writerGroupNode, "RemoveDataSetWriter", MethodHandlers.OnRemoveDataSetWriter);
+            AddAsyncConfigurationMethod(writerGroupNode, "AddDataSetWriter",
+                new PubSubGroupTypeAddWriterMethodState(writerGroupNode), OnConfigurationMutationAsync);
+            AddAsyncConfigurationMethod(writerGroupNode, BrowseNames.RemoveDataSetWriter,
+                new PubSubGroupTypeRemoveWriterMethodState(writerGroupNode), OnConfigurationRemovalAsync);
         }
 
         private void BindReaderGroupMethods(BaseObjectState readerGroupNode)
         {
-            AddInjectedMethod(
-                readerGroupNode, "AddDataSetReader", MethodHandlers.OnAddDataSetReader, readerGroupNode.NodeId);
-            AddPlainMethod(readerGroupNode, "RemoveDataSetReader", MethodHandlers.OnRemoveDataSetReader);
-        }
-
-        private static void AddInjectedMethod(
-            BaseObjectState parent,
-            string browseName,
-            GenericMethodCalledEventHandler handler,
-            NodeId ownerNodeId)
-        {
-            AddMethod(parent, browseName, (context, method, inputs, outputs) =>
-            {
-                var injectedValues = new Variant[inputs.Count + 1];
-                injectedValues[0] = Variant.From(ownerNodeId);
-                for (int i = 0; i < inputs.Count; i++)
-                {
-                    injectedValues[i + 1] = inputs[i];
-                }
-                var injected = new ArrayOf<Variant>(injectedValues);
-                return handler(context, method, injected, outputs);
-            });
+            AddAsyncConfigurationMethod(readerGroupNode, BrowseNames.AddDataSetReader,
+                new PubSubGroupTypeAddReaderMethodState(readerGroupNode), OnConfigurationMutationAsync);
+            AddAsyncConfigurationMethod(readerGroupNode, BrowseNames.RemoveDataSetReader,
+                new PubSubGroupTypeRemoveReaderMethodState(readerGroupNode), OnConfigurationRemovalAsync);
         }
 
         private static void AddPlainMethod(
@@ -1478,7 +1292,6 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             if (inputArguments.Count < 6 ||
                 !inputArguments[0].TryGetValue(out string? applicationUri) ||
@@ -1714,31 +1527,6 @@ namespace Opc.Ua.PubSub.Server
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnReservePubSubConfigurationIds(
-            ISystemContext context,
-            MethodState method,
-            ArrayOf<Variant> inputArguments,
-            List<Variant> outputArguments)
-        {
-            _ = context;
-            _ = method;
-            if (inputArguments.Count < 3 ||
-                !inputArguments[1].TryGetValue(out ushort writerGroupCount) ||
-                !inputArguments[2].TryGetValue(out ushort dataSetWriterCount))
-            {
-                return new ServiceResult(StatusCodes.BadInvalidArgument);
-            }
-            outputArguments.Add(Variant.Null);
-            if (!TryReserveIds(writerGroupCount, out ArrayOf<uint> writerGroupIds) ||
-                !TryReserveIds(dataSetWriterCount, out ArrayOf<uint> dataSetWriterIds))
-            {
-                return new ServiceResult(StatusCodes.BadInvalidState);
-            }
-            outputArguments.Add(Variant.From(writerGroupIds));
-            outputArguments.Add(Variant.From(dataSetWriterIds));
-            return ServiceResult.Good;
-        }
-
         private ServiceResult OnOpenPubSubConfigurationFile(
             ISystemContext context,
             MethodState method,
@@ -1752,17 +1540,11 @@ namespace Opc.Ua.PubSub.Server
             {
                 _ = inputArguments[0].TryGetValue(out mode);
             }
-            byte[] buffer = IsWriteMode(mode) ? [] : EncodeConfiguration(m_application.GetConfiguration());
             if (!TryAllocateFileHandle(out uint handle))
             {
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
-            lock (m_addressSpaceGate)
-            {
-                m_fileHandles[handle] = new PubSubConfigurationFileHandle(IsWriteMode(mode), buffer);
-            }
-            outputArguments.Add(Variant.From(handle));
-            return ServiceResult.Good;
+            return OpenConfigurationFile(context, mode, handle, outputArguments);
         }
 
         private ServiceResult OnReadPubSubConfigurationFile(
@@ -1771,21 +1553,27 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             if (inputArguments.Count < 2 ||
                 !inputArguments[0].TryGetValue(out uint handle) ||
-                !inputArguments[1].TryGetValue(out int length))
+                !inputArguments[1].TryGetValue(out int length) || length < 0)
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            PubSubConfigurationFileHandle? file = GetFileHandle(handle);
-            if (file is null)
+            lock (m_addressSpaceGate)
             {
-                return new ServiceResult(StatusCodes.BadInvalidArgument);
+                ServiceResult access = GetConfigurationFile(context, handle, out PubSubConfigurationFileHandle? file);
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
+                if (!file!.Readable)
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidState);
+                }
+                outputArguments.Add(Variant.From(ByteString.From(file.Read(length))));
+                return ServiceResult.Good;
             }
-            outputArguments.Add(Variant.From(ByteString.From(file.Read(length))));
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnWritePubSubConfigurationFile(
@@ -1794,23 +1582,33 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             _ = outputArguments;
             if (inputArguments.Count < 2 ||
                 !inputArguments[0].TryGetValue(out uint handle) ||
-                !inputArguments[1].TryGetValue(out ArrayOf<byte> data) ||
+                !inputArguments[1].TryGetValue(out ByteString data) ||
                 data.IsNull)
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument);
             }
-            PubSubConfigurationFileHandle? file = GetFileHandle(handle);
-            if (file is null || !file.Writable)
+            lock (m_addressSpaceGate)
             {
-                return new ServiceResult(StatusCodes.BadInvalidState);
+                ServiceResult access = GetConfigurationFile(context, handle, out PubSubConfigurationFileHandle? file);
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
+                if (!file!.Writable)
+                {
+                    return new ServiceResult(StatusCodes.BadInvalidState);
+                }
+                if (data.Length > m_options.MaxConfigurationFileSize - file.Position)
+                {
+                    return new ServiceResult(StatusCodes.BadEncodingLimitsExceeded);
+                }
+                file.Write(data.Span);
+                return ServiceResult.Good;
             }
-            file.Write([.. data]);
-            return ServiceResult.Good;
         }
 
         private ServiceResult OnClosePubSubConfigurationFile(
@@ -1819,7 +1617,6 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
-            _ = context;
             _ = method;
             _ = outputArguments;
             if (inputArguments.Count < 1 || !inputArguments[0].TryGetValue(out uint handle))
@@ -1829,88 +1626,19 @@ namespace Opc.Ua.PubSub.Server
 
             lock (m_addressSpaceGate)
             {
+                ServiceResult access = GetConfigurationFile(context, handle, out _);
+                if (ServiceResult.IsBad(access))
+                {
+                    return access;
+                }
                 _ = m_fileHandles.Remove(handle, out _);
             }
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnCloseAndUpdatePubSubConfigurationFile(
-            ISystemContext context,
-            MethodState method,
-            ArrayOf<Variant> inputArguments,
-            List<Variant> outputArguments)
-        {
-            _ = context;
-            _ = method;
-            if (inputArguments.Count < 1 || !inputArguments[0].TryGetValue(out uint handle))
-            {
-                return new ServiceResult(StatusCodes.BadInvalidArgument);
-            }
-            PubSubConfigurationFileHandle? file;
-            lock (m_addressSpaceGate)
-            {
-                _ = m_fileHandles.Remove(handle, out file);
-            }
-            if (file is null)
-            {
-                return new ServiceResult(StatusCodes.BadInvalidArgument);
-            }
-            try
-            {
-                PubSubConfigurationDataType configuration = DecodeConfiguration(file.ToArray());
-                _ = m_application.ReplaceConfigurationAsync(configuration)
-                    .AsTask().GetAwaiter().GetResult();
-                outputArguments.Add(Variant.From(true));
-                outputArguments.Add(Variant.From(Array.Empty<StatusCode>()));
-                outputArguments.Add(Variant.From(Array.Empty<ExtensionObject>()));
-                outputArguments.Add(Variant.From(Array.Empty<NodeId>()));
-                return ServiceResult.Good;
-            }
-            catch (Exception ex)
-            {
-                m_logger.PubSubConfigurationCloseAndUpdateFailed(ex);
-                return new ServiceResult(StatusCodes.BadConfigurationError, new LocalizedText(ex.Message));
-            }
-        }
-
-        private PubSubConfigurationFileHandle? GetFileHandle(uint handle)
-        {
-            lock (m_addressSpaceGate)
-            {
-                return m_fileHandles.TryGetValue(handle, out PubSubConfigurationFileHandle? file) ? file : null;
-            }
-        }
-
-        private byte[] EncodeConfiguration(PubSubConfigurationDataType configuration)
-        {
-            using var stream = new MemoryStream();
-            UaPubSubConfigurationHelper.SaveConfiguration(configuration, stream, m_telemetry);
-            return stream.ToArray();
-        }
-
-        private PubSubConfigurationDataType DecodeConfiguration(byte[] payload)
-        {
-            using var stream = new MemoryStream(payload);
-            return UaPubSubConfigurationHelper.LoadConfiguration(stream, m_telemetry);
-        }
-
         private static bool IsWriteMode(byte mode)
         {
             return (mode & 0x2) != 0 || (mode & 0x4) != 0;
-        }
-
-        private bool TryReserveIds(ushort count, out ArrayOf<uint> ids)
-        {
-            ids = default;
-            ValueTask<ArrayOf<uint>> idTask =
-                m_idAllocator.ReserveIdsAsync(count, CancellationToken.None);
-            if (!idTask.IsCompletedSuccessfully)
-            {
-                return false;
-            }
-
-            ids = idTask.Result;
-            return true;
         }
 
         private bool TryAllocateFileHandle(out uint handle)
@@ -2095,51 +1823,91 @@ namespace Opc.Ua.PubSub.Server
             public SortedSet<string> SecurityGroupIds { get; } = new(StringComparer.Ordinal);
         }
 
+        /// <summary>
+        /// Retains one Session-owned configuration snapshot and its independent file position.
+        /// </summary>
         private sealed class PubSubConfigurationFileHandle
         {
-            private byte[] m_buffer;
-            private int m_position;
-            private int m_length;
-
-            public PubSubConfigurationFileHandle(bool writable, byte[] initialContent)
+            /// <summary>
+            /// Initializes a validated file mode and a private copy of the initial content.
+            /// </summary>
+            public PubSubConfigurationFileHandle(NodeId owner, byte mode, byte[] initialContent)
             {
-                Writable = writable;
+                Owner = owner;
+                Readable = (mode & 1) != 0;
+                Writable = IsWriteMode(mode);
                 m_buffer = [.. initialContent];
                 m_length = m_buffer.Length;
             }
 
+            /// <summary>
+            /// Gets the actual Session that owns the handle.
+            /// </summary>
+            public NodeId Owner { get; }
+
+            /// <summary>
+            /// Gets whether the handle permits reads.
+            /// </summary>
+            public bool Readable { get; }
+
+            /// <summary>
+            /// Gets whether the handle permits writes.
+            /// </summary>
             public bool Writable { get; }
 
+            /// <summary>
+            /// Gets or sets the position, clamped to the retained content.
+            /// </summary>
+            public int Position
+            {
+                get => m_position;
+                set => m_position = Math.Min(value, m_length);
+            }
+
+            /// <summary>
+            /// Reads at most the requested length and advances the position.
+            /// </summary>
             public byte[] Read(int length)
             {
-                if (length < 0)
-                {
-                    length = 0;
-                }
                 byte[] buffer = new byte[Math.Min(length, m_length - m_position)];
                 Array.Copy(m_buffer, m_position, buffer, 0, buffer.Length);
                 m_position += buffer.Length;
                 return buffer;
             }
 
-            public void Write(byte[] data)
+            /// <summary>
+            /// Writes data after the caller has enforced the byte budget.
+            /// </summary>
+            public void Write(ReadOnlySpan<byte> data)
             {
                 int requiredLength = m_position + data.Length;
                 if (requiredLength > m_buffer.Length)
                 {
                     Array.Resize(ref m_buffer, requiredLength);
                 }
-                Array.Copy(data, 0, m_buffer, m_position, data.Length);
+                data.CopyTo(m_buffer.AsSpan(m_position));
                 m_position += data.Length;
                 m_length = Math.Max(m_length, m_position);
             }
 
+            /// <summary>
+            /// Copies the written content for import independently of later handle removal.
+            /// </summary>
             public byte[] ToArray()
             {
                 byte[] result = new byte[m_length];
                 Array.Copy(m_buffer, 0, result, 0, result.Length);
                 return result;
             }
+
+            /// <summary>Retained file storage.</summary>
+            private byte[] m_buffer;
+
+            /// <summary>Current position within the content.</summary>
+            private int m_position;
+
+            /// <summary>Written content length, excluding unused capacity.</summary>
+            private int m_length;
         }
     }
 

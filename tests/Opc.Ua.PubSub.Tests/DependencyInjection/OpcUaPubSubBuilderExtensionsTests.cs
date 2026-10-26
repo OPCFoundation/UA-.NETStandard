@@ -58,6 +58,36 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
     [SetUICulture("en-us")]
     public class OpcUaPubSubBuilderExtensionsTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CommunicationIdProviderAndExplicitPolicyAreInjectedIntoBothApplicationBuildPaths(bool fluent)
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddLogging();
+            services.AddSingleton<IPubSubDefaultPublisherIdPolicy>(new PubSubDefaultPublisherIdPolicy(
+                [new PubSubDefaultPublisherId(Profiles.PubSubUdpUadpTransport, Variant.From(7UL))]));
+            IOpcUaBuilder builder = services.AddOpcUa();
+            if (fluent)
+            {
+                builder.AddPubSub(pubsub => pubsub.AddPublisher()
+                    .ConfigureApplication(app => app.WithApplicationId("reservation-di")));
+            }
+            else
+            {
+                builder.AddPubSub();
+            }
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var application = (IPubSubCommunicationIdApplication)provider.GetRequiredService<IPubSubApplication>();
+            Assert.That(application.CommunicationIds,
+                Is.SameAs(provider.GetRequiredService<IPubSubCommunicationIdReservations>()));
+            PubSubCommunicationIdReservation result = await application.ReserveCommunicationIdsAsync(
+                new NodeId(123u), Profiles.PubSubUdpUadpTransport, 1, 1).ConfigureAwait(false);
+            Assert.That(result.DefaultPublisherId, Is.EqualTo(Variant.From(7UL)));
+            Assert.That(result.WriterGroupIds[0], Is.EqualTo((ushort)0x8000));
+            Assert.That(result.DataSetWriterIds[0], Is.EqualTo((ushort)0x8000));
+        }
+
         [Test]
         public void AddPubSub_RegistersCoreServices()
         {

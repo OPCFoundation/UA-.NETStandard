@@ -355,6 +355,9 @@ Assumes a working single server and [stage 5](#5-prepare-for-production).
   discovery, readiness, and secrets. Read high availability first.
 - [PubSub high availability](PubSubHighAvailability.md) (preview package) —
   redundant publishers and subscribers. Assumes the PubSub path.
+- [PubSub communication-ID reservations](PubSubCommunicationIds.md) — typed,
+  Session-owned Part 14 reservations, configuration transactions, and outstanding
+  standard file-import prerequisites.
 
 ### Native AOT publishing
 

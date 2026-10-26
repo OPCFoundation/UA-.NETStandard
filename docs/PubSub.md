@@ -1708,10 +1708,21 @@ What the server side adds:
    `RemoveVariables`, `AddDataSetFolder`, and `RemoveDataSetFolder`. The
    folder methods are bound on the `PublishSubscribe.PublishedDataSets`
    instance and on every DataSet folder created through `AddDataSetFolder`.
-3. `PubSubConfigurationType` File import/export: clients can open/read the
-   current `PubSubConfigurationDataType` file or write a replacement file; the
-   server applies it through `ReplaceConfigurationAsync` and returns per-item
-   status codes.
+   Per-instance `Enable` and `Disable` await the runtime asynchronously and pass
+   through Call cancellation. A successful enable does not prove valid data
+   reception: a DataSetReader remains PreOperational until receiving a valid
+   DataSetMessage, and another enable Call does not clear an existing receive
+   timeout. The status value records the resulting runtime state, not the
+   requested transition.
+3. `PubSubConfigurationType` File import/export: clients can read the binary
+   `UABinaryFileDataType` containing `PubSubConfiguration2DataType`, or open the
+   file in Read + Write (`0x03`) / Write + EraseExisting (`0x06`) mode and call
+   `CloseAndUpdate` with explicit reference operations. The import applies only
+   referenced elements, preserves unreferenced configuration, reports per-reference
+   results, and supports complete or partial updates. Calling `Close` discards
+   uncommitted writes. The MCP configuration-import tool selects Add or Update
+   references by element identity and retains elements omitted from the import;
+   it does not delete them or emulate server-side rollback.
 4. SKS Method bindings: `AddSecurityGroup`, `RemoveSecurityGroup`,
    `GetSecurityKeys`, `SetSecurityKeys`, `GetSecurityGroup`, `InvalidateKeys`,
    and `ForceKeyRotation`, protected by the server `RolePermissions`.
@@ -1734,9 +1745,10 @@ ArrayOf<Variant> outputArguments = await session.CallAsync(
     connectionNodeId,
     writerGroupConfiguration);
 
-// Export/import the active configuration through PubSubConfigurationType.
+// Export the active binary configuration through PubSubConfigurationType.
 await fileTransfer.ReadAsync(pubSubConfigurationFileNodeId, destinationStream);
-await fileTransfer.WriteAsync(pubSubConfigurationFileNodeId, replacementStream);
+// To modify it, open in Read + Write, update only referenced elements, then call
+// CloseAndUpdate(fileHandle, requireCompleteUpdate, configurationReferences).
 ```
 
 The `IPubSubServerBuilder` returned by `AddPubSub()` lets you
@@ -2142,7 +2154,11 @@ replaceable provider contracts with in-memory defaults:
 
 - `IPubSubConfigurationStore` persists the `PubSubConfigurationDataType` and
   per-`PublishedDataSet` `ConfigurationVersion`.
-- `IPubSubIdAllocator` allocates reserved ids and configuration-file handles.
+- `IPubSubIdAllocator` allocates transient configuration identifiers and configuration-file handles.
+- `IPubSubCommunicationIdReservations` coordinates typed, Session-owned WriterGroupId
+  and DataSetWriterId reservations with configuration persistence. See
+  [communication-ID reservations](PubSubCommunicationIds.md) for setup, Session
+  ownership, import behavior, and process-local versus HA provider limits.
 - `IPubSubRuntimeStateStore` stores component `PubSubState` values for
   connections, groups, writers, and readers.
 - `IPubSubSecurityKeyStore` stores SKS SecurityGroup key material and token ids.

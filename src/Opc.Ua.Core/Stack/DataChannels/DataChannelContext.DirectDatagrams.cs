@@ -21,6 +21,7 @@ namespace Opc.Ua.DataChannels
         private async ValueTask<bool> RegisterDirectDatagramReceiverAsync()
         {
             Task<bool> registered;
+            Task receiver;
             lock (m_gate)
             {
                 if (m_closed)
@@ -34,8 +35,14 @@ namespace Opc.Ua.DataChannels
                     m_directDatagramTask = Task.Run(() => ReceiveDirectDatagramsAsync(registration));
                 }
                 registered = m_directDatagramRegistered.Task;
+                receiver = m_directDatagramTask;
             }
-            return await registered.ConfigureAwait(false);
+            bool admitted = await registered.ConfigureAwait(false);
+            if (!admitted)
+            {
+                await receiver.ConfigureAwait(false);
+            }
+            return admitted;
         }
 
         /// <summary>

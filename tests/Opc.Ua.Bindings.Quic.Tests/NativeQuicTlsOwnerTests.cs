@@ -621,6 +621,13 @@ namespace Opc.Ua.Bindings.Quic.Tests
             DataChannelProfiles.UadpAvApplicationPayload, TestName = "NativeUascStreamingAvOrdered")]
         [TestCase(true, DataChannelDeliveryMode.Datagram, DataChannelDirection.Duplex, true, false,
             DataChannelProfiles.UadpAvApplicationPayload, TestName = "NativeUascStreamingAvDatagram")]
+        [TestCase(true, DataChannelDeliveryMode.Ordered, DataChannelDirection.Duplex, false, false,
+            DataChannelProfiles.UadpPayload, true, TestName = "NativeUascMaximumDirectFlowRecord")]
+        [TestCase(true, DataChannelDeliveryMode.Ordered, DataChannelDirection.Duplex, false, true,
+            DataChannelProfiles.UadpPayload, true, TestName = "NativeQuicBaselineMaximumProtectedFlowRecord")]
+        [TestCase(true, DataChannelDeliveryMode.Ordered, DataChannelDirection.Duplex, true, true,
+            DataChannelProfiles.UadpPayload,
+            TestName = "NativeQuicServerOpenedBaselineFlowWithoutExporter")]
         [TestCase(true, DataChannelDeliveryMode.Ordered, DataChannelDirection.Duplex, false, true,
             DataChannelProfiles.UadpOpaqueApplicationPayload, TestName = "NativeUascStreamingManagedOpaqueBaseline")]
         [TestCase(true, DataChannelDeliveryMode.Ordered, DataChannelDirection.Duplex, false, true,
@@ -630,7 +637,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
         [SupportedOSPlatform("osx")]
         public async Task NativeUascBaselineCarriesServicesAndOptionalConfiguredFlow(
             bool enableFlows, DataChannelDeliveryMode delivery, DataChannelDirection direction, bool serverOpens,
-            bool useManagedClient = false, string protocol = DataChannelProfiles.UadpPayload)
+            bool useManagedClient = false, string protocol = DataChannelProfiles.UadpPayload,
+            bool maximumMessageSize = false)
         {
             if (!OperatingSystem.IsWindows() && !OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
             {
@@ -663,12 +671,20 @@ namespace Opc.Ua.Bindings.Quic.Tests
                         request.Parameters.Protocol == protocol
                             ? new DataChannelAuthorization(DataChannelResult.Good, request.Parameters)
                             : new DataChannelAuthorization(DataChannelResult.NotAuthorized)));
+            var flowOptions = maximumMessageSize
+                ? m_environment.Options with
+                {
+                    MaxMessageSize = 65536,
+                    MaxReceiveBytes = 131072,
+                    MaxContextBytes = 262144
+                }
+                : m_environment.Options;
             DataChannelContextFactory? clientFactory = enableFlows
-                ? new DataChannelContextFactory(authorizer.Object, m_environment.Options,
+                ? new DataChannelContextFactory(authorizer.Object, flowOptions,
                     m_environment.ClientBudget, TimeProvider.System, m_environment.Telemetry)
                 : null;
             DataChannelContextFactory? serverFactory = enableFlows
-                ? new DataChannelContextFactory(authorizer.Object, m_environment.Options,
+                ? new DataChannelContextFactory(authorizer.Object, flowOptions,
                     m_environment.ServerBudget, TimeProvider.System, m_environment.Telemetry)
                 : null;
             var endpoint = new EndpointDescription
@@ -789,6 +805,12 @@ namespace Opc.Ua.Bindings.Quic.Tests
                     _ => "application/opcua+uadp"
                 };
                 bool streaming = protocol != DataChannelProfiles.UadpPayload;
+                if (maximumMessageSize)
+                {
+                    Assert.That(streaming, Is.False);
+                    parameters.MaxMessageSize = 65536;
+                    parameters.MaxReceiveBytes = 131072;
+                }
                 if (streaming && useManagedClient)
                 {
                     DataChannelException? missingRoute = await Assert.ThrowsAsync<DataChannelException>(async () =>
@@ -819,6 +841,27 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 byte[] payload = streaming
                     ? [0x91, 0x82, 0x0c, 42, 0, 0, 0, 0, 0xff, 0x01, 0x7f]
                     : [0x91, 0x82, 0, 42, 0, 0, 0, 0x10, 0x20, 0, 0x40, 0xff];
+                if (maximumMessageSize)
+                {
+                    Array.Resize(ref payload, checked((int)source.Parameters.MaxMessageSize));
+                    for (int i = 12; i < payload.Length; i++)
+                    {
+                        payload[i] = (byte)(i % 251);
+                    }
+                    Assert.That(payload, Has.Length.EqualTo(source.Parameters.MaxMessageSize));
+                }
+                byte[] revisionPayload = maximumMessageSize
+                    ? [0x91, 0x82, 0, 42, 0, 0, 0, 0x10, 0x20, 0, 0x40, 0xff]
+                    : payload;
+                if (maximumMessageSize)
+                {
+                    byte[] oversizedPayload = [.. payload, 0];
+                    Assert.That(await sender.SendAsync(
+                        new ByteString(oversizedPayload), cancellationToken: timeout.Token).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.TooLarge));
+                    Assert.That(source.State, Is.EqualTo(DataChannelState.Open));
+                    Assert.That(sink.State, Is.EqualTo(DataChannelState.Open));
+                }
                 Assert.That(await sender.SendAsync(new ByteString(payload), cancellationToken: timeout.Token)
                     .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
                 using DataChannelMessage? received = await receiver.ReadAsync(timeout.Token).ConfigureAwait(false);
@@ -867,12 +910,12 @@ namespace Opc.Ua.Bindings.Quic.Tests
                         Assert.That(reverse!.Revision, Is.EqualTo(1u));
                     }
                 });
-                Assert.That(await sender.SendAsync(new ByteString(payload), cancellationToken: timeout.Token)
+                Assert.That(await sender.SendAsync(new ByteString(revisionPayload), cancellationToken: timeout.Token)
                     .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
                 using (DataChannelMessage? current = await receiver.ReadAsync(timeout.Token).ConfigureAwait(false))
                 {
                     Assert.That(current!.Revision, Is.EqualTo(2u));
-                    Assert.That(current.Payload.Span.ToArray(), Is.EqualTo(payload));
+                    Assert.That(current.Payload.Span.ToArray(), Is.EqualTo(revisionPayload));
                 }
                 Assert.That(await channel.SendRequestAsync(new ReadRequest
                 {
@@ -881,19 +924,21 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 }, timeout.Token).ConfigureAwait(false), Is.InstanceOf<ReadResponse>());
                 ulong chargedBytes = (ulong)(payload.Length +
                     (useManagedClient ? 0 : delivery == DataChannelDeliveryMode.Datagram ? 24 : 5));
+                ulong revisionChargedBytes = (ulong)(revisionPayload.Length +
+                    (useManagedClient ? 0 : delivery == DataChannelDeliveryMode.Datagram ? 24 : 5));
                 ulong reverseMessages = direction == DataChannelDirection.Duplex ? 1ul : 0ul;
                 DataChannelDiagnosticsDataType senderDiagnostics = sender.GetDiagnostics();
                 DataChannelDiagnosticsDataType receiverDiagnostics = receiver.GetDiagnostics();
                 Assert.Multiple(() =>
                 {
                     Assert.That(senderDiagnostics.MessagesSent, Is.EqualTo(2ul));
-                    Assert.That(senderDiagnostics.BytesSent, Is.EqualTo(2 * chargedBytes));
+                    Assert.That(senderDiagnostics.BytesSent, Is.EqualTo(chargedBytes + revisionChargedBytes));
                     Assert.That(senderDiagnostics.MessagesReceived, Is.EqualTo(reverseMessages));
                     Assert.That(senderDiagnostics.BytesReceived, Is.EqualTo(reverseMessages * chargedBytes));
                     Assert.That(receiverDiagnostics.MessagesSent, Is.EqualTo(reverseMessages));
                     Assert.That(receiverDiagnostics.BytesSent, Is.EqualTo(reverseMessages * chargedBytes));
                     Assert.That(receiverDiagnostics.MessagesReceived, Is.EqualTo(2ul));
-                    Assert.That(receiverDiagnostics.BytesReceived, Is.EqualTo(2 * chargedBytes));
+                    Assert.That(receiverDiagnostics.BytesReceived, Is.EqualTo(chargedBytes + revisionChargedBytes));
                 });
                 Assert.That(await sender.EndAsync(timeout.Token).ConfigureAwait(false),
                     Is.EqualTo(DataChannelResult.Good));

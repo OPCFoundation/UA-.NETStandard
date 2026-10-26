@@ -70,6 +70,184 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             return VerifyRuntimeAsync(carrier, DataChannelProfiles.UadpPayload, MessageSecurityMode.None);
         }
 
+        [TestCase(DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(DataChannelCarrierKind.SharedUasc)]
+        [TestCase(DataChannelCarrierKind.QuicUasc)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc)]
+        public async Task MultiwriterMessageSpanningResourcesIsNotPartiallyDelivered(
+            DataChannelCarrierKind carrier)
+        {
+            CancellationToken cancellationToken = TestContext.CurrentContext.CancellationToken;
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync(
+                carrier, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await using var publishingFlows = new DataChannelContextPubSubFlowProvider(core.Left, true);
+            await using var subscribingFlows = new DataChannelContextPubSubFlowProvider(core.Right, false);
+            var publishingFactory = new RecordingFactory(
+                new DataChannelPubSubTransportFactory(carrier, publishingFlows));
+            var subscribingFactory = new RecordingFactory(
+                new DataChannelPubSubTransportFactory(carrier, subscribingFlows));
+            var first = new CollectingSink();
+            var second = new CollectingSink();
+            var third = new CollectingSink();
+            var firstSource = new TestSource("TelemetryA", "alpha");
+            var secondSource = new TestSource("TelemetryB", "beta");
+            await using IPubSubApplication publisher = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(CreateCrossResourcePublisherConfiguration(carrier))
+                .UseAllStandardEncoders()
+                .AddTransportFactory(publishingFactory)
+                .AddDataSetSource("TelemetryA", firstSource)
+                .AddDataSetSource("TelemetryB", secondSource)
+                .Build();
+            await using IPubSubApplication subscriber = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(CreateCrossResourceSubscriberConfiguration(carrier))
+                .UseAllStandardEncoders()
+                .AddTransportFactory(subscribingFactory)
+                .AddSubscribedDataSetSink("ReaderA", first)
+                .AddSubscribedDataSetSink("ReaderB", second)
+                .AddSubscribedDataSetSink("ReaderC", third)
+                .Build();
+            await Task.WhenAll(
+                publisher.StartAsync(cancellationToken).AsTask(),
+                subscriber.StartAsync(cancellationToken).AsTask()).ConfigureAwait(false);
+            int prePublishMessageCount = publishingFactory.Transports.Values
+                .Sum(transport => transport.Sent.Count);
+            DataChannelResult[] prePublishResults = new DataChannelResult[prePublishMessageCount];
+            for (int i = 0; i < prePublishResults.Length; i++)
+            {
+                prePublishResults[i] = await core.LeftCarrier.DataResults.ReadAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            var writer = (WriterGroup)publisher.Connections[0].WriterGroups[0];
+            await writer.PublishOnceAsync(cancellationToken).ConfigureAwait(false);
+            DataChannelResult receiveResult = await core.LeftCarrier.DataResults.ReadAsync(cancellationToken)
+                .ConfigureAwait(false);
+            ByteString[] sent = [.. publishingFactory.Transports["PublisherFirst"].Sent];
+            ByteString[] crossResourceMessages = [.. sent.Where(IsTwoWriterGroupMessage)];
+            string headerSummary = string.Join(";", sent.Select(message =>
+                UadpDecoder.TryReadPrefix(message.Memory, out UadpPrefixInfo prefix)
+                    ? $"{prefix.WriterGroupId}:{prefix.PayloadCount}:{prefix.IsDataSetMessage}"
+                    : "invalid"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(prePublishResults, Is.All.EqualTo(DataChannelResult.Good),
+                    $"All configured writer metadata must be admitted before the data assertion; " +
+                    $"results: {string.Join(",", prePublishResults)}.");
+                Assert.That(crossResourceMessages, Has.Length.EqualTo(1),
+                    $"The input must be one two-writer NetworkMessage; emitted headers: {headerSummary}; " +
+                    $"pre-publish receive results: {string.Join(",", prePublishResults)}.");
+                Assert.That(firstSource.Samples, Is.EqualTo(1));
+                Assert.That(secondSource.Samples, Is.EqualTo(1));
+                Assert.That(first.Count, Is.Zero,
+                    "The writer mapped to the first resource must not be delivered on a cross-resource message.");
+                Assert.That(second.Count, Is.Zero,
+                    "The writer mapped to the second resource must not be delivered on a cross-resource message.");
+                Assert.That(third.Count, Is.Zero);
+                Assert.That(receiveResult, Is.EqualTo(DataChannelResult.UnknownChannel));
+                Assert.That(core.LeftCarrier.Failures.Concat(core.RightCarrier.Failures),
+                    Does.Contain(DataChannelResult.UnknownChannel));
+            });
+        }
+
+        [TestCase(DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(DataChannelCarrierKind.SharedUasc)]
+        [TestCase(DataChannelCarrierKind.QuicUasc)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc)]
+        public async Task DuplexPubSubAuthorizesPublisherIdsIndependentlyPerDirection(
+            DataChannelCarrierKind carrier)
+        {
+            CancellationToken cancellationToken = TestContext.CurrentContext.CancellationToken;
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync(
+                carrier, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await using var leftFlows = new DataChannelContextPubSubFlowProvider(core.Left, true);
+            await using var rightFlows = new DataChannelContextPubSubFlowProvider(core.Right, false);
+            var leftFactory = new RecordingFactory(new DataChannelPubSubTransportFactory(carrier, leftFlows));
+            var rightFactory = new RecordingFactory(new DataChannelPubSubTransportFactory(carrier, rightFlows));
+            var leftSink = new CollectingSink();
+            var rightSink = new CollectingSink();
+            var leftSource = new TestSource("TelemetryLeft", "left");
+            var rightSource = new TestSource("TelemetryRight", "right");
+            await using IPubSubApplication left = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(CreateDuplexConfiguration(
+                    carrier, 42, 42, 1001, 17, 43, 2001, "TelemetryLeft", "ReaderRight"))
+                .UseAllStandardEncoders()
+                .AddTransportFactory(leftFactory)
+                .AddDataSetSource("TelemetryLeft", leftSource)
+                .AddSubscribedDataSetSink("ReaderRight", leftSink)
+                .Build();
+            await using IPubSubApplication right = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(CreateDuplexConfiguration(
+                    carrier, 17, 43, 2001, 42, 42, 1001, "TelemetryRight", "ReaderLeft"))
+                .UseAllStandardEncoders()
+                .AddTransportFactory(rightFactory)
+                .AddDataSetSource("TelemetryRight", rightSource)
+                .AddSubscribedDataSetSink("ReaderLeft", rightSink)
+                .Build();
+            await Task.WhenAll(
+                left.StartAsync(cancellationToken).AsTask(),
+                right.StartAsync(cancellationToken).AsTask()).ConfigureAwait(false);
+
+            int leftStartupMessages = leftFactory.Transports.Values.Sum(transport => transport.Sent.Count);
+            int rightStartupMessages = rightFactory.Transports.Values.Sum(transport => transport.Sent.Count);
+            DataChannelResult[] leftStartupResults = new DataChannelResult[leftStartupMessages];
+            DataChannelResult[] rightStartupResults = new DataChannelResult[rightStartupMessages];
+            for (int i = 0; i < leftStartupResults.Length; i++)
+            {
+                leftStartupResults[i] = await core.LeftCarrier.DataResults.ReadAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            for (int i = 0; i < rightStartupResults.Length; i++)
+            {
+                rightStartupResults[i] = await core.RightCarrier.DataResults.ReadAsync(cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            var wrongDirectionMetadata = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromUInt32(17),
+                DataSetWriterId = 2001,
+                DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                DataSetMetaData = new TestSource("Unexpected", "ignored").BuildMetaData(),
+                StatusCode = StatusCodes.Good
+            };
+            await ((PubSubConnection)left.Connections[0]).SendMetaDataAnnouncementAsync(
+                wrongDirectionMetadata, null, cancellationToken).ConfigureAwait(false);
+            DataChannelResult refused = await core.LeftCarrier.DataResults.ReadAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            await Task.WhenAll(
+                ((WriterGroup)left.Connections[0].WriterGroups[0]).PublishOnceAsync(cancellationToken).AsTask(),
+                ((WriterGroup)right.Connections[0].WriterGroups[0]).PublishOnceAsync(cancellationToken).AsTask())
+                .ConfigureAwait(false);
+            ArrayOf<DataSetField> leftFields = await leftSink.First.WaitAsync(cancellationToken).ConfigureAwait(false);
+            ArrayOf<DataSetField> rightFields = await rightSink.First.WaitAsync(cancellationToken).ConfigureAwait(false);
+            DataChannelResult leftDelivery = await core.LeftCarrier.DataResults.ReadAsync(cancellationToken)
+                .ConfigureAwait(false);
+            DataChannelResult rightDelivery = await core.RightCarrier.DataResults.ReadAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(leftStartupResults, Is.All.EqualTo(DataChannelResult.Good));
+                Assert.That(rightStartupResults, Is.All.EqualTo(DataChannelResult.Good));
+                Assert.That(refused, Is.EqualTo(DataChannelResult.UnknownChannel),
+                    "The left-to-right flow must not borrow the right-to-left PublisherId association.");
+                Assert.That(leftDelivery, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(rightDelivery, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(leftFields[1].Value, Is.EqualTo(new Variant("right \u03a9")),
+                    "The left reader accepts the PublisherId configured for the reverse direction.");
+                Assert.That(rightFields[1].Value, Is.EqualTo(new Variant("left \u03a9")),
+                    "The right reader accepts the PublisherId configured for the forward direction.");
+                Assert.That(leftSink.Count, Is.EqualTo(1));
+                Assert.That(rightSink.Count, Is.EqualTo(1));
+                Assert.That(leftSource.Samples, Is.EqualTo(1));
+                Assert.That(rightSource.Samples, Is.EqualTo(1));
+                Assert.That(core.LeftCarrier.Failures, Does.Contain(DataChannelResult.UnknownChannel));
+                Assert.That(core.RightCarrier.Failures, Is.Empty);
+            });
+        }
+
         [TestCase(MessageSecurityMode.Sign)]
         [TestCase(MessageSecurityMode.SignAndEncrypt)]
         public Task ExistingPart14MessageSecurityWorksOnCarrierProtectedFlowsWithoutABroker(MessageSecurityMode mode)
@@ -555,6 +733,120 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 .Build();
         }
 
+        private static PubSubConfigurationDataType CreateCrossResourcePublisherConfiguration(
+            DataChannelCarrierKind carrier)
+        {
+            return PubSubConfigurationBuilder.Create()
+                .AddPublishedDataSet("TelemetryA", AddFields)
+                .AddPublishedDataSet("TelemetryB", AddFields)
+                .AddConnection("PublisherFirst", connection => connection
+                    .WithPublisherId(new Variant(PublisherName))
+                    .WithDataChannel(carrier, DataChannelPubSubConfigurationTests.CreateParameters(
+                        resource: "urn:test:pubsub:first"))
+                    .AddWriterGroup("Group42", group => group
+                        .WithWriterGroupId(42)
+                        .WithPublishingInterval(3600000)
+                        .WithMessageSettings(new UadpWriterGroupMessageDataType
+                        {
+                            GroupVersion = 5,
+                            NetworkMessageContentMask = (uint)(
+                                UadpNetworkMessageContentMask.PublisherId |
+                                UadpNetworkMessageContentMask.GroupHeader |
+                                UadpNetworkMessageContentMask.WriterGroupId |
+                                UadpNetworkMessageContentMask.GroupVersion |
+                                UadpNetworkMessageContentMask.SequenceNumber |
+                                UadpNetworkMessageContentMask.NetworkMessageNumber |
+                                UadpNetworkMessageContentMask.Timestamp |
+                                UadpNetworkMessageContentMask.PayloadHeader)
+                        })
+                        .AddDataSetWriter("WriterA", writer => ConfigureWriter(writer, "TelemetryA", 1001, false))
+                        .AddDataSetWriter("WriterB", writer => ConfigureWriter(writer, "TelemetryB", 1002, false))))
+                .AddConnection("PublisherSecond", connection => connection
+                    .WithPublisherId(new Variant(PublisherName))
+                    .WithDataChannel(carrier, DataChannelPubSubConfigurationTests.CreateParameters(
+                        resource: "urn:test:pubsub:second"))
+                    .AddWriterGroup("Group43", group => group
+                        .WithWriterGroupId(43)
+                        .WithPublishingInterval(3600000)
+                        .WithMessageSettings(new UadpWriterGroupMessageDataType
+                        {
+                            GroupVersion = 5,
+                            NetworkMessageContentMask = (uint)(
+                                UadpNetworkMessageContentMask.PublisherId |
+                                UadpNetworkMessageContentMask.GroupHeader |
+                                UadpNetworkMessageContentMask.WriterGroupId |
+                                UadpNetworkMessageContentMask.GroupVersion |
+                                UadpNetworkMessageContentMask.SequenceNumber |
+                                UadpNetworkMessageContentMask.NetworkMessageNumber |
+                                UadpNetworkMessageContentMask.Timestamp |
+                                UadpNetworkMessageContentMask.PayloadHeader)
+                        })
+                        .AddDataSetWriter("WriterC", writer => ConfigureWriter(writer, "TelemetryA", 1003, false))))
+                .Build();
+        }
+
+        private static PubSubConfigurationDataType CreateCrossResourceSubscriberConfiguration(
+            DataChannelCarrierKind carrier)
+        {
+            return PubSubConfigurationBuilder.Create()
+                .AddConnection("SubscriberFirst", connection => connection
+                    .WithDataChannel(carrier, DataChannelPubSubConfigurationTests.CreateParameters(
+                        resource: "urn:test:pubsub:first"))
+                    .AddReaderGroup("ReadersFirst", group => group
+                        .AddDataSetReader("ReaderA", reader => ConfigureReader(reader, "SeedA", 1001))))
+                .AddConnection("SubscriberSecond", connection => connection
+                    .WithDataChannel(carrier, DataChannelPubSubConfigurationTests.CreateParameters(
+                        resource: "urn:test:pubsub:second"))
+                    .AddReaderGroup("ReadersSecond", group => group
+                        .AddDataSetReader("ReaderB", reader => ConfigureReader(reader, "SeedB", 1002))
+                        .AddDataSetReader("ReaderC", reader => ConfigureReader(reader, "SeedC", 1003))))
+                .Build();
+        }
+
+        private static PubSubConfigurationDataType CreateDuplexConfiguration(
+            DataChannelCarrierKind carrier,
+            uint publisherId,
+            ushort writerGroupId,
+            ushort writerId,
+            uint readerPublisherId,
+            ushort readerWriterGroupId,
+            ushort readerWriterId,
+            string dataSetName,
+            string readerName)
+        {
+            string seedName = $"{readerName}Seed";
+            DataChannelParametersDataType parameters = DataChannelPubSubConfigurationTests.CreateParameters(
+                resource: "urn:test:pubsub:duplex");
+            parameters.Direction = DataChannelDirection.Duplex;
+            return PubSubConfigurationBuilder.Create()
+                .AddPublishedDataSet(dataSetName, AddFields)
+                .AddConnection($"Duplex{publisherId}", connection => connection
+                    .WithPublisherId(new Variant(publisherId))
+                    .WithDataChannel(carrier, parameters)
+                    .AddWriterGroup($"WriterGroup{writerGroupId}", group => group
+                        .WithWriterGroupId(writerGroupId)
+                        .WithPublishingInterval(3600000)
+                        .WithMessageSettings(new UadpWriterGroupMessageDataType
+                        {
+                            GroupVersion = 5,
+                            NetworkMessageContentMask = (uint)(
+                                UadpNetworkMessageContentMask.PublisherId |
+                                UadpNetworkMessageContentMask.GroupHeader |
+                                UadpNetworkMessageContentMask.WriterGroupId |
+                                UadpNetworkMessageContentMask.GroupVersion |
+                                UadpNetworkMessageContentMask.SequenceNumber |
+                                UadpNetworkMessageContentMask.NetworkMessageNumber |
+                                UadpNetworkMessageContentMask.Timestamp |
+                                UadpNetworkMessageContentMask.PayloadHeader)
+                        })
+                        .AddDataSetWriter($"Writer{writerId}",
+                            writer => ConfigureWriter(writer, dataSetName, writerId, false)))
+                    .AddReaderGroup($"ReaderGroup{readerWriterGroupId}", group =>
+                        group.AddDataSetReader(readerName, reader => ConfigureReader(
+                            reader, seedName, readerWriterId, new Variant(readerPublisherId), readerWriterGroupId))))
+                .Build();
+        }
+
         private static void ConfigureWriter(DataSetWriterBuilder writer, string dataSet, ushort id, bool json)
         {
             writer.WithDataSetWriterId(id).WithDataSetName(dataSet).WithKeyFrameCount(1)
@@ -582,7 +874,17 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
         private static void ConfigureReader(DataSetReaderBuilder reader, string seedName, ushort writerId)
         {
-            reader.WithFilter(new Variant(PublisherName), 42, writerId)
+            ConfigureReader(reader, seedName, writerId, new Variant(PublisherName), 42);
+        }
+
+        private static void ConfigureReader(
+            DataSetReaderBuilder reader,
+            string seedName,
+            ushort writerId,
+            Variant publisherId,
+            ushort writerGroupId)
+        {
+            reader.WithFilter(publisherId, writerGroupId, writerId)
                 .WithMessageReceiveTimeout(60000)
                 .WithMirrorSubscribedDataSet(seedName)
                 .WithDataSetMetaData(seedName, metadata =>
@@ -638,6 +940,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         {
                 return UadpDecoder.TryReadPrefix(networkMessage.Memory, out UadpPrefixInfo prefix) &&
                     prefix.PublisherId == PublisherId.FromString("unexpected");
+        }
+
+        private static bool IsTwoWriterGroupMessage(ByteString networkMessage)
+        {
+            return UadpDecoder.TryReadPrefix(networkMessage.Memory, out UadpPrefixInfo prefix) &&
+                prefix.WriterGroupId == 42 && prefix.PayloadCount == 2;
         }
 
         private sealed class TestSource(string name, string label) : IPublishedDataSetSource
@@ -720,12 +1028,16 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
             public RecordingTransport? Transport { get; private set; }
 
+            public ConcurrentDictionary<string, RecordingTransport> Transports { get; } = new();
+
             public IPubSubTransport Create(
                 PubSubConnectionDataType connection,
                 ITelemetryContext telemetry,
                 TimeProvider timeProvider)
             {
                 Transport = new RecordingTransport(inner.Create(connection, telemetry, timeProvider));
+                Transports[connection.Name ??
+                    throw new InvalidOperationException("A recorded connection must have a name.")] = Transport;
                 return Transport;
             }
         }

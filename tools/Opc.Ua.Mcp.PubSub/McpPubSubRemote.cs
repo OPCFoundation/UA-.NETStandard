@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -224,6 +225,74 @@ namespace Opc.Ua.Mcp
                 throw new ServiceResultException(StatusCodes.BadDecodingError,
                     "The artifact is not a supported standard PubSub XML configuration.");
             }
+        }
+
+        /// <summary>
+        /// Decodes the standard binary-file envelope and maps its namespace table into the selected Session.
+        /// </summary>
+        internal static PubSubConfiguration2DataType DecodeBinary(byte[] bytes, ISession session)
+        {
+            try
+            {
+                using var probe = new BinaryDecoder(bytes, session.MessageContext);
+                ExtensionObject encoded = probe.ReadExtensionObject(null);
+                if (probe.Position != bytes.Length ||
+                    !encoded.TryGetValue(out UABinaryFileDataType? file) || file is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                        "The server file must contain one UABinaryFileDataType ExtensionObject.");
+                }
+                var namespaces = new NamespaceTable();
+                foreach (string uri in file.Namespaces)
+                {
+                    if (string.IsNullOrEmpty(uri) || namespaces.GetIndex(uri) >= 0 ||
+                        session.NamespaceUris.GetIndex(uri) < 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
+                            "The server file contains a duplicate or unknown namespace URI.");
+                    }
+                    namespaces.Append(uri);
+                }
+                using var decoder = new BinaryDecoder(bytes, session.MessageContext);
+                decoder.SetMappingTables(namespaces, null);
+                encoded = decoder.ReadExtensionObject(null);
+                if (!encoded.TryGetValue(out file) || file is null ||
+                    !file.Body.TryGetValue(out ExtensionObject body) ||
+                    !body.TryGetValue(out PubSubConfiguration2DataType? configuration) || configuration is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                        "The binary file Body must be PubSubConfiguration2DataType.");
+                }
+                return configuration;
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "The server did not return a supported standard PubSub binary configuration.");
+            }
+        }
+
+        /// <summary>
+        /// Encodes a sanitized configuration as the standard Part 5 binary-file ExtensionObject.
+        /// </summary>
+        internal static void EncodeBinary(
+            PubSubConfigurationDataType configuration, ISession session, Stream destination)
+        {
+            PubSubConfiguration2DataType body = configuration is PubSubConfiguration2DataType extended
+                ? (PubSubConfiguration2DataType)extended.Clone()
+                : new PubSubConfiguration2DataType
+                {
+                    Enabled = configuration.Enabled,
+                    Connections = configuration.Connections,
+                    PublishedDataSets = configuration.PublishedDataSets
+                };
+            var file = new UABinaryFileDataType
+            {
+                Namespaces = [.. session.NamespaceUris.ToArray().Skip(1)],
+                Body = Variant.From(new ExtensionObject(body))
+            };
+            using var encoder = new BinaryEncoder(destination, session.MessageContext, leaveOpen: true);
+            encoder.WriteExtensionObject(null, new ExtensionObject(file));
         }
     }
 }

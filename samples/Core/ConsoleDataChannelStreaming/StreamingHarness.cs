@@ -409,6 +409,17 @@ namespace ConsoleDataChannelStreaming
             {
                 throw new InvalidOperationException("The actual context pair is not authenticated and HELLO-ready.");
             }
+            if (uasc)
+            {
+                DataChannelContext receiverContext = m_options.ClientPublishes ? serverContext : clientContext;
+                IDisposable publisherRoute = receiverContext.RegisterUascPublisherRoute(
+                    resource, new Variant(1u), null, null, 3);
+                m_cleanup.Push(() =>
+                {
+                    publisherRoute.Dispose();
+                    return ValueTask.CompletedTask;
+                });
+            }
             Console.WriteLine($"LISTENING carrier={m_options.Carrier} port={Port} context={ContextId}");
             if (m_options.Shared || m_options.SessionAuthorization)
             {

@@ -230,6 +230,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             public ConcurrentQueue<DataChannelResult> Failures { get; } = new();
 
             /// <summary>
+            /// Gets the ordered results of complete application-data messages received from this carrier.
+            /// </summary>
+            public ChannelReader<DataChannelResult> DataResults => m_dataResults.Reader;
+
+            /// <summary>
             /// Gets or sets an explicit post-commit observation for owned-buffer lifetime tests.
             /// </summary>
             public TaskCompletionSource<bool>? DataCommitted { get; set; }
@@ -363,6 +368,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 {
                     await m_pump.ConfigureAwait(false);
                 }
+                m_dataResults.Writer.TryComplete();
                 m_stop.Dispose();
             }
 
@@ -396,6 +402,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                             result = await m_peer!.ReceiveStreamAsync(
                                 packet.StreamId, packet.Payload, cancellationToken: m_stop.Token).ConfigureAwait(false);
                         }
+                        if (packet.IsData)
+                        {
+                            await m_dataResults.Writer.WriteAsync(result, m_stop.Token).ConfigureAwait(false);
+                        }
                         if (result is not (DataChannelResult.Good or DataChannelResult.Closed))
                         {
                             Failures.Enqueue(result);
@@ -418,6 +428,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 bool IsData);
 
             private readonly Channel<Packet> m_records;
+            private readonly Channel<DataChannelResult> m_dataResults = Channel.CreateUnbounded<DataChannelResult>(
+                new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
             private readonly CancellationTokenSource m_stop = new();
             private readonly Lock m_gate = new();
             private readonly HashSet<ulong> m_streams = [];

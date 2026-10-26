@@ -487,6 +487,15 @@ direct-binding opcode 15 (binding proof), 16 (ASSOCIATE), and 17
 (ASSOCIATE-ACK). The selected direct runtime verifies exporter-derived
 proofs, confirms opaque direction tokens and gates payload admission on
 ASSOCIATE/ACK/READY. The managed QUIC baseline does not expose this capability.
+An exact duplicate binding request replays its recorded proof or STATUS outcome,
+without resolving the exporter again. A request-bound refusal remains final for
+that transaction even if exporter availability changes. Conflicting proofs or
+STATUS outcomes close the affected context; an unchanged Unsupported outcome
+leaves baseline Services and configured FLO available.
+When the transport initiator has no exporter provider or cannot produce
+exporter material, it sends a connection-scoped `STATUS(Unsupported)` over the
+protected UASC baseline. The acceptor records that result and may open a
+baseline FLO without waiting for an impossible direct proof.
 Implemented
 controls use OPC UA Binary Guid layout and strict length-prefixed UTF-8 strings;
 HELLO carries an exactly 32-byte challenge.
@@ -503,6 +512,9 @@ message types. Legacy native datagrams carry an external ChannelId and common re
 Authenticated direct datagrams instead carry a 16-byte UA Binary Guid token,
 UInt32 revision and UInt32 nonwrapping per-direction sequence before unchanged
 UADP. Their controls remain on protected baseline FLC, never in a datagram.
+A temporary direct datagram receiver registration failure is flow-scoped.
+The failed receive worker retires before returning the failure, so a later flow
+can retry registration on the same context without reusing a stale refusal.
 The runtime rejects malformed framing, noncanonical control values, invalid
 association/stream ownership and premature application data; applications do
 not implement a second parser.
@@ -658,12 +670,11 @@ or empty test run is not native acceptance.
   `WT-Browser`; browser support is not an optional conformance unit.
   Native interoperability alone cannot establish that facet's conformance.
   Direct delivery is an optional unit in both transport baseline facets.
-- **Mixed QUIC capability decline is incomplete.** Managed QUIC has no exporter
-  and preserves its separately selected Services/FLO baseline. A native server
-  opening a configured flow to a managed initiator still waits for binding
-  evidence that the initiator cannot produce. The pinned draft does not define
-  a pre-proof initiator decline exchange. This case remains failing; no private
-  HELLO field, fabricated proof or timeout-as-success fallback is implemented.
+- **Exporter-unavailable QUIC baseline fallback is implemented.** A managed
+  initiator explicitly declines optional direct binding with protected
+  `STATUS(Unsupported)`, allowing a native acceptor to open configured FLO.
+  The native server-opener case passes in the QUIC binding suite; a delayed
+  proof still times out rather than being treated as an unsupported exporter.
 - **Legacy native flow endpoints remain separate.** Their `opcua-flow/1` and
   `opc.wt` management protocols and optional Client/Server lane are not the
   Part 31/32 baseline profiles and are not a fallback for baseline negotiation.

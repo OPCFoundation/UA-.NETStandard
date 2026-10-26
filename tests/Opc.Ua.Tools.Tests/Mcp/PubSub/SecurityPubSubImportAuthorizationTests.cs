@@ -432,6 +432,12 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 Input = input;
                 var source = new McpPubSubDataSetSource(input, options, context.Remote.Context, context.Clock);
                 Model = McpPubSubConfiguration.Build(input, source.BuildMetaData());
+                using (var stream = new MemoryStream())
+                {
+                    McpPubSubRemote.EncodeBinary(
+                        new PubSubConfiguration2DataType(), context.Remote.Session.Object, stream);
+                    m_remoteConfiguration = stream.ToArray();
+                }
                 var network = new McpNetworkPolicy(
                     context.Services.GetRequiredService<IMcpOperationPolicy>(), rules, m_network, m_network);
                 Tools = new PubSubConfigurationTools(context.Sessions, options,
@@ -652,15 +658,29 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             }
 
             /// <summary>
-            /// Proves the exact uploaded artifact commits once through the generated standard method.
+            /// Proves the XML artifact is committed as a binary FileType payload exactly once.
             /// </summary>
             internal void AssertApplied(CallToolResult result)
             {
                 Assert.That(result.IsError, Is.False, RemoteModelTestSession.Payload(result).GetRawText());
                 Assert.That(Applied, Is.Not.Null);
-                Assert.That(m_uploaded.ToArray(), Is.EqualTo(m_artifact));
-                Assert.That(Context.Remote.Calls.Count(call => call.MethodId == MethodIds.FileType_Open),
-                    Is.EqualTo(1));
+                PubSubConfiguration2DataType uploaded =
+                    McpPubSubRemote.DecodeBinary(m_uploaded.ToArray(), Context.Remote.Session.Object);
+                Assert.That(uploaded.Connections.Count, Is.EqualTo(Model.Connections.Count));
+                if (Model.Connections.Count > 0)
+                {
+                    Assert.That(uploaded.Connections[0].Name, Is.EqualTo(Model.Connections[0].Name));
+                    Assert.That(uploaded.Connections[0].WriterGroups.Count,
+                        Is.EqualTo(Model.Connections[0].WriterGroups.Count));
+                    Assert.That(uploaded.Connections[0].ReaderGroups.Count,
+                        Is.EqualTo(Model.Connections[0].ReaderGroups.Count));
+                }
+                CallMethodRequest[] opens = Context.Remote.Calls
+                    .Where(call => call.MethodId == MethodIds.FileType_Open).ToArray();
+                Assert.That(opens, Has.Length.EqualTo(2));
+                Assert.That(opens.Select(call =>
+                    call.InputArguments[0].TryGetValue(out byte mode) ? mode : byte.MaxValue),
+                    Is.EqualTo(new byte[] { 1, 6 }));
                 Assert.That(Context.Remote.Calls.Count(
                     call => call.MethodId == MethodIds.PubSubConfigurationType_CloseAndUpdate), Is.EqualTo(1));
                 Assert.That(Context.Remote.Calls[^1].MethodId,
@@ -693,20 +713,45 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 if (request.MethodId == MethodIds.FileType_Open)
                 {
                     Assert.That(request.InputArguments[0].TryGetValue(out byte mode), Is.True);
-                    Assert.That(mode, Is.EqualTo(6));
+                    Assert.That(mode, Is.AnyOf((byte)1, (byte)6));
+                    Assert.That(m_open, Is.False);
+                    m_open = true;
+                    m_openMode = mode;
+                    m_readPosition = 0;
+                    if (mode == 6)
+                    {
+                        m_uploaded.SetLength(0);
+                    }
                     return Good(Variant.From(17u));
                 }
                 Assert.That(request.InputArguments[0].TryGetValue(out uint handle), Is.True);
                 Assert.That(handle, Is.EqualTo(17u));
+                Assert.That(m_open, Is.True);
+                if (request.MethodId == MethodIds.FileType_Read)
+                {
+                    Assert.That(m_openMode, Is.EqualTo(1));
+                    Assert.That(request.InputArguments[1].TryGetValue(out int requested), Is.True);
+                    int length = Math.Min(requested, m_remoteConfiguration.Length - m_readPosition);
+                    byte[] block = m_remoteConfiguration.AsSpan(m_readPosition, length).ToArray();
+                    m_readPosition += length;
+                    return Good(Variant.From(ByteString.From(block)));
+                }
+                if (request.MethodId == MethodIds.FileType_Close)
+                {
+                    m_open = false;
+                    return Good();
+                }
                 if (request.MethodId == MethodIds.FileType_Write)
                 {
+                    Assert.That(m_openMode, Is.EqualTo(6));
                     Assert.That(request.InputArguments[1].TryGetValue(out ByteString block), Is.True);
                     m_uploaded.Write(block.Span);
                     return Good();
                 }
                 Assert.That(request.MethodId, Is.EqualTo(MethodIds.PubSubConfigurationType_CloseAndUpdate));
-                m_uploaded.Position = 0;
-                Applied = UaPubSubConfigurationHelper.LoadConfiguration(m_uploaded, Context.Remote.Context.Telemetry);
+                Assert.That(m_openMode, Is.EqualTo(6));
+                Applied = McpPubSubRemote.DecodeBinary(m_uploaded.ToArray(), Context.Remote.Session.Object);
+                m_open = false;
                 return Good(Variant.From(true), Variant.From(ArrayOf<StatusCode>.Empty),
                     Variant.From(ArrayOf<ExtensionObject>.Empty), Variant.From(ArrayOf<NodeId>.Empty));
             }
@@ -732,6 +777,10 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             private const string Session = PubSubExpansionTestContext.SessionName;
             private readonly ForbiddenNetwork m_network = new();
             private readonly MemoryStream m_uploaded = new();
+            private byte[] m_remoteConfiguration = [];
+            private int m_readPosition;
+            private byte m_openMode;
+            private bool m_open;
             private byte[] m_artifact = [];
         }
 

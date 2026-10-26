@@ -48,6 +48,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
     /// </summary>
     internal sealed class FlowLoopback : IAsyncDisposable
     {
+        /// <summary>
+        /// Creates isolated endpoints with optional direct providers, telemetry and deterministic time.
+        /// </summary>
         internal FlowLoopback(
             DataChannelCarrierKind kind = DataChannelCarrierKind.SharedUasc,
             DataChannelOptions? options = null,
@@ -55,7 +58,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             FakeTimeProvider? clock = null,
             bool enableDirectBinding = false,
             bool enableDirectStreams = false,
-            bool enableDirectDatagrams = false)
+            bool enableDirectDatagrams = false,
+            Action<ILoggingBuilder>? configureLogging = null)
         {
             Clock = clock ?? new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
             Options = options ??
@@ -67,7 +71,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     MaxQueueMessages = 16,
                     MaxContextMessages = 128
                 };
-            m_telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.None));
+            m_telemetry = DefaultTelemetry.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.None);
+                configureLogging?.Invoke(builder);
+            });
             InitiatorBudget = initiatorBudget ?? new DataChannelApplicationBudget();
             AcceptorBudget = new DataChannelApplicationBudget();
             InitiatorPolicy = new TestFlowAuthorizer();

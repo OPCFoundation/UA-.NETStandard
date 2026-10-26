@@ -128,8 +128,11 @@ Conventions and requirements:
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
-- **Native Data Channel prerequisites.** The optional QUIC and WebTransport tests need their
-  verified native assets before execution. They do not use `System.Net.Quic` or `libmsquic`.
+- **Native Data Channel prerequisites.** The optional native QUIC and WebTransport tests need
+  their verified native assets before execution. The native Go QUIC backend does not use
+  `System.Net.Quic` or `libmsquic`. The QUIC binding also retains its managed
+  `QuicUascTransport` and managed-peer interoperability tests, which use `System.Net.Quic`;
+  those tests require the platform MsQuic library (`libmsquic` on Linux).
   Follow the source-build instructions in
   [`Native.QuicGo/NATIVE_ABI.md`](../src/Opc.Ua.Native.QuicGo/NATIVE_ABI.md) and
   [`Native.Http3/ABI.md`](../src/Opc.Ua.Native.Http3/ABI.md). The supported native test hosts

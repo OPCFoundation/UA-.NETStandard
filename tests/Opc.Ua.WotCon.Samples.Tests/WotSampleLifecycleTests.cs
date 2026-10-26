@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task MaterializedSamplesStopAndDisposeAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(15));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
 

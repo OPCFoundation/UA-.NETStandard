@@ -121,7 +121,7 @@ namespace Opc.Ua.Bindings.Quic.Tests
             using IDisposable serverRoute = serverContext.RegisterUascPublisherRoute(
                 NativeFlowTestEnvironment.ResourceUri, new Variant(42u));
             using IDisposable clientRoute = clientContext.RegisterUascPublisherRoute(
-                NativeFlowTestEnvironment.ResourceUri, new Variant(42u));
+                NativeFlowTestEnvironment.ResourceUri, new Variant(17u));
             await CheckFlowAsync(clientContext, serverContext, DataChannelDeliveryMode.Ordered).ConfigureAwait(false);
             await CheckFlowAsync(serverContext, clientContext, DataChannelDeliveryMode.Datagram).ConfigureAwait(false);
             await CheckFlowAsync(clientContext, serverContext, DataChannelDeliveryMode.Ordered,
@@ -178,7 +178,11 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 byte[] bytes = protocol == DataChannelProfiles.UadpPayload
                     ? [0x91, 0x82, 0, 42, 0, 0, 0, 0x10, 0x20, 0, 0x40, 0xff]
                     : [0x91, 0x82, 0x0c, 42, 0, 0, 0, 0, 0xff, 0x01, 0x7f];
+                bytes[3] = (byte)(ReferenceEquals(opener, clientContext) ? 42 : 17);
                 ByteString payload = new(bytes);
+                byte[] reverseBytes = [.. bytes];
+                reverseBytes[3] = (byte)(ReferenceEquals(acceptor, clientContext) ? 42 : 17);
+                ByteString reversePayload = new(reverseBytes);
                 Check(await source.SendAsync(payload, cancellationToken: timeout.Token).ConfigureAwait(false) ==
                     DataChannelResult.Good, checkPrefix + "ForwardSend");
                 using (DataChannelMessage? received = await sink.ReadAsync(timeout.Token).ConfigureAwait(false))
@@ -186,11 +190,11 @@ namespace Opc.Ua.Bindings.Quic.Tests
                     Check(received != null && received.Payload == payload && received.Revision == 1,
                         checkPrefix + "ExactForwardBytesAndRevision");
                 }
-                Check(await sink.SendAsync(payload, cancellationToken: timeout.Token).ConfigureAwait(false) ==
+                Check(await sink.SendAsync(reversePayload, cancellationToken: timeout.Token).ConfigureAwait(false) ==
                     DataChannelResult.Good, checkPrefix + "ReverseSend");
                 using (DataChannelMessage? received = await source.ReadAsync(timeout.Token).ConfigureAwait(false))
                 {
-                    Check(received != null && received.Payload == payload && received.Revision == 1,
+                    Check(received != null && received.Payload == reversePayload && received.Revision == 1,
                         checkPrefix + "ExactReverseBytesAndRevision");
                 }
                 DataChannelParametersDataType revised = source.Parameters;

@@ -38,6 +38,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Net.Security;
 using System.Net.WebSockets;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -73,8 +74,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
         [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.SharedUasc)]
-        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.QuicUasc)]
-        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.WebTransportUasc)]
 #if NET8_0_OR_GREATER
         [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
         [TestCase(CarrierTransport.KestrelTcp, DataChannelCarrierKind.DedicatedUasc)]
@@ -622,6 +621,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.SharedUasc)]
 #if NET8_0_OR_GREATER
         [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
 #endif
@@ -673,6 +674,89 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
 #if NET8_0_OR_GREATER
+        /// <summary>
+        /// A successful TLS transport cannot select a foreign QUIC application protocol.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        [SupportedOSPlatform("windows")]
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        public async Task ManagedQuicRejectsForeignAlpnBeforeCreatingUascContextAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+
+            await Assert.ThrowsAsync<AuthenticationException>(async () =>
+            {
+                await using QuicConnection connection = await harness.ConnectRawQuicClientAsync(
+                    new SslApplicationProtocol("foreign-uasc-protocol")).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ClientFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServerFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServiceRequests, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// An authenticated QUIC connection without stream zero is retired by the finite admission deadline.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        [SupportedOSPlatform("windows")]
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        public async Task ManagedQuicBaselineRequiresFirstStreamWithinDeadlineAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+            await using QuicConnection connection = await harness.ConnectRawQuicClientAsync(
+                new SslApplicationProtocol(DataChannelProfiles.UascQuicAlpn)).ConfigureAwait(false);
+
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await harness.WaitForQuicAcceptAsync().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ClientFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServerFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServiceRequests, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// The accepted baseline consumes the sole inbound bidirectional stream allowance.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        [SupportedOSPlatform("windows")]
+        [SupportedOSPlatform("linux")]
+        [SupportedOSPlatform("macos")]
+        public async Task ManagedQuicBaselineDoesNotAdmitAnAdditionalPeerStreamAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+            await using QuicConnection connection = await harness.ConnectRawQuicClientAsync(
+                new SslApplicationProtocol(DataChannelProfiles.UascQuicAlpn)).ConfigureAwait(false);
+            await using QuicStream baseline = await connection.OpenOutboundStreamAsync(
+                QuicStreamType.Bidirectional, harness.Token).ConfigureAwait(false);
+            await baseline.WriteAsync(new byte[] { 0x48 }, harness.Token).ConfigureAwait(false);
+            await harness.WaitForQuicAcceptAsync().ConfigureAwait(false);
+
+            using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+            {
+                await using QuicStream additional = await connection.OpenOutboundStreamAsync(
+                    QuicStreamType.Bidirectional, deadline.Token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(baseline.CanWrite, Is.True);
+        }
+
         /// <summary>
         /// A successful QUIC handshake cannot authorize a HEL naming another baseline endpoint.
         /// </summary>
@@ -2252,6 +2336,46 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     },
                     Token).ConfigureAwait(false);
             }
+
+            /// <summary>
+            /// Opens a raw QUIC connection with only the supplied ALPN for handshake-negative tests.
+            /// </summary>
+            [SupportedOSPlatform("windows")]
+            [SupportedOSPlatform("linux")]
+            [SupportedOSPlatform("macos")]
+            public async Task<QuicConnection> ConnectRawQuicClientAsync(SslApplicationProtocol protocol)
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                return await QuicConnection.ConnectAsync(new QuicClientConnectionOptions
+                {
+                    RemoteEndPoint = new DnsEndPoint(m_url.DnsSafeHost, m_url.Port),
+                    ClientAuthenticationOptions = new SslClientAuthenticationOptions
+                    {
+                        TargetHost = m_url.DnsSafeHost,
+                        ApplicationProtocols = [protocol],
+                        RemoteCertificateValidationCallback = (_, certificate, _, errors) =>
+                            certificate != null &&
+                            errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateChainErrors &&
+                            certificate.GetRawCertData().AsSpan().SequenceEqual(ServerCertificate.RawData)
+                    },
+                    DefaultCloseErrorCode = 0x100,
+                    DefaultStreamErrorCode = 0x100,
+                    IdleTimeout = TimeSpan.FromMinutes(1)
+                }, Token).ConfigureAwait(false);
+            }
+
+                /// <summary>
+                /// Waits for the external UASC listener to accept the QUIC baseline stream.
+                /// </summary>
+                public async Task WaitForQuicAcceptAsync()
+                {
+                    await (m_streamAccept ?? throw new InvalidOperationException(
+                        "The managed QUIC accept operation has not started."))
+                        .WaitAsync(Token).ConfigureAwait(false);
+                }
 #endif
 
             private async Task ConfigureCertificatesAsync(bool trustServer)

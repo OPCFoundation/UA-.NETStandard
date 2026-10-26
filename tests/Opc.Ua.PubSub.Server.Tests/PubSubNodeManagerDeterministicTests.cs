@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -93,9 +94,9 @@ namespace Opc.Ua.PubSub.Server.Tests
             BaseObjectState publishedDataSet = harness.Manager.FindPredefinedNode<BaseObjectState>(
                 new NodeId("pubsub:published-data-set:PDS1", ns));
             var addWriter = (MethodState)writerGroup.FindChild(
-                harness.Context, new QualifiedName("AddDataSetWriter", ns))!;
+                harness.Context, new QualifiedName("AddDataSetWriter"))!;
             var addReader = (MethodState)readerGroup.FindChild(
-                harness.Context, new QualifiedName("AddDataSetReader", ns))!;
+                harness.Context, new QualifiedName("AddDataSetReader"))!;
             var addVariables = (MethodState)publishedDataSet.FindChild(
                 harness.Context, new QualifiedName("AddVariables", ns))!;
             var publishedData = (BaseDataVariableState)publishedDataSet.FindChild(
@@ -204,16 +205,17 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        public async Task PubSubConfigurationFileCloseAndUpdate_WithInvalidInputs_ReturnsExpectedStatus()
+        public async Task PubSubConfigurationFileCloseAndUpdateRejectsMalformedBinaryFile()
         {
             using var harness = new Harness();
+            SetConfigurationSession(harness);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             MethodState open = FindConfigurationFileMethod(harness, "Open");
             MethodState write = FindConfigurationFileMethod(harness, "Write");
             MethodState closeAndUpdate = FindConfigurationFileMethod(harness, "CloseAndUpdate");
             var openOutputs = new List<Variant>();
-            open.OnCallMethod!(harness.Context, open, BuildArray(Variant.From((byte)2)), openOutputs);
+            open.OnCallMethod!(harness.Context, open, BuildArray(Variant.From((byte)6)), openOutputs);
             Assert.That(openOutputs[0].TryGetValue(out uint writeHandle), Is.True);
             write.OnCallMethod!(
                 harness.Context,
@@ -221,34 +223,41 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildArray(Variant.From(writeHandle), Variant.From(new ArrayOf<byte>(new byte[] { 0, 1, 2, 3, 4 }))),
                 []);
 
-            ServiceResult missingArguments = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(), []);
-            ServiceResult unknownHandle = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(9999u)), []);
-            ServiceResult corruptPayload = closeAndUpdate.OnCallMethod!(
-                harness.Context, closeAndUpdate, BuildArray(Variant.From(writeHandle)), []);
+            ServiceResult missingArguments = await closeAndUpdate.OnCallMethod2Async!(
+                harness.Context, closeAndUpdate, closeAndUpdate.Parent!.NodeId, BuildArray(), [], default)
+                .ConfigureAwait(false);
+            Variant references = Variant.From(new ArrayOf<ExtensionObject>(
+                new[] { new ExtensionObject(new PubSubConfigurationRefDataType()) }));
+            ServiceResult unknownHandle = await closeAndUpdate.OnCallMethod2Async!(
+                harness.Context, closeAndUpdate, closeAndUpdate.Parent.NodeId,
+                BuildArray(Variant.From(9999u), Variant.From(true), references), [], default).ConfigureAwait(false);
+            ServiceResult unsupportedUpdate = await closeAndUpdate.OnCallMethod2Async!(
+                harness.Context, closeAndUpdate, closeAndUpdate.Parent.NodeId,
+                BuildArray(Variant.From(writeHandle), Variant.From(true), references), [], default).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(missingArguments.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(unknownHandle.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
-                Assert.That(corruptPayload.StatusCode.Code, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(unsupportedUpdate.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             });
         }
 
         [Test]
-        public async Task PubSubConfigurationReserveIds_WithMissingArguments_ReturnsBadInvalidArgument()
+        public async Task PubSubConfigurationReserveIdsWithMissingArgumentsReturnsBadInvalidArgument()
         {
             using var harness = new Harness();
+            SetConfigurationSession(harness);
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             MethodState reserve = FindConfigurationFileMethod(harness, "ReserveIds");
 
-            ServiceResult result = reserve.OnCallMethod!(
+            ServiceResult result = await reserve.OnCallMethod2Async!(
                 harness.Context,
                 reserve,
+                reserve.Parent!.NodeId,
                 BuildArray(Variant.From(Profiles.PubSubUdpUadpTransport), Variant.From((ushort)1)),
-                []);
+                [], default).ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -516,7 +525,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        public async Task ConnectionStatusEnable_WhenTransportUnavailable_ReturnsBadInvalidState()
+        public async Task ConnectionStatusEnableWhenTransportUnavailableReturnsBadInvalidState()
         {
             using var harness = new Harness();
             await harness.Manager.CreateAddressSpaceAsync(
@@ -535,7 +544,9 @@ namespace Opc.Ua.PubSub.Server.Tests
                     "pubsub:connection:enable-conn:Status:Enable",
                     harness.Manager.AddressSpaceNamespaceIndex));
 
-            ServiceResult result = enable.OnCallMethod!(harness.Context, enable, BuildArray(), []);
+            ServiceResult result = await enable.OnCallMethod2Async!(
+                harness.Context, enable, enable.Parent!.NodeId, BuildArray(), [], CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -545,7 +556,7 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
-        public async Task ConnectionStatusDisable_ForExistingConnection_ReturnsGood()
+        public async Task ConnectionStatusDisableForExistingConnectionReturnsGood()
         {
             using var harness = new Harness();
             await harness.Manager.CreateAddressSpaceAsync(
@@ -564,13 +575,15 @@ namespace Opc.Ua.PubSub.Server.Tests
                     "pubsub:connection:disable-conn:Status:Disable",
                     harness.Manager.AddressSpaceNamespaceIndex));
 
-            ServiceResult result = disable.OnCallMethod!(harness.Context, disable, BuildArray(), []);
+            ServiceResult result = await disable.OnCallMethod2Async!(
+                harness.Context, disable, disable.Parent!.NodeId, BuildArray(), [], CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
-        public async Task ConnectionStatusEnable_ForRemovedComponent_ReturnsBadInvalidState()
+        public async Task ConnectionStatusEnableForRemovedComponentReturnsBadInvalidState()
         {
             using var harness = new Harness();
             await harness.Manager.CreateAddressSpaceAsync(
@@ -588,9 +601,12 @@ namespace Opc.Ua.PubSub.Server.Tests
                 new NodeId(
                     "pubsub:connection:removed-conn:Status:Enable",
                     harness.Manager.AddressSpaceNamespaceIndex));
+            NodeId objectId = enable.Parent!.NodeId;
             await harness.Application.RemoveConnectionAsync(connectionId).ConfigureAwait(false);
 
-            ServiceResult result = enable.OnCallMethod!(harness.Context, enable, BuildArray(), []);
+            ServiceResult result = await enable.OnCallMethod2Async!(
+                harness.Context, enable, objectId, BuildArray(), [], CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -623,7 +639,15 @@ namespace Opc.Ua.PubSub.Server.Tests
             ushort ns = harness.Manager.AddressSpaceNamespaceIndex;
             BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
                 new NodeId("pubsub:configuration", ns));
-            return (MethodState)fileNode.FindChild(harness.Context, new QualifiedName(browseName, ns))!;
+            return (MethodState)fileNode.FindChild(harness.Context, new QualifiedName(browseName))!;
+        }
+
+        private static void SetConfigurationSession(Harness harness)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(i => i.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_ConfigureAdmin]);
+            harness.Context.SessionId = new NodeId(123u);
+            harness.Context.UserIdentity = identity.Object;
         }
 
         private static Mock<IPubSubApplication> CreateRichApplicationMock()
@@ -699,7 +723,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 m_queueFactory = new MonitoredItemQueueFactory(telemetry);
                 MockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-                Context = new ServerSystemContext(MockServer.Object);
+                Context = new ServerSystemContext(MockServer.Object) { SessionId = new NodeId(123u) };
+                var identity = new Mock<IUserIdentity>();
+                identity.SetupGet(i => i.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_ConfigureAdmin]);
+                Context.UserIdentity = identity.Object;
                 MockServer.Setup(s => s.DefaultSystemContext).Returns(Context);
 
                 Configuration = new ApplicationConfiguration

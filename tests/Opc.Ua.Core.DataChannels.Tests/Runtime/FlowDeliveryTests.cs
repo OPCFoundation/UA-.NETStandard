@@ -536,6 +536,53 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
+        /// Each half of a duplex flow admits only the PublisherId configured by its receiving context.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(DataChannelCarrierKind.SharedUasc)]
+        public async Task DuplexFlowAuthorizesPublisherIdsIndependentlyPerDirection(DataChannelCarrierKind kind)
+        {
+            await using var pair = new FlowLoopback(kind);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:duplex"))
+                .ConfigureAwait(false);
+            using IDisposable openerPublisher = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:duplex", new Variant(42u));
+            using IDisposable acceptorPublisher = pair.Initiator.RegisterUascPublisherRoute(
+                "urn:publisher:duplex", new Variant(17u));
+            ByteString openerPayload = PublisherRoutePayload(new Variant(42u));
+            ByteString acceptorPayload = PublisherRoutePayload(new Variant(17u));
+
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Acceptor, openerPayload, flow.Remote).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(flow.Remote, openerPayload, 1).ConfigureAwait(false);
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Initiator, acceptorPayload, flow.Local).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(flow.Local, acceptorPayload, 1).ConfigureAwait(false);
+
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Acceptor, acceptorPayload, flow.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.UnknownChannel));
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Initiator, openerPayload, flow.Local).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.UnknownChannel));
+
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Acceptor, openerPayload, flow.Remote).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(flow.Remote, openerPayload, 2).ConfigureAwait(false);
+            Assert.That(await ReceivePublisherFloAsync(
+                pair.Initiator, acceptorPayload, flow.Local).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(flow.Local, acceptorPayload, 2).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Initiator.IsReady, Is.True);
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
         /// Routes an ordinary Part 14 DataSetMessage using its visible typed PublisherId.
         /// </summary>
         [Test]
@@ -1674,12 +1721,30 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             target ??= channels.IsEmpty ? null : channels[0];
             uint channelId = target?.ChannelId ?? 1;
             uint messageId = checked((uint)(target?.GetDiagnostics().MessagesReceived ?? 0) + 1);
+            return ReceivePublisherFloAsync(pair.Acceptor, channelId, messageId, payload);
+        }
+
+        private static ValueTask<DataChannelResult> ReceivePublisherFloAsync(
+            DataChannelContext receiver,
+            ByteString payload,
+            DataChannel target)
+        {
+            uint messageId = checked((uint)target.GetDiagnostics().MessagesReceived + 1);
+            return ReceivePublisherFloAsync(receiver, target.ChannelId, messageId, payload);
+        }
+
+        private static ValueTask<DataChannelResult> ReceivePublisherFloAsync(
+            DataChannelContext receiver,
+            uint channelId,
+            uint messageId,
+            ByteString payload)
+        {
             var record = new FlowRecord(FlowRecordKind.Data, 1, messageId, payload);
-            FlowCarrier carrier = pair.AcceptorCarrier.Kind == DataChannelCarrierKind.DedicatedUasc
+            FlowCarrier carrier = receiver.CarrierKind == DataChannelCarrierKind.DedicatedUasc
                 ? FlowCarrier.DedicatedUasc
                 : FlowCarrier.SharedUasc;
             ByteString body = UascFlowMessageCodec.Encode(carrier, channelId, in record, new(), out _);
-            return pair.Acceptor.ReceiveUascAsync(DataChannelUascMessageKind.Flo, (byte)'F', 0, body);
+            return receiver.ReceiveUascAsync(DataChannelUascMessageKind.Flo, (byte)'F', 0, body);
         }
 
         private static async Task AssertPublisherMessageAsync(DataChannel channel, ByteString payload, uint messageId)

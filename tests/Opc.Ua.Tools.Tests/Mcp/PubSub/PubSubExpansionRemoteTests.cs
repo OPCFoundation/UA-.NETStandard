@@ -243,6 +243,11 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(actual.Name, Is.EqualTo("RemoteConnection"));
             Assert.That(actual.PublisherId.TryGetValue(out ushort publisher), Is.True);
             Assert.That(publisher, Is.EqualTo(42));
+            Assert.That(actual.WriterGroups.Count, Is.EqualTo(1));
+            WriterGroupDataType expectedWriterGroup = actual.WriterGroups[0];
+            Assert.That(expectedWriterGroup.DataSetWriters.Count, Is.EqualTo(1));
+            string expectedWriterName = expectedWriterGroup.DataSetWriters[0].Name
+                ?? throw new InvalidOperationException("The imported DataSetWriter must have a name.");
 
             CallToolResult exported = await tools.ExportAsync("configuration.xml", "pubsub-live").ConfigureAwait(false);
             Assert.That(exported.IsError, Is.False, RemoteModelTestSession.Payload(exported).GetRawText());
@@ -251,16 +256,37 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(artifact.GetProperty("redactedItems").GetInt32(), Is.Zero);
             Assert.That(new FileInfo(Path.Combine(m_root, "configuration.xml")).Length, Is.GreaterThan(0));
 
+            CallToolResult removedBeforeImport = await tools.RemoveConnectionAsync(node, "pubsub-live")
+                .ConfigureAwait(false);
+            Assert.That(removedBeforeImport.IsError, Is.False,
+                RemoteModelTestSession.Payload(removedBeforeImport).GetRawText());
+            Assert.That(m_application.GetConfiguration().Connections, Is.Empty);
+
             CallToolResult imported = await tools.ImportAsync("configuration.xml", true, "pubsub-live")
                 .ConfigureAwait(false);
             Assert.That(imported.IsError, Is.False, RemoteModelTestSession.Payload(imported).GetRawText());
-            Assert.That(RemoteModelTestSession.Payload(imported)
-                .GetProperty("serverReportedChangesApplied").GetBoolean(),
-                Is.True);
-            Assert.That(m_application.GetConfiguration().Connections.ToList().Single().Name,
-                Is.EqualTo("RemoteConnection"));
+            JsonElement importResult = RemoteModelTestSession.Payload(imported);
+            Assert.That(importResult.GetProperty("serverReportedChangesApplied").GetBoolean(), Is.True);
+            PubSubConnectionDataType importedConnection = m_application.GetConfiguration().Connections.ToList().Single();
+            Assert.That(importedConnection.Name, Is.EqualTo("RemoteConnection"));
+            Assert.That(importedConnection.WriterGroups.Count, Is.EqualTo(1));
+            WriterGroupDataType importedWriterGroup = importedConnection.WriterGroups[0];
+            Assert.That(importedWriterGroup.Name, Is.EqualTo(expectedWriterGroup.Name));
+            Assert.That(importedWriterGroup.DataSetWriters.Count, Is.EqualTo(1));
+            Assert.That(importedWriterGroup.DataSetWriters[0].Name, Is.EqualTo(expectedWriterName));
 
-            CallToolResult removed = await tools.RemoveConnectionAsync(node, "pubsub-live").ConfigureAwait(false);
+            CallToolResult updated = await tools.ImportAsync("configuration.xml", true, "pubsub-live")
+                .ConfigureAwait(false);
+            Assert.That(updated.IsError, Is.False, RemoteModelTestSession.Payload(updated).GetRawText());
+            importedConnection = m_application.GetConfiguration().Connections.ToList().Single();
+            Assert.That(importedConnection.WriterGroups.Count, Is.EqualTo(1));
+            importedWriterGroup = importedConnection.WriterGroups[0];
+            Assert.That(importedWriterGroup.Name, Is.EqualTo(expectedWriterGroup.Name));
+            Assert.That(importedWriterGroup.DataSetWriters.Count, Is.EqualTo(1));
+            Assert.That(importedWriterGroup.DataSetWriters[0].Name, Is.EqualTo(expectedWriterName));
+
+            CallToolResult removed = await tools.RemoveConnectionAsync(node, "pubsub-live")
+                .ConfigureAwait(false);
             Assert.That(removed.IsError, Is.False, RemoteModelTestSession.Payload(removed).GetRawText());
             Assert.That(m_application.GetConfiguration().Connections, Is.Empty);
         }
