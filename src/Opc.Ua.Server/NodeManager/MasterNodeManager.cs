@@ -134,18 +134,21 @@ namespace Opc.Ua.Server
                 configurationAndDiagnosticsManager,
                 registeredManagers,
                 namespaceManagers);
+            m_configurationSlot =
+                NodeManagerGenerationRegistry.GetOrCreate(configurationAndDiagnosticsManager).Slot;
 
             // add the core node manager second because the diagnostics node manager takes priority.
             // always add the core node manager to the second of the list.
             ICoreNodeManager coreNodeManager = server.MainNodeManagerFactory.CreateCoreNodeManager((ushort)dynamicNamespaceIndex);
 
             m_nodeManagers.AddInitial(coreNodeManager);
+            m_coreSlot = NodeManagerGenerationRegistry.GetOrCreate(coreNodeManager).Slot;
 
             // register core node manager for default UA namespace.
-            namespaceManagers[0].Add(m_nodeManagers[1]);
+            namespaceManagers[0].Add(coreNodeManager);
 
             // register core node manager for built-in server namespace.
-            namespaceManagers[1].Add(m_nodeManagers[1]);
+            namespaceManagers[1].Add(coreNodeManager);
 
             // add the custom NodeManagers provided by the application.
             if (additionalManagers != null)
@@ -336,15 +339,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public ICoreNodeManager? CoreNodeManager => m_nodeManagers[1] as ICoreNodeManager;
+        public ICoreNodeManager? CoreNodeManager => m_coreSlot.Current?.NodeManager as ICoreNodeManager;
 
         /// <inheritdoc/>
         public IDiagnosticsNodeManager? DiagnosticsNodeManager
-            => m_nodeManagers[0] as IDiagnosticsNodeManager;
+            => m_configurationSlot.Current?.NodeManager as IDiagnosticsNodeManager;
 
         /// <inheritdoc/>
         public IConfigurationNodeManager? ConfigurationNodeManager
-            => m_nodeManagers[0] as IConfigurationNodeManager;
+            => m_configurationSlot.Current?.NodeManager as IConfigurationNodeManager;
 
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
@@ -1603,6 +1606,17 @@ namespace Opc.Ua.Server
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+
+        /// <summary>
+        /// Identifies the system configuration and diagnostics role across view changes.
+        /// </summary>
+        private readonly NodeManagerSlot m_configurationSlot;
+
+        /// <summary>
+        /// Identifies the core system role independently of manager enumeration order.
+        /// </summary>
+        private readonly NodeManagerSlot m_coreSlot;
+
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);
         private int m_shutdownCompletedNodeManagerCount;

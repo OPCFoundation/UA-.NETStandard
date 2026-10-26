@@ -246,6 +246,12 @@ At runtime, the same reference handling is used for lifecycle-managed managers. 
 
 `CoreNodeManager` is the always-present manager for the core address-space infrastructure. The default master-node-manager constructor registers it for namespace index 0 and for the built-in server namespace route, and it also uses it as the fallback when a namespace has no explicit route. `CoreNodeManager` derives from `AsyncCustomNodeManager`, implements `ICoreNodeManager`, and uses sampling groups for monitored items.
 
+The master identifies its core and configuration/diagnostics roles by their
+system slots, not by positions in the manager enumeration. Its typed accessors
+return the corresponding slot's current generation, or null when that slot is
+withdrawn. Configuration and diagnostics share a slot; diagnostics retains
+priority over core routing during initialization.
+
 `AsyncCustomNodeManager.Dispose()` stops admission to gate-backed operations and
 starts cleanup without blocking on outstanding work. `DisposeAsync()` also waits
 for admitted operations and semaphore owners to finish before releasing the
