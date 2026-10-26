@@ -890,7 +890,8 @@ A `UserName` token whose effective user token security policy is `None` is
 sent with the password in plain text. The client therefore refuses to open a
 session with such a token unless the channel itself is `SignAndEncrypt`; the
 open fails with `Bad_SecurityChecksFailed` before anything is sent to the
-server.
+server. `UpdateSessionAsync` applies the same check when it switches an open
+session to such a token, and so does a reconnect.
 
 Some legacy devices offer no encrypted `UserName` policy at all. To connect to
 them anyway, opt in on the client's security configuration:

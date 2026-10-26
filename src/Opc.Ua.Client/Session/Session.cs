@@ -2408,6 +2408,8 @@ namespace Opc.Ua.Client
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
+            EnsureUnencryptedUserNameTokenAllowed(identity, tokenSecurityPolicyUri);
+
             // validate the server certificate before encrypting tokens.
             if (m_serverCertificate != null &&
                 requireEncryption &&
@@ -4391,6 +4393,8 @@ namespace Opc.Ua.Client
                     tokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
                 }
 
+                EnsureUnencryptedUserNameTokenAllowed(m_identity, tokenSecurityPolicyUri);
+
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
                     m_serverNonce,
@@ -5851,25 +5855,7 @@ namespace Opc.Ua.Client
             string effectiveTokenPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
                 ? securityPolicyUri
                 : identityPolicy.SecurityPolicyUri!;
-            if (identity.TokenType == UserTokenType.UserName &&
-                effectiveTokenPolicyUri == SecurityPolicies.None &&
-                m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-            {
-                // The password would be sent in plain text. Legacy devices which offer
-                // no encrypted user token policy can be allowed explicitly through
-                // SecurityConfiguration.AllowUnencryptedUserNameTokens.
-                if (!m_configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "A UserName identity token without token encryption requires a SignAndEncrypt channel. " +
-                        "Set SecurityConfiguration.AllowUnencryptedUserNameTokens to allow sending the password in plain text.");
-                }
-
-                m_logger.SendingUnencryptedUserNameToken(
-                    m_endpoint.Description.SecurityMode,
-                    m_endpoint.EndpointUrl?.ToString());
-            }
+            EnsureUnencryptedUserNameTokenAllowed(identity, effectiveTokenPolicyUri);
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
 
@@ -5879,6 +5865,49 @@ namespace Opc.Ua.Client
                     identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
+        }
+
+        /// <summary>
+        /// Rejects a UserName identity token whose password would travel in
+        /// plain text, or logs a warning when the application opted in through
+        /// <see cref="SecurityConfiguration.AllowUnencryptedUserNameTokens"/>.
+        /// The password is unprotected when the effective user token security
+        /// policy is <see cref="SecurityPolicies.None"/> and the channel does
+        /// not encrypt either. Every path that submits an identity token calls
+        /// this before the token is encoded: the initial activation, a
+        /// re-activation with a changed identity and a reconnect.
+        /// </summary>
+        /// <param name="identity">The identity about to be activated.</param>
+        /// <param name="effectiveTokenPolicyUri">
+        /// The security policy the token is protected with, after an empty
+        /// user token policy was resolved to the channel security policy.
+        /// </param>
+        /// <exception cref="ServiceResultException"></exception>
+        private void EnsureUnencryptedUserNameTokenAllowed(
+            IUserIdentity identity,
+            string effectiveTokenPolicyUri)
+        {
+            if (identity.TokenType != UserTokenType.UserName ||
+                effectiveTokenPolicyUri != SecurityPolicies.None ||
+                m_endpoint.Description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                return;
+            }
+
+            // The password would be sent in plain text. Legacy devices which offer
+            // no encrypted user token policy can be allowed explicitly through
+            // SecurityConfiguration.AllowUnencryptedUserNameTokens.
+            if (!m_configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A UserName identity token without token encryption requires a SignAndEncrypt channel. " +
+                    "Set SecurityConfiguration.AllowUnencryptedUserNameTokens to allow sending the password in plain text.");
+            }
+
+            m_logger.SendingUnencryptedUserNameToken(
+                m_endpoint.Description.SecurityMode,
+                m_endpoint.EndpointUrl);
         }
 
         internal static IdentitySelectionContext CreateIdentitySelectionContext(
@@ -7696,6 +7725,6 @@ namespace Opc.Ua.Client
         public static partial void SendingUnencryptedUserNameToken(
             this ILogger logger,
             MessageSecurityMode securityMode,
-            string? endpointUrl);
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

@@ -185,7 +185,9 @@ A 1.5.x client sent a `UserName` token to any endpoint, including one whose
 user token security policy is `None`, where the password travels in plain
 text. A 2.0.x client refuses to open a session with such a token unless the
 channel is `SignAndEncrypt`. The open fails with `Bad_SecurityChecksFailed`
-before anything is sent to the server.
+before anything is sent to the server. `UpdateSessionAsync` applies the same
+check when it switches an open session to such a token, and so does a
+reconnect.
 
 Prefer an endpoint whose `UserName` policy encrypts the password. If a legacy
 device offers no such policy, opt in explicitly:
