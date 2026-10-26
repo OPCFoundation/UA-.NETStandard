@@ -107,4 +107,11 @@ namespace Opc.Ua.Server
         /// </summary>
         internal long SourceRevision { get; set; }
     }
+
+    /// <summary>
+    /// Keeps local-deletion finalization and restoration scoped to the source actually released.
+    /// </summary>
+    /// <param name="Item">The subscription item whose native source was released.</param>
+    /// <param name="Revision">The exact released incarnation, unchanged by unbinding.</param>
+    internal readonly record struct MonitoredItemSourceRelease(IMonitoredItem Item, long Revision);
 }

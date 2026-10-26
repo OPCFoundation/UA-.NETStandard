@@ -150,6 +150,11 @@ Unresolved-item modification now uses `ServerConfiguration` sampling and queue l
 concrete `CoreNodeManager` settings or overrides. Bound items still use their source manager's
 validation hooks, including historian-specific aggregate revision.
 
+Event-provider overrides of `OnSubscribeToEvents` and `OnSubscribeToEventsAsync` must reconcile
+against the monitored node's current membership and make unsubscribe idempotent. Runtime source
+adoption and compensation run outside the native mutation gate, including on legacy managers;
+release can overlap a pending subscribe callback, requiring cleanup again after that callback returns.
+
 Condition-refresh callbacks now receive invocation-scoped `IEventMonitoredItem` targets rather than
 the subscription's original concrete item objects. Custom refresh implementations must use the
 interface properties and `QueueEvent` methods: replace casts to `MonitoredItem` and reference-identity

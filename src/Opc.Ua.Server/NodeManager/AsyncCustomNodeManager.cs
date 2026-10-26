@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Server
         /// <exception cref="AggregateException"></exception>
         private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
-            MonitoredItemAdoption? adoption = null,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -1193,7 +1193,6 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadNotSupported, false);
             }
 
-            adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
             long sourceRevision = adoption.SourceRevision;
             using var operationContext = new OperationContext(monitoredItem);
             ServerSystemContext context = SystemContext.Copy(operationContext);
@@ -1302,7 +1301,8 @@ namespace Opc.Ua.Server
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                    if (binding.CaptureSource().Revision == boundRevision &&
+                        ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
                         ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
                         ReferenceEquals(current, monitoredItem))
@@ -1346,10 +1346,10 @@ namespace Opc.Ua.Server
                             compensationFailures.Add(compensationException);
                         }
                     }
-                    else if (monitoredItem is IMonitoredItemGenerationBinding { IsRemoved: true } &&
-                        !MonitoredItems.ContainsKey(monitoredItem.Id))
+                    else if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? registered) ||
+                        !ReferenceEquals(registered, monitoredItem))
                     {
-                        // Subscription removal forbids a new binding while the late provider is being released.
+                        // A late provider still owns its old registration after native release or handoff.
                         removed = true;
                     }
                 }
@@ -2138,8 +2138,8 @@ namespace Opc.Ua.Server
 
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
-            IReadOnlyList<IMonitoredItem> detachedItems =
-                await DetachMonitoredItemsForNodeDeletionAsync(
+            IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                await ReleaseSourcesForNodeDeletionAsync(
                     contextToUse,
                     node,
                     cancellationToken).ConfigureAwait(false);
@@ -2173,10 +2173,10 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            foreach (IMonitoredItem monitoredItem in detachedItems)
+            foreach (MonitoredItemSourceRelease source in detachedItems)
             {
-                ((IMonitoredItemGenerationBinding)monitoredItem)
-                    .Invalidate(terminal: false);
+                ((IMonitoredItemGenerationBinding)source.Item)
+                    .TryInvalidateSource(source.Revision, terminal: false);
             }
 
             return true;
@@ -2415,8 +2415,8 @@ namespace Opc.Ua.Server
                             if (PredefinedNodes.TryGetValue(newNodeId, out NodeState? indexedNode))
                             {
                                 List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, indexedNode);
-                                IReadOnlyList<IMonitoredItem> detachedItems =
-                                    await DetachMonitoredItemsForNodeDeletionAsync(
+                                IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                                    await ReleaseSourcesForNodeDeletionAsync(
                                         systemContext, indexedNode, CancellationToken.None).ConfigureAwait(false);
                                 try
                                 {
@@ -2426,11 +2426,12 @@ namespace Opc.Ua.Server
                                 }
                                 finally
                                 {
-                                    foreach (IMonitoredItem monitoredItem in detachedItems)
+                                    foreach (MonitoredItemSourceRelease source in detachedItems)
                                     {
-                                        if (!PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                                        if (!PredefinedNodes.ContainsKey(source.Item.NodeId))
                                         {
-                                            ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
+                                            ((IMonitoredItemGenerationBinding)source.Item).TryInvalidateSource(
+                                                source.Revision, terminal: false);
                                         }
                                     }
                                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
@@ -2569,8 +2570,8 @@ namespace Opc.Ua.Server
 
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
-            IReadOnlyList<IMonitoredItem> detachedItems =
-                await DetachMonitoredItemsForNodeDeletionAsync(
+            IReadOnlyList<MonitoredItemSourceRelease> detachedItems =
+                await ReleaseSourcesForNodeDeletionAsync(
                     systemContext,
                     node,
                     cancellationToken).ConfigureAwait(false);
@@ -2606,9 +2607,10 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            foreach (IMonitoredItem monitoredItem in detachedItems)
+            foreach (MonitoredItemSourceRelease source in detachedItems)
             {
-                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
+                ((IMonitoredItemGenerationBinding)source.Item)
+                    .TryInvalidateSource(source.Revision, terminal: false);
             }
 
             return ServiceResult.Good;
@@ -2656,16 +2658,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Detaches items monitoring a deleted subtree and restores prior detachments if any item fails.
+        /// Releases sources monitoring a deleted subtree and restores owned incarnations if any release fails.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
-        private async ValueTask<IReadOnlyList<IMonitoredItem>>
-            DetachMonitoredItemsForNodeDeletionAsync(
+        private async ValueTask<IReadOnlyList<MonitoredItemSourceRelease>>
+            ReleaseSourcesForNodeDeletionAsync(
                 ISystemContext context,
                 NodeState node,
                 CancellationToken cancellationToken)
         {
-            var detachedItems = new List<IMonitoredItem>();
+            var detachedItems = new List<MonitoredItemSourceRelease>();
             Exception? failure = null;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             IMonitoredItemSourceManager lifecycle;
@@ -2710,18 +2712,19 @@ namespace Opc.Ua.Server
                 {
                     ServerSystemContext itemContext =
                         SystemContext.Copy(new OperationContext(monitoredItem));
+                    long sourceRevision = ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision;
                     ServiceResult result = await ReleaseMonitoredItemSourceAsync(
                         itemContext,
                         sampledItem,
                         lifecycle,
-                        ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision,
+                        sourceRevision,
                         cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
                         failure = new ServiceResultException(result);
                         break;
                     }
-                    detachedItems.Add(monitoredItem);
+                    detachedItems.Add(new MonitoredItemSourceRelease(monitoredItem, sourceRevision));
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -2741,19 +2744,19 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask RestoreSurvivingMonitoredItemsAsync(
-            IReadOnlyList<IMonitoredItem> monitoredItems,
+            IReadOnlyList<MonitoredItemSourceRelease> monitoredItems,
             Exception deletionFailure)
         {
-            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
-            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            var survivingItems = new List<MonitoredItemSourceRelease>(monitoredItems.Count);
+            foreach (MonitoredItemSourceRelease source in monitoredItems)
             {
-                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                if (PredefinedNodes.ContainsKey(source.Item.NodeId))
                 {
-                    survivingItems.Add(monitoredItem);
+                    survivingItems.Add(source);
                 }
                 else
                 {
-                    ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
+                    ((IMonitoredItemGenerationBinding)source.Item).TryInvalidateSource(source.Revision, terminal: false);
                 }
             }
             try
@@ -2768,7 +2771,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask RestoreReleasedSourcesAsync(
-            List<IMonitoredItem> monitoredItems,
+            List<MonitoredItemSourceRelease> monitoredItems,
             CancellationToken cancellationToken)
         {
             TimeProvider clock = (Server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
@@ -2777,10 +2780,16 @@ namespace Opc.Ua.Server
             {
                 try
                 {
+                    MonitoredItemSourceRelease source = monitoredItems[ii];
+                    if (((IMonitoredItemGenerationBinding)source.Item).SourceRevision != source.Revision)
+                    {
+                        continue;
+                    }
                     using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
                     using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
                     (ServiceResult result, _) = await AdoptMonitoredItemSourceAsync(
-                        monitoredItems[ii],
+                        source.Item,
+                        new MonitoredItemAdoption(source.Revision),
                         cancellationToken: cleanup.Token).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
@@ -8362,6 +8371,11 @@ namespace Opc.Ua.Server
         /// <param name="monitoredNode">The monitored node.</param>
         /// <param name="unsubscribe">if set to <c>true</c> unsubscribing.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <remarks>
+        /// Reconcile provider state with the monitored node's current membership and make unsubscribe idempotent.
+        /// A release can race a pending subscribe callback; cleanup can unsubscribe again after
+        /// that callback completes.
+        /// </remarks>
         protected virtual ValueTask OnSubscribeToEventsAsync(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,

@@ -1012,6 +1012,8 @@ when both attempts use the same generation.
 Native release and adoption require the caller's captured incarnation; neither operation
 refreshes it after waiting for another operation. An older release cannot consume a newer
 registration. Subscription identity, queues and unresolved policy remain outside native ownership.
+Local subtree deletion and its failure restoration keep the released incarnation as well;
+neither can invalidate or readopt a source installed by a newer generation during callbacks.
 
 A post-native adoption callback failure releases that attempt's native source before
 reporting the failure. This compensation ignores caller cancellation and cannot release
@@ -1019,6 +1021,12 @@ a newer incarnation. Failed provider cleanup remains on the source generation fo
 the original callback failure is preserved, with cleanup failures aggregated after it.
 An idempotent adoption that leaves its native registration unchanged does not repeat
 the provider callback or acquire compensation rights over the existing source.
+Legacy synchronous managers also invoke event-provider adoption and compensation outside
+their native mutation gate; source ownership is revalidated after the provider returns.
+Event providers reconcile against the monitored node's current membership, not paired callback
+counts. Unsubscribe must be idempotent: when release overlaps a pending subscribe callback,
+cleanup may unsubscribe again after that old callback finishes. Cleanup retries follow the
+same rule and cannot release a newer source registered in the same manager.
 
 Source availability is derived from the item's generation binding, not an independently
 mutable detached flag. Persistence retains the `IsDetached` compatibility field; restoring
