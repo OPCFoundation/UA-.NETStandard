@@ -1241,7 +1241,7 @@ namespace Opc.Ua.Server
                     IMonitoredItem monitoredItem = compatible
                         ? m_compatibleItems[index]
                         : m_deletedItems[index - m_compatibleItems.Count];
-                    if (m_reconciledItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
+                    if (m_reconciledItems.ContainsKey(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
                     {
                         continue;
                     }
@@ -1254,6 +1254,7 @@ namespace Opc.Ua.Server
                     }
 
                     bool attached = false;
+                    long sourceRevision = binding?.SourceRevision ?? 0;
                     try
                     {
                         ServiceResult result = await m_current.DetachMonitoredItemAsync(
@@ -1271,13 +1272,15 @@ namespace Opc.Ua.Server
                         if (!compatible || m_replacement is null ||
                             binding?.IsRemoved == true || !IsOwnedBySubscription(monitoredItem))
                         {
-                            m_reconciledItems.Add(monitoredItem);
+                            m_reconciledItems[monitoredItem] = sourceRevision;
                             continue;
                         }
+                        var adoption = new MonitoredItemAdoption(sourceRevision);
                         try
                         {
                             result = await m_replacement.AttachMonitoredItemAsync(
                                 monitoredItem,
+                                adoption,
                                 ct).ConfigureAwait(false);
                             if (ServiceResult.IsGood(result))
                             {
@@ -1303,7 +1306,11 @@ namespace Opc.Ua.Server
                             MarkAttachFailure(monitoredItem);
                             failures.Add(ex);
                         }
-                        m_reconciledItems.Add(monitoredItem);
+                        finally
+                        {
+                            sourceRevision = adoption.SourceRevision;
+                        }
+                        m_reconciledItems[monitoredItem] = sourceRevision;
                     }
                     finally
                     {
@@ -1341,7 +1348,7 @@ namespace Opc.Ua.Server
                 var failures = new List<Exception>();
                 foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
                 {
-                    if (!m_reconciledItems.Contains(monitoredItem) ||
+                    if (!m_reconciledItems.TryGetValue(monitoredItem, out long sourceRevision) ||
                         m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem) ||
                         monitoredItem is IMonitoredItemGenerationBinding { IsRemoved: true })
                     {
@@ -1350,9 +1357,8 @@ namespace Opc.Ua.Server
 
                     try
                     {
-                        var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                        lifecycle.Detach(m_server);
-                        ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(m_terminal);
+                        ((IMonitoredItemGenerationBinding)monitoredItem).TryInvalidateSource(
+                            sourceRevision, m_terminal);
                         m_markedDeletedItems.Add(monitoredItem);
                     }
                     catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -1394,8 +1400,9 @@ namespace Opc.Ua.Server
             /// <summary>Whether items lost by this transition cannot be adopted again.</summary>
             private readonly bool m_terminal;
 
-            /// <summary>Items whose committed handoff has already completed.</summary>
-            private readonly HashSet<IMonitoredItem> m_reconciledItems = new(MonitoredItemReferenceComparer.Instance);
+            /// <summary>The source incarnation released by each completed committed handoff.</summary>
+            private readonly Dictionary<IMonitoredItem, long> m_reconciledItems =
+                new(MonitoredItemReferenceComparer.Instance);
             private readonly List<IMonitoredItem> m_failedItems = [];
             private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
 
@@ -1431,6 +1438,7 @@ namespace Opc.Ua.Server
 
             public ValueTask<ServiceResult> AttachMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
+                MonitoredItemAdoption? adoption = null,
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<ServiceResult>(

@@ -1554,6 +1554,138 @@ namespace Opc.Ua.Server.Tests
             Assert.That(replacement.AttachCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A failed older handoff must not clear or invalidate a source installed during its callback.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FailedHandoffPreservesNewerSourceBindingAsync(bool throwFailure, bool releaseNewSource)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (MonitoredItem item = CreateMonitoredItem(
+                server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), new NodeId("NewerSource", 1)))
+            {
+                var binding = (IMonitoredItemGenerationBinding)item;
+                var newerOwner = Mock.Of<IAsyncNodeManager>();
+                var newerHandle = new NodeHandle();
+                var failure = new InvalidOperationException(
+                    "The older handoff failed after another source was installed.");
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ =>
+                    {
+                        Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+                        return ServiceResult.Good;
+                    }
+                };
+                var replacement = new TestNodeManagerLifecycle
+                {
+                    AttachCallback = monitoredItem =>
+                    {
+                        Assert.That(((IMonitoredItemGenerationBinding)monitoredItem).TryBindSource(
+                            binding.SourceRevision, newerOwner, newerHandle, out _), Is.True);
+                        if (releaseNewSource)
+                        {
+                            Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+                        }
+                        if (throwFailure)
+                        {
+                            throw failure;
+                        }
+                        return StatusCodes.BadNodeIdUnknown;
+                    }
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, replacement, [item], [], static _ => true);
+
+                List<Exception> failures = await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false);
+                long newerRevision = binding.SourceRevision;
+                transition.MarkDeletedItems();
+                transition.MarkDeletedItems();
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(throwFailure ? 1 : 0));
+                    if (throwFailure)
+                    {
+                        Assert.That(failures[0], Is.SameAs(failure));
+                    }
+                    Assert.That(item.NodeManager, Is.SameAs(releaseNewSource ? null : newerOwner));
+                    Assert.That(item.ManagerHandle, Is.SameAs(releaseNewSource ? null : newerHandle));
+                    Assert.That(binding.SourceRevision, Is.EqualTo(newerRevision));
+                    Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.EqualTo(releaseNewSource));
+                    Assert.That(binding.IsTerminal, Is.False);
+                    Assert.That(current.DetachCount, Is.EqualTo(1));
+                    Assert.That(replacement.AttachCount, Is.EqualTo(1));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A failed native target that rolls back its own binding must still publish the lost-node status.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task FailedNativeHandoffReportsLostSourceAfterTargetRollbackAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FailedHandoffTarget", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("FailedHandoffTarget", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                var failure = new InvalidOperationException("The native target subscription failed.");
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (!unsubscribe)
+                    {
+                        throw failure;
+                    }
+                });
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ =>
+                    {
+                        Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+                        return ServiceResult.Good;
+                    }
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, owner.Lifecycle, [item], [], static _ => true);
+
+                List<Exception> failures = await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false);
+                transition.MarkDeletedItems();
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failures, Has.Count.EqualTo(1));
+                    Assert.That(failures[0], Is.SameAs(failure));
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
+                }
+            }
+        }
+
         [Test]
         public async Task PostCommitAttachFailureLeavesItemDetachedAndDeletedAsync()
         {
@@ -1593,6 +1725,65 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(itemLifecycle.IsDetached, Is.True);
                     Assert.That(itemLifecycle.IsDeleted, Is.True);
                 });
+            }
+        }
+
+        /// <summary>
+        /// Slot-local recovery must preserve a newer source installed before an older adoption reports failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedSlotRecoveryPreservesNewerSourceBindingAsync(bool throwFailure)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            var target = new Mock<IAsyncNodeManager>();
+            Mock<INodeManagerMonitoredItemLifecycle> lifecycle = target.As<INodeManagerMonitoredItemLifecycle>();
+            using (queueFactory)
+            using (MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [target.Object]))
+            using (MonitoredItem item = CreateMonitoredItem(
+                server.Object, target.Object, new NodeHandle(), new NodeId("NewerRecoverySource", 1)))
+            {
+                var binding = (IMonitoredItemGenerationBinding)item;
+                Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+                var newerOwner = Mock.Of<IAsyncNodeManager>();
+                var newerHandle = new NodeHandle();
+                var failure = new InvalidOperationException("An older slot recovery failed after a newer binding.");
+                lifecycle.Setup(value => value.AttachMonitoredItemAsync(
+                        item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()))
+                    .Returns((IMonitoredItem monitoredItem, MonitoredItemAdoption? adoption, CancellationToken _) =>
+                    {
+                        Assert.That(((IMonitoredItemGenerationBinding)monitoredItem).TryBindSource(
+                            binding.SourceRevision, newerOwner, newerHandle, out long boundRevision), Is.True);
+                        Assert.That(boundRevision, Is.EqualTo(binding.SourceRevision));
+                        if (throwFailure)
+                        {
+                            throw failure;
+                        }
+                        return new ValueTask<ServiceResult>(StatusCodes.BadNodeIdUnknown);
+                    });
+
+                if (throwFailure)
+                {
+                    InvalidOperationException observed = (await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await master.RecoverMonitoredItemsAsync(target.Object, [item])
+                            .ConfigureAwait(false)))!;
+                    Assert.That(observed, Is.SameAs(failure));
+                }
+                else
+                {
+                    await master.RecoverMonitoredItemsAsync(target.Object, [item]).ConfigureAwait(false);
+                }
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(item.NodeManager, Is.SameAs(newerOwner));
+                    Assert.That(item.ManagerHandle, Is.SameAs(newerHandle));
+                    Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.False);
+                    Assert.That(binding.IsTerminal, Is.False);
+                }
+                lifecycle.Verify(value => value.AttachMonitoredItemAsync(
+                    item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()), Times.Once);
             }
         }
 
@@ -1735,7 +1926,8 @@ namespace Opc.Ua.Server.Tests
                     item.Object, It.IsAny<CancellationToken>()), Times.Exactly(attempt));
             }
             target.Verify(value => value.AttachMonitoredItemAsync(
-                It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()), Times.Never);
+                It.IsAny<IMonitoredItem>(), It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         /// <summary>
@@ -1784,7 +1976,8 @@ namespace Opc.Ua.Server.Tests
                     });
                 target.Setup(value => value.CanAttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(ServiceResult.Good);
-                target.Setup(value => value.AttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
+                target.Setup(value => value.AttachMonitoredItemAsync(
+                    item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()))
                     .Returns(() =>
                     {
                         Assert.That(binding.TryBindSource(
@@ -1812,7 +2005,8 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(item.Id, Is.EqualTo(2));
                     Assert.That(item.NodeManager, migrate ? Is.SameAs(replacement.Object) : Is.Null);
                 });
-                target.Verify(value => value.AttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()),
+                target.Verify(value => value.AttachMonitoredItemAsync(
+                    item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
                     migrate ? Times.Once : Times.Never);
 
                 ValueTask ExecuteAsync()
@@ -3379,7 +3573,8 @@ namespace Opc.Ua.Server.Tests
                 {
                     lifecycleTransition = compensateDetach
                         ? owner.Lifecycle.DetachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask()
-                        : owner.Lifecycle.AttachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask();
+                        : owner.Lifecycle.AttachMonitoredItemAsync(
+                            eventItem, cancellationToken: transitionCancellation.Token).AsTask();
                     transition = lifecycleTransition;
                 }
                 Task<MonitoredItem>? creation = null;
@@ -3805,11 +4000,19 @@ namespace Opc.Ua.Server.Tests
                 CancellationToken cancellationToken = default)
             {
                 DetachCount++;
-                return new ValueTask<ServiceResult>(DetachCallback(monitoredItem));
+                var binding = monitoredItem as IMonitoredItemGenerationBinding;
+                long sourceRevision = binding?.SourceRevision ?? 0;
+                ServiceResult result = DetachCallback(monitoredItem);
+                if (ServiceResult.IsGood(result))
+                {
+                    binding?.TryClearSource(sourceRevision);
+                }
+                return new ValueTask<ServiceResult>(result);
             }
 
             public ValueTask<ServiceResult> AttachMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
+                MonitoredItemAdoption? adoption = null,
                 CancellationToken cancellationToken = default)
             {
                 AttachCount++;

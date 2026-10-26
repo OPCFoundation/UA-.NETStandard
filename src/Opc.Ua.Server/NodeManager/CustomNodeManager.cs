@@ -594,13 +594,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ServiceResult result;
             using (BeginNodeManagerOperation())
             {
-                result = AttachMonitoredItemForLifecycle(monitoredItem);
+                result = AttachMonitoredItemForLifecycle(monitoredItem, adoption);
             }
             return new ValueTask<ServiceResult>(result);
         }
@@ -665,7 +666,9 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ServiceResult AttachMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
+        private ServiceResult AttachMonitoredItemForLifecycle(
+            IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption = null)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
                 m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
@@ -674,7 +677,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNotSupported;
             }
 
-            long sourceRevision = binding.SourceRevision;
+            adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
+            long sourceRevision = adoption.SourceRevision;
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             lock (Lock)
             {
@@ -735,7 +739,8 @@ namespace Opc.Ua.Server
                     sampledMonitoredItem,
                     AddNodeToComponentCache,
                     RemoveNodeFromComponentCache,
-                    sourceRevision);
+                    sourceRevision,
+                    adoption);
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
                     if (sampledMonitoredItem is MonitoredItem concreteItem &&
@@ -753,7 +758,7 @@ namespace Opc.Ua.Server
                     changed &&
                     handle.MonitoredNode is not null)
                 {
-                    long boundRevision = binding.SourceRevision;
+                    long boundRevision = adoption.SourceRevision;
                     MonitoredNode2 monitoredNode = handle.MonitoredNode;
                     try
                     {

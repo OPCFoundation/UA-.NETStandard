@@ -816,6 +816,21 @@ namespace Opc.Ua.Server
             return ClearSource(sourceRevision);
         }
 
+        /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.TryInvalidateSource(long sourceRevision, bool terminal)
+        {
+            lock (m_lock)
+            {
+                if (sourceRevision != m_sourceRevision || Generation is not null)
+                {
+                    return false;
+                }
+                ClearSource(sourceRevision);
+                Invalidate(terminal);
+                return true;
+            }
+        }
+
         /// <summary>
         /// Clears native ownership while preserving the binding's revision and lost-node state.
         /// </summary>

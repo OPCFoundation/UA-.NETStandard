@@ -172,10 +172,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption,
             CancellationToken cancellationToken)
         {
             return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.AttachMonitoredItemAsync(monitoredItem, cancellationToken)
+                ? lifecycle.AttachMonitoredItemAsync(monitoredItem, adoption, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }

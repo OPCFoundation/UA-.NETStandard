@@ -413,6 +413,62 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A stale handoff cannot clear a newer source or turn it terminal, even within the same generation.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ConditionalInvalidationPreservesNewerBinding(bool sameGeneration, bool terminal)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = GetBoundGeneration(item);
+            NodeManagerGeneration replacement = sameGeneration
+                ? original
+                : NodeManagerGenerationRegistry.CreateReplacement(original, Mock.Of<IAsyncNodeManager>());
+            var owner = Mock.Of<ISubscription>();
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+            long releasedRevision = binding.SourceRevision;
+            Assert.That(binding.TryClearSource(releasedRevision), Is.True);
+            var handle = new NodeHandle();
+            Assert.That(binding.TryBindSource(
+                releasedRevision, replacement.NodeManager, handle, out long boundRevision), Is.True);
+
+            Assert.That(binding.TryInvalidateSource(releasedRevision, terminal), Is.False);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(item.NodeManager, Is.SameAs(replacement.NodeManager));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(binding.SourceRevision, Is.EqualTo(boundRevision));
+                Assert.That(binding.IsTerminal, Is.False);
+                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+                Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+                Assert.That(actualOwner, Is.SameAs(owner));
+                Assert.That(replacement.Slot.UnresolvedItems, Is.Empty);
+            }
+
+            Assert.That(binding.TryInvalidateSource(boundRevision, terminal), Is.False,
+                "Native ownership must be released before logical invalidation.");
+            Assert.That(binding.TryClearSource(boundRevision), Is.True);
+            Assert.That(binding.TryInvalidateSource(releasedRevision, terminal), Is.False,
+                "An older handoff cannot invalidate a newer handoff's temporarily unbound source.");
+            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+            Assert.That(binding.TryInvalidateSource(boundRevision, terminal), Is.True);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(item.NodeManager, Is.Null);
+                Assert.That(item.ManagerHandle, Is.Null);
+                Assert.That(binding.IsTerminal, Is.EqualTo(terminal));
+                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+                Assert.That(replacement.MonitoredItems, Is.Empty);
+                Assert.That(replacement.Slot.UnresolvedItems.ContainsKey(item), Is.EqualTo(!terminal));
+            }
+        }
+
+        /// <summary>
         /// Neither ordering of deletion and handoff can restore a removed subscription claim.
         /// </summary>
         [TestCase(false)]

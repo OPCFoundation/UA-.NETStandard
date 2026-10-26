@@ -821,7 +821,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await lifecycle.CanAttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Attach":
-                    await lifecycle.AttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.AttachMonitoredItemAsync(null!, cancellationToken: CancellationToken.None)
+                        .ConfigureAwait(false);
                     break;
                 case "Detach":
                     await lifecycle.DetachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);

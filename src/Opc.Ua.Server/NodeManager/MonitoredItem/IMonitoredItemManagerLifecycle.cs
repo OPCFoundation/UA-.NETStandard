@@ -53,6 +53,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            long? sourceRevision = null);
+            long? sourceRevision = null,
+            MonitoredItemAdoption? adoption = null);
     }
 }

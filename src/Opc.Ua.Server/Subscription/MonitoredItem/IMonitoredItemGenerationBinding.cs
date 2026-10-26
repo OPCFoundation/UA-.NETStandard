@@ -82,6 +82,14 @@ namespace Opc.Ua.Server
         bool TryClearSource(long sourceRevision);
 
         /// <summary>
+        /// Reports a failed handoff only after native release and while its source incarnation is still current.
+        /// </summary>
+        /// <param name="sourceRevision">The revision captured before the handoff attempted adoption.</param>
+        /// <param name="terminal">Whether the item requires client-side recreation.</param>
+        /// <returns>Whether the failed handoff still owned the item's source state.</returns>
+        bool TryInvalidateSource(long sourceRevision, bool terminal);
+
+        /// <summary>
         /// Reports the lost node once and optionally forbids future adoption.
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>

@@ -1004,6 +1004,11 @@ generation retains the remaining work independently of subscription membership. 
 does not discard that work. Retries preserve completed cleanup stages, and retirement completes
 pending provider releases before disposing retired consumers or destroying the address space.
 
+Each adoption carries its own source incarnation through native registration and rollback.
+Failed handoff or slot-local recovery reports a lost node only after that incarnation is unbound.
+A newer binding is never cleared or made terminal by an earlier attempt's finalization, including
+when both attempts use the same generation.
+
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.

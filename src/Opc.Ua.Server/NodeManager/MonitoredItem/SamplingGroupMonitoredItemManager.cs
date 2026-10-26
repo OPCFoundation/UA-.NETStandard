@@ -640,7 +640,8 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            long? sourceRevision)
+            long? sourceRevision,
+            MonitoredItemAdoption? adoption)
         {
             if (monitoredItem is not IDetachableMonitoredItem lifecycle ||
                 monitoredItem is not IMonitoredItemGenerationBinding binding)
@@ -691,6 +692,10 @@ namespace Opc.Ua.Server
                     return (StatusCodes.BadInvalidState, false);
                 }
                 sourceBound = true;
+                if (adoption is not null)
+                {
+                    adoption.SourceRevision = boundRevision;
+                }
                 if (isEvent)
                 {
                     if (!MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))

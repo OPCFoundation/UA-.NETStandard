@@ -89,7 +89,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         Assert.That(owner, Is.SameAs(manager));
                         Assert.That(ids, Does.Contain(nodeId));
-                        ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(monitoredItem, ct)
+                        ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(
+                            monitoredItem, cancellationToken: ct)
                             .ConfigureAwait(false);
                         Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
                     });

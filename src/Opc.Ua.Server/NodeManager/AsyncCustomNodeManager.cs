@@ -859,20 +859,24 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption,
             CancellationToken cancellationToken)
         {
             return AttachMonitoredItemAndNotifyAsync(
                 monitoredItem,
+                adoption,
                 cancellationToken);
         }
 
         private async ValueTask<ServiceResult> AttachMonitoredItemAndNotifyAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption,
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
                 monitoredItem,
+                adoption,
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsGood(result) &&
                 monitoredItem is ISampledDataChangeMonitoredItem sampled &&
@@ -1140,7 +1144,8 @@ namespace Opc.Ua.Server
         /// <exception cref="AggregateException"></exception>
         private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
+            MonitoredItemAdoption? adoption = null,
+            CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
@@ -1150,7 +1155,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadNotSupported;
             }
 
-            long sourceRevision = binding.SourceRevision;
+            adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
+            long sourceRevision = adoption.SourceRevision;
             using var operationContext = new OperationContext(monitoredItem);
             ServerSystemContext context = SystemContext.Copy(operationContext);
             NodeHandle handle = await GetManagerHandleAsync(
@@ -1222,12 +1228,13 @@ namespace Opc.Ua.Server
                         sampledMonitoredItem,
                         AddNodeToComponentCache,
                         RemoveNodeFromComponentCache,
-                        sourceRevision);
+                        sourceRevision,
+                        adoption);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
                         return result;
                     }
-                    boundRevision = binding.SourceRevision;
+                    boundRevision = adoption.SourceRevision;
                     if (!isEvent)
                     {
                         if (!externalValues)
@@ -2734,7 +2741,7 @@ namespace Opc.Ua.Server
                     using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
                     ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
                         monitoredItems[ii],
-                        cleanup.Token).ConfigureAwait(false);
+                        cancellationToken: cleanup.Token).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
                         throw new ServiceResultException(result);

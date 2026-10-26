@@ -166,7 +166,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 ServiceResult validation = await lifecycle.CanAttachMonitoredItemAsync(item, cancellation.Token)
                     .ConfigureAwait(false);
-                ServiceResult recovered = await lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
+                ServiceResult recovered = await lifecycle.AttachMonitoredItemAsync(
+                    item, cancellationToken: cancellation.Token)
                     .ConfigureAwait(false);
                 Queue<MonitoredItemNotification> notifications = Drain(item);
 
@@ -212,7 +213,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await release.Task.WaitAsync(ct).ConfigureAwait(false);
                     return CurrentValue(73);
                 };
-                Task<ServiceResult> staleAdoption = lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
+                Task<ServiceResult> staleAdoption = lifecycle.AttachMonitoredItemAsync(
+                    item, cancellationToken: cancellation.Token)
                     .AsTask();
                 try
                 {
@@ -220,7 +222,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     node.OnReadValueAsync = (_, _, _, _, _) =>
                         new ValueTask<AttributeReadResult>(CurrentValue(91));
                     Assert.That(
-                        (await lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
+                        (await lifecycle.AttachMonitoredItemAsync(item, cancellationToken: cancellation.Token)
                             .ConfigureAwait(false)).StatusCode,
                         Is.EqualTo(StatusCodes.Good));
                     if (releaseReplacement)

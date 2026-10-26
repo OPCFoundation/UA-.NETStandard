@@ -83,8 +83,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="monitoredItem">The MonitoredItem to attach.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <param name="adoption">The optional attempt whose exact native source incarnation is recorded.</param>
         ValueTask<ServiceResult> AttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
+            MonitoredItemAdoption? adoption = null,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Carries the exact source incarnation owned by one adoption, including a rolled-back native binding.
+    /// </summary>
+    internal sealed class MonitoredItemAdoption
+    {
+        /// <summary>
+        /// Captures the source incarnation released before the target attempt.
+        /// </summary>
+        internal MonitoredItemAdoption(long sourceRevision)
+        {
+            SourceRevision = sourceRevision;
+        }
+
+        /// <summary>
+        /// Gets or sets the incarnation committed by this attempt, never an unrelated adoption.
+        /// </summary>
+        internal long SourceRevision { get; set; }
     }
 }

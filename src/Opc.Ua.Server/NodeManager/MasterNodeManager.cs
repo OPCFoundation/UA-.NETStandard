@@ -1075,16 +1075,17 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+                var adoption = new MonitoredItemAdoption(binding.SourceRevision);
                 ServiceResult attachResult = await nodeManagerLifecycle
-                    .AttachMonitoredItemAsync(monitoredItem, cancellationToken)
+                    .AttachMonitoredItemAsync(monitoredItem, adoption, cancellationToken)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsGood(attachResult))
                 {
                     continue;
                 }
 
-                itemLifecycle.Detach(Server);
-                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
+                binding.TryInvalidateSource(adoption.SourceRevision, terminal: false);
                 if (!IsExpectedRecoveryFailure(attachResult))
                 {
                     failures.Add(new ServiceResultException(attachResult));
