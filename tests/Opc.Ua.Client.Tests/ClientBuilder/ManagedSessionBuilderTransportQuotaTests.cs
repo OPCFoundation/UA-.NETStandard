@@ -64,10 +64,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 AutoAccept = true,
                 SecurityNone = true
             };
-            ReferenceServer? server = null;
             try
             {
-                server = await fixture.StartAsync(root).ConfigureAwait(false);
+                await fixture.StartAsync(root).ConfigureAwait(false);
                 await using var client = new ClientFixture(telemetry);
                 await client.LoadClientConfigurationAsync(root, "TransportQuotaClient").ConfigureAwait(false);
                 ApplicationConfiguration configuration = client.Config;
@@ -99,7 +98,6 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             finally
             {
                 await fixture.StopAsync().ConfigureAwait(false);
-                server?.Dispose();
                 if (Directory.Exists(root))
                 {
                     Directory.Delete(root, recursive: true);
