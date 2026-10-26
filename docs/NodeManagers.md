@@ -882,6 +882,12 @@ their materialization before accepting clients, so discovery by browsing sees th
 - Shutdown rejects new lifecycle operations and waits for active readiness work. After an orderly
   `StopAsync` the same server can be started again.
 
+Successfully reactivating a live session with a new effective identity refreshes each generation's binding
+through `SessionActivatedAsync`, without invoking `SessionClosingAsync`. Session-scoped state,
+including staged PushManagement transactions, survives reactivation. Closing, replacing, or
+retiring a session binding releases it through `SessionClosingAsync`. A failed activation
+compensates partial state through the closing callback before retry.
+
 Shutdown first stops accepted producers while their serving generations still admit final
 callbacks, then closes subscriptions and sessions. A bound session receives `SessionClosing`
 before its generation retires. Application slots are withdrawn through a removal transaction

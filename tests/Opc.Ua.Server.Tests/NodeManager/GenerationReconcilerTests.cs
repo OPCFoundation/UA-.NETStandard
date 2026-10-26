@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -42,6 +43,150 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed partial class GenerationReconcilerTests
     {
+        /// <summary>
+        /// Identity refresh activates the existing session without closing it; replacement releases the old session.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task SessionRebindingSeparatesIdentityRefreshFromReplacementAsync(
+            bool reconcile,
+            bool replaceSession)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                var sessionId = new NodeId("ReactivatedSession", 2);
+                IUserIdentity identity = new UserIdentity();
+                var replacementIdentity = new UserIdentity();
+                var original = new Mock<ISession>();
+                original.SetupGet(value => value.Id).Returns(sessionId);
+                original.SetupGet(value => value.Activated).Returns(true);
+                original.SetupGet(value => value.EffectiveIdentity).Returns(() => identity);
+                var replacement = new Mock<ISession>();
+                replacement.SetupGet(value => value.Id).Returns(sessionId);
+                replacement.SetupGet(value => value.Activated).Returns(true);
+                replacement.SetupGet(value => value.EffectiveIdentity).Returns(replacementIdentity);
+                ISession currentSession = original.Object;
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns(() => [currentSession]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var calls = new List<string>();
+                manager.Setup(value => value.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(), sessionId, It.IsAny<CancellationToken>()))
+                    .Callback(() => calls.Add("activate"));
+                manager.Setup(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()))
+                    .Callback(() => calls.Add("close"));
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var reconciler = new GenerationReconciler(server.Object);
+                GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
+                    generation, CancellationToken.None).ConfigureAwait(false);
+                if (replaceSession)
+                {
+                    currentSession = replacement.Object;
+                }
+                else
+                {
+                    identity = replacementIdentity;
+                }
+
+                if (reconcile)
+                {
+                    await reconciler.ReconcileAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                    await reconciler.ReconcileAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await reconciler.ActivateSessionAsync(generation, currentSession, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    await reconciler.ActivateSessionAsync(generation, currentSession, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+
+                string[] expected = replaceSession
+                    ? ["activate", "close", "activate"]
+                    : ["activate", "activate"];
+                Assert.That(calls, Is.EqualTo(expected));
+                Assert.That(generation.SessionBindings[sessionId].Binding!.Session, Is.SameAs(currentSession));
+                Assert.That(generation.SessionBindings[sessionId].Binding!.Identity, Is.SameAs(replacementIdentity));
+                Assert.That(await GenerationReconciler.CloseSessionAsync(
+                    generation, sessionId, CancellationToken.None).ConfigureAwait(false), Is.True);
+                Assert.That(await GenerationReconciler.CloseSessionAsync(
+                    generation, sessionId, CancellationToken.None).ConfigureAwait(false), Is.False);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()),
+                    Times.Exactly(replaceSession ? 2 : 1));
+                Assert.That(generation.SessionBindings, Is.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Failed identity refresh compensates once and leaves no old binding to close again before retry.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedSessionIdentityRefreshCompensatesOnceAndCanRetryAsync(bool cancel)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var sessionId = new NodeId("FailedIdentityRefresh", 2);
+                IUserIdentity identity = new UserIdentity();
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(sessionId);
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(() => identity);
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                Exception failure = cancel
+                    ? new OperationCanceledException("Injected identity-refresh cancellation.")
+                    : new InvalidOperationException("Injected identity-refresh failure.");
+                int activations = 0;
+                manager.Setup(value => value.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(), sessionId, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        if (++activations == 2)
+                        {
+                            throw failure;
+                        }
+                        return default;
+                    });
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var reconciler = new GenerationReconciler(server.Object);
+                await reconciler.ActivateSessionAsync(generation, session.Object, CancellationToken.None)
+                    .ConfigureAwait(false);
+                identity = new UserIdentity();
+
+                Exception? observed = await Assert.CatchAsync<Exception>(async () =>
+                    await reconciler.ActivateSessionAsync(generation, session.Object, CancellationToken.None)
+                        .ConfigureAwait(false));
+
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(generation.SessionBindings[sessionId].Binding, Is.Null);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
+                await reconciler.ActivateSessionAsync(generation, session.Object, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(activations, Is.EqualTo(3));
+                Assert.That(generation.SessionBindings[sessionId].Binding!.Identity, Is.SameAs(identity));
+                await GenerationReconciler.CloseSessionAsync(generation, sessionId, CancellationToken.None)
+                    .ConfigureAwait(false);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+                Assert.That(generation.SessionBindings, Is.Empty);
+            }
+        }
+
         /// <summary>
         /// A claimed custom session remains registered but cannot acquire a new generation binding.
         /// </summary>

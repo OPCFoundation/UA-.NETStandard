@@ -338,7 +338,8 @@ namespace Opc.Ua.Server
                         return existing;
                     }
 
-                    if (bindingRecord.Binding is { } previous)
+                    if (bindingRecord.Binding is { } previous &&
+                        !ReferenceEquals(previous.Session, session))
                     {
                         using var previousContext = new OperationContext(previous.Session, DiagnosticsMasks.None);
                         await generation.NodeManager.SessionClosingAsync(
@@ -346,9 +347,9 @@ namespace Opc.Ua.Server
                             session.Id,
                             deleteSubscriptions: false,
                             cancellationToken).ConfigureAwait(false);
-                        bindingRecord.Binding = null;
                     }
 
+                    bindingRecord.Binding = null;
                     SessionBinding? binding = await ActivateSessionCallbackAsync(
                         generation, session, cancellationToken).ConfigureAwait(false);
                     bindingRecord.Binding = binding;
