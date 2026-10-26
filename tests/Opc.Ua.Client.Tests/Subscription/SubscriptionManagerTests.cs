@@ -482,7 +482,7 @@ namespace Opc.Ua.Client.Subscriptions
                 using var completionCancellation = new CancellationTokenSource();
                 if (action == "complete-cancelled")
                 {
-                    completionCancellation.Cancel();
+                    await completionCancellation.CancelAsync().ConfigureAwait(false);
                 }
                 await manager.CompleteAsync(partitions[0], 1, completionCancellation.Token).ConfigureAwait(false);
             }

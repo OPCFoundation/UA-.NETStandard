@@ -1168,10 +1168,12 @@ namespace Opc.Ua.Client.Subscriptions
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
                     List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
                     Assert.That(acknowledgements, Has.Count.EqualTo(retainedAcknowledgements + 1));
-                    Assert.That(acknowledgements, Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement is not null &&
-                            acknowledgement.SubscriptionId == 10 &&
-                            acknowledgement.SequenceNumber == 4999));
+                    Assert.That(
+                        acknowledgements,
+                        Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
+                            acknowledgement => acknowledgement is not null &&
+                                acknowledgement.SubscriptionId == 10 &&
+                                acknowledgement.SequenceNumber == 4999));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement is not null &&
                             acknowledgement.SubscriptionId == 22 &&
