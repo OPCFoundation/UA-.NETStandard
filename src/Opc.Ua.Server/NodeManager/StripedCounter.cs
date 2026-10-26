@@ -38,10 +38,12 @@ namespace Opc.Ua.Server
     /// operation may exit on another processor, as long as it exits the slot it entered.
     /// </summary>
     /// <remarks>
-    /// <see cref="Enter"/> and <see cref="Exit"/> are full fences. A gate that publishes a
+    /// <see cref="Enter()"/> and <see cref="Exit"/> are full fences. A gate that publishes a
     /// closing flag and then reads <see cref="Count"/> after a full fence therefore either
     /// counts an operation that entered concurrently, or the operation reads the flag after
-    /// its increment and backs out.
+    /// its increment and backs out. The sum is not an atomic snapshot: work extended after
+    /// closure must remain in its parent's stripe via <see cref="Enter(int)"/>, so an
+    /// accepted lineage cannot move behind a concurrent scan.
     /// </remarks>
     internal sealed class StripedCounter
     {
@@ -58,14 +60,23 @@ namespace Opc.Ua.Server
 #endif
             // Slot 0 starts one stride in: the first line holds the array length read by every access.
             int slot = ((processor & (s_slots - 1)) + 1) * kStride;
-            Interlocked.Increment(ref m_counts[slot]);
+            Enter(slot);
             return slot;
+        }
+
+        /// <summary>
+        /// Extends an admitted operation in its existing stripe.
+        /// </summary>
+        /// <param name="slot">The stripe already protecting the parent operation.</param>
+        public void Enter(int slot)
+        {
+            Interlocked.Increment(ref m_counts[slot]);
         }
 
         /// <summary>
         /// Exits an operation entered in the slot.
         /// </summary>
-        /// <param name="slot">The slot <see cref="Enter"/> returned.</param>
+        /// <param name="slot">The slot <see cref="Enter()"/> returned.</param>
         public void Exit(int slot)
         {
             Interlocked.Decrement(ref m_counts[slot]);

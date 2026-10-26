@@ -167,6 +167,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A drain scan cannot miss work transferred from a late parent stripe to an earlier child stripe.
+        /// </summary>
+        [Test]
+        public async Task ForkRacingDrainScanCannotCompleteWhileChildRemainsActiveAsync()
+        {
+            using var barrier = new Barrier(2);
+            using var cancellation = new CancellationTokenSource();
+            GenerationGate.Lease? parent = null;
+            int child = -1;
+            Task fork = Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        barrier.SignalAndWait(cancellation.Token);
+                        parent!.TryFork(out child);
+                        parent.Dispose();
+                        barrier.SignalAndWait(cancellation.Token);
+                    }
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                }
+            }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+
+            try
+            {
+                for (int iteration = 0; iteration < 10000; iteration++)
+                {
+                    var gate = new GenerationGate(NodeManagerGenerationState.Live);
+                    var counter = (StripedCounter)typeof(GenerationGate)
+                        .GetField("m_active", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(gate)!;
+                    var counts = (long[])typeof(StripedCounter)
+                        .GetField("m_counts", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(counter)!;
+
+                    // Model admission on the last real processor stripe, before closing the gate.
+                    int parentSlot = counts.Length - 16;
+                    Interlocked.Increment(ref counts[parentSlot]);
+                    parent = new GenerationGate.Lease(gate, parentSlot);
+                    gate.Retire();
+                    Assert.That(barrier.SignalAndWait(TimeSpan.FromSeconds(10), cancellation.Token), Is.True);
+                    Task drained = gate.WaitForDrainAsync();
+                    Assert.That(barrier.SignalAndWait(TimeSpan.FromSeconds(10), cancellation.Token), Is.True);
+                    try
+                    {
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(child, Is.GreaterThanOrEqualTo(0));
+                            Assert.That(gate.ActiveCount, Is.EqualTo(1));
+                            Assert.That(drained.IsCompleted, Is.False,
+                                $"Drain completed during parent-to-child handoff at iteration {iteration}.");
+                        });
+                    }
+                    finally
+                    {
+                        if (child >= 0)
+                        {
+                            gate.Exit(child);
+                        }
+                        parent.Dispose();
+                    }
+                    await drained.ConfigureAwait(false);
+                    gate.DisposeGeneration();
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                await fork.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A refused late entrant cannot invalidate a completed closed-gate drain.
         /// </summary>
         [Test]

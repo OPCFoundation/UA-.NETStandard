@@ -1215,7 +1215,9 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                slot = gate.m_active.Enter();
+                // Keep the accepted lineage in one stripe; a cross-stripe handoff can evade a drain scan.
+                slot = m_slot;
+                gate.m_active.Enter(slot);
                 // The parent may have drained before this tentative entry. Only a still-live parent
                 // can authorize resource access; a losing fork only unwinds its own counter slot.
                 if (ReferenceEquals(Volatile.Read(ref m_gate), gate))
