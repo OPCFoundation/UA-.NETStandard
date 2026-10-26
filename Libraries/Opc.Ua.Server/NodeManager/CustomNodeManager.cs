@@ -2545,6 +2545,19 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                // OPC 10000-11 6.5.3.3: for read modified "the returnBounds parameter
+                // shall be set to FALSE ..., otherwise the Server returns a
+                // Bad_InvalidArgument StatusCode". Reported per operation.
+                if (readRawModifiedDetails.IsReadModified && readRawModifiedDetails.ReturnBounds)
+                {
+                    for (int ii = 0; ii < nodesToProcess.Count; ii++)
+                    {
+                        errors[nodesToProcess[ii].Index] = StatusCodes.BadInvalidArgument;
+                    }
+
+                    return;
+                }
+
                 HistoryReadRawModified(
                     context,
                     readRawModifiedDetails,

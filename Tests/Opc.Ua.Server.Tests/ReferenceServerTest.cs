@@ -1448,6 +1448,10 @@ namespace Opc.Ua.Server.Tests
                 Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
             var details = new ReadRawModifiedDetails
             {
+                // a raw read: the generated defaults of both flags are true, which
+                // OPC 10000-11 6.5.3.3 rejects with Bad_InvalidArgument
+                IsReadModified = false,
+                ReturnBounds = false,
                 StartTime = DateTime.UtcNow.AddMinutes(-10),
                 EndTime = DateTime.UtcNow
             };
