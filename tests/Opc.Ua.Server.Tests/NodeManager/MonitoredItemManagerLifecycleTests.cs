@@ -1684,6 +1684,177 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A failed post-native adoption hook releases its registration and retains failed provider cleanup.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, true)]
+        public async Task FailedAttachedHookReleasesNativeSourceAndRetainsCleanupAsync(
+            ManagerPath path, bool failCleanup, bool cancelAttachment)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("AttachedHook", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+                using var cancellation = new CancellationTokenSource();
+                Exception failure = cancelAttachment
+                    ? new OperationCanceledException(cancellation.Token)
+                    : new InvalidOperationException("Post-native source adoption failed.");
+                var cleanupFailure = new InvalidOperationException("Provider cleanup failed.");
+                owner.AsyncManager.MonitoredItemAttachedCallback = _ =>
+                {
+                    if (cancelAttachment)
+                    {
+                        cancellation.Cancel();
+                    }
+                    throw failure;
+                };
+                owner.AsyncManager.MonitoredItemDetachedCallback = ct =>
+                {
+                    Assert.That(ct.CanBeCanceled, Is.False);
+                    if (failCleanup)
+                    {
+                        throw cleanupFailure;
+                    }
+                    return default;
+                };
+                Exception actual = (await Assert.CatchAsync<Exception>(async () =>
+                    await owner.Lifecycle.AttachMonitoredItemAsync(item, cancellationToken: cancellation.Token)
+                        .ConfigureAwait(false)))!;
+                if (failCleanup)
+                {
+                    Assert.That(actual, Is.TypeOf<AggregateException>());
+                    Assert.That(((AggregateException)actual).InnerExceptions, Is.EqualTo(
+                        new[] { failure, cleanupFailure }));
+                }
+                else
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                }
+                Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                Assert.That(item.NodeManager, Is.Null);
+                Assert.That(item.ManagerHandle, Is.Null);
+                Assert.That(item.Generation, Is.Null);
+                Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.EqualTo(1));
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner.AsyncManager);
+                Assert.That(generation.HasPendingSourceReleases, Is.EqualTo(failCleanup));
+
+                owner.AsyncManager.MonitoredItemDetachedCallback = null;
+                await generation.CompleteSourceReleasesAsync(item, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(generation.HasPendingSourceReleases, Is.False);
+                Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.EqualTo(failCleanup ? 2 : 1));
+                owner.AsyncManager.MonitoredItemAttachedCallback = null;
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)), Is.True);
+                Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                Assert.That(binding.IsDeleted, Is.False);
+                Assert.That(binding.IsSourceUnavailable, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Idempotent adoption neither repeats provider notification nor releases the existing source.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public async Task UnchangedAdoptionDoesNotNotifyOrReleaseExistingNativeSourceAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("UnchangedAdoption", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = await CreateIndependentDataChangeItemAsync(owner.AsyncManager, node.NodeId)
+                    .ConfigureAwait(false);
+                MonitoredItemSourceSnapshot source = ((IMonitoredItemGenerationBinding)item).CaptureSource();
+                int callbacks = 0;
+                owner.AsyncManager.MonitoredItemAttachedCallback = _ =>
+                {
+                    callbacks++;
+                    throw new InvalidOperationException("An unchanged adoption must not notify providers.");
+                };
+                ServiceResult result = await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(callbacks, Is.Zero);
+                Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.Zero);
+                Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                Assert.That(item.ManagerHandle, Is.SameAs(source.Handle));
+                Assert.That(item.Generation, Is.SameAs(source.Generation));
+                Assert.That(((IMonitoredItemGenerationBinding)item).SourceRevision, Is.EqualTo(source.Revision));
+            }
+        }
+
+        /// <summary>
+        /// An older attached hook cannot roll back a source that a nested operation already replaced.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public async Task FailedAttachedHookCannotReleaseNewerIncarnationAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("ReplacedAttachedHook", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+                var failure = new InvalidOperationException("Older post-native callback failed.");
+                long newerRevision = 0;
+                owner.AsyncManager.MonitoredItemAttachedCallback = async ct =>
+                {
+                    owner.AsyncManager.MonitoredItemAttachedCallback = null;
+                    Assert.That(ServiceResult.IsGood(
+                        await owner.Lifecycle.DetachMonitoredItemAsync(item, ct).ConfigureAwait(false)), Is.True);
+                    Assert.That(ServiceResult.IsGood(
+                        await owner.Lifecycle.AttachMonitoredItemAsync(item, cancellationToken: ct)
+                            .ConfigureAwait(false)), Is.True);
+                    newerRevision = binding.SourceRevision;
+                    throw failure;
+                };
+                Exception actual = (await Assert.CatchAsync<Exception>(async () =>
+                    await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)))!;
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                Assert.That(owner.Owns(item.NodeManager), Is.True);
+                Assert.That(item.ManagerHandle, Is.Not.Null);
+                Assert.That(binding.SourceRevision, Is.EqualTo(newerRevision));
+                Assert.That(binding.IsDeleted, Is.False);
+                Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
         /// A failed native target that rolls back its own binding must still publish the lost-node status.
         /// </summary>
         [TestCase(ManagerPath.AsyncMonitoredNode)]

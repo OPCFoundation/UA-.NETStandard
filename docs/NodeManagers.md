@@ -1009,6 +1009,13 @@ Failed handoff or slot-local recovery reports a lost node only after that incarn
 A newer binding is never cleared or made terminal by an earlier attempt's finalization, including
 when both attempts use the same generation.
 
+A post-native adoption callback failure releases that attempt's native source before
+reporting the failure. This compensation ignores caller cancellation and cannot release
+a newer incarnation. Failed provider cleanup remains on the source generation for retry;
+the original callback failure is preserved, with cleanup failures aggregated after it.
+An idempotent adoption that leaves its native registration unchanged does not repeat
+the provider callback or acquire compensation rights over the existing source.
+
 Source availability is derived from the item's generation binding, not an independently
 mutable detached flag. Persistence retains the `IsDetached` compatibility field; restoring
 it preserves the original slot and queues without installing a manager or node handle.

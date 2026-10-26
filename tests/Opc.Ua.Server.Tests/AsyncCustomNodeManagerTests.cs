@@ -11113,6 +11113,16 @@ namespace Opc.Ua.Server.Tests
         internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
 
         /// <summary>
+        /// Gets or sets an injected post-native adoption callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemAttachedCallback { get; set; }
+
+        /// <summary>
+        /// Gets or sets an injected source-release callback.
+        /// </summary>
+        internal Func<CancellationToken, ValueTask>? MonitoredItemDetachedCallback { get; set; }
+
+        /// <summary>
         /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
         /// </summary>
         internal TrackingSamplingGroupManager InstallTrackingSamplingGroupManager()
@@ -11150,6 +11160,18 @@ namespace Opc.Ua.Server.Tests
             return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
         }
 
+        /// <inheritdoc/>
+        protected override ValueTask OnMonitoredItemAttachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            return MonitoredItemAttachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemAttachedAsync(context, handle, monitoredItem, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         protected override ValueTask OnMonitoredItemDetachedAsync(
             ServerSystemContext context,
             NodeHandle handle,
@@ -11157,7 +11179,8 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref m_detachedNotificationCount);
-            return base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
+            return MonitoredItemDetachedCallback?.Invoke(cancellationToken) ??
+                base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
         }
 
         protected override ValueTask OnNodeRemovedAsync(

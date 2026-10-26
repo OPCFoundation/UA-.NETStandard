@@ -853,6 +853,7 @@ namespace Opc.Ua.Server
                 context,
                 sampledMonitoredItem,
                 lifecycle,
+                expectedSourceRevision: null,
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -874,21 +875,49 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding ||
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+            adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
+            (ServiceResult result, bool changed) = await AttachMonitoredItemForLifecycleAsync(
                 monitoredItem,
                 adoption,
                 cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsGood(result) &&
+            if (changed && ServiceResult.IsGood(result) &&
                 monitoredItem is ISampledDataChangeMonitoredItem sampled &&
                 sampled.ManagerHandle is NodeHandle handle)
             {
                 ServerSystemContext context =
                     SystemContext.Copy(new OperationContext(monitoredItem));
-                await OnMonitoredItemAttachedAsync(
-                    context,
-                    handle,
-                    sampled,
-                    cancellationToken).ConfigureAwait(false);
+                long sourceRevision = adoption.SourceRevision;
+                try
+                {
+                    await OnMonitoredItemAttachedAsync(
+                        context,
+                        handle,
+                        sampled,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        ServiceResult release = await DetachMonitoredItemForLifecycleAsync(
+                            context, sampled, lifecycle, sourceRevision, CancellationToken.None).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(release))
+                        {
+                            throw new ServiceResultException(release);
+                        }
+                    }
+                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Monitored-item adoption and source cleanup both failed.", failure, cleanupFailure);
+                    }
+                    throw;
+                }
             }
             return result;
         }
@@ -987,6 +1016,7 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
             IMonitoredItemManagerLifecycle lifecycle,
+            long? expectedSourceRevision,
             CancellationToken cancellationToken)
         {
             MonitoredNode2? monitoredNode = null;
@@ -1006,6 +1036,11 @@ namespace Opc.Ua.Server
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
                     MonitoredItemSourceSnapshot source = binding.CaptureSource();
+                    if (expectedSourceRevision is long expected &&
+                        (source.Revision != expected || source.Generation?.Identifies(generation) != true))
+                    {
+                        return ServiceResult.Good;
+                    }
                     sourceRevision = source.Revision;
                     handle = source.Handle;
                     monitoredNode = isEvent ? handle?.MonitoredNode : null;
@@ -1142,7 +1177,7 @@ namespace Opc.Ua.Server
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
-        private async ValueTask<ServiceResult> AttachMonitoredItemForLifecycleAsync(
+        private async ValueTask<(ServiceResult Result, bool Changed)> AttachMonitoredItemForLifecycleAsync(
             IMonitoredItem monitoredItem,
             MonitoredItemAdoption? adoption = null,
             CancellationToken cancellationToken = default)
@@ -1152,7 +1187,7 @@ namespace Opc.Ua.Server
                 m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
                 monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
-                return StatusCodes.BadNotSupported;
+                return (StatusCodes.BadNotSupported, false);
             }
 
             adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
@@ -1166,7 +1201,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (handle == null)
             {
-                return StatusCodes.BadNodeIdUnknown;
+                return (StatusCodes.BadNodeIdUnknown, false);
             }
 
             NodeState source = await ValidateNodeAsync(
@@ -1176,7 +1211,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (source == null)
             {
-                return StatusCodes.BadNodeIdUnknown;
+                return (StatusCodes.BadNodeIdUnknown, false);
             }
 
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
@@ -1188,7 +1223,7 @@ namespace Opc.Ua.Server
             {
                 if (!CanSubscribeToEvents(source))
                 {
-                    return StatusCodes.BadNotSupported;
+                    return (StatusCodes.BadNotSupported, false);
                 }
             }
             else
@@ -1200,7 +1235,7 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(validationResult))
                 {
-                    return validationResult;
+                    return (validationResult, false);
                 }
 
                 if (!externalValues)
@@ -1209,7 +1244,7 @@ namespace Opc.Ua.Server
                         context, handle, sampledMonitoredItem, cancellationToken).ConfigureAwait(false);
                     if (IsFatalInitialReadError(readResult))
                     {
-                        return readResult;
+                        return (readResult, false);
                     }
                 }
             }
@@ -1232,7 +1267,7 @@ namespace Opc.Ua.Server
                         adoption);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
-                        return result;
+                        return (result, changed);
                     }
                     boundRevision = adoption.SourceRevision;
                     if (!isEvent)
@@ -1249,12 +1284,12 @@ namespace Opc.Ua.Server
                                 sampledMonitoredItem.QueueValue(initialValue, readResult, true);
                             }
                         }
-                        return result;
+                        return (result, changed);
                     }
                     monitoredNode = handle.MonitoredNode;
                     if (monitoredNode == null)
                     {
-                        return result;
+                        return (result, changed);
                     }
                     source.SetAreEventsMonitored(context, true, true);
                 }
@@ -1269,7 +1304,7 @@ namespace Opc.Ua.Server
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
                         ReferenceEquals(current, monitoredItem))
                     {
-                        return result;
+                        return (result, changed);
                     }
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2675,6 +2710,7 @@ namespace Opc.Ua.Server
                         itemContext,
                         sampledItem,
                         lifecycle,
+                        expectedSourceRevision: null,
                         cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
@@ -2739,7 +2775,7 @@ namespace Opc.Ua.Server
                 {
                     using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
                     using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-                    ServiceResult result = await AttachMonitoredItemForLifecycleAsync(
+                    (ServiceResult result, _) = await AttachMonitoredItemForLifecycleAsync(
                         monitoredItems[ii],
                         cancellationToken: cleanup.Token).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
