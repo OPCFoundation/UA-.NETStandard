@@ -1216,6 +1216,8 @@ namespace Opc.Ua.Server
                 }
 
                 slot = gate.m_active.Enter();
+                // The parent may have drained before this tentative entry. Only a still-live parent
+                // can authorize resource access; a losing fork only unwinds its own counter slot.
                 if (ReferenceEquals(Volatile.Read(ref m_gate), gate))
                 {
                     return true;

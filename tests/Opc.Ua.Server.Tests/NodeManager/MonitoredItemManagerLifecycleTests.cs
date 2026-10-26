@@ -1737,18 +1737,22 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A provider that completes after its source moved must release the old registration, not the new one.
+        /// A late provider releases the old registration without releasing a replacement in either generation.
         /// </summary>
-        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
-        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
-        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false)]
-        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false)]
-        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
-        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
-        [TestCase(ManagerPath.SyncAdapterMonitoredNode, true)]
-        [TestCase(ManagerPath.SyncAdapterSamplingGroup, true)]
-        public async Task LateEventAdoptionReleasesProviderAfterGenerationHandoffAsync(
-            ManagerPath path, bool failCleanup)
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, true, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, true, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, true)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false, true)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false, true)]
+        public async Task LateEventAdoptionReconcilesProviderAfterSourceHandoffAsync(
+            ManagerPath path, bool failCleanup, bool sameGeneration)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var resumeProvider = new ManualResetEventSlim(false);
@@ -1773,8 +1777,10 @@ namespace Opc.Ua.Server.Tests
                 var binding = (IMonitoredItemGenerationBinding)item;
                 binding.ReleaseSource();
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                ManagerOwner target = sameGeneration ? owner : replacement;
                 int oldRegistered = 0;
                 int oldUnsubscribes = 0;
+                int oldSubscribes = 0;
                 int replacementRegistered = 0;
                 var cleanupFailure = new InvalidOperationException("Late provider cleanup failed.");
                 owner.SetEventSubscriptionCallback(unsubscribe =>
@@ -1788,10 +1794,13 @@ namespace Opc.Ua.Server.Tests
                         Interlocked.Exchange(ref oldRegistered, 0);
                         return;
                     }
-                    entered.TrySetResult(true);
-                    if (!resumeProvider.Wait(TimeSpan.FromSeconds(30)))
+                    if (Interlocked.Increment(ref oldSubscribes) == 1)
                     {
-                        throw new TimeoutException("The old provider was not released by the test.");
+                        entered.TrySetResult(true);
+                        if (!resumeProvider.Wait(TimeSpan.FromSeconds(30)))
+                        {
+                            throw new TimeoutException("The old provider was not released by the test.");
+                        }
                     }
                     Interlocked.Exchange(ref oldRegistered, 1);
                 });
@@ -1818,7 +1827,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(ServiceResult.IsGood(
                         await owner.Lifecycle.ReleaseSourceAsync(item, timeout.Token).ConfigureAwait(false)), Is.True);
                     Assert.That(ServiceResult.IsGood(
-                        await replacement.Lifecycle.AdoptSourceAsync(item, cancellationToken: timeout.Token)
+                        await target.Lifecycle.AdoptSourceAsync(item, cancellationToken: timeout.Token)
                             .ConfigureAwait(false)), Is.True);
                     MonitoredItemSourceSnapshot newer = binding.CaptureSource();
                     resumeProvider.Set();
@@ -1836,11 +1845,15 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(failure, Is.TypeOf<ServiceResultException>());
                     Assert.That(((ServiceResultException)failure!).StatusCode,
                         Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
-                    Assert.That(Volatile.Read(ref oldRegistered), Is.Zero);
-                    Assert.That(Volatile.Read(ref oldUnsubscribes), Is.EqualTo(failCleanup ? 3 : 2));
-                    Assert.That(Volatile.Read(ref replacementRegistered), Is.EqualTo(1));
-                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
-                    Assert.That(replacement.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                    Assert.That(Volatile.Read(ref oldRegistered), Is.EqualTo(sameGeneration ? 1 : 0));
+                    Assert.That(Volatile.Read(ref oldUnsubscribes),
+                        Is.EqualTo(sameGeneration ? 1 : failCleanup ? 3 : 2));
+                    if (!sameGeneration)
+                    {
+                        Assert.That(Volatile.Read(ref replacementRegistered), Is.EqualTo(1));
+                        Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    }
+                    Assert.That(target.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
                     Assert.That(binding.CaptureSource().Revision, Is.EqualTo(newer.Revision));
                     Assert.That(item.ManagerHandle, Is.SameAs(newer.Handle));
                     Assert.That(item.Generation, Is.SameAs(newer.Generation));

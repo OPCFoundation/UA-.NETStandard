@@ -1318,7 +1318,8 @@ namespace Opc.Ua.Server
                 bool removed = false;
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
-                    if (ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                    if (binding.CaptureSource().Revision == boundRevision &&
+                        ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
                         ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
                         ReferenceEquals(current, monitoredItem))
@@ -2756,7 +2757,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    ((IMonitoredItemGenerationBinding)source.Item).TryInvalidateSource(source.Revision, terminal: false);
+                    ((IMonitoredItemGenerationBinding)source.Item)
+                        .TryInvalidateSource(source.Revision, terminal: false);
                 }
             }
             try
