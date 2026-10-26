@@ -817,8 +817,26 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
+            ClearSource(sourceRevision: null);
+        }
+
+        /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.TryClearSource(long sourceRevision)
+        {
+            return ClearSource(sourceRevision);
+        }
+
+        /// <summary>
+        /// Clears native ownership while preserving the binding's revision and lost-node state.
+        /// </summary>
+        private bool ClearSource(long? sourceRevision)
+        {
             lock (m_lock)
             {
+                if (sourceRevision is long expected && expected != m_sourceRevision)
+                {
+                    return false;
+                }
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
@@ -827,6 +845,7 @@ namespace Opc.Ua.Server
                 Generation = null;
                 ManagerHandle = null;
                 SetDetachState(isDetached: true, m_isDeleted);
+                return true;
             }
         }
 
@@ -844,9 +863,48 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
+            BindSource(nodeManager, managerHandle, sourceRevision: null, out _);
+        }
+
+        /// <inheritdoc/>
+        long IMonitoredItemGenerationBinding.SourceRevision
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_sourceRevision;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.TryBindSource(
+            long sourceRevision,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            out long boundRevision)
+        {
+            return BindSource(nodeManager, managerHandle, sourceRevision, out boundRevision);
+        }
+
+        /// <summary>
+        /// Atomically validates and installs one prepared native source binding.
+        /// </summary>
+        private bool BindSource(
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            long? sourceRevision,
+            out long boundRevision)
+        {
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
+                boundRevision = m_sourceRevision;
+                if (sourceRevision is long expected && expected != m_sourceRevision)
+                {
+                    return false;
+                }
                 if (m_isDisposed || m_subscriptionOwnership == SubscriptionOwnership.Released)
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
@@ -860,6 +918,8 @@ namespace Opc.Ua.Server
                 SourceMetadata = metadata;
                 SetDetachState(isDetached: false, isDeleted: false);
                 m_finalValuePublished = false;
+                boundRevision = m_sourceRevision = unchecked(m_sourceRevision + 1);
+                return true;
             }
         }
 
@@ -3636,6 +3696,9 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private IAsyncNodeManager? m_nodeManager;
+
+        /// <summary>Changes only when a native source binding is installed, never when sampling or queuing.</summary>
+        private long m_sourceRevision;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;

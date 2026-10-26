@@ -159,6 +159,57 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Preparation and rollback cannot overwrite a newer binding, including within the same generation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SourceRevisionRejectsStaleBindingAndCleanup(bool sameGeneration)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = GetBoundGeneration(item);
+            NodeManagerGeneration replacement = sameGeneration
+                ? original
+                : NodeManagerGenerationRegistry.CreateReplacement(original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+            long preparedRevision = binding.SourceRevision;
+            var handle = new object();
+            Assert.That(
+                binding.TryBindSource(preparedRevision, replacement.NodeManager, handle, out long boundRevision),
+                Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(boundRevision, Is.Not.EqualTo(preparedRevision));
+                Assert.That(binding.SourceRevision, Is.EqualTo(boundRevision));
+                Assert.That(binding.TryClearSource(preparedRevision), Is.False);
+                Assert.That(binding.TryBindSource(preparedRevision, original.NodeManager, new object(), out _),
+                    Is.False);
+                Assert.That(item.NodeManager, Is.SameAs(replacement.NodeManager));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+                Assert.That(actualOwner, Is.SameAs(owner));
+            });
+            Assert.That(binding.TryClearSource(boundRevision), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(binding.SourceRevision, Is.EqualTo(boundRevision));
+                Assert.That(item.NodeManager, Is.Null);
+                Assert.That(item.ManagerHandle, Is.Null);
+                Assert.That(replacement.MonitoredItems, Is.Empty);
+                Assert.That(replacement.Slot.UnresolvedItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+                Assert.That(actualOwner, Is.SameAs(owner));
+                Assert.That(binding.TryBindSource(preparedRevision, original.NodeManager, new object(), out _),
+                    Is.False);
+            });
+            Assert.That(binding.TryBindSource(boundRevision, replacement.NodeManager, handle, out _), Is.True);
+            Assert.That(replacement.Slot.UnresolvedItems, Is.Empty);
+            Assert.That(item.ManagerHandle, Is.SameAs(handle));
+        }
+
+        /// <summary>
         /// Neither ordering of deletion and handoff can restore a removed subscription claim.
         /// </summary>
         [TestCase(false)]

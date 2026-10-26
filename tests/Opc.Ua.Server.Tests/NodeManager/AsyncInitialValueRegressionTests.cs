@@ -184,6 +184,82 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task AdoptionReadCannotReplaceNewerSourceBindingAsync(bool samplingGroups, bool releaseReplacement)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queues, new FakeTimeProvider());
+            using (queues)
+            await using (TestableAsyncCustomNodeManager manager = CreateManager(server.Object, samplingGroups))
+            {
+                BaseDataVariableState node = await AddVariableAsync(manager).ConfigureAwait(false);
+                node.OnReadValueAsync = (_, _, _, _, _) => new ValueTask<AttributeReadResult>(CurrentValue(1));
+                using MonitoredItem item = await CreateItemAsync(manager, node).ConfigureAwait(false);
+                AttachSession(item);
+                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+                Assert.That((await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Drain(item);
+                var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                node.OnReadValueAsync = async (_, _, _, _, ct) =>
+                {
+                    started.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return CurrentValue(73);
+                };
+                Task<ServiceResult> staleAdoption = lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
+                    .AsTask();
+                try
+                {
+                    await started.Task.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                    node.OnReadValueAsync = (_, _, _, _, _) =>
+                        new ValueTask<AttributeReadResult>(CurrentValue(91));
+                    Assert.That(
+                        (await lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
+                            .ConfigureAwait(false)).StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
+                    if (releaseReplacement)
+                    {
+                        Assert.That(
+                            (await lifecycle.DetachMonitoredItemAsync(item, cancellation.Token)
+                                .ConfigureAwait(false)).StatusCode,
+                            Is.EqualTo(StatusCodes.Good));
+                    }
+                    Queue<MonitoredItemNotification> currentNotifications = Drain(item);
+                    Assert.That(currentNotifications, Has.Count.EqualTo(1));
+                    Assert.That(currentNotifications.Dequeue().Value.WrappedValue.TryGetValue(out int value), Is.True);
+                    Assert.That(value, Is.EqualTo(91));
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                }
+                ServiceResult result = await staleAdoption.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(
+                        releaseReplacement ? StatusCodes.BadInvalidState : StatusCodes.Good));
+                    if (releaseReplacement)
+                    {
+                        Assert.That(item.NodeManager, Is.Null);
+                        Assert.That(item.ManagerHandle, Is.Null);
+                        Assert.That(manager.MonitoredItems, Is.Empty);
+                    }
+                    else
+                    {
+                        Assert.That(item.NodeManager, Is.SameAs(manager));
+                        Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                    }
+                    Assert.That(Drain(item, resendData: false), Is.Empty);
+                });
+            }
+        }
+
         private static async Task AssertDisposalWaitsForReadAsync(TestableAsyncCustomNodeManager manager)
         {
             var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -462,12 +538,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return session.Object;
         }
 
-        private static Queue<MonitoredItemNotification> Drain(MonitoredItem item)
+        private static Queue<MonitoredItemNotification> Drain(MonitoredItem item, bool resendData = true)
         {
             var notifications = new Queue<MonitoredItemNotification>();
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Publish, RequestLifetime.None);
-            item.SetupResendDataTrigger();
+            if (resendData)
+            {
+                item.SetupResendDataTrigger();
+            }
             item.Publish(context, notifications, new Queue<DiagnosticInfo>(), 100, NullLogger.Instance);
             return notifications;
         }

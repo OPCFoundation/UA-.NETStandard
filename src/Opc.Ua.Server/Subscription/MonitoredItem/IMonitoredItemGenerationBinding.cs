@@ -50,6 +50,32 @@ namespace Opc.Ua.Server
         bool IsRemoved { get; }
 
         /// <summary>
+        /// Gets the revision of the item's native source binding.
+        /// </summary>
+        long SourceRevision { get; }
+
+        /// <summary>
+        /// Commits a native source only if no other binding was installed during preparation.
+        /// </summary>
+        /// <param name="sourceRevision">The revision captured before source preparation.</param>
+        /// <param name="nodeManager">The new native owner.</param>
+        /// <param name="managerHandle">The prepared source handle.</param>
+        /// <param name="boundRevision">The revision of the committed binding.</param>
+        /// <returns>Whether the prepared source was still current and committed.</returns>
+        bool TryBindSource(
+            long sourceRevision,
+            IAsyncNodeManager nodeManager,
+            object managerHandle,
+            out long boundRevision);
+
+        /// <summary>
+        /// Clears a failed registration without clearing a newer source binding.
+        /// </summary>
+        /// <param name="sourceRevision">The revision owned by the failed registration.</param>
+        /// <returns>Whether the source revision was still current.</returns>
+        bool TryClearSource(long sourceRevision);
+
+        /// <summary>
         /// Reports the lost node once and optionally forbids future adoption.
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>

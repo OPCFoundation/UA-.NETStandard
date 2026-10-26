@@ -617,12 +617,15 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
+            long? sourceRevision)
         {
-            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
+            long expectedRevision = sourceRevision ?? binding.SourceRevision;
 
             if (MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
@@ -634,6 +637,10 @@ namespace Opc.Ua.Server
                 return lifecycle.IsDetached
                     ? (StatusCodes.BadInvalidState, false)
                     : (ServiceResult.Good, false);
+            }
+            if (binding.SourceRevision != expectedRevision)
+            {
+                return (StatusCodes.BadInvalidState, false);
             }
 
             if (!lifecycle.IsDetached)
@@ -717,7 +724,10 @@ namespace Opc.Ua.Server
                 }
                 monitoredNodeLinked = true;
 
-                lifecycle.Rebind(m_nodeManager, handle);
+                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out _))
+                {
+                    return (StatusCodes.BadInvalidState, false);
+                }
                 attached = true;
                 return (ServiceResult.Good, true);
             }

@@ -621,11 +621,13 @@ namespace Opc.Ua.Server
         private ServiceResult AttachMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
+            long sourceRevision = binding.SourceRevision;
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
             lock (Lock)
             {
@@ -685,7 +687,8 @@ namespace Opc.Ua.Server
                     handle,
                     sampledMonitoredItem,
                     AddNodeToComponentCache,
-                    RemoveNodeFromComponentCache);
+                    RemoveNodeFromComponentCache,
+                    sourceRevision);
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
                     if (sampledMonitoredItem is MonitoredItem concreteItem &&

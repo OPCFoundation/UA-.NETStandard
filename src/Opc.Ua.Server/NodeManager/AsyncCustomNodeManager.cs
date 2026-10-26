@@ -1116,11 +1116,13 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
+            long sourceRevision = binding.SourceRevision;
             using var operationContext = new OperationContext(monitoredItem);
             ServerSystemContext context = SystemContext.Copy(operationContext);
             NodeHandle handle = await GetManagerHandleAsync(
@@ -1190,7 +1192,8 @@ namespace Opc.Ua.Server
                         handle,
                         sampledMonitoredItem,
                         AddNodeToComponentCache,
-                        RemoveNodeFromComponentCache);
+                        RemoveNodeFromComponentCache,
+                        sourceRevision);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
                         return result;

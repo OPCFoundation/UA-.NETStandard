@@ -636,12 +636,15 @@ namespace Opc.Ua.Server
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
+            long? sourceRevision)
         {
-            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
+            long expectedRevision = sourceRevision ?? binding.SourceRevision;
 
             if (MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
@@ -653,6 +656,10 @@ namespace Opc.Ua.Server
                 return lifecycle.IsDetached
                     ? (StatusCodes.BadInvalidState, false)
                     : (ServiceResult.Good, false);
+            }
+            if (binding.SourceRevision != expectedRevision)
+            {
+                return (StatusCodes.BadInvalidState, false);
             }
 
             if (!lifecycle.IsDetached)
@@ -672,9 +679,15 @@ namespace Opc.Ua.Server
             bool monitoringStarted = false;
             bool attached = false;
             bool rollbackAttempted = false;
+            bool sourceBound = false;
+            long boundRevision = 0;
             try
             {
-                lifecycle.Rebind(m_nodeManager, handle);
+                if (!binding.TryBindSource(expectedRevision, m_nodeManager, handle, out boundRevision))
+                {
+                    return (StatusCodes.BadInvalidState, false);
+                }
+                sourceBound = true;
                 if (isEvent)
                 {
                     if (!MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
@@ -767,7 +780,10 @@ namespace Opc.Ua.Server
                     }
 
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
-                    lifecycle.Detach(m_server);
+                    if (sourceBound)
+                    {
+                        binding.TryClearSource(boundRevision);
+                    }
 
                     if (monitoredNodeCreated)
                     {
