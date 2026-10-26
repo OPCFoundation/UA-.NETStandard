@@ -246,7 +246,7 @@ namespace Opc.Ua.Wot
         NonPortableIdentity = 6001,
 
         /// <summary>
-        /// Reserved. WoT Binding 1.1 defines no <c>uav:isEvent</c> term - event
+        /// Reserved. OPC 10101-1 defines no <c>uav:isEvent</c> term - event
         /// identity comes solely from <c>@type: uav:eventType</c> - so no
         /// diagnostic carries this code. The member stays declared, and keeps
         /// its number, so a consumer that switches over or persists the numeric
@@ -437,7 +437,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// A projection document annotates a declared affordance with a member
-        /// outside the closed set WoT Binding Section 12.5 admits. A projection
+        /// outside the closed set OPC 10101-2 admits. A projection
         /// <em>declares</em> affordances and does not define them, so an
         /// annotation may restate presentation and semantics - <c>title</c>,
         /// <c>titles</c>, <c>description</c>, <c>descriptions</c>, additional
@@ -451,7 +451,7 @@ namespace Opc.Ua.Wot
         ProjectionAnnotationNotPermitted = 6028,
 
         /// <summary>
-        /// Reserved. WoT Binding 1.1 defines no <c>uav:severity</c> term, so no
+        /// Reserved. OPC 10101-1 defines no <c>uav:severity</c> term, so no
         /// diagnostic carries this code. The member stays declared, and keeps
         /// its number, so a consumer that switches over or persists the numeric
         /// value still compiles and still round-trips.

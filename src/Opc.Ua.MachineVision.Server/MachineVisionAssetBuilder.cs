@@ -249,7 +249,7 @@ namespace Opc.Ua.Vision.Server
                     m_context.Manager, State, "Components");
                 foreach (BaseObjectState item in m_items)
                 {
-                    m_links.Add((components, item, ReferenceTypeIds.Organizes));
+                    m_links.Add((components, item, ReferenceTypeIds.HasComponent));
                 }
             }
             var machinesId = ExpandedNodeId.ToNodeId(

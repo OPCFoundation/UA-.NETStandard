@@ -80,8 +80,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "canonical-view",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
@@ -132,8 +132,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = "canonical-view",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(kProjectionDocument))
             }).ConfigureAwait(false);
             Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
@@ -175,8 +175,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "https://www.w3.org/2022/wot/td/v1.1",
                 {"uav":"http://opcfoundation.org/UA/WoT-Binding/","tm":"https://www.w3.org/2019/wot/tm#"}
               ],
-              "@type":["uav:projection"],
-              "uav:projectionKind":"ThingDescription",
+              "@type":["Thing","uav:projection"],
               "id":"urn:c2:view",
               "title":"Canonical View",
               "uav:scenario":"urn:c2:scenario",

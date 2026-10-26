@@ -1,0 +1,4 @@
+--scenario native-read --native-client {workers}/client.exe --iterations 300000 --warmup-calls 100000
+--scenario read --sessions 20 --nodes 100 --duration 15 --warmup 8
+--scenario sub --sessions 50 --subs 15 --nodes 600 --node-type all --pub 100 --write-interval 150 --security encrypt --duration 15 --warmup 10
+--scenario events --sessions 50 --subs 15 --pub 100 --security encrypt --duration 15 --warmup 10

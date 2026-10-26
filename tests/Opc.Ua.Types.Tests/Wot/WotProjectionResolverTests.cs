@@ -45,7 +45,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// Exercises <see cref="WotProjectionResolver"/> against the worked
-    /// examples of WoT Binding Section 12 and each of the selection, merge and
+    /// examples of OPC 10101-2 and each of the selection, merge and
     /// carriage rules positively and negatively.
     /// </summary>
     [TestFixture]
@@ -65,8 +65,8 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
             AssertResolvedExample(PredictiveResolvedJson, PreparePredictiveProjection(), view,
-                ("q:s:cHVtcA:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
-                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+                ("q:s:pump:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
             AssertResolvedExample(AssetResolvedJson, AssetProjectionJson, view,
-                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         /// <summary>
@@ -117,6 +117,42 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 speed.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo("./01-opcua-td-pump.jsonld#/properties/pumpSpeed"));
+        }
+
+        /// <summary>
+        /// Verifies that local definitions replace imported selections and
+        /// retain ordinary Thing Model references.
+        /// </summary>
+        [Test]
+        public async Task LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync()
+        {
+            WotProjectionResolver resolver = Resolver(
+                ("urn:local-source", LocalAffordanceSourceJson));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LocalAffordanceProjectionJson));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement properties = view.RootElement.GetProperty("properties");
+            JsonElement overridden = properties.GetProperty("sourceValue");
+            JsonElement ordinaryReference = properties.GetProperty("externalAlias");
+            Assert.Multiple(() =>
+            {
+                Assert.That(overridden.GetProperty("type").GetString(), Is.EqualTo("integer"));
+                Assert.That(overridden.GetProperty("title").GetString(), Is.EqualTo("Local definition"));
+                Assert.That(overridden.TryGetProperty("uav:resolvedFrom", out _), Is.False);
+                Assert.That(
+                    overridden.GetProperty("forms")[0].GetProperty("href").GetString(),
+                    Is.EqualTo("https://projection.example/views/local"));
+                Assert.That(
+                    ordinaryReference.GetProperty("tm:ref").GetString(),
+                    Is.EqualTo("urn:local-source#/schemaDefinitions/Shared"));
+                Assert.That(
+                    ordinaryReference.TryGetProperty("uav:resolvedFrom", out _),
+                    Is.False);
+            });
         }
 
         /// <summary>
@@ -495,19 +531,19 @@ namespace Opc.Ua.Types.Tests.Wot
                     "http://example.com/demo/pump;s=PumpSpeed"));
             Assert.That(
                 form.GetProperty("security")[0].GetString(),
-                Is.EqualTo("q:s:cHVtcA:b3BjdWFfc2M"));
+                Is.EqualTo("q:s:pump:opcua_sc"));
 
             JsonElement definitions =
                 result.Value!.RootElement.GetProperty("securityDefinitions");
-            JsonElement combo = definitions.GetProperty("q:s:cHVtcA:b3BjdWFfc2M");
+            JsonElement combo = definitions.GetProperty("q:s:pump:opcua_sc");
             Assert.That(
                 combo.GetProperty("allOf").EnumerateArray()
                     .Select(e => e.GetString()),
                 Is.EqualTo(s_pumpComboAllOf));
             Assert.That(
-                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", out _), Is.True);
+                definitions.TryGetProperty("q:s:pump:opcua_channel_sc", out _), Is.True);
             Assert.That(
-                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M", out _),
+                definitions.TryGetProperty("q:s:pump:opcua_authentication_sc", out _),
                 Is.True);
         }
 
@@ -532,6 +568,100 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Value!.RootElement.GetProperty("securityDefinitions");
             Assert.That(
                 PropertyNames(definitions), Is.EqualTo(s_nosecOnly));
+        }
+
+        /// <summary>
+        /// Verifies that source-routed imported actions retain the original source
+        /// Object receiver rather than adopting the projection's identity.
+        /// </summary>
+        [Test]
+        public async Task SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver()
+        {
+            WotProjectionResolver resolver = Resolver(("urn:receiver-source", ReceiverSourceJson));
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(ReceiverProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(view.RootElement.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:projection;s=View"));
+                Assert.That(form.GetProperty("href").GetString(),
+                    Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.TryGetProperty("uav:callObjectId", out _), Is.False);
+                Assert.That(WotCallReceiver.TryCaptureSourceObject(
+                    view, action, out string receiver, out string endpoint, out string error), Is.True, error);
+                Assert.That(receiver, Is.EqualTo("nsu=urn:source;s=Owner"));
+                Assert.That(endpoint, Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(action.GetProperty("uav:resolvedFrom").GetString(),
+                    Is.EqualTo("urn:receiver-source#/actions/run"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that a source action's explicit receiver is not overwritten by root capture.
+        /// </summary>
+        [TestCase("\"nsu=urn:source;s=ExplicitOwner\"")]
+        [TestCase("null")]
+        [TestCase("\"\"")]
+        public async Task SourceRoutedImportedActionPreservesExplicitCallObjectId(string receiverJson)
+        {
+            string source = ReceiverSourceJson.Replace(
+                "\"op\": [\"invokeaction\"]",
+                "\"uav:callObjectId\":" + receiverJson + ",\"op\": [\"invokeaction\"]",
+                StringComparison.Ordinal);
+            WotProjectionResolver resolver = Resolver(("urn:receiver-source", source));
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(ReceiverProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.That(form.GetProperty("uav:callObjectId").GetRawText(), Is.EqualTo(receiverJson));
+            Assert.That(form.GetProperty("href").GetString(),
+                Is.EqualTo("opc.tcp://source.example:4840"));
+        }
+
+        /// <summary>
+        /// Verifies that a second projection cannot replace the original source receiver.
+        /// </summary>
+        [Test]
+        public async Task NestedSourceRoutedProjectionRetainsOriginalCallReceiver()
+        {
+            WotProjectionResolver resolver = Resolver(
+                ("urn:receiver-source", ReceiverSourceJson),
+                ("urn:receiver-intermediate", ReceiverProjectionJson));
+            string outer = ReceiverProjectionJson
+                .Replace("\"urn:receiver-source\"", "\"urn:receiver-intermediate\"", StringComparison.Ordinal)
+                .Replace("nsu=urn:projection;s=View", "nsu=urn:outer;s=View", StringComparison.Ordinal);
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(outer));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(view.RootElement.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:outer;s=View"));
+                Assert.That(form.TryGetProperty("uav:callObjectId", out _), Is.False);
+                Assert.That(WotCallReceiver.TryCaptureSourceObject(
+                    view, action, out string receiver, out string endpoint, out string error), Is.True, error);
+                Assert.That(receiver, Is.EqualTo("nsu=urn:source;s=Owner"));
+                Assert.That(endpoint, Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.GetProperty("href").GetString(),
+                    Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:source;s=Run"));
+            });
         }
 
         /// <summary>
@@ -594,7 +724,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.4 carries the source's <em>effective</em> anchor, which
+        /// OPC 10101-2 carries the source's <em>effective</em> anchor, which
         /// Section 5.1.4 defines as the nearest enclosing
         /// <c>uav:browsePathAnchor</c> and, failing that, the nearest enclosing
         /// <c>uav:id</c>. A source that identifies the Node it describes
@@ -899,10 +1029,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 dictionary[map[ii].Href] = map[ii].Json;
             }
-            return new WotProjectionResolver(new MapResolver(dictionary), new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            return new WotProjectionResolver(new MapResolver(dictionary));
         }
 
         private static JsonElement Property(WotDocument view, string name)
@@ -1214,10 +1341,10 @@ namespace Opc.Ua.Types.Tests.Wot
             ["serialNumber", "manufacturer", "manual"];
 
         private static readonly string[] s_sensorMembers = ["sensor"];
-        private static readonly string[] s_nosecOnly = ["q:p:bm9zZWNfc2M"];
+        private static readonly string[] s_nosecOnly = ["q:p:nosec_sc"];
 
         private static readonly string[] s_pumpComboAllOf =
-            ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"];
+            ["q:s:pump:opcua_channel_sc", "q:s:pump:opcua_authentication_sc"];
 
         private const string PredictiveProjectionJson = /*lang=json,strict*/ """
         {
@@ -1282,27 +1409,27 @@ namespace Opc.Ua.Types.Tests.Wot
           "description": "A predictive-maintenance projection view.",
           "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
           "securityDefinitions": {
-            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
-            "q:s:cHVtcA:b3BjdWFfc2M": {
+            "q:p:nosec_sc": { "scheme": "nosec" },
+            "q:s:pump:opcua_sc": {
               "scheme": "combo",
-              "allOf": ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"]
+              "allOf": ["q:s:pump:opcua_channel_sc", "q:s:pump:opcua_authentication_sc"]
             },
-            "q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:s:pump:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             },
-            "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M": {
+            "q:s:pump:opcua_authentication_sc": {
               "scheme": "uav:authentication",
               "uav:userIdentityToken": "UserName"
             },
-            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:s:identity:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             }
           },
-          "security": "q:p:bm9zZWNfc2M",
+          "security": "q:p:nosec_sc",
           "properties": {
             "pumpSpeed": {
               "@type": "uav:variable",
@@ -1320,7 +1447,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
@@ -1339,7 +1466,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "writeproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
@@ -1358,7 +1485,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure"
@@ -1377,7 +1504,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/motorTemperature"
@@ -1395,7 +1522,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1413,7 +1540,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1431,7 +1558,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
@@ -1712,7 +1839,7 @@ namespace Opc.Ua.Types.Tests.Wot
           "title": "Pump 01 asset",
           "description": "An asset instance projection.",
           "uav:scenario": "http://example.com/scenario/AssetManagement",
-          "security": "q:p:bm9zZWNfc2M",
+          "security": "q:p:nosec_sc",
           "links": [
             {
               "rel": "ua:Organizes",
@@ -1728,8 +1855,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
           ],
           "securityDefinitions": {
-            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
-            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:p:nosec_sc": { "scheme": "nosec" },
+            "q:s:identity:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
@@ -1749,7 +1876,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1767,7 +1894,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1785,7 +1912,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
@@ -1854,6 +1981,67 @@ namespace Opc.Ua.Types.Tests.Wot
             "pumpSpeed": {
               "tm:ref": "urn:pump#/properties/pumpSpeed",
               "title": "Enumerated wins"
+            }
+          }
+        }
+        """;
+
+        private const string LocalAffordanceProjectionJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:local-affordances",
+          "base": "https://projection.example/views/current.jsonld",
+          "title": "Local affordances",
+          "uav:scenario": "http://example.com/scenario/LocalAffordances",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "source",
+              "href": "urn:local-source",
+              "type": "application/td+json",
+              "uav:selectAll": true
+            }
+          ],
+          "properties": {
+            "sourceValue": {
+              "title": "Local definition",
+              "type": "integer",
+              "forms": [{ "href": "./local", "op": ["readproperty"] }]
+            },
+            "externalAlias": {
+              "tm:ref": "urn:local-source#/schemaDefinitions/Shared",
+              "title": "Ordinary reference",
+              "type": "string",
+              "forms": [{ "href": "https://projection.example/external", "op": ["readproperty"] }]
+            }
+          }
+        }
+        """;
+
+        private const string LocalAffordanceSourceJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": "uav:object",
+          "id": "urn:local-source",
+          "title": "Source",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "schemaDefinitions": {
+            "Shared": { "type": "string" }
+          },
+          "properties": {
+            "sourceValue": {
+              "@type": "uav:variable",
+              "type": "number",
+              "forms": [{ "href": "https://source.example/value", "op": ["readproperty"] }]
             }
           }
         }
@@ -1949,6 +2137,50 @@ namespace Opc.Ua.Types.Tests.Wot
               ]
             }
           }
+        }
+        """;
+
+        private const string ReceiverSourceJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": ["Thing", "uav:object"],
+          "uav:id": "nsu=urn:source;s=Owner",
+          "base": "opc.tcp://source.example:4840",
+          "actions": {
+            "run": {
+              "forms": [{
+                "href": "opc.tcp://source.example:4840",
+                "uav:id": "nsu=urn:source;s=Run",
+                "op": ["invokeaction"]
+              }]
+            }
+          }
+        }
+        """;
+
+        private const string ReceiverProjectionJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            {
+              "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+              "tm": "https://www.w3.org/2019/wot/tm#"
+            }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "uav:id": "nsu=urn:projection;s=View",
+          "title": "Source Call receiver projection",
+          "uav:scenario": "urn:scenario:CallReceiver",
+          "uav:projects": [{
+            "uav:sourceName": "source",
+            "href": "urn:receiver-source",
+            "type": "application/td+json",
+            "uav:routing": "source",
+            "uav:select": [{ "uav:affordanceKind": "action" }]
+          }]
         }
         """;
 
@@ -2101,5 +2333,52 @@ namespace Opc.Ua.Types.Tests.Wot
           ]
         }
         """;
+
+        [Test]
+        public async Task RejectsMissingRootRoleBeforeResolvingSourcesAsync()
+        {
+            JsonObject root = (JsonObject)JsonNode.Parse(SelfProjectionJson)!;
+            root["@type"] = new JsonArray("uav:projection");
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+            var source = new Moq.Mock<IWotThingResolver>(Moq.MockBehavior.Strict);
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
+            });
+            source.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task ResolvesCurrentWorkedExampleWithStrictDefaultsAsync()
+        {
+            var source = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["./01-opcua-td-pump.jsonld"] = PumpSourceJson,
+                ["./06-anchored-paths-and-device-identity.jsonld"] = IdentitySourceJson
+            });
+            var resolver = new WotProjectionResolver(source);
+            string projection = PreparePredictiveProjection();
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            Assert.That(WotProjection.IsProjection(view), Is.False);
+            AssertResolvedExample(PredictiveResolvedJson, projection, view,
+                ("q:s:pump:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+        }
     }
 }

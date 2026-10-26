@@ -425,7 +425,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             JsonObject plan = JsonNode.Parse("""
                 {
-                  "@type": ["uav:projection"],
+                  "@type": ["Thing", "uav:projection"],
                   "title": "Independent bounded review",
                   "uav:scenario": "urn:review:bounded",
                   "uav:projects": [{
@@ -434,7 +434,6 @@ namespace Opc.Ua.Types.Tests.Wot
                     "type": "application/td+json"
                   }],
                   "@context": "https://www.w3.org/2022/wot/td/v1.1",
-                  "uav:projectionKind": "ThingDescription",
                   "id": "https://host.test/view.json",
                   "security": "none",
                   "securityDefinitions": {"none": {"scheme": "nosec"}},

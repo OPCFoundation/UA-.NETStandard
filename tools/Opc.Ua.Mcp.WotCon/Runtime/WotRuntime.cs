@@ -309,7 +309,7 @@ namespace Opc.Ua.Mcp
             if (method)
             {
                 var owner = ExpandedNodeId.ToNodeId(
-                    ExpandedNodeId.Parse(operation.Form.Addressing.Metadata["componentOf"]), session.NamespaceUris);
+                    ExpandedNodeId.Parse(operation.Form.Addressing.Metadata["callObjectId"]), session.NamespaceUris);
                 await m_sessions.UaOperationGuard.AuthorizeTargetAsync(bound, owner, genericCall: true, ct)
                     .ConfigureAwait(false);
             }

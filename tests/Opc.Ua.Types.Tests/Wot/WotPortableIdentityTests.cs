@@ -598,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.6 computes the <c>ViewVersion</c> over a <em>set</em>: a
+        /// OPC 10101-2 computes the <c>ViewVersion</c> over a <em>set</em>: a
         /// member reached twice contributes once, and a member that is
         /// <c>null</c> stands for the empty identity rather than ending the
         /// computation.

@@ -679,6 +679,10 @@ namespace Opc.Ua.Tools.Tests
                 source,
                 Does.Contain("$buildBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
                 "Build duration remains available for reporting.");
+            Assert.That(invocations[1], Does.Contain("$logPath $properties.TargetDir"));
+            Assert.That(source, Does.Contain("$startInfo = New-DotnetStartInfo $arguments $IsLinux"));
+            Assert.That(source, Does.Contain("$process.StartInfo = $startInfo"));
+            Assert.That(source, Does.Contain("$process.Kill($true)"));
         }
 
         /// <summary>

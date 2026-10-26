@@ -1,0 +1,416 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Channels;
+using System.Threading.Tasks;
+using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua;
+using UaLens.Subscriptions;
+using UaLens.Tests.Desktop;
+using UaLens.ViewModels;
+using UaLens.Views;
+
+namespace UaLens.Tests.ViewModels;
+
+[TestFixture]
+[NonParallelizable]
+public sealed partial class SubscriptionViewModelLifecycleTests
+{
+
+    [Test]
+    public async Task AttachAppliesConfigurationBeforeReplayingItemsAndPreservesDocumentIds()
+    {
+        var adapter = new ControlledSubscriptionAdapter();
+        await using var model = new SubscriptionViewModel("Boiler", null, NullLogger.Instance);
+        MonitoredItemConfig first = Item(501, "Temperature") with { QueueSize = 17, DiscardOldest = false };
+        MonitoredItemConfig second = Item(702, "Pressure") with { MonitoringMode = MonitoringMode.Sampling };
+        model.Items.Add(first);
+        model.Items.Add(second);
+        model.Subscription = new SubscriptionConfig
+        {
+            PublishingInterval = TimeSpan.FromMilliseconds(750),
+            KeepAliveCount = 4,
+            LifetimeCount = 12
+        };
+        var order = new List<string>();
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reply = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken mutationToken = default;
+        adapter.Mock.Setup(a => a.ApplySubscriptionAsync(model.Subscription, It.IsAny<CancellationToken>()))
+            .Returns((SubscriptionConfig _, CancellationToken token) =>
+            {
+                mutationToken = token;
+                Assert.That(token.CanBeCanceled, Is.True);
+                Assert.That(token.IsCancellationRequested, Is.False);
+                order.Add("apply");
+                return Task.CompletedTask;
+            });
+        adapter.Mock.Setup(a => a.AddItemAsync(It.IsAny<MonitoredItemConfig>(), It.IsAny<CancellationToken>()))
+            .Returns((MonitoredItemConfig item, CancellationToken token) =>
+            {
+                order.Add(item.DisplayName);
+                Assert.That(token, Is.EqualTo(mutationToken));
+                if (item.DisplayName == "Temperature")
+                {
+                    Assert.That(item.Id, Is.EqualTo(first.Id));
+                    Assert.That(item.QueueSize, Is.EqualTo(17));
+                    Assert.That(item.DiscardOldest, Is.False);
+                    return Task.FromResult(item.Id);
+                }
+                Assert.That(item.Id, Is.EqualTo(second.Id));
+                Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Sampling));
+                entered.SetResult();
+                return reply.Task;
+            });
+
+        Task attach = model.AttachAdapterAsync(adapter.Object, cancellation.Token);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+        Assert.That(attach.IsCompleted, Is.False);
+        Assert.That(model.Items, Is.EqualTo(new[] { first, second }));
+        Assert.That(model.ItemStatuses.Select(row => row.Id), Is.EqualTo(new[] { first.Id, second.Id }));
+        reply.SetResult(second.Id);
+        await attach.ConfigureAwait(false);
+
+        Assert.That(order, Is.EqualTo(s_attachOrder));
+        Assert.That(
+            model.Items.Select(item => item.Id),
+            Is.EqualTo(s_attachedItemIds));
+        Assert.That(model.Items[0], Is.SameAs(first));
+        Assert.That(model.Items[1], Is.SameAs(second));
+        Assert.That(
+            model.ItemStatuses.Select(row => row.Id),
+            Is.EqualTo(s_attachedItemIds));
+        Assert.That(model.Adapter, Is.SameAs(adapter.Object));
+        Assert.That(adapter.DisposeCount, Is.Zero);
+    }
+
+    [TestCase("apply")]
+    [TestCase("replay")]
+    [TestCase("preCanceled")]
+    [TestCase("midCanceled")]
+    [TestCase("disposed")]
+    public async Task FailedCanceledOrDisposedAttachDisposesIncomingAdapterAndKeepsIntent(string failureStage)
+    {
+        var adapter = new ControlledSubscriptionAdapter();
+        var model = new SubscriptionViewModel("Retained intent", null, NullLogger.Instance);
+        model.Items.Add(Item(501, "Temperature"));
+        model.Items.Add(Item(702, "Pressure"));
+        MonitoredItemConfig[] original = model.Items.ToArray();
+        using var cancellation = new CancellationTokenSource();
+        var failure = new ServiceResultException(StatusCodes.BadTooManyMonitoredItems, "replay rejected");
+        if (failureStage == "apply")
+        {
+            adapter.Mock.Setup(a => a.ApplySubscriptionAsync(
+                It.IsAny<SubscriptionConfig>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+        }
+        if (failureStage is "replay" or "midCanceled")
+        {
+            adapter.Mock.Setup(a => a.AddItemAsync(
+                It.Is<MonitoredItemConfig>(item => item.DisplayName == "Pressure"),
+                It.IsAny<CancellationToken>())).Returns((MonitoredItemConfig item, CancellationToken _) =>
+            {
+                if (failureStage == "midCanceled")
+                {
+                    cancellation.Cancel();
+                    return Task.FromResult(item.Id);
+                }
+                return Task.FromException<int>(failure);
+            });
+        }
+        if (failureStage == "preCanceled")
+        {
+            await cancellation.CancelAsync().ConfigureAwait(false);
+        }
+        if (failureStage == "disposed")
+        {
+            await model.DisposeAsync().ConfigureAwait(false);
+        }
+        try
+        {
+            Task attach = model.AttachAdapterAsync(adapter.Object, cancellation.Token);
+            if (failureStage == "disposed")
+            {
+                await Assert.ThatAsync(() => attach, Throws.InstanceOf<ObjectDisposedException>())
+                    .ConfigureAwait(false);
+            }
+            else if (failureStage is "preCanceled" or "midCanceled")
+            {
+                await Assert.ThatAsync(() => attach, Throws.InstanceOf<OperationCanceledException>())
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(() => attach, Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            }
+            Assert.That(model.Items, Is.EqualTo(original));
+            Assert.That(model.Adapter, Is.Null);
+            Assert.That(model.IsBound, Is.False);
+            Assert.That(adapter.DisposeCount, Is.EqualTo(1));
+            Assert.That(adapter.Added, Has.Count.EqualTo(failureStage is "replay" or "midCanceled" ? 1 : 0));
+            await adapter.Input.Reader.Completion.ConfigureAwait(false);
+        }
+        finally
+        {
+            await model.DisposeAsync().ConfigureAwait(false);
+        }
+        Assert.That(adapter.DisposeCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task ReattachDrainsOldCaptureBeforeDisposingAdapterOrApplyingReplacement()
+    {
+        var order = new List<string>();
+        var source = new DrainControlledReader(order);
+        var old = new ControlledSubscriptionAdapter();
+        old.Mock.SetupGet(a => a.Events).Returns(source);
+        old.Mock.Setup(a => a.DisposeAsync()).Returns(() =>
+        {
+            order.Add("old adapter disposed");
+            return ValueTask.CompletedTask;
+        });
+        var replacement = new ControlledSubscriptionAdapter();
+        replacement.Mock.Setup(a => a.ApplySubscriptionAsync(
+            It.IsAny<SubscriptionConfig>(), It.IsAny<CancellationToken>())).Returns(() =>
+        {
+            order.Add("new adapter applied");
+            return Task.CompletedTask;
+        });
+        await using var model = new SubscriptionViewModel("Drain order", old.Object, NullLogger.Instance);
+        await source.Waiting.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+        Task attach = model.AttachAdapterAsync(replacement.Object);
+        try
+        {
+            await source.Draining.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+            Assert.That(attach.IsCompleted, Is.False);
+            Assert.That(order, Is.Empty);
+            Assert.That(model.Adapter, Is.Null);
+            source.Release.SetResult();
+            await attach.ConfigureAwait(false);
+        }
+        finally
+        {
+            source.Release.TrySetResult();
+            await attach.ConfigureAwait(false);
+        }
+
+        Assert.That(order, Is.EqualTo(s_reattachDrainsOldCaptureBeforeDisposingAdapterOrApplyingReplaExpected));
+        Assert.That(model.Adapter, Is.SameAs(replacement.Object));
+        old.Mock.Verify(a => a.DisposeAsync(), Times.Once);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task HiddenViewStillRecordsOrderedChannelNotifications(bool detachAndReattach)
+    {
+        var old = new ControlledSubscriptionAdapter();
+        var replacement = new ControlledSubscriptionAdapter();
+        old.Mock.Setup(a => a.DisposeAsync()).Returns(ValueTask.CompletedTask);
+        await using var model = new SubscriptionViewModel("Hidden", old.Object, NullLogger.Instance);
+        ChannelReader<NotificationEvent> playback = model.Recorder.CreateReader();
+        DateTime time = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+        var first = new NotificationEvent(NotificationKind.DataChange, 101, 2, 51, time, -12.25);
+        var second = new NotificationEvent(NotificationKind.Event, 202, 4, 52, time.AddSeconds(1));
+        var third = new NotificationEvent(NotificationKind.KeepAlive, 0, 0, 53, time.AddSeconds(2));
+        Assert.That(old.Input.Writer.TryWrite(first), Is.True);
+        Assert.That(await ReadAsync(playback).ConfigureAwait(false), Is.EqualTo(first));
+        if (detachAndReattach)
+        {
+            await model.DetachAdapterAsync().ConfigureAwait(false);
+            Assert.That(old.Input.Writer.TryWrite(first with { SequenceNumber = 999 }), Is.True);
+            await model.AttachAdapterAsync(replacement.Object).ConfigureAwait(false);
+        }
+        ControlledSubscriptionAdapter active = detachAndReattach ? replacement : old;
+        Assert.That(active.Input.Writer.TryWrite(second), Is.True);
+        Assert.That(active.Input.Writer.TryWrite(third), Is.True);
+        Assert.That(await ReadAsync(playback).ConfigureAwait(false), Is.EqualTo(second));
+        Assert.That(await ReadAsync(playback).ConfigureAwait(false), Is.EqualTo(third));
+
+        List<NotificationEvent> retained = model.Recorder.Snapshot().ToList();
+        Assert.That(retained.Select(value => value.SequenceNumber), Is.EqualTo(new uint[] { 51, 52, 53 }));
+        Assert.That(retained.Select(value => value.Kind), Is.EqualTo(new[]
+        {
+            NotificationKind.DataChange, NotificationKind.Event, NotificationKind.KeepAlive
+        }));
+        Assert.That(retained[0].Value, Is.EqualTo(-12.25));
+        Assert.That(retained[1].ItemId, Is.EqualTo(202));
+        Assert.That(retained[1].ValueCount, Is.EqualTo(4));
+        Assert.That(retained[2].ReceivedAtUtc, Is.EqualTo(time.AddSeconds(2)));
+        Assert.That(model.Recorder.TotalWritten, Is.EqualTo(3));
+        Assert.That(playback.TryRead(out _), Is.False);
+        old.Input.Writer.TryComplete();
+        await model.DisposeAsync().ConfigureAwait(false);
+        Assert.That(await playback.WaitToReadAsync().ConfigureAwait(false), Is.False);
+        await playback.Completion.ConfigureAwait(false);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task DetachPreservesItemsAndDisposeCompletesRecorderEvenWhenAdapterCleanupFails(bool failCleanup)
+    {
+        var adapter = new ControlledSubscriptionAdapter();
+        var failure = new InvalidOperationException("subscription deletion failed");
+        int disposals = 0;
+        adapter.Mock.Setup(a => a.DisposeAsync()).Returns(() =>
+        {
+            disposals++;
+            adapter.Input.Writer.TryComplete();
+            return failCleanup ? ValueTask.FromException(failure) : ValueTask.CompletedTask;
+        });
+        var model = new SubscriptionViewModel("Retain settings", adapter.Object, NullLogger.Instance);
+        MonitoredItemConfig intent = Item(17, "Temperature") with { QueueSize = 11 };
+        model.Items.Add(intent);
+        ChannelReader<NotificationEvent> playback = model.Recorder.CreateReader();
+
+        if (failCleanup)
+        {
+            await Assert.ThatAsync(async () => await model.DisposeAsync().ConfigureAwait(false),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await model.DisposeAsync().ConfigureAwait(false),
+                Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+        }
+        else
+        {
+            await model.DetachAdapterAsync().ConfigureAwait(false);
+            Assert.That(model.SubscriptionStatus, Is.EqualTo("● Disconnected — items preserved for reconnect."));
+            Assert.That(playback.Completion.IsCompleted, Is.False);
+            await model.DisposeAsync().ConfigureAwait(false);
+            await model.DisposeAsync().ConfigureAwait(false);
+        }
+
+        Assert.That(model.Adapter, Is.Null);
+        Assert.That(model.Items.Single(), Is.SameAs(intent));
+        Assert.That(disposals, Is.EqualTo(1));
+        Assert.That(await playback.WaitToReadAsync().ConfigureAwait(false), Is.False);
+        await playback.Completion.ConfigureAwait(false);
+        Assert.That(() => model.Recorder.Record(default), Throws.InvalidOperationException);
+    }
+
+    [TestCase("missing")]
+    [TestCase("canceled")]
+    public async Task InvalidConfigurationDoesNotMutateItemsOrContactUnexpectedItem(string kind)
+    {
+        var adapter = new ControlledSubscriptionAdapter();
+        await using var model = new SubscriptionViewModel("Configuration", adapter.Object, NullLogger.Instance);
+        MonitoredItemConfig first = Item(101, "Temperature");
+        model.Items.Add(first);
+        adapter.Items.Add(first);
+        using var cancellation = new CancellationTokenSource();
+        if (kind == "canceled")
+        {
+            await cancellation.CancelAsync().ConfigureAwait(false);
+        }
+
+        await Assert.ThatAsync(() => model.ConfigureItemAsync(
+            kind == "missing" ? Item(999, "Other") : first,
+            new MonitoredItemSettings { SamplingInterval = TimeSpan.FromMilliseconds(33) }, cancellation.Token),
+            kind == "missing"
+            ? Throws.InvalidOperationException.With.Message.EqualTo("The monitored item is no longer in this document.")
+            : Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+        Assert.That(model.Items.Single(), Is.SameAs(first));
+        Assert.That(adapter.Configured, Is.Empty);
+        adapter.Mock.Verify(a => a.ConfigureItemAsync(It.IsAny<MonitoredItemConfig>(), It.IsAny<CancellationToken>()),
+            Times.Never());
+    }
+
+    [Test]
+    public async Task FaultedCaptureReportsOriginalFailureAndStillCompletesOwnedRecorderOnDisposal()
+    {
+        var adapter = new ControlledSubscriptionAdapter();
+        var failure = new InvalidOperationException("notification source failed");
+        adapter.Input.Writer.TryComplete(failure);
+        var model = new SubscriptionViewModel("Faulted capture", adapter.Object, NullLogger.Instance);
+        ChannelReader<NotificationEvent> playback = model.Recorder.CreateReader();
+
+        model.RefreshStatus();
+
+        Assert.That(model.SubscriptionStatus, Is.EqualTo("Notification capture failed: notification source failed"));
+        Assert.That(model.Recorder.TotalWritten, Is.Zero);
+        await Assert.ThatAsync(async () => await model.DisposeAsync().ConfigureAwait(false),
+            Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+        Assert.That(model.Adapter, Is.Null);
+        Assert.That(adapter.DisposeCount, Is.EqualTo(1));
+        Assert.That(await playback.WaitToReadAsync().ConfigureAwait(false), Is.False);
+        await playback.Completion.ConfigureAwait(false);
+    }
+    private static readonly string[] s_attachOrder =
+    [
+        "apply",
+        "Temperature",
+        "Pressure",
+    ];
+    private static readonly int[] s_attachedItemIds =
+    [
+        501,
+        702,
+    ];
+    private static readonly string[] s_reattachDrainsOldCaptureBeforeDisposingAdapterOrApplyingReplaExpected =
+    [
+        "capture drained",
+        "old adapter disposed",
+        "new adapter applied",
+    ];
+
+    private sealed class DrainControlledReader(List<string> order) : ChannelReader<NotificationEvent>
+    {
+        public TaskCompletionSource Waiting { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Draining { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override bool TryRead(out NotificationEvent item)
+        {
+            item = default;
+            return false;
+        }
+
+        public override async ValueTask<bool> WaitToReadAsync(CancellationToken cancellationToken = default)
+        {
+            var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using CancellationTokenRegistration registration =
+                cancellationToken.Register(() => canceled.TrySetResult());
+            Waiting.TrySetResult();
+            await canceled.Task.ConfigureAwait(false);
+            Draining.TrySetResult();
+            await Release.Task.ConfigureAwait(false);
+            order.Add("capture drained");
+            cancellationToken.ThrowIfCancellationRequested();
+            return false;
+        }
+    }
+}

@@ -1288,9 +1288,13 @@ namespace Opc.Ua.Server
                 cancellationToken.ThrowIfCancellationRequested();
                 bool currentIdentity = MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session);
                 MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
-                if (!currentIdentity || authorization.Session?.IsIdentityStale == true)
+                if (!currentIdentity)
                 {
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), authorization.Session, null);
+                }
+                if (authorization.Session?.IsIdentityStale == true)
+                {
+                    continue;
                 }
                 NotificationAuthorization? notificationAuthorization = NotificationAuthorization.Capture(
                     authorization.Session);

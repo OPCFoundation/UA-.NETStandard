@@ -1426,7 +1426,7 @@ namespace Opc.Ua.Tools.Tests
                 () =>
                 {
                     Assert.That(versions, Has.Length.EqualTo(8));
-                    Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
+                    Assert.That(versions, Is.All.EqualTo("0.16.6-alpha"));
                 });
         }
 

@@ -44,6 +44,7 @@ using Opc.Ua.Pumps;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.XRegistry;
 
 namespace Pumps
 {
@@ -99,7 +100,8 @@ namespace Pumps
                   postSetupRunner,
                   Opc.Ua.Pumps.Namespaces.Pumps,
                   Opc.Ua.Machinery.Namespaces.Machinery,
-                  Opc.Ua.OpenUsd.Namespaces.OpenUSD)
+                  Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+                  Opc.Ua.XRegistry.Namespaces.xRegistry)
         {
             m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
             if (m_options.PumpCount is < 1 or > 100)
@@ -173,6 +175,7 @@ namespace Pumps
             nodes.AddOpcUaDi(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaPumps(context);
+            nodes.AddOpcUaXRegistry(context);
             nodes.AddOpcUaOpenUsd(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
@@ -538,7 +541,8 @@ namespace Pumps
             Opc.Ua.Pumps.Namespaces.Pumps,
             Opc.Ua.Machinery.Namespaces.Machinery,
             Opc.Ua.Di.Namespaces.OpcUaDi,
-            Opc.Ua.OpenUsd.Namespaces.OpenUSD
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.XRegistry.Namespaces.xRegistry
         };
 
         /// <inheritdoc/>

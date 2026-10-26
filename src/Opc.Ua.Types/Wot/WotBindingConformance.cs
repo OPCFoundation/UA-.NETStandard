@@ -50,9 +50,10 @@ namespace Opc.Ua.Wot
         long CompactUtf8Length);
 
     /// <summary>
-    /// The single statement of what revision of the OPC UA WoT Binding this
-    /// library implements, which conformance units and profiles it recognizes,
-    /// and the closed value sets its validation rules are written against.
+    /// The single statement of what revision of OPC 10101-1 this library
+    /// implements, which WoT Binding conformance units and profiles it
+    /// recognizes, and the closed value sets its validation rules are written
+    /// against.
     /// </summary>
     /// <remarks>
     /// WoT Binding Section 4.1 separates three numbers that are easily
@@ -205,6 +206,8 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The conformance-unit and profile names of WoT Binding Section 11.
+        /// The WoT-Projection unit is defined by Part 2 and appears in the
+        /// recommended profile closures with its part-qualified name.
         /// An authored document names only these; a consumer accepts any
         /// syntactically well-formed name and reports one it does not know as
         /// unrecognized (Section 4.1).
@@ -222,7 +225,6 @@ namespace Opc.Ua.Wot
             "WoT-ModelVocabulary",
             "WoT-DataTypeDefinition",
             "WoT-ExternalResolver",
-            "WoT-Projection",
             "WoT-Reader",
             "WoT-Modeller",
             "WoT-Converter",
@@ -511,6 +513,11 @@ namespace Opc.Ua.Wot
                     expanded.Add(unit);
                 }
             }
+            string projectionsUnit = "2:" + WotProjection.ConformanceUnitName;
+            if (units.Contains(projectionsUnit))
+            {
+                expanded.Add(projectionsUnit);
+            }
             return expanded.ToArray();
         }
 
@@ -676,7 +683,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The units each recommended profile of WoT Binding Section 11 names,
-        /// including the units its nested profile names.
+        /// including its part-qualified WoT Projections dependency.
         /// </summary>
         private static readonly Dictionary<string, HashSet<string>> s_profileUnits = BuildProfileUnits();
 
@@ -693,7 +700,7 @@ namespace Opc.Ua.Wot
                 "WoT-ModelVocabulary",
                 "WoT-DataTypeDefinition",
                 "WoT-EventMapping",
-                "WoT-Projection"
+                "2:WoT-Projection"
             };
             var converter = new HashSet<string>(modeller, StringComparer.Ordinal)
             {
@@ -829,9 +836,8 @@ namespace Opc.Ua.Wot
                 "uav:nodes",
                 "uav:nodeSet",
                 "uav:sourceDigest",
-                // Section 12 - projections.
+                // OPC 10101-2 - projection-plan vocabulary.
                 "uav:projection",
-                "uav:projectionKind",
                 "uav:scenario",
                 "uav:projects",
                 "uav:sourceName",

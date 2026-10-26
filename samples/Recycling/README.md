@@ -203,6 +203,10 @@ and `IsSimulated=true`; reprojecting it does not publish a new inspection. Mecha
 remains a separate process, not a desiccant dryer. Filter differential pressure is a sample
 measurement because the standard screen-package type has no such member.
 
+Each pump's `Operational/PumpActuation/Status` exposes the mandatory `FalseState`
+and `TrueState` properties as `Stopped` and `Running`. Status reflects committed
+electrical demand; the labels describe the synthetic pump state, not a local command.
+
 The package models are described in [Machinery](../../docs/Machinery.md),
 [Vision](../../docs/Vision.md), [Pumps](../../docs/Pumps.md), [Scales](../../docs/Scales.md),
 [AMB](../../docs/AMB.md), [Extrusion](../../docs/Extrusion.md) and

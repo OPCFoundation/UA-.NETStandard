@@ -137,7 +137,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 WotCompiledForm form = SelectForm(plan, action, WoTBindingCapabilityEnum.InvokeAction);
                 if (!WotProjectedEventSource.SameEndpoint(eventForm, form) ||
-                    !form.Addressing.Metadata.TryGetValue("componentOf", out string? owner) ||
+                    !form.Addressing.Metadata.TryGetValue("callObjectId", out string? owner) ||
                     string.IsNullOrEmpty(owner))
                 {
                     throw ServiceResultException.Create(

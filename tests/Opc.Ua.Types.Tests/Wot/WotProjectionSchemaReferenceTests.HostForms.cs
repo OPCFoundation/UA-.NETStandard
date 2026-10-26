@@ -201,7 +201,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     ["Value"] = new JsonObject { ["tm:ref"] = "leaf.td.json#/properties/Value" }
                 };
-                plan["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+                plan["uav:projects"]![0]!["type"] = "application/td+json";
                 documents.Setup(resolver => resolver.ResolveThingAsync(
                         SourceHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(nested.ToJsonString())));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that host form provider preserves explicit result kind domain and source provenance.
+        /// Verifies that host form provider preserves the result kind and source provenance.
         /// </summary>
         /// <param name="kind">The WoT document kind.</param>
         [TestCase(WotDocumentKind.ThingDescription, "Thing")]
@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotDocumentKind kind, string type)
         {
             JsonObject plan = HostPlan();
-            plan["uav:projectionKind"] = kind.ToString();
+            plan["@type"] = new JsonArray(type, "uav:projection");
             plan["uav:projects"]![0]!["type"] = kind == WotDocumentKind.ThingModel
                 ? "application/tm+json" : "application/td+json";
             JsonObject source = Source();
@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(value.GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo("https://host.test/runtime/actual-value"));
             Assert.That(value.GetProperty("forms")[0].GetProperty("security")[0].GetString(),
-                Is.EqualTo("q:p:bm9uZQ"));
+                Is.EqualTo("q:p:none"));
             Assert.That(value.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/properties/Value"));
             Assert.That(view.SecurityDefinitions.Keys, Is.EqualTo(s_defaultHostSecurity));
@@ -729,8 +729,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
-        private static readonly string[] s_suppliedHostSecurity = ["q:p:aG9zdA"];
-        private static readonly string[] s_defaultHostSecurity = ["q:p:bm9uZQ"];
+        private static readonly string[] s_suppliedHostSecurity = ["q:p:host"];
+        private static readonly string[] s_defaultHostSecurity = ["q:p:none"];
         private static readonly string[] s_hostRequestOrder = ["Alpha", "Value", "Operate", "State"];
         private static readonly string[] s_hostPropertyOrder = ["Alpha", "Value"];
         private static readonly string[] s_hostActionOrder = ["Operate"];
