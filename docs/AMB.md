@@ -177,6 +177,14 @@ pass is not repeated if the final seal needs a retry; delegates that fail
 after making changes must support retry. The manager owns the attached
 builders and their resources even when startup fails before readiness completes.
 
+An interrupted published authoring pass resumes at its unfinished root and
+external-reference source group. Completed roots and source groups are not
+replayed, and graph authoring stays closed once registration starts. An
+unfinished subtree or reference group can already have been partially applied;
+its registration must be idempotent, as it is for the built-in node managers.
+Removing the generation also releases a partially completed pass. Private
+startup preparation remains one-shot and aborts on registration failure.
+
 Without hosting, create an `AssetManagement` and pass it to
 `new AmbNodeManager(server, configuration, assetManagement)`.
 

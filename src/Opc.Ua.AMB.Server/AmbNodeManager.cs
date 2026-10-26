@@ -223,16 +223,23 @@ namespace Opc.Ua.AMB.Server
             }
             if (!m_publishedSetupRegistered)
             {
-                await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+                await ResumeAuthoredNodesRegistrationAsync(builder, cancellationToken).ConfigureAwait(false);
                 m_publishedSetupRegistered = true;
             }
 
-            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
-            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
+            if (m_publishedSetupReferences is null)
             {
+                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                m_publishedSetupReferences = new Queue<KeyValuePair<NodeId, IList<IReference>>>(externalReferences);
+            }
+            while (m_publishedSetupReferences.Count != 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                KeyValuePair<NodeId, IList<IReference>> entry = m_publishedSetupReferences.Peek();
                 await Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
                     .ConfigureAwait(false);
+                m_publishedSetupReferences.Dequeue();
             }
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
@@ -267,6 +274,9 @@ namespace Opc.Ua.AMB.Server
 
         /// <summary>Whether the nodes authored by those delegates were registered.</summary>
         private bool m_publishedSetupRegistered;
+
+        /// <summary>External source groups that have not completed publication; completed groups are not replayed.</summary>
+        private Queue<KeyValuePair<NodeId, IList<IReference>>>? m_publishedSetupReferences;
     }
 
     internal static partial class AmbNodeManagerLog

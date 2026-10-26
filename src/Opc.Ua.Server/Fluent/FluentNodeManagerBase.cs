@@ -897,6 +897,30 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Registers a published authoring pass, resuming at the interrupted root after failure or cancellation.
+        /// </summary>
+        /// <remarks>
+        /// Completed roots are not replayed and graph authoring stays closed after the first attempt.
+        /// The interrupted subtree may have been partially indexed; its registration must be idempotent.
+        /// Ordinary private startup preparation continues to use the one-shot
+        /// <see cref="RegisterAuthoredNodesAsync"/> path and aborts on failure.
+        /// </remarks>
+        /// <param name="builder">The builder whose staged roots to register.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected ValueTask ResumeAuthoredNodesRegistrationAsync(
+            NodeManagerBuilder builder,
+            CancellationToken cancellationToken = default)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            return builder.ResumeAuthoredNodesRegistrationAsync(
+                (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
+                cancellationToken);
+        }
+
+        /// <summary>
         /// Seals the builder, replays <c>NotifyNodeAdded</c> for every node
         /// this manager owns, and then completes the registrations the
         /// <c>Configure</c> pass could not finish synchronously and starts
