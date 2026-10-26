@@ -1,3 +1,32 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -75,61 +104,70 @@ namespace Opc.Ua.Server.Tests
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificatePolicyCheckFailed));
         }
 
+        /// <summary>
+        /// Verifies metadata creation, lookup and permission-handler detachment on an owned manager.
+        /// </summary>
         [Test]
-        public async Task ConfigurationNodeManager_NamespaceMetadata_LifecycleAsync()
+        public async Task ConfigurationNodeManagerNamespaceMetadataLifecycleAsync()
         {
-            // Arrange
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                IServerInternal serverInternal = server.CurrentInstance;
+                Assert.That(serverInternal.ConfigurationNodeManager, Is.InstanceOf<ConfigurationNodeManager>(),
+                    "ConfigurationNodeManager not found or not of expected type");
+                using var configManager = new ConfigurationNodeManager(serverInternal, fixture.Config);
+                Assert.That(configManager, Is.Not.SameAs(serverInternal.ConfigurationNodeManager));
 
-            // Get ConfigurationNodeManager
-            IServerInternal serverInternal = server.CurrentInstance;
-            var configManager = serverInternal.ConfigurationNodeManager as ConfigurationNodeManager;
-            Assert.That(configManager, Is.Not.Null, "ConfigurationNodeManager not found or not of expected type");
+                await configManager.AddPredefinedNodeAsync(new NamespacesState(null)
+                {
+                    NodeId = ObjectIds.Server_Namespaces,
+                    BrowseName = new QualifiedName(BrowseNames.Namespaces)
+                }).ConfigureAwait(false);
 
-            const string namespaceUri = "http://test.org/UA/NamespaceMetadataTest";
+                const string namespaceUri = "http://test.org/UA/NamespaceMetadataTest";
+                NamespaceMetadataState metadata = await configManager
+                    .CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
+                Assert.That(metadata, Is.Not.Null);
+                Assert.That(metadata.NamespaceUri!.Value, Is.EqualTo(namespaceUri));
 
-            // Act 1: CreateNamespaceMetadataState
-            NamespaceMetadataState metadata = await configManager.CreateNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false);
-            Assert.That(metadata, Is.Not.Null);
-            Assert.That(metadata.NamespaceUri!.Value, Is.EqualTo(namespaceUri));
+                NamespaceMetadataState metadataGet = (await configManager
+                    .GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false))!;
+                Assert.That(metadataGet, Is.SameAs(metadata));
 
-            // Act 2: GetNamespaceMetadataState
-            NamespaceMetadataState metadataGet = (await configManager.GetNamespaceMetadataStateAsync(namespaceUri).ConfigureAwait(false))!;
-            Assert.That(metadataGet, Is.SameAs(metadata));
+                bool eventRaised = false;
+                configManager.DefaultPermissionsChanged += (s, e) => eventRaised = true;
+                metadata.DefaultRolePermissions!.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ];
+                metadata.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
+                Assert.That(eventRaised, Is.True,
+                    "DefaultPermissionsChanged event should be raised when DefaultRolePermissions changes");
 
-            // Act 3: Verify Event Subscription
-            bool eventRaised = false;
-            configManager.DefaultPermissionsChanged += (s, e) => eventRaised = true;
-
-            // Trigger change
-            // Use array initialization
-            metadata.DefaultRolePermissions!.Value =
-            [
-                new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Observer, Permissions = (uint)PermissionType.Read }
-            ];
-            metadata.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
-
-            Assert.That(eventRaised, Is.True, "DefaultPermissionsChanged event should be raised when DefaultRolePermissions changes");
-
-            // Act 4: Dispose Behavior
-            eventRaised = false;
-
-            // We call Dispose() on the manager directly to verify it unsubscribes.
-            configManager.Dispose();
-
-            // Trigger change again
-            metadata.DefaultRolePermissions.Value =
-            [
-                 new() { RoleId = ObjectIds.WellKnownRole_Observer, Permissions = (uint)PermissionType.Read | (uint)PermissionType.Browse }
-            ];
-
-            metadata.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
-
-            Assert.That(eventRaised, Is.False, "DefaultPermissionsChanged event should NOT be raised after Dispose");
-
-            // Cleanup
-            await fixture.StopAsync().ConfigureAwait(false);
+                eventRaised = false;
+                configManager.Dispose();
+                metadata.DefaultRolePermissions.Value =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)(PermissionType.Read | PermissionType.Browse)
+                    }
+                ];
+                metadata.ClearChangeMasks(serverInternal.DefaultSystemContext, true);
+                Assert.That(eventRaised, Is.False,
+                    "DefaultPermissionsChanged event should NOT be raised after Dispose");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
