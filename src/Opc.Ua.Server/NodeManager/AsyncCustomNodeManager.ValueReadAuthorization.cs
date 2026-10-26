@@ -400,22 +400,49 @@ namespace Opc.Ua.Server
         /// <param name="item">The monitored item.</param>
         public static OperationContext GetSubscriberContext(IMonitoredItem item)
         {
+            return GetSubscriberEntry(item).Context;
+        }
+
+        /// <summary>
+        /// Gets the copy of a node manager's system context for the shared subscriber context of
+        /// a monitored item.
+        /// </summary>
+        /// <remarks>
+        /// The copy is kept with the shared context for every node manager, so it stays the same
+        /// object across notifications however many node managers the session's items span; the
+        /// item's cached verdicts are keyed by it. The returned context is shared: callers must
+        /// not dispose or retain it.
+        /// </remarks>
+        /// <param name="item">The monitored item.</param>
+        /// <param name="template">The node manager's system context.</param>
+        public static ServerSystemContext GetSubscriberSystemContext(
+            IMonitoredItem item,
+            ServerSystemContext template)
+        {
+            return GetSubscriberEntry(item).GetSystemContext(template);
+        }
+
+        private static SubscriberContext GetSubscriberEntry(IMonitoredItem item)
+        {
             ISession? session = item.Session;
             if (session == null)
             {
                 IUserIdentity? identity = item.EffectiveIdentity;
                 SubscriberContext? itemContext = s_itemContexts.TryGetValue(item, out SubscriberContextSlot? itemSlot)
                     ? Volatile.Read(ref itemSlot.Current) : null;
-                if (itemContext != null && ReferenceEquals(itemContext.Identity, identity))
+                // A context created while the item had a session is bound to that session.
+                if (itemContext != null &&
+                    itemContext.Context.Session is null &&
+                    ReferenceEquals(itemContext.Identity, identity))
                 {
-                    return itemContext.Context;
+                    return itemContext;
                 }
                 // CA2000: the shared context is owned by the item's entry and never disposed by callers.
 #pragma warning disable CA2000
-                var created = new SubscriberContext(identity, null, 0, null, new OperationContext(item));
+                var created = new SubscriberContext(identity, null, 0, null, null, new OperationContext(item));
 #pragma warning restore CA2000
                 Volatile.Write(ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).Current, created);
-                return created.Context;
+                return created;
             }
 
             // read without the session's lock; a context captured under it is reused only when
@@ -425,39 +452,75 @@ namespace Opc.Ua.Server
             long generation = session is Session ? 0 : session.CaptureIdentityRefreshSnapshot().Generation;
             IUserIdentity effectiveIdentity = session.EffectiveIdentity;
             EndpointDescription? endpoint = GetEndpoint(session);
+            string? secureChannelId = session.SecureChannelId;
             SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
             SubscriberContext? current = Volatile.Read(ref slot.Current);
             if (current != null &&
                 ReferenceEquals(current.Identity, effectiveIdentity) &&
                 current.Generation == generation &&
                 ReferenceEquals(current.Endpoint, endpoint) &&
+                string.Equals(current.SecureChannelId, secureChannelId, StringComparison.Ordinal) &&
                 (session is not Session || ReferenceEquals(current.Authorization, authorization)))
             {
-                return current.Context;
+                return current;
             }
             OperationContext context = CreateContext(session);
             // the constructor captured identity and epoch together; key the entry on what it captured.
             current = new SubscriberContext(
-                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, context);
+                context.UserIdentity,
+                context.NotificationAuthorization,
+                generation,
+                endpoint,
+                secureChannelId,
+                context);
             Volatile.Write(ref slot.Current, current);
-            return context;
+            return current;
         }
 
         /// <summary>
-        /// A shared subscriber context and the inputs it was created from.
+        /// A shared subscriber context, the inputs it was created from and its system context
+        /// copies, one per node manager.
         /// </summary>
-        private sealed class SubscriberContext(
-            IUserIdentity? identity,
-            NotificationAuthorization? authorization,
-            long generation,
-            EndpointDescription? endpoint,
-            OperationContext context)
+        private sealed class SubscriberContext
         {
-            public IUserIdentity? Identity { get; } = identity;
-            public NotificationAuthorization? Authorization { get; } = authorization;
-            public long Generation { get; } = generation;
-            public EndpointDescription? Endpoint { get; } = endpoint;
-            public OperationContext Context { get; } = context;
+            public SubscriberContext(
+                IUserIdentity? identity,
+                NotificationAuthorization? authorization,
+                long generation,
+                EndpointDescription? endpoint,
+                string? secureChannelId,
+                OperationContext context)
+            {
+                Identity = identity;
+                Authorization = authorization;
+                Generation = generation;
+                Endpoint = endpoint;
+                SecureChannelId = secureChannelId;
+                Context = context;
+                m_createCopy = template => template.Copy(context);
+            }
+
+            public IUserIdentity? Identity { get; }
+            public NotificationAuthorization? Authorization { get; }
+            public long Generation { get; }
+            public EndpointDescription? Endpoint { get; }
+            public string? SecureChannelId { get; }
+            public OperationContext Context { get; }
+
+            /// <summary>
+            /// Gets the copy of the node manager's system context for this context. Unlike the
+            /// bounded per-request cache of <see cref="OperationContext.GetSystemContext"/>, the
+            /// table keeps one copy for every node manager.
+            /// </summary>
+            public ServerSystemContext GetSystemContext(ServerSystemContext template)
+            {
+                return m_copies.TryGetValue(template, out ServerSystemContext? copy)
+                    ? copy
+                    : m_copies.GetValue(template, m_createCopy);
+            }
+
+            private readonly ConditionalWeakTable<ServerSystemContext, ServerSystemContext> m_copies = new();
+            private readonly ConditionalWeakTable<ServerSystemContext, ServerSystemContext>.CreateValueCallback m_createCopy;
         }
 
         /// <summary>

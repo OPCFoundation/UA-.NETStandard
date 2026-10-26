@@ -1207,10 +1207,16 @@ namespace Opc.Ua.Server
                 RetiredGenerationNotifications? notifications =
                     m_retiredGenerationNotifications.FirstOrDefault(candidate =>
                         ReferenceEquals(candidate.NodeManager, nodeManager));
-                NotificationDispatchState? dispatchState =
-                    notifications?.DispatchState ??
-                    m_notificationDispatchStates.FirstOrDefault(candidate =>
-                        candidate.References(nodeManager));
+                // The table holds the state that leases admitted without the lock count on, also
+                // while the state is not in the tracked list.
+                NotificationDispatchState? dispatchState = notifications?.DispatchState;
+                if (dispatchState is null &&
+                    m_notificationDispatchStateTable.TryGetValue(
+                        nodeManager,
+                        out NotificationDispatchState? tracked))
+                {
+                    dispatchState = tracked;
+                }
                 if (dispatchState is not null)
                 {
                     dispatchState.Enabled = enabled;

@@ -70,6 +70,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
+        [TestCase(3)]
         public void ChangedSubscriberInputReplacesContext(int change)
         {
             var subscriber = new Subscriber();
@@ -84,6 +85,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 case 1:
                     subscriber.Generation++;
                     break;
+                case 2:
+                    subscriber.SecureChannelId = "channel-2";
+                    break;
                 default:
                     subscriber.Endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
                     break;
@@ -93,7 +97,70 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(after, Is.Not.SameAs(before));
             Assert.That(after.UserIdentity, Is.SameAs(subscriber.Identity));
             Assert.That(after.ChannelContext?.EndpointDescription, Is.SameAs(subscriber.Endpoint));
+            Assert.That(after.ChannelContext?.SecureChannelId, Is.EqualTo(subscriber.SecureChannelId));
             Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(after));
+        }
+
+        /// <summary>
+        /// The system context copy of every node manager stays the same object across calls, also
+        /// when a session's items span more node managers than a request's copy cache keeps.
+        /// </summary>
+        [Test]
+        public void SystemContextCopyIsStableForManyNodeManagers()
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem item = subscriber.CreateItem();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var templates = new ServerSystemContext[20];
+                var copies = new ServerSystemContext[templates.Length];
+                for (int ii = 0; ii < templates.Length; ii++)
+                {
+                    templates[ii] = new ServerSystemContext(server.Object);
+                    copies[ii] = MonitoredReadAuthorization.GetSubscriberSystemContext(item, templates[ii]);
+                }
+
+                for (int ii = 0; ii < templates.Length; ii++)
+                {
+                    ServerSystemContext again = MonitoredReadAuthorization.GetSubscriberSystemContext(item, templates[ii]);
+                    Assert.That(again, Is.SameAs(copies[ii]));
+                    Assert.That(again.OperationContext, Is.SameAs(MonitoredReadAuthorization.GetSubscriberContext(item)));
+                }
+            }
+        }
+
+        /// <summary>
+        /// A sessionless item never reuses a context that was created while it had a session.
+        /// </summary>
+        [Test]
+        public void SessionlessItemDoesNotReuseSessionBoundContext()
+        {
+            var subscriber = new Subscriber();
+            ISession? owner = subscriber.Session.Object;
+            var item = new Mock<IMonitoredItem>();
+            item.SetupGet(value => value.EffectiveIdentity).Returns(subscriber.Identity);
+
+            // the session detaches between the sessionless check and the context's creation
+            bool first = true;
+            item.SetupGet(value => value.Session).Returns(() =>
+            {
+                if (first)
+                {
+                    first = false;
+                    return null!;
+                }
+                return owner!;
+            });
+            OperationContext bound = MonitoredReadAuthorization.GetSubscriberContext(item.Object);
+            Assert.That(bound.Session, Is.SameAs(subscriber.Session.Object));
+
+            owner = null;
+            OperationContext sessionless = MonitoredReadAuthorization.GetSubscriberContext(item.Object);
+
+            Assert.That(sessionless, Is.Not.SameAs(bound));
+            Assert.That(sessionless.Session, Is.Null);
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item.Object), Is.SameAs(sessionless));
         }
 
         /// <summary>
@@ -108,6 +175,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Session.SetupGet(value => value.EndpointDescription).Returns(() => Endpoint);
                 Session.Setup(value => value.CaptureIdentityRefreshSnapshot())
                     .Returns(() => new IdentityRefreshSnapshot(Identity, Generation));
+                Session.SetupGet(value => value.SecureChannelId).Returns(() => SecureChannelId);
             }
 
             public Mock<ISession> Session { get; } = new();
@@ -115,6 +183,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public IUserIdentity Identity { get; set; } = new UserIdentity();
 
             public long Generation { get; set; }
+
+            public string SecureChannelId { get; set; } = "channel-1";
 
             public EndpointDescription Endpoint { get; set; } =
                 new() { SecurityMode = MessageSecurityMode.SignAndEncrypt };

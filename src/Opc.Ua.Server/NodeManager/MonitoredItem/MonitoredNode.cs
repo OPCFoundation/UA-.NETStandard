@@ -1869,10 +1869,7 @@ namespace Opc.Ua.Server
             ServerSystemContext template,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            // CA2000: the shared context is owned by the session's entry and never disposed by callers.
-#pragma warning disable CA2000
-            return MonitoredReadAuthorization.GetSubscriberContext(monitoredItem).GetSystemContext(template);
-#pragma warning restore CA2000
+            return MonitoredReadAuthorization.GetSubscriberSystemContext(monitoredItem, template);
         }
 
         /// <summary>
