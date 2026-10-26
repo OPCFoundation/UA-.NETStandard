@@ -38,6 +38,279 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Application destruction and disposal retain both serving system roles until their callbacks finish.
+        /// </summary>
+        [Test]
+        public async Task ApplicationShutdownCleanupKeepsSystemDependenciesLiveAsync()
+        {
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            NodeManagerGeneration core = NodeManagerGenerationRegistry.GetOrCreate(master.CoreNodeManager!);
+            NodeManagerGeneration configuration = NodeManagerGenerationRegistry.GetOrCreate(
+                master.ConfigurationNodeManager!);
+            void AssertDependencies()
+            {
+                Assert.That(master.CoreNodeManager, Is.SameAs(core.NodeManager));
+                Assert.That(master.ConfigurationNodeManager, Is.SameAs(configuration.NodeManager));
+                Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            }
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownDependencies");
+            manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Callback(AssertDependencies).Returns(default(ValueTask));
+            manager.As<IDisposable>().Setup(value => value.Dispose()).Callback(AssertDependencies);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manager.Object);
+            await m_server.NodeManagerLifecycle.AddAsync(factory.Object, null).ConfigureAwait(false);
+            try
+            {
+                await m_server.ShutdownInternalsAsync().AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                manager.As<IDisposable>().Verify(value => value.Dispose(), Times.Once);
+                Assert.That(master.CoreNodeManager, Is.Null);
+                Assert.That(master.ConfigurationNodeManager, Is.Null);
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Shutdown signals accepted producers while their serving generation can still finish callbacks.
+        /// </summary>
+        [Test]
+        public async Task ShutdownSignalsProducerBeforeWaitingForItsGenerationAdmissionAsync()
+        {
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownProducer");
+            GenerationGate.Lease? admission = null;
+            manager.As<INodeManagerShutdown>().Setup(value => value.PrepareForShutdownAsync()).Returns(() =>
+            {
+                if (admission is not null)
+                {
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(manager.Object).Gate.State,
+                        Is.EqualTo(NodeManagerGenerationState.Live));
+                    admission.Dispose();
+                    admission = null;
+                }
+                return default;
+            });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(manager.Object);
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddAsync(factory.Object, null).ConfigureAwait(false);
+            Assert.That(registration.Identity.Gate.TryEnter(out admission), Is.True);
+            Task shutdown = RunWithoutExecutionContext(() => m_server.ShutdownInternalsAsync().AsTask());
+            try
+            {
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                manager.As<INodeManagerShutdown>().Verify(value => value.PrepareForShutdownAsync(), Times.AtLeastOnce);
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref admission, null)?.Dispose();
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Additional lifecycle handles cannot hide serving generations from the server's shutdown owner.
+        /// </summary>
+        [Test]
+        public async Task AdditionalLifecycleHandleUsesServerGenerationOwnerAsync()
+        {
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            using var handle = new NodeManagerLifecycle(m_server);
+            TrackingLifecycleNodeManager? manager = null;
+            NodeManagerRegistration registration = await handle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            try
+            {
+                Assert.That(lifecycle.Registrations.ToArray(), Does.Contain(registration));
+                Assert.That(handle.Registrations.ToArray(), Does.Contain(registration));
+                handle.Dispose();
+                Assert.That(handle.IsShuttingDown, Is.True);
+                Assert.That(lifecycle.IsShuttingDown, Is.False);
+                await Assert.ThatAsync(
+                    () => handle.PrepareAsync([NodeManagerBatchChange.Remove(registration)]).AsTask(),
+                    Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+                await m_server.ShutdownInternalsAsync().AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(lifecycle.Registrations.Count, Is.Zero);
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Shutdown intent must not suppress the close callback of a session bound to a serving generation.
+        /// </summary>
+        [Test]
+        public async Task ServerShutdownDeliversSessionClosingBeforeGenerationRetirementAsync()
+        {
+            TrackingLifecycleNodeManager? manager = null;
+            await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            ISession session = m_server.CurrentInstance.SessionManager.GetSession(
+                m_requestHeader.AuthenticationToken)!;
+            NodeId sessionId = session.Id;
+            Assert.That(manager.ActivatedSessionIds.ToArray(), Does.Contain(sessionId));
+            try
+            {
+                await m_server.ShutdownInternalsAsync().AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(manager.ClosedSessionIds.ToArray(), Has.Exactly(1).EqualTo(sessionId));
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Freezing lifecycle mutations leaves serving generations available for final session callbacks.
+        /// </summary>
+        [Test]
+        public async Task ShutdownFreezePreservesServingAdmissionsUntilRemovalAsync()
+        {
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }), null)
+                .ConfigureAwait(false);
+            await lifecycle.BeginShutdownAsync(m_server.CurrentInstance).ConfigureAwait(false);
+            GenerationGate.Lease? admission = null;
+            try
+            {
+                Assert.That(lifecycle.IsShuttingDown, Is.True);
+                Assert.That(registration.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(registration.Identity.Gate.TryEnter(out admission), Is.True);
+                await Assert.ThatAsync(
+                    () => lifecycle.PrepareAsync([NodeManagerBatchChange.Remove(registration)]).AsTask(),
+                    Throws.InvalidOperationException.With.Message.Contains("shutting down")).ConfigureAwait(false);
+            }
+            finally
+            {
+                admission?.Dispose();
+                await m_server.ShutdownInternalsAsync().AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Shutdown withdraws routing before waiting for an already admitted generation to drain.
+        /// </summary>
+        [Test]
+        public async Task ShutdownPublishesRemovalBeforeWaitingForAdmittedGenerationAsync()
+        {
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? manager = null;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            Assert.That(registration.Identity.Gate.TryEnter(out GenerationGate.Lease? admission), Is.True);
+            Task shutdown = RunWithoutExecutionContext(() => m_server.ShutdownInternalsAsync().AsTask());
+            try
+            {
+                await WaitForNodeManagerVisibilityAsync(master, manager, visible: false).ConfigureAwait(false);
+                Assert.That(lifecycle.Registrations.ToArray(), Does.Not.Contain(registration));
+                Assert.That(registration.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Assert.That(shutdown.IsCompleted, Is.False);
+                Assert.That(manager.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(manager.DisposeCount, Is.Zero);
+            }
+            finally
+            {
+                admission!.Dispose();
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+            Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(manager.DisposeCount, Is.EqualTo(1));
+            Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Failed application cleanup retains system resources and retries only unfinished retirement stages.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ShutdownCleanupFailureRetainsInternalsAndSystemDependenciesForRetryAsync(bool failDisposal)
+        {
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? manager = null;
+            await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, value => manager = value), null)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            TrackingLifecycleNodeManager? independent = null;
+            await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue, value => independent = value,
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownIndependent"), null).ConfigureAwait(false);
+            AssertLifecycleValue(independent);
+            IServerInternal server = m_server.CurrentInstance;
+            var core = server.NodeManager.CoreNodeManager;
+            if (failDisposal)
+            {
+                manager.DisposeFailuresRemaining = 1;
+            }
+            else
+            {
+                manager.DeleteAddressSpaceFailuresRemaining = 1;
+            }
+            try
+            {
+                await Assert.ThatAsync(
+                    () => m_server.ShutdownInternalsAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)),
+                    Throws.TypeOf<AggregateException>()).ConfigureAwait(false);
+                Assert.That(m_server.CurrentInstance, Is.SameAs(server));
+                Assert.That(server.NodeManager.CoreNodeManager, Is.SameAs(core));
+                Assert.That(lifecycle.Registrations.Count, Is.Zero);
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.EqualTo(1));
+                Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(independent.DisposeCount, Is.EqualTo(1));
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(failDisposal ? 1 : 0));
+                await m_server.ShutdownInternalsAsync().AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(failDisposal ? 1 : 2));
+                Assert.That(manager.DisposeCount, Is.EqualTo(failDisposal ? 2 : 1));
+                Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(independent.DisposeCount, Is.EqualTo(1));
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]

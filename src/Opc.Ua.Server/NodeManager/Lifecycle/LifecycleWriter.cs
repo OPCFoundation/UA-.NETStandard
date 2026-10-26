@@ -181,10 +181,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Serializes shutdown cleanup separately from mutation ownership.
         /// </summary>
-        internal async ValueTask<IDisposable> BeginShutdownCleanupAsync(CancellationToken cancellationToken)
+        internal async ValueTask<ShutdownCleanup> BeginShutdownCleanupAsync(CancellationToken cancellationToken)
         {
             await m_shutdownCleanup.WaitAsync(cancellationToken).ConfigureAwait(false);
-            return new ShutdownCleanup(m_shutdownCleanup);
+            return new ShutdownCleanup(this);
         }
 
         /// <inheritdoc/>
@@ -581,13 +581,47 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases independent shutdown-cleanup admission.
         /// </summary>
-        private sealed class ShutdownCleanup(SemaphoreSlim semaphore) : IDisposable
+        internal sealed class ShutdownCleanup(LifecycleWriter owner) : IDisposable
         {
+            /// <summary>
+            /// Admits a removal owned by this exact shutdown invocation, without reopening public admission.
+            /// </summary>
+            internal OperationLifetime EnterOperation()
+            {
+                lock (owner.m_state)
+                {
+                    Validate(owner);
+                    owner.ThrowIfDecisionCallbackActive();
+                    owner.m_activeOperations++;
+                    var operation = new OperationLifetime(owner, owner.m_currentOperation.Value);
+                    owner.m_currentOperation.Value = operation;
+                    return operation;
+                }
+            }
+
+            /// <summary>
+            /// Rejects a disposed capability or one belonging to a different writer.
+            /// </summary>
+            internal void Validate(LifecycleWriter writer)
+            {
+                if (!ReferenceEquals(owner, writer) || Volatile.Read(ref m_disposed) != 0 ||
+                    !owner.IsShuttingDown)
+                {
+                    throw new InvalidOperationException("The shutdown publication no longer owns writer admission.");
+                }
+            }
+
             /// <inheritdoc/>
             public void Dispose()
             {
-                semaphore.Release();
+                if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+                {
+                    owner.m_shutdownCleanup.Release();
+                }
             }
+
+            /// <summary>Whether this invocation has released shutdown ownership.</summary>
+            private int m_disposed;
         }
 
         /// <summary>

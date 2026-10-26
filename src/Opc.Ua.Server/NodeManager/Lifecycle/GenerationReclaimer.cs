@@ -159,6 +159,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
+            StopScheduling();
+        }
+
+        /// <summary>
+        /// Transfers scheduling to the shutdown join without cancelling already admitted workers.
+        /// </summary>
+        internal void StopScheduling()
+        {
             lock (m_sync)
             {
                 m_stopping = true;
@@ -418,7 +426,12 @@ namespace Opc.Ua.Server
         /// <param name="generation">The generation whose saved continuations have expired.</param>
         private static void InvalidateContinuationPoints(IServerInternal server, NodeManagerGeneration generation)
         {
-            foreach (ISession session in server.SessionManager.GetSessions())
+            // A published initial generation can retire before startup installs the session manager.
+            if (server.SessionManager is not { } sessions)
+            {
+                return;
+            }
+            foreach (ISession session in sessions.GetSessions())
             {
                 if (session.ContinuationPoints is SessionContinuationPoints points)
                 {
@@ -446,102 +459,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Runs the retryable cleanup stages of a registered manager during shutdown.
-        /// </summary>
-        /// <param name="server">The owning server.</param>
-        /// <param name="host">The dynamic host, when available.</param>
-        /// <param name="nodeManager">The manager being cleaned up.</param>
-        /// <param name="cleanup">The retained successful stages.</param>
-        /// <param name="pendingReferences">References pending removal.</param>
-        /// <param name="destroyAddressSpace">Whether the address space still requires destruction.</param>
-        /// <param name="removeDestroyedExternalReferences">Whether destroyed references require removal.</param>
-        /// <param name="ct">The cancellation token.</param>
-        /// <returns>The asynchronous cleanup.</returns>
-        internal async ValueTask CleanupShutdownNodeManagerAsync(
-            IServerInternal server,
-            IDynamicNodeManagerHost? host,
-            IAsyncNodeManager nodeManager,
-            ShutdownCleanupState cleanup,
-            List<LocalReference>? pendingReferences,
-            bool destroyAddressSpace,
-            bool removeDestroyedExternalReferences,
-            CancellationToken ct)
-        {
-            host?.CloseNodeManagerGenerationAdmissions(nodeManager);
-
-            if (!cleanup.NotificationsFinalized)
-            {
-                if (host is not null)
-                {
-                    await host
-                        .FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
-                        .ConfigureAwait(false);
-                }
-                cleanup.NotificationsFinalized = true;
-                RecordShutdownCleanupProgress();
-            }
-
-            if (!cleanup.ReferencesRemoved)
-            {
-                if (pendingReferences is { Count: > 0 })
-                {
-                    await server.NodeManager
-                        .RemoveReferencesAsync(pendingReferences, ct)
-                        .ConfigureAwait(false);
-                    pendingReferences.Clear();
-                }
-                cleanup.ReferencesRemoved = true;
-                RecordShutdownCleanupProgress();
-            }
-
-            if (destroyAddressSpace && !cleanup.Destroyed)
-            {
-                if (host is not null)
-                {
-                    await host
-                        .DestroyAddressSpaceAsync(
-                            nodeManager,
-                            ct)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    ChangePreparer.Detach(nodeManager);
-                    await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
-                }
-                cleanup.Destroyed = true;
-                RecordShutdownCleanupProgress();
-            }
-
-            if (removeDestroyedExternalReferences &&
-                !cleanup.DestroyedExternalReferencesRemoved)
-            {
-                if (host is not null)
-                {
-                    await host
-                        .RemoveDestroyedExternalReferencesAsync(nodeManager, ct)
-                        .ConfigureAwait(false);
-                }
-                cleanup.DestroyedExternalReferencesRemoved = true;
-                RecordShutdownCleanupProgress();
-            }
-
-            if (!cleanup.Released)
-            {
-                host?.Release(nodeManager);
-                cleanup.Released = true;
-                RecordShutdownCleanupProgress();
-            }
-
-            if (!cleanup.Disposed)
-            {
-                await DisposeNodeManagerAsync(nodeManager).ConfigureAwait(false);
-                cleanup.Disposed = true;
-                RecordShutdownCleanupProgress();
-            }
-        }
-
-        /// <summary>
         /// Records a successful cleanup stage for shutdown retry progress detection.
         /// </summary>
         private void RecordShutdownCleanupProgress()
@@ -561,7 +478,7 @@ namespace Opc.Ua.Server
             IDynamicNodeManagerHost host,
             RetiredGeneration retired)
         {
-            ShutdownCleanupState cleanup = retired.ShutdownCleanup;
+            RetirementCleanupState cleanup = retired.Cleanup;
             if (retired.NeedsDetachment)
             {
                 if (retired.AllowActiveMonitoredItems &&
@@ -790,7 +707,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the completed cleanup stages retained for retries.
             /// </summary>
-            public ShutdownCleanupState ShutdownCleanup { get; } = new();
+            public RetirementCleanupState Cleanup { get; } = new();
 
             /// <summary>
             /// Gets the observable result of retirement, including the first cleanup failure.
@@ -822,7 +739,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Records completed destruction stages so retries never replay successful callbacks.
         /// </summary>
-        internal sealed class ShutdownCleanupState
+        internal sealed class RetirementCleanupState
         {
             /// <summary>
             /// Gets or sets whether bindings have been detached.
@@ -848,11 +765,6 @@ namespace Opc.Ua.Server
             /// Gets or sets whether destroyed external references have been removed.
             /// </summary>
             public bool DestroyedExternalReferencesRemoved { get; set; }
-
-            /// <summary>
-            /// Gets or sets whether host ownership has been released.
-            /// </summary>
-            public bool Released { get; set; }
 
             /// <summary>
             /// Gets or sets whether disposal has completed.

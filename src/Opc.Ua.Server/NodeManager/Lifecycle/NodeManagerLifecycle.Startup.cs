@@ -37,6 +37,32 @@ namespace Opc.Ua.Server
     public sealed partial class NodeManagerLifecycle
     {
         /// <summary>
+        /// Transfers the host's exact stable system identities to the server's generation owner.
+        /// </summary>
+        internal void InitializeSystemSlots(IServerInternal server, IDynamicNodeManagerHost host)
+        {
+            foreach (NodeManagerSlot slot in host.SystemSlots)
+            {
+                NodeManagerGeneration generation = slot.Current ??
+                    throw new InvalidOperationException("A system role has no initial generation.");
+                var registration = new NodeManagerRegistration(slot.Id, generation.Number, generation.NodeManager);
+                var prepared = new PreparedNodeManager(generation.NodeManager, [])
+                {
+                    Generation = generation,
+                    Published = true
+                };
+                lock (m_registrationLock)
+                {
+                    m_registrations.Add(registration.Id, new RegistrationState(registration, prepared)
+                    {
+                        IsSystem = true,
+                        ReadinessPending = generation.NodeManager is INodeManagerReadinessNotification
+                    });
+                }
+            }
+        }
+
+        /// <summary>
         /// Publishes initial additions through the normal pipeline before runtime components are bound.
         /// </summary>
         /// <param name="server">The exact server instance being initialized.</param>
@@ -70,8 +96,14 @@ namespace Opc.Ua.Server
         private void EnsurePublicationServer(
             IServerInternal server,
             IDynamicNodeManagerHost host,
-            InitialPublication? initial)
+            InitialPublication? initial,
+            ShutdownPublication? shutdown = null)
         {
+            if (shutdown is not null)
+            {
+                shutdown.Validate(this, server, host);
+                return;
+            }
             if (initial is null)
             {
                 EnsureSameRunningServer(server, host);
@@ -96,7 +128,17 @@ namespace Opc.Ua.Server
                 m_owner = owner;
                 m_server = server;
                 m_host = host;
+                lock (owner.m_registrationLock)
+                {
+                    SystemRegistrations = owner.m_registrations.Values.Where(state => state.IsSystem)
+                        .Select(state => state.Registration).ToArrayOf();
+                }
             }
+
+            /// <summary>
+            /// Gets system identities reconciled by the same initial batch as the application additions.
+            /// </summary>
+            internal ArrayOf<NodeManagerRegistration> SystemRegistrations { get; }
 
             /// <summary>
             /// Prepares an ordinary Add batch and returns once its view has been published.

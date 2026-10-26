@@ -303,8 +303,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         MaxBrowseContinuationPoints = 10
                     }
                 },
-                null,
-                Array.Empty<IAsyncNodeManager>());
+                null);
         }
     }
 }

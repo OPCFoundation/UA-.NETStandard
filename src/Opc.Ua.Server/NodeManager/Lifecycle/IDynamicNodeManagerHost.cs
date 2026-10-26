@@ -101,6 +101,16 @@ namespace Opc.Ua.Server
         ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; }
 
         /// <summary>
+        /// Gets the stable slots supplying the server's protected system roles.
+        /// </summary>
+        ArrayOf<NodeManagerSlot> SystemSlots { get; }
+
+        /// <summary>
+        /// Routes hosted shutdown and disposal admission through the canonical generation owner.
+        /// </summary>
+        void SetLifetimeOwner(Func<CancellationToken, ValueTask> shutdown, Func<bool> canDispose);
+
+        /// <summary>
         /// Rejects preconstructed applications that cannot participate in private initial preparation.
         /// </summary>
         void ValidateStartupFactories();
@@ -121,8 +131,8 @@ namespace Opc.Ua.Server
         void SetRetiredGenerationDrainObserver(Action? observer);
 
         /// <summary>
-        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
-        /// compatible Node with the same NodeId is visible again.
+        /// Resolves nonterminal monitored-item source bindings when compatible Nodes become available
+        /// on their stable slot again.
         /// </summary>
         /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
         /// <param name="nodeIds">The Nodes that became available, or <c>null</c> for all.</param>
@@ -131,12 +141,6 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Closes admission for a NodeManager generation during server shutdown.
-        /// </summary>
-        /// <param name="nodeManager">The NodeManager whose generation must stop accepting work.</param>
-        void CloseNodeManagerGenerationAdmissions(IAsyncNodeManager nodeManager);
 
         /// <summary>
         /// Closes generation admission, waits for admitted callbacks to drain, and releases

@@ -272,6 +272,11 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
+                if (Volatile.Read(ref m_lifetimeOwner) is { } owner && !owner.CanDispose())
+                {
+                    throw new InvalidOperationException(
+                        "The master NodeManager is owned by the server; stop the server before disposing it.");
+                }
                 m_disposed = true;
                 m_disposalTask = DisposeNodeManagersAsync();
             }
@@ -566,6 +571,11 @@ namespace Opc.Ua.Server
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (Volatile.Read(ref m_lifetimeOwner) is { } owner)
+            {
+                await owner.Shutdown(cancellationToken).ConfigureAwait(false);
+                return;
+            }
             await PrepareNodeManagersForShutdownAsync().ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -828,17 +838,6 @@ namespace Opc.Ua.Server
         internal void NotifyRetiredGenerationDrainObserver()
         {
             m_retiredGenerationDrainObserver?.Invoke();
-        }
-
-        void IDynamicNodeManagerHost.CloseNodeManagerGenerationAdmissions(
-            IAsyncNodeManager nodeManager)
-        {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-
-            NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Gate.Retire();
         }
 
         async ValueTask IDynamicNodeManagerHost
@@ -1330,6 +1329,29 @@ namespace Opc.Ua.Server
         GenerationReconciler IDynamicNodeManagerHost.GenerationReconciler => GenerationReconciler;
 
         /// <inheritdoc/>
+        ArrayOf<NodeManagerSlot> IDynamicNodeManagerHost.SystemSlots => [m_configurationSlot, m_coreSlot];
+
+        /// <inheritdoc/>
+        void IDynamicNodeManagerHost.SetLifetimeOwner(
+            Func<CancellationToken, ValueTask> shutdown,
+            Func<bool> canDispose)
+        {
+            if (shutdown is null)
+            {
+                throw new ArgumentNullException(nameof(shutdown));
+            }
+            if (canDispose is null)
+            {
+                throw new ArgumentNullException(nameof(canDispose));
+            }
+            var owner = new HostedLifetimeOwner(shutdown, canDispose);
+            if (Interlocked.CompareExchange(ref m_lifetimeOwner, owner, null) is not null)
+            {
+                throw new InvalidOperationException("The master NodeManager already has a shutdown owner.");
+            }
+        }
+
+        /// <inheritdoc/>
         public IReadOnlyList<IAsyncNodeManager> AsyncNodeManagers => [.. m_nodeManagers];
 
         /// <summary>
@@ -1432,6 +1454,15 @@ namespace Opc.Ua.Server
             private readonly SourceEmissionOrigin m_origin;
         }
 
+        /// <summary>
+        /// Atomically binds hosted shutdown and physical disposal admission to the same owner.
+        /// </summary>
+        /// <param name="Shutdown">Joins the owner's shared server stop attempt.</param>
+        /// <param name="CanDispose">Checks whether all owned generations have completed cleanup.</param>
+        private sealed record HostedLifetimeOwner(
+            Func<CancellationToken, ValueTask> Shutdown,
+            Func<bool> CanDispose);
+
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
@@ -1446,6 +1477,9 @@ namespace Opc.Ua.Server
         /// Identifies the core system role independently of manager enumeration order.
         /// </summary>
         private readonly NodeManagerSlot m_coreSlot;
+
+        /// <summary>The canonical hosted lifetime; null only for standalone compatibility construction.</summary>
+        private HostedLifetimeOwner? m_lifetimeOwner;
 
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);

@@ -298,13 +298,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task PreparedBatchRejectsUnsupportedFactoryBeforeCandidateEffectsAsync()
+        public async Task InitialPublicationRejectsUnsupportedFactoryBeforeCandidateEffectsAsync()
         {
+            var candidate = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            LifecycleTestServer? rejectedServer = null;
             var fixture = new ServerFixture<LifecycleTestServer>(telemetry =>
-                new LifecycleTestServer(telemetry)
+            {
+                rejectedServer = new LifecycleTestServer(telemetry)
                 {
                     PrivateEncodeableFactory = new ForeignBatchFactory(EncodeableFactory.Create())
-                })
+                };
+                rejectedServer.AddNodeManager(candidate.Object);
+                return rejectedServer;
+            })
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
                 SecurityNone = true,
@@ -312,24 +318,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             try
             {
-                LifecycleTestServer server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "foreign-factory"))
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await fixture.StartAsync(Path.Combine(m_pkiRoot, "foreign-factory")).ConfigureAwait(false))
                     .ConfigureAwait(false);
-                var candidate = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-                int namespaces = server.CurrentInstance.NamespaceUris.Count;
-                var lifecycle = (INodeManagerBatchLifecycle)server.NodeManagerLifecycle;
-                ArrayOf<NodeManagerRegistration> initialRegistrations = lifecycle.Registrations;
-                await Assert.ThatAsync(() => lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Add(candidate.Object)], null).AsTask(),
-                    Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
+                Assert.That(failure!.InnerException, Is.TypeOf<NotSupportedException>());
+                Assert.That(rejectedServer, Is.Not.Null);
+                Assert.That(((NodeManagerLifecycle)rejectedServer!.NodeManagerLifecycle).HasPendingShutdownCleanup,
+                    Is.False, "An unsupported factory must be rejected before system generations become owned.");
                 candidate.VerifyNoOtherCalls();
-                ArrayOf<NodeManagerRegistration> retainedRegistrations = lifecycle.Registrations;
-                Assert.That(retainedRegistrations.ToList(), Is.EqualTo(initialRegistrations.ToList()));
-                foreach (NodeManagerRegistration initial in initialRegistrations)
-                {
-                    Assert.That(retainedRegistrations.Find(registration => registration.Id == initial.Id),
-                        Is.SameAs(initial));
-                }
-                Assert.That(server.CurrentInstance.NamespaceUris.Count, Is.EqualTo(namespaces));
             }
             finally
             {

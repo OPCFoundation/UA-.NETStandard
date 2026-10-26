@@ -262,8 +262,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Asynchronously shuts down and disposes this server. The orderly shutdown runs once;
-        /// concurrent and repeat callers await the same disposal.
+        /// Asynchronously shuts down and disposes this server. Concurrent callers await the same attempt;
+        /// successful disposal is retained and failed shutdown can be retried.
         /// </summary>
         /// <returns>A task that completes after all owned server resources have been released.</returns>
         protected virtual ValueTask DisposeAsyncCore()
@@ -271,7 +271,10 @@ namespace Opc.Ua.Server
             Task dispose;
             lock (m_shutdownStateLock)
             {
-                m_disposeTask ??= DisposeCoreAsync();
+                if (m_disposeTask is null || m_disposeTask.IsFaulted || m_disposeTask.IsCanceled)
+                {
+                    m_disposeTask = DisposeCoreAsync();
+                }
                 dispose = m_disposeTask;
             }
             return new ValueTask(dispose);
@@ -284,7 +287,7 @@ namespace Opc.Ua.Server
         {
             // Run the orderly server shutdown (idempotent) before releasing base resources,
             // so no request is still dispatching to the address space when it is torn down.
-            // The cached m_disposeTask makes this method run exactly once.
+            // The cached m_disposeTask joins concurrent callers and retains successful disposal.
             await StopAsync(CancellationToken.None).ConfigureAwait(false);
 
             // halt any outstanding timer and configuration watcher.
@@ -4252,7 +4255,6 @@ namespace Opc.Ua.Server
             // failed startup must release them itself.
             ISessionManager? unregisteredSessionManager = null;
             ISubscriptionManager? unregisteredSubscriptionManager = null;
-            ArrayOf<IAsyncNodeManager> initialManagers = [];
             NodeManagerLifecycle.InitialPublication? initialPublication = null;
             try
             {
@@ -4318,6 +4320,11 @@ namespace Opc.Ua.Server
                     m_serverInternal.SetUserManagement(userManagement);
                 }
 
+                if (m_serverInternal.Factory is not EncodeableFactory)
+                {
+                    throw new NotSupportedException("The server factory does not support prepared publication.");
+                }
+
                 // create the manager responsible for providing localized string resources.
                 m_logger.ServerCreateResourceManager();
                 ResourceManager resourceManager = CreateResourceManager(
@@ -4345,14 +4352,17 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetNodeManager(masterNodeManager);
                 if (masterNodeManager is IDynamicNodeManagerHost startupHost)
                 {
+                    m_nodeManagerLifecycle.InitializeSystemSlots(m_serverInternal, startupHost);
+                    startupHost.SetLifetimeOwner(
+                        base.StopAsync,
+                        () => !m_nodeManagerLifecycle.HasPendingShutdownCleanup);
                     startupHost.ValidateStartupFactories();
                 }
 
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
-                initialManagers = [.. masterNodeManager.AsyncNodeManagers];
-                if (masterNodeManager is IDynamicNodeManagerHost { InitialFactories.Count: > 0 } initialHost)
+                if (masterNodeManager is IDynamicNodeManagerHost initialHost)
                 {
                     initialPublication = await m_nodeManagerLifecycle
                         .BeginInitialPublicationAsync(
@@ -4586,9 +4596,6 @@ namespace Opc.Ua.Server
 
             try
             {
-                await m_nodeManagerLifecycle
-                    .CompleteStartupAsync(initialManagers, cancellationToken)
-                    .ConfigureAwait(false);
                 if (initialPublication is not null)
                 {
                     await initialPublication.CompleteAsync().ConfigureAwait(false);
@@ -4759,8 +4766,11 @@ namespace Opc.Ua.Server
                             .BeginShutdownAsync(serverInternal, CancellationToken.None)).ConfigureAwait(false);
                     await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
                 }
-                await RunShutdownStageAsync(failures, serverInternal.DisposeAsync).ConfigureAwait(false);
-                m_serverInternal = null;
+                if (!m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                {
+                    await RunShutdownStageAsync(failures, serverInternal.DisposeAsync).ConfigureAwait(false);
+                    m_serverInternal = null;
+                }
             }
             return failures.Count == 0
                 ? null
@@ -4891,20 +4901,31 @@ namespace Opc.Ua.Server
                     () => m_nodeManagerLifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
                 .ConfigureAwait(false);
 
-            await RunShutdownStageAsync(
-                    failures,
-                    () => serverInternal.SubscriptionManager.ShutdownAsync(CancellationToken.None))
-                .ConfigureAwait(false);
+            if (serverInternal.SubscriptionManager is { } subscriptionManager)
+            {
+                await RunShutdownStageAsync(
+                        failures,
+                        () => subscriptionManager.ShutdownAsync(CancellationToken.None))
+                    .ConfigureAwait(false);
+            }
 
-            serverInternal.SessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
-            await RunShutdownStageAsync(
-                    failures,
-                    () => serverInternal.SessionManager.ShutdownAsync(cancellationToken))
-                .ConfigureAwait(false);
+            if (serverInternal.SessionManager is { } sessionManager)
+            {
+                sessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
+                await RunShutdownStageAsync(
+                        failures,
+                        () => sessionManager.ShutdownAsync(cancellationToken))
+                    .ConfigureAwait(false);
+            }
 
-            await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
-
-            serverInternal.Dispose();
+            if (failures.Count == 0)
+            {
+                await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
+                if (failures.Count == 0 && !m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                {
+                    serverInternal.Dispose();
+                }
+            }
 
             if (failures.Count > 0)
             {
@@ -4923,11 +4944,17 @@ namespace Opc.Ua.Server
         {
             await RunShutdownStageAsync(
                 failures,
-                () => serverInternal.NodeManager.ShutdownAsync(CancellationToken.None)).ConfigureAwait(false);
-            await RunShutdownStageAsync(
-                failures,
                 () => m_nodeManagerLifecycle
-                    .CompleteShutdownAsync(serverInternal, CancellationToken.None)).ConfigureAwait(false);
+                    .CompleteShutdownAsync(serverInternal, retireSystems: true, CancellationToken.None))
+                .ConfigureAwait(false);
+            if (!m_nodeManagerLifecycle.HasPendingShutdownCleanup &&
+                serverInternal.NodeManager is { } master &&
+                master is not IDynamicNodeManagerHost)
+            {
+                await RunShutdownStageAsync(
+                    failures,
+                    () => master.ShutdownAsync(CancellationToken.None)).ConfigureAwait(false);
+            }
         }
 
         private static async Task RunShutdownStageAsync(

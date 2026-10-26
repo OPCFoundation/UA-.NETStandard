@@ -355,10 +355,10 @@ namespace Opc.Ua.Server
                 EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = IndexOf(snapshot.NodeManagers, current);
-                if (managerIndex < 2)
+                if (managerIndex < 0)
                 {
                     throw new InvalidOperationException(
-                        "Only lifecycle-managed NodeManagers can be replaced.");
+                        "The NodeManager being replaced is not registered.");
                 }
                 if (IndexOf(snapshot.NodeManagers, replacement) >= 0)
                 {
@@ -495,10 +495,10 @@ namespace Opc.Ua.Server
                 int replacementIndex = IndexOf(
                     snapshot.NodeManagers,
                     replacement);
-                if (replacementIndex < 2)
+                if (replacementIndex < 0)
                 {
                     throw new InvalidOperationException(
-                        "Only lifecycle-managed NodeManagers can be restored.");
+                        "The NodeManager being restored is not registered.");
                 }
                 if (IndexOf(snapshot.NodeManagers, previous) >= 0)
                 {
@@ -601,10 +601,10 @@ namespace Opc.Ua.Server
                 EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
-                if (managerIndex < 2)
+                if (managerIndex < 0)
                 {
                     throw new InvalidOperationException(
-                        "Only lifecycle-managed NodeManagers can be removed.");
+                        "The NodeManager being removed is not registered.");
                 }
 
                 List<IAsyncNodeManager> managers = [.. snapshot.NodeManagers];
@@ -659,10 +659,10 @@ namespace Opc.Ua.Server
 
             RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
             int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
-            if (managerIndex < 2)
+            if (managerIndex < 0)
             {
                 throw new InvalidOperationException(
-                    "Only lifecycle-managed NodeManagers have a restorable position.");
+                    "The NodeManager whose position was requested is not registered.");
             }
 
             return CreatePosition(
@@ -1521,9 +1521,9 @@ namespace Opc.Ua.Server
                 }
                 foreach (IAsyncNodeManager removedManager in removals)
                 {
-                    if (Array.IndexOf(current.NodeManagers, removedManager) < 2)
+                    if (Array.IndexOf(current.NodeManagers, removedManager) < 0)
                     {
-                        throw new InvalidOperationException("A batch retirement is not lifecycle-owned.");
+                        throw new InvalidOperationException("A batch retirement is not registered.");
                     }
                 }
 

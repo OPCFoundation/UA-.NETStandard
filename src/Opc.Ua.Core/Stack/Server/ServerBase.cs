@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -702,8 +703,8 @@ namespace Opc.Ua
         /// Stops the server and releases all resources.
         /// </summary>
         /// <remarks>
-        /// The stop sequence runs at most once; concurrent and repeat callers await the same
-        /// completion. Starting the server again re-arms shutdown from
+        /// Concurrent callers await the same stop attempt. Successful completion is retained;
+        /// a failed attempt can be retried. Starting the server again re-arms shutdown from
         /// <see cref="InitializeRequestQueue"/>.
         /// </remarks>
         public virtual ValueTask StopAsync(CancellationToken cancellationToken = default)
@@ -711,7 +712,10 @@ namespace Opc.Ua
             Task stop;
             lock (m_stopLock)
             {
-                m_stopTask ??= StopCoreAsync(CancellationToken.None);
+                if (m_stopTask is null || m_stopTask.IsFaulted || m_stopTask.IsCanceled)
+                {
+                    m_stopTask = StopCoreAsync(CancellationToken.None);
+                }
                 stop = m_stopTask;
             }
             return new ValueTask(stop.WaitAsync(cancellationToken));
@@ -725,6 +729,7 @@ namespace Opc.Ua
             await Task.Yield();
 
             // do any pre-stop processing.
+            Exception? shutdownFailure = null;
             try
             {
                 await OnServerStoppingAsync(cancellationToken).ConfigureAwait(false);
@@ -732,6 +737,7 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 ServerError = new ServiceResult(e);
+                shutdownFailure = e;
             }
 
             // close and dispose any listeners. Some listeners (HTTPS)
@@ -799,6 +805,10 @@ namespace Opc.Ua
             // clear policies
             UserTokenPolicys?.Clear();
 
+            if (shutdownFailure is not null)
+            {
+                ExceptionDispatchInfo.Capture(shutdownFailure).Throw();
+            }
             m_messageContext = null;
         }
 

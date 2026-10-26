@@ -368,6 +368,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 using var lifecycle = new NodeManagerLifecycle(m_server);
+                int initialRegistrationCount = lifecycle.Registrations.Count;
                 Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri + ":PostSwap");
                 Mock<IDisposable> disposal = original.As<IDisposable>();
                 original.As<INodeManagerReloadParticipant>().Setup(value => value.PrepareReloadAsync(
@@ -400,18 +401,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(result.CleanupFailure!.ToString(), Does.Contain(failure.Message));
                 Assert.That(applicationPublications, Is.EqualTo(1));
                 Assert.That(result.Revision, Is.EqualTo(batchHost.RoutingRevision.Revision));
-                Assert.That(result.Slots, Has.Count.EqualTo(replace ? 1 : 0));
-                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(replace ? 1 : 0));
+                Assert.That(result.Slots, Has.Count.EqualTo(initialRegistrationCount + (replace ? 1 : 0)));
+                Assert.That(lifecycle.Registrations,
+                    Has.Count.EqualTo(initialRegistrationCount + (replace ? 1 : 0)));
                 Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
                 original.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
                 disposal.Verify(value => value.Dispose(), Times.Once);
                 if (replace)
                 {
-                    NodeManagerRegistration current = lifecycle.Registrations[0];
+                    NodeManagerRegistration current = lifecycle.Registrations.ToList()
+                        .Single(value => value.Id == registration.Id);
                     Assert.That(current.NodeManager, Is.SameAs(candidate.Object));
                     Assert.That(current.Id, Is.EqualTo(registration.Id));
                     Assert.That(current.Generation, Is.EqualTo(registration.Generation + 1));
-                    Assert.That(result.Slots[0], Is.SameAs(current.Slot));
+                    Assert.That(result.Slots.Find(slot => slot.Id == registration.Id), Is.SameAs(current.Slot));
                     failPublication = false;
                     await RemoveAndRetireAsync(lifecycle, current, timeout.Token).ConfigureAwait(false);
                     candidateDisposal.Verify(value => value.Dispose(), Times.Once);

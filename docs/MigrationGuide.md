@@ -21,6 +21,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Handling server shutdown failures](#handling-server-shutdown-failures)
 - [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
 - [Migrating NodeManager lifecycle convenience calls](#migrating-nodemanager-lifecycle-convenience-calls)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
@@ -148,6 +149,11 @@ Do not rely on a candidate already being routable from its factory or `CreateAdd
 Move serving-service registrations, such as historian builder/provider bindings, to
 `INodeManagerReadinessNotification.OnServerReadyAsync`; this callback runs after publication and
 runtime initialization and is awaited before startup succeeds.
+
+Because initial publication uses prepared transactions, `StandardServer` requires the default
+`EncodeableFactory`, not an arbitrary `IEncodeableFactory` implementation. Use the default factory's
+builder to register custom encodeable types. An unsupported factory is rejected before NodeManager
+creation, without retaining system generations that would require that factory for cleanup.
 
 The `MasterNodeManager` constructors accepting preconstructed managers are obsolete.
 They remain available for standalone dispatch, but hosted startup rejects preconstructed
@@ -576,6 +582,26 @@ await its own drain with `DisposeAsync()`. Await completion outside the
 callback. Server and master-node-manager asynchronous teardown already await
 adapted synchronous managers, so server-owned managers need no additional
 disposal call.
+
+## Handling server shutdown failures
+
+`ServerBase.StopAsync` now propagates a failed `OnServerStoppingAsync` callback after closing
+transport listeners, rather than recording `ServerError` and returning success. Concurrent
+callers join the same attempt. A later call retries a failed stop; a successful stop remains
+idempotent. Canceling one caller's wait does not cancel the shared cleanup.
+
+`StandardServer` retains internals required by unfinished NodeManager retirement instead of
+disposing dependencies beneath failed cleanup. A failed producer, subscription, or session
+shutdown also retains serving generations until that consumer stage can complete.
+Observe failures from `StopAsync` or
+`DisposeAsync`, correct their cause, then retry. A failed disposal can be retried too; it does
+not permanently cache a failed attempt. Custom stop overrides must support retry and avoid
+replaying successfully completed cleanup.
+Hosted `MasterNodeManager.ShutdownAsync` joins this same stop attempt and closes the owner's
+transports. Treat a hosted master as borrowed: stop and dispose its server instead of disposing
+the master directly. Direct master disposal throws while serving or retired generations still
+require their owner.
+See [NodeManager shutdown](NodeManagers.md#concurrent-operations-cancellation-and-failure).
 
 ## Migrating code that called IServerInternal.Set* mutators
 

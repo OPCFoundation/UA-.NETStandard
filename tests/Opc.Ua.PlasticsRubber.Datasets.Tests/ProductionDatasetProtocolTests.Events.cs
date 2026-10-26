@@ -628,8 +628,10 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
             server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
             server.SetupGet(value => value.CoreNodeManager).Returns(core.Object);
+#pragma warning disable CS0618 // Standalone fixture; TODO: replace when the compatibility constructor is removed.
             var master = new MasterNodeManager(server.Object,
                 new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [owner]);
+#pragma warning restore CS0618
             server.SetupGet(value => value.NodeManager).Returns(master);
             return master;
         }

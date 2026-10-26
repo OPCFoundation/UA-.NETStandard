@@ -234,11 +234,12 @@ namespace Opc.Ua.Server
                         var retiringGenerations = new List<NodeManagerGeneration>(retiring.Count);
                         foreach (IAsyncNodeManager manager in retiring)
                         {
-                            if (!m_dynamicExternalReferences.ContainsKey(manager))
+                            if (!m_nodeManagers.Revision.TryGetGeneration(
+                                manager, out NodeManagerGeneration? generation))
                             {
                                 throw new InvalidOperationException("A batch retirement is no longer registered.");
                             }
-                            retiringGenerations.Add(m_nodeManagers.GetGeneration(manager));
+                            retiringGenerations.Add(generation!);
                         }
 
                         typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);

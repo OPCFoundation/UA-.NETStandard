@@ -778,6 +778,10 @@ transaction pipeline as runtime additions. The initial view is published before 
 subsystems finish initialization; binding and readiness wait until sessions, subscriptions and
 events are available. Public lifecycle operations remain unavailable until the server is Running.
 
+The protected system roles participate in the initial batch's binding and awaited readiness,
+including when no application factories are registered. They retain their stable slot identities
+but are not included in the public application `Registrations` or `Slots` collections.
+
 A `CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` override composes registered
 factories with `GetInitialNodeManagerFactories()` and assigns the result to
 `MasterNodeManager.InitialFactories`. Collect factories without invoking them. The server
@@ -860,10 +864,32 @@ their materialization before accepting clients, so discovery by browsing sees th
   do not retry an addition as a new registration. A startup failure is reported after
   `StandardServer` shuts everything down.
 - Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
-  the host runs outside the lifecycle operation, so it can await those removals. Dispose injected
-  registries or stores only if you own them.
+  the host runs outside the lifecycle operation, so it can await those removals during runtime
+  deletion. Check `IsShuttingDown` before requesting dependent removal: shutdown already withdraws
+  dependencies and rejects new lifecycle operations. Dispose injected registries or stores only
+  if you own them.
 - Shutdown rejects new lifecycle operations and waits for active readiness work. After an orderly
   `StopAsync` the same server can be started again.
+
+Shutdown first stops accepted producers while their serving generations still admit final
+callbacks, then closes subscriptions and sessions. A bound session receives `SessionClosing`
+before its generation retires. Application slots are withdrawn through a removal transaction
+and their retirement is awaited before a second removal transaction withdraws the protected
+system roles. This dependency ordering is not a single atomic remove-all swap: application
+cleanup keeps the live system services it needs. No new lifecycle mutation is admitted between
+the two transactions.
+
+A failed producer, subscription, or session shutdown stage leaves its serving
+generations and server internals intact for retry; physical retirement cannot
+run ahead of an unfinished consumer shutdown.
+A failed retirement retains unfinished cleanup and the server internals for retry. `StopAsync`
+and `DisposeAsync` report the failure; retry the failed operation to finish remaining stages.
+Successful deletion and disposal callbacks are not repeated. Hosted `MasterNodeManager.ShutdownAsync`
+joins the same stop attempt as `ServerBase.StopAsync`, including transport closure and failure
+propagation. The hosted master is borrowed from its owning server: stop and dispose the server
+rather than disposing the master directly. Direct master disposal is rejected while serving or
+retired generations still own resources. A standalone master retains its own cleanup because
+it has no hosting lifetime owner.
 
 #### Initializing managers in a custom host
 
@@ -954,6 +980,11 @@ Each committed addition returns an immutable `NodeManagerRegistration`; replacem
 invalidates the previous handle. `Registrations` also lists application NodeManagers composed
 before startup (not the protected diagnostics, configuration and core managers), so a control plane
 can remove them or, if they implement `INodeManagerReloadParticipant`, reload them.
+
+Use the server's `NodeManagerLifecycle` provider. Additional `NodeManagerLifecycle(server)`
+handles forward to that same owner; they do not create independent registration collections.
+Disposing an additional handle rejects new operations through it without disposing the server's
+writer or its generations. The server remains responsible for completing retirement.
 
 `registration.Slot` is the stable handle shared by every generation of that logical registration.
 Use `TryGetCurrent` to capture the current manager and generation together; it returns `false` after
@@ -1233,8 +1264,8 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
 - Before the durable decision callback runs, the batch reserves the serving routing revision. All
   routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
   Retry after it releases. A noncommit or cancellation releases only that batch's reservation.
-- Prepared batches need the default `EncodeableFactory`; a custom factory is rejected before
-  candidate creation.
+- Prepared batches need the default `EncodeableFactory`. Because startup uses the same transaction,
+  `StandardServer` rejects an unsupported custom factory before creating its NodeManagers.
 
 #### Retrying committed reconciliation
 
