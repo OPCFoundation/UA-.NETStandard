@@ -675,6 +675,46 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(harness.Source.NamespaceUris.GetIndex("urn:not-at-source"), Is.EqualTo(-1));
         }
 
+        /// <summary>
+        /// Verifies that octet-stream MIME does not turn a UA Method argument into a byte codec payload.
+        /// </summary>
+        [Test]
+        public async Task OctetStreamMethodInvocationPassesTypedUaVariants()
+        {
+            using var harness = new CallHarness(
+                /*lang=json,strict*/ """
+                {
+                  "@context":{"native":"http://opcfoundation.org/UA/"},
+                  "type":"integer","uav:dataTypeName":"native:UInt16"
+                }
+                """,
+                /*lang=json,strict*/ """
+                {
+                  "@context":{"native":"http://opcfoundation.org/UA/"},
+                  "type":"integer","uav:dataTypeName":"native:UInt16"
+                }
+                """);
+            const ushort typedValue = 4660;
+            harness.Outputs = [new Variant(typedValue)];
+            await using IWotBindingChannel channel = await harness.OpenAsync().ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant(typedValue)]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+            Assert.That(channel.Form.Payload.ContentType, Is.EqualTo("application/octet-stream"));
+            Assert.That(harness.Inputs, Has.Count.EqualTo(1));
+            Assert.That(harness.Inputs[0].TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
+            Assert.That(harness.Inputs[0].TryGetValue(out ushort sent), Is.True);
+            Assert.That(sent, Is.EqualTo(typedValue));
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out ushort returned), Is.True);
+            Assert.That(returned, Is.EqualTo(typedValue));
+            Assert.That(harness.ObjectId, Is.EqualTo(new NodeId("Owner", 1)));
+            Assert.That(harness.MethodId, Is.EqualTo(new NodeId("Run", 1)));
+            Assert.That(harness.CallCount, Is.EqualTo(1));
+        }
+
         private sealed class CallHarness : IDisposable
         {
             /// <summary>

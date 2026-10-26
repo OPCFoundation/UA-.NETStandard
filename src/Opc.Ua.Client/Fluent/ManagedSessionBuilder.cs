@@ -114,6 +114,9 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Use a discovery endpoint URL with optional security mode/policy.
+        /// The endpoint's encoding and message limits are taken from the
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/> of the
+        /// configuration this builder was created with.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         public ManagedSessionBuilder UseEndpoint(
@@ -131,7 +134,8 @@ namespace Opc.Ua.Client
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityPolicyUri
             };
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -148,7 +152,9 @@ namespace Opc.Ua.Client
         /// Certificate + IssuedToken / JWT) so the client can present
         /// any identity supported by the server; the server-side
         /// <c>DefaultSessionlessIdentityProvider</c> still enforces what
-        /// it accepts.
+        /// it accepts. As with <see cref="UseEndpoint(string, MessageSecurityMode, string)"/>,
+        /// the endpoint's limits come from the builder configuration's
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/>.
         /// </summary>
         /// <param name="url">
         /// The server's base URL, e.g. <c>https://server:4843/</c>.
@@ -200,7 +206,8 @@ namespace Opc.Ua.Client
             };
             m_webApiOptions ??= new WebApiClientOptions();
             m_webApiOptions.Encoding = encoding;
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -209,7 +216,9 @@ namespace Opc.Ua.Client
         /// surfaced via <see cref="Profiles.WssOpenApiTransport"/>,
         /// OPC Foundation profile/2339). Same envelope as
         /// <see cref="UseWebApiEndpoint(string, WebApiEncoding)"/> but
-        /// multiplexed over a WebSocket text-frame transport.
+        /// multiplexed over a WebSocket text-frame transport, including
+        /// the limits taken from
+        /// <see cref="ApplicationConfiguration.TransportQuotas"/>.
         /// </summary>
         /// <param name="url">
         /// The server's WSS URL, e.g. <c>wss://server:4843/</c>.
@@ -261,7 +270,8 @@ namespace Opc.Ua.Client
             };
             m_webApiOptions ??= new WebApiClientOptions();
             m_webApiOptions.Encoding = encoding;
-            return UseEndpoint(new ConfiguredEndpoint(null, endpointDescription, null));
+            return UseEndpoint(new ConfiguredEndpoint(
+                null, endpointDescription, EndpointConfiguration.Create(m_configuration)));
         }
 
         /// <summary>
@@ -842,7 +852,7 @@ namespace Opc.Ua.Client
             // non-transparent redundant servers are handled without any special connect API.
             IServerRedundancyHandler redundancy = m_redundancyHandler ??
                 new DefaultServerRedundancyHandler(
-                    new DefaultRedundantServerEndpointResolver(m_telemetry),
+                    DefaultServerRedundancyHandler.CreateEndpointResolver(opts.ServerRedundancy, m_telemetry),
                     opts.TimeProvider,
                     opts.ServerRedundancy);
 

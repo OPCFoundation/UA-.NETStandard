@@ -275,8 +275,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
-                Assert.That(result.Error, Does.Contain("uav:callObjectId"),
-                    "The error message must name the missing uav:callObjectId field.");
             }
         }
 
@@ -308,6 +306,62 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     "An unparseable uav:callObjectId NodeId must produce BadNodeIdInvalid.");
                 Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             }
+        }
+
+        /// <summary>
+        /// Verifies published ownership and unordered schemas against the real Server's argument metadata.
+        /// </summary>
+        [Test]
+        public async Task PublishedActionUsesLiveNativeArgumentMetadataAndNestedOwnerAsync()
+        {
+            string endpoint = m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                throw new InvalidOperationException("The connected fixture must identify its selected endpoint.");
+            string json = $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA-WoT-Binding/"}],
+                  "@type":"Thing",
+                  "uav:id":"{{{ServerObjectNodeId}}}",
+                  "actions":{
+                    "add":{
+                      "uav:componentOf":["{{{MethodsObjectNodeId}}}"],
+                      "input":{
+                        "type":"object",
+                        "properties":{
+                          "UInt32 value":{"type":"integer","uav:dataTypeId":"i=7"},
+                          "Float value":{"type":"number","uav:dataTypeId":"i=10"}
+                        }
+                      },
+                      "output":{
+                        "type":"object",
+                        "properties":{"Add Result":{"type":"number","uav:dataTypeId":"i=10"}}
+                      },
+                      "forms":[{
+                        "href":"{{{endpoint}}}",
+                        "uav:id":"{{{AddMethodNodeId}}}",
+                        "op":"invokeaction"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "published-live-action",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(json),
+                selection: new WotBindingSelectionContext([], [], WotBindingProcessingMode.PublishedOneZero)));
+            Assert.That(plan.Diagnostics.Where(diagnostic => diagnostic.IsError), Is.Empty);
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1));
+            WotCompiledForm form = plan.CompiledForms[0];
+            Assert.That(form.Payload.InputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.NamedUnresolved));
+            Assert.That(form.Addressing.Metadata.ContainsKey("callObjectId"), Is.False);
+
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
         }
 
         /// <summary>

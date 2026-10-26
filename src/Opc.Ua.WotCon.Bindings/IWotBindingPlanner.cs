@@ -52,7 +52,8 @@ namespace Opc.Ua.WotCon.Bindings
             string? baseUri = null,
             WotBindingBounds? bounds = null,
             ImmutableDictionary<string, string>? namespacePrefixes = null,
-            WotEventSelectionCatalog? eventSelections = null)
+            WotEventSelectionCatalog? eventSelections = null,
+            WotBindingProcessingMode processingMode = WotBindingProcessingMode.Current)
         {
             SecurityDefinitions = securityDefinitions ?? ImmutableDictionary<string, WotSecurityDefinition>.Empty;
             Codecs = codecs ?? WotPayloadCodecRegistry.Default;
@@ -61,6 +62,7 @@ namespace Opc.Ua.WotCon.Bindings
             Bounds = bounds ?? WotBindingBounds.Default;
             NamespacePrefixes = namespacePrefixes ?? ImmutableDictionary<string, string>.Empty;
             EventSelections = eventSelections ?? WotEventSelectionCatalog.Empty;
+            ProcessingMode = processingMode;
         }
 
         /// <summary>
@@ -111,6 +113,11 @@ namespace Opc.Ua.WotCon.Bindings
         /// with a field list the document does not state.
         /// </remarks>
         public WotEventSelectionCatalog EventSelections { get; }
+
+        /// <summary>
+        /// Gets the caller-selected Binding processing mode.
+        /// </summary>
+        public WotBindingProcessingMode ProcessingMode { get; }
 
         /// <summary>
         /// Gets the resolved local interactions and their payload-schema facts.
