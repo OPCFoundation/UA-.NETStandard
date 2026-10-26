@@ -2474,6 +2474,11 @@ namespace Opc.Ua.Server.Tests
                 state.Detach(server.Object);
                 var lifecycle = (IMonitoredItemManagerLifecycle)manager;
                 var handle = new NodeHandle(node.NodeId, node);
+                var failure = new InvalidOperationException("Injected release flush failure.");
+                if (eventItem)
+                {
+                    samplingGroups.ApplyFailures.Enqueue(failure);
+                }
                 Assert.That(lifecycle.AttachMonitoredItem(
                     server.Object.DefaultSystemContext, handle, item,
                     static (_, _, nodeToCache) => nodeToCache, static (_, _) => { }).Result.StatusCode,
@@ -2483,9 +2488,15 @@ namespace Opc.Ua.Server.Tests
                 ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
                 Assert.That(item.Generation!.TryGetGeneration(out NodeManagerGeneration? generation), Is.True);
                 int applyCount = samplingGroups.ApplyCount;
-                var failure = new InvalidOperationException("Injected release flush failure.");
                 var restorationFailure = new InvalidOperationException("Injected restoration flush failure.");
-                samplingGroups.ApplyFailures.Enqueue(failure);
+                if (eventItem)
+                {
+                    Assert.That(applyCount, Is.Zero);
+                }
+                else
+                {
+                    samplingGroups.ApplyFailures.Enqueue(failure);
+                }
                 if (failRestoration)
                 {
                     samplingGroups.ApplyFailures.Enqueue(restorationFailure);

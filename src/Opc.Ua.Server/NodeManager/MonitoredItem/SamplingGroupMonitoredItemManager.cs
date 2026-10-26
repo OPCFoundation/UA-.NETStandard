@@ -720,7 +720,10 @@ namespace Opc.Ua.Server
                     monitoringStarted = true;
                 }
 
-                m_samplingGroupManager.ApplyChanges();
+                if (!isEvent)
+                {
+                    m_samplingGroupManager.ApplyChanges();
+                }
                 attached = true;
                 return (ServiceResult.Good, true);
             }
