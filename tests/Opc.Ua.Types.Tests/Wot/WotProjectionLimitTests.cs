@@ -128,10 +128,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 ["./self.jsonld"] = Projection("./self.jsonld")
             };
-            var resolver = new WotProjectionResolver(new MapResolver(documents), new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            var resolver = new WotProjectionResolver(new MapResolver(documents));
             using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection("./self.jsonld")));
 
@@ -219,10 +216,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"Source\",\"@type\":\"Thing\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                "\"properties\":{\"a\":{\"type\":\"number\"},\"b\":{\"type\":\"string\"}}")
+                "\"properties\":{\"a\":{\"type\":\"number\",\"forms\":[{\"href\":\"https://source.example/a\"}]}," +
+                "\"b\":{\"type\":\"string\",\"forms\":[{\"href\":\"https://source.example/b\"}]}}")
                 .ConfigureAwait(false);
             string second = await CanonicalViewAsync(
-                "\"properties\":{\"b\":{\"type\":\"string\"},\"a\":{\"type\":\"number\"}}," +
+                "\"properties\":{\"b\":{\"type\":\"string\",\"forms\":[{\"href\":\"https://source.example/b\"}]}," +
+                "\"a\":{\"type\":\"number\",\"forms\":[{\"href\":\"https://source.example/a\"}]}}," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"security\":\"nosec_sc\"," +
                 "\"@type\":\"Thing\",\"title\":\"Source\"")
@@ -239,10 +238,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     sourceBody +
                     "}"
             };
-            var resolver = new WotProjectionResolver(new MapResolver(documents), new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            var resolver = new WotProjectionResolver(new MapResolver(documents));
             using var manifest = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(Projection("./source.jsonld")));
 
@@ -277,7 +273,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 new MapResolver(documents),
                 new WotNodeSetConverterOptions
                 {
-                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11,
                     MaxResolverDocuments = maxDocuments,
                     MaxResolverDocumentBytes = maxDocumentBytes
                 });
@@ -310,7 +305,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 new MapResolver(documents),
                 new WotNodeSetConverterOptions
                 {
-                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11,
                     MaxResolverDocuments = maxDocuments
                 });
             using var manifest = WotDocument.Parse(
@@ -327,7 +321,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                "\"properties\":{\"value\":{\"type\":\"number\"}}}";
+                "\"properties\":{\"value\":{\"type\":\"number\"," +
+                "\"forms\":[{\"href\":\"https://source.example/value\",\"op\":[\"readproperty\"]}]}}}";
         }
 
         private static string Organized(string? next)
@@ -395,6 +390,54 @@ namespace Opc.Ua.Types.Tests.Wot
                         ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                         : WotResolverResult.NotFound);
             }
+        }
+
+        [Test]
+        public async Task ResolverLimitsApplyToCurrentPlansWithStrictDefaultsAsync()
+        {
+            WotConversionResult<WotDocument> atLimit =
+                await ResolveCurrentChainWithStrictDefaultsAsync(
+                    sources: 3, maxDocuments: 3).ConfigureAwait(false);
+            WotConversionResult<WotDocument> beyondLimit =
+                await ResolveCurrentChainWithStrictDefaultsAsync(
+                    sources: 4, maxDocuments: 3).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(atLimit.Success, Is.True, string.Join("; ", atLimit.Diagnostics));
+                Assert.That(atLimit.Diagnostics.Any(
+                    diagnostic => diagnostic.Code == WotDiagnosticCode.ResolverLimitExceeded), Is.False);
+                Assert.That(beyondLimit.Success, Is.False);
+                Assert.That(beyondLimit.Value, Is.Null);
+                Assert.That(beyondLimit.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ResolverLimitExceeded &&
+                    diagnostic.Message.Contains("maximum document count", StringComparison.Ordinal)), Is.True,
+                    string.Join("; ", beyondLimit.Diagnostics));
+            });
+            atLimit.Value?.Dispose();
+            beyondLimit.Value?.Dispose();
+        }
+
+        private static async Task<WotConversionResult<WotDocument>> ResolveCurrentChainWithStrictDefaultsAsync(
+            int sources,
+            int maxDocuments)
+        {
+            var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+            var hrefs = new List<string>();
+            for (int ii = 0; ii < sources; ii++)
+            {
+                string href = "./strict-source-" +
+                    ii.ToString(CultureInfo.InvariantCulture) +
+                    ".jsonld";
+                hrefs.Add(href);
+                documents[href] = Source("Source" + ii.ToString(CultureInfo.InvariantCulture));
+            }
+            var resolver = new WotProjectionResolver(
+                new MapResolver(documents),
+                new WotNodeSetConverterOptions { MaxResolverDocuments = maxDocuments });
+            using var manifest = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection([.. hrefs])));
+            return await resolver.ResolveAsync(manifest).ConfigureAwait(false);
         }
     }
 }

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -155,11 +156,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 ],
                 endpointPolicy: new WotEndpointPolicy { AllowLoopback = true });
 
-            m_plan = m_registry.Prepare(await WotBindingPlanRequest.FromDocumentAsync(
+            WotBindingPlanRequest request = await WotBindingPlanRequest.FromDocumentAsync(
                 "xid",
                 WoTDocumentKindEnum.ThingDescription,
                 System.Text.Encoding.UTF8.GetBytes(BuildThingDescription(url.ToString())),
-                new BaseEventTypeResolver()).ConfigureAwait(false));
+                new BaseEventTypeResolver()).ConfigureAwait(false);
+            Assert.That(request.EventSelections.TryGetSelection("extrafields", out _), Is.True,
+                "The LocalTime selection must resolve against the fixture's BaseEventType model.");
+            Assert.That(request.EventSelections.TryGetSelection("selectclauses", out _), Is.True,
+                "The authored selection must resolve against the fixture's BaseEventType model.");
+            m_plan = m_registry.Prepare(request);
 
             Assert.That(m_plan.Diagnostics.Any(d => d.IsError), Is.False,
                 "The channel-test Thing Description must compile without diagnostic errors: " +
@@ -246,18 +252,20 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that invoke async without component of metadata returns bad node ID invalid.
+        /// Verifies that component-of alone cannot supply the required Call receiver.
         /// </summary>
         [Test]
-        public async Task InvokeAsyncWithoutComponentOfMetadataReturnsBadNodeIdInvalidAsync()
+        public async Task InvokeAsyncWithOnlyComponentOfMetadataReturnsBadNodeIdInvalidAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
-                f => f.AffordanceName == "nocomponentof" &&
+                f => f.AffordanceName == "componentofonly" &&
                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
             form = new WotCompiledForm(
                 form.Binding, form.AffordanceKind, form.AffordanceName, form.JsonPointer,
                 form.Operation, form.OpToken, form.Endpoint,
-                new WotAddressingDescriptor(form.Addressing.Target),
+                new WotAddressingDescriptor(
+                    form.Addressing.Target,
+                    ImmutableDictionary<string, string>.Empty.Add("componentOf", MethodsObjectNodeId)),
                 form.OperationInfo, form.Payload, form.Security, form.IsExecutable, form.TargetMapping);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
@@ -267,20 +275,27 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
-                Assert.That(result.Error, Does.Contain("uav:componentOf"),
-                    "The error message must name the missing uav:componentOf field.");
             }
         }
 
         /// <summary>
-        /// Verifies that an invalid action parent identifier returns BadNodeIdInvalid.
+        /// Verifies that an invalid Call receiver returns BadNodeIdInvalid despite component-of metadata.
         /// </summary>
         [Test]
-        public async Task InvokeAsyncWithInvalidComponentOfNodeIdReturnsBadNodeIdInvalidAsync()
+        public async Task InvokeAsyncWithInvalidCallObjectIdReturnsBadNodeIdInvalidAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
-                f => f.AffordanceName == "badcomponentof" &&
+                f => f.AffordanceName == "componentofonly" &&
                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+            form = new WotCompiledForm(
+                form.Binding, form.AffordanceKind, form.AffordanceName, form.JsonPointer,
+                form.Operation, form.OpToken, form.Endpoint,
+                new WotAddressingDescriptor(
+                    form.Addressing.Target,
+                    ImmutableDictionary<string, string>.Empty
+                        .Add("callObjectId", InvalidNodeId)
+                        .Add("componentOf", MethodsObjectNodeId)),
+                form.OperationInfo, form.Payload, form.Security, form.IsExecutable, form.TargetMapping);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
@@ -288,9 +303,108 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
 
                 Assert.That(result.Success, Is.False,
-                    "An unparseable uav:componentOf NodeId must produce BadNodeIdInvalid.");
+                    "An unparseable uav:callObjectId NodeId must produce BadNodeIdInvalid.");
                 Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
             }
+        }
+
+        /// <summary>
+        /// Verifies published ownership and unordered schemas against the real Server's argument metadata.
+        /// </summary>
+        [Test]
+        public async Task PublishedActionUsesLiveNativeArgumentMetadataAndNestedOwnerAsync()
+        {
+            string endpoint = m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                throw new InvalidOperationException("The connected fixture must identify its selected endpoint.");
+            string json = $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA-WoT-Binding/"}],
+                  "@type":"Thing",
+                  "uav:id":"{{{ServerObjectNodeId}}}",
+                  "actions":{
+                    "add":{
+                      "uav:componentOf":["{{{MethodsObjectNodeId}}}"],
+                      "input":{
+                        "type":"object",
+                        "properties":{
+                          "UInt32 value":{"type":"integer","uav:dataTypeId":"i=7"},
+                          "Float value":{"type":"number","uav:dataTypeId":"i=10"}
+                        }
+                      },
+                      "output":{
+                        "type":"object",
+                        "properties":{"Add Result":{"type":"number","uav:dataTypeId":"i=10"}}
+                      },
+                      "forms":[{
+                        "href":"{{{endpoint}}}",
+                        "uav:id":"{{{AddMethodNodeId}}}",
+                        "op":"invokeaction"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "published-live-action",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(json),
+                selection: new WotBindingSelectionContext([], [], WotBindingProcessingMode.PublishedOneZero)));
+            Assert.That(plan.Diagnostics.Where(diagnostic => diagnostic.IsError), Is.Empty);
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1));
+            WotCompiledForm form = plan.CompiledForms[0];
+            Assert.That(form.Payload.InputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.NamedUnresolved));
+            Assert.That(form.Addressing.Metadata.ContainsKey("callObjectId"), Is.False);
+
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
+        }
+
+        /// <summary>
+        /// Verifies that a captured omitted receiver dispatches the real Method call
+        /// to the source Thing's Methods Object.
+        /// </summary>
+        [Test]
+        public async Task InvokeAsyncWithOmittedReceiverCallsMethodOnSourceObjectAsync()
+        {
+            WotCompiledForm form = PrepareReceiverCallForm(
+                m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                    throw new InvalidOperationException("The connected fixture must identify its selected endpoint."),
+                MethodsObjectNodeId,
+                explicitReceiver: null);
+
+            Assert.That(form.Addressing.Metadata["callObjectId"], Is.EqualTo(MethodsObjectNodeId));
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
+        }
+
+        /// <summary>
+        /// Verifies that an explicit form receiver overrides a different source root identity.
+        /// </summary>
+        [Test]
+        public async Task InvokeAsyncWithExplicitReceiverOverridesSourceObjectAsync()
+        {
+            WotCompiledForm form = PrepareReceiverCallForm(
+                m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                    throw new InvalidOperationException("The connected fixture must identify its selected endpoint."),
+                ServerObjectNodeId,
+                explicitReceiver: MethodsObjectNodeId);
+
+            Assert.That(form.Addressing.Metadata["callObjectId"], Is.EqualTo(MethodsObjectNodeId));
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
         }
 
         /// <summary>
@@ -333,6 +447,58 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
                 Assert.That(result.Success, Is.False,
                     "Calling Methods_Add with null (zero) inputs must fail server-side and return a bad result.");
+            }
+        }
+
+        private WotCompiledForm PrepareReceiverCallForm(
+            string endpoint,
+            string sourceObjectId,
+            string? explicitReceiver)
+        {
+            string receiverMember = explicitReceiver is null
+                ? string.Empty
+                : "\"uav:callObjectId\":\"" + explicitReceiver + "\",";
+            string json = $$"""
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+                  ],
+                  "@type": ["Thing", "uav:object"],
+                  "uav:id": "{{sourceObjectId}}",
+                  "base": "{{endpoint}}",
+                  "actions": {
+                    "add": {
+                      "input": {{PathAddInput().ToJsonString()}},
+                      "output": { "type": "number", "uav:dataTypeId": "i=10" },
+                      "forms": [{
+                        "href": "{{endpoint}}",
+                        {{receiverMember}}
+                        "uav:id": "{{AddMethodNodeId}}",
+                        "op": "invokeaction"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "call-receiver-live",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(json));
+            WotBindingPlan plan = m_registry.Prepare(request);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError), Is.False,
+                string.Join("; ", plan.Diagnostics.Where(diagnostic => diagnostic.IsError)
+                    .Select(diagnostic => diagnostic.Message)));
+            return plan.CompiledForms.Single();
+        }
+
+        private async Task<WotInvokeResult> InvokeAddAsync(WotCompiledForm form)
+        {
+            IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                return await channel.InvokeAsync([new Variant(1.5f), new Variant((uint)2)])
+                    .ConfigureAwait(false);
             }
         }
 
@@ -450,7 +616,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     Assert.That(notification, Is.Not.Null,
                         "The extra-fields subscription must deliver the triggered event.");
                     Assert.That(notification!.EventFields.ContainsKey("LocalTime"), Is.True,
-                        "The 'LocalTime' extra uav:eventFields select clause must appear in EventFields.");
+                        "The affordance-level LocalTime selection must appear in EventFields.");
                 }
             }
         }
@@ -559,32 +725,23 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\",\"uav:id\":\"i=99999999\",\"op\":[\"readproperty\"]}" +
                 "]}}," +
                 "\"actions\":{" +
-                // The runtime test removes the receiver from this valid compiled template.
-                "\"nocomponentof\":{\"forms\":[" +
+                // Runtime tests remove the receiver from this valid compiled template.
+                "\"componentofonly\":{\"forms\":[" +
                 "{\"href\":\"" +
                 endpoint +
                 "\",\"uav:id\":\"i=2258\"," +
-                "\"uav:componentOf\":\"" +
+                "\"uav:callObjectId\":\"" +
                 MethodsObjectNodeId +
                 "\",\"op\":[\"invokeaction\"]}" +
                 "]}," +
-                // badcomponentof: uav:componentOf is an invalid NodeId string
-                "\"badcomponentof\":{\"forms\":[" +
-                "{\"href\":\"" +
-                endpoint +
-                "\",\"uav:id\":\"i=2258\"," +
-                "\"uav:componentOf\":\"" +
-                InvalidNodeId +
-                "\",\"op\":[\"invokeaction\"]}" +
-                "]}," +
-                // badmethodid: valid componentOf but invalid method NodeId
+                // badmethodid: valid Call receiver but invalid method NodeId
                 "\"badmethodid\":{\"forms\":[" +
                 "{\"href\":\"" +
                 endpoint +
                 "\",\"uav:id\":\"" +
                 InvalidNodeId +
                 "\"," +
-                "\"uav:componentOf\":\"" +
+                "\"uav:callObjectId\":\"" +
                 MethodsObjectNodeId +
                 "\",\"op\":[\"invokeaction\"]}" +
                 "]}," +
@@ -595,7 +752,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\",\"uav:id\":\"" +
                 AddMethodNodeId +
                 "\"," +
-                "\"uav:componentOf\":\"" +
+                "\"uav:callObjectId\":\"" +
                 MethodsObjectNodeId +
                 "\",\"op\":[\"invokeaction\"]}" +
                 "]}}," +
@@ -609,15 +766,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
-                // extrafields: real event notifier with uav:eventFields → exercises the
-                // superseded spelling, which adds to the implicit BaseEventType default
-                "\"extrafields\":{\"forms\":[" +
+                // extrafields: the current affordance-level selection adds LocalTime.
+                "\"extrafields\":{\"uav:eventSelectClauses\":[{" +
+                "\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"LocalTime\"}]," +
+                "\"forms\":[" +
                 "{\"href\":\"" +
                 endpoint +
                 "\",\"uav:id\":\"" +
                 ServerObjectNodeId +
                 "\"," +
-                "\"op\":[\"subscribeevent\"],\"uav:eventFields\":[\"LocalTime\"]}" +
+                "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
                 // selectclauses: the standardized uav:eventSelectClauses list, which
                 // overlays the implicit BaseEventType default and includes the empty-path
@@ -683,13 +841,16 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"title\":\"BaseEventType\",\"uav:id\":\"i=2041\"," +
                 "\"uav:browseName\":\"BaseEventType\"," +
                 "\"data\":{\"type\":\"object\"," +
-                "\"uav:fieldOrder\":[\"ConditionId\",\"Message\",\"Severity\",\"SourceName\"]," +
+                "\"uav:fieldOrder\":[\"ConditionId\",\"Message\",\"Severity\",\"SourceName\",\"LocalTime\"]," +
                 "\"properties\":{" +
                 "\"ConditionId\":{\"type\":\"string\"}," +
                 "\"Message\":{\"type\":\"string\"}," +
                 "\"Severity\":{\"uav:browseName\":" +
                 "\"nsu=http://opcfoundation.org/UA/;Severity\",\"type\":\"integer\"}," +
-                "\"SourceName\":{\"type\":\"string\"}}}}";
+                "\"SourceName\":{\"type\":\"string\"}," +
+                "\"LocalTime\":{\"type\":\"object\",\"properties\":{" +
+                "\"Offset\":{\"type\":\"integer\"}," +
+                "\"DaylightSavingInOffset\":{\"type\":\"boolean\"}}}}}}";
         }
     }
 }

@@ -32,11 +32,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Export;
+using Opc.Ua.Wot;
+using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.Planners;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -123,6 +127,136 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A converted registry document has to be importable:" +
                 Environment.NewLine + Encoding.UTF8.GetString(xml));
             Assert.That(nodes, Is.Not.Empty);
+        }
+
+        /// <summary>
+        /// Verifies that a serialized/imported action projection retains its
+        /// original published owner candidates, not the generated local root
+        /// or affordance identifiers.
+        /// </summary>
+        [Test]
+        public async Task ImportedPublishedActionKeepsSourceComponentOfAuthority()
+        {
+            byte[] content = Encoding.UTF8.GetBytes(
+                /*lang=json,strict*/ """
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "uav": "http://opcfoundation.org/UA-WoT-Binding/" }
+                  ],
+                  "@type": "Thing",
+                  "title": "Original published action",
+                  "uav:id": "nsu=urn:source;s=Owner",
+                  "actions": {
+                    "run": {
+                      "uav:componentOf": ["nsu=urn:source;s=Owner"],
+                      "forms": [{
+                        "href": "opc.tcp://source.example:4840",
+                        "op": "invokeaction",
+                        "uav:id": "nsu=urn:source;s=Run"
+                      }]
+                    }
+                  }
+                }
+                """);
+
+            using WotDocument projection = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                """
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA-WoT-Binding/"}],
+                  "@type":["Thing","uav:projection"],
+                  "title":"Imported action projection",
+                  "uav:id":"nsu=urn:local;s=ProjectionRoot",
+                  "uav:scenario":"urn:scenario:published-import",
+                  "uav:projects":[{
+                    "uav:sourceName":"source",
+                    "href":"urn:source:td",
+                    "type":"application/td+json",
+                    "uav:routing":"source",
+                    "uav:selectAll":true
+                  }]
+                }
+                """));
+            var resolver = new WotProjectionResolver(new PublishedSourceResolver(content));
+            WotConversionResult<WotDocument> resolved = await resolver.ResolveAsync(projection).ConfigureAwait(false);
+            Assert.That(resolved.Success, Is.True, string.Join("; ", resolved.Diagnostics));
+            using WotDocument document = resolved.Value!;
+            WotConversionResult<UANodeSet> converted = WotNodeSetConverter.ToNodeSetResult(document);
+            Assert.That(converted.HasErrors, Is.False, string.Join("; ", converted.Diagnostics));
+            UANodeSet nodeSet = converted.Value!;
+            Assert.That(nodeSet.NamespaceUris, Is.Not.Null.And.Not.Empty);
+
+            byte[] xml;
+            using (var buffer = new MemoryStream())
+            {
+                nodeSet.Write(buffer);
+                xml = buffer.ToArray();
+            }
+
+            UANodeSet imported;
+            using (var buffer = new MemoryStream(xml, writable: false))
+            {
+                imported = UANodeSet.Read(buffer)!;
+            }
+            var namespaces = new NamespaceTable();
+            foreach (string namespaceUri in imported.NamespaceUris ?? [])
+            {
+                namespaces.GetIndexOrAppend(namespaceUri);
+            }
+            var context = new SystemContext(telemetry: null!) { NamespaceUris = namespaces };
+            var importedNodes = new NodeStateCollection();
+            imported.Import(context, importedNodes);
+            Assert.That(importedNodes, Is.Not.Empty);
+
+            ExpandedNodeId projectionRoot = WotNodeSetConverter.TrySelectProjectionRoot(imported);
+            ArrayOf<WotProjectedAffordance> localAffordances =
+                WotNodeSetConverter.ResolveAffordanceNodes(document, imported, projectionRoot)
+                    .ConvertAll(WotProjectedAffordance.FromConverted);
+            Assert.That(localAffordances.Count, Is.EqualTo(1));
+            WotProjectedAffordance localAction = localAffordances[0];
+            Assert.That(localAction.NodeId, Is.Not.EqualTo("nsu=urn:source;s=Run"));
+            Assert.That(localAction.OwnerNodeId, Is.Not.EqualTo("nsu=urn:source;s=Owner"));
+
+            var selection = new WotBindingSelectionContext(
+                ["opc.opcua"], [OpcUaBindingPlanner.BindingUri], WotBindingProcessingMode.PublishedOneZero);
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                    "imported-action", WoTDocumentKindEnum.ThingDescription, document, selection: selection)
+                .WithProjectedAffordances(localAffordances)
+                .WithProjectionRoot(projectionRoot);
+            WotBindingCompilation compilation = new OpcUaBindingPlanner().Compile(
+                request.Forms.Single(),
+                request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+
+            Assert.That(request.Selection.ProcessingMode, Is.EqualTo(WotBindingProcessingMode.PublishedOneZero));
+            Assert.That(compilation.HasErrors, Is.False, string.Join("; ", compilation.Diagnostics));
+            WotCompiledForm sourceAction = compilation.Entries.Single();
+            Assert.That(sourceAction.Addressing.Metadata["bindingProcessingMode"], Is.EqualTo("published-one-zero"));
+            Assert.That(sourceAction.Addressing.Metadata["sourceCallReceiver"], Is.EqualTo("componentOf"));
+            Assert.That(sourceAction.Addressing.Metadata["componentOfCandidates"],
+                Is.EqualTo("[\"nsu=urn:source;s=Owner\"]"));
+            Assert.That(sourceAction.Addressing.Metadata.ContainsKey("callObjectId"), Is.False);
+            Assert.That(sourceAction.Addressing.Metadata["componentOfCandidates"].Contains(
+                localAction.NodeId, StringComparison.Ordinal),
+                Is.False);
+            Assert.That(sourceAction.Addressing.Metadata["componentOfCandidates"].Contains(
+                localAction.OwnerNodeId, StringComparison.Ordinal),
+                Is.False);
+        }
+
+        /// <summary>
+        /// Supplies the original published TD to the real projection resolver.
+        /// </summary>
+        private sealed class PublishedSourceResolver(byte[] content) : IWotThingResolver
+        {
+            /// <inheritdoc/>
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string href, WotResolutionContext context, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Assert.That(href, Is.EqualTo("urn:source:td"));
+                return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(content));
+            }
         }
     }
 }

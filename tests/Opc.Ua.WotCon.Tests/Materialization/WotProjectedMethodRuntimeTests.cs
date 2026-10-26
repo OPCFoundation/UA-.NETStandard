@@ -29,12 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.Planners;
 using Opc.Ua.WotCon.Server.Materialization;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
@@ -169,7 +171,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         "href": "opc.tcp://source:4840",
                         "op": "invokeaction",
                         "uav:id": "nsu=urn:source;s=Start",
-                        "uav:componentOf": "nsu=urn:source;s=Device"
+                        "uav:callObjectId": "nsu=urn:source;s=Device"
                       }]
                     }
                   }
@@ -442,6 +444,62 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(StatusCodes.Good));
             Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
             Assert.That(channel.InvokeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that projection-local identifiers and a resolved-from
+        /// locator cannot supply an owner for a published action.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ResolvedFromAndLocalContainmentDoNotSupplyPublishedActionOwner(bool includeDeclaredOwner)
+        {
+            const string source = /*lang=json,strict*/ """
+                {
+                  "actions": {
+                    "run": {
+                      "uav:id": "nsu=urn:local;s=GeneratedRun",
+                      "uav:resolvedFrom": "urn:source:td#/actions/run",
+                      "forms": [{
+                        "href": "opc.tcp://source.example:4840",
+                        "op": "invokeaction",
+                        "uav:id": "nsu=urn:source;s=Run"
+                      }]
+                    }
+                  }
+                }
+                """;
+            string document = includeDeclaredOwner
+                ? source.Replace("\"forms\":",
+                    "\"uav:componentOf\":[\"nsu=urn:source;s=Owner\"],\"forms\":", StringComparison.Ordinal)
+                : source;
+            var selection = new WotBindingSelectionContext(
+                ["opc.opcua"], [OpcUaBindingPlanner.BindingUri], WotBindingProcessingMode.PublishedOneZero);
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                    "projected-action-without-owner",
+                    WoTDocumentKindEnum.ThingDescription,
+                    Encoding.UTF8.GetBytes(document),
+                    selection: selection)
+                .WithProjectedAffordances(
+                [
+                    new WotProjectedAffordance(
+                        WotAffordanceKind.Action,
+                        "run",
+                        "/actions/run",
+                        "nsu=urn:local;s=GeneratedRun",
+                        "nsu=urn:local;s=ProjectionRoot")
+                ])
+                .WithProjectionRoot(new ExpandedNodeId("ProjectionRoot", "urn:local"));
+
+            WotBindingCompilation compilation = new OpcUaBindingPlanner().Compile(
+                request.Forms.Single(),
+                request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+
+            Assert.That(request.Selection.ProcessingMode, Is.EqualTo(WotBindingProcessingMode.PublishedOneZero));
+            Assert.That(compilation.HasErrors, Is.True);
+            Assert.That(compilation.Entries, Is.Empty);
+            Assert.That(compilation.Diagnostics.Any(
+                diagnostic => diagnostic.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
         }
 
         private static async ValueTask<IAsyncDisposable> WireMethodAsync(

@@ -276,8 +276,8 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         /// <summary>
-        /// Reads a string-array-valued term from the form object (for example
-        /// <c>uav:eventFields</c>). Non-string / empty array entries are
+        /// Reads a string-array-valued term from the form object.
+        /// Non-string / empty array entries are
         /// skipped.
         /// </summary>
         public bool TryGetStringArray(string term, out ImmutableArray<string> values)
@@ -392,7 +392,18 @@ namespace Opc.Ua.WotCon.Bindings
                     PayloadSchema = PayloadSchema,
                     BrowsePathTarget = BrowsePathTarget,
                     BrowsePathError = BrowsePathError,
-                    HasBrowsePathCapture = HasBrowsePathCapture
+                    HasBrowsePathCapture = HasBrowsePathCapture,
+                    SourceCallReceiver = SourceCallReceiver,
+                    SourceCallEndpoint = SourceCallEndpoint,
+                    SourceCallError = SourceCallError,
+                    SourceComponentOf = SourceComponentOf,
+                    HasPublishedTargetCapture = HasPublishedTargetCapture,
+                    PublishedCallObjectId = PublishedCallObjectId,
+                    PublishedCallObjectIdError = PublishedCallObjectIdError,
+                    PublishedNodeId = PublishedNodeId,
+                    PublishedHrefNodeId = PublishedHrefNodeId,
+                    PublishedHrefNodeIdInPath = PublishedHrefNodeIdInPath,
+                    PublishedTargetError = PublishedTargetError
                 };
             }
             return true;

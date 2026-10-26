@@ -31,6 +31,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.OpcUa
@@ -45,18 +46,141 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     /// </summary>
     internal sealed partial class OpcUaWotBindingChannel
     {
+        /// <summary>
+        /// Resolves the selected action receiver from an explicit identity or its published ownership candidates.
+        /// </summary>
+        private async ValueTask<NodeId> ResolveCallReceiverAsync(
+            ResolvedPathTarget target, CancellationToken cancellationToken)
+        {
+            NamespaceTable namespaceUris = target.State?.NamespaceUris ?? m_session.NamespaceUris;
+            ValidatePathSessionState(target.State);
+            NodeId receiver = await OpcUaWotCallReceiverResolver.ResolveAsync(
+                m_session, Form, target.NodeId, namespaceUris,
+                () => ValidatePathSessionState(target.State), cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(target.State);
+            return receiver;
+        }
+
+        /// <summary>
+        /// Reads and validates the current Method signature for published named argument schemas.
+        /// </summary>
+        private async ValueTask<WotPayloadDescriptor> ResolveNativeMethodPayloadAsync(
+            ResolvedPathTarget target, CancellationToken cancellationToken)
+        {
+            if (!Form.Addressing.Metadata.TryGetValue(
+                "bindingProcessingMode", out string? mode) ||
+                mode != "published-one-zero")
+            {
+                return Form.Payload;
+            }
+            PathSessionState state = target.State ??
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The Call source context is missing.");
+            ValidatePathSessionState(state);
+            ArrayOf<Argument> inputs = await ReadMethodArgumentsAsync(
+                target.NodeId, "InputArguments", state, cancellationToken).ConfigureAwait(false);
+            ArrayOf<Argument> outputs = await ReadMethodArgumentsAsync(
+                target.NodeId, "OutputArguments", state, cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(state);
+            return Form.Payload.WithNativeArgumentOrder(
+                inputs, outputs, state.NamespaceUris, m_session.TypeTree, allowSingleValueNameMismatch: true);
+        }
+
+        private async ValueTask<ArrayOf<Argument>> ReadMethodArgumentsAsync(
+            NodeId method,
+            string propertyName,
+            PathSessionState state,
+            CancellationToken cancellationToken)
+        {
+            NodeId property = default;
+            int remainingReferences = 10000;
+            await foreach (ReferenceDescription reference in m_session.EnumerateReferencesAsync(
+                method, Types.ReferenceTypeIds.HasProperty, nodeClassMask: (uint)NodeClass.Variable,
+                ct: cancellationToken).ConfigureAwait(false))
+            {
+                ValidatePathSessionState(state);
+                if (--remainingReferences < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded, "The Method argument metadata browse exceeded its bound.");
+                }
+                if (reference is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnknownResponse, "The Method argument metadata browse returned a missing reference.");
+                }
+                if (reference.BrowseName.NamespaceIndex != 0 ||
+                    !string.Equals(reference.BrowseName.Name, propertyName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (reference.NodeId.ServerIndex != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "Method argument metadata must be local to the selected Server.");
+                }
+                NodeId candidate = ExpandedNodeId.ToNodeId(reference.NodeId, state.NamespaceUris);
+                if (candidate.IsNull || !property.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid, "The Method has ambiguous argument metadata properties.");
+                }
+                property = candidate;
+            }
+            ValidatePathSessionState(state);
+            if (property.IsNull)
+            {
+                return [];
+            }
+            DataValue value = await m_session.ReadValueAsync(property, cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(state);
+            if (!StatusCode.IsGood(value.StatusCode) ||
+                !value.WrappedValue.TryGetValue(out ArrayOf<Argument> arguments, state.CreateContext()))
+            {
+                throw new ServiceResultException(
+                    StatusCode.IsGood(value.StatusCode) ? StatusCodes.BadDecodingError : value.StatusCode,
+                    $"The Method {propertyName} metadata could not be decoded.");
+            }
+            return arguments;
+        }
+
+        /// <summary>
+        /// Admits an inferred source Object only after endpoint and Core Method ownership checks.
+        /// </summary>
+        private async ValueTask ValidateSourceCallReceiverAsync(
+            NodeId receiver, ResolvedPathTarget target, CancellationToken cancellationToken)
+        {
+            if (!Form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
+            {
+                return;
+            }
+            PathSessionState state = target.State ??
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The Call source context is missing.");
+            ValidatePathSessionState(state);
+            NodeId resolved = await OpcUaWotCallReceiverResolver.ResolveAsync(
+                m_session, Form, target.NodeId, state.NamespaceUris,
+                () => ValidatePathSessionState(state), cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(state);
+            if (resolved != receiver)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadMethodInvalid, "The previously selected Call receiver is no longer valid.");
+            }
+        }
+
         private async ValueTask<ResolvedPathTarget> ResolveTargetAsync(
             NodeClass expectedClass, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (Form.Addressing.BrowsePathTarget is not { } path)
             {
-                if (!TryResolveNodeId(m_nodeId, out NodeId explicitTarget))
+                PathSessionState? state = Form.Addressing.Metadata.ContainsKey("sourceCallReceiver")
+                    ? CapturePathSessionState() : null;
+                if (!TryResolveNodeId(m_nodeId, out NodeId explicitTarget, state?.NamespaceUris))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, $"'{m_nodeId}' is not a valid NodeId.");
                 }
-                return new ResolvedPathTarget(explicitTarget, null);
+                return new ResolvedPathTarget(explicitTarget, state);
             }
             if (path.Path.Length > m_context.Bounds.MaxUriLength ||
                 path.Elements.Count > m_context.Bounds.MaxBrowsePathElements)

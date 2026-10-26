@@ -578,6 +578,75 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Retains original source Object facts captured by projection resolution, not by serialized annotations.
+        /// </summary>
+        internal void CaptureSourceCallReceivers(
+            IEnumerable<(string Name, string Receiver, string Endpoint)> receivers)
+        {
+            if (!RootElement.TryGetProperty("actions", out JsonElement actions) ||
+                actions.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach ((string name, string receiver, string endpoint) in receivers)
+            {
+                if (actions.TryGetProperty(name, out JsonElement action))
+                {
+                    m_sourceCallReceivers[action] = (receiver, endpoint);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains original action ownership declarations captured by resolution, not serialized locators.
+        /// </summary>
+        internal void CaptureSourceCallComponentOf(IEnumerable<(string Name, string Json)> declarations)
+        {
+            if (!RootElement.TryGetProperty("actions", out JsonElement actions) ||
+                actions.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach ((string name, string json) in declarations)
+            {
+                if (actions.TryGetProperty(name, out JsonElement action))
+                {
+                    m_sourceCallComponentOf[action] = json;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads an original action ownership declaration from this live resolution result.
+        /// </summary>
+        internal bool TryGetSourceCallComponentOf(JsonElement action, out string json)
+        {
+            if (m_sourceCallComponentOf.TryGetValue(action, out string? captured))
+            {
+                json = captured;
+                return true;
+            }
+            json = string.Empty;
+            return false;
+        }
+
+        /// <summary>
+        /// Reads trusted source Object facts for an action in this live resolver result.
+        /// </summary>
+        internal bool TryGetSourceCallReceiver(
+            JsonElement action, out string receiver, out string endpoint)
+        {
+            if (m_sourceCallReceivers.TryGetValue(action, out (string Receiver, string Endpoint) captured))
+            {
+                (receiver, endpoint) = captured;
+                return true;
+            }
+            receiver = string.Empty;
+            endpoint = string.Empty;
+            return false;
+        }
+
+        /// <summary>
         /// Determines whether the element belongs to this document.
         /// </summary>
         /// <param name="element">The JSON element.</param>
@@ -1578,6 +1647,10 @@ namespace Opc.Ua.Wot
         private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
+
+        /// <summary>Original source authority retained only for this live resolution result.</summary>
+        private readonly Dictionary<JsonElement, (string Receiver, string Endpoint)> m_sourceCallReceivers = [];
+        private readonly Dictionary<JsonElement, string> m_sourceCallComponentOf = [];
         private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
             m_payloadSchemas;
         private HashSet<(WotAffordanceKind Kind, string Name)>? m_supportOnly;

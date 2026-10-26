@@ -123,6 +123,326 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Verifies that a local-only affordance in a projection is materialized and organized by its canonical View.
+        /// </summary>
+        /// <param name="affordanceMap">The local affordance map.</param>
+        /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
+        /// <param name="authoredIdentity">Whether the local affordance declares its identity.</param>
+        /// <param name="thingModel">Whether the projection and source are Thing Models.</param>
+        [TestCase("properties", NodeClass.Variable, true, false)]
+        [TestCase("actions", NodeClass.Method, true, false)]
+        [TestCase("events", NodeClass.ObjectType, true, false)]
+        [TestCase("properties", NodeClass.Variable, false, false)]
+        [TestCase("actions", NodeClass.Method, false, false)]
+        [TestCase("events", NodeClass.ObjectType, false, false)]
+        [TestCase("properties", NodeClass.Variable, true, true)]
+        [TestCase("actions", NodeClass.Method, true, true)]
+        [TestCase("events", NodeClass.ObjectType, true, true)]
+        [TestCase("properties", NodeClass.Variable, false, true)]
+        [TestCase("actions", NodeClass.Method, false, true)]
+        [TestCase("events", NodeClass.ObjectType, false, true)]
+        public async Task ProjectionLocalOnlyAffordanceIsMaterializedAndOrganizedAsync(
+            string affordanceMap,
+            NodeClass expectedNodeClass,
+            bool authoredIdentity,
+            bool thingModel)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
+            string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
+            string contentType = thingModel ? "application/tm+json" : "application/td+json";
+            string sourceUri = $"urn:wot:{group}/local-unused-source";
+            string schema = affordanceMap switch
+            {
+                "properties" => "\"type\":\"number\",",
+                "events" => "\"data\":{\"type\":\"object\",\"properties\":{}},",
+                _ => string.Empty
+            };
+            string identity = authoredIdentity
+                ? $"\"uav:id\":\"nsu=urn:wot:{group}/projection-local;s=ProjectionLocal/localOnly\","
+                : string.Empty;
+            await harness.RegisterTdAsync("local-unused-source", $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":"{{{rootType}}}",
+                  "id":"urn:local-unused-source","title":"Local unused source",
+                  "properties":{"unused":{"type":"number","forms":[{"href":"https://example.test/unused"}]}}
+                }
+                """, thingModel).ConfigureAwait(false);
+            await harness.RegisterTdAsync("projection-local", $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":["{{{rootType}}}","uav:projection"],
+                  "id":"urn:projection:local-only","title":"Local only",
+                  "uav:scenario":"urn:scenario:local-only",
+                  "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},
+                  "security":"nosec_sc",
+                  "uav:projects":[{
+                    "uav:sourceName":"unused",
+                    "href":"{{{sourceUri}}}",
+                    "type":"{{{contentType}}}",
+                    "uav:selectAll":false
+                  }],
+                  "{{{affordanceMap}}}":{
+                    "localOnly":{
+                      {{{identity}}}
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/local"}]
+                    }
+                  }
+                }
+                """, thingModel).ConfigureAwait(false);
+
+            WotRefreshResult result = await harness.RefreshAsync().ConfigureAwait(false);
+
+            NodeId resourceNode = harness.ResourceNodeId("projection-local", thingModel);
+            NodeId viewNode = new(resourceNode.IdentifierAsString + "/View", resourceNode.NamespaceIndex);
+            WoTResourceLoadResultDataType load = result.Results.Single(
+                row => row.ResourceId == "projection-local");
+            string resultDetails = string.Join(
+                Environment.NewLine,
+                result.Results.Select(row => $"{row.ResourceId}: {row.Phase}/{row.Outcome}: {row.Message}"));
+            Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), resultDetails);
+            ArrayOf<ReferenceDescription> members = await harness.BrowseAsync(
+                viewNode, Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            ReferenceDescription local = members.ToArray()!.Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(local.BrowseName.Name, Is.EqualTo("localOnly"));
+                Assert.That(local.NodeClass, Is.EqualTo(expectedNodeClass));
+                if (authoredIdentity)
+                {
+                    Assert.That(harness.Target(local), Is.EqualTo(harness.Identity(
+                        $"urn:wot:{group}/projection-local", "ProjectionLocal/localOnly")));
+                }
+                Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), load.Message);
+                Assert.That(load.RootNodeId, Is.EqualTo(viewNode),
+                    "Local affordance materialization must not replace the canonical View identity.");
+            });
+            Assert.That(await ReadNodeClassAsync(harness, harness.Target(local)).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, viewNode).ConfigureAwait(false),
+                Is.EqualTo(NodeClass.View));
+        }
+
+        /// <summary>
+        /// Same-title projections have distinct generated local identities and retain complete counts in every refresh.
+        /// </summary>
+        [Test]
+        public async Task ProjectionGeneratedLocalIdentitiesAndCountsRemainResourceScopedAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
+            await harness.RegisterTdAsync("unused-count-source", """
+                {
+                  "@type":"Thing","id":"urn:unused-count-source","title":"Unused",
+                  "properties":{"unused":{"type":"number","forms":[{"href":"https://example.test/unused"}]}}
+                }
+                """).ConfigureAwait(false);
+            string[] resources = ["generated-first", "generated-second"];
+            foreach (string resource in resources)
+            {
+                await harness.RegisterTdAsync(resource, $$$"""
+                    {
+                      "@type":["Thing","uav:projection"],
+                      "id":"urn:{{{resource}}}","title":"Same title",
+                      "uav:scenario":"urn:scenario:generated-locals",
+                      "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"security":"nosec_sc",
+                      "uav:projects":[{
+                        "uav:sourceName":"unused",
+                        "href":"urn:wot:thingdescriptions/unused-count-source",
+                        "type":"application/td+json","uav:selectAll":false
+                      }],
+                      "properties":{"local":{"type":"number","forms":[{"href":"https://example.test/local"}]}}
+                    }
+                    """).ConfigureAwait(false);
+            }
+
+            WotRefreshResult preview = await harness.RefreshAsync(dryRun: true).ConfigureAwait(false);
+            foreach (string resource in resources)
+            {
+                Assert.That(preview.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u), "The local root, local Variable and canonical View are all owned Nodes.");
+                Assert.That(harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!.MaterializedNodeCount, Is.Zero);
+            }
+
+            WotRefreshResult loaded = await harness.RefreshAsync().ConfigureAwait(false);
+            var identities = new HashSet<NodeId>();
+            foreach (string resource in resources)
+            {
+                WoTResourceLoadResultDataType row = loaded.Results.Single(value => value.ResourceId == resource);
+                Assert.That(row.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), row.Message);
+                Assert.That(row.MaterializedNodeCount, Is.EqualTo(3u));
+                WotResource persisted = harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!;
+                Assert.That(persisted.MaterializedNodeCount, Is.EqualTo(3));
+                Assert.That(row.RootNodeId, Is.EqualTo(persisted.RootNodeId));
+                Assert.That(await ReadNodeClassAsync(harness, row.RootNodeId).ConfigureAwait(false),
+                    Is.EqualTo(NodeClass.View));
+                ArrayOf<ReferenceDescription> members = await harness.BrowseAsync(
+                    row.RootNodeId, Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                Assert.That(members.Count, Is.EqualTo(1));
+                NodeId local = harness.Target(members[0]);
+                Assert.That(identities.Add(local), Is.True, "Generated local Nodes cannot be shared across resources.");
+                Assert.That(await ReadNodeClassAsync(harness, local).ConfigureAwait(false),
+                    Is.EqualTo(NodeClass.Variable));
+            }
+
+            WotRefreshResult unchanged = await harness.RefreshAsync().ConfigureAwait(false);
+            WotRefreshResult unchangedPreview = await harness.RefreshAsync(dryRun: true).ConfigureAwait(false);
+            foreach (string resource in resources)
+            {
+                Assert.That(unchanged.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u));
+                Assert.That(unchangedPreview.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u));
+                Assert.That(harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!.MaterializedNodeCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that local projection affordances coexist with imported members and override name collisions.
+        /// </summary>
+        /// <param name="affordanceMap">The local and imported affordance map.</param>
+        /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
+        /// <param name="thingModel">Whether the projection and source are Thing Models.</param>
+        [TestCase("properties", NodeClass.Variable, false)]
+        [TestCase("actions", NodeClass.Method, false)]
+        [TestCase("events", NodeClass.ObjectType, false)]
+        [TestCase("properties", NodeClass.Variable, true)]
+        [TestCase("actions", NodeClass.Method, true)]
+        [TestCase("events", NodeClass.ObjectType, true)]
+        public async Task ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync(
+            string affordanceMap,
+            NodeClass expectedNodeClass,
+            bool thingModel)
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
+            const string sourceResource = "mixed-source";
+            const string projectionResource = "projection-mixed";
+            string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
+            string contentType = thingModel ? "application/tm+json" : "application/td+json";
+            string sourceUri = $"urn:wot:{group}/{sourceResource}";
+            string projectionUri = $"urn:wot:{group}/{projectionResource}";
+            string schema = affordanceMap switch
+            {
+                "properties" => "\"type\":\"number\",",
+                "events" => "\"data\":{\"type\":\"object\",\"properties\":{}},",
+                _ => string.Empty
+            };
+            NodeId importedShared = harness.Identity(sourceUri, "MixedSource/shared");
+            NodeId importedOnly = harness.Identity(sourceUri, "MixedSource/importedOnly");
+            NodeId localShared = harness.Identity(projectionUri, "MixedProjection/shared");
+            NodeId localOnly = harness.Identity(projectionUri, "MixedProjection/localOnly");
+
+            await harness.RegisterTdAsync(sourceResource, $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":"{{{rootType}}}",
+                  "id":"urn:mixed-source","title":"Mixed source",
+                  "uav:id":"nsu={{{sourceUri}}};s=MixedSource",
+                  "{{{affordanceMap}}}":{
+                    "shared":{
+                      "uav:id":"nsu={{{sourceUri}}};s=MixedSource/shared",
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/imported-shared"}]
+                    },
+                    "importedOnly":{
+                      "uav:id":"nsu={{{sourceUri}}};s=MixedSource/importedOnly",
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/imported-only"}]
+                    }
+                  }
+                }
+                """, thingModel).ConfigureAwait(false);
+            await harness.RegisterTdAsync(projectionResource, $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":["{{{rootType}}}","uav:projection"],
+                  "id":"urn:projection:mixed","title":"Mixed projection",
+                  "uav:scenario":"urn:scenario:mixed",
+                  "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},
+                  "security":"nosec_sc",
+                  "uav:projects":[{
+                    "uav:sourceName":"source",
+                    "href":"{{{sourceUri}}}",
+                    "type":"{{{contentType}}}",
+                    "uav:selectAll":true
+                  }],
+                  "{{{affordanceMap}}}":{
+                    "localOnly":{
+                      "uav:id":"nsu={{{projectionUri}}};s=MixedProjection/localOnly",
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/local-only"}]
+                    },
+                    "shared":{
+                      "uav:id":"nsu={{{projectionUri}}};s=MixedProjection/shared",
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/local-shared"}]
+                    }
+                  }
+                }
+                """, thingModel).ConfigureAwait(false);
+
+            WotRefreshResult result = await harness.RefreshAsync().ConfigureAwait(false);
+
+            NodeId resourceNode = harness.ResourceNodeId(projectionResource, thingModel);
+            NodeId viewNode = new(resourceNode.IdentifierAsString + "/View", resourceNode.NamespaceIndex);
+            WoTResourceLoadResultDataType load = result.Results.Single(
+                row => row.ResourceId == projectionResource);
+            string resultDetails = string.Join(
+                Environment.NewLine,
+                result.Results.Select(row => $"{row.ResourceId}: {row.Phase}/{row.Outcome}: {row.Message}"));
+            Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), resultDetails);
+            ArrayOf<ReferenceDescription> members = await harness.BrowseAsync(
+                viewNode, Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            Dictionary<string, NodeId> membersByName = members.ToArray()!
+                .ToDictionary(
+                    reference => reference.BrowseName.Name ??
+                        throw new AssertionException("A projection member has no BrowseName."),
+                    harness.Target,
+                    StringComparer.Ordinal);
+            Assert.That(
+                string.Join(",", membersByName.Keys.OrderBy(name => name, StringComparer.Ordinal)),
+                Is.EqualTo("importedOnly,localOnly,shared"),
+                resultDetails + Environment.NewLine + load.Message);
+            Assert.Multiple(() =>
+            {
+                Assert.That(membersByName, Has.Count.EqualTo(3));
+                Assert.That(membersByName["importedOnly"], Is.EqualTo(importedOnly),
+                    "Imported Nodes are organized by identity, not cloned.");
+                Assert.That(membersByName["localOnly"], Is.EqualTo(localOnly));
+                Assert.That(membersByName["shared"], Is.EqualTo(localShared),
+                    "A local definition wins a same-kind name collision with an imported affordance.");
+                Assert.That(membersByName["shared"], Is.Not.EqualTo(importedShared));
+                Assert.That(load.RootNodeId, Is.EqualTo(viewNode));
+                Assert.That(members.ToArray()!.Select(member => member.NodeClass),
+                    Is.All.EqualTo(expectedNodeClass));
+            });
+            Assert.That(await ReadNodeClassAsync(harness, importedShared).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, importedOnly).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, localShared).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, localOnly).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, viewNode).ConfigureAwait(false),
+                Is.EqualTo(NodeClass.View));
+        }
+
+        /// <summary>
         /// Verifies that canonical view cannot replace an existing node role.
         /// </summary>
         /// <param name="ownedProperty">The owned-property flag for this test case.</param>
@@ -1381,8 +1701,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private NativeHarness()
             {
                 m_directory = Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory,
-                    nameof(WotProjectionViewCanonicalLiveTests), Guid.NewGuid().ToString("N"));
+                    Path.GetTempPath(), "UaWotC2", Guid.NewGuid().ToString("N"));
                 m_storage = new PreparedWotTestStorage(Path.Combine(m_directory, "registry"));
                 m_fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
                 {
@@ -1472,9 +1791,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return m_registry!.Current.FindResource(WotRegistryGroups.ThingDescriptions, resource)!.Xid;
             }
 
-            public NodeId ResourceNodeId(string resource)
+            public NodeId ResourceNodeId(string resource, bool thingModel = false)
             {
-                return new NodeId("WoTRegistry/groups/thingdescriptions/resources/" + resource, NamespaceIndex);
+                string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+                return new NodeId("WoTRegistry/groups/" + group + "/resources/" + resource, NamespaceIndex);
             }
 
             public WotCanonicalViewGraphContext GraphContext(ArrayOf<WotCanonicalViewSource> sources)
@@ -1504,6 +1824,45 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var factory = new BlockingSourceFactory();
                 await Lifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
                 return factory.Created;
+            }
+
+            /// <summary>
+            /// Adds a Thing Description or Thing Model to the registry and publishes its registry node.
+            /// </summary>
+            /// <param name="resourceId">The registry resource identifier.</param>
+            /// <param name="json">The document JSON.</param>
+            /// <param name="thingModel">Whether to register a Thing Model rather than a Thing Description.</param>
+            public async Task RegisterTdAsync(string resourceId, string json, bool thingModel = false)
+            {
+                WotRegistryMutationResult result = await Registry.UpsertResourceAsync(
+                    new WotUpsertResourceRequest
+                    {
+                        GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
+                        ResourceId = resourceId,
+                        Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                        Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
+                        ContentType = thingModel ? "application/tm+json" : "application/td+json",
+                        Content = ByteString.From(Encoding.UTF8.GetBytes(json))
+                    }).ConfigureAwait(false);
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
+                await ((WotRegistryNodeManager)RegistryRegistration.NodeManager)
+                    .DispatchProjectionAsync(_ => default, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Refreshes the registered materialization closure.
+            /// </summary>
+            /// <param name="dryRun">Whether to prepare without publishing.</param>
+            public ValueTask<WotRefreshResult> RefreshAsync(bool dryRun = false)
+            {
+                return m_coordinator!.RefreshAsync(new WotRefreshRequest
+                {
+                    Options = new WoTRefreshOptionsDataType
+                    {
+                        Atomicity = WoTAtomicityEnum.PerRegistry,
+                        DryRun = dryRun
+                    }
+                });
             }
 
             /// <summary>
@@ -1844,7 +2203,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await m_registry.InitializeAsync().ConfigureAwait(false);
                 m_coordinator = new WotMaterializationCoordinator(
                     m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
-                    documentConverter: withGraphResources ? new FakeWotDocumentConverter() : null);
+                    documentConverter: withGraphResources ? new FakeWotDocumentConverter() : null,
+                    viewProjectionHost: new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle));
                 var options = new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
@@ -1899,6 +2259,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private WotRegistryService? m_registry;
             private FileWotRegistryStore? m_store;
             private WotMaterializationCoordinator? m_coordinator;
+        }
+
+        /// <summary>
+        /// Reads the NodeClass attribute for an address-space Node.
+        /// </summary>
+        /// <param name="harness">The live server harness.</param>
+        /// <param name="nodeId">The NodeId to read.</param>
+        private static async Task<NodeClass> ReadNodeClassAsync(NativeHarness harness, NodeId nodeId)
+        {
+            ReadResponse response = await harness.Session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.NodeClass }],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results[0].WrappedValue.TryGetValue(out int nodeClass), Is.True);
+            return (NodeClass)nodeClass;
         }
 
         private sealed class CapturedDigestFactory(

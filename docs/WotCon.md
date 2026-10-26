@@ -746,7 +746,7 @@ Reads prefer `blobs/` and fall back to `staging/`, so content written but not ye
 
 Promotion also checks content integrity. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
 
-A commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
+A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
 
 A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceStoreProvider`. A decorator that drops it leaves the registry service writing bytes into a private in-memory store while the wrapped store validates against its own, and every commit then reports the documents missing.
 
@@ -856,8 +856,15 @@ generations, View tokens, or events.
 `LastDependencyAttempt` records a completed actual attempt. Initially absent
 observations report `BadWaitingForInitialData`. Logical reads follow the default;
 exact-Version reads do not. Decode `WoTDependencySnapshotDataType` through the
-Session's registered factory/message context. Authorization protects target
-disclosure. Validate reports unperformed format/compatibility policies as
+Session's registered factory/message context. Remote observation reads require the
+management policy and native Read/Browse authorization on the source group and
+exact Version, and on every captured target's local registry origin, group and
+exact Version, including native channel access restrictions and namespace
+permission defaults. A denied or unavailable target fails the entire read without a
+partial value or target identifiers in diagnostics. Pruning a target therefore
+makes remote disclosure fail closed; it does not erase the retained committed
+observation. These checks cover local registry pins, not an authorization policy
+for arbitrary federated or non-registry providers. Validate reports unperformed format/compatibility policies as
 `Skipped`, not passed. See [capture contracts](#dependency-capture-and-observations).
 
 ### 11.4 Binder integration seam
@@ -1117,13 +1124,19 @@ adopted verbatim rather than maintained by hand.
 | Model | Version | PublicationDate |
 |---|---|---|
 | WoT Connectivity | `1.1` | 2026-09-21 |
-| WoT Binding | `1.1` | 2026-07-29 |
+| WoT Binding (OPC 10101-1) | `1.1` | 2026-07-29 |
 | xRegistry (`RequiredModel`) | `0.7.0` | 2026-09-12 |
 | OPC UA Core (`RequiredModel`) | `1.05.04` | 2025-01-08 |
 
 xRegistry contributes 131 nodes and the combined Connectivity model 349. The registry honours its
 reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4),
 `SignAndEncrypt` on every mutating operation, and optional generic event semantics.
+OPC 10101-2 (WoT Projections) defines the projection-plan conformance unit used
+alongside the separate Connectivity projection-materialization unit; it adds no
+NodeSet model. The
+[Part 2 implementation and evidence map](WotBindings.md#opc-10101-2-wot-projections)
+records the resolver/View behavior and the mandatory result-validation blocker.
+It does not claim full `WoT-Projection` conformance.
 
 Draft iterations are identified by the specification release label, for example
 `1.1-draft8`; they do not increment the information model version.
@@ -1135,7 +1148,7 @@ Three profiles form a lattice rather than a ladder:
 | Profile | Covers |
 |---|---|
 | *WoT-Con Minimal* | `Wot-Con 1.02` alone — the published OPC 10100-1 v1.02 shape and nothing else |
-| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes |
+| *WoT-Con Registry Server* | the registry surface without federation, change events, projections or the atomicity modes; includes `WOTC-Defaulting` |
 | *WoT-Con Full* | every unit, `Wot-Con 1.02` included |
 
 Minimal and Registry Server are each a subset of Full, and neither is a subset of
@@ -1157,6 +1170,12 @@ returns `Bad_DecodingError`.
 
 `WOTC-ProjectionMaterialization` is carried by `ThingDescriptionFileType`,
 `ThingModelFileType` and `HasWoTProjection`.
+`WOTC-Defaulting` is a behavior-only unit required by both Registry Server and
+Full. It covers accepting ordinary TD/TM documents when no optional `uav` terms
+are needed, applying only the specified defaults, and reporting a normal
+validation or projection failure when an explicitly used construct lacks a
+required dependent value. Its defaults are described in the materialization
+tables below; this unit introduces no NodeSet nodes.
 
 ### 12.3 Grouping
 
@@ -1169,10 +1188,10 @@ a ReferenceType — the two constructs the model already has.
 
 ### 12.4 Projection documents and the View NodeClass
 
-A **projection plan** declares, rather than defines, its affordances.
-It names source documents and states which
-of their affordances a view is assembled from, so it carries references and
-annotations only and has nothing that can drift from its sources.
+A **projection plan**, as defined by OPC 10101-2, names the source documents
+whose affordances contribute to a view and may also define complete local
+affordances. A local definition replaces a source selection with the same
+affordance name; it is not an annotation on that source definition.
 
 This completes the NodeClass binding. Seven OPC UA NodeClasses bind to a WoT
 construct that defines something; `View` is the eighth and the only one whose
@@ -1180,10 +1199,10 @@ purpose is to select rather than define. A View owns no Node — it organizes No
 that already exist so a client can browse a subset shaped for one task — and a
 projection document is that construct in WoT.
 
-A plan has format `WotProjection.Format` (`WoT-Projection/1.1`) and media type
-`WotProjection.ContentType`. Its `@type` contains `uav:projection`, with required
-`uav:projectionKind` of `ThingDescription` or `ThingModel`, **without** a
-`Thing`/`tm:ThingModel` marker. It declares:
+A plan is stored as an ordinary Thing Description or Thing Model, with
+the corresponding TD/TM format and media type. Its `@type` contains
+`uav:projection` and exactly one ordinary root role: `Thing` or
+`tm:ThingModel`. It declares:
 
 | Term | Meaning |
 |---|---|
@@ -1194,13 +1213,9 @@ A plan has format `WotProjection.Format` (`WoT-Projection/1.1`) and media type
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
 
-Earlier drafts mixing projection and TD/TM markers require explicit
-`ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11`
-on converter/registry options; that mode does not repair invalid current controls.
 Direct upserts supply Format, ContentType, and result Kind.
 `DetectProjectionFormat` classifies role; the registry FileType adapter uses
-classification, not draft compatibility. Asset upload/ordinary conversion reject
-unresolved plans.
+classification. Asset upload/ordinary conversion reject unresolved plans.
 
 Bulk/supporting projection-routed forms need the host's real
 `IWotProjectionFormProvider` (DI or converter options). DI wins over registry
@@ -1209,17 +1224,34 @@ Enumerated selections author their own forms. Provider output describes endpoint
 does not publish them, and changing it does not itself invalidate generations.
 Host security does not grant credentials on copied source endpoints.
 
-Selection has three forms. An enumerated `tm:ref` names one affordance and is the
-only form that can annotate it; `uav:selectAll` takes every affordance of a
-source; and `uav:select` filters on affordance kind, semantic identifier and type
-tokens. The predicate set is closed — a filter carrying any other key is rejected
-rather than ignored — so a filter stays decidable by inspection.
+Selection has three source-selection forms. An enumerated `tm:ref` that names
+an affordance in a manifest source is the only form that can annotate it;
+`uav:selectAll` takes every affordance of a source; and `uav:select` filters on
+affordance kind, semantic identifier and type tokens. The predicate set is
+closed — a filter carrying any other key is rejected rather than ignored — so a
+filter stays decidable by inspection.
 
-Every member of `properties`, `actions` and `events` carries `tm:ref`. A member
-without one is defining an affordance, which is the one thing a projection
-document must not do.
+A complete affordance definition without a source-selection `tm:ref` is local
+to the projection. A `tm:ref` that does not select an affordance in a manifest
+source retains its ordinary TD/TM reference meaning and remains part of that
+local definition. Local definitions take precedence over imported selections
+with the same affordance name. During server materialization, local definitions
+are converted through the ordinary TD/TM and Binding path into Nodes owned by
+the projection resource. The canonical View remains separately identified and
+organizes those local Nodes alongside selected source Nodes; imported Nodes are
+organized by identity and are not cloned. Enumerated source selections may
+carry only the permitted annotations described below. Authored local `uav:id`
+values are preserved; generated identities use a resource-scoped namespace so
+two projections with the same title and member names do not share local Nodes.
+View membership uses the converter's actual affordance identities, not an
+identifier guessed from the local container root.
+For a closure spanning several models, fluent runtime configuration uses the
+first converter-resolved active root namespace as its default; individual
+bindings still target their converter-resolved identities in their own
+namespaces. A document without portable root evidence retains the runtime
+NodeSet builder's normal namespace inference.
 
-An enumerated selection may annotate the affordance it names, but Section 12.5
+An enumerated selection may annotate the affordance it names, but OPC 10101-2
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
 `title`, `titles`, `description`, `descriptions`, additional `@type` values,
 `uav:semanticId` and `uav:metadata` — presentation and semantics — plus `forms`
@@ -1238,7 +1270,7 @@ not dropped: a dropped form is one the author wrote and the consumer silently
 did not use, which reads at run time as the source endpoint answering a request
 the document appeared to address elsewhere.
 
-Selections are applied in the total order of Section 12.4, and the **first**
+Selections are applied in the total order defined by OPC 10101-2, and the **first**
 selection of a name wins: by the position of the source in `uav:projects`;
 within one source, every enumerated selection before every bulk one; within each
 group, by affordance kind in the fixed order `properties`, `actions`, `events`;
@@ -1253,21 +1285,24 @@ is stated over names rather than over document order because `properties`,
 rule that ranked selections by member position would let two conforming
 consumers resolve identical bytes into different views.
 
-Materialization produces a `View` Node that `Organizes` the Nodes already
-materialized from the sources. The View creates **no** affordance Node, so
-`MaterializedNodeCount` counts only the View and any organizational Objects, not
-the Nodes it organizes. `RootNodeId` is the View, and the document resource points
-at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
+Materialization produces a `View` Node that `Organizes` imported and locally
+materialized Nodes. The View graph itself owns only the View and any
+organizational Objects. The resource's `MaterializedNodeCount` also includes
+the Nodes created through ordinary Binding conversion of its local definitions,
+but never counts imported Nodes it merely organizes. Dry-run, committed and
+unchanged refresh results use that same total. `RootNodeId` remains the View,
+and the document resource points at it through `HasWoTProjection`, navigable
+back through `WoTProjectionOf`.
 
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
-exactly as *WoT Binding* §12.6 specifies: each resolved member's ExpandedNodeId in the
+exactly as *WoT Projections* specifies: each resolved member's ExpandedNodeId in the
 portable `nsu=` form, **deduplicated**, sorted ascending by Unicode code point, each
 written as its length in UTF-8 octets, a colon, the string and U+000A, UTF-8 encoded,
 and the first four octets of the SHA-256 digest read as a big-endian `UInt32`, with `0`
 reported as `1` because OPC 10000-3 §5.4 requires a value greater than zero.
 
 The membership is a **set**. A Node the view reaches through more than one organized
-group (§12.7) is one member of the View and contributes once, because a View
+group is one member of the View and contributes once, because a View
 `Organizes` a Node or it does not, and the same `Organizes` Reference is not created
 twice. A server that counted a shared Node twice would compute a different value from
 one that organized it under a single group, for the same View.
@@ -1279,7 +1314,8 @@ A Server that sorted ordinally would compute a different `ViewVersion` from a
 conforming one for the same membership whenever a NodeId string identifier
 carries a character outside the Basic Multilingual Plane. `Opc.Ua.Wot.WotCodePointComparer`
 is the one implementation of that order, shared by this computation, the
-projection selection order of §12.4 and the endpoint tie-break of §5.7.1, so a
+projection selection order defined by OPC 10101-2 and the endpoint tie-break
+defined by OPC 10101-1, so a
 second one cannot drift from the first.
 
 The length prefix makes the encoding injective. A NodeId string identifier may
@@ -1309,22 +1345,25 @@ can tell a complete View from a partial one without diffing its membership.
 Two omission causes are distinguished, because they have different remedies.
 
 **A source that is itself a projection.** `uav:resolvedFrom` names, per *WoT
-Binding* §12, "the reference the selection was made by" — the immediate
+Projections* §12, "the reference the selection was made by" — the immediate
 selection, not the ultimate origin. A projection that selects from another
-projection therefore names an intermediate document, and an intermediate
-materializes a View rather than Nodes. The conversion records exactly that
+projection therefore names an intermediate document. Its imported affordances
+refer to existing Nodes rather than clones; its local definitions materialize
+their own Nodes. The conversion records exactly that
 immediate reference: a `uav:resolvedFrom` the selected source already carries is
 validated (it must be a non-empty string, otherwise `ProjectionSourceUnresolved`
 is reported) but is not propagated as the new
 selection's provenance, so the ultimate origin stays reachable by walking the
 intermediate's own metadata. Resolution follows the chain depth-first
-to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
+to the Nodes the source materialized, stopping at a projection-local Node when
+applicable, as WoT Connectivity §7.13
 requires; only when no document in the chain materialized the affordance is the
 member omitted, and the omission names the deepest source the walk reached.
 
 **A member whose Node does not exist.** An affordance resolves to a NodeId by
-its authored `uav:id` when it has one and by a deterministic scheme anchored at
-the source's root otherwise. Neither is proof that the Node was materialized: a
+its authored `uav:id` when it has one and by the converter's recorded identity
+otherwise (or the deterministic root-based fallback for an older source index).
+Neither is proof that the Node was materialized: a
 document whose affordances never synthesized anything resolves to plausible
 identifiers that address nothing. Every planned member is therefore tested
 against the address space before the View is built, and one that no NodeManager
@@ -1478,6 +1517,9 @@ non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
 against OPC 10101 v1.00 readable while it is rewritten; see
 [WoT protocol bindings](WotBindings.md#compatibility-switch-for-non-portable-identifiers)
 for the forms and worked examples.
+That option changes conversion diagnostics, not the rules used to execute a
+Binding. Select the published 1.00 consumer mode separately; see
+[Published OPC 10101 v1.00 consumer mode](WotBindings.md#published-opc-10101-v100-consumer-mode).
 
 ### 12.6 The 1.02 asset surface
 
@@ -1705,8 +1747,12 @@ newer state.
 Projection inputs retain source context/location/provenance; host routing owns
 forms/security/URI variables, not source DataTypes. Supporting definitions share
 bounded document/node/byte/depth budgets. Security names are qualified by source
-(`q:s:<B64u(sourceName)>:<B64u(schemeName)>`) or host (`q:p:<B64u(schemeName)>`);
-combos must be complete/acyclic and cannot confer host credentials on source origins.
+(`q:s:<E(sourceName)>:<E(schemeName)>`) or host (`q:p:<E(schemeName)>`).
+`E` percent-encodes the exact UTF-8 bytes using uppercase hexadecimal, preserves only
+RFC 3986 unreserved bytes (`A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`), and performs no
+Unicode normalization. Dependency-support names continue to use unpadded base64url.
+Consumers use the security names in the resolved TD.
+Combos must be complete/acyclic and cannot confer host credentials on source origins.
 Literal instance values/opaque metadata are not searched for references.
 
 ### Dry-run validation

@@ -66,9 +66,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_indeterminateDecision = false;
             m_events.Clear();
             m_root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "apn",
                 Guid.NewGuid().ToString("N").Substring(0, 12));
+            Directory.CreateDirectory(m_root);
             m_storage = new PreparedWotTestStorage(Path.Combine(m_root, "registry"));
             m_store = m_storage.OpenStore(
                 directorySyncFailureInjector: null,

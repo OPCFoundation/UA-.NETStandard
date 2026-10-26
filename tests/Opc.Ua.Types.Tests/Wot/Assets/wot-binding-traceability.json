@@ -1,7 +1,8 @@
 {
   "$comment": [
-    "Clause-level stack-side traceability for the OPC UA WoT Binding: it maps the",
-    "Binding clauses this repository implements onto the tests that hold them, by",
+    "Clause-level stack-side traceability for OPC UA WoT Binding and Projections:",
+    "it maps implemented behavior onto existing tests, with part-qualified",
+    "anchors for OPC 10101-2. It names the tests that hold that behavior, by",
     "test name, so a reviewer can ask 'what proves this clause?' and get an answer",
     "that a test run can check.",
     "",
@@ -16,17 +17,76 @@
     "run - which is what WotBindingTraceabilityTests enforces, and what keeps a",
     "renamed or deleted test from silently emptying a clause.",
     "",
-    "'pinnedTo' records the specification commit the clause numbering was read",
-    "from. Re-pin it, and re-read the clause titles, when the specification lands",
-    "its published revision; the fixture manifest beside this file pins the same",
-    "commit and the two are checked against each other."
+    "This is a stack-side test locator, not an authoritative copy of the current",
+    "specification text or a report of conformance to the official baseline."
   ],
-  "pinnedTo": {
-    "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "db08f850e8801863006208b40f4bd3614febea8b",
-    "bindingRevision": "1.1"
-  },
   "clauses": [
+    {
+      "clause": "OPC10101/sec-static-call-layout",
+      "title": "Current-draft source-Thing receiver selection; not full published v1.00 interoperability",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverWithoutMethodOwnershipIsRejectedBeforeCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverAccessDeniedDuringPreflightPreventsCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverMayCallMethodOwnedByItsObjectTypeHierarchy",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithOmittedReceiverCallsMethodOnSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithExplicitReceiverOverridesSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.WotConditionInvocationTests.DerivedConditionReceiverMustProveObjectTypeMethodOwnership"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-the-projection-document",
+      "title": "Ordinary TD/TM projection envelopes and result roles",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests.ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests.APlanRequiresExactlyOneOrdinaryRootRole"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-selection",
+      "title": "Selection forms, precedence and local overrides",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsEnumeratedAffordance",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsWholeDocumentWithSelectAll",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsByPredicateAffordanceKind",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.EnumeratedSelectionWinsOverBulkAndReportsDrop",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-resolution",
+      "title": "Provenance and owner-preserving closure; not full result schema validation",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.BulkProvenanceIsHrefPlusPointer",
+        "Opc.Ua.Types.Tests.Wot.WotCallReceiverTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionPreservesExplicitCallObjectId",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.ConflictingContextPrefixesRemainInTheirSourceScopes",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-routing",
+      "title": "Source and projection form routing with source-owned security",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutingAbsolutizesFormAndCopiesSecurityClosure",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.ProjectionRoutingKeepsProjectionForms"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-organizing-projections",
+      "title": "Organizational graph sharing and cycle rejection",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.AGroupReachedByTwoBranchesIsNotACycleAsync",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.AGroupThatOrganizesItsOwnOrganizerIsACycleAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
     {
       "clause": "10",
       "title": "Native projection, residue, and exceptional envelope formats",
@@ -206,6 +266,302 @@
         "Opc.Ua.Types.Tests.Wot.WotSpecExampleTests",
         "Opc.Ua.Types.Tests.Wot.WotSpecFixtureManifestTests.ManifestPinsEveryEmbeddedExample",
         "Opc.Ua.Types.Tests.Wot.WotSpecFixtureManifestTests.EveryEmbeddedExampleMatchesItsRecordedHash"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-URI-01",
+      "title": "Published OPC UA NodeId query grammar and conflict handling",
+      "evidence": "Assertions pin canonical target identity and the complete endpoint path; numeric targets use the authored context. Duplicate decoded id query names throw FormatException rather than selecting one.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.PublishedNumericNodeIdUsesDocumentNamespaceAuthority",
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests.OpcUaTargetKeepsCompleteResourcePathForFullAndBaseRelativeHref"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-URI-02",
+      "title": "Full href and base-relative endpoint resource paths",
+      "evidence": "Full and base-relative cases assert the exact endpoint BaseUri, target NodeId, scheme and host, including /UA/Plant/Line.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests.OpcUaTargetKeepsCompleteResourcePathForFullAndBaseRelativeHref"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-URI-03",
+      "title": "Reserved, percent, Unicode, and duplicate query handling",
+      "evidence": "Transport tests pin UTF-8 escape sequences and unchanged ASCII. The Types supplement pins one-layer target decoding, escaped percent/hash/ampersand semantics and duplicate-query rejection.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests.ANonAsciiQueryIsEncodedAsUtf8Octets",
+        "Opc.Ua.WotCon.Bindings.Tests.WotTransmittedUriTests.AnAsciiUriIsUnchanged"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-URI-03 (Types)",
+      "title": "Duplicate decoded target query names are rejected",
+      "evidence": "Independent expected NodeId and endpoint literals detect over-decoding or endpoint-path loss; repeated decoded id names assert the exact rejection message.",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotPortableIdentityTests.ReadUriTargetNodeIdDecodesOneLayerAndPreservesEndpointResource",
+        "Opc.Ua.Types.Tests.Wot.WotPortableIdentityTests.ReadUriTargetNodeIdRejectsDuplicateDecodedTargetNames"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-NS-01",
+      "title": "Document-context numeric NodeId and action-owner mapping",
+      "evidence": "Authored numeric indexes compile to the expected namespace URI despite different Session indexes; missing document authority produces no compiled form. Owner candidates retain their declared portable identities.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.PublishedNumericNodeIdUsesDocumentNamespaceAuthority",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.PublishedNumericNodeIdWithoutDocumentAuthorityFailsPlanning",
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.ExtractedOwnerCannotAcquireMissingNamespaceAuthorityFromPlanningContext",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedComponentOfArrayRetainsCandidatesWithoutChoosingArrayOrder"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-NS-02",
+      "title": "Document-context numeric browse prefixes and target validation",
+      "evidence": "Tests pin mapped BrowseName namespace URIs and reject absent context or unselected published mode. Existing path executor tests reject incomplete/ambiguous targets and id/path disagreement before business services.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.PublishedNumericBrowsePrefixUsesDocumentNamespaceAuthority",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.NumericBrowsePrefixRequiresPublishedProcessingSelection",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.PublishedNumericBrowsePrefixWithoutDocumentAuthorityFailsPlanning"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-VOCAB-01",
+      "title": "Explicit 1.00 selection and standard TD defaults",
+      "evidence": "No-revision and revision cases assert explicit mode propagation; default selection remains Current. Standalone extraction compiles a context-mapped numeric path. Undefined modes reject the exact processingMode parameter.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.FromDocumentCarriesExplicitPublishedOneZeroSelection",
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.FromDocumentDefaultsToCurrentDespiteBindingVocabularyAndRevision",
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.UndefinedBindingProcessingModeIsRejected",
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.ExtractUsesExplicitPublishedModeForNumericBrowsePrefixes",
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.PublishedOneZeroSelectionPreservesStandardPropertyDefaultsAndAccessFlags"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-PROP-01",
+      "title": "Published property defaults, access flags, reads, and writes",
+      "evidence": "Exact operation sets cover ordinary/readOnly/writeOnly/observable declarations. Live reads pin the typed value and namespace snapshot; writes translate caller indexes and verify the resulting upstream value in both modes.",
+      "qualification": "TD access declarations do not confer Server permissions. Live service tests are not a complete access-control or reconnect campaign.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotFormExtractorTests.PublishedOneZeroSelectionPreservesStandardPropertyDefaultsAndAccessFlags",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.PropertyReadRetainsSourceNamespaceContext",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.PropertyWriteTranslatesCallerNamespaceBeforeWriting"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-PROP-02",
+      "title": "Native property observation and source namespace context",
+      "evidence": "Published and Current cases receive the exact typed value through a live monitored item, assert Good status and an independent source namespace snapshot, and dispose the subscription.",
+      "qualification": "This test pins initial observation and context, not a published-specific reconnect or cancellation fault campaign.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.PropertyObservationRetainsSourceNamespaceContext"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-CALL-01",
+      "title": "Action-level componentOf owner candidates",
+      "evidence": "Tests assert candidate preservation, invalid/missing/scalar declarations, explicit-receiver membership and ambiguous-owner rejection. Successful dispatch assertions pin the actual ObjectId, not array position.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedComponentOfArrayRetainsCandidatesWithoutChoosingArrayOrder",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedExplicitReceiverMustMatchComponentOfCandidate",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedInvalidComponentOfDeclarationsAreDenied",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedAmbiguousOwnersAreDeniedWithoutChoosingTheFirstCandidate"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-CALL-02",
+      "title": "Live Method and receiver ownership preflight",
+      "evidence": "Inherited ObjectType ownership accepts the containing Object; unrelated owners and endpoint mismatch reject before Call. Denied ownership browsing asserts the propagated status and zero business Calls.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedObjectTypeMethodOwnershipUsesTheContainingObjectReceiver",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedOwnerOnDifferentEndpointIsDeniedBeforeCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverWithoutMethodOwnershipIsRejectedBeforeCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverAccessDeniedDuringPreflightPreventsCall"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-CALL-03",
+      "title": "Object-shaped schemas resolved by native argument order",
+      "evidence": "Shuffled schema properties resolve to native argument names/order. Missing metadata prevents Call. Native Int32 rejects Int64 values on input and output. The live nested-owner acceptance returns the independent Float literal 3.5.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.WotActionLayoutTests.PublishedObjectSchemasResolveInNativeInputAndOutputOrder",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.PublishedActionUsesLiveNativeArgumentMetadataAndNestedOwnerAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.WotActionLayoutTests.PublishedStructuredSchemaWithoutLayoutAnnotationIsOneArgument",
+        "Opc.Ua.WotCon.Bindings.Tests.WotActionLayoutTests.PublishedOptionalSchemaMemberDoesNotShortenNativeArity",
+        "Opc.Ua.WotCon.Bindings.Tests.WotActionLayoutTests.PublishedNativeIntegerWidthConstrainsInputAndOutputValues",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedMissingNativeArgumentMetadataPreventsSpeculativeCall"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-CALL-04",
+      "title": "Argument and typed output agreement",
+      "evidence": "Assertions pin native input/output vectors, reject wrong count/type/rank, retain required native arity despite optional/default JSON fields, and prevent partial output success or retry.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotCallContractTests.PublishedCallArgumentVectorsKeepNativeLayoutsAndConditionNulls",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotCallContractTests.InvalidNativeInputsAreRejectedBeforeCallingTheSource",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotCallContractTests.InvalidNativeOutputsAreRejectedWithoutPartialSuccessOrRetry",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotCallContractTests.JsonOptionalAndDefaultDoNotShortenTheNativeSignature"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-PAYLOAD-01",
+      "title": "MIME admission separated from typed UA payload capability",
+      "evidence": "The Call test observes typed Variants passed to the UA service. The codec test pins UTF-8 text bytes for a numeric value and exact ByteString decoding, explicitly distinguishing these from UA Binary serialization.",
+      "qualification": "Partial capability, not full published serialization interoperability: no general UA Binary payload codec is implemented or claimed by this follow-up. MIME admission alone does not close that gap.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotCallContractTests.OctetStreamMethodInvocationPassesTypedUaVariants",
+        "Opc.Ua.WotCon.Bindings.Tests.WotPayloadCodecTests.OctetStreamCodecDoesNotInferUaBinaryFromMimeType",
+        "Opc.Ua.WotCon.Bindings.Tests.WotPayloadCodecTests"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-SEC-01",
+      "title": "nosec channel selection and application policy",
+      "evidence": "Explicit nosec planning asserts absence of invented channel constraints. Endpoint admission remains subject to the existing deployment policy; the TD cannot enable a disallowed channel.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.ExplicitNosecSelectionProducesNoInventedChannelRequirement"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-SEC-02",
+      "title": "Endpoint discovery and external identity credentials",
+      "evidence": "Discovery tests reject endpoints with the wrong token kind and pin the selected compatible endpoint; exact constraints require a constraint-aware factory before connecting.",
+      "qualification": "Credentials and endpoint policy remain external application/provider responsibilities. This is not evidence of every authentication provider or external identity service.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.DiscoveryFiltersEndpointsByTheRequiredTokenKind",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.ExactRequirementsRequireAConstraintAwareFactoryBeforeConnecting"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-SEC-03",
+      "title": "Exact channel, token, and allOf constraints",
+      "evidence": "Published allOf asserts the retained mode, policy and token requirements together. Impossible combinations and unknown policies produce errors and no compiled form.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.PublishedOneZeroAllOfRetainsChannelAndTokenConstraints",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.ImpossibleChannelConstraintsFailDuringCompilation",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.UnknownChannelPolicyIsRejectedWithoutCompilingAForm"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-SEC-04",
+      "title": "IssuedToken provider handoff",
+      "evidence": "The configured constrained session factory receives the exact acquisition reference from the security requirement.",
+      "qualification": "Provider handoff only: token acquisition and identity-provider interoperability require an application-supplied provider; no OAuth2 client or inline credential fallback is added.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotExactSecurityTests.IssuedTokenAcquisitionReferenceReachesTheSessionFactory"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-MODEL-01",
+      "title": "Model declarations and runtime materialization boundaries",
+      "evidence": "NodeSet serialization/read/import retains the registry document; generation activation rejects a required action without an executor instead of treating a declaration as executable.",
+      "qualification": "Existing conversion/materialization boundaries, not complete TD/TM schema validation or whole-converter published equivalence.",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationImportTests.ConvertedRegistryDocumentSurvivesSerializeReadImportAsync",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedMethodRuntimeTests.RequiredActionWithoutExecutorFailsGenerationActivation"
+      ],
+      "assembly": "Opc.Ua.WotCon.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-MODEL-02",
+      "title": "Imported declarations retain names and scoped source metadata",
+      "evidence": "A genuine resolver closure survives conversion and NodeSet import into planning with the original owner. Forged resolvedFrom JSON, even with an authored owner array, cannot supply trusted source authority; local identity is asserted separately.",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationImportTests.ImportedPublishedActionKeepsSourceComponentOfAuthority",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedMethodRuntimeTests.ResolvedFromAndLocalContainmentDoNotSupplyPublishedActionOwner",
+        "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationImportTests.ConvertedRegistryDocumentSurvivesSerializeReadImportAsync",
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectedMethodRuntimeTests.LocalIdentityIsNotTakenFromTheUpstreamForm"
+      ],
+      "assembly": "Opc.Ua.WotCon.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-MAP-01",
+      "title": "Property-scoped protocol-neutral target mapping",
+      "evidence": "Tests pin extracted and compiled node/type/field mapping values and reject form-level or non-property placement with the expected diagnostic.",
+      "qualification": "These are mapping-contract assertions, not evidence of every protocol's live value-to-structured-field execution.",
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Binding.WotTargetMappingTests.MapToNodeIdOnOpcUaPropertyIsAccepted",
+        "Opc.Ua.WotCon.Tests.Binding.WotTargetMappingTests.FormExtractorParsesTargetMappingFromAffordanceElement",
+        "Opc.Ua.WotCon.Tests.Binding.WotTargetMappingTests.TargetMappingTermsRemainScopedToTheirPropertyAffordance"
+      ],
+      "assembly": "Opc.Ua.WotCon.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-XPATH-01",
+      "title": "The authorized Method and receiver are the dispatched pair",
+      "evidence": "Successful calls assert the actual receiver and Method; denied preflight asserts zero Calls. The MCP supplement checks grants and dispatched pair against the same captured identities.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverAccessDeniedDuringPreflightPreventsCall",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedComponentOfOwnerIsUsedAsTheActualCallReceiver",
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests.PublishedExplicitReceiverIsUsedAsTheActualCallReceiver"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-XPATH-01 (MCP)",
+      "title": "MCP authorization and dispatch use the same published owner candidate",
+      "evidence": "Positive MCP execution pins authorization and service ObjectId/MethodId. Denied receiver fails Open with BadUserAccessDenied and issues no Call.",
+      "tests": [
+        "Opc.Ua.Tools.Tests.McpCompanion.WotRuntimeOpcUaTests.PublishedOneZeroComponentOfAuthorizationMatchesDispatchedPairAsync",
+        "Opc.Ua.Tools.Tests.McpCompanion.WotRuntimeOpcUaTests.PublishedOneZeroDeniedComponentOfReceiverIssuesNoCallAsync"
+      ],
+      "assembly": "Opc.Ua.Tools.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-XPATH-02",
+      "title": "Original source owner evidence across import and projection",
+      "evidence": "Resolver tests pin the original action/owner identities rather than the projection root; capture rejects unresolved/forged provenance. The MODEL-02 supplement exercises the live resolver and NodeSet import seam.",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver",
+        "Opc.Ua.Types.Tests.Wot.WotCallReceiverTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-XPATH-03",
+      "title": "Generation-bounded channel and target authority",
+      "evidence": "Session identity mutation during ownership browsing fails without Call; invalid path targets issue no business Read. Metadata remains operation-local rather than a cross-generation global cache.",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.SessionIdentityChangedDuringOwnershipBrowsePreventsCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotPathTargetTests.InvalidPathTargetsNeverSendTheBusinessRead"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-EXT-01",
+      "title": "No published UA event mapping; current event regression only",
+      "qualification": "Not a published v1.00 requirement. Existing event identity/selection tests remain regression evidence only; no eventFields format is introduced.",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotEventSelectionResolverTests",
+        "Opc.Ua.Types.Tests.Wot.WotRetiredEventVocabularyTests"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC 10101 v1.00/B10-EXT-02",
+      "title": "Part-version-qualified evidence and conformance qualifications",
+      "qualification": "The ledger verifies test locators, not clause completeness, coverage percentages, CTT or certification. Complete TD/TM/Binding-result schema validation remains blocked separately.",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotBindingTraceabilityTests",
+        "Opc.Ua.Types.Tests.Wot.WotBindingConformanceTests"
       ],
       "assembly": "Opc.Ua.Types.Tests"
     }

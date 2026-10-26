@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.Text.Json;
 using Opc.Ua.Types;
 
@@ -89,6 +90,10 @@ namespace Opc.Ua.Wot
         /// <param name="formPointer">The pointer of a form in properties, actions, events, or root forms.</param>
         /// <param name="maxPathLength">The bound applied before parsing the path.</param>
         /// <param name="maxElements">The maximum number of native path steps.</param>
+        /// <param name="allowNumericNamespacePrefixes">
+        /// Whether numeric path prefixes and NodeId namespaces may resolve through their original context.
+        /// Defaults to <c>false</c>.
+        /// </param>
         /// <exception cref="ArgumentNullException">A required argument is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">A bound is non-positive.</exception>
         /// <exception cref="ServiceResultException">The path, anchor, context, or form pointer is invalid.</exception>
@@ -96,7 +101,8 @@ namespace Opc.Ua.Wot
             WotDocument document,
             string formPointer,
             int maxPathLength = 65536,
-            int maxElements = 1024)
+            int maxElements = 1024,
+            bool allowNumericNamespacePrefixes = false)
         {
             if (document is null)
             {
@@ -134,6 +140,8 @@ namespace Opc.Ua.Wot
             bool explicitAnchor = false;
             string pathPointer = string.Empty;
             JsonElement carryingNode = default;
+            JsonElement anchorNode = default;
+            JsonElement identityNode = default;
             Enter(document.RootElement, string.Empty);
             if (affordanceForm)
             {
@@ -160,6 +168,12 @@ namespace Opc.Ua.Wot
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, error);
             }
+            if (path[0] != '/' && allowNumericNamespacePrefixes &&
+                TryCanonicalizeAnchor(
+                    document, explicitAnchor ? anchorNode : identityNode, anchor, out string? canonicalAnchor))
+            {
+                anchor = canonicalAnchor;
+            }
             if (!WotPortableIdentity.IsPortableNodeId(anchor))
             {
                 throw new ServiceResultException(
@@ -170,7 +184,8 @@ namespace Opc.Ua.Wot
             var parsed = RelativePathFormatter.ParsePortable(
                 path, namespaces,
                 prefix => document.TryGetContextPrefix(prefix, out string uri, carryingNode) ? uri : null,
-                maxElements);
+                maxElements,
+                allowNumericPrefixes: allowNumericNamespacePrefixes);
             if (parsed.Elements.Count == 0)
             {
                 throw new ServiceResultException(
@@ -200,18 +215,21 @@ namespace Opc.Ua.Wot
                 if (node.TryGetProperty(WotAnchorScope.AnchorTerm, out JsonElement anchorValue))
                 {
                     explicitAnchor = true;
+                    anchorNode = node;
                     anchorError = anchorValue.ValueKind == JsonValueKind.String &&
-                        WotPortableIdentity.IsPortableNodeId(anchorValue.GetString())
+                        !string.IsNullOrEmpty(anchorValue.GetString())
                         ? null
-                        : "An explicitly declared browse-path anchor must be a portable NodeId.";
+                        : "An explicitly declared browse-path anchor must be a non-empty NodeId string.";
                 }
                 if (node.TryGetProperty(WotAnchorScope.IdentityTerm, out JsonElement identity))
                 {
+                    identityNode = node;
                     identityError = identity.ValueKind == JsonValueKind.String &&
-                        WotPortableIdentity.IsPortableNodeId(identity.GetString())
+                        !string.IsNullOrEmpty(identity.GetString())
                         ? null
-                        : "An identity used as a browse-path anchor must be a portable NodeId.";
+                        : "An identity used as a browse-path anchor must be a non-empty NodeId string.";
                 }
+
                 if (node.TryGetProperty(PathTerm, out JsonElement value))
                 {
                     if (value.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(value.GetString()))
@@ -227,6 +245,67 @@ namespace Opc.Ua.Wot
 
             WotBrowsePathElement Portable(QualifiedName name) =>
                 new(namespaces.GetString(name.NamespaceIndex), name.Name!);
+        }
+
+        private static bool TryCanonicalizeAnchor(
+            WotDocument document, JsonElement carryingNode, string? value, out string? canonical)
+        {
+            canonical = null;
+            if (value is null)
+            {
+                return false;
+            }
+            if (WotPortableIdentity.IsPortableNodeId(value) &&
+                ExpandedNodeId.TryParse(value, out ExpandedNodeId expanded) &&
+                !expanded.IsNull)
+            {
+                canonical = WotPortableIdentity.CanonicalNodeId(value);
+                return true;
+            }
+            if (!value.StartsWith("ns=", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int separator = value.IndexOf(';', StringComparison.Ordinal);
+            ushort namespaceIndex = 0;
+#if NETFRAMEWORK || NETSTANDARD2_0
+            bool parsedNamespace = separator >= 3 &&
+                ushort.TryParse(
+                    value.Substring(3, separator - 3),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out namespaceIndex);
+#else
+            bool parsedNamespace = separator >= 3 &&
+                ushort.TryParse(
+                    value.AsSpan(3, separator - 3),
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out namespaceIndex);
+#endif
+            if (separator < 3 ||
+                !parsedNamespace ||
+                !NodeId.TryParse(value[(separator + 1)..], out NodeId nodeId) ||
+                nodeId.NamespaceIndex != 0 ||
+                nodeId.IsNull)
+            {
+                return false;
+            }
+            if (namespaceIndex == 0)
+            {
+                canonical = nodeId.ToString();
+                return true;
+            }
+            if (!document.TryGetContextPrefix(
+                namespaceIndex.ToString(CultureInfo.InvariantCulture),
+                out string namespaceUri,
+                carryingNode))
+            {
+                return false;
+            }
+            canonical = WotPortableIdentity.CanonicalNodeId(
+                "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + nodeId);
+            return true;
         }
 
         /// <summary>

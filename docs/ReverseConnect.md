@@ -102,9 +102,64 @@ Use one shared `ReverseConnectManager` for all Servers that connect to the same 
 
 A `ManagedSession` needs that manager for recovery as well as initial connection.
 A waiting `ITransportWaitingConnection` supplied directly to `CreateAsync` is
-single-use. Without a `ReverseConnectManager`, recovery fails through the configured
-reconnect policy instead of obtaining a fresh connection; it never silently
-switches to an outbound connection.
+single-use. Without a `ReverseConnectManager` or an `IReverseConnectionSource`,
+recovery fails through the configured reconnect policy instead of obtaining a
+fresh connection; it never silently switches to an outbound connection.
+
+An application that accepts reverse connections itself, for example to admit
+them before the OPC UA handshake or to hand over connections accepted
+elsewhere, implements `IReverseConnectionSource` and passes it to
+`ManagedSessionBuilder.UseReverseConnect(source, serverUri)` (or sets
+`ManagedSessionOptions.ReverseConnectionSource`). The session awaits the source
+for the initial connect and once per recovery attempt, within the delay and
+`MaxTotalReconnectTime` of the reconnect policy: when the budget runs out, the
+pending wait is cancelled and the attempt fails with `BadTimeout`. The session
+closes a connection it received but no longer needs. `ReverseConnectManager`
+implements the interface. A source cannot be combined with a
+`ReverseConnectManager` passed to `ManagedSession.CreateAsync`.
+
+``` csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .UseReverseConnect(source, new Uri("urn:example:server-a"))
+    .ConnectAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
+
+When every member of a non-transparent redundant Server set opens reverse
+connections to the Client, set a source that also implements
+`IReverseConnectionAvailability` as `ServerRedundancyOptions.MemberConnections`.
+The session then reaches the other members by their `ServerUri` over their
+connections instead of dialing them: endpoint resolution calls `GetEndpoints`
+over a member's connection (`ReverseConnectRedundantServerEndpointResolver`),
+the `ProbeMemberServiceLevel` probe runs over a member's connection, and a
+failover to a member waits for that member's next connection, for at least
+`PeerDiscoveryTimeout` even after the reconnect budget ran out. These waits use
+the endpoint url the member's connections announced, which can differ from the
+url of the endpoint `GetEndpoints` returned. A failover to a member other than
+the Server first connected to, and the later recovery on that member, take the
+member's connections from `MemberConnections`, including when a custom resolver
+or an explicit `FailoverAsync` target supplies an endpoint without
+`ReverseConnect.Enabled`. The first Server retains its original
+`ReverseConnectionSource`, `ReverseConnectManager`, or outbound connection path.
+Failing back to that Server reuses its authenticated endpoint and original path
+for probing and recovery, without requiring it to advertise a connection through
+`MemberConnections`. A member other than the first Server for
+which the source reports no available connection carries `BadNotConnected` in
+`RedundantServer.ResolutionError`, has no `Endpoint` and is never selected.
+`ReverseConnectManager` implements `IReverseConnectionAvailability` and reports
+the unaccepted connections it holds while no registration matches them, so its
+`HoldTime` must be shorter than the time a Server waits for the handshake.
+
+``` csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .UseReverseConnect(manager, new Uri("urn:example:server-a"))
+    .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions { MemberConnections = manager })
+    .ConnectAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
 
 ``` csharp
 await using var manager = new ReverseConnectManager(telemetry);

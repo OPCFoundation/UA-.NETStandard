@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
     /// overloads and <see cref="Dispose()"/> are retained only as obsolete
     /// compatibility wrappers around the async lifecycle.
     /// </remarks>
-    public class ReverseConnectManager : IDisposable, IAsyncDisposable
+    public class ReverseConnectManager : IDisposable, IAsyncDisposable, IReverseConnectionAvailability
     {
         /// <summary>
         /// A default value for reverse hello configurations, if undefined.
@@ -2045,6 +2045,42 @@ namespace Opc.Ua.Client
             {
                 UnregisterWait(hashCode, tcs);
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ITransportWaitingConnection> IReverseConnectionSource.WaitForConnectionAsync(
+            Uri endpointUrl,
+            string? serverUri,
+            CancellationToken ct)
+        {
+            return new ValueTask<ITransportWaitingConnection>(WaitForConnectionAsync(endpointUrl, serverUri, ct));
+        }
+
+        /// <inheritdoc/>
+        /// <exception cref="ArgumentNullException"><paramref name="serverUri"/> is <c>null</c>.</exception>
+        IReadOnlyList<Uri> IReverseConnectionAvailability.GetAvailableEndpointUrls(string serverUri)
+        {
+            if (serverUri == null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            // Registrations match the server uri after the same replacement.
+            string? normalized = Utils.ReplaceLocalhost(serverUri);
+            var endpointUrls = new List<Uri>();
+            lock (m_registrationsLock)
+            {
+                foreach (ConnectionWaitingEventArgs held in m_heldConnections)
+                {
+                    if (!held.Accepted &&
+                        string.Equals(held.ServerUri, normalized, StringComparison.Ordinal) &&
+                        !endpointUrls.Contains(held.EndpointUrl))
+                    {
+                        endpointUrls.Add(held.EndpointUrl);
+                    }
+                }
+            }
+            return endpointUrls;
         }
 
         /// <summary>
@@ -4596,12 +4632,21 @@ namespace Opc.Ua.Client
             var callbackScope = new OperationScope(
                 Interlocked.Increment(ref m_operationScopeGeneration));
             m_activeCallbackOwner.Value = callbackScope;
+            bool held = false;
             try
             {
                 long startTimestamp = m_timeProvider.GetTimestamp();
                 var holdTime = TimeSpan.FromMilliseconds(m_configuration?.HoldTime ?? 15000);
 
                 bool matched = MatchRegistration(sender, e);
+                if (!matched)
+                {
+                    lock (m_registrationsLock)
+                    {
+                        m_heldConnections.Add(e);
+                    }
+                    held = true;
+                }
                 while (!matched)
                 {
                     TimeSpan delay = holdTime - m_timeProvider.GetElapsedTime(startTimestamp);
@@ -4687,6 +4732,13 @@ namespace Opc.Ua.Client
             }
             finally
             {
+                if (held)
+                {
+                    lock (m_registrationsLock)
+                    {
+                        m_heldConnections.Remove(e);
+                    }
+                }
                 callbackScope.Active = false;
                 m_activeCallbackOwner.Value = previousCallbackOwner;
                 ExitConnectionCallback();
@@ -5449,6 +5501,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly List<TaskCompletionSource<ITransportWaitingConnection>> m_activeWaits =
             [];
+
+        /// <summary>
+        /// Connections held while no registration matches them, guarded by
+        /// m_registrationsLock.
+        /// </summary>
+        private readonly List<ConnectionWaitingEventArgs> m_heldConnections = [];
 
         private CancellationTokenSource m_cts;
 

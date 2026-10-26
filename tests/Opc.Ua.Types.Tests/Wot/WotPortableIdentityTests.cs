@@ -598,7 +598,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.6 computes the <c>ViewVersion</c> over a <em>set</em>: a
+        /// OPC 10101-2 computes the <c>ViewVersion</c> over a <em>set</em>: a
         /// member reached twice contributes once, and a member that is
         /// <c>null</c> stands for the empty identity rather than ending the
         /// computation.
@@ -774,6 +774,175 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotPortableIdentity.GenerateBrowsePath(
                     Path(("Node", "a/b:c;d%e"))),
                 Is.EqualTo("/nsu=a%2Fb%3Ac%3Bd%25e;Node"));
+        }
+
+        /// <summary>
+        /// A query target is decoded once: URI escapes in the query are
+        /// decoded, while a percent-escaped character in the resulting
+        /// ExpandedNodeId stays escaped for the NodeId grammar to interpret.
+        /// Other query components and the full endpoint resource path survive.
+        /// </summary>
+        [Test]
+        public void ReadUriTargetNodeIdDecodesOneLayerAndPreservesEndpointResource()
+        {
+            const string href =
+                "opc.tcp://server.example:4840/UA/Plant/Line" +
+                "?view=compact&id=nsu=urn%3Atest%3Aidentity;" +
+                "s=Pump%252FNorth%2B%E2%98%83%20A&locale=en#client";
+
+            string? nodeId = WotPortableIdentity.ReadUriTargetNodeId(href, out string endpoint);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    nodeId,
+                    Is.EqualTo("nsu=urn:test:identity;s=Pump%2FNorth+\u2603 A"));
+                Assert.That(
+                    endpoint,
+                    Is.EqualTo(
+                        "opc.tcp://server.example:4840/UA/Plant/Line?view=compact&locale=en"));
+            });
+        }
+
+        /// <summary>
+        /// A name combines a path delimiter, non-ASCII and supplementary
+        /// characters, whitespace, and percent text; only the path delimiter
+        /// is escaped by the browse-path grammar.
+        /// </summary>
+        [Test]
+        public void GeneratedBrowsePathEscapesReservedDelimitersButPreservesNameText()
+        {
+            const string namespaceUri = "urn:line/west;edition=%2F";
+            const string name = "Pump/Gr\u00FC\u00DF \U0001F600 100%";
+
+            string path = WotPortableIdentity.GenerateBrowsePath(
+                Path((name, namespaceUri)));
+
+            Assert.That(
+                path,
+                Is.EqualTo(
+                    "/nsu=urn%3Aline%2Fwest%3Bedition=%252F;" +
+                    "Pump&/Gr\u00FC\u00DF \U0001F600 100%"));
+            Assert.That(
+                WotPortableIdentity.GenerateNodeId(
+                    ModelNamespace, Path((name, namespaceUri))),
+                Is.EqualTo(
+                    "nsu=urn:test:identity;s=" +
+                    "/nsu=urn%3Aline%2Fwest%3Bedition=%252F;" +
+                    "Pump&/Gr\u00FC\u00DF \U0001F600 100%"));
+        }
+
+        /// <summary>
+        /// Reordering the document's namespace authority changes the numeric
+        /// NodeId namespace index but not the URI-qualified model identity.
+        /// </summary>
+        [Test]
+        public void GeneratedIdentityUsesStableNamespaceAfterContextOrdering()
+        {
+            const string auxiliaryFirst =
+                """
+                {
+                  "@context": {
+                    "aux": "urn:auxiliary",
+                    "model": "urn:test:identity"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "model:Root",
+                  "properties": {
+                    "Auxiliary": { "uav:browseName": "aux:Marker", "type": "string" },
+                    "Speed": { "uav:browseName": "model:Speed", "type": "number" }
+                  }
+                }
+                """;
+            const string modelFirst =
+                """
+                {
+                  "@context": {
+                    "model": "urn:test:identity",
+                    "aux": "urn:auxiliary"
+                  },
+                  "@type": ["tm:ThingModel", "uav:objectType"],
+                  "id": "urn:test:identity",
+                  "title": "Root",
+                  "uav:browseName": "model:Root",
+                  "properties": {
+                    "Auxiliary": { "uav:browseName": "aux:Marker", "type": "string" },
+                    "Speed": { "uav:browseName": "model:Speed", "type": "number" }
+                  }
+                }
+                """;
+            UANodeSet first = WotNodeSetConverter.ToNodeSet(
+                WotTestData.Utf8(auxiliaryFirst));
+            UANodeSet reordered = WotNodeSetConverter.ToNodeSet(
+                WotTestData.Utf8(modelFirst));
+            NodeId firstId = NodeId.Parse(
+                first.Items!.OfType<UAVariable>().Single(
+                    node => node.NodeId!.Contains("Speed", StringComparison.Ordinal)).NodeId!);
+            NodeId reorderedId = NodeId.Parse(
+                reordered.Items!.OfType<UAVariable>().Single(
+                    node => node.NodeId!.Contains("Speed", StringComparison.Ordinal)).NodeId!);
+            string firstNamespace = first.NamespaceUris![firstId.NamespaceIndex - 1];
+            string reorderedNamespace =
+                reordered.NamespaceUris![reorderedId.NamespaceIndex - 1];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstId.NamespaceIndex, Is.EqualTo(reorderedId.NamespaceIndex));
+                Assert.That(reorderedId.NamespaceIndex, Is.EqualTo(1));
+                Assert.That(firstNamespace, Is.EqualTo(ModelNamespace));
+                Assert.That(reorderedNamespace, Is.EqualTo(ModelNamespace));
+                Assert.That(
+                    firstId.IdentifierAsString,
+                    Is.EqualTo(
+                        "/nsu=urn%3Atest%3Aidentity;Root/" +
+                        "nsu=urn%3Atest%3Aidentity;Speed"));
+                Assert.That(reorderedId.IdentifierAsString, Is.EqualTo(firstId.IdentifierAsString));
+            });
+        }
+
+        /// <summary>
+        /// An absent target is different from an empty target, and both retain
+        /// the endpoint's complete path and non-target query.
+        /// </summary>
+        [Test]
+        public void ReadUriTargetNodeIdDistinguishesMissingAndEmptyTarget()
+        {
+            string? missing = WotPortableIdentity.ReadUriTargetNodeId(
+                "opc.tcp://server.example:4840/UA/Plant/Line?view=compact#client",
+                out string missingEndpoint);
+            string? empty = WotPortableIdentity.ReadUriTargetNodeId(
+                "opc.tcp://server.example:4840/UA/Plant/Line?view=compact&id=",
+                out string emptyEndpoint);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(missing, Is.Null);
+                Assert.That(
+                    missingEndpoint,
+                    Is.EqualTo("opc.tcp://server.example:4840/UA/Plant/Line?view=compact"));
+                Assert.That(empty, Is.EqualTo(string.Empty));
+                Assert.That(
+                    emptyEndpoint,
+                    Is.EqualTo("opc.tcp://server.example:4840/UA/Plant/Line?view=compact"));
+            });
+        }
+
+        /// <summary>
+        /// Query-name decoding is case-insensitive and happens before
+        /// duplicate detection, so encoded spellings cannot create two targets.
+        /// </summary>
+        [TestCase("?id=i=1&ID=i=2")]
+        [TestCase("?%69d=i=1&id=i=2")]
+        public void ReadUriTargetNodeIdRejectsDuplicateDecodedTargetNames(string query)
+        {
+            FormatException? exception = Assert.Throws<FormatException>(
+                () => WotPortableIdentity.ReadUriTargetNodeId(query, out _));
+
+            Assert.That(
+                exception!.Message,
+                Is.EqualTo("A URI cannot identify more than one target NodeId."));
         }
 
         private static readonly string[] s_repeatedMembership =

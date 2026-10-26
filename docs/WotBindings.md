@@ -18,6 +18,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Identity modes, provenance, and bounds](#identity-modes-provenance-and-bounds)
   - [Property observation and contextual values](#property-observation-and-contextual-values)
   - [Action payload contracts](#action-payload-contracts)
+  - [Published OPC 10101 v1.00 consumer mode](#published-opc-10101-v100-consumer-mode)
   - [Portable browse-path targets](#portable-browse-path-targets)
   - [Registering binders and executors](#registering-binders-and-executors)
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
@@ -46,7 +47,9 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
-- [Conformance to WoT Binding 1.1](#conformance-to-wot-binding-11)
+- [Conformance to OPC 10101 (Binding and Projections)](#conformance-to-opc-10101-binding-and-projections)
+  - [OPC 10101-1 (WoT Binding)](#opc-10101-1-wot-binding)
+  - [OPC 10101-2 (WoT Projections)](#opc-10101-2-wot-projections)
   - [Conversion entry points](#conversion-entry-points)
   - [Independent readable models](#independent-readable-models)
   - [Identity and preservation](#identity-and-preservation)
@@ -58,6 +61,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Resolving a relation: companion ReferenceTypes](#resolving-a-relation-companion-referencetypes)
   - [Alarms and Conditions](#alarms-and-conditions)
   - [Compatibility switch for non-portable identifiers](#compatibility-switch-for-non-portable-identifiers)
+- [Known published 1.0 gaps and follow-up work](#known-published-10-gaps-and-follow-up-work)
 
 ## Bindings that ship today
 
@@ -133,6 +137,9 @@ Notes:
 * The **W3C Binding Templates registry is a pilot and currently empty**; no binder ever reports `RegistryCurrent`. Drafts expose their Editor's Draft maturity; OPC UA exposes the OPC specification maturity.
 * BACnet, PROFINET, LoRaWAN and CoAP perform **schema / document-level planning only** and are reported as **non-executable** — the runtime materializes their nodes but marks the closure degraded so callers know they cannot be driven yet.
 * Each planner validates the href scheme and the currently-defined vocabulary terms of its pinned document, checks `op` compatibility, `contentType` and required fields, produces immutable endpoint/addressing/operation/payload metadata and returns precise errors/warnings with JSON Pointers.
+* OPC UA forms default to `application/octet-stream`. The planner advertises only media types
+  supported by its registered payload codecs; it does not advertise OPC UA Binary until a matching
+  codec is available.
 
 ### Runtime integration
 
@@ -355,6 +362,104 @@ finite numbers. `MaxPayloadBytes` counts actual UTF-8; `MaxPayloadDepth` counts
 root containers as one and scalars as zero; context `MaxArrayLength` also bounds
 Structure-array allocation.
 
+### Published OPC 10101 v1.00 consumer mode
+
+Select `PublishedOneZero` to consume a TD using published OPC 10101 v1.00 rules.
+The default, `Current`, uses this runtime's 1.1 draft behavior. The caller selects
+the mode because the same vocabulary appears in both revisions; neither
+`bindingVersion` nor the terms present in a TD change that selection. A published
+TD can therefore be consumed without adding a revision annotation.
+
+| Consumer behavior | Published 1.0 (`PublishedOneZero`) | 1.1 draft behavior (`Current`, default) |
+| --- | --- | --- |
+| Numeric namespace identities | Resolves `ns=<index>` target NodeIds and entirely numeric browse-path prefixes through the original document context. The Session's namespace ordering is not document authority; a missing mapping fails planning. | Does not remap target NodeIds through the document context; use portable `nsu=` identities. Rejects entirely numeric browse-path prefixes. |
+| Call receiver | Requires the action-level `uav:componentOf` array from §7.1.3. Checks each candidate against the endpoint and Method and requires one valid Object receiver. | Uses form-level `uav:callObjectId` when present; otherwise captures the original source Thing Object. Local projection containment cannot identify the receiver. |
+| Explicit receiver selection | Accepts form-level `uav:callObjectId` as an implementation extension. The value must name an owner-array candidate and can select one of several valid owners. | Uses form-level `uav:callObjectId` to select the receiver explicitly. |
+| Object-shaped action inputs and outputs | Reads ordered `InputArguments` and `OutputArguments` from the Server. JSON member order and 1.1 layout annotations do not supply argument order. Missing or inconsistent native metadata fails before `Call`. | Uses the action payload contracts described above, including `argumentLayout` and `fieldOrder`. |
+| Operations | Supports read, write, observe, and Call on the existing consumer paths. | Also supports the runtime's event-subscription mapping. |
+| Authorization and security | The Server authorizes each UA service. The application must satisfy the endpoint policy and configured credential-provider requirements; TD access flags and operation defaults grant no permissions. | Applies the same Server authorization and application security checks. |
+
+Pass the mode when creating the request:
+
+```csharp
+var selection = new WotBindingSelectionContext(
+    selectedBindingIds: [],
+    selectedBindingUris: [],
+    processingMode: WotBindingProcessingMode.PublishedOneZero);
+WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+    resourceXid,
+    WoTDocumentKindEnum.ThingDescription,
+    documentBytes,
+    selection: selection);
+WotBindingPlan plan = binderRegistry.Prepare(request);
+```
+
+Call `WotFormExtractor.Extract(ByteString.From(documentBytes),
+WotBindingProcessingMode.PublishedOneZero)` when extracting forms directly.
+Pass the same mode in the plan request's `WotBindingSelectionContext` so extraction
+and planning use the same rules. The extractor overload without a mode uses
+`Current`.
+
+In this example, the action's owner array identifies the pump Object, while its
+form identifies the Method. The input and output schemas name the values without
+1.1 layout annotations:
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "uav": "http://opcfoundation.org/UA-WoT-Binding/" }
+  ],
+  "@type": "Thing",
+  "title": "Published pump",
+  "actions": {
+    "setTarget": {
+      "uav:componentOf": ["nsu=urn:example:pump;s=Pump"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "setpoint": { "type": "number" },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["setpoint", "enabled"]
+      },
+      "output": {
+        "type": "object",
+        "properties": { "accepted": { "type": "boolean" } },
+        "required": ["accepted"]
+      },
+      "forms": [{
+        "href": "opc.tcp://pump.example:4840",
+        "uav:id": "nsu=urn:example:pump;s=SetTarget"
+      }]
+    }
+  }
+}
+```
+
+The runtime obtains argument order from the Method metadata and checks values
+against the native DataTypes and ranks. A generic `integer` schema, for example,
+does not permit an Int64 argument where the Method requires Int32.
+
+#### Runtime extensions and source-routed projections
+
+`uav:callObjectId` and `uav:resolvedFrom` are not published 1.0 vocabulary.
+The receiver-selection extension is described in the table. A projection's source
+location alone cannot establish which Object owns its Method, so planning requires
+the original ownership evidence retained by the live resolver's `WotDocument`.
+Pass that document to the planner. If only serialized projected JSON remains,
+resolve the original documents again; `uav:resolvedFrom` cannot reconstruct that
+evidence.
+
+Selecting this mode does not enable the converter's `AllowNonPortableIdentifiers`
+option. The converter and consumer have separate settings. See
+[Known published 1.0 gaps and follow-up work](#known-published-10-gaps-and-follow-up-work)
+for unsupported capabilities.
+
+The [traceability map](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json)
+indexes tests by specification part, version, and clause against the
+[published OPC 10101 v1.00 document](https://reference.opcfoundation.org/specs/OPC-10101/v1.00).
+
 ### Portable browse-path targets
 
 On .NET 8+, OPC UA forms can address read/write/observe, Call, and event
@@ -384,7 +489,12 @@ nearest `uav:id`. An outer explicit anchor wins over a nearer fallback identity.
 The path retains its declaration's context, not a form-local prefix override.
 Annex A supports hierarchical `/`, Aggregates `.`, explicit `<HasComponent>`,
 exact `<#HasComponent>`, inverse `<!HasComponent>`, escaped `&/`, and URI-qualified
-BrowseNames. Numeric namespace prefixes are non-portable.
+BrowseNames. Both modes resolve a named prefix such as `ns1:Value` through
+`"@context": {"ns1": "urn:example:plant"}`; the numeric suffix does not make
+`ns1` a Session namespace index. An entirely numeric prefix such as `1:Value`
+requires `PublishedOneZero` and an original document context mapping `"1"` to a
+namespace URI. `Current` and context-free portability validation reject entirely
+numeric prefixes.
 
 Before business I/O, translation against current Session tables requires one
 complete local target with the right NodeClass; simultaneous NodeIds must agree.
@@ -455,18 +565,100 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`, and the receiver by form-scoped `uav:callObjectId`. A legacy form-scoped `uav:componentOf` receiver remains readable with a warning; local containment is not receiver authority. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`. Receiver selection follows the [processing-mode table](#published-opc-10101-v100-consumer-mode). |
+| `subscribeevent` | The current runtime uses a native event `MonitoredItem` (`AttributeId = EventNotifier`) with the compiled `WotEventSelection` as its `EventFilter` selection. When no selection is stated, it selects the eight mandatory `BaseEventType` fields. Otherwise it uses the linked EventType and `uav:eventSelectClauses`. `WotNotification.EventFields` contains each selected value keyed by browse path; an empty path supplies `ConditionId`. The event's `Time` / `ReceiveTime` supply the source / server timestamps. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
-A compiled form's NodeId (`uav:id`, and `uav:callObjectId` or legacy form-scoped `uav:componentOf` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+A compiled form's NodeId (`uav:id`, and `uav:callObjectId` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+
+### Source-Thing Call receiver selection
+
+A present form-scoped `uav:callObjectId` must be a portable, non-null NodeId.
+An invalid explicit value fails planning; it never falls back to the Thing.
+The aggregation sample retains this explicit Binding 1.1 contract.
+
+In `Current` mode, extraction can use the original source Thing's explicit
+`uav:id` when the term is omitted. The document must describe an Object, not a
+Thing Model, Variable, Method, View or projection envelope. Its OPC UA base and
+forms must identify one endpoint matching the action's endpoint. A missing
+identity, conflicting endpoints or relocated action without captured source
+evidence fails planning. A scenario or projection root cannot substitute for the
+upstream receiver. `PublishedOneZero` uses the owner-array rules in the mode table.
+
+For source-routed projections, resolution retains original Object receiver facts
+on the live `WotDocument` result without adding or replacing JSON form terms.
+Pass that result to `WotBindingPlanRequest.FromDocument(resourceXid, kind, document)`
+to carry the facts into the immutable plan. Nested imports retain these facts.
+An existing explicit value, including an invalid one, remains unchanged and takes
+precedence. Explicit imported ObjectType receivers, including the standard
+ConditionRefresh receiver, retain their existing explicit-Call behavior.
+Neither `uav:resolvedFrom` alone nor local `uav:componentOf` arrays supply authority.
+
+**Persisted resolved-only JSON does not retain these source facts.** Re-parsing it
+therefore rejects an omitted receiver, rather than inferring from the projection
+root or treating the provenance locator as proof. Automatic recovery of trusted
+original-source facts from that persisted result is not implemented. Retain the
+live resolution result, resolve the original projection again with its configured
+source acquisition, or author an explicit current-format receiver. Explicit
+`uav:callObjectId` imports are unaffected by this limitation.
+
+Before dispatching an inferred source-Thing Call, the executor checks the connected
+endpoint, reads the receiver and Method NodeClasses, and checks `HasComponent`
+ownership on the Object or its ObjectType/supertype hierarchy. The traversal is
+bounded to 100 types and 10,000 references, releases continuation points, and
+rejects ambiguous/remote type ancestry. Session generation and namespace context
+are checked through dispatch. Denied inspection, wrong classes or failed
+ownership produce an error without a speculative Call. Standard Condition instance
+actions additionally require the appropriate Condition type ancestry;
+ConditionRefresh/ConditionRefresh2 cannot use an inferred Object receiver.
+The Server remains authoritative for execution permissions and explicit-Call
+Object/ObjectType ownership. MCP uses the captured `callObjectId`
+for both its exact Method/receiver grant and mutation guards.
+
+For example, this no-argument action omits the receiver because the original
+Thing identifies it:
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+  ],
+  "@type": "Thing",
+  "title": "Source pump",
+  "securityDefinitions": { "none": { "scheme": "nosec" } },
+  "security": ["none"],
+  "base": "opc.tcp://source.example:4840",
+  "uav:id": "nsu=urn:example:pump;s=Pump",
+  "actions": {
+    "reset": {
+      "forms": [{
+        "href": "opc.tcp://source.example:4840",
+        "uav:id": "nsu=urn:example:pump;s=Reset",
+        "op": "invokeaction"
+      }]
+    }
+  }
+}
+```
+
+This is not a way to infer a Condition receiver from an event's `SourceNode`,
+a containing Object, or a local Method alias. A source-selected Condition
+receiver must pass the same Object/type ownership checks. Existing explicit
+Condition occurrence bindings still require their captured source correlation;
+omission does not make an unexposed Condition identifiable or authorize an
+unrelated Object.
+
+[Connectivity 1.02 asset compatibility](WotCon.md#wot-con-102-compatibility)
+describes a separate management API; it does not select the Binding consumer mode.
 
 <a id="event-field-selection"></a>
 
 ### Event field selection (`tm:ref` and `uav:eventSelectClauses`)
 
-WoT Binding Section 6.1 states an event's `EventFilter` select clauses on the **event
+This section describes the current runtime's 1.1 draft event mapping.
+WoT Binding Section 6.1 places an event's `EventFilter` select clauses on the **event
 affordance** — never on a form — and states them by **linking the EventType definition**
 the fields are selected from. An `events` map is an affordance map wherever it appears,
 not only at the document root, so a clause on a member of a nested one — the event
@@ -634,13 +826,8 @@ reaches `WotEventDataBuilder` — a plan assembled around the planner, or a Serv
 field list the selection does not describe — the first stated clause keeps the
 member and the collision is logged as an error rather than silently dropped.
 
-The superseded `uav:eventFields` spelling this implementation minted before the term was
-standardized is still **read** — it is authored on a form, carries bare browse names and
-*adds* to the default selection — and is never **written**. Where a form carries both,
-the standardized term wins and the contradiction is reported (`ConflictingFields`)
-rather than silently merged. New documents should author the standardized terms
-instead: link the EventType definition with `tm:ref` and state only the clauses that
-refine it, as described above.
+An event affordance links its EventType definition with `tm:ref` and states the
+clauses that refine it with `uav:eventSelectClauses`, as described above.
 
 ### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
 
@@ -1365,10 +1552,16 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 <a id="conformance-and-authoring-validation"></a>
 
-## Conformance to WoT Binding 1.1
+<a id="conformance-to-opc-10101-1-wot-binding"></a>
 
-The specification defines twelve conformance units and four recommended profiles
-(Section 11). This is where the implementation stands against them.
+## Conformance to OPC 10101 (Binding and Projections)
+
+### OPC 10101-1 (WoT Binding)
+
+The 1.1 draft defines eleven conformance units and four recommended profiles
+(Section 11). The table maps those units to implementation code; `covered` means
+that code exists for the listed behavior, not that every requirement has passed
+conformance testing.
 
 | Unit | Status | Where |
 |---|---|---|
@@ -1378,24 +1571,31 @@ The specification defines twelve conformance units and four recommended profiles
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
-| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the EventType `tm:ref` fast path, the `uav:eventSelectClauses` overlay and the implicit `BaseEventType` default (Section 6.1) |
+| **WoT-EventMapping** | covered | The 1.1 draft mapping of `subscribeevent` / `unsubscribeevent` to event MonitoredItems, using EventType `tm:ref`, `uav:eventSelectClauses`, and the implicit `BaseEventType` default. |
 | **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
 | **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
-| **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
 
-The table identifies implementation paths, not certification of every requirement
-in **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
-**WoT-ArchivalConverter**. Full TD/TM JSON Schema and compatibility-policy validation
-remain separate unfinished work; successful conversion does not close those gaps.
+The table does not establish **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
+**WoT-ArchivalConverter** certification. Complete TD/TM JSON Schema and
+compatibility-policy validation are still missing; conversion success does not
+verify those requirements. Published v1.00 support is described in the
+[consumer-mode section](#published-opc-10101-v100-consumer-mode), with its remaining
+gaps listed at the end of this document.
 
-The unit and profile names themselves are stated once, in
+The three profiles beyond **WoT-Reader** include the part-qualified
+`2:WoT-Projection` dependency from OPC 10101-2. Their projection dependency is
+subject to the mandatory validation gap described below.
+
+The WoT Binding unit and profile names are stated once in
 `Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
 library implements (`CurrentRevision`, `1.1`) and the profile nesting Section 11
-defines. A document declares what it claims with `uav:profile` and the revision it
-was authored against with `uav:bindingVersion` (Section 4.1); both are validated,
-neither becomes a Node, and both are restated verbatim on a round trip.
+defines. The cross-part projection dependency is kept separately qualified in
+those profile closures. A document declares what it claims with `uav:profile` and
+the revision it was authored against with `uav:bindingVersion` (Section 4.1);
+both are validated, neither becomes a Node, and both are restated verbatim on a
+round trip.
 
 `ConformanceMode` defaults Permissive; Strict reports unknown terms and unmet
 required claims. `AuthoringValidation` separately requires known published
@@ -1404,6 +1604,44 @@ unknown claims/revisions with warnings; malformed claims fail in every mode.
 Opaque metadata/configuration objects retain their own 65,536 compact-received
 UTF-8-byte, depth-32, and 256-top-level-key bounds. The `uav:nodes` record grammar
 has a separate namespace and is not readable Binding vocabulary.
+
+### OPC 10101-2 (WoT Projections)
+
+The current official draft defines one conformance unit, **WoT-Projection**.
+It is qualified as `2:WoT-Projection` in Binding profile closures, not counted
+among Part 1's eleven units. The stack has the following implementation and
+regression-test paths; these are partial evidence, not a complete requirement
+audit or executable CTT result.
+
+| Contract | Implementation | Existing evidence |
+| --- | --- | --- |
+| Ordinary TD/TM plan envelopes and result roles | `WotProjection`, registry admission | `WotProjectionPlanFormatTests.ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl` |
+| Ordered selection, enumerated-over-bulk precedence and local overrides | `WotProjectionResolver` | `WotProjectionResolverTests.EnumeratedSelectionWinsOverBulkAndReportsDrop`, `LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync` |
+| Source routing, provenance, effective context and security ownership | `WotProjectionResolver` and its dependency closure | `WotProjectionResolverTests.SourceRoutingAbsolutizesFormAndCopiesSecurityClosure`, `BulkProvenanceIsHrefPlusPointer`, `WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync` |
+| Canonical Views over existing local/imported Nodes, stable identities and owned-node counts | `WotProjectionViewBuilder`, `LifecycleWotViewProjectionHost`, materialization coordinator | `WotProjectionViewCanonicalLiveTests.ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync`, `ProjectionGeneratedLocalIdentitiesAndCountsRemainResourceScopedAsync` |
+| Distinct organizational occurrences, shared canonical roots and cycle rejection | View host and projection dependency resolver | `WotProjectionViewCanonicalLiveTests.CanonicalCandidateRendersSharedChildAndTypedWrappersOverTransportAsync`, `WotProjectionResolverTests.AGroupThatOrganizesItsOwnOrganizerIsACycleAsync` |
+| Complete base TD/TM and Binding validation of the resolved result | **Missing mandatory behavior** | No complete validator is integrated; parsing, conversion and projection regression tests do not satisfy this requirement |
+
+The resolver-side test names are also recorded under part-qualified clause
+anchors in the stack-side
+[traceability locator](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json).
+The View tests are in
+[`WotProjectionViewCanonicalLiveTests`](../tests/Opc.Ua.WotCon.Tests/Materialization/WotProjectionViewCanonicalLiveTests.cs).
+The locator checks that named tests exist and run; it does not establish that
+every requirement or conformance-unit assertion is covered.
+
+Full **WoT-Projection** conformance is **not established**. Complete result
+validation remains a mandatory implementation blocker pending runtime dependency
+approval, license/distribution review and NativeAOT-compatible integration.
+This also prevents claiming the Part 1 **WoT-Modeller**, **WoT-Converter** and
+**WoT-ArchivalConverter** profile closures that require `2:WoT-Projection`.
+View and recovery tests do not close that validation gap.
+
+The separate Connectivity **WOTC-ProjectionMaterialization** unit adds the
+registry/server lifecycle contract. Neither that unit nor the **WoT-Con Full**
+profile is established by the Part 2 resolver and View evidence alone; see
+[Connectivity conformance](WotCon.md#12-conformance-to-wot-connectivity-11)
+for its independent gaps and claim boundaries.
 
 ### Conversion entry points
 
@@ -1539,53 +1777,18 @@ round-trip guarantees.
 
 ### How this is checked
 
-The pinned specification manifest contains twenty-seven worked examples, and two of them are a
-golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds the pinned examples and runs the pair
-through the resolver, asserting against the specification's own expected output
-rather than against our reading of the prose. That covers, in one document, all
-three selection forms, the bulk naming rule, the security closure naming and the
-provenance term. Example 22 is additionally converted to check that a document
-binds the node it projects to an existing type (Section 5.2.1) and constrains
-its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
-added by revision 1.1 and pin the corrections it made: a document whose texts
-are authored in German and French while the default locale is `en`
-(example 24, the code-point-first display fallback of Section 9.1.1), a Thing
-Model that projects a ReferenceType Node with `uav:inverseName` and
-`uav:symmetric` (example 25, Section 6.2.1), and one that projects a DataType
-Node (example 26, Sections 5.2 and 6.11).
+The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
+local regression fixtures. They exercise parsing, conversion, import, and
+projection behavior, including validation of projection root roles.
+They are not authoritative copies of the current specification examples and
+must not be treated as evidence of current WoT conformance.
 
-`WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
-runs the examples through the whole reading pipeline — parse,
-**strict** conformance validation, conversion, then serialize, re-read and
-`Import`. A document that claims a profile covering `WoT-Modeller` has to
-convert: the claim makes conversion mandatory rather than optional.
-
-#### Keeping the vendored examples honest
-
-The examples are vendored byte-for-byte from the specification repository into
-`tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
-`eol=lf` so the checked-out bytes are the upstream bytes on every platform.
-They used to be copied by hand with no record of the source, and they drifted:
-one example gained a security floor upstream while the copy here kept the
-superseded text, and a later example never arrived at all.
-
-`spec-examples.manifest.json` beside them now records the source repository,
-branch and commit, the vocabulary revision, and the size and SHA-256 of every
-file. `WotSpecFixtureManifestTests` enforces it in three layers:
-
-| Check | Needs | What it catches |
-| --- | --- | --- |
-| manifest set, count, numbering and per-file SHA-256 | nothing — offline, from embedded resources | an edited, replaced, added or dropped example, and a gap in the `NN-` numbering that would hide a missing tail |
-| manifest provenance | nothing | a manifest that names no full source commit, or that records a revision this library does not implement |
-| byte identity against the specification checkout | a sibling `spec-drafts` checkout, or `OPCUA_WOT_SPEC_DRAFTS` | a regeneration made from the wrong source, which would record wrong hashes just as consistently |
-
-The third check is skipped, not failed, where no checkout is present, so CI needs
-neither the network nor a second repository. Re-vendoring is the explicit
-developer step `WotSpecFixtureManifestTests.RegenerateFromSpecCheckout`, which
-copies the published examples over the vendored ones and rewrites the manifest
-from `git` in the source checkout — so the diff a reviewer sees is the
-specification's diff.
+The normative baseline is the official
+[OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
+repository, merged at commit `40125acd1b65cdf291a92a67a5c6565656358e6e`.
+The local fixture manifest records those baseline coordinates separately from
+the fixture hashes; it does not assert that the fixture files were copied from
+that repository. Tests verify the checked-in fixture set and hashes offline.
 
 ### Resolving a type binding: the local context
 
@@ -1899,6 +2102,11 @@ session-local: a document carrying either binds to the wrong namespace as soon a
 the server's namespace table is reordered, which is exactly what a document meant
 to be stored and re-read must not do.
 
+The table below applies to conversion and persisted annotations.
+`PublishedOneZero` resolves numeric target NodeIds and browse-path prefixes for
+Binding consumption only; it does not enable numeric `uav:browseName` conversion
+or change `WotNodeSetConverterOptions.AllowNonPortableIdentifiers`.
+
 | Rejected in release 1.1 | Permitted in v1.00 | Portable form to use instead |
 | --- | --- | --- |
 | `ns=<index>` in any NodeId-valued term | § 6.2 | `nsu=<NamespaceUri>;<idtype>=<id>` |
@@ -1957,3 +2165,19 @@ foreach (WotDiagnostic diagnostic in result.Diagnostics)
 The option defaults to `false`, which matches the release 1.1 validator. Leave it at
 the default once the documents are rewritten; it exists to keep a v1.00 corpus
 readable during migration, not as a supported long-term mode.
+
+## Known published 1.0 gaps and follow-up work
+
+Published OPC 10101 v1.00 interoperability remains incomplete. The consumer mode
+implements the behavior listed above; the following capabilities remain missing,
+require application code, or belong to a later mapping.
+
+| Capability | Current limit and follow-up |
+| --- | --- |
+| UA Binary payload serialization | A general UA Binary payload codec is missing. The default octet-stream codec handles bytes and its documented text fallback. Accepting `application/octet-stream` or executing native UA services with typed `Variant` values does not demonstrate UA Binary payload interoperability. |
+| Complete TD/TM/Binding-result schema validation | No complete validator is integrated. Dependency selection remains blocked pending license, dependency, and NativeAOT compatibility review. |
+| External IssuedToken acquisition | The application must supply a provider. Tests verify acquisition-reference handoff, not an identity-provider implementation. The runtime rejects unsupported endpoint or token configurations without downgrading security. |
+| Published 1.0 event mapping | Published OPC 10101 v1.00 defines no UA event mapping. The runtime's 1.1 draft event mapping is tested separately and does not establish published 1.0 event interoperability. |
+
+The clause-to-test map identifies local tests. It does not provide a Conformance
+Test Tool (CTT) result, profile certification, or a full-conformance report.
