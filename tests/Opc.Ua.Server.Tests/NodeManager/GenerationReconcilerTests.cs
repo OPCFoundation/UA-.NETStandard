@@ -43,6 +43,161 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class GenerationReconcilerTests
     {
         /// <summary>
+        /// A claimed custom session remains registered but cannot acquire a new generation binding.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClaimedCustomSessionIsNotBoundAsync(bool reconcile)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId("ClaimedSession", 2));
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var reconciler = new GenerationReconciler(server.Object);
+                Assert.That(SessionTermination.TryClaimClose(session.Object), Is.True);
+                Assert.That(session.Object.IsClosing, Is.False,
+                    "A custom session's read-only closing property is not set by the server claim.");
+
+                if (reconcile)
+                {
+                    await reconciler.ReconcileAsync(
+                        generation, new GenerationReconciler.Bindings(), CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
+                        generation, CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(bindings.Sessions, Is.Empty);
+                }
+
+                using (Assert.EnterMultipleScope())
+                {
+                    manager.Verify(value => value.SessionActivatedAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<CancellationToken>()), Times.Never);
+                    manager.Verify(value => value.SessionClosingAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()), Times.Never);
+                    Assert.That(generation.SessionBindings, Is.Empty);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reconciliation releases an existing binding once even while a claimed custom session remains registered.
+        /// </summary>
+        [Test]
+        public async Task ReconcileClosesClaimedCustomSessionExactlyOnceAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId("BoundClaimedSession", 2));
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var reconciler = new GenerationReconciler(server.Object);
+                GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
+                    generation, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(generation.SessionBindings, Has.Count.EqualTo(1));
+                Assert.That(SessionTermination.TryClaimClose(session.Object), Is.True);
+
+                await reconciler.ReconcileAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                await reconciler.ReconcileAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    manager.Verify(value => value.SessionActivatedAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<CancellationToken>()), Times.Once);
+                    manager.Verify(value => value.SessionClosingAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, false,
+                        It.IsAny<CancellationToken>()), Times.Once);
+                    Assert.That(bindings.Sessions, Is.Empty);
+                    Assert.That(generation.SessionBindings, Is.Empty);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A close claimed during an activation callback compensates before that callback can commit a binding.
+        /// </summary>
+        [Test]
+        public async Task CustomSessionClaimedDuringActivationIsCompensatedExactlyOnceAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId("ClosingDuringActivation", 2));
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                manager.Setup(value => value.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<CancellationToken>()))
+                    .Returns(async () =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                    });
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var reconciler = new GenerationReconciler(server.Object);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                Task<GenerationReconciler.SessionBinding?> activation = reconciler.ActivateSessionAsync(
+                    generation, session.Object, timeout.Token).AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(SessionTermination.TryClaimClose(session.Object), Is.True);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                }
+                GenerationReconciler.SessionBinding? binding = await activation.ConfigureAwait(false);
+                await reconciler.UnbindRetiredAsync(
+                    generation, unsubscribeAllEvents: false, timeout.Token).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(binding, Is.Null);
+                    Assert.That(generation.SessionBindings, Is.Empty);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                    manager.Verify(value => value.SessionActivatedAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<CancellationToken>()), Times.Once);
+                    manager.Verify(value => value.SessionClosingAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, false,
+                        It.IsAny<CancellationToken>()), Times.Once);
+                }
+            }
+        }
+
+        /// <summary>
         /// A removed protocol target cannot be activated through the standalone notification fallback.
         /// </summary>
         [TestCase(false, true)]

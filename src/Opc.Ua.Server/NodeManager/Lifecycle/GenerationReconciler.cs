@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
                 {
                     break;
                 }
-                if (!session.Activated || session.IsClosing)
+                if (!session.Activated || SessionTermination.IsClosingOrClaimed(session))
                 {
                     continue;
                 }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server
             [
                 .. m_server.SessionManager
                     .GetSessions()
-                    .Where(session => session.Activated && !session.IsClosing)
+                    .Where(session => session.Activated && !SessionTermination.IsClosingOrClaimed(session))
             ];
             Dictionary<NodeId, ISession> currentSessionsById = currentSessions.ToDictionary(session => session.Id);
             foreach (KeyValuePair<NodeId, GenerationSessionBindingRecord> binding in
@@ -442,13 +442,13 @@ namespace Opc.Ua.Server
 
                 if (ReferenceEquals(identity, session.EffectiveIdentity) &&
                     session.Activated &&
-                    !session.IsClosing &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
                     m_server.SessionManager.GetSessions().Any(current => ReferenceEquals(current, session)))
                 {
                     return new SessionBinding(session, identity, generation.Reference);
                 }
                 if (!session.Activated ||
-                    session.IsClosing ||
+                    SessionTermination.IsClosingOrClaimed(session) ||
                     !m_server.SessionManager.GetSessions().Any(current => ReferenceEquals(current, session)))
                 {
                     await nodeManager.SessionClosingAsync(
