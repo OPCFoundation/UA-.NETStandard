@@ -27,27 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Provides server-owned snapshots used to transition monitored items between NodeManagers.
+    /// Checks exact subscription membership during generation handoff.
     /// </summary>
     internal interface ISubscriptionMonitoredItemLifecycle
     {
-        /// <summary>
-        /// Returns active monitored items owned by the specified NodeManager.
-        /// </summary>
-        IReadOnlyList<IMonitoredItem> GetMonitoredItemsSnapshot(
-            IAsyncNodeManager nodeManager);
-
-        /// <summary>
-        /// Returns deleted or detached monitored items, optionally restricted to NodeIds.
-        /// </summary>
-        IReadOnlyList<IMonitoredItem> GetRecoverableMonitoredItemsSnapshot(
-            IReadOnlyCollection<NodeId>? nodeIds = null);
-
         /// <summary>
         /// Returns whether the monitored item is still owned by the subscription.
         /// </summary>

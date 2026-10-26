@@ -1581,8 +1581,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription
-                .GetMonitoredItemsSnapshot(original.NodeManager)
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, original.NodeManager)
                 .Single();
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
 
@@ -1601,8 +1600,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ReloadRuntimeNodeSetAsync(original, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
-                IMonitoredItem reloadedItem = subscription
-                    .GetMonitoredItemsSnapshot(reloaded.NodeManager)
+                IMonitoredItem reloadedItem = GetOwnedMonitoredItems(subscription, reloaded.NodeManager)
                     .Single();
                 Assert.That(ReferenceEquals(reloadedItem, originalItem), Is.True);
                 Assert.That(reloadedItem.Id, Is.EqualTo(monitoredItemId));
@@ -1644,7 +1642,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription.GetMonitoredItemsSnapshot(original.NodeManager).Single();
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, original.NodeManager).Single();
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
 
             try
@@ -1673,7 +1671,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                     NodeManagerRegistration replacement = result.Registrations[0];
-                    IMonitoredItem migratedItem = subscription.GetMonitoredItemsSnapshot(replacement.NodeManager)
+                    IMonitoredItem migratedItem = GetOwnedMonitoredItems(subscription, replacement.NodeManager)
                         .Single();
                     using (Assert.EnterMultipleScope())
                     {
@@ -1685,7 +1683,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 NodeManagerRegistration current = m_server.NodeManagerLifecycle.Registrations
                     .Find(registration => registration.Id == original.Id);
-                IMonitoredItem currentItem = subscription.GetMonitoredItemsSnapshot(current.NodeManager).Single();
+                IMonitoredItem currentItem = GetOwnedMonitoredItems(subscription, current.NodeManager).Single();
                 int expectedValue = rejectDecision ? kGeneration1Value : kGeneration2Value;
                 if (rejectDecision)
                 {
@@ -1753,8 +1751,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription
-                .GetMonitoredItemsSnapshot(original.NodeManager)
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, original.NodeManager)
                 .Single();
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
 
@@ -1769,10 +1766,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ReloadRuntimeNodeSetAsync(original, CreateDroppedGenerationOptions(), null)
                     .ConfigureAwait(false);
 
-                IMonitoredItem detachedItem = subscription
-                    .GetRecoverableMonitoredItemsSnapshot([valueNodeId])
-                    .Single();
-                Assert.That(ReferenceEquals(detachedItem, originalItem), Is.True);
+                Assert.That(subscription.ContainsMonitoredItem(originalItem), Is.True);
+                Assert.That(dropped.Slot.UnresolvedItems.Keys, Does.Contain(originalItem));
 
                 (MonitoredItemNotification bad, acknowledgements) =
                     await PublishForDataChangeAsync(
@@ -1786,8 +1781,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ReloadRuntimeNodeSetAsync(dropped, CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
 
-                IMonitoredItem recoveredItem = subscription
-                    .GetMonitoredItemsSnapshot(recovered.NodeManager)
+                IMonitoredItem recoveredItem = GetOwnedMonitoredItems(subscription, recovered.NodeManager)
                     .Single();
                 Assert.That(ReferenceEquals(recoveredItem, originalItem), Is.True);
 
@@ -1826,8 +1820,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription
-                .GetMonitoredItemsSnapshot(original.NodeManager)
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, original.NodeManager)
                 .Single();
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
 
@@ -1840,10 +1833,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 await m_server.NodeManagerLifecycle.RemoveAsync(original, null).ConfigureAwait(false);
 
-                IMonitoredItem detachedItem = subscription
-                    .GetRecoverableMonitoredItemsSnapshot([valueNodeId])
-                    .Single();
-                Assert.That(ReferenceEquals(detachedItem, originalItem), Is.True);
+                Assert.That(subscription.ContainsMonitoredItem(originalItem), Is.True);
+                Assert.That(originalItem.NodeManager, Is.Null);
 
                 (MonitoredItemNotification bad, acknowledgements) =
                     await PublishForDataChangeAsync(
@@ -1855,7 +1846,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration added = await m_server.NodeManagerLifecycle
                     .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
-                Assert.That(subscription.GetMonitoredItemsSnapshot(added.NodeManager), Is.Empty);
+                Assert.That(GetOwnedMonitoredItems(subscription, added.NodeManager), Is.Empty);
                 Assert.That(((IMonitoredItemGenerationBinding)originalItem).IsTerminal, Is.True);
                 Assert.That(original.Slot.UnresolvedItems, Is.Empty);
                 Assert.That(originalItem.Id, Is.EqualTo(monitoredItemId));
@@ -1886,7 +1877,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         RequestLifetime.None).ConfigureAwait(false);
                 Assert.That(deleteResponse.Results, Is.EqualTo([StatusCodes.Good]));
                 Assert.That(
-                    subscription.GetMonitoredItemsSnapshot(added.NodeManager),
+                    GetOwnedMonitoredItems(subscription, added.NodeManager),
                     Is.Empty);
             }
             finally
@@ -1931,8 +1922,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions()
                 .Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription
-                .GetMonitoredItemsSnapshot(registration.NodeManager)
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, registration.NodeManager)
                 .Single();
             ArrayOf<SubscriptionAcknowledgement> acknowledgements = [];
 
@@ -1996,8 +1986,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(addResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(addResponse.Results[0].AddedNodeId, Is.EqualTo(valueNodeId));
 
-                IMonitoredItem recoveredItem = subscription
-                    .GetMonitoredItemsSnapshot(registration.NodeManager)
+                IMonitoredItem recoveredItem = GetOwnedMonitoredItems(subscription, registration.NodeManager)
                     .Single();
                 Assert.That(ReferenceEquals(recoveredItem, originalItem), Is.True);
                 Assert.That(recoveredItem.Id, Is.EqualTo(monitoredItemId));
@@ -6081,7 +6070,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await CreateSubscriptionWithMonitoredItemAsync(services, valueNodeId).ConfigureAwait(false);
             var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
                 .GetSubscriptions().Single(candidate => candidate.Id == subscriptionId);
-            IMonitoredItem originalItem = subscription.GetMonitoredItemsSnapshot(original.NodeManager).Single();
+            IMonitoredItem originalItem = GetOwnedMonitoredItems(subscription, original.NodeManager).Single();
             var publicationFailure = new SentinelException("Committed replacement publication callback failed.");
             var readinessFailure = new SentinelException("Committed replacement readiness failed.");
             ReadinessLifecycleNodeManager? replacementManager = null;
@@ -6117,7 +6106,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration replacement = result.Registrations[0];
                 AssertLifecycleValue(originalManager);
                 AssertLifecycleValue(replacementManager);
-                IMonitoredItem migrated = subscription.GetMonitoredItemsSnapshot(replacement.NodeManager).Single();
+                IMonitoredItem migrated = GetOwnedMonitoredItems(subscription, replacement.NodeManager).Single();
                 var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException)
                     .Flatten().InnerExceptions;
                 using (Assert.EnterMultipleScope())
@@ -7118,6 +7107,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.Fail(
                 "The failed retired-generation drain did not restore notifications.");
+        }
+
+        /// <summary>
+        /// Captures exact generation ownership and independently verifies subscription membership.
+        /// </summary>
+        private static IMonitoredItem[] GetOwnedMonitoredItems(
+            ISubscriptionMonitoredItemLifecycle subscription,
+            IAsyncNodeManager nodeManager)
+        {
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            return [.. generation.MonitoredItems.Keys.Where(subscription.ContainsMonitoredItem)];
         }
 
         private static void AddSyntheticMonitoredItem(

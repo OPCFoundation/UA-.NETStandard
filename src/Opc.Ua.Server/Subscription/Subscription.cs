@@ -617,66 +617,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetMonitoredItemsSnapshot(
-                IAsyncNodeManager nodeManager)
-        {
-            lock (m_lock)
-            {
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                            monitoredItem is not IDetachableMonitoredItem
-                            {
-                                IsDetached: true
-                            } &&
-                            IsOwnedBy(monitoredItem, nodeManager))
-                ];
-            }
-        }
-
-        /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetRecoverableMonitoredItemsSnapshot(
-                IReadOnlyCollection<NodeId>? nodeIds)
-        {
-            lock (m_lock)
-            {
-                if (nodeIds == null)
-                {
-                    return
-                    [
-                        .. m_monitoredItems.Values
-                            .Select(entry => entry.Value)
-                            .Where(monitoredItem =>
-                                monitoredItem is IDetachableMonitoredItem lifecycle &&
-                                (lifecycle.IsDetached || lifecycle.IsDeleted))
-                    ];
-                }
-
-                if (nodeIds.Count == 0)
-                {
-                    return [];
-                }
-
-                var requestedNodeIds = new HashSet<NodeId>(
-                    nodeIds,
-                    NodeIdComparer.Default);
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                        monitoredItem is IDetachableMonitoredItem lifecycle &&
-                        (lifecycle.IsDetached || lifecycle.IsDeleted) &&
-                        requestedNodeIds.Contains(monitoredItem.NodeId))
-                ];
-            }
-        }
-
-        /// <inheritdoc/>
         bool ISubscriptionMonitoredItemLifecycle.ContainsMonitoredItem(
             IMonitoredItem monitoredItem)
         {
