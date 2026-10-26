@@ -671,6 +671,7 @@ namespace Opc.Ua.Server
             bool monitoredNodeLinked = false;
             bool monitoringStarted = false;
             bool attached = false;
+            bool rollbackAttempted = false;
             try
             {
                 lifecycle.Rebind(m_nodeManager, handle);
@@ -727,29 +728,52 @@ namespace Opc.Ua.Server
                 attached = true;
                 return (ServiceResult.Good, true);
             }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                rollbackAttempted = true;
+                try
+                {
+                    RollbackRegistration();
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(failure, cleanupFailure);
+                }
+                throw;
+            }
             finally
             {
-                if (!attached)
+                if (!attached && !rollbackAttempted)
+                {
+                    RollbackRegistration();
+                }
+            }
+
+            void RollbackRegistration()
+            {
+                try
                 {
                     if (monitoringStarted)
                     {
                         m_samplingGroupManager.StopMonitoring(monitoredItem);
                         m_samplingGroupManager.ApplyChanges();
                     }
-
+                }
+                finally
+                {
                     if (monitoredNodeLinked)
                     {
                         monitoredNode!.Remove((IEventMonitoredItem)monitoredItem);
                     }
+
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                    lifecycle.Detach(m_server);
 
                     if (monitoredNodeCreated)
                     {
                         MonitoredNodes.Remove(handle.NodeId);
                         monitoredNode?.Dispose();
                     }
-
-                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
-                    lifecycle.Detach(m_server);
                 }
             }
         }

@@ -2383,8 +2383,9 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        [Test]
-        public void SamplingGroupAttachApplyFailureStopsMonitoringAndRestoresDetachedOwnership()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SamplingGroupAttachApplyFailureStopsMonitoringAndRestoresDetachedOwnership(bool failCleanup)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -2393,10 +2394,14 @@ namespace Opc.Ua.Server.Tests
                 var nodeManager = new Mock<IAsyncNodeManager>();
                 using var samplingGroups = new TrackingSamplingGroupManager(
                     server.Object,
-                    nodeManager.Object)
+                    nodeManager.Object);
+                var failure = new InvalidOperationException("Injected apply failure.");
+                var cleanupFailure = new InvalidOperationException("Injected cleanup apply failure.");
+                samplingGroups.ApplyFailures.Enqueue(failure);
+                if (failCleanup)
                 {
-                    FailNextApply = true
-                };
+                    samplingGroups.ApplyFailures.Enqueue(cleanupFailure);
+                }
                 using var manager = new SamplingGroupMonitoredItemManager(
                     nodeManager.Object,
                     server.Object,
@@ -2416,15 +2421,25 @@ namespace Opc.Ua.Server.Tests
                 var itemLifecycle = (IDetachableMonitoredItem)item;
                 itemLifecycle.Detach(server.Object);
 
-                Assert.That(
-                    () => lifecycle.AttachMonitoredItem(
+                void Attach()
+                {
+                    lifecycle.AttachMonitoredItem(
                         server.Object.DefaultSystemContext,
                         new NodeHandle(node.NodeId, node),
                         item,
                         static (_, _, nodeToCache) => nodeToCache,
-                        static (_, _) => { }),
-                    Throws.InvalidOperationException.With.Message.EqualTo(
-                        "Injected apply failure."));
+                        static (_, _) => { });
+                }
+                if (failCleanup)
+                {
+                    AggregateException error = Assert.Throws<AggregateException>(Attach);
+                    Assert.That(error.InnerExceptions, Is.EqualTo(new Exception[] { failure, cleanupFailure }));
+                }
+                else
+                {
+                    InvalidOperationException error = Assert.Throws<InvalidOperationException>(Attach);
+                    Assert.That(error, Is.SameAs(failure));
+                }
 
                 Assert.Multiple(() =>
                 {
@@ -2433,10 +2448,32 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(samplingGroups.ApplyCount, Is.EqualTo(2));
                     Assert.That(manager.MonitoredItems, Is.Empty);
                     Assert.That(itemLifecycle.IsDetached, Is.True);
+                    Assert.That(item.ManagerHandle, Is.Null);
                     Assert.That(
                         item.NodeManager,
                         Is.Null);
                 });
+
+                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                    server.Object.DefaultSystemContext,
+                    new NodeHandle(node.NodeId, node),
+                    item,
+                    static (_, _, nodeToCache) => nodeToCache,
+                    static (_, _) => { });
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(changed, Is.True);
+                    Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                    Assert.That(item.NodeManager, Is.SameAs(nodeManager.Object));
+                    Assert.That(itemLifecycle.IsDetached, Is.False);
+                    Assert.That(samplingGroups.StartCount, Is.EqualTo(2));
+                    Assert.That(samplingGroups.ApplyCount, Is.EqualTo(3));
+                });
+                lifecycle.DetachMonitoredItem(
+                    server.Object.DefaultSystemContext,
+                    item,
+                    static (_, _) => { });
             }
         }
 
