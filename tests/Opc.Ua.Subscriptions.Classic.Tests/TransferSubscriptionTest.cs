@@ -455,7 +455,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                 () => staticTargetNotifications.Count >= expectedStaticBatchCount &&
                     Volatile.Read(ref targetKeepAliveCount) > 0 &&
                     Enumerable.Range(1, kTestSubscriptions - 1).All(index =>
-                        Volatile.Read(ref targetSubscriptionCounters[index]) > 0 &&
+                        Volatile.Read(ref targetSubscriptionCounters[index]) >=
+                            (sendInitialValues ? transferSubscriptions[index].MonitoredItemCount : 1u) &&
                         Volatile.Read(ref targetSubscriptionFastDataCounters[index]) > 0),
                 timeoutMessage: "The target did not deliver expected notifications and a keepalive.")
                 .ConfigureAwait(false);
