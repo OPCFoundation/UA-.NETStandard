@@ -609,11 +609,15 @@ namespace Opc.Ua.Configuration
 
         /// <summary>
         /// Whether a client may send a UserName identity token without encryption over a
-        /// channel that does not encrypt messages, i.e. transmit the password in plain text.
+        /// channel that does not encrypt messages, i.e. transmit the password in plain text
+        /// (OPC 10000-4 v1.05.07 7.40.4). The specification says this should not be used unless the
+        /// network traffic is encrypted in some other manner, such as a VPN. A server that
+        /// offers such a policy on a channel that does not encrypt does not follow 7.40.4,
+        /// which expects it to specify a security policy for the user token in that case.
         /// Allowing this is a security risk and exposes the password to anyone who can observe
         /// the network traffic.
-        /// Only use for interoperability with legacy devices which offer no encrypted user
-        /// token policy, and only in closed and secured networks.
+        /// Only use for interoperability with such legacy devices, and only where the network
+        /// traffic is encrypted in some other manner.
         /// </summary>
         /// <param name="allowUnencryptedUserNameTokens"><see langword="true"/> to allow unencrypted UserName tokens.</param>
         IApplicationConfigurationBuilderSecurityOptions SetAllowUnencryptedUserNameTokens(

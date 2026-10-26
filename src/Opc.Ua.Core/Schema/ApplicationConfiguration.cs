@@ -843,11 +843,16 @@ namespace Opc.Ua
         /// token when the effective user token security policy is
         /// <see cref="SecurityPolicies.None"/> and the channel security
         /// mode is not SignAndEncrypt, because the password would be
-        /// transmitted in plain text.
-        /// Set this flag to true only for interoperability with legacy
-        /// devices which offer no encrypted user token policy, and only
-        /// in closed and secured networks, since the password is readable
-        /// by anyone who can observe the network traffic.
+        /// transmitted in plain text (OPC 10000-4 v1.05.07 7.40.4). The specification
+        /// says this configuration should not be used unless the network
+        /// traffic is encrypted in some other manner, such as a VPN. A server
+        /// that offers such a policy on a channel that does not encrypt does
+        /// not follow 7.40.4, which expects it to specify a security policy
+        /// for the user token in that case.
+        /// Set this flag to true only for interoperability with such legacy
+        /// devices, and only where the network traffic is encrypted in some
+        /// other manner, since the password is readable by anyone who can
+        /// observe it.
         /// </summary>
         [DataTypeField(Order = 20)]
         public bool AllowUnencryptedUserNameTokens { get; set; }

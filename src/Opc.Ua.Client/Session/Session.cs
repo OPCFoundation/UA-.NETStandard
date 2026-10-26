@@ -5901,7 +5901,8 @@ namespace Opc.Ua.Client
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed,
-                    "A UserName identity token without token encryption requires a SignAndEncrypt channel. " +
+                    "A UserName identity token without token encryption requires a SignAndEncrypt channel " +
+                    "(see OPC 10000-4 v1.05.07 7.40.4). " +
                     "Set SecurityConfiguration.AllowUnencryptedUserNameTokens to allow sending the password in plain text.");
             }
 
@@ -7720,8 +7721,10 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.Session + 73, Level = LogLevel.Warning,
             Message = "Sending a UserName identity token without encryption over a {SecurityMode} channel " +
-                "to {EndpointUrl} because AllowUnencryptedUserNameTokens is enabled. " +
-                "The password is transmitted in plain text.")]
+                "to {EndpointUrl}. The password is transmitted in plain text. The server offers a None " +
+                "user token policy on a channel that does not encrypt, which is not compliant with " +
+                "OPC 10000-4 v1.05.07 7.40.4. AllowUnencryptedUserNameTokens is enabled for legacy " +
+                "interoperability only.")]
         public static partial void SendingUnencryptedUserNameToken(
             this ILogger logger,
             MessageSecurityMode securityMode,

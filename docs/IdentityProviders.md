@@ -887,14 +887,22 @@ ManagedSession managed = await ManagedSession.CreateAsync(
 ### Allowing unencrypted UserName tokens
 
 A `UserName` token whose effective user token security policy is `None` is
-sent with the password in plain text. The client therefore refuses to open a
-session with such a token unless the channel itself is `SignAndEncrypt`; the
-open fails with `Bad_SecurityChecksFailed` before anything is sent to the
-server. `UpdateSessionAsync` applies the same check when it switches an open
-session to such a token, and so does a reconnect.
+sent with the password in plain text.
+The specification says this configuration "should not be used unless the
+network traffic is encrypted in some other manner such as a VPN"
+(see [OPC 10000-4 v1.05.07 §7.40.4](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/7.40.4)).
+The client therefore refuses to open a session with such a token unless the
+channel itself is `SignAndEncrypt`; the open fails with `Bad_SecurityChecksFailed`
+before anything is sent to the server. `UpdateSessionAsync` applies the same
+check when it switches an open session to such a token, and so does a
+reconnect.
 
-Some legacy devices offer no encrypted `UserName` policy at all. To connect to
-them anyway, opt in on the client's security configuration:
+A server that offers a `None` `UserName` policy on a channel that is not
+`SignAndEncrypt` does not follow §7.40.4, which expects the server to specify
+an encrypting `SecurityPolicy` for the `UserTokenPolicy` in that case (a
+"shall" on a secured channel, a "should" on a `None` channel). Some legacy
+devices do so anyway and offer no encrypted `UserName` policy at all. To
+connect to them regardless, opt in on the client's security configuration:
 
 ```csharp
 configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
@@ -904,9 +912,11 @@ With the configuration builder use
 `.AddSecurityConfiguration(...).SetAllowUnencryptedUserNameTokens(true)`; in
 an XML configuration add
 `<AllowUnencryptedUserNameTokens>true</AllowUnencryptedUserNameTokens>` to the
-`SecurityConfiguration` element. The session logs a warning each time it sends
-a password without encryption. Prefer an encrypted policy whenever the device
-offers one, and enable this only in closed and secured networks.
+`SecurityConfiguration` element. The flag exists for interoperability with such
+legacy devices only. The session logs a warning each time it sends a password
+without encryption. Prefer an encrypted policy whenever the device offers one,
+and enable this only where the network traffic is encrypted in some other
+manner, such as a VPN.
 
 ## How-to: migrate from `SessionManager.ImpersonateUser`
 
