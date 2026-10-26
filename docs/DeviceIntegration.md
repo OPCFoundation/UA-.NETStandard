@@ -605,7 +605,8 @@ The runner is injected into the manager via the factory. The base
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
   `CompleteConfigureAsync`. With an injected runner it retains the open builder until
   its `INodeManagerReadinessNotification` callback invokes `PostSetupRunner.RunAsync(this, ct)` and then
-  `SealConfigurationAsync(builder, ct)`. Without a runner it seals during address-space creation.
+  `SealConfigurationAsync(builder, ct)`. Without a runner or other deferred shared-service steps,
+  it seals during address-space creation.
   Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
@@ -618,6 +619,15 @@ The runner is injected into the manager via the factory. The base
   node registration and sealing. The runner fires automatically before
   `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
+
+Subclasses that require published shared services can register ordered steps with
+`DeferConfigurationUntilReady`. All steps must use the same original builder and be registered
+before readiness starts. `DeferPublishedAuthoringUntilReady` supplies a separate attached builder
+when a step also authors nodes. It resolves the prepared default namespace by URI after publication,
+registers the new roots and external references, and closes that pass's graph authoring.
+Manager-wide behavior activation waits until every step, including hosting post-setup, succeeds.
+Completed steps, roots and external-reference source groups are not replayed after a failure;
+an interrupted callback, subtree or source group must support idempotent retry.
 
 ```mermaid
 sequenceDiagram
@@ -643,6 +653,8 @@ sequenceDiagram
     Base-->>Host: private preparation complete
     Note over Host: publish the initial application managers
     Host->>Base: OnServerReadyAsync(ct)
+    Base->>Sub: complete deferred shared-service authoring
+    Note over Sub: register published additions and references;<br/>do not activate manager-wide behaviors yet
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
@@ -657,7 +669,7 @@ register a simulation loop of their own.
 
 A completed post-setup is not repeated when readiness is notified again or a later seal is retried.
 The manager owns its attached builders throughout preparation, readiness and shutdown, including
-when startup stops before post-setup runs. Custom standalone hosts that inject a runner must call
+when startup stops before post-setup runs. Custom standalone hosts that use deferred shared-service steps must call
 `INodeManagerReadinessNotification.OnServerReadyAsync` after publication and before accepting clients.
 DI post-setup and AMB setup callbacks run in manager registration order, so both observe the
 published peer managers without constructing or mutating peers during private preparation.

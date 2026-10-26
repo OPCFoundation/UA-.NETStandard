@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -167,7 +166,7 @@ namespace Opc.Ua.AMB.Server
             await InitializeLocationsAsync(cancellationToken).ConfigureAwait(false);
             if (m_setupRunner is { } runner)
             {
-                DeferConfigurationUntilReady(builder, ct => RunPublishedSetupAsync(runner, ct));
+                DeferPublishedAuthoringUntilReady(builder, (published, ct) => runner.RunAsync(this, published, ct));
             }
         }
 
@@ -210,40 +209,6 @@ namespace Opc.Ua.AMB.Server
             base.Dispose(disposing);
         }
 
-        /// <summary>
-        /// Runs shared-service setup with a separate authoring pass after the prepared graph is published.
-        /// </summary>
-        private async ValueTask RunPublishedSetupAsync(AmbSetupRunner runner, CancellationToken cancellationToken)
-        {
-            NodeManagerBuilder builder = m_publishedSetupBuilder ??= CreateFluentBuilder(InstanceNamespaceIndex);
-            if (!m_publishedSetupCompleted)
-            {
-                await runner.RunAsync(this, builder, cancellationToken).ConfigureAwait(false);
-                m_publishedSetupCompleted = true;
-            }
-            if (!m_publishedSetupRegistered)
-            {
-                await ResumeAuthoredNodesRegistrationAsync(builder, cancellationToken).ConfigureAwait(false);
-                m_publishedSetupRegistered = true;
-            }
-
-            if (m_publishedSetupReferences is null)
-            {
-                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
-                await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-                m_publishedSetupReferences = new Queue<KeyValuePair<NodeId, IList<IReference>>>(externalReferences);
-            }
-            while (m_publishedSetupReferences.Count != 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                KeyValuePair<NodeId, IList<IReference>> entry = m_publishedSetupReferences.Peek();
-                await Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
-                    .ConfigureAwait(false);
-                m_publishedSetupReferences.Dequeue();
-            }
-            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
-        }
-
         private static string[] NamespaceUrisOf(AssetManagement assetManagement)
         {
             if (assetManagement == null)
@@ -265,18 +230,6 @@ namespace Opc.Ua.AMB.Server
         private readonly AssetManagement m_assetManagement;
         private readonly AmbSetupRunner? m_setupRunner;
         private readonly ILogger m_ambLogger;
-
-        /// <summary>The separate authoring builder owned through setup, readiness retry and shutdown.</summary>
-        private NodeManagerBuilder? m_publishedSetupBuilder;
-
-        /// <summary>Whether the shared-service delegates completed successfully.</summary>
-        private bool m_publishedSetupCompleted;
-
-        /// <summary>Whether the nodes authored by those delegates were registered.</summary>
-        private bool m_publishedSetupRegistered;
-
-        /// <summary>External source groups that have not completed publication; completed groups are not replayed.</summary>
-        private Queue<KeyValuePair<NodeId, IList<IReference>>>? m_publishedSetupReferences;
     }
 
     internal static partial class AmbNodeManagerLog

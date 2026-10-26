@@ -1310,9 +1310,19 @@ namespace Opc.Ua.Di.Tests
             await hostedService.StartAsync(CancellationToken.None).ConfigureAwait(false);
             try
             {
+                Task execution = ((BackgroundService)hostedService).ExecuteTask ??
+                    throw new InvalidOperationException("The hosted service did not start its execution task.");
                 Assert.That(
                     await WaitForAsync(
-                        () => ComplianceCaptureServer.StartedInstance != null,
+                        async () =>
+                        {
+                            if (execution.IsCompleted)
+                            {
+                                await execution.ConfigureAwait(false);
+                                throw new InvalidOperationException("The hosted service stopped before startup completed.");
+                            }
+                            return ComplianceCaptureServer.StartedInstance != null;
+                        },
                         TimeSpan.FromSeconds(30)).ConfigureAwait(false),
                     Is.True,
                     "The server did not start.");

@@ -62,6 +62,7 @@ namespace Opc.Ua.Di.Tests
                 manager = new PumpNodeManager(server.CurrentInstance, fixture.Config);
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+                await manager.OnServerReadyAsync().ConfigureAwait(false);
 
                 BaseObjectState deviceSet = manager.FindPredefinedNode<BaseObjectState>(
                     NodeId.Create(
@@ -170,13 +171,14 @@ namespace Opc.Ua.Di.Tests
                 ResultMask = BrowseResultMask.All
             };
             var references = new List<ReferenceDescription>();
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Browse,
+                RequestLifetime.None);
 
             ContinuationPoint? result = await manager.BrowseAsync(
-                new OperationContext(
-                    new RequestHeader(),
-                    null,
-                    RequestType.Browse,
-                    RequestLifetime.None),
+                context,
                 continuationPoint,
                 references).ConfigureAwait(false);
 
