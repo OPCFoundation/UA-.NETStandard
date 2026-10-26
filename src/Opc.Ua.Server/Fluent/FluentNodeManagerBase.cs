@@ -925,6 +925,11 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(builder));
             }
+            if (!m_publishedConfigurationCompleted &&
+                m_publishedConfiguration is { } pending && ReferenceEquals(pending.Builder, builder))
+            {
+                return default;
+            }
 
             builder.SealGraphAuthoring();
 
@@ -934,6 +939,51 @@ namespace Opc.Ua.Server.Fluent
             }
 
             return builder.CompleteSealAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Defers shared-service configuration and this builder's final seal until published readiness.
+        /// </summary>
+        /// <param name="builder">The builder that must stay open for the callback.</param>
+        /// <param name="configure">The callback, which must support retry if it fails after performing side effects.</param>
+        /// <remarks>
+        /// Lifecycle readiness serializes callback attempts. The manager must implement
+        /// <see cref="INodeManagerReadinessNotification"/> and forward it to
+        /// <see cref="CompletePublishedConfigurationAsync"/>.
+        /// </remarks>
+        protected void DeferConfigurationUntilReady(
+            INodeManagerBuilder builder,
+            Func<CancellationToken, ValueTask> configure)
+        {
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            if (m_publishedConfiguration is not null)
+            {
+                throw new InvalidOperationException("Published configuration is already registered for this manager.");
+            }
+            m_publishedConfiguration = (ResolveAttachedBuilder(builder, "published configuration"), configure);
+            m_publishedConfigurationCompleted = false;
+        }
+
+        /// <summary>
+        /// Completes the deferred callback before sealing, without repeating a callback that already succeeded.
+        /// </summary>
+        /// <param name="cancellationToken">The readiness attempt's cancellation token.</param>
+        protected async ValueTask CompletePublishedConfigurationAsync(CancellationToken cancellationToken = default)
+        {
+            if (m_publishedConfiguration is not { } pending)
+            {
+                return;
+            }
+            if (!m_publishedConfigurationCompleted)
+            {
+                await pending.Configure(cancellationToken).ConfigureAwait(false);
+                m_publishedConfigurationCompleted = true;
+            }
+            await SealConfigurationAsync(pending.Builder, cancellationToken).ConfigureAwait(false);
+            m_publishedConfiguration = null;
         }
 
         /// <inheritdoc/>
@@ -1544,6 +1594,12 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeManagerBuilder> m_attachedBuilders = [];
         private readonly Lock m_behaviorActivationsLock = new();
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
+
+        /// <summary>The builder and shared-service callback retained through published readiness.</summary>
+        private (NodeManagerBuilder Builder, Func<CancellationToken, ValueTask> Configure)? m_publishedConfiguration;
+
+        /// <summary>Whether the retained callback succeeded before its possibly retried final seal.</summary>
+        private bool m_publishedConfigurationCompleted;
     }
 
     /// <summary>

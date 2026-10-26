@@ -164,12 +164,18 @@ the options, the shared `AssetManagement` registry (also as
 `IAssetManagement`) and the configuration store. It claims no DI ownership, so
 it is combined with the registration that does, in either order.
 
-`ConfigureAssetManagement(context => ...)` runs inside the AMB node manager
-while it builds its address space. The context gives the manager, the
-registry, the fluent builder of the AMB manager and the services; use it to
+`ConfigureAssetManagement(context => ...)` runs during published readiness,
+after all initial application managers have been prepared and published.
+DI post-setup and AMB setup run in manager registration order, before the
+host's startup tasks and before clients are accepted. The context gives the manager, the
+registry, an attached authoring builder and the services; use it to
 define location hierarchies or to register objects the AMB manager itself
-creates. A failing configurator aborts the start; the server reports
-`BadInternalError` and logs the cause.
+creates. The setup pass registers its authored nodes and external references
+before sealing. A failing configurator aborts startup and preserves the cause
+inside the initial reconciliation error. A successfully completed delegate
+pass is not repeated if the final seal needs a retry; delegates that fail
+after making changes must support retry. The manager owns the attached
+builders and their resources even when startup fails before readiness completes.
 
 Without hosting, create an `AssetManagement` and pass it to
 `new AmbNodeManager(server, configuration, assetManagement)`.
@@ -207,8 +213,8 @@ by URI.
 
 ### When to register
 
-Health alarms and maintenance conditions are created while the node manager
-that owns the asset builds its address space - from `ConfigureDevicesFor`, an
+Health alarms and maintenance conditions are created before the owning
+manager's final builder seal - from `ConfigureDevicesFor`, an
 `IMachineryConfigurator`, `ConfigurePumps`, `ConfigureScales` or
 `ConfigureAssetManagement`. Afterwards the fluent builder is sealed and
 creating them fails. Identification, discovery, links and locations work for

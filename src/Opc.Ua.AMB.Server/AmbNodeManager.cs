@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -73,7 +74,8 @@ namespace Opc.Ua.AMB.Server
     /// assets meet now and withdraws what they no longer meet.
     /// </para>
     /// </remarks>
-    public sealed partial class AmbNodeManager : FluentNodeManagerBase, IConformanceContributor
+    public sealed partial class AmbNodeManager : FluentNodeManagerBase, IConformanceContributor,
+        INodeManagerReadinessNotification
     {
         /// <summary>
         /// Creates the node manager without hosting integration.
@@ -153,8 +155,8 @@ namespace Opc.Ua.AMB.Server
         /// <inheritdoc/>
         /// <remarks>
         /// Wires the asset discovery and lists the assets registered so far,
-        /// then runs the configurators registered with
-        /// <c>ConfigureAssetManagement</c>, while the builder is still open.
+        /// then defers the shared-service configurators registered with
+        /// <c>ConfigureAssetManagement</c> until published readiness, keeping the builder open until they complete.
         /// </remarks>
         protected override async ValueTask ConfigureAsync(
             INodeManagerBuilder builder,
@@ -163,10 +165,16 @@ namespace Opc.Ua.AMB.Server
             await InitializeAlarmTypesAsync(cancellationToken).ConfigureAwait(false);
             await InitializeDiscoveryAsync(cancellationToken).ConfigureAwait(false);
             await InitializeLocationsAsync(cancellationToken).ConfigureAwait(false);
-            if (m_setupRunner != null)
+            if (m_setupRunner is { } runner)
             {
-                await m_setupRunner.RunAsync(this, builder, cancellationToken).ConfigureAwait(false);
+                DeferConfigurationUntilReady(builder, ct => RunPublishedSetupAsync(runner, ct));
             }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         /// <summary>
@@ -180,7 +188,7 @@ namespace Opc.Ua.AMB.Server
         /// </remarks>
         internal async ValueTask OnAssetsChangedAsync(CancellationToken cancellationToken)
         {
-            if (Server is ServerInternalData { ConformanceUnitsManager: { } conformance })
+            if (Server is IConformanceUnitsManagerProvider { ConformanceUnitsManager: { } conformance })
             {
                 conformance.Register(this);
                 await conformance.PublishAsync(cancellationToken).ConfigureAwait(false);
@@ -200,6 +208,33 @@ namespace Opc.Ua.AMB.Server
                 m_locationsLock.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        /// <summary>
+        /// Runs shared-service setup with a separate authoring pass after the prepared graph is published.
+        /// </summary>
+        private async ValueTask RunPublishedSetupAsync(AmbSetupRunner runner, CancellationToken cancellationToken)
+        {
+            NodeManagerBuilder builder = m_publishedSetupBuilder ??= CreateFluentBuilder(InstanceNamespaceIndex);
+            if (!m_publishedSetupCompleted)
+            {
+                await runner.RunAsync(this, builder, cancellationToken).ConfigureAwait(false);
+                m_publishedSetupCompleted = true;
+            }
+            if (!m_publishedSetupRegistered)
+            {
+                await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
+                m_publishedSetupRegistered = true;
+            }
+
+            var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+            await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
+            {
+                await Server.NodeManager.AddReferencesAsync(entry.Key, entry.Value, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         private static string[] NamespaceUrisOf(AssetManagement assetManagement)
@@ -223,6 +258,15 @@ namespace Opc.Ua.AMB.Server
         private readonly AssetManagement m_assetManagement;
         private readonly AmbSetupRunner? m_setupRunner;
         private readonly ILogger m_ambLogger;
+
+        /// <summary>The separate authoring builder owned through setup, readiness retry and shutdown.</summary>
+        private NodeManagerBuilder? m_publishedSetupBuilder;
+
+        /// <summary>Whether the shared-service delegates completed successfully.</summary>
+        private bool m_publishedSetupCompleted;
+
+        /// <summary>Whether the nodes authored by those delegates were registered.</summary>
+        private bool m_publishedSetupRegistered;
     }
 
     internal static partial class AmbNodeManagerLog

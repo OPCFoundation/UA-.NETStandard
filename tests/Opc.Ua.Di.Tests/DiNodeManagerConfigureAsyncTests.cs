@@ -27,11 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.TestFramework;
@@ -112,6 +115,132 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
+        /// Shared-service configuration waits for readiness and retains the open builder through a failed attempt.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PostSetupWaitsForReadinessAndSealsAfterSuccessfulCallbackAsync(bool failFirst)
+        {
+            int calls = 0;
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager value, CancellationToken _) =>
+                {
+                    var probe = (ProbeNodeManager)value;
+                    Assert.DoesNotThrow(() => probe.Builder!.Node("AsyncWired"));
+                    calls++;
+                    if (failFirst && calls == 1)
+                    {
+                        throw new InvalidOperationException("Injected post-setup failure.");
+                    }
+                    return default;
+                });
+            using var manager = new ProbeNodeManager(m_server.CurrentInstance, m_fixture.Config, runner.Object);
+
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+
+            Assert.That(calls, Is.Zero, "Preparation must not invoke configurators that use shared services.");
+            var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+            if (failFirst)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            }
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failFirst ? 2 : 1));
+            ServiceResultException sealedException = Assert.Throws<ServiceResultException>(
+                () => manager.Builder!.Node("AsyncWired"))!;
+            Assert.That(sealedException.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failFirst ? 2 : 1),
+                "A completed post-setup must not be repeated by a later readiness notification.");
+        }
+
+        /// <summary>
+        /// A failed seal retries completion without replaying a successfully completed shared-service callback.
+        /// </summary>
+        [Test]
+        public async Task SealRetryDoesNotRepeatSuccessfulPostSetupAsync()
+        {
+            int calls = 0;
+            int notifications = 0;
+            var failure = new InvalidOperationException("Injected node-added failure.");
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager value, CancellationToken _) =>
+                {
+                    calls++;
+                    ((ProbeNodeManager)value).Builder!.Node("AsyncWired").OnNodeAdded((_, _) =>
+                    {
+                        notifications++;
+                        if (notifications == 1)
+                        {
+                            throw failure;
+                        }
+                    });
+                    return default;
+                });
+            await using var manager = new ProbeNodeManager(m_server.CurrentInstance, m_fixture.Config, runner.Object);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            Assert.That(observed, Is.SameAs(failure));
+
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(calls, Is.EqualTo(1), "The successful shared-service callback is not replayed.");
+                Assert.That(notifications, Is.EqualTo(2), "Only the incomplete seal is retried.");
+            });
+            ServiceResultException sealedException = Assert.Throws<ServiceResultException>(
+                () => manager.Builder!.Node("AsyncWired"))!;
+            Assert.That(sealedException.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Stopping a prepared manager releases resources without invoking or retrying shared-service configurators.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedManagerCleanupDoesNotInvokeOrRetryPostSetupAsync(bool failReadiness)
+        {
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            if (failReadiness)
+            {
+                runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Throws(new InvalidOperationException("Injected post-setup failure before stop."));
+            }
+            var resource = new Mock<IAsyncDisposable>(MockBehavior.Strict);
+            resource.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            await using var manager = new ProbeNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, runner.Object);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            manager.RegisterNodeResource(
+                manager.FindPredefinedNode<FolderState>(manager.StagedFolderId)!, resource.Object);
+
+            if (failReadiness)
+            {
+                var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            }
+            await manager.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            runner.Verify(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(failReadiness ? 1 : 0));
+            resource.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
         /// A DI manager that does all its wiring from the awaitable hook —
         /// the shape that used to require the manager to hand-roll
         /// <c>CreateFluentBuilder(...).Configure(...).Seal()</c> from a
@@ -121,8 +250,9 @@ namespace Opc.Ua.Di.Tests
         {
             public ProbeNodeManager(
                 IServerInternal server,
-                ApplicationConfiguration configuration)
-                : base(server, configuration)
+                ApplicationConfiguration configuration,
+                IDiPostSetupRunner? postSetupRunner = null)
+                : base(server, configuration, postSetupRunner)
             {
             }
 
