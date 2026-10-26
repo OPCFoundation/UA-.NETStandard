@@ -163,7 +163,7 @@ namespace Quickstarts.ReferenceServer
             // AliasNameNodeManager configured with their own namespace.
             ConfigureAliasNameStore(server);
 
-            return new MasterNodeManager(server, configuration, null, [], null)
+            return new MasterNodeManager(server, configuration, null)
             {
                 InitialFactories = GetReferenceInitialNodeManagerFactories()
             };

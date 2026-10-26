@@ -96,14 +96,14 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Transfers the application NodeManagers created during server startup into the
-        /// live lifecycle bookkeeping. Built-in configuration, diagnostics, and core
-        /// NodeManagers are not included.
+        /// Gets application factories to publish through initial Add changes.
         /// </summary>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        /// <returns>The already-published startup NodeManagers and their external references.</returns>
-        ValueTask<ArrayOf<PreparedNodeManager>> TakeStartupNodeManagersAsync(
-            CancellationToken ct = default);
+        ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; }
+
+        /// <summary>
+        /// Rejects preconstructed applications that cannot participate in private initial preparation.
+        /// </summary>
+        void ValidateStartupFactories();
 
         /// <summary>
         /// Drops the host bookkeeping for a NodeManager that the caller has taken over, without

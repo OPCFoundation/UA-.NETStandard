@@ -785,6 +785,11 @@ owns their creation, publication and readiness; the override must not initialize
 The reference server uses this path for its reference model, optional file system and
 registered application models.
 
+Construct the master with `new MasterNodeManager(server, configuration, dynamicNamespaceUri)`
+and assign its `InitialFactories`. Preconstructed-manager constructors are obsolete and remain
+available only for standalone dispatch. Hosted startup rejects preconstructed applications:
+their construction cannot be retroactively isolated from the serving metadata.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(o => { /* … */ })
@@ -886,7 +891,7 @@ reloads through `INodeManagerLifecycle` already await readiness; do not call it 
 
 A **generation** identifies one published NodeManager instance within a logical registration.
 `NodeManagerRegistration.Id` stays the same across reloads; `Generation` counts the instances:
-startup adoption and an addition create generation 1 and each committed [replacement](#reload-modes)
+initial and runtime additions create generation 1 and each committed [replacement](#reload-modes)
 creates the next. Generation is independent of the information model's version and namespace
 index. After a replacement, use the committed result's handle; the previous one is stale even while
 an admitted request finishes on its old view. A new registration starts at generation 1 with a new `Id`.

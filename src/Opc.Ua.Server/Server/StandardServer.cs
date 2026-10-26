@@ -4343,12 +4343,16 @@ namespace Opc.Ua.Server
 
                 // add the node manager to the datastore.
                 m_serverInternal.SetNodeManager(masterNodeManager);
+                if (masterNodeManager is IDynamicNodeManagerHost startupHost)
+                {
+                    startupHost.ValidateStartupFactories();
+                }
 
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
                 initialManagers = [.. masterNodeManager.AsyncNodeManagers];
-                if (masterNodeManager is MasterNodeManager { InitialFactories.Count: > 0 } initialHost)
+                if (masterNodeManager is IDynamicNodeManagerHost { InitialFactories.Count: > 0 } initialHost)
                 {
                     initialPublication = await m_nodeManagerLifecycle
                         .BeginInitialPublicationAsync(
@@ -4801,18 +4805,6 @@ namespace Opc.Ua.Server
             }
 
             m_preStartIdentityAugmenters.Add(augmenter);
-        }
-
-        /// <inheritdoc/>
-        protected override async ValueTask OnServerStartedAsync(
-            CancellationToken cancellationToken = default)
-        {
-            await base.OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
-            await m_nodeManagerLifecycle
-                .AdoptStartupNodeManagersAsync(
-                    CurrentInstance,
-                    cancellationToken)
-                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -5409,7 +5401,7 @@ namespace Opc.Ua.Server
             MasterNodeManager? master = null;
             try
             {
-                master = new MasterNodeManager(server, configuration, null, [], null)
+                master = new MasterNodeManager(server, configuration, null)
                 {
                     InitialFactories = initialFactories
                 };

@@ -32,6 +32,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -864,21 +865,32 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// A server exposing the benchmark contract in addition to the standard nodes.
     /// </summary>
-    internal sealed class BenchmarkContractServer : StandardServer
+    internal sealed class BenchmarkContractServer : StandardServer, IAsyncNodeManagerFactory
     {
         public BenchmarkContractServer(ITelemetryContext telemetry, bool asyncNodeManager)
             : base(telemetry)
         {
             m_asyncNodeManager = asyncNodeManager;
+            AddNodeManager(this);
         }
 
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        /// <inheritdoc/>
+        ArrayOf<string> IAsyncNodeManagerFactory.NamespacesUris => [NativeWorkerBenchmark.ContractServerUri];
+
+        /// <inheritdoc/>
+        // TODO: Remove when CA2000 recognizes lifecycle ownership through ValueTask<IAsyncNodeManager>.
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "Canonical lifecycle preparation takes ownership of the returned manager and its adapter.")]
+        ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken)
         {
-            return m_asyncNodeManager
-                ? new MasterNodeManager(server, configuration, null, new AsyncBenchmarkContractNodeManager(server, configuration))
-                : new MasterNodeManager(server, configuration, null, new BenchmarkContractNodeManager(server, configuration));
+            cancellationToken.ThrowIfCancellationRequested();
+            IAsyncNodeManager manager = m_asyncNodeManager
+                ? new AsyncBenchmarkContractNodeManager(server, configuration)
+                : new BenchmarkContractNodeManager(server, configuration).ToAsyncNodeManager();
+            return new ValueTask<IAsyncNodeManager>(manager);
         }
 
         private readonly bool m_asyncNodeManager;

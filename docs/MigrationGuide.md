@@ -149,6 +149,13 @@ Move serving-service registrations, such as historian builder/provider bindings,
 `INodeManagerReadinessNotification.OnServerReadyAsync`; this callback runs after publication and
 runtime initialization and is awaited before startup succeeds.
 
+The `MasterNodeManager` constructors accepting preconstructed managers are obsolete.
+They remain available for standalone dispatch, but hosted startup rejects preconstructed
+applications instead of adopting them after construction. Use the three-argument constructor
+and assign `InitialFactories`, or register factories through `AddNodeManager`. A factory must
+construct its manager against the supplied server; it must not return an instance constructed
+earlier against the serving metadata.
+
 See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 
 Unresolved monitored items are no longer parked on the Core manager. `IMonitoredItem.NodeManager`

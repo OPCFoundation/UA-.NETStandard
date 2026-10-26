@@ -46,18 +46,33 @@ namespace Opc.Ua.Server
         IDynamicNodeManagerHost
     {
         /// <summary>
+        /// Creates the system slots. Register hosted application managers through <see cref="InitialFactories"/>.
+        /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic namespace URI, or null.</param>
+        public MasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri)
+            : this(server, configuration, dynamicNamespaceUri, (null, null))
+        {
+        }
+
+        /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         /// <param name="server">The server hosting the NodeManagers.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
         /// <param name="additionalManagers">The synchronous NodeManagers to add.</param>
+        [Obsolete("Preconstructed managers support standalone dispatch only. Use InitialFactories for hosted managers.")]
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri,
             params INodeManager[] additionalManagers)
-            : this(server, configuration, dynamicNamespaceUri, null, additionalManagers)
+            : this(server, configuration, dynamicNamespaceUri, (null, additionalManagers))
         {
         }
 
@@ -68,12 +83,13 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The application configuration.</param>
         /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
         /// <param name="additionalManagers">The asynchronous NodeManagers to add.</param>
+        [Obsolete("Preconstructed managers support standalone dispatch only. Use InitialFactories for hosted managers.")]
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri,
             params IAsyncNodeManager[] additionalManagers)
-            : this(server, configuration, dynamicNamespaceUri, additionalManagers, null)
+            : this(server, configuration, dynamicNamespaceUri, (additionalManagers, null))
         {
         }
 
@@ -85,12 +101,29 @@ namespace Opc.Ua.Server
         /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
         /// <param name="additionalManagers">The asynchronous NodeManagers to add, or <c>null</c>.</param>
         /// <param name="additionalSyncManagers">The synchronous NodeManagers to add, or <c>null</c>.</param>
+        [Obsolete("Preconstructed managers support standalone dispatch only. Use InitialFactories for hosted managers.")]
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri,
             IEnumerable<IAsyncNodeManager>? additionalManagers,
             IEnumerable<INodeManager>? additionalSyncManagers)
+            : this(server, configuration, dynamicNamespaceUri, (additionalManagers, additionalSyncManagers))
+        {
+        }
+
+        /// <summary>
+        /// Initializes system routing and optional standalone compatibility managers.
+        /// </summary>
+        /// <param name="server">The hosting server.</param>
+        /// <param name="configuration">The server configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic namespace URI, or null.</param>
+        /// <param name="additionalManagers">Preconstructed managers for standalone dispatch only.</param>
+        private MasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            (IEnumerable<IAsyncNodeManager>? Async, IEnumerable<INodeManager>? Sync) additionalManagers)
         {
             if (configuration == null)
             {
@@ -151,26 +184,22 @@ namespace Opc.Ua.Server
             namespaceManagers[1].Add(coreNodeManager);
 
             // add the custom NodeManagers provided by the application.
-            if (additionalManagers != null)
+            if (additionalManagers.Async != null)
             {
-                foreach (IAsyncNodeManager nodeManager in additionalManagers)
+                foreach (IAsyncNodeManager nodeManager in additionalManagers.Async)
                 {
                     RegisterNodeManager(nodeManager, registeredManagers, namespaceManagers);
-                    m_startupApplicationNodeManagers.Add(
-                        new StartupNodeManagerState(nodeManager));
                 }
             }
-            if (additionalSyncManagers != null)
+            if (additionalManagers.Sync != null)
             {
-                foreach (INodeManager nodeManager in additionalSyncManagers)
+                foreach (INodeManager nodeManager in additionalManagers.Sync)
                 {
                     IAsyncNodeManager asyncNodeManager = nodeManager.ToAsyncNodeManager();
                     RegisterNodeManager(
                         asyncNodeManager,
                         registeredManagers,
                         namespaceManagers);
-                    m_startupApplicationNodeManagers.Add(
-                        new StartupNodeManagerState(asyncNodeManager));
                 }
             }
 
@@ -355,6 +384,18 @@ namespace Opc.Ua.Server
         public ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; init; } = [];
 
         /// <inheritdoc/>
+        void IDynamicNodeManagerHost.ValidateStartupFactories()
+        {
+            if (m_nodeManagers.Any(manager =>
+                !ReferenceEquals(manager, m_configurationSlot.Current?.NodeManager) &&
+                !ReferenceEquals(manager, m_coreSlot.Current?.NodeManager)))
+            {
+                throw new InvalidOperationException(
+                    "Hosted application NodeManagers must be registered through InitialFactories, not preconstructed.");
+            }
+        }
+
+        /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -369,23 +410,10 @@ namespace Opc.Ua.Server
 
                 foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
                 {
-                    StartupNodeManagerState? startupState =
-                        FindStartupApplicationNodeManager(nodeManager);
-                    Dictionary<NodeId, Dictionary<IReference, int>>? referencesBefore =
-                        startupState is null
-                            ? null
-                            : SnapshotExternalReferences(externalReferences);
                     try
                     {
                         await nodeManager.CreateAddressSpaceAsync(externalReferences, cancellationToken)
                             .ConfigureAwait(false);
-                        if (startupState is not null)
-                        {
-                            startupState.ExternalReferences =
-                                CaptureAddedExternalReferences(
-                                    referencesBefore!,
-                                    externalReferences);
-                        }
                     }
                     catch (Exception e)
                     {
@@ -423,7 +451,7 @@ namespace Opc.Ua.Server
                 // Startup gets away with collecting first and applying second, so
                 // order does not matter here; the dynamic path has no such second
                 // phase and replays these instead.
-                m_startupExternalReferences = externalReferences;
+                m_foundationExternalReferences = externalReferences;
             }
             finally
             {
@@ -771,79 +799,6 @@ namespace Opc.Ua.Server
                 }
                 ((IDynamicNodeManagerHost)this).Release(
                     prepared.NodeManager);
-            }
-        }
-
-        async ValueTask<ArrayOf<PreparedNodeManager>>
-            IDynamicNodeManagerHost.TakeStartupNodeManagersAsync(
-                CancellationToken ct)
-        {
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (m_startupApplicationNodeManagersTransferred)
-                {
-                    throw new InvalidOperationException(
-                        "Startup NodeManager ownership has already been transferred.");
-                }
-                if (m_startupExternalReferences is null)
-                {
-                    throw new InvalidOperationException(
-                        "The startup address space has not been created.");
-                }
-
-                foreach (StartupNodeManagerState state in m_startupApplicationNodeManagers)
-                {
-                    if (state.ExternalReferences is null)
-                    {
-                        throw new InvalidOperationException(
-                            "Startup NodeManager external-reference ownership was not captured.");
-                    }
-                    if (m_dynamicExternalReferences.ContainsKey(state.NodeManager))
-                    {
-                        throw new InvalidOperationException(
-                            "A startup NodeManager is already owned by the live lifecycle provider.");
-                    }
-                }
-
-                Dictionary<NodeId, IList<IReference>> retainedStartupReferences =
-                    CloneExternalReferences(m_startupExternalReferences);
-                var prepared =
-                    new PreparedNodeManager[m_startupApplicationNodeManagers.Count];
-
-                for (int ii = 0; ii < m_startupApplicationNodeManagers.Count; ii++)
-                {
-                    StartupNodeManagerState state = m_startupApplicationNodeManagers[ii];
-                    Dictionary<NodeId, IList<IReference>> externalReferences =
-                        state.ExternalReferences!;
-                    RemoveExternalReferences(
-                        retainedStartupReferences,
-                        externalReferences);
-                    prepared[ii] = new PreparedNodeManager(
-                        state.NodeManager,
-                        externalReferences)
-                    {
-                        Generation = m_nodeManagers.GetGeneration(state.NodeManager),
-                        Published = true
-                    };
-                }
-
-                for (int ii = 0; ii < prepared.Length; ii++)
-                {
-                    PreparedNodeManager nodeManager = prepared[ii];
-                    m_dynamicExternalReferences.Add(
-                        nodeManager.NodeManager,
-                        nodeManager.ExternalReferences);
-                }
-
-                m_startupExternalReferences = retainedStartupReferences;
-                m_startupApplicationNodeManagers.Clear();
-                m_startupApplicationNodeManagersTransferred = true;
-                return new ArrayOf<PreparedNodeManager>(prepared);
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
             }
         }
 
@@ -1330,124 +1285,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private StartupNodeManagerState? FindStartupApplicationNodeManager(
-            IAsyncNodeManager nodeManager)
-        {
-            foreach (StartupNodeManagerState state in m_startupApplicationNodeManagers)
-            {
-                if (ReferenceEquals(state.NodeManager, nodeManager))
-                {
-                    return state;
-                }
-            }
-            return null;
-        }
-
-        private static Dictionary<NodeId, Dictionary<IReference, int>>
-            SnapshotExternalReferences(
-                IDictionary<NodeId, IList<IReference>> externalReferences)
-        {
-            var snapshot =
-                new Dictionary<NodeId, Dictionary<IReference, int>>();
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
-            {
-                var references = new Dictionary<IReference, int>(
-                    entry.Value.Count,
-                    ReferenceEqualityComparer.Default);
-                foreach (IReference reference in entry.Value)
-                {
-                    // Freeze values before the next manager can mutate a contributed reference.
-                    var frozen = new NodeStateReference(
-                        reference.ReferenceTypeId,
-                        reference.IsInverse,
-                        reference.TargetId);
-                    references.TryGetValue(frozen, out int count);
-                    references[frozen] = count + 1;
-                }
-                snapshot.Add(entry.Key, references);
-            }
-            return snapshot;
-        }
-
-        private static Dictionary<NodeId, IList<IReference>>
-            CaptureAddedExternalReferences(
-                Dictionary<NodeId, Dictionary<IReference, int>> before,
-                IDictionary<NodeId, IList<IReference>> after)
-        {
-            var additions = new Dictionary<NodeId, IList<IReference>>();
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in after)
-            {
-                before.TryGetValue(
-                    entry.Key,
-                    out Dictionary<IReference, int>? previous);
-
-                foreach (IReference reference in entry.Value)
-                {
-                    if (previous is not null &&
-                        previous.TryGetValue(reference, out int count) &&
-                        count > 0)
-                    {
-                        previous[reference] = count - 1;
-                        continue;
-                    }
-
-                    if (!additions.TryGetValue(
-                        entry.Key,
-                        out IList<IReference>? added))
-                    {
-                        additions.Add(entry.Key, added = []);
-                    }
-                    added.Add(reference);
-                }
-            }
-            return additions;
-        }
-
-        private static Dictionary<NodeId, IList<IReference>> CloneExternalReferences(
-            IDictionary<NodeId, IList<IReference>> source)
-        {
-            var clone = new Dictionary<NodeId, IList<IReference>>();
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in source)
-            {
-                clone.Add(entry.Key, new List<IReference>(entry.Value));
-            }
-            return clone;
-        }
-
-        private static void RemoveExternalReferences(
-            Dictionary<NodeId, IList<IReference>> retained,
-            Dictionary<NodeId, IList<IReference>> owned)
-        {
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in owned)
-            {
-                if (!retained.TryGetValue(
-                    entry.Key,
-                    out IList<IReference>? retainedReferences))
-                {
-                    continue;
-                }
-
-                foreach (IReference reference in entry.Value)
-                {
-                    for (int ii = 0; ii < retainedReferences.Count; ii++)
-                    {
-                        if (ReferenceEqualityComparer.Default.Equals(
-                            retainedReferences[ii],
-                            reference))
-                        {
-                            retainedReferences.RemoveAt(ii);
-                            break;
-                        }
-                    }
-                }
-
-                if (retainedReferences.Count == 0)
-                {
-                    retained.Remove(entry.Key);
-                }
-            }
-        }
-
         private async ValueTask RemoveExternalReferencesAsync(
             Dictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken ct)
@@ -1595,18 +1432,6 @@ namespace Opc.Ua.Server
             private readonly SourceEmissionOrigin m_origin;
         }
 
-        private sealed class StartupNodeManagerState
-        {
-            public StartupNodeManagerState(IAsyncNodeManager nodeManager)
-            {
-                NodeManager = nodeManager;
-            }
-
-            public IAsyncNodeManager NodeManager { get; }
-
-            public Dictionary<NodeId, IList<IReference>>? ExternalReferences { get; set; }
-        }
-
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
@@ -1627,17 +1452,14 @@ namespace Opc.Ua.Server
         private int m_shutdownCompletedNodeManagerCount;
         private readonly List<IAsyncNodeManager> m_preparingNodeManagers = [];
         private readonly Lock m_preparingNodeManagersLock = new();
-        private readonly List<StartupNodeManagerState>
-            m_startupApplicationNodeManagers = [];
         private volatile Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = [];
-        private Dictionary<NodeId, IList<IReference>>? m_startupExternalReferences;
+        private Dictionary<NodeId, IList<IReference>>? m_foundationExternalReferences;
 
         private readonly Lock m_retiringEventGenerationsLock = new();
         private NodeManagerGeneration[] m_retiringEventGenerations = [];
         private volatile Action? m_retiredGenerationDrainObserver;
 
-        private bool m_startupApplicationNodeManagersTransferred;
         private bool m_disposed;
 
         /// <summary>

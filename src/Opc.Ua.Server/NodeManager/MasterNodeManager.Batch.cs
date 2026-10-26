@@ -584,9 +584,9 @@ namespace Opc.Ua.Server
                 IEnumerable<Dictionary<NodeId, IList<IReference>>> references)
             {
                 var result = new Dictionary<NodeId, ReferenceDictionary<bool>>();
-                if (m_startupExternalReferences is { } startup)
+                if (m_foundationExternalReferences is { } foundation)
                 {
-                    Add(startup);
+                    Add(foundation);
                 }
                 foreach (Dictionary<NodeId, IList<IReference>> source in references)
                 {

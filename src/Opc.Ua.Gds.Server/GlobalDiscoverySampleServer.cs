@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Server
             MasterNodeManager? master = null;
             try
             {
-                master = new MasterNodeManager(server, configuration, null, [], null)
+                master = new MasterNodeManager(server, configuration, null)
                 {
                     InitialFactories =
                     [

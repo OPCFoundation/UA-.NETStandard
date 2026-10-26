@@ -771,7 +771,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 MasterNodeManager? master = null;
                 try
                 {
-                    master = new MasterNodeManager(server, configuration, null, [], null)
+                    master = new MasterNodeManager(server, configuration, null)
                     {
                         InitialFactories = factories.ToArrayOf()
                     };
