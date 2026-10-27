@@ -40,6 +40,7 @@ using System.Xml.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema;
+using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Server.Tests.RuntimeNodeSet;
@@ -48,6 +49,102 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Keeps alias-store registration private until readiness and removes it after retirement.
+        /// </summary>
+        /// <param name="publish">Whether the candidate is published or abandoned.</param>
+        /// <param name="register">Whether the manager registers its store with the server.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task PreparedAliasRegistrationFollowsPublicationAsync(bool publish, bool register)
+        {
+            using var store = new InMemoryAliasNameStore([]);
+            IAliasNameStoreRegistry registry =
+                ((IAliasNameStoreRegistryProvider)m_server.CurrentInstance).AliasNameStoreRegistry;
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal staged, ApplicationConfiguration configuration, CancellationToken _) =>
+                    new ValueTask<IAsyncNodeManager>(new AliasNameNodeManager(staged, configuration, store,
+                        new AliasNameNodeManagerOptions
+                        {
+                            NamespaceUri = kModelNamespaceUri + ":alias",
+                            RegisterWithServerRegistry = register,
+                            MaterializeAliasNodes = false,
+                            RefreshAliasNodesOnChange = false
+                        })));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            NodeManagerRegistration? registration = null;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)]).ConfigureAwait(false))
+            {
+                Assert.That(registry.Stores, Does.Not.Contain(store));
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    registration = result.Registrations[0];
+                    Assert.That(registry.Stores.Contains(store), Is.EqualTo(register));
+                }
+            }
+            if (registration is not null)
+            {
+                await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration)]).ConfigureAwait(false);
+                NodeManagerBatchResult result = await removal.CommitAsync(_ => default).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                await result.Retirement.ConfigureAwait(false);
+            }
+            Assert.That(registry.Stores, Does.Not.Contain(store));
+        }
+
+        /// <summary>
+        /// Hosts the alias manager through an initial factory without accessing registries during construction.
+        /// </summary>
+        /// <param name="register">Whether readiness registers the store with the server.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InitialAliasFactoryRegistersAtReadinessAsync(bool register)
+        {
+            using var store = new InMemoryAliasNameStore([]);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal staged, ApplicationConfiguration configuration, CancellationToken _) =>
+                    new ValueTask<IAsyncNodeManager>(new AliasNameNodeManager(staged, configuration, store,
+                        new AliasNameNodeManagerOptions
+                        {
+                            RegisterWithServerRegistry = register,
+                            MaterializeAliasNodes = false,
+                            RefreshAliasNodesOnChange = false
+                        })));
+            var fixture = new ServerFixture<LifecycleTestServer>(telemetry =>
+            {
+                var server = new LifecycleTestServer(telemetry);
+                server.AddNodeManager(factory.Object);
+                return server;
+            })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            try
+            {
+                LifecycleTestServer server = await fixture.StartAsync(Path.Combine(m_pkiRoot, "initial-alias"))
+                    .ConfigureAwait(false);
+                IAliasNameStoreRegistry registry =
+                    ((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry;
+                Assert.That(registry.Stores.Contains(store), Is.EqualTo(register));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// A private candidate changes serving routes only at publication, never during preparation or abandonment.
         /// </summary>

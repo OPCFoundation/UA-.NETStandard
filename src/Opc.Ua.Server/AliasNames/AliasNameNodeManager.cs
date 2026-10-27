@@ -81,7 +81,8 @@ namespace Opc.Ua.Server.AliasNames
     /// to opt out.
     /// </para>
     /// </remarks>
-    public class AliasNameNodeManager : AsyncCustomNodeManager, IAliasNameMaterializerHost
+    public class AliasNameNodeManager :
+        AsyncCustomNodeManager, IAliasNameMaterializerHost, INodeManagerReadinessNotification
     {
         /// <summary>
         /// Initializes a new instance.
@@ -104,7 +105,6 @@ namespace Opc.Ua.Server.AliasNames
             Store = store ?? throw new ArgumentNullException(nameof(store));
             Options = options ?? new AliasNameNodeManagerOptions();
             m_aliasLogger = server.Telemetry.CreateLogger<AliasNameNodeManager>();
-            m_registry = ResolveServerRegistry(server);
             m_localCategoryDispatcher = new AliasNameStoreRegistry();
             m_localCategoryDispatcher.Register(Store);
             m_materializer = new AliasNameNodeMaterializer(
@@ -154,21 +154,31 @@ namespace Opc.Ua.Server.AliasNames
 
             m_aliasLogger.MaterializedAliasNameNodes(created.Count);
 
-            if (Options.RegisterWithServerRegistry && m_registry != null)
-            {
-                try
-                {
-                    m_registry.Register(Store);
-                    m_registeredWithServer = true;
-                }
-                catch (InvalidOperationException ex)
-                {
-                    m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
-                }
-            }
-
             Store.Changed += OnStoreChanged;
             m_aliasRefresh?.RequestRefresh();
+        }
+
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Options.RegisterWithServerRegistry && !m_registeredWithServer)
+            {
+                m_registry = ResolveServerRegistry(Server);
+                if (m_registry is not null)
+                {
+                    try
+                    {
+                        m_registry.Register(Store);
+                        m_registeredWithServer = true;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        m_aliasLogger.AliasNameStoreCouldNotBeRegisteredWithThe(ex);
+                    }
+                }
+            }
+            return default;
         }
 
         /// <inheritdoc/>
@@ -348,7 +358,6 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         private readonly ILogger m_aliasLogger;
-        private readonly IAliasNameStoreRegistry? m_registry;
         private readonly AliasNameNodeMaterializer m_materializer;
         private readonly AliasNameRefreshCoordinator? m_aliasRefresh;
 
@@ -358,6 +367,9 @@ namespace Opc.Ua.Server.AliasNames
         /// server does not implement IAliasNameStoreRegistryProvider.
         /// </summary>
         private readonly AliasNameStoreRegistry m_localCategoryDispatcher;
+
+        /// <summary>The server registry resolved after publication, when registration is enabled.</summary>
+        private IAliasNameStoreRegistry? m_registry;
         private bool m_registeredWithServer;
         private readonly Lock m_lock = new();
     }

@@ -133,18 +133,31 @@ their aliases must also be browsable.
 
 ### Quick start — application-defined categories
 
-`AliasNameNodeManager` is a `CustomNodeManager2` that owns a namespace
-and creates its own category tree from the store's
-`RootCategories`. Add it to your server's node-manager list:
+`AliasNameNodeManager` is an `AsyncCustomNodeManager` that owns a namespace
+and creates its category tree from the store's `RootCategories`.
+Register an `IAsyncNodeManagerFactory`, not a preconstructed manager:
 
 ```csharp
-var myRoot = new AliasNameCategoryDescriptor(
-    new NodeId("My/Category", myNamespaceIndex),
-    new QualifiedName("My/Category", myNamespaceIndex),
-    AliasNameCapabilities.All);            // expose every optional method
-var store = new InMemoryAliasNameStore([myRoot]);
-nodeManagers.Add(new AliasNameNodeManager(server, configuration, store));
+server.AddNodeManager(aliasNameFactory);
 ```
+
+The factory's `CreateAsync` returns the manager using its supplied candidate
+server, configuration, and application-owned store:
+
+```csharp
+return new ValueTask<IAsyncNodeManager>(
+    new AliasNameNodeManager(server, configuration, store,
+        new AliasNameNodeManagerOptions { NamespaceUri = "urn:my:aliasnames" }));
+```
+
+Declare that URI in the factory's `NamespacesUris` and use its index in the
+candidate's `server.NamespaceUris` for category NodeIds and browse names.
+Preparation builds the private category tree without accessing the server-wide
+registry. `OnServerReadyAsync` registers the store after publication when
+`RegisterWithServerRegistry` is enabled; retirement unregisters it.
+The application retains ownership of the store.
+Custom hosts that construct the manager directly must invoke
+`OnServerReadyAsync` after address-space creation and server initialization.
 
 Options:
 
