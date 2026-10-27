@@ -103,17 +103,29 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                         inboundPublisherIds.Add(publisherId);
                     }
                     ushort? writerGroupId = reader.WriterGroupId == 0 ? null : reader.WriterGroupId;
-                    foreach (byte networkMessageType in DataChannelPubSubRoute.NetworkMessageTypes)
+                    AddInboundAssociation(
+                        inboundAssociations,
+                        publisherId,
+                        writerGroupId,
+                        reader.DataSetWriterId,
+                        DataChannelPubSubRoute.DataSetNetworkMessageType,
+                        null);
+                    AddInboundAssociation(
+                        inboundAssociations,
+                        publisherId,
+                        writerGroupId,
+                        reader.DataSetWriterId,
+                        DataChannelPubSubRoute.DiscoveryResponseNetworkMessageType,
+                        null);
+                    foreach (byte discoveryType in DataChannelPubSubRoute.DiscoveryRequestTypes)
                     {
-                        var association = new DataChannelPubSubRoute(
+                        AddInboundAssociation(
+                            inboundAssociations,
                             publisherId,
                             writerGroupId,
                             reader.DataSetWriterId,
-                            networkMessageType);
-                        if (!inboundAssociations.Contains(association))
-                        {
-                            inboundAssociations.Add(association);
-                        }
+                            DataChannelPubSubRoute.DiscoveryRequestNetworkMessageType,
+                            discoveryType);
                     }
                 }
             }
@@ -150,8 +162,32 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
 
         /// <summary>
         /// Gets the distinct configured inbound UADP source, writer and NetworkMessageType associations.
+        /// Discovery requests also include a subtype selector.
         /// </summary>
         internal ArrayOf<DataChannelPubSubRoute> InboundAssociations { get; }
+
+        /// <summary>
+        /// Adds one source and message-class route unless an identical reader association is already present.
+        /// </summary>
+        private static void AddInboundAssociation(
+            List<DataChannelPubSubRoute> associations,
+            Variant publisherId,
+            ushort? writerGroupId,
+            ushort dataSetWriterId,
+            byte networkMessageType,
+            byte? discoveryType)
+        {
+            var association = new DataChannelPubSubRoute(
+                publisherId,
+                writerGroupId,
+                dataSetWriterId,
+                networkMessageType,
+                discoveryType);
+            if (!associations.Contains(association))
+            {
+                associations.Add(association);
+            }
+        }
 
         private static DataChannelParametersDataType GetConfiguredParameters(
             PubSubConnectionDataType connection)
@@ -173,16 +209,18 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <param name="WriterGroupId">The expected WriterGroupId, or null when any group is accepted.</param>
     /// <param name="DataSetWriterId">The expected DataSetWriterId.</param>
     /// <param name="NetworkMessageType">The expected NetworkMessageType.</param>
+    /// <param name="DiscoveryType">The expected discovery subtype, or null when any subtype is accepted.</param>
     internal readonly record struct DataChannelPubSubRoute(
         Variant PublisherId,
         ushort? WriterGroupId,
         ushort DataSetWriterId,
-        byte NetworkMessageType)
+        byte NetworkMessageType,
+        byte? DiscoveryType)
     {
-        internal static ReadOnlySpan<byte> NetworkMessageTypes =>
-            [DataSetNetworkMessageType, DiscoveryResponseNetworkMessageType];
+        internal static ReadOnlySpan<byte> DiscoveryRequestTypes => [1, 2, 3, 4, 5, 6];
 
-        private const byte DataSetNetworkMessageType = 0;
-        private const byte DiscoveryResponseNetworkMessageType = 2;
+        internal const byte DataSetNetworkMessageType = 0;
+        internal const byte DiscoveryRequestNetworkMessageType = 1;
+        internal const byte DiscoveryResponseNetworkMessageType = 2;
     }
 }

@@ -119,7 +119,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                                 association.PublisherId,
                                 association.WriterGroupId,
                                 association.DataSetWriterId,
-                                association.NetworkMessageType));
+                                association.NetworkMessageType,
+                                association.DiscoveryType));
                         }
                     }
                     catch

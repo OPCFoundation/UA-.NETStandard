@@ -418,8 +418,13 @@ The PubSub mapping requires UADP; JSON NetworkMessages are not supported on
 Data Channels. The carrier URI cannot choose the encoding. One complete
 encoded NetworkMessage is one flow payload, with every byte preserved.
 ChannelId never replaces PublisherId, WriterGroupId, DataSetWriterId or
-NetworkMessageType. PubSub reader routes associate data
-NetworkMessages and discovery responses with their configured writer identity.
+NetworkMessageType. PubSub reader routes associate ordinary DataSet
+NetworkMessages and writer-addressable discovery responses with their
+configured writer identity. Discovery requests and publisher-only responses
+use the configured PublisherId and NetworkMessageType. Discovery requests
+also require a visible subtype. Publisher-only responses are admitted only
+when the PublisherId selects one configured resource; ambiguous matches are
+rejected.
 Multiple writers can share an authorized flow; different resource permissions,
 delivery contracts or lifetimes need separate flows.
 
@@ -733,15 +738,18 @@ or empty test run is not native acceptance.
   DataSetWriterId resolves to the same resource; unmatched or ambiguous traffic
   is rejected rather than routed by arrival order. Metadata and
   writer-configuration discovery bodies are also
-  matched when they expose DataSetWriterIds. Reader-derived routes do not admit
-  discovery requests or PublisherEndpoints responses without writer IDs.
-  Callers can register explicit PublisherId, NetworkMessageType and optional
-  discovery-subtype selectors for those messages. Subtype selectors apply only
-  to discovery NetworkMessageTypes 1 and 2. Request subtype values 1–6 identify
-  PublisherEndpoints, DataSetMetaData, DataSetWriterConfiguration,
-  ApplicationInformation, PubSubConnection and Probe, in that order. Response
-  subtype values are 1–5; Probe has no response subtype. A secured header hides
-  the subtype;
+  matched when they expose DataSetWriterIds. Reader-derived routes include all
+  six discovery request subtypes, selected by PublisherId, NetworkMessageType
+  and visible subtype; writer selectors remain for requests that expose writer
+  identities. Publisher-only responses use the configured PublisherId and
+  NetworkMessageType when they select one resource; ambiguous matches are
+  rejected. Metadata and writer-configuration responses retain writer-based
+  matching. Callers can register additional explicit PublisherId,
+  NetworkMessageType and discovery-subtype selectors. Request
+  subtype values 1–6 identify PublisherEndpoints, DataSetMetaData,
+  DataSetWriterConfiguration, ApplicationInformation, PubSubConnection and
+  Probe, in that order. Response subtype values are 1–5; Probe has no response
+  subtype. A secured header hides the subtype;
   when a matching subtype-specific association exists, the context rejects that
   message instead of falling back to a broader route. The
   [UASC discovery routing tests](../tests/Opc.Ua.Core.DataChannels.Tests/Runtime/FlowDeliveryTests.cs)

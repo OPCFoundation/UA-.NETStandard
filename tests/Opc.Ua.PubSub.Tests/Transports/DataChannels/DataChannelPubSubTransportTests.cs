@@ -1148,7 +1148,30 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     Assert.That(metadataMessage.MessageId, Is.EqualTo(2));
                 });
 
-                await received.DisposeAsync().ConfigureAwait(false);
+                ByteString discoveryRequest = ByteString.FromHexString("918204291d01000200000000");
+                await sender.SendAsync(discoveryRequest,
+                    cancellationToken: TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                using DataChannelMessage? requestMessage = await received.Channel.ReadAsync(
+                    TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(requestMessage, Is.Not.Null);
+                    Assert.That(requestMessage!.Payload, Is.EqualTo(discoveryRequest));
+                    Assert.That(requestMessage.MessageId, Is.EqualTo(3));
+                });
+
+                ByteString publisherEndpoints = ByteString.FromHexString("918208291d010001010000000000000000");
+                await sender.SendAsync(publisherEndpoints,
+                    cancellationToken: TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                using DataChannelMessage? responseMessage = await received.Channel.ReadAsync(
+                    TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(responseMessage, Is.Not.Null);
+                    Assert.That(responseMessage!.Payload, Is.EqualTo(publisherEndpoints));
+                    Assert.That(responseMessage.MessageId, Is.EqualTo(4));
+                });
+
                 await received.DisposeAsync().ConfigureAwait(false);
                 using IDisposable replacement = core.Right.RegisterUascPublisherRoute(
                     "urn:test:pubsub:replacement", new Variant(73001u));

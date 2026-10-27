@@ -381,14 +381,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     new Variant(73001u),
                     new Variant("73001")
                 }));
-                Assert.That(request.InboundAssociations.ToArray(), Is.EqualTo(new[]
-                {
-                    new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 0),
-                    new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 2),
-                    new DataChannelPubSubRoute(new Variant("73001"), 18, 102, 0),
-                    new DataChannelPubSubRoute(new Variant("73001"), 18, 102, 2)
-                }));
+                Assert.That(request.InboundAssociations.ToArray(), Has.Length.EqualTo(16));
             });
+            AssertReaderAssociations(request.InboundAssociations, new Variant(73001u), 17, 101);
+            AssertReaderAssociations(request.InboundAssociations, new Variant("73001"), 18, 102);
         }
 
         [TestCase("opc.quic://uafx.example:4840")]
@@ -1455,17 +1451,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             firstReader.DataSetWriterId = 999;
             connection.ReaderGroups = [];
 
-            Assert.That(request.InboundAssociations.ToArray(), Is.EqualTo(new[]
-            {
-                new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 0),
-                new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 2),
-                new DataChannelPubSubRoute(new Variant(73001u), 17, 102, 0),
-                new DataChannelPubSubRoute(new Variant(73001u), 17, 102, 2),
-                new DataChannelPubSubRoute(new Variant(73001u), 18, 101, 0),
-                new DataChannelPubSubRoute(new Variant(73001u), 18, 101, 2),
-                new DataChannelPubSubRoute(Variant.Null, null, 103, 0),
-                new DataChannelPubSubRoute(Variant.Null, null, 103, 2)
-            }));
+            Assert.That(request.InboundAssociations.ToArray(), Has.Length.EqualTo(32));
+            AssertReaderAssociations(request.InboundAssociations, new Variant(73001u), 17, 101);
+            AssertReaderAssociations(request.InboundAssociations, new Variant(73001u), 17, 102);
+            AssertReaderAssociations(request.InboundAssociations, new Variant(73001u), 18, 101);
+            AssertReaderAssociations(request.InboundAssociations, Variant.Null, null, 103);
         }
 
         [Test]
@@ -1536,6 +1526,36 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(connection.ReaderGroups[0].DataSetReaders[0].PublisherId,
                     Is.EqualTo(new Variant(73001u)));
             });
+        }
+
+        private static void AssertReaderAssociations(
+            ArrayOf<DataChannelPubSubRoute> inboundAssociations,
+            Variant publisherId,
+            ushort? writerGroupId,
+            ushort dataSetWriterId)
+        {
+            DataChannelPubSubRoute[] associations = inboundAssociations.ToArray()
+                ?? throw new InvalidOperationException("The receive association snapshot must not be null.");
+            Assert.That(
+                associations,
+                Does.Contain(new DataChannelPubSubRoute(publisherId, writerGroupId, dataSetWriterId, 0, null)));
+            Assert.That(
+                associations,
+                Does.Contain(new DataChannelPubSubRoute(publisherId, writerGroupId, dataSetWriterId, 2, null)));
+            foreach (byte discoveryType in new byte[] { 1, 2, 3, 4, 5, 6 })
+            {
+                Assert.That(
+                    associations,
+                    Does.Contain(new DataChannelPubSubRoute(
+                        publisherId, writerGroupId, dataSetWriterId, 1, discoveryType)));
+            }
+            foreach (byte discoveryType in new byte[] { 1, 2, 3, 4, 5 })
+            {
+                Assert.That(
+                    associations,
+                    Does.Not.Contain(new DataChannelPubSubRoute(
+                        publisherId, writerGroupId, dataSetWriterId, 2, discoveryType)));
+            }
         }
     }
 }
