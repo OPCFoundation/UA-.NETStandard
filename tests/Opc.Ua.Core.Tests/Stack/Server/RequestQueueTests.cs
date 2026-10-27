@@ -262,6 +262,37 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// Before start a null request is rejected like the queue rejects it.
+        /// </summary>
+        [Test]
+        public void NullRequestBeforeStartThrows()
+        {
+            using var server = new TestServer();
+
+            Assert.Throws<ArgumentNullException>(() => server.ScheduleIncomingRequest(null!));
+        }
+
+        /// <summary>
+        /// A completion callback that throws while a request is halted before start does
+        /// not escape to the transport that scheduled the request.
+        /// </summary>
+        [Test]
+        public void FaultingCompletionBeforeStartIsContained()
+        {
+            using var server = new TestServer();
+            var request = new Mock<IEndpointIncomingRequest>();
+            request
+                .Setup(value => value.OperationCompleted(It.IsAny<IServiceResponse?>(), It.IsAny<ServiceResult>()))
+                .Throws(new InvalidOperationException("completion failed"));
+
+            Assert.DoesNotThrow(() => server.ScheduleIncomingRequest(request.Object));
+            request.Verify(
+                value => value.OperationCompleted(
+                    null, It.Is<ServiceResult>(error => error.StatusCode == StatusCodes.BadServerHalted)),
+                Times.Once);
+        }
+
+        /// <summary>
         /// The queue's worker counts are not applied to the process-wide ThreadPool.
         /// </summary>
         [Test]
