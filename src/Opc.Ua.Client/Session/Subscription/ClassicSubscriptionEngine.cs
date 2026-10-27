@@ -574,13 +574,10 @@ namespace Opc.Ua.Client
                 // ignore errors if reconnecting
                 if (m_context.Reconnecting)
                 {
-                    if (acknowledgementsToSend != null && Acknowledgements != null)
+                    if (Acknowledgements != null)
                     {
                         // Tracked acknowledgements end exactly once; send them after the reconnect.
-                        lock (m_acknowledgementsToSendLock)
-                        {
-                            m_acknowledgementsToSend.AddRange(acknowledgementsToSend);
-                        }
+                        RequeueFailedAcknowledgements(acknowledgementsToSend);
                     }
                     m_logger.PublishAbandonedAfterErrorMessageSession(
                         e.Message,
@@ -611,14 +608,7 @@ namespace Opc.Ua.Client
 
                 // try to acknowledge the notifications again in
                 // the next publish.
-                if (acknowledgementsToSend != null)
-                {
-                    lock (m_acknowledgementsToSendLock)
-                    {
-                        m_acknowledgementsToSend.AddRange(
-                            acknowledgementsToSend);
-                    }
-                }
+                RequeueFailedAcknowledgements(acknowledgementsToSend);
 
                 // don't send another publish for these errors,
                 // or throttle to avoid server overload.
@@ -1399,6 +1389,78 @@ namespace Opc.Ua.Client
                 }
                 AcknowledgementScope current = owner.GetAcknowledgementScope();
                 return current.Generation == scope.Generation && current.SubscriptionId == scope.SubscriptionId;
+            }
+        }
+
+        /// <summary>
+        /// Ends the tracked acknowledgements, pending or in flight, of a subscription lifetime
+        /// that ended, without waiting for another Publish request: deleting the last
+        /// subscription may stop publishing altogether.
+        /// </summary>
+        /// <param name="subscription">The subscription whose previous lifetime ended.</param>
+        internal void RetireAcknowledgementsOf(Subscription subscription)
+        {
+            List<AcknowledgementOutcome>? retired = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (m_acknowledgementScopes.Count == 0)
+                {
+                    return;
+                }
+                AcknowledgementScope current = subscription.GetAcknowledgementScope();
+                List<SubscriptionAcknowledgement>? ended = null;
+                foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
+                    m_acknowledgementScopes)
+                {
+                    if (entry.Value != null &&
+                        ReferenceEquals(entry.Value.Owner, subscription) &&
+                        !entry.Value.Equals(current))
+                    {
+                        (ended ??= []).Add(entry.Key);
+                    }
+                }
+                if (ended == null)
+                {
+                    return;
+                }
+                var removed = new HashSet<SubscriptionAcknowledgement>(
+                    ended, IdentityComparer<SubscriptionAcknowledgement>.Instance);
+                foreach (SubscriptionAcknowledgement acknowledgement in ended)
+                {
+                    EndAcknowledgementLocked(ref retired, acknowledgement,
+                        AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
+                }
+                m_acknowledgementsToSend.RemoveAll(removed.Contains);
+            }
+            ReportOutcomes(retired);
+        }
+
+        /// <summary>
+        /// Puts the acknowledgements of a failed Publish request back into the pending ones.
+        /// When acknowledgements are tracked, those that ended while the request was in
+        /// flight (for example because their subscription was deleted) are not requeued: they
+        /// would no longer be validated and could be sent under a reused id.
+        /// </summary>
+        private void RequeueFailedAcknowledgements(List<SubscriptionAcknowledgement>? acknowledgements)
+        {
+            if (acknowledgements == null || acknowledgements.Count == 0)
+            {
+                return;
+            }
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (Acknowledgements == null)
+                {
+                    m_acknowledgementsToSend.AddRange(acknowledgements);
+                    return;
+                }
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    if (m_acknowledgementScopes.ContainsKey(acknowledgement))
+                    {
+                        m_acknowledgementsToSend.Add(acknowledgement);
+                    }
+                }
             }
         }
 

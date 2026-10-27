@@ -103,7 +103,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool Equals(AcknowledgementHandle other)
         {
-            return ReferenceEquals(Scope, other.Scope) && SequenceNumber == other.SequenceNumber;
+            return SequenceNumber == other.SequenceNumber && AcknowledgementScope.Equals(Scope, other.Scope);
         }
 
         /// <inheritdoc/>
@@ -115,9 +115,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return HashCode.Combine(
-                Scope == null ? 0 : System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(Scope),
-                SequenceNumber);
+            return HashCode.Combine(Scope?.GetHashCode() ?? 0, SequenceNumber);
         }
 
         /// <inheritdoc/>

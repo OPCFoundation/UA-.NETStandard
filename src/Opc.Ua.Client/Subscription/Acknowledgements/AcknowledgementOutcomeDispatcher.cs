@@ -27,17 +27,20 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Delivers acknowledgement outcomes to an observer in order, from a single background
-    /// loop, so that the observer never runs under an SDK lock or blocks a Publish request.
+    /// Delivers acknowledgement outcomes to an observer in order, from one background loop at
+    /// a time, so that the observer never runs under an SDK lock or blocks a Publish request.
+    /// The queue is never closed: an outcome reported while or after its engine shuts down is
+    /// still delivered, so every acknowledgement removed from tracking reaches the observer.
     /// </summary>
     internal sealed class AcknowledgementOutcomeDispatcher
     {
@@ -63,22 +66,18 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+            m_outcomes.Enqueue((observer, [.. outcomes]));
             lock (m_lock)
             {
-                m_loop ??= DeliverAsync(observer);
-            }
-            if (!m_outcomes.Writer.TryWrite([.. outcomes]))
-            {
-                m_logger.AcknowledgementOutcomesDropped(outcomes.Count);
+                m_loop ??= DeliverAsync();
             }
         }
 
         /// <summary>
-        /// Delivers the outcomes that are still queued and stops the delivery loop.
+        /// Waits, with a timeout, until the outcomes queued so far are delivered.
         /// </summary>
         public async ValueTask CompleteAsync()
         {
-            m_outcomes.Writer.TryComplete();
             Task? loop;
             lock (m_lock)
             {
@@ -99,22 +98,33 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Delivers outcomes until the dispatcher is completed.
+        /// Delivers queued outcomes until the queue is empty.
         /// </summary>
-        private async Task DeliverAsync(ISubscriptionAcknowledgementObserver observer)
+        private async Task DeliverAsync()
         {
             await Task.Yield();
-            while (await m_outcomes.Reader.WaitToReadAsync().ConfigureAwait(false))
+            while (true)
             {
-                while (m_outcomes.Reader.TryRead(out AcknowledgementOutcome[]? outcomes))
+                while (m_outcomes.TryDequeue(
+                    out (ISubscriptionAcknowledgementObserver Observer, AcknowledgementOutcome[] Outcomes) batch))
                 {
                     try
                     {
-                        await observer.OnCompletedAsync(outcomes).ConfigureAwait(false);
+                        await batch.Observer.OnCompletedAsync(batch.Outcomes).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        m_logger.AcknowledgementObserverFailed(ex, outcomes.Length);
+                        m_logger.AcknowledgementObserverFailed(ex, batch.Outcomes.Length);
+                    }
+                }
+                lock (m_lock)
+                {
+                    // A report that enqueued before this check is delivered by this loop;
+                    // one that enqueues after it starts a new loop.
+                    if (m_outcomes.IsEmpty)
+                    {
+                        m_loop = null;
+                        return;
                     }
                 }
             }
@@ -124,9 +134,8 @@ namespace Opc.Ua.Client
         private readonly ILogger m_logger;
         private readonly System.Threading.Lock m_lock = new();
 
-        private readonly Channel<AcknowledgementOutcome[]> m_outcomes =
-            Channel.CreateUnbounded<AcknowledgementOutcome[]>(
-                new UnboundedChannelOptions { SingleReader = true });
+        private readonly ConcurrentQueue<(ISubscriptionAcknowledgementObserver Observer, AcknowledgementOutcome[] Outcomes)>
+            m_outcomes = new();
 
         private Task? m_loop;
     }
@@ -141,13 +150,6 @@ namespace Opc.Ua.Client
         public static partial void AcknowledgementObserverFailed(
             this ILogger logger,
             Exception exception,
-            int count);
-
-        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 3, Level = LogLevel.Warning,
-            Message = "{Count} acknowledgement outcomes were not delivered because the session or " +
-                "subscription manager is disposed.")]
-        public static partial void AcknowledgementOutcomesDropped(
-            this ILogger logger,
             int count);
 
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 4, Level = LogLevel.Warning,

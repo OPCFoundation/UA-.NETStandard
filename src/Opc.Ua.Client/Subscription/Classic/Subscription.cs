@@ -854,9 +854,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the acknowledgement handle of a data change or event notification this
         /// subscription delivered through <see cref="FastDataChangeCallback"/> or
-        /// <see cref="FastEventCallback"/>. Handles are only recorded when the session has an
-        /// acknowledgement configuration (for example
-        /// <see cref="AcknowledgementMode.AfterConfirmation"/>).
+        /// <see cref="FastEventCallback"/>. Handles are only recorded when the classic
+        /// subscription engine tracks the acknowledgement, which it does when the session has
+        /// an acknowledgement configuration (for example
+        /// <see cref="AcknowledgementMode.AfterConfirmation"/>). A classic subscription served
+        /// by the default V2 engine has no handles.
         /// </summary>
         /// <param name="notification">The notification the callback received.</param>
         /// <param name="handle">The acknowledgement of the message it arrived in.</param>
@@ -2286,7 +2288,7 @@ namespace Opc.Ua.Client
                         newEntry.AcknowledgementScope =
                             acknowledgementScope != null && ReferenceEquals(acknowledgementScope.Owner, this)
                                 ? acknowledgementScope
-                                : GetAcknowledgementScope();
+                                : null;
                     }
                 }
 
@@ -3111,27 +3113,21 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Records the acknowledgement handle of a delivered notification when the session
-        /// has an acknowledgement configuration. The handle uses the scope captured when the
-        /// message was received, so it matches the acknowledgement the engine tracks.
+        /// Records the acknowledgement handle of a delivered notification. Only messages whose
+        /// acknowledgement the classic engine tracks have a handle: it uses the scope captured
+        /// when the message was received, so it matches the tracked acknowledgement.
         /// </summary>
         private void RecordAcknowledgementHandle(
             NotificationData notification,
             AcknowledgementScope? acknowledgementScope,
             uint sequenceNumber)
         {
-            SessionAcknowledgements? acknowledgements = Session switch
-            {
-                Session session => session.Acknowledgements,
-                ManagedSession managed => managed.AcknowledgementSettings,
-                _ => null
-            };
-            if (acknowledgements == null)
+            if (acknowledgementScope == null)
             {
                 return;
             }
             m_acknowledgementHandles.GetValue(notification, static _ => new StrongBox<AcknowledgementHandle>()).Value =
-                new AcknowledgementHandle(acknowledgementScope ?? GetAcknowledgementScope(), sequenceNumber);
+                new AcknowledgementHandle(acknowledgementScope, sequenceNumber);
         }
 
         /// <summary>
@@ -3142,6 +3138,10 @@ namespace Opc.Ua.Client
         {
             // Acknowledgements of the deleted server subscription belong to a past lifetime.
             Interlocked.Increment(ref m_acknowledgementGeneration);
+            if (Session is Session { SubscriptionEngine: ClassicSubscriptionEngine engine })
+            {
+                engine.RetireAcknowledgementsOf(this);
+            }
             TransferId = Id = 0;
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;

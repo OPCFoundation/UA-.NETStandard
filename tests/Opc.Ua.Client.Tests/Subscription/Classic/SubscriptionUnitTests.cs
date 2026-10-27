@@ -324,6 +324,18 @@ namespace Opc.Ua.Client.Tests
 
             Assert.That(subscription.TryGetAcknowledgementHandle(notification, out AcknowledgementHandle handle), Is.True);
             Assert.That(handle, Is.EqualTo(new AcknowledgementHandle(received, 1)));
+
+            // A message cached without a tracked acknowledgement (the default-engine
+            // compatibility path) gets no handle.
+            delivered = new TaskCompletionSource<DataChangeNotification>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            subscription.SaveMessageInCache([2u], new NotificationMessage
+            {
+                SequenceNumber = 2,
+                NotificationData = [new(new DataChangeNotification { SequenceNumber = 2 })]
+            });
+            DataChangeNotification untracked = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(subscription.TryGetAcknowledgementHandle(untracked, out _), Is.False);
         }
 
         [Test]

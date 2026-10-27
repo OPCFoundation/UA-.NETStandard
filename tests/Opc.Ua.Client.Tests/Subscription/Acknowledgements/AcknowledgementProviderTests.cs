@@ -30,6 +30,7 @@
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -47,6 +48,7 @@ namespace Opc.Ua.Client.Tests
         private static readonly int[] s_bothDeferred = [0, 1];
         private static readonly int[] s_secondDeferred = [1];
         private static readonly int[] s_firstDeferred = [0];
+        private static readonly uint[] s_firstTwo = [1u, 2u];
 
         [Test]
         public void HandlesCompareByLifetimeAndSequenceNumber()
@@ -90,6 +92,60 @@ namespace Opc.Ua.Client.Tests
             Assert.That(recreated, Is.Not.SameAs(first));
             Assert.That(reassigned, Is.Not.SameAs(recreated));
             Assert.That(cached, Is.SameAs(reassigned));
+        }
+
+        [Test]
+        public void AStaleLookupDoesNotReplaceTheScopeOfANewerLifetime()
+        {
+            object owner = new();
+            AcknowledgementScope? cached = null;
+            var current = AcknowledgementScope.GetOrCreate(ref cached, owner, 3, 7);
+
+            var stale = AcknowledgementScope.GetOrCreate(ref cached, owner, 2, 7);
+
+            Assert.That(cached, Is.SameAs(current), "The newer lifetime stays cached.");
+            Assert.That(AcknowledgementScope.GetOrCreate(ref cached, owner, 3, 7), Is.SameAs(current));
+            Assert.That(stale.Generation, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void HandlesOfTheSameLifetimeAreEqualAcrossScopeInstances()
+        {
+            object owner = new();
+            var one = new AcknowledgementHandle(new AcknowledgementScope(owner, 1, 7), 3);
+            var other = new AcknowledgementHandle(new AcknowledgementScope(owner, 1, 7), 3);
+            var foreign = new AcknowledgementHandle(new AcknowledgementScope(new object(), 1, 7), 3);
+
+            Assert.That(one, Is.EqualTo(other));
+            Assert.That(one.GetHashCode(), Is.EqualTo(other.GetHashCode()));
+            Assert.That(one, Is.Not.EqualTo(foreign), "Another subscription instance is another lifetime.");
+            Assert.That(AcknowledgementHandle.Null.IsNull, Is.True);
+            Assert.That(one, Is.Not.EqualTo(AcknowledgementHandle.Null));
+        }
+
+        [Test]
+        public async Task OutcomesReportedAfterCompletionAreStillDeliveredAsync()
+        {
+            var dispatcher = new AcknowledgementOutcomeDispatcher(
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+            var observer = new CollectingObserver();
+            var handle = new AcknowledgementHandle(new AcknowledgementScope(new object(), 1, 7), 1);
+            List<AcknowledgementOutcome> Outcomes(uint sequenceNumber) =>
+            [
+                new AcknowledgementOutcome(
+                    new AcknowledgementHandle(handle.Scope!, sequenceNumber),
+                    AcknowledgementDisposition.Abandoned,
+                    StatusCodes.BadShutdown)
+            ];
+
+            dispatcher.Report(observer, Outcomes(1));
+            await dispatcher.CompleteAsync().ConfigureAwait(false);
+            dispatcher.Report(observer, Outcomes(2));
+            await dispatcher.CompleteAsync().ConfigureAwait(false);
+            dispatcher.Report(null, Outcomes(3));
+            dispatcher.Report(observer, null);
+
+            Assert.That(observer.Outcomes.Select(outcome => outcome.Handle.SequenceNumber), Is.EqualTo(s_firstTwo));
         }
 
         [Test]
