@@ -3347,6 +3347,24 @@ namespace Opc.Ua.Client.Subscriptions
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
 
+            /// <summary>
+            /// Observes an actual asynchronous admission wait, not merely receipt of a response.
+            /// </summary>
+            public Action? OnAdmissionBackpressure { get; set; }
+
+            /// <inheritdoc/>
+            public override ValueTask OnPublishReceivedAsync(
+                NotificationMessage message, IReadOnlyList<uint>? availableSequenceNumbers,
+                IReadOnlyList<string> stringTable)
+            {
+                ValueTask admission = base.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
+                if (!admission.IsCompleted)
+                {
+                    OnAdmissionBackpressure?.Invoke();
+                }
+                return admission;
+            }
+
             public void SetMessageStateForTest(uint lastSequenceNumber,
                 uint lastDataSequenceNumber,
                 IReadOnlyList<uint> availableSequenceNumbers)

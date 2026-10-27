@@ -28,11 +28,109 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions.Fakes;
 
 namespace Opc.Ua.Client.Subscriptions
 {
     public sealed partial class SubscriptionTests
     {
+        /// <summary>
+        /// Manager shutdown must release a Publish worker blocked by a full ingress buffer
+        /// before waiting for subscription shutdown to cancel the active message handler.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ManagerDisposalCancelsSaturatedMessageAdmissionAsync(CancellationToken ct)
+        {
+            const int kCapacity = 1024;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var saturated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken handlerToken = default;
+            int handlerCalls = 0;
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage _, CancellationToken token) =>
+                {
+                    Interlocked.Increment(ref handlerCalls);
+                    handlerToken = token;
+                    entered.TrySetResult(true);
+                    return new ValueTask(release.Task.WaitAsync(token));
+                });
+            var acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var confirmations = (ConfirmedAcknowledgementProvider)acknowledgements.Provider!;
+            var context = new FakeSubscriptionManagerContext
+            {
+                AcknowledgementProvider = acknowledgements.Provider,
+                CreateSubscriptionFactory = (handler, _, queue) =>
+                    new TestSubscription(m_session, handler, queue, m_options, m_telemetry, 7)
+                    {
+                        OnAdmissionBackpressure = () => saturated.TrySetResult(true)
+                    }
+            };
+            int received = 0;
+            int sentAcknowledgements = 0;
+            context.OnPublishAsync = (_, sent, _) =>
+            {
+                Interlocked.Add(ref sentAcknowledgements, sent.Count);
+                uint sequenceNumber = (uint)Interlocked.Increment(ref received);
+                return new ValueTask<PublishResponse>(new PublishResponse
+                {
+                    SubscriptionId = 7,
+                    MoreNotifications = true,
+                    Results = new StatusCode[sent.Count],
+                    AvailableSequenceNumbers = sequenceNumber == 1 ? [1u] : [1u, sequenceNumber],
+                    NotificationMessage = new NotificationMessage
+                    {
+                        SequenceNumber = sequenceNumber,
+                        NotificationData = [new(new DataChangeNotification
+                        {
+                            MonitoredItems =
+                            [
+                                new MonitoredItemNotification
+                                {
+                                    ClientHandle = 1,
+                                    Value = new DataValue(Variant.From(sequenceNumber))
+                                }
+                            ]
+                        })]
+                    }
+                });
+            };
+            var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            Task? disposing = null;
+            try
+            {
+                manager.Add(m_mockNotificationDataHandler.Object,
+                    m_options.Configure(options => options with { DisableUnboundedItemMode = true }));
+                manager.Resume();
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                await saturated.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(Volatile.Read(ref received), Is.EqualTo(kCapacity + 1));
+
+                disposing = manager.DisposeAsync().AsTask();
+                await disposing.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+
+                Assert.That(handlerToken.IsCancellationRequested, Is.True);
+                Assert.That(manager.ShutdownToken.IsCancellationRequested, Is.True);
+                Assert.That(Volatile.Read(ref handlerCalls), Is.EqualTo(1),
+                    "Queued messages must not enter application callbacks after manager shutdown.");
+                Assert.That(Volatile.Read(ref sentAcknowledgements), Is.Zero);
+                Assert.That(confirmations.TrackedAcknowledgements, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await (disposing ?? manager.DisposeAsync().AsTask()).WaitAsync(ct).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// A concrete handler implementing both interfaces can use the existing registration
         /// API and the whole-message entry point without an explicit interface cast.

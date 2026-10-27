@@ -471,6 +471,8 @@ events or a status change. Its arrays do not borrow pooled wire containers, so t
 retained after the callback returns; monitored-item references remain live SDK objects.
 `MoreNotifications` describes further Publish responses, not additional parts of this envelope.
 Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
+Data-change diagnostics are projected from the indexed wire diagnostic array, independently
+of classic monitored-item caching and local client-handle registration.
 
 On V2, use `ManagedSession.AddMessageSubscription` or the `ISubscriptionManager.Add`
 overload accepting `ISubscriptionNotificationMessageHandler`. The distinct managed-session
@@ -598,6 +600,15 @@ create a competing subscription on a retiring or replacement session. Pending
 option changes resume after restoration, without changing explicit
 `RecreateAsync` or transfer semantics. Cancellation remains client-side and does
 not guarantee that an already-sent request was not processed by the server.
+
+V2 notification ingress is bounded. Manager shutdown cancels a Publish worker waiting
+for an ingress slot before joining the workers and disposing their subscriptions; a
+cooperative whole-message handler cannot therefore deadlock this shutdown ordering.
+Queued messages do not enter application callbacks after manager shutdown and are not
+acknowledged merely because the ingress buffer is drained.
+Ordinary Publish quiescence does not cancel admission of a successfully received
+response. Cancellation removes the capacity waiter itself, so it cannot consume a
+slot after its caller has stopped waiting.
 
 Once the session and subscriptions are restored, publishing resumes through the
 same subscription-facing interface. Temporarily clearing server-side subscription

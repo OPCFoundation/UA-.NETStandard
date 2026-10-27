@@ -422,7 +422,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     MonitoredItemNotification item = notification.MonitoredItems[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, item.DiagnosticInfo)
+                        item.Value, i < notification.DiagnosticInfos.Count ? notification.DiagnosticInfos[i] : null)
                     {
                         ClientHandle = item.ClientHandle,
                         PartitionServerId = partitionId,

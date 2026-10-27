@@ -76,6 +76,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             m_outcomeDispatcher = new AcknowledgementOutcomeDispatcher(m_logger);
+            ShutdownToken = m_cts.Token;
             ReturnDiagnostics = returnDiagnostics;
             m_disposeToken = m_cts.Token;
             m_publishController = PublishControllerAsync(m_disposeToken);
@@ -99,6 +100,9 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public bool PoolNotifications { get; set; }
+
+        /// <inheritdoc/>
+        public CancellationToken ShutdownToken { get; }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }

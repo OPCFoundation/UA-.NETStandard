@@ -304,6 +304,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public bool PoolNotifications { get; set; }
 
+        /// <inheritdoc/>
+        public CancellationToken ShutdownToken { get; set; }
+
         private readonly Lock m_lock = new();
 
         /// <summary>The queue's mutable storage, accessed only under <see cref="m_lock"/>.</summary>

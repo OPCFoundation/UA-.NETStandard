@@ -149,13 +149,22 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
+            CancellationToken shutdownToken = AckQueue.ShutdownToken;
+            shutdownToken.ThrowIfCancellationRequested();
             long generation = Volatile.Read(ref m_generation);
             if (availableSequenceNumbers != null)
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            await m_messageCapacity.WaitAsync(m_cts.Token).ConfigureAwait(false);
+            if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
+            {
+                // Link shutdown only while backpressured, not on the normal admission path.
+                using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
+                    ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
+                    : null;
+                await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+            }
             try
             {
                 await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
@@ -372,7 +381,8 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (incoming.Generation != Volatile.Read(ref m_generation))
+                if (AckQueue.ShutdownToken.IsCancellationRequested ||
+                    incoming.Generation != Volatile.Read(ref m_generation))
                 {
                     return;
                 }

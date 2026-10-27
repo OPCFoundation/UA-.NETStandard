@@ -39,6 +39,12 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface IMessageAckQueue
     {
         /// <summary>
+        /// Cancels ingress admission when the owning manager shuts down, before it joins
+        /// Publish workers. Ordinary publishing quiescence does not cancel this token.
+        /// </summary>
+        CancellationToken ShutdownToken { get; }
+
+        /// <summary>
         /// Queues an acknowledgement stamped with the processor that
         /// produced it and that processor's message generation. Before
         /// the acknowledgement is sent, it is discarded if the owner was

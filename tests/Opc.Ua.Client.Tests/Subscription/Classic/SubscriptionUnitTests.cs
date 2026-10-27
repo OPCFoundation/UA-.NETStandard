@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 
@@ -285,6 +286,71 @@ namespace Opc.Ua.Client.Tests
                 ).ConfigureAwait(false);
 
             Assert.That(subscription.Notifications, Is.EqualTo([messages[2], messages[3], messages[4], messages[5]]));
+        }
+
+        /// <summary>
+        /// Whole-message diagnostics come from the wire array even when caching is disabled
+        /// or the message contains client handles that are not registered locally.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        [CancelAfter(10_000)]
+        public async Task WholeMessageDeliveryPreservesWireDiagnosticsAsync(
+            bool disableCache, bool registeredItems, CancellationToken ct)
+        {
+            var delivered = new TaskCompletionSource<SubscriptionNotificationMessage>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var handler = new Mock<ISubscriptionNotificationMessageHandler>();
+            handler.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Callback((SubscriptionNotificationMessage message, CancellationToken _) =>
+                    delivered.TrySetResult(message))
+                .Returns(default(ValueTask));
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var subscription = new Subscription(telemetry, new() { PublishingEnabled = true })
+            {
+                DisableMonitoredItemCache = disableCache,
+                NotificationMessageHandler = handler.Object,
+                Session = BuildSessionMock()
+            };
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            uint firstHandle = 11;
+            uint secondHandle = 12;
+            if (registeredItems)
+            {
+                var firstItem = new MonitoredItem(telemetry);
+                var secondItem = new MonitoredItem(telemetry);
+                subscription.AddItems([firstItem, secondItem]);
+                firstHandle = firstItem.ClientHandle;
+                secondHandle = secondItem.ClientHandle;
+            }
+            var first = new DiagnosticInfo { SymbolicId = 0, AdditionalInfo = "first wire diagnostic" };
+            var second = new DiagnosticInfo { SymbolicId = 1, AdditionalInfo = "second wire diagnostic" };
+            var data = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification { ClientHandle = firstHandle },
+                    new MonitoredItemNotification { ClientHandle = secondHandle }
+                ],
+                DiagnosticInfos = [first, second]
+            };
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                StringTable = ["first", "second"],
+                NotificationData = [new(data)]
+            }, subscription.GetAcknowledgementScope());
+
+            SubscriptionNotificationMessage message = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(data.MonitoredItems[0].DiagnosticInfo,
+                Is.SameAs(registeredItems && !disableCache ? first : null));
+            Assert.That(message.Notifications[0].DataChanges[0].DiagnosticInfo, Is.SameAs(first));
+            Assert.That(message.Notifications[0].DataChanges[1].DiagnosticInfo, Is.SameAs(second));
+            Assert.That(message.StringTable[1], Is.EqualTo("second"));
         }
 
         /// <summary>

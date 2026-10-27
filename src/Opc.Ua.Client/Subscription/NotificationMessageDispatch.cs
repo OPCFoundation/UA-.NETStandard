@@ -121,7 +121,8 @@ namespace Opc.Ua.Client.Subscriptions
                 for (int i = 0; i < values.Length; i++)
                 {
                     MonitoredItemNotification item = data.MonitoredItems[i];
-                    values[i] = new DataValueChange(null, item.Value, item.DiagnosticInfo)
+                    values[i] = new DataValueChange(
+                        null, item.Value, i < data.DiagnosticInfos.Count ? data.DiagnosticInfos[i] : null)
                     {
                         ClientHandle = item.ClientHandle,
                         PartitionServerId = handle.SubscriptionId,

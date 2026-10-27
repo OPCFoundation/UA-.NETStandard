@@ -360,6 +360,7 @@ namespace Opc.Ua.Client.Subscriptions
             var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var ingressBlocked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_completion.ShutdownToken = manager.ShutdownToken;
             await serviceGate.WaitAsync().ConfigureAwait(false);
             sut.NotificationCallback = async _ =>
             {
@@ -409,6 +410,9 @@ namespace Opc.Ua.Client.Subscriptions
                 await drained.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(serviceGate.CurrentCount, Is.Zero, "The service writer still owns the gate.");
                 Assert.That(session.PublishCalls, Has.Count.EqualTo(1));
+                Assert.That(m_completion.ShutdownToken.CanBeCanceled, Is.True);
+                Assert.That(m_completion.ShutdownToken.IsCancellationRequested, Is.False,
+                    "Quiescing a Publish attempt must not cancel admission of its successful response.");
             }
             finally
             {
@@ -460,10 +464,16 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        [Test]
-        public async Task BackpressuredBurstDeliversEveryNotificationAsync()
+        /// <summary>
+        /// Delivers every notification under sustained backpressure with and without a cancellable manager token.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BackpressuredBurstDeliversEveryNotificationAsync(bool cancellableAdmission)
         {
             const int kMessageCount = 1100;
+            using var admission = new CancellationTokenSource();
+            m_completion.ShutdownToken = cancellableAdmission ? admission.Token : CancellationToken.None;
             var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
@@ -536,6 +546,72 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(blocked.IsCompleted, Is.False);
                 sut.Block.Release();
                 await blocked.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Cancelling a saturated admission removes its semaphore waiter. The next accepted
+        /// message gets the first released slot rather than losing it to an abandoned wait.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task CancelledAdmissionDoesNotConsumeTheNextCapacitySlotAsync(
+            bool cancelledBeforeAdmission, CancellationToken ct)
+        {
+            using var admission = new CancellationTokenSource();
+            m_completion.ShutdownToken = admission.Token;
+            using var callbackStop = new CancellationTokenSource();
+            using var permits = new SemaphoreSlim(0);
+            var secondEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                NotificationCallback = sequenceNumber =>
+                {
+                    if (sequenceNumber == 2)
+                    {
+                        secondEntered.TrySetResult(true);
+                    }
+                    return new ValueTask(permits.WaitAsync(callbackStop.Token));
+                }
+            };
+            try
+            {
+                for (uint sequenceNumber = 1; sequenceNumber <= 1024; sequenceNumber++)
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(sequenceNumber), null, [])
+                        .ConfigureAwait(false);
+                }
+                if (cancelledBeforeAdmission)
+                {
+                    await admission.CancelAsync().ConfigureAwait(false);
+                }
+                Task cancelled = sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(1025), null, []).AsTask();
+                if (!cancelledBeforeAdmission)
+                {
+                    Assert.That(cancelled.IsCompleted, Is.False);
+                    await admission.CancelAsync().ConfigureAwait(false);
+                }
+                await Assert.ThatAsync(async () => await cancelled.ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+                // Reset only the fake owner token to probe the semaphore's permit accounting.
+                m_completion.ShutdownToken = CancellationToken.None;
+                Task accepted = sut.OnPublishReceivedAsync(BuildDataChangeMessage(1025), null, []).AsTask();
+                permits.Release();
+                await accepted.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+                await secondEntered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+                Assert.That(m_completion.QueuedAcks, Has.Count.EqualTo(1));
+                Assert.That(m_completion.QueuedAcks[0].SequenceNumber, Is.EqualTo(1));
+                Assert.That(sut.ReceivedSequenceNumbers, Does.Not.Contain(1025u));
+            }
+            finally
+            {
+                Task disposing = sut.DisposeAsync().AsTask();
+                await callbackStop.CancelAsync().ConfigureAwait(false);
+                await disposing.WaitAsync(ct).ConfigureAwait(false);
             }
         }
 
