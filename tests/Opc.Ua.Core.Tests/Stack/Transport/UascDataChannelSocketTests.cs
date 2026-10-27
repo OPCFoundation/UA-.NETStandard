@@ -182,6 +182,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(server.Identity.Peer.IsTransportInitiator, Is.True);
                 Assert.That(connection.Context.Identity.Peer.IsTransportInitiator, Is.False);
+                Assert.That(server.Identity.Peer.IsContextInitiator, Is.False);
+                Assert.That(connection.Context.Identity.Peer.IsContextInitiator, Is.True);
                 Assert.That(server.Identity.ContextId, Is.EqualTo(connection.Context.Identity.ContextId));
                 Assert.That(server.Identity.Generation, Is.EqualTo(connection.Context.Identity.Generation));
                 Assert.That(server.Identity.LocalChallenge, Is.EqualTo(connection.Context.Identity.PeerChallenge));
@@ -213,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await using DataChannel outgoing = await opener.OpenAsync(
                     parameters, cancellationToken: harness.Token).ConfigureAwait(false);
                 await using DataChannel incoming = await AcceptAsync(acceptor, harness.Token).ConfigureAwait(false);
-                Assert.That(outgoing.ChannelId, Is.EqualTo(serverOpens ? 1u : 2u));
+                Assert.That(outgoing.ChannelId, Is.EqualTo(serverOpens ? 2u : 1u));
                 if (streaming)
                 {
                     DataChannelException failure = (await Assert.ThrowsAsync<DataChannelException>(async () =>

@@ -191,9 +191,13 @@ route-registration disposal alone is not streaming-flow revocation. Its typed
 IDs become available for another admission after the flow terminates.
 
 Directions are relative to the **flow opener**: `OpenerToAcceptor`,
-`AcceptorToOpener` or `Duplex`. The transport initiator, flow opener and PubSub
-Publisher are different roles. Ordered and Datagram delivery are also distinct
-contracts; a datagram request never silently becomes an ordered stream.
+`AcceptorToOpener` or `Duplex`. The context initiator, transport initiator,
+flow opener and PubSub Publisher are distinct roles. The context initiator
+sends the first HELLO and selects ContextId and Generation. The UASC initiator
+fills that role for dedicated and shared UASC; the transport initiator fills it
+for native carriers. Odd ChannelIds belong to the context initiator. Ordered
+and Datagram delivery are distinct contracts; a datagram request never silently
+becomes an ordered stream.
 
 ## Compose the application
 
@@ -497,7 +501,7 @@ without resolving the exporter again. A request-bound refusal remains final for
 that transaction even if exporter availability changes. Conflicting proofs or
 STATUS outcomes close the affected context; an unchanged Unsupported outcome
 leaves baseline Services and configured FLO available.
-When the transport initiator has no exporter provider or cannot produce
+When the context initiator has no exporter provider or cannot produce
 exporter material, it sends a connection-scoped `STATUS(Unsupported)` over the
 protected UASC baseline. The acceptor records that result and may open a
 baseline FLO without waiting for an impossible direct proof.

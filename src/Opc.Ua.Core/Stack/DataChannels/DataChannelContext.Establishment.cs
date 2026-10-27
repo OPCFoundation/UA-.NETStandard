@@ -37,7 +37,7 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Starts the protected confirmation, with the transport initiator sending first.
+        /// Starts the protected confirmation, with the context initiator sending first.
         /// </summary>
         /// <exception cref="DataChannelException"></exception>
         private async ValueTask StartCoreAsync(CancellationToken cancellationToken)
@@ -49,7 +49,7 @@ namespace Opc.Ua.DataChannels
                 {
                     m_started = true;
                     m_startedAt = m_clock.GetTimestamp();
-                    if (m_carrier.Identity.IsTransportInitiator)
+                    if (m_carrier.Identity.IsContextInitiator)
                     {
                         QueueHelloLocked();
                     }
@@ -105,7 +105,7 @@ namespace Opc.Ua.DataChannels
                 CloseLocked(DataChannelResult.SecurityFailure);
                 return DataChannelResult.SecurityFailure;
             }
-            if (m_carrier.Identity.IsTransportInitiator)
+            if (m_carrier.Identity.IsContextInitiator)
             {
                 if (!m_helloSent || hello.Context != m_contextId || hello.Generation != m_generation)
                 {
@@ -134,7 +134,7 @@ namespace Opc.Ua.DataChannels
             m_peerMaxReceiveBytes = Math.Min(m_options.MaxContextBytes, hello.MaxReceiveBytes);
             m_peerMaxFlows = Math.Min((uint)m_options.MaxFlows, hello.MaxFlows);
             m_helloReceived = true;
-            if (!m_carrier.Identity.IsTransportInitiator)
+            if (!m_carrier.Identity.IsContextInitiator)
             {
                 QueueHelloLocked();
             }
@@ -390,7 +390,7 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private bool RetirePeerIdLocked(uint id)
         {
-            uint peerParity = m_carrier.Identity.IsTransportInitiator ? 0u : 1u;
+            uint peerParity = m_carrier.Identity.IsContextInitiator ? 0u : 1u;
             if (id == 0 || (id & 1) != peerParity || id <= m_peerChannelHighWater)
             {
                 return false;

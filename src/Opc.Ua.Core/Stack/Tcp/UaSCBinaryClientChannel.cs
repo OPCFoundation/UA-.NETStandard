@@ -958,7 +958,8 @@ namespace Opc.Ua.Bindings
                         SecurityMode == MessageSecurityMode.SignAndEncrypt
                             ? DataChannelProtectionMode.Confidential
                             : DataChannelProtectionMode.Integrity,
-                        isTransportInitiator: !ReverseSocket);
+                        isTransportInitiator: !ReverseSocket,
+                        isContextInitiator: true);
                     DataChannelContext context = AttachDataChannels(
                         kind, identity, isUascInitiator: true, m_dataChannelFactory!);
                     using CertificateCollection peerChain =

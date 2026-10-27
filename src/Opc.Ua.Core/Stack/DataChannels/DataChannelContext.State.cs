@@ -71,8 +71,8 @@ namespace Opc.Ua.DataChannels
             }
             m_managementStreamReserved = IsNative;
             m_localChallenge = RandomBytes(32);
-            m_nextChannelId = m_carrier.Identity.IsTransportInitiator ? 1UL : 2UL;
-            if (m_carrier.Identity.IsTransportInitiator)
+            m_nextChannelId = m_carrier.Identity.IsContextInitiator ? 1UL : 2UL;
+            if (m_carrier.Identity.IsContextInitiator)
             {
                 do
                 {

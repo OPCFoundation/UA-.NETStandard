@@ -200,6 +200,29 @@ namespace Opc.Ua.DataChannels
             ByteString peerKeyThumbprint,
             DataChannelProtectionMode protection,
             bool isTransportInitiator)
+            : this(
+                localApplicationUri,
+                peerApplicationUri,
+                localKeyThumbprint,
+                peerKeyThumbprint,
+                protection,
+                isTransportInitiator,
+                isTransportInitiator)
+        {
+        }
+
+        /// <summary>
+        /// Creates evidence after certificate validation, profile selection and rejection of early data.
+        /// Thumbprints identify validated public keys using SHA-256.
+        /// </summary>
+        public DataChannelPeerIdentity(
+            string localApplicationUri,
+            string peerApplicationUri,
+            ByteString localKeyThumbprint,
+            ByteString peerKeyThumbprint,
+            DataChannelProtectionMode protection,
+            bool isTransportInitiator,
+            bool isContextInitiator)
         {
             FlowModel.ValidateUri(localApplicationUri, nameof(localApplicationUri));
             FlowModel.ValidateUri(peerApplicationUri, nameof(peerApplicationUri));
@@ -217,6 +240,7 @@ namespace Opc.Ua.DataChannels
             PeerKeyThumbprint = peerKeyThumbprint.Copy();
             Protection = protection;
             IsTransportInitiator = isTransportInitiator;
+            IsContextInitiator = isContextInitiator;
         }
 
         /// <summary>
@@ -248,6 +272,11 @@ namespace Opc.Ua.DataChannels
         /// Gets the transport role, independently of flow and payload roles.
         /// </summary>
         public bool IsTransportInitiator { get; }
+
+        /// <summary>
+        /// Gets whether this peer initiates the data context independently of the transport role.
+        /// </summary>
+        public bool IsContextInitiator { get; }
     }
 
     /// <summary>

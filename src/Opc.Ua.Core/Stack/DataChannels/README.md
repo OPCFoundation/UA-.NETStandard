@@ -175,7 +175,7 @@ Shared Service requests remain unsealed until arbitration; a pending control
 is selected after at most eight consecutive Services, even within a coalesced
 send. This is a selection bound, not a wall-clock latency guarantee.
 
-Reverse shared-UASC with divergent transport/UASC initiator roles is intentionally
-fail-closed pending clarification of the pinned context-selector/first-HELLO rules.
-Ordinary reverse Services are unaffected. This unresolved applicability is not
-claimed as reverse-flow conformance.
+For shared UASC, the UASC initiator selects ContextId and Generation, sends the
+first flow HELLO and owns odd ChannelIds. The transport initiator remains an
+independent role on reverse connections. Reverse-TCP coverage verifies both
+peers can open flows and ordinary Service requests remain available.

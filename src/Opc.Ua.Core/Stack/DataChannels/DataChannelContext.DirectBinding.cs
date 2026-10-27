@@ -50,7 +50,7 @@ namespace Opc.Ua.DataChannels
                 m_carrier.Identity is null ||
                 m_carrier.Kind is not (DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc))
             {
-                if (m_carrier.Identity is { IsTransportInitiator: true } &&
+                if (m_carrier.Identity is { IsContextInitiator: true } &&
                     m_carrier.Kind is DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
                 {
                     m_directBindingStarted = true;
@@ -66,7 +66,7 @@ namespace Opc.Ua.DataChannels
                 }
                 return;
             }
-            if (m_carrier.Identity.IsTransportInitiator && !m_directBindingStarted)
+            if (m_carrier.Identity.IsContextInitiator && !m_directBindingStarted)
             {
                 m_directBindingStarted = true;
                 m_directBindingTask = Task.Run(EstablishDirectBindingAsync);
@@ -176,7 +176,7 @@ namespace Opc.Ua.DataChannels
             {
                 lock (m_gate)
                 {
-                    if (m_carrier.Identity.IsTransportInitiator &&
+                    if (m_carrier.Identity.IsContextInitiator &&
                         record.MessageId == m_directBindingOperationId &&
                         !m_directBindingReady &&
                         (m_directBindingResponse is not FlowOutcome recorded || recorded.Status == status.Status))
@@ -196,7 +196,7 @@ namespace Opc.Ua.DataChannels
                         m_peerControlId = Math.Max(m_peerControlId, record.MessageId);
                         return result == DataChannelResult.SecurityFailure ? result : DataChannelResult.Good;
                     }
-                    if (!m_carrier.Identity.IsTransportInitiator &&
+                    if (!m_carrier.Identity.IsContextInitiator &&
                         !m_directBindingStarted &&
                         record.MessageId > m_peerControlId &&
                         status.Status == FlowWireStatus.Unsupported)
@@ -208,7 +208,7 @@ namespace Opc.Ua.DataChannels
                         CompleteDirectBindingLocked(DataChannelResult.Unsupported);
                         return DataChannelResult.Good;
                     }
-                    if (!m_carrier.Identity.IsTransportInitiator &&
+                    if (!m_carrier.Identity.IsContextInitiator &&
                         m_directBindingStarted &&
                         record.MessageId == m_directPeerBindingOperationId &&
                         m_directBindingResponse is FlowOutcome { Status: FlowWireStatus.Unsupported } &&
@@ -226,7 +226,7 @@ namespace Opc.Ua.DataChannels
             {
                 return DataChannelResult.InvalidState;
             }
-            return m_carrier.Identity.IsTransportInitiator
+            return m_carrier.Identity.IsContextInitiator
                 ? await ReceiveDirectBindingResponseAsync(binding, record, cancellationToken).ConfigureAwait(false)
                 : await ReceiveDirectBindingRequestAsync(binding, record, cancellationToken).ConfigureAwait(false);
         }
@@ -584,7 +584,7 @@ namespace Opc.Ua.DataChannels
             IDataChannelDirectBindingProvider provider)
         {
             DataChannelPeerIdentity peer = identity.Peer;
-            bool initiator = peer.IsTransportInitiator;
+            bool initiator = peer.IsContextInitiator;
             return new FlowBindingTranscript(
                 provider.TransportProfileUri,
                 provider.Capability,

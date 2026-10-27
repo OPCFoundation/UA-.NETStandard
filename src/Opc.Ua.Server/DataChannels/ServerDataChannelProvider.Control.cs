@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.DataChannels
                 if (channelId == 0 ||
                     (identity.Carrier == DataChannelCarrierKind.DedicatedUasc
                         ? channelId != 1
-                        : (channelId & 1) == (identity.Peer.IsTransportInitiator ? 1u : 0u)))
+                        : (channelId & 1) == (identity.Peer.IsContextInitiator ? 1u : 0u)))
                 {
                     result = DataChannelResult.InvalidArgument;
                     Throw(result);
