@@ -81,7 +81,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
                     new NativeQuicRequest(
                         TimeSpan.FromSeconds(5), new ByteString(new byte[] { 1, 0xff, 0, 32 })))
                     .ConfigureAwait(false);
-                Check(clientExporter.Payload.Length == 32 && serverExporter.Payload.Length == 32 &&
+                Check(clientExporter.Payload.Length == 32 &&
                     clientExporter.Payload.Equals(serverExporter.Payload) &&
                     !clientExporter.Payload.Equals(changedExporter.Payload) &&
                     malformedExporter.Status == NativeQuicStatus.Invalid,

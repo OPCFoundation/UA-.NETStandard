@@ -499,7 +499,35 @@ namespace Opc.Ua.Gds.Tests
                 .UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.False);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
+            // Directory-backed store enumeration does not guarantee array order.
+            Assert.Multiple(() =>
+            {
+                Assert.That(expectFullTrustList.SpecifiedLists, Is.EqualTo(fullTrustList.SpecifiedLists));
+                Assert.That(
+                    expectFullTrustList.TrustedCertificates.IsNull,
+                    Is.EqualTo(fullTrustList.TrustedCertificates.IsNull));
+                Assert.That(
+                    expectFullTrustList.TrustedCertificates.ToArray() ?? [],
+                    Is.EquivalentTo(fullTrustList.TrustedCertificates.ToArray() ?? []));
+                Assert.That(
+                    expectFullTrustList.TrustedCrls.IsNull,
+                    Is.EqualTo(fullTrustList.TrustedCrls.IsNull));
+                Assert.That(
+                    expectFullTrustList.TrustedCrls.ToArray() ?? [],
+                    Is.EquivalentTo(fullTrustList.TrustedCrls.ToArray() ?? []));
+                Assert.That(
+                    expectFullTrustList.IssuerCertificates.IsNull,
+                    Is.EqualTo(fullTrustList.IssuerCertificates.IsNull));
+                Assert.That(
+                    expectFullTrustList.IssuerCertificates.ToArray() ?? [],
+                    Is.EquivalentTo(fullTrustList.IssuerCertificates.ToArray() ?? []));
+                Assert.That(
+                    expectFullTrustList.IssuerCrls.IsNull,
+                    Is.EqualTo(fullTrustList.IssuerCrls.IsNull));
+                Assert.That(
+                    expectFullTrustList.IssuerCrls.ToArray() ?? [],
+                    Is.EquivalentTo(fullTrustList.IssuerCrls.ToArray() ?? []));
+            });
         }
 
         [Test]
