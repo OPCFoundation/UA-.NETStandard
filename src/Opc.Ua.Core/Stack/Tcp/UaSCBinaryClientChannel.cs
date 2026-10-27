@@ -430,7 +430,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
-            if (m_dataChannelKind == DataChannelCarrierKind.DedicatedUasc)
+            if (m_dataChannelKind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.WebTransport)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadServiceUnsupported,
@@ -1119,7 +1119,9 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
-                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl) ||
+                (m_dataChannelKind == DataChannelCarrierKind.WebTransport &&
+                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, false);
             }

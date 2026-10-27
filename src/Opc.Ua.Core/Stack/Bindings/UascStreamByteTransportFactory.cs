@@ -48,7 +48,8 @@ namespace Opc.Ua.Bindings
             Func<Uri, CancellationToken, ValueTask<Stream>> connector,
             string implementation,
             string transportProfileUri = "",
-            IDataChannelDirectBindingProvider? directBindingProvider = null)
+            IDataChannelDirectBindingProvider? directBindingProvider = null,
+            IDataChannelUascManagementProvider? managementProvider = null)
         {
             m_connector = connector ?? throw new ArgumentNullException(nameof(connector));
             if (string.IsNullOrWhiteSpace(implementation))
@@ -58,6 +59,7 @@ namespace Opc.Ua.Bindings
             Implementation = implementation;
             TransportProfileUri = transportProfileUri ?? throw new ArgumentNullException(nameof(transportProfileUri));
             m_directBindingProvider = directBindingProvider;
+            m_managementProvider = managementProvider;
         }
 
         /// <inheritdoc/>
@@ -77,11 +79,13 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(telemetry));
             }
             return new UascStreamByteTransport(
-                m_connector, bufferManager, receiveBufferSize, Implementation, m_directBindingProvider);
+                m_connector, bufferManager, receiveBufferSize, Implementation,
+                m_directBindingProvider, m_managementProvider);
         }
 
         /// <summary>The caller's asynchronous reliable-stream connector.</summary>
         private readonly Func<Uri, CancellationToken, ValueTask<Stream>> m_connector;
         private readonly IDataChannelDirectBindingProvider? m_directBindingProvider;
+        private readonly IDataChannelUascManagementProvider? m_managementProvider;
     }
 }

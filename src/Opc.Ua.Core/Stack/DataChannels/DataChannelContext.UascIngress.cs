@@ -66,8 +66,10 @@ namespace Opc.Ua.DataChannels
             try
             {
                 ByteString owned = borrowedPlaintext.Copy();
-                UascFlowMessage message = UascFlowMessageCodec.Decode(
-                    m_wireCarrier, kind, chunkType, requestId, owned, m_codecLimits);
+                UascFlowMessage message = m_carrier.Kind == DataChannelCarrierKind.WebTransport
+                    ? UascFlowMessageCodec.DecodeManagement(kind, chunkType, requestId, owned, m_codecLimits)
+                    : UascFlowMessageCodec.Decode(
+                        m_wireCarrier, kind, chunkType, requestId, owned, m_codecLimits);
                 FlowWireEnvelope envelope;
                 lock (m_gate)
                 {
@@ -325,8 +327,9 @@ namespace Opc.Ua.DataChannels
                 {
                     if (item.Envelope.Control is { } control)
                     {
-                        await ReceiveControlAsync(control, item.Envelope.Record, DataChannelPath.Management, 0,
-                            m_shutdown.Token).ConfigureAwait(false);
+                        await ReceiveControlAsync(
+                            control, item.Envelope.Record, DataChannelPath.Management,
+                            m_carrier.ManagementStreamId, m_shutdown.Token).ConfigureAwait(false);
                     }
                     else
                     {

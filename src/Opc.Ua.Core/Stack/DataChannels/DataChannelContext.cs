@@ -187,8 +187,8 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Receives one authenticated final FLO or FLC application body. It borrows input until return
-        /// and retains owned complete-message storage.
+        /// Receives one authenticated final FLO/FLC body or native WebTransport management MSG.
+        /// It borrows input until return and retains owned complete-message storage.
         /// </summary>
         public ValueTask<DataChannelResult> ReceiveUascAsync(
             DataChannelUascMessageKind kind,
@@ -197,7 +197,8 @@ namespace Opc.Ua.DataChannels
             ByteString verifiedPlaintext,
             CancellationToken cancellationToken = default)
         {
-            if (kind is not (DataChannelUascMessageKind.Flo or DataChannelUascMessageKind.Flc))
+            if (kind is not (DataChannelUascMessageKind.Flo or DataChannelUascMessageKind.Flc or
+                DataChannelUascMessageKind.Msg))
             {
                 return new ValueTask<DataChannelResult>(DataChannelResult.Unsupported);
             }

@@ -443,7 +443,9 @@ namespace Opc.Ua.Bindings
             using PendingRequestScope usage = TrackPendingRequest();
 
             if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
-                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl) ||
+                (SelectedDataChannelKind == DataChannelCarrierKind.WebTransport &&
+                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, true);
             }

@@ -50,6 +50,7 @@ namespace Opc.Ua.Bindings
                 DataChannelProfiles.SharedUasc => DataChannelCarrierKind.SharedUasc,
                 DataChannelProfiles.UascQuic => DataChannelCarrierKind.QuicUasc,
                 DataChannelProfiles.UascWebTransport => DataChannelCarrierKind.WebTransportUasc,
+                DataChannelProfiles.WebTransport => DataChannelCarrierKind.WebTransport,
                 _ => null
             };
         }
@@ -59,7 +60,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal static bool IsReliableStreamProfile(string? profile)
         {
-            return profile is DataChannelProfiles.UascQuic or DataChannelProfiles.UascWebTransport;
+            return profile is DataChannelProfiles.UascQuic or DataChannelProfiles.UascWebTransport or
+                DataChannelProfiles.WebTransport;
         }
 
         /// <summary>
@@ -79,7 +81,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal static bool MatchesReliableStreamEndpoint(Uri url, EndpointDescription endpoint)
         {
-            string scheme = endpoint.TransportProfileUri == DataChannelProfiles.UascQuic ? "opc.quic" : "https";
+            string scheme = endpoint.TransportProfileUri switch
+            {
+                DataChannelProfiles.UascQuic => "opc.quic",
+                DataChannelProfiles.WebTransport => "opc.wt",
+                _ => "https"
+            };
             return IsReliableStreamProfile(endpoint.TransportProfileUri) &&
                 url.Scheme == scheme && url.UserInfo.Length == 0 &&
                 url.Fragment.Length == 0 &&
@@ -138,7 +145,8 @@ namespace Opc.Ua.Bindings
             DataChannelCarrierKind? kind = GetKind(endpoint?.TransportProfileUri);
             if (IsReliableStreamProfile(endpoint?.TransportProfileUri))
             {
-                if (!MatchesReliableStreamEndpoint(url, endpoint!))
+                if (!MatchesReliableStreamEndpoint(url, endpoint!) ||
+                    (kind == DataChannelCarrierKind.WebTransport && factory == null))
                 {
                     throw Unsupported();
                 }

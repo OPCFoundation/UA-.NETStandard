@@ -62,6 +62,75 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         }
 
         /// <summary>
+        /// Native management endpoints map to canonical CONNECT URLs without changing escaped resources or queries.
+        /// </summary>
+        [TestCase("opc.wt://example.test:443/ua/wt?resource=pubsub",
+            "https://example.test/ua/wt?resource=pubsub", "example.test", 443)]
+        [TestCase("opc.wt://example.test:8443/ua/a%2Fb?resource=x%20y&v=1",
+            "https://example.test:8443/ua/a%2Fb?resource=x%20y&v=1", "example.test:8443", 8443)]
+        [TestCase("opc.wt://[2001:db8::1]:443/ua/wt?resource=pubsub",
+            "https://[2001:db8::1]/ua/wt?resource=pubsub", "[2001:db8::1]", 443)]
+        [TestCase("opc.wt://127.0.0.1:4840/",
+            "https://127.0.0.1:4840/", "127.0.0.1:4840", 4840)]
+        public void ManagementToHttpsPreservesResourceAndCanonicalizesDefaultPort(
+            string address, string expected, string authority, int port)
+        {
+            var native = new Uri(address);
+            Uri https = WebTransportEndpoint.ToHttps(native);
+            Assert.Multiple(() =>
+            {
+                Assert.That(https.AbsoluteUri, Is.EqualTo(expected));
+                Assert.That(https.OriginalString, Is.EqualTo(expected));
+                Assert.That(https.PathAndQuery, Is.EqualTo(native.PathAndQuery));
+                Assert.That(https.Port, Is.EqualTo(port));
+                Assert.That(WebTransportEndpoint.HttpsAddress(https), Is.EqualTo(authority));
+            });
+        }
+
+        /// <summary>
+        /// Port zero is listener-only, including a DNS CONNECT authority; clients require an allocated port.
+        /// </summary>
+        [TestCase("opc.wt://example.test:0/ua/wt?q=1", "https://example.test:0/ua/wt?q=1")]
+        [TestCase("opc.wt://127.0.0.1:0/ua/wt", "https://127.0.0.1:0/ua/wt")]
+        public void ManagementToHttpsAllowsEphemeralPortOnlyForListener(string address, string expected)
+        {
+            var endpoint = new Uri(address);
+            Uri mapped = WebTransportEndpoint.ToHttps(endpoint, listen: true);
+            Assert.That(mapped.AbsoluteUri, Is.EqualTo(expected));
+            Assert.That(mapped.Port, Is.Zero);
+            Assert.That(mapped.PathAndQuery, Is.EqualTo(endpoint.PathAndQuery));
+            Assert.Throws<ArgumentException>(() => WebTransportEndpoint.ToHttps(endpoint));
+        }
+
+        /// <summary>
+        /// ToHttps must validate the original native URL, not normalize invalid input into an accepted HTTPS URL.
+        /// </summary>
+        [TestCase("https://example.test:4840/ua/wt")]
+        [TestCase("opc.quic://example.test:4840/ua/wt")]
+        [TestCase("opc.wt://example.test/ua/wt")]
+        [TestCase("opc.wt://user@example.test:4840/ua/wt")]
+        [TestCase("opc.wt://example.test:4840/ua/wt#fragment")]
+        [TestCase("opc.wt://example.test:4840/a/../ua/wt")]
+        [TestCase("opc.wt://EXAMPLE.test:4840/ua/wt")]
+        [TestCase("opc.wt://example.test:4840/ua/a b")]
+        public void ManagementToHttpsRejectsNoncanonicalNativeInput(string address)
+        {
+            var endpoint = new Uri(address);
+            Assert.Throws<ArgumentException>(() => WebTransportEndpoint.ToHttps(endpoint));
+            Assert.Throws<ArgumentException>(() => WebTransportEndpoint.ToHttps(endpoint, listen: true));
+        }
+
+        /// <summary>
+        /// Null and relative URIs fail at the native validation boundary, before URL mapping.
+        /// </summary>
+        [Test]
+        public void ManagementToHttpsRejectsNullAndRelativeInput()
+        {
+            Assert.Throws<ArgumentNullException>(() => WebTransportEndpoint.ToHttps(null!));
+            Assert.Throws<ArgumentException>(() => WebTransportEndpoint.ToHttps(new Uri("/ua/wt", UriKind.Relative)));
+        }
+
+        /// <summary>
         /// Accepts canonical HTTPS browser authorities and preserves the configured path and query separately.
         /// </summary>
         [TestCase("https://example.test/ua/wt?resource=pubsub", "example.test", "/ua/wt?resource=pubsub")]

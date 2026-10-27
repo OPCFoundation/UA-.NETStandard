@@ -12,6 +12,18 @@ namespace Opc.Ua.Bindings
     internal static class WebTransportEndpoint
     {
         /// <summary>
+        /// Maps an explicitly configured native data endpoint to its HTTPS CONNECT authority and resource.
+        /// </summary>
+        internal static Uri ToHttps(Uri endpoint, bool listen = false)
+        {
+            Address(endpoint, listen, numericListener: false);
+            var mapped = new Uri("https://" + endpoint.Authority + endpoint.PathAndQuery);
+            var https = new Uri(mapped.AbsoluteUri);
+            HttpsAddress(https);
+            return https;
+        }
+
+        /// <summary>
         /// Validates a canonical HTTPS URL for browser-facing CONNECT authority and resource policy.
         /// </summary>
         internal static string HttpsAddress(Uri endpoint)

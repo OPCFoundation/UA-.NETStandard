@@ -331,6 +331,13 @@ namespace Opc.Ua.DataChannels
                     : DirectDeliveryFrameCodec.EncodeBarrier(
                         item.Control!, record.Revision, record.MessageId, m_codecLimits);
             }
+            else if (m_carrier.Kind == DataChannelCarrierKind.WebTransport &&
+                item.Path == DataChannelPath.Management)
+            {
+                item.Encoded = UascFlowMessageCodec.EncodeManagement(
+                    item.ChannelId, in record, m_codecLimits, out uint requestId);
+                item.RequestId = requestId;
+            }
             else if (!IsNative)
             {
                 item.Encoded = UascFlowMessageCodec.Encode(

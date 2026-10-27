@@ -21,7 +21,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(write));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (!m_uascBaseline || MaxDatagramSize == 0)
+            if (!m_uascBaseline || m_uascManagement || MaxDatagramSize == 0)
             {
                 return ValueTask.FromResult(DataChannelResult.Unsupported);
             }
@@ -46,7 +46,7 @@ namespace Opc.Ua.Bindings
             lock (m_gate)
             {
                 linked.Token.ThrowIfCancellationRequested();
-                if (!m_uascBaseline || MaxDatagramSize == 0)
+                if (!m_uascBaseline || m_uascManagement || MaxDatagramSize == 0)
                 {
                     throw new DataChannelException(DataChannelResult.Unsupported);
                 }

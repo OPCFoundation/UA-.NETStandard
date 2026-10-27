@@ -42,13 +42,42 @@ namespace Opc.Ua.Bindings
         /// Opens a fresh HTTPS/H3 connection, completes CONNECT, and reserves the first client-created
         /// WebTransport bidirectional stream for ordinary UACP/UASC.
         /// </summary>
-        public async ValueTask<WebTransportUascBaselineConnection> ConnectAsync(
+        public ValueTask<WebTransportUascBaselineConnection> ConnectAsync(
             Uri endpoint,
             NativeQuicCredentials tlsCredentials,
             CancellationToken credentialsInvalidated = default,
             CancellationToken cancellationToken = default)
         {
-            string address = WebTransportEndpoint.HttpsAddress(endpoint);
+            return ConnectCoreAsync(
+                endpoint, tlsCredentials, false, credentialsInvalidated, cancellationToken);
+        }
+
+        /// <summary>
+        /// Opens a native data session with server-only TLS authentication. Use the returned factory
+        /// with UascDataChannelClient to authenticate applications before admitting flows.
+        /// </summary>
+        public ValueTask<WebTransportUascBaselineConnection> ConnectDataChannelsAsync(
+            Uri endpoint,
+            NativeQuicCredentials tlsCredentials,
+            CancellationToken credentialsInvalidated = default,
+            CancellationToken cancellationToken = default)
+        {
+            return ConnectCoreAsync(
+                endpoint, tlsCredentials, true, credentialsInvalidated, cancellationToken);
+        }
+
+        /// <summary>
+        /// Establishes CONNECT without treating its HTTPS server identity as the OPC UA application identity.
+        /// </summary>
+        private async ValueTask<WebTransportUascBaselineConnection> ConnectCoreAsync(
+            Uri endpoint,
+            NativeQuicCredentials tlsCredentials,
+            bool managementOnly,
+            CancellationToken credentialsInvalidated,
+            CancellationToken cancellationToken)
+        {
+            Uri httpsEndpoint = managementOnly ? WebTransportEndpoint.ToHttps(endpoint) : endpoint;
+            WebTransportEndpoint.HttpsAddress(httpsEndpoint);
             ArgumentNullException.ThrowIfNull(tlsCredentials);
             if (!tlsCredentials.IsTransportOnly || !tlsCredentials.CertificateDer.IsEmpty)
             {
@@ -56,7 +85,7 @@ namespace Opc.Ua.Bindings
                     "The WebTransport client requires explicit server-trust-only TLS credentials.",
                     nameof(tlsCredentials));
             }
-            int port = endpoint.IsDefaultPort ? 443 : endpoint.Port;
+            int port = httpsEndpoint.IsDefaultPort ? 443 : httpsEndpoint.Port;
             string target = endpoint.DnsSafeHost.Contains(':', StringComparison.Ordinal)
                 ? $"[{endpoint.DnsSafeHost}]:{port}"
                 : $"{endpoint.DnsSafeHost}:{port}";
@@ -72,15 +101,17 @@ namespace Opc.Ua.Bindings
                 cancellationToken).ConfigureAwait(false);
             WebTransportDataChannelConnection carrier =
                 await WebTransportDataChannelConnection.EstablishUascBaselineAsync(
-                    native, m_http3Library, m_applicationBudget, endpoint, m_options,
-                    timeProvider: m_timeProvider, cancellationToken: cancellationToken).ConfigureAwait(false);
-            return new WebTransportUascBaselineConnection(carrier, endpoint, isInitiator: true);
+                    native, m_http3Library, m_applicationBudget, httpsEndpoint, m_options,
+                    timeProvider: m_timeProvider, managementOnly: managementOnly,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            return new WebTransportUascBaselineConnection(
+                carrier, endpoint, isInitiator: true, managementOnly);
         }
 
         /// <summary>
         /// Listens on the supplied local UDP endpoint while preserving the exact public HTTPS authority/resource.
         /// </summary>
-        public async ValueTask<WebTransportUascListener> ListenAsync(
+        public ValueTask<WebTransportUascListener> ListenAsync(
             Uri endpoint,
             IPEndPoint localEndpoint,
             NativeQuicCredentials tlsCredentials,
@@ -88,7 +119,42 @@ namespace Opc.Ua.Bindings
             CancellationToken credentialsInvalidated = default,
             CancellationToken cancellationToken = default)
         {
-            WebTransportEndpoint.HttpsAddress(endpoint);
+            return ListenCoreAsync(
+                endpoint, localEndpoint, tlsCredentials, connectAuthorizer, false,
+                credentialsInvalidated, cancellationToken);
+        }
+
+        /// <summary>
+        /// Listens for native data sessions whose first WebTransport stream authenticates applications
+        /// through UASC. CONNECT authorization receives the mapped HTTPS authority and resource.
+        /// </summary>
+        public ValueTask<WebTransportUascListener> ListenDataChannelsAsync(
+            Uri endpoint,
+            IPEndPoint localEndpoint,
+            NativeQuicCredentials tlsCredentials,
+            Func<Uri, CancellationToken, ValueTask<bool>> connectAuthorizer,
+            CancellationToken credentialsInvalidated = default,
+            CancellationToken cancellationToken = default)
+        {
+            return ListenCoreAsync(
+                endpoint, localEndpoint, tlsCredentials, connectAuthorizer, true,
+                credentialsInvalidated, cancellationToken);
+        }
+
+        /// <summary>
+        /// Retains the selected UA profile separately from the HTTPS CONNECT endpoint.
+        /// </summary>
+        private async ValueTask<WebTransportUascListener> ListenCoreAsync(
+            Uri endpoint,
+            IPEndPoint localEndpoint,
+            NativeQuicCredentials tlsCredentials,
+            Func<Uri, CancellationToken, ValueTask<bool>> connectAuthorizer,
+            bool managementOnly,
+            CancellationToken credentialsInvalidated,
+            CancellationToken cancellationToken)
+        {
+            Uri httpsEndpoint = managementOnly ? WebTransportEndpoint.ToHttps(endpoint, listen: true) : endpoint;
+            WebTransportEndpoint.HttpsAddress(httpsEndpoint);
             ArgumentNullException.ThrowIfNull(localEndpoint);
             ArgumentNullException.ThrowIfNull(tlsCredentials);
             ArgumentNullException.ThrowIfNull(connectAuthorizer);
@@ -110,7 +176,7 @@ namespace Opc.Ua.Bindings
             Uri boundEndpoint = WebTransportEndpoint.WithBoundPort(endpoint, listener.Address);
             return new WebTransportUascListener(
                 listener, m_http3Library, m_applicationBudget, boundEndpoint, m_options,
-                connectAuthorizer, m_timeProvider);
+                connectAuthorizer, m_timeProvider, managementOnly);
         }
 
         /// <summary>
@@ -151,7 +217,8 @@ namespace Opc.Ua.Bindings
             Uri endpoint,
             WebTransportDataChannelOptions options,
             Func<Uri, CancellationToken, ValueTask<bool>> connectAuthorizer,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            bool managementOnly = false)
         {
             m_listener = listener;
             m_http3Library = http3Library;
@@ -160,10 +227,12 @@ namespace Opc.Ua.Bindings
             m_options = options;
             m_connectAuthorizer = connectAuthorizer;
             m_timeProvider = timeProvider;
+            m_managementOnly = managementOnly;
         }
 
         /// <summary>
-        /// Gets the exact HTTPS authority and resource used for CONNECT and UACP HEL validation.
+        /// Gets the selected UA endpoint used for UACP HEL validation. Native data endpoints
+        /// use opc.wt and map to HTTPS for CONNECT.
         /// </summary>
         public Uri EndpointUrl { get; }
 
@@ -176,9 +245,12 @@ namespace Opc.Ua.Bindings
             NativeQuicConnection native = await m_listener.AcceptAsync(cancellationToken).ConfigureAwait(false);
             WebTransportDataChannelConnection carrier =
                 await WebTransportDataChannelConnection.EstablishUascBaselineAsync(
-                    native, m_http3Library, m_applicationBudget, EndpointUrl, m_options,
-                    m_connectAuthorizer, m_timeProvider, cancellationToken).ConfigureAwait(false);
-            return new WebTransportUascBaselineConnection(carrier, EndpointUrl, isInitiator: false);
+                    native, m_http3Library, m_applicationBudget,
+                    m_managementOnly ? WebTransportEndpoint.ToHttps(EndpointUrl) : EndpointUrl,
+                    m_options, m_connectAuthorizer, m_timeProvider, m_managementOnly,
+                    cancellationToken).ConfigureAwait(false);
+            return new WebTransportUascBaselineConnection(
+                carrier, EndpointUrl, isInitiator: false, m_managementOnly);
         }
 
         /// <inheritdoc/>
@@ -190,6 +262,7 @@ namespace Opc.Ua.Bindings
         private readonly WebTransportDataChannelOptions m_options;
         private readonly Func<Uri, CancellationToken, ValueTask<bool>> m_connectAuthorizer;
         private readonly TimeProvider m_timeProvider;
+        private readonly bool m_managementOnly;
     }
 
     /// <summary>
@@ -199,20 +272,23 @@ namespace Opc.Ua.Bindings
     public sealed class WebTransportUascBaselineConnection :
         IUaSCByteTransportFactory, ITransportChannelFactory, IUaSCTransportProfile,
         IDataChannelDirectBindingProvider, IDataChannelDirectStreamProvider,
-        IDataChannelDirectDatagramProvider, IAsyncDisposable
+        IDataChannelDirectDatagramProvider, IDataChannelUascManagementProvider, IAsyncDisposable
     {
         internal WebTransportUascBaselineConnection(
             WebTransportDataChannelConnection carrier,
             Uri endpoint,
-            bool isInitiator)
+            bool isInitiator,
+            bool managementOnly = false)
         {
             m_carrier = carrier;
             EndpointUrl = endpoint;
             m_isInitiator = isInitiator;
+            m_managementOnly = managementOnly;
         }
 
         /// <summary>
-        /// Gets the configured HTTPS endpoint/resource selected for CONNECT and UACP HEL.
+        /// Gets the selected UA endpoint used for UACP HEL. Native data endpoints use opc.wt
+        /// and map to HTTPS for CONNECT.
         /// </summary>
         public Uri EndpointUrl { get; }
 
@@ -220,13 +296,27 @@ namespace Opc.Ua.Bindings
         public string Implementation => "WebTransport-UASC";
 
         /// <inheritdoc/>
-        public string UriScheme => Uri.UriSchemeHttps;
+        public string UriScheme => EndpointUrl.Scheme;
 
         /// <inheritdoc/>
-        public string TransportProfileUri => DataChannelProfiles.UascWebTransport;
+        public string TransportProfileUri => m_managementOnly
+            ? DataChannelProfiles.WebTransport : DataChannelProfiles.UascWebTransport;
 
         /// <inheritdoc/>
-        public bool IsAvailable => Volatile.Read(ref m_disposed) == 0;
+        public bool IsAvailable => !m_managementOnly && Volatile.Read(ref m_disposed) == 0;
+
+        /// <inheritdoc/>
+        DataChannelContext IDataChannelUascManagementProvider.CreateContext(
+            IDataChannelCarrier managementCarrier,
+            IDataChannelContextFactory contextFactory)
+        {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
+            if (!m_managementOnly)
+            {
+                throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+            return m_carrier.AttachUascManagement(managementCarrier, contextFactory);
+        }
 
         /// <inheritdoc/>
         public string Capability => DataChannelProfiles.WebTransportDirectCapability;
@@ -283,6 +373,10 @@ namespace Opc.Ua.Bindings
             CancellationToken cancellationToken = default)
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
+            if (m_managementOnly)
+            {
+                throw new DataChannelException(DataChannelResult.Unsupported);
+            }
             byte[] tlsLabel = "EXPORTER-WebTransport"u8.ToArray();
             byte[] context = CreateExporterContext(m_carrier.UascBaselineSessionId, transcriptDigest);
 
@@ -343,6 +437,7 @@ namespace Opc.Ua.Bindings
         {
             ArgumentNullException.ThrowIfNull(bufferManager);
             ArgumentNullException.ThrowIfNull(telemetry);
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
             if (receiveBufferSize <= 8)
             {
                 throw new ArgumentOutOfRangeException(nameof(receiveBufferSize));
@@ -350,15 +445,22 @@ namespace Opc.Ua.Bindings
             if (m_isInitiator)
             {
                 return new UascStreamByteTransportFactory(
-                    ClaimStreamAsync, Implementation, TransportProfileUri, this)
+                    ClaimStreamAsync, Implementation, TransportProfileUri,
+                    directBindingProvider: m_managementOnly ? null : this,
+                    managementProvider: m_managementOnly ? this : null)
                     .Create(bufferManager, receiveBufferSize, telemetry);
+            }
+            if (Interlocked.Exchange(ref m_streamClaimed, 1) != 0)
+            {
+                throw new InvalidOperationException("A WebTransport management stream can be claimed only once.");
             }
             return new UascStreamByteTransport(
                 m_carrier.UascBaselineByteStream,
                 bufferManager,
                 receiveBufferSize,
                 Implementation,
-                directBindingProvider: this);
+                directBindingProvider: m_managementOnly ? null : this,
+                managementProvider: m_managementOnly ? this : null);
         }
 
         /// <inheritdoc/>
@@ -393,7 +495,7 @@ namespace Opc.Ua.Bindings
         {
             protected override void OnSettingsSaved(TransportChannelSettings settings, ChannelQuotas quotas)
             {
-                if (settings.Description?.TransportProfileUri != DataChannelProfiles.UascWebTransport ||
+                if (settings.Description?.TransportProfileUri != owner.TransportProfileUri ||
                     settings.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
                     !Uri.TryCreate(settings.Description.EndpointUrl, UriKind.Absolute, out Uri? endpoint) ||
                     !owner.EndpointUrl.Equals(endpoint))
@@ -406,6 +508,7 @@ namespace Opc.Ua.Bindings
 
         private readonly WebTransportDataChannelConnection m_carrier;
         private readonly bool m_isInitiator;
+        private readonly bool m_managementOnly;
         private int m_streamClaimed;
         private int m_disposed;
     }

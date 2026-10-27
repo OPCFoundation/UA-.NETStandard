@@ -183,6 +183,10 @@ namespace Opc.Ua.Bindings
             {
                 if (m_baselineStreamState != null)
                 {
+                    if (m_uascManagement)
+                    {
+                        return;
+                    }
                     if (m_directStreamAdmissions.Count == 0)
                     {
                         StartJobLocked(() => CloseFlowAsync(metadata.Stream, DataChannelResult.InvalidState));
@@ -238,6 +242,10 @@ namespace Opc.Ua.Bindings
                 throw new WebTransportException("The actual first WebTransport stream is not an available baseline.");
             }
             m_baselineStreamState = state;
+            if (m_uascManagement)
+            {
+                m_management = state;
+            }
             m_baselineStream = new WebTransportByteStream(this, state, m_lifetime);
             state.ByteStream = m_baselineStream;
             state.Bound.TrySetResult();
@@ -494,7 +502,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private async ValueTask DeliverDatagramAsync(ByteString payload)
         {
-            if (m_uascBaseline)
+            if (m_uascBaseline && !m_uascManagement)
             {
                 lock (m_gate)
                 {
@@ -523,7 +531,7 @@ namespace Opc.Ua.Bindings
                 RequestClose(result);
                 return;
             }
-            if (m_uascBaseline)
+            if (m_uascBaseline && !m_uascManagement)
             {
                 state.ByteStream?.CompleteInput(result);
                 if (state.Associated && !state.Closing)

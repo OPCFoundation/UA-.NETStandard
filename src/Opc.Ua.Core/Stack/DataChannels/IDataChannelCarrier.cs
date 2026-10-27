@@ -48,6 +48,24 @@ namespace Opc.Ua.DataChannels
     }
 
     /// <summary>
+    /// Binds native WebTransport flows to the UASC management stream on their own session.
+    /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+    public interface IDataChannelUascManagementProvider
+    {
+        /// <summary>
+        /// Creates and attaches an unstarted native context after UASC authentication.
+        /// The native carrier retains the management carrier's verified identity and uses it
+        /// only for management writes; all other streams and datagrams belong to the same session.
+        /// Ingress must be attached before this method returns. Repeated attachment is refused.
+        /// </summary>
+        DataChannelContext CreateContext(
+            IDataChannelCarrier managementCarrier,
+            IDataChannelContextFactory contextFactory);
+    }
+
+    /// <summary>
     /// Identifies an explicitly selected version-one carrier.
     /// </summary>
     [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
@@ -70,7 +88,7 @@ namespace Opc.Ua.DataChannels
         Quic,
 
         /// <summary>
-        /// Mutually authenticated WebTransport over HTTP/3.
+        /// WebTransport over HTTP/3 with application authentication through its UASC management stream.
         /// </summary>
         WebTransport,
 
@@ -342,7 +360,7 @@ namespace Opc.Ua.DataChannels
         public ulong StreamId { get; }
 
         /// <summary>
-        /// Gets the UASC RequestId (zero for both FLO profiles).
+        /// Gets the UASC RequestId: zero for FLO/FLC or the common-record MessageId for management MSG.
         /// </summary>
         public uint RequestId { get; }
 

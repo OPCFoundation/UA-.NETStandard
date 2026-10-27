@@ -134,8 +134,22 @@ namespace Opc.Ua.Bindings
                 throw new DataChannelException(DataChannelResult.SecurityFailure);
             }
             var carrier = new UascDataChannelCarrier(this, kind, identity);
-            DataChannelContext context = factory.Create(carrier);
-            if (context == null || !context.UsesCarrier(carrier))
+            DataChannelContext context;
+            if (kind == DataChannelCarrierKind.WebTransport)
+            {
+                if (Transport is not IDataChannelUascManagementProvider provider ||
+                    SecurityMode != MessageSecurityMode.SignAndEncrypt)
+                {
+                    throw new DataChannelException(DataChannelResult.Unsupported);
+                }
+                context = provider.CreateContext(carrier, factory);
+            }
+            else
+            {
+                context = factory.Create(carrier);
+            }
+            if (context == null || !context.UsesCarrierIdentity(kind, identity) ||
+                (kind != DataChannelCarrierKind.WebTransport && !context.UsesCarrier(carrier)))
             {
                 throw new DataChannelException(DataChannelResult.InvalidState);
             }
@@ -183,8 +197,11 @@ namespace Opc.Ua.Bindings
         {
             DataChannelContext? context = m_dataChannels;
             uint flowMessageType = messageType & TcpMessageType.MessageTypeMask;
+            bool management = m_dataChannelKind == DataChannelCarrierKind.WebTransport;
             if (context == null ||
-                flowMessageType is not (TcpMessageType.FlowData or TcpMessageType.FlowControl) ||
+                (management
+                    ? flowMessageType != TcpMessageType.Message
+                    : flowMessageType is not (TcpMessageType.FlowData or TcpMessageType.FlowControl)) ||
                 SecurityMode == MessageSecurityMode.None)
             {
                 OnDataChannelProtocolFault(DataChannelResult.Unsupported);
@@ -200,6 +217,7 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
                 context.QueueVerifiedUasc(
+                    management ? DataChannelUascMessageKind.Msg :
                     flowMessageType == TcpMessageType.FlowData
                         ? DataChannelUascMessageKind.Flo
                         : DataChannelUascMessageKind.Flc,
@@ -230,7 +248,9 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(write));
             }
-            if (m_dataChannels == null || write.Path == DataChannelPath.Datagram)
+            bool management = m_dataChannelKind == DataChannelCarrierKind.WebTransport;
+            if (m_dataChannels == null || write.Path == DataChannelPath.Datagram ||
+                (management && (write.Path != DataChannelPath.Management || write.IsData)))
             {
                 return DataChannelResult.Unsupported;
             }
@@ -264,7 +284,8 @@ namespace Opc.Ua.Bindings
                     using (await Gate.EnterAsync(cancellationToken).ConfigureAwait(false))
                     {
                         EncodedSymmetricMessage message = EncodeSymmetricMessage(
-                            write.IsData ? TcpMessageType.FlowData : TcpMessageType.FlowControl,
+                            management ? TcpMessageType.Message :
+                                write.IsData ? TcpMessageType.FlowData : TcpMessageType.FlowControl,
                             write.RequestId,
                             encoded,
                             m_dataChannelIsUascInitiator,

@@ -48,7 +48,8 @@ namespace Opc.Ua.Bindings
     /// </remarks>
     public sealed class UascStreamByteTransport :
         IUaSCByteTransport, IUaSCByteTransportLimits, IDataChannelDirectBindingProvider,
-        IDataChannelDirectStreamProvider, IDataChannelDirectDatagramProvider, IDisposable
+        IDataChannelDirectStreamProvider, IDataChannelDirectDatagramProvider,
+        IDataChannelUascManagementProvider, IDisposable
     {
         /// <summary>
         /// Takes ownership of one established readable and writable stream with a finite chunk limit.
@@ -60,9 +61,10 @@ namespace Opc.Ua.Bindings
             string implementation,
             EndPoint? localEndpoint = null,
             EndPoint? remoteEndpoint = null,
-            IDataChannelDirectBindingProvider? directBindingProvider = null)
+            IDataChannelDirectBindingProvider? directBindingProvider = null,
+            IDataChannelUascManagementProvider? managementProvider = null)
             : this(bufferManager, receiveBufferSize, implementation, localEndpoint, remoteEndpoint,
-                directBindingProvider)
+                directBindingProvider, managementProvider)
         {
             if (stream == null)
             {
@@ -83,8 +85,10 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize,
             string implementation,
-            IDataChannelDirectBindingProvider? directBindingProvider = null)
-            : this(bufferManager, receiveBufferSize, implementation, null, null, directBindingProvider)
+            IDataChannelDirectBindingProvider? directBindingProvider = null,
+            IDataChannelUascManagementProvider? managementProvider = null)
+            : this(bufferManager, receiveBufferSize, implementation, null, null,
+                directBindingProvider, managementProvider)
         {
             m_connector = connector ?? throw new ArgumentNullException(nameof(connector));
         }
@@ -98,7 +102,8 @@ namespace Opc.Ua.Bindings
             string implementation,
             EndPoint? localEndpoint,
             EndPoint? remoteEndpoint,
-            IDataChannelDirectBindingProvider? directBindingProvider)
+            IDataChannelDirectBindingProvider? directBindingProvider,
+            IDataChannelUascManagementProvider? managementProvider)
         {
             m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             ValidateReceiveBufferSize(receiveBufferSize);
@@ -112,6 +117,17 @@ namespace Opc.Ua.Bindings
             LocalEndpoint = localEndpoint;
             RemoteEndpoint = remoteEndpoint;
             m_directBindingProvider = directBindingProvider;
+            m_managementProvider = managementProvider;
+        }
+
+        /// <inheritdoc/>
+        DataChannelContext IDataChannelUascManagementProvider.CreateContext(
+            IDataChannelCarrier managementCarrier,
+            IDataChannelContextFactory contextFactory)
+        {
+            using Operation operation = EnterOperation();
+            return m_managementProvider?.CreateContext(managementCarrier, contextFactory) ??
+                throw new DataChannelException(DataChannelResult.Unsupported);
         }
 
         /// <inheritdoc/>
@@ -630,6 +646,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>The optional borrowed provider for this baseline's authenticated transport association.</summary>
         private readonly IDataChannelDirectBindingProvider? m_directBindingProvider;
+        private readonly IDataChannelUascManagementProvider? m_managementProvider;
 
         /// <summary>Protects resource disposal against admitted I/O operations.</summary>
         private readonly System.Threading.Lock m_lifetimeGate = new();

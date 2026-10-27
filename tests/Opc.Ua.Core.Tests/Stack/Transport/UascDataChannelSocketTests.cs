@@ -43,6 +43,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
@@ -70,6 +71,460 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 #endif
     public sealed class UascDataChannelSocketTests
     {
+        /// <summary>
+        /// Real encrypted UASC authenticates management; paired fake native streams retain all flow traffic.
+        /// This is composition evidence, not browser/native interoperability or retention qualification.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementReadinessAndNativeFlowPathsNeedNoExporterAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransport).ConfigureAwait(false);
+            await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
+            DataChannelContext remote = await harness.ServerFactory.Created.Task.WaitAsync(harness.Token)
+                .ConfigureAwait(false);
+            await remote.WaitForReadyAsync(harness.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(connection.Services, Is.Null);
+                Assert.That(connection.SecureChannelId, Is.Not.Zero);
+                Assert.That(connection.Context.IsReady, Is.True);
+                Assert.That(remote.IsReady, Is.True);
+                Assert.That(connection.Context.CarrierKind, Is.EqualTo(DataChannelCarrierKind.WebTransport));
+                Assert.That(remote.CarrierKind, Is.EqualTo(DataChannelCarrierKind.WebTransport));
+                Assert.That(connection.Context.Identity.Peer,
+                    Is.SameAs(harness.ClientManagement.ManagementCarrier!.Identity));
+                Assert.That(remote.Identity.Peer, Is.SameAs(harness.ServerManagement.ManagementCarrier!.Identity));
+                Assert.That(connection.Context.Identity.Peer.PeerKeyThumbprint,
+                    Is.EqualTo(DataChannelCertificateIdentity.GetKeyThumbprint(harness.ServerCertificate)));
+                Assert.That(connection.Context.Identity.Peer.Protection, Is.EqualTo(DataChannelProtectionMode.Confidential));
+                Assert.That(connection.Context.Identity.ContextId, Is.EqualTo(remote.Identity.ContextId));
+                Assert.That(connection.Context.Identity.LocalChallenge, Is.EqualTo(remote.Identity.PeerChallenge));
+                Assert.That(connection.Context.Identity.PeerChallenge, Is.EqualTo(remote.Identity.LocalChallenge));
+                Assert.That(connection.Context.Identity.LocalChallenge.Length, Is.EqualTo(32));
+                Assert.That(connection.Context.Identity.PeerChallenge.Length, Is.EqualTo(32));
+                Assert.That((object)harness.ClientManagement, Is.Not.InstanceOf<IDataChannelDirectBindingProvider>());
+            });
+
+            await using DataChannel outgoing = await connection.Context.OpenAsync(
+                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            ByteString payload = UadpPayload(ByteString.FromHexString("00feff7f"));
+            Assert.That(await outgoing.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using (DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!)
+            {
+                Assert.That(received.Payload, Is.EqualTo(payload));
+                Assert.That(received.Revision, Is.EqualTo(1u));
+            }
+            ByteString reply = UadpPayload(ByteString.FromHexString("12345678"));
+            Assert.That(await incoming.SendAsync(reply, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using (DataChannelMessage received = (await outgoing.ReadAsync(harness.Token).ConfigureAwait(false))!)
+            {
+                Assert.That(received.Payload, Is.EqualTo(reply));
+            }
+            DataChannelParametersDataType updated = outgoing.Parameters;
+            updated.MaxMessageSize = 128;
+            Assert.That(await outgoing.UpdateAsync(updated, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            Assert.That(await outgoing.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using (DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!)
+            {
+                Assert.That(received.Payload, Is.EqualTo(payload));
+                Assert.That(received.Revision, Is.EqualTo(2u));
+            }
+            Assert.That(await outgoing.EndAsync(harness.Token).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            Assert.That(await incoming.ReadAsync(harness.Token).ConfigureAwait(false), Is.Null);
+            await harness.ServerManagement.WaitForPeerFinAsync(4, harness.Token).ConfigureAwait(false);
+            Task finish = harness.ClientManagement.FinishFlowAsync(4, harness.Token).AsTask();
+            Assert.That(finish.IsCompleted, Is.False, "The opposite direction has not sent FIN yet.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ClientManagement.OpenedStreams, Has.Count.EqualTo(1));
+                Assert.That(harness.ClientManagement.OpenedStreams.ContainsKey(4), Is.True);
+                Assert.That(harness.ClientManagement.Bindings[4], Is.EqualTo(outgoing.ChannelId));
+                Assert.That(harness.ServerManagement.Bindings[4], Is.EqualTo(incoming.ChannelId));
+                Assert.That(harness.ClientManagement.Writes.Count(write => write.IsData), Is.EqualTo(2));
+                Assert.That(harness.ServerManagement.Writes.Count(write => write.IsData), Is.EqualTo(1));
+                Assert.That(harness.ServiceRequests, Is.Zero);
+            });
+            foreach (ManagementProvider provider in new[] { harness.ClientManagement, harness.ServerManagement })
+            {
+                CapturedNativeWrite[] management = [.. provider.Writes.Where(write => write.Path == DataChannelPath.Management)];
+                Assert.That(management, Is.Not.Empty);
+                Assert.That(management.Any(write => FlowControlCodec.Decode(
+                    FlowRecordCodec.DecodeExact(write.Payload, new()), new()).Operation == FlowOperation.Hello), Is.True);
+                foreach (CapturedNativeWrite write in provider.Writes)
+                {
+                    FlowRecord record = FlowRecordCodec.DecodeExact(write.Payload, new());
+                    if (write.Path == DataChannelPath.Management)
+                    {
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(write.IsData, Is.False);
+                            Assert.That(record.Kind, Is.EqualTo(FlowRecordKind.Control));
+                            Assert.That(write.StreamId, Is.Zero);
+                            Assert.That(write.RequestId, Is.EqualTo(record.MessageId));
+                            Assert.That(write.RequestId, Is.Not.Zero);
+                        });
+                    }
+                    else
+                    {
+                        Assert.That(write.Path, Is.EqualTo(DataChannelPath.Flow));
+                        Assert.That(write.StreamId, Is.EqualTo(4UL));
+                        Assert.That(write.ChannelId, Is.EqualTo(outgoing.ChannelId));
+                    }
+                }
+            }
+            Assert.That(await incoming.EndAsync(harness.Token).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            Assert.That(await outgoing.ReadAsync(harness.Token).ConfigureAwait(false), Is.Null);
+            await finish.ConfigureAwait(false);
+            await incoming.DisposeAsync().ConfigureAwait(false);
+            await outgoing.DisposeAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ClientManagement.FinishedStreams.ContainsKey(4), Is.True);
+                Assert.That(harness.ServerManagement.FinishedStreams.ContainsKey(4), Is.True);
+                Assert.That(harness.ClientManagement.FinsSent, Is.EqualTo(1));
+                Assert.That(harness.ServerManagement.FinsSent, Is.EqualTo(1));
+                Assert.That(harness.ClientManagement.FinsObserved, Is.EqualTo(1));
+                Assert.That(harness.ServerManagement.FinsObserved, Is.EqualTo(1));
+                Assert.That(harness.ClientManagement.Bindings, Is.Empty);
+                Assert.That(harness.ServerManagement.Bindings, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Native management refuses Services locally, before allocating a secured Service write.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementRefusesServiceSendBeforeWritingAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransport).ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
+            await client.DataChannels!.WaitForReadyAsync(harness.Token).ConfigureAwait(false);
+            int before = client.WireChunks.Count;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.SendRequestAsync(Read(71), 10000, harness.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
+                Assert.That(client.WireChunks, Has.Count.EqualTo(before));
+                Assert.That(harness.ServiceRequests, Is.Zero);
+                Assert.That(client.DataChannels.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Management's UASC writer cannot be used as a substitute native DATA/flow/datagram path.
+        /// </summary>
+        [TestCase(DataChannelPath.Management, true)]
+        [TestCase(DataChannelPath.Flow, false)]
+        [TestCase(DataChannelPath.Datagram, false)]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementWriterRefusesNonManagementTrafficAsync(DataChannelPath path, bool isData)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransport).ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
+            await client.DataChannels!.WaitForReadyAsync(harness.Token).ConfigureAwait(false);
+            int before = client.WireChunks.Count;
+            bool committed = false;
+            var write = new DataChannelWrite(path, 1, 4, 11,
+                ByteString.FromHexString("0e00000001010000000b0000000a01000000"), isData, 128,
+                () =>
+                {
+                    committed = true;
+                    return DataChannelResult.Good;
+                });
+            DataChannelResult result = await client.SendDataChannelWriteAsync(write, harness.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(DataChannelResult.Unsupported));
+                Assert.That(committed, Is.False);
+                Assert.That(write.IsCommitted, Is.False);
+                Assert.That(client.WireChunks, Has.Count.EqualTo(before));
+                Assert.That(harness.ServiceRequests, Is.Zero);
+                Assert.That(client.DataChannels.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// The public verified ingress accepts MSG too; a FLO/FLC-only whitelist would prevent HELLO readiness.
+        /// This direct API test uses fake verified identity, not native authentication evidence.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementPublicIngressAcceptsMsgHelloAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var identity = new DataChannelPeerIdentity(
+                "urn:ingress:local", "urn:ingress:peer",
+                ByteString.FromHexString(new string('1', 64)), ByteString.FromHexString(new string('2', 64)),
+                DataChannelProtectionMode.Confidential, false);
+            var carrier = new Mock<IDataChannelCarrier>(MockBehavior.Strict);
+            carrier.SetupGet(value => value.Kind).Returns(DataChannelCarrierKind.WebTransport);
+            carrier.SetupGet(value => value.Identity).Returns(identity);
+            carrier.SetupGet(value => value.MaxRecordSize).Returns(8192);
+            carrier.SetupGet(value => value.MaxDatagramSize).Returns(0);
+            carrier.SetupGet(value => value.ManagementStreamId).Returns(0UL);
+            var replies = new ConcurrentQueue<CapturedNativeWrite>();
+            carrier.Setup(value => value.SendAsync(It.IsAny<DataChannelWrite>(), It.IsAny<CancellationToken>()))
+                .Returns((DataChannelWrite write, CancellationToken _) =>
+                {
+                    replies.Enqueue(new CapturedNativeWrite(
+                        write.Path, write.ChannelId, write.StreamId, write.RequestId, write.Payload.Copy(), write.IsData));
+                    return new ValueTask<DataChannelResult>(write.TryCommit() ? DataChannelResult.Good : write.Result);
+                });
+            carrier.Setup(value => value.CloseAsync(It.IsAny<DataChannelResult>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var factory = new ContextFactory(telemetry, identity.PeerApplicationUri, identity.PeerKeyThumbprint, false);
+            await using DataChannelContext context = factory.Create(carrier.Object);
+            var contextId = new Guid("11112233-4455-6677-8899-aabbccddeeff");
+            ByteString challenge = ByteString.FromHexString(new string('3', 64));
+            FlowRecord hello = FlowControlCodec.Encode(
+                new FlowHello(1, FlowCarrier.WebTransport, identity.PeerApplicationUri, contextId, 7,
+                    challenge, FlowWireProtection.Confidential, 4096, 8192, 4), 0, 0x80010001, new());
+            DataChannelResult result = await context.ReceiveUascAsync(
+                DataChannelUascMessageKind.Msg, (byte)'F', 0x80010001, FlowRecordCodec.Encode(in hello, new()),
+                TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+            Assert.That(result, Is.EqualTo(DataChannelResult.Good));
+            await context.WaitForReadyAsync(TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(context.IsReady, Is.True);
+                Assert.That(context.Identity.Peer, Is.SameAs(identity));
+                Assert.That(context.Identity.ContextId, Is.EqualTo(contextId));
+                Assert.That(context.Identity.Generation, Is.EqualTo(7u));
+                Assert.That(context.Identity.PeerChallenge, Is.EqualTo(challenge));
+                Assert.That(factory.Authorizations, Is.Zero, "HELLO does not authorize a resource.");
+                Assert.That(replies, Has.Count.EqualTo(1));
+            });
+            CapturedNativeWrite response = replies.Single();
+            UascFlowMessage decoded = UascFlowMessageCodec.DecodeManagement(
+                DataChannelUascMessageKind.Msg, (byte)'F', response.RequestId, response.Payload, new());
+            var confirmation = (FlowHello)decoded.Control!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Path, Is.EqualTo(DataChannelPath.Management));
+                Assert.That(response.IsData, Is.False);
+                Assert.That(confirmation.Application, Is.EqualTo(identity.LocalApplicationUri));
+                Assert.That(confirmation.Context, Is.EqualTo(contextId));
+                Assert.That(confirmation.Generation, Is.EqualTo(7u));
+                Assert.That(confirmation.Challenge, Is.EqualTo(context.Identity.LocalChallenge));
+            });
+        }
+
+        /// <summary>
+        /// Malformed MSG bodies are authenticated, then refused by the flow-only dispatcher, never Services.
+        /// </summary>
+        [TestCase("service", DataChannelResult.TooLarge)]
+        [TestCase("data", DataChannelResult.InvalidArgument)]
+        [TestCase("request-id", DataChannelResult.InvalidArgument)]
+        [TestCase("trailing-record", DataChannelResult.InvalidArgument)]
+        [TestCase("abort", DataChannelResult.InvalidArgument)]
+        [TestCase("continuation", DataChannelResult.InvalidArgument)]
+        [TestCase("flc", DataChannelResult.Unsupported)]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementRefusesAuthenticatedInvalidInputAsync(
+            string fault, DataChannelResult expected)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransport).ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
+            DataChannelContext remote = await harness.ServerFactory.Created.Task.WaitAsync(harness.Token)
+                .ConfigureAwait(false);
+            await using DataChannel outgoing = await client.DataChannels!.OpenAsync(
+                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            var closed = new TaskCompletionSource<DataChannelResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            remote.Closed += result => closed.TrySetResult(result);
+            FlowRecord end = FlowControlCodec.Encode(
+                new FlowSignal(FlowOperation.End, outgoing.ChannelId), 1, 0x80010001, new());
+            byte[] body = UascFlowMessageCodec.EncodeManagement(
+                outgoing.ChannelId, in end, new(), out uint requestId).ToArray();
+            uint messageType = TcpMessageType.Message;
+            switch (fault)
+            {
+                case "service":
+                    using (var encoder = new BinaryEncoder(ServiceMessageContext.Create(harness.Telemetry)))
+                    {
+                        encoder.EncodeMessage(Read(72));
+                        body = encoder.CloseAndReturnBuffer()!;
+                    }
+                    break;
+                case "data":
+                    var data = new FlowRecord(FlowRecordKind.Data, 1, requestId, UadpPayload(ByteString.Empty));
+                    body = FlowRecordCodec.Encode(in data, new()).ToArray();
+                    break;
+                case "request-id":
+                    requestId ^= 0x80000000;
+                    break;
+                case "trailing-record":
+                    body = [.. body, .. body];
+                    break;
+                case "continuation":
+                    Array.Resize(ref body, client.GetMaxDataChannelRecordSize(DataChannelCarrierKind.WebTransport) + 16);
+                    break;
+                case "flc":
+                    messageType = TcpMessageType.FlowControl;
+                    break;
+            }
+            try
+            {
+                await client.SendAuthenticatedBodyAsync(
+                    messageType, requestId, body, fault == "abort", harness.Token).ConfigureAwait(false);
+            }
+            catch (ServiceResultException)
+            {
+                // The peer can close as soon as the first secured continuation is received.
+            }
+            DataChannelResult result = await closed.Task.WaitAsync(harness.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(expected));
+                Assert.That(remote.IsReady, Is.False);
+                Assert.That(remote.Channels.IsEmpty, Is.True);
+                Assert.That(incoming.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(harness.ServiceRequests, Is.Zero);
+                Assert.That(client.WireChunks.Any(chunk =>
+                    (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) == messageType),
+                    Is.True, "The invalid body must actually enter the authenticated writer.");
+            });
+        }
+
+        /// <summary>
+        /// The ordinary Part32 profile still carries FLO/FLC alongside Services on the identical stream adapter.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementDoesNotReplacePart32BaselineAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransportUasc).ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
+            DataChannelContext remote = await harness.ServerFactory.Created.Task.WaitAsync(harness.Token)
+                .ConfigureAwait(false);
+            await using DataChannel outgoing = await client.DataChannels!.OpenAsync(
+                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            ByteString payload = UadpPayload(ByteString.FromHexString("aabbccdd"));
+            Assert.That(await outgoing.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
+            IServiceResponse response = await client.SendRequestAsync(Read(73), 10000, harness.Token).ConfigureAwait(false);
+            uint[] types = [.. client.WireChunks.Select(chunk =>
+                BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(received.Payload, Is.EqualTo(payload));
+                Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(73u));
+                Assert.That(client.DataChannels.CarrierKind, Is.EqualTo(DataChannelCarrierKind.WebTransportUasc));
+                Assert.That(types, Does.Contain(TcpMessageType.FlowControl));
+                Assert.That(types, Does.Contain(TcpMessageType.FlowData));
+                Assert.That(types, Does.Contain(TcpMessageType.Message));
+                Assert.That(harness.ClientManagement.Attachments, Is.Zero);
+                Assert.That(harness.ServerManagement.Attachments, Is.Zero);
+                Assert.That(harness.ServiceRequests, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
+        /// After a genuine OPN, native attachment cannot omit its provider or replace verified identity evidence.
+        /// </summary>
+        [TestCase(false, false, DataChannelResult.Unsupported)]
+        [TestCase(true, true, DataChannelResult.InvalidState)]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementAttachmentRejectsMissingProviderOrIdentityReplacementAsync(
+            bool supplyProvider, bool replaceIdentity, DataChannelResult expected)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransportUasc,
+                enableDataChannels: false).ConfigureAwait(false);
+            harness.SupplyManagementProvider = supplyProvider;
+            harness.ClientManagement.ReplaceIdentity = replaceIdentity;
+            using ProbeClientChannel client = await harness.ConnectProbeAsync(enableDataChannels: false).ConfigureAwait(false);
+            var identity = harness.CreateClientIdentity();
+            DataChannelException failure = Assert.Throws<DataChannelException>(() => client.AttachDataChannels(
+                DataChannelCarrierKind.WebTransport, identity, true, harness.ClientFactory))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.Result, Is.EqualTo(expected));
+                Assert.That(client.DataChannels, Is.Null);
+                Assert.That(harness.ClientManagement.Attachments, Is.EqualTo(supplyProvider ? 1 : 0));
+                Assert.That(harness.ServiceRequests, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Repeated attachment is refused before the provider can replace the live native context.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task WebTransportManagementAttachmentIsSingleUseAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.InMemoryReliableStream, DataChannelCarrierKind.WebTransport).ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
+            DataChannelContext original = client.DataChannels!;
+            await original.WaitForReadyAsync(harness.Token).ConfigureAwait(false);
+            DataChannelException failure = Assert.Throws<DataChannelException>(() => client.AttachDataChannels(
+                DataChannelCarrierKind.WebTransport, original.Identity.Peer, true, harness.ClientFactory))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.Result, Is.EqualTo(DataChannelResult.InvalidState));
+                Assert.That(client.DataChannels, Is.SameAs(original));
+                Assert.That(original.IsReady, Is.True);
+                Assert.That(harness.ClientManagement.Attachments, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
+        /// Native endpoint selection requires its factory, exact opc.wt address and confidential UASC policy.
+        /// </summary>
+        [Test]
+        public void WebTransportManagementEndpointSelectionDoesNotFallBackToServices()
+        {
+            var url = new Uri("opc.wt://localhost:4840/uasc?resource=pubsub");
+            var endpoint = new EndpointDescription
+            {
+                EndpointUrl = url.AbsoluteUri,
+                TransportProfileUri = DataChannelProfiles.WebTransport,
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+            IDataChannelContextFactory factory = Mock.Of<IDataChannelContextFactory>();
+            Assert.That(UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri),
+                Is.EqualTo(DataChannelCarrierKind.WebTransport));
+            Assert.That(UascDataChannelEndpoint.Validate(url, endpoint, factory, false),
+                Is.EqualTo(DataChannelCarrierKind.WebTransport));
+            ServiceResultException missingFactory = Assert.Throws<ServiceResultException>(() =>
+                UascDataChannelEndpoint.Validate(url, endpoint, null, false))!;
+            Assert.That(missingFactory.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            ServiceResultException wrongScheme = Assert.Throws<ServiceResultException>(() =>
+                UascDataChannelEndpoint.Validate(new Uri("https://localhost:4840/uasc?resource=pubsub"),
+                    endpoint, factory, false))!;
+            Assert.That(wrongScheme.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            foreach (MessageSecurityMode mode in new[] { MessageSecurityMode.None, MessageSecurityMode.Sign })
+            {
+                endpoint.SecurityMode = mode;
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                    UascDataChannelEndpoint.Validate(url, endpoint, factory, true))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+            }
+            endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            endpoint.SecurityPolicyUri = SecurityPolicies.None;
+            ServiceResultException policyFailure = Assert.Throws<ServiceResultException>(() =>
+                UascDataChannelEndpoint.Validate(url, endpoint, factory, false))!;
+            Assert.That(policyFailure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+        }
+
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
         [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.DedicatedUasc)]
@@ -1602,6 +2057,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ReliableStream,
 
             /// <summary>
+            /// The same external-stream UASC adapter without binding a socket or loading a native library.
+            /// </summary>
+            InMemoryReliableStream,
+
+            /// <summary>
             /// Kestrel's TCP connection pipeline.
             /// </summary>
             KestrelTcp,
@@ -1656,6 +2116,369 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 throw new AssertionException("The authenticated context closed instead of accepting its flow.");
         }
 
+        /// <summary>Immutable evidence captured before the borrowed writer buffer can be released.</summary>
+        private readonly record struct CapturedNativeWrite(
+            DataChannelPath Path, uint ChannelId, ulong StreamId, uint RequestId, ByteString Payload, bool IsData);
+
+        /// <summary>
+        /// One fake native session endpoint, with UASC-only management and separately associated flow streams.
+        /// It deliberately has no exporter, direct-binding interface or native-library dependency.
+        /// </summary>
+        private sealed class ManagementProvider(bool initiator) :
+            IDataChannelUascManagementProvider, IDataChannelCarrier, IDataChannelFlowFinisher
+        {
+            public ManagementProvider Peer { get; set; } = null!;
+            public IDataChannelCarrier? ManagementCarrier { get; private set; }
+            public DataChannelContext? Context { get; private set; }
+            public bool ReplaceIdentity { get; set; }
+            public int Attachments { get; private set; }
+            public ConcurrentDictionary<ulong, bool> OpenedStreams { get; } = new();
+            public ConcurrentDictionary<ulong, uint> Bindings { get; } = new();
+            public ConcurrentQueue<CapturedNativeWrite> Writes { get; } = new();
+            public ConcurrentDictionary<ulong, bool> FinishedStreams { get; } = new();
+            public int FinsSent => m_streams.Values.Sum(stream => stream.FinsSent);
+            public int FinsObserved => m_streams.Values.Sum(stream => stream.FinsObserved);
+            public DataChannelCarrierKind Kind => DataChannelCarrierKind.WebTransport;
+            public DataChannelPeerIdentity Identity { get; private set; } = null!;
+            public int MaxRecordSize => ManagementCarrier!.MaxRecordSize;
+            public int MaxDatagramSize => 0;
+            public ulong ManagementStreamId => 0;
+
+            public DataChannelContext CreateContext(
+                IDataChannelCarrier managementCarrier, IDataChannelContextFactory contextFactory)
+            {
+                if (ManagementCarrier != null)
+                {
+                    throw new DataChannelException(DataChannelResult.InvalidState);
+                }
+                Attachments++;
+                ManagementCarrier = managementCarrier;
+                DataChannelPeerIdentity verified = managementCarrier.Identity;
+                Identity = ReplaceIdentity
+                    ? new DataChannelPeerIdentity(
+                        verified.LocalApplicationUri, verified.PeerApplicationUri,
+                        verified.LocalKeyThumbprint, verified.PeerKeyThumbprint,
+                        verified.Protection, verified.IsTransportInitiator, verified.IsContextInitiator)
+                    : verified;
+                Context = contextFactory.Create(this);
+                return Context;
+            }
+
+            public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ulong streamId = checked((ulong)Interlocked.Increment(ref m_streamCount) * 4 + (initiator ? 0UL : 1UL));
+                Assert.That(OpenedStreams.TryAdd(streamId, true), Is.True);
+                var local = new NativeStream(this, streamId);
+                var remote = new NativeStream(Peer, streamId);
+                local.Peer = remote;
+                remote.Peer = local;
+                Assert.That(m_streams.TryAdd(streamId, local), Is.True);
+                Assert.That(Peer.m_streams.TryAdd(streamId, remote), Is.True);
+                local.Start();
+                remote.Start();
+                return new ValueTask<ulong>(streamId);
+            }
+
+            public ValueTask<bool> BindStreamAsync(
+                ulong streamId, uint channelId, bool locallyOpened, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ManagementProvider owner = locallyOpened ? this : Peer;
+                return new ValueTask<bool>(
+                    streamId != ManagementStreamId && owner.OpenedStreams.ContainsKey(streamId) &&
+                    (Bindings.TryAdd(streamId, channelId) || Bindings[streamId] == channelId));
+            }
+
+            public async ValueTask<DataChannelResult> SendAsync(
+                DataChannelWrite write, CancellationToken cancellationToken = default)
+            {
+                Writes.Enqueue(new CapturedNativeWrite(
+                    write.Path, write.ChannelId, write.StreamId, write.RequestId, write.Payload.Copy(), write.IsData));
+                if (write.Path == DataChannelPath.Management)
+                {
+                    return await ManagementCarrier!.SendAsync(write, cancellationToken).ConfigureAwait(false);
+                }
+                if (write.Path != DataChannelPath.Flow || !m_streams.TryGetValue(write.StreamId, out NativeStream? stream))
+                {
+                    return DataChannelResult.Unsupported;
+                }
+                return await stream.SendAsync(write, cancellationToken).ConfigureAwait(false);
+            }
+
+            public async ValueTask CloseFlowAsync(
+                ulong streamId, DataChannelResult result, CancellationToken cancellationToken = default)
+            {
+                if (m_streams.TryGetValue(streamId, out NativeStream? stream) && stream.Stop())
+                {
+                    stream.Peer.Stop();
+                    await Peer.Context!.ReceiveStreamResetAsync(streamId, result, cancellationToken).ConfigureAwait(false);
+                }
+                Bindings.TryRemove(streamId, out _);
+                Peer.Bindings.TryRemove(streamId, out _);
+            }
+
+            public async ValueTask FinishFlowAsync(ulong streamId, CancellationToken cancellationToken = default)
+            {
+                if (m_streams.TryGetValue(streamId, out NativeStream? stream) && !FinishedStreams.ContainsKey(streamId))
+                {
+                    await stream.FinishAsync(cancellationToken).ConfigureAwait(false);
+                    FinishedStreams.TryAdd(streamId, true);
+                    Bindings.TryRemove(streamId, out _);
+                }
+            }
+
+            public Task WaitForPeerFinAsync(ulong streamId, CancellationToken cancellationToken)
+            {
+                return m_streams[streamId].WaitForPeerFinAsync(cancellationToken);
+            }
+
+            public async ValueTask CloseAsync(DataChannelResult result, CancellationToken cancellationToken = default)
+            {
+                foreach (NativeStream stream in m_streams.Values)
+                {
+                    stream.Stop();
+                    stream.Peer.Stop();
+                }
+                await ManagementCarrier!.CloseAsync(result, cancellationToken).ConfigureAwait(false);
+            }
+
+            public async ValueTask DisposeStreamsAsync()
+            {
+                foreach (NativeStream stream in m_streams.Values)
+                {
+                    stream.Stop();
+                }
+                foreach (NativeStream stream in m_streams.Values)
+                {
+                    await stream.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+
+            /// <summary>
+            /// One direction's bounded receive queue. Admission completes a send; peer parsing runs independently.
+            /// FIN is queued behind bytes and observed only after the receiver has consumed that queue entry.
+            /// </summary>
+            private sealed class NativeStream(ManagementProvider owner, ulong streamId) : IAsyncDisposable
+            {
+                public NativeStream Peer { get; set; } = null!;
+                public int FinsSent => Volatile.Read(ref m_finsSent);
+                public int FinsObserved => Volatile.Read(ref m_finsObserved);
+
+                public void Start()
+                {
+                    m_receiveTask = Task.Run(ReceiveAsync);
+                }
+
+                public async ValueTask<DataChannelResult> SendAsync(DataChannelWrite write, CancellationToken token)
+                {
+                    await m_writer.WaitAsync(token).ConfigureAwait(false);
+                    try
+                    {
+                        if (m_stopped.IsCancellationRequested || FinsSent != 0 ||
+                            !await Peer.m_incoming.Writer.WaitToWriteAsync(token).ConfigureAwait(false))
+                        {
+                            return DataChannelResult.Closed;
+                        }
+                        if (!write.TryCommit())
+                        {
+                            return write.Result;
+                        }
+                        if (!Peer.m_incoming.Writer.TryWrite(new StreamFrame(write.Payload.Copy(), write.EndsDirection)))
+                        {
+                            return DataChannelResult.Closed;
+                        }
+                        if (write.EndsDirection)
+                        {
+                            Interlocked.Increment(ref m_finsSent);
+                        }
+                        return DataChannelResult.Good;
+                    }
+                    finally
+                    {
+                        m_writer.Release();
+                    }
+                }
+
+                public async ValueTask FinishAsync(CancellationToken token)
+                {
+                    await m_writer.WaitAsync(token).ConfigureAwait(false);
+                    try
+                    {
+                        token.ThrowIfCancellationRequested();
+                        if (FinsSent == 0)
+                        {
+                            if (m_stopped.IsCancellationRequested ||
+                                !await Peer.m_incoming.Writer.WaitToWriteAsync(token).ConfigureAwait(false) ||
+                                !Peer.m_incoming.Writer.TryWrite(new StreamFrame(ByteString.Empty, true)))
+                            {
+                                throw new DataChannelException(DataChannelResult.Closed);
+                            }
+                            Interlocked.Increment(ref m_finsSent);
+                        }
+                    }
+                    finally
+                    {
+                        m_writer.Release();
+                    }
+                    await WaitForPeerFinAsync(token).ConfigureAwait(false);
+                }
+
+                public async Task WaitForPeerFinAsync(CancellationToken token)
+                {
+                    using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, m_stopped.Token);
+                    await m_peerFin.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                }
+
+                public bool Stop()
+                {
+                    if (Interlocked.Exchange(ref m_closed, 1) != 0)
+                    {
+                        return false;
+                    }
+                    m_stopped.Cancel();
+                    m_incoming.Writer.TryComplete();
+                    return true;
+                }
+
+                private async Task ReceiveAsync()
+                {
+                    try
+                    {
+                        while (await m_incoming.Reader.WaitToReadAsync(m_stopped.Token).ConfigureAwait(false))
+                        {
+                            StreamFrame frame = await m_incoming.Reader.ReadAsync(m_stopped.Token).ConfigureAwait(false);
+                            if (!frame.Payload.IsEmpty)
+                            {
+                                DataChannelResult received = await owner.Context!.ReceiveStreamAsync(
+                                    streamId, frame.Payload, cancellationToken: m_stopped.Token).ConfigureAwait(false);
+                                if (received != DataChannelResult.Good)
+                                {
+                                    // A peer protocol refusal resets the native stream; it does not retract a send.
+                                    await owner.CloseFlowAsync(streamId, received).ConfigureAwait(false);
+                                    return;
+                                }
+                            }
+                            if (frame.Fin)
+                            {
+                                // Logical END/RESET may already have retired Core's decoder. EOF is still
+                                // a real transport observation, independent of that peer processing result.
+                                await owner.Context!.ReceiveStreamAsync(
+                                    streamId, ByteString.Empty, endOfStream: true, cancellationToken: m_stopped.Token)
+                                    .ConfigureAwait(false);
+                                Interlocked.Increment(ref m_finsObserved);
+                                m_peerFin.TrySetResult(true);
+                                return;
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (m_stopped.IsCancellationRequested)
+                    {
+                        // Explicit native RESET/whole-session termination cancels a pending reader.
+                    }
+                }
+
+                public async ValueTask DisposeAsync()
+                {
+                    Stop();
+                    await m_receiveTask.ConfigureAwait(false);
+                    m_stopped.Dispose();
+                    m_writer.Dispose();
+                }
+
+                private readonly record struct StreamFrame(ByteString Payload, bool Fin);
+                private readonly Channel<StreamFrame> m_incoming = Channel.CreateBounded<StreamFrame>(32);
+                private readonly SemaphoreSlim m_writer = new(1);
+                private readonly CancellationTokenSource m_stopped = new();
+                private readonly TaskCompletionSource<bool> m_peerFin =
+                    new(TaskCreationOptions.RunContinuationsAsynchronously);
+                private Task m_receiveTask = Task.CompletedTask;
+                private int m_finsSent;
+                private int m_finsObserved;
+                private int m_closed;
+            }
+
+            private readonly ConcurrentDictionary<ulong, NativeStream> m_streams = new();
+            private long m_streamCount;
+        }
+
+        /// <summary>Bounded byte loopback for the existing reliable-stream adapter; never a native carrier.</summary>
+        private sealed class MemoryDuplexStream(Channel<byte[]> incoming, Channel<byte[]> outgoing) : Stream
+        {
+            public override bool CanRead => true;
+            public override bool CanWrite => true;
+            public override bool CanSeek => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override Task<int> ReadAsync(
+                byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return ReadCoreAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+            }
+
+            public override Task WriteAsync(
+                byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return outgoing.Writer.WriteAsync(buffer.AsSpan(offset, count).ToArray(), cancellationToken).AsTask();
+            }
+
+#if NETCOREAPP3_1_OR_GREATER
+            public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                return ReadCoreAsync(buffer, cancellationToken);
+            }
+
+            public override ValueTask WriteAsync(
+                ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+            {
+                return outgoing.Writer.WriteAsync(buffer.ToArray(), cancellationToken);
+            }
+#endif
+
+            private async ValueTask<int> ReadCoreAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+            {
+                if (buffer.Length == 0)
+                {
+                    return 0;
+                }
+                if (m_remaining.IsEmpty)
+                {
+                    if (!await incoming.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return 0;
+                    }
+                    m_remaining = await incoming.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                }
+                int count = Math.Min(buffer.Length, m_remaining.Length);
+                m_remaining[..count].CopyTo(buffer);
+                m_remaining = m_remaining[count..];
+                return count;
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    incoming.Writer.TryComplete();
+                    outgoing.Writer.TryComplete();
+                }
+                base.Dispose(disposing);
+            }
+
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            private Memory<byte> m_remaining;
+        }
+
         /// <summary>
         /// Owns real certificate-manager trust stores, endpoints and live transports for one test.
         /// </summary>
@@ -1673,7 +2496,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_kind = kind;
                 m_mode = mode;
                 m_pkiRoot = Path.Combine(
-                    TestContext.CurrentContext.WorkDirectory, "DataChannelPki", Guid.NewGuid().ToString("N"));
+                    transport == CarrierTransport.InMemoryReliableStream
+                        ? Path.GetTempPath() : TestContext.CurrentContext.WorkDirectory,
+                    "DataChannelPki", Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(m_pkiRoot);
                 ServerCertificate = CreateCertificate(ServerUri, "FlowServer", certificateLifetime);
                 m_clientCertificate = CreateCertificate(ClientUri, "FlowClient", certificateLifetime);
@@ -1694,10 +2519,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     DataChannelCarrierKind.QuicUasc => "opc.quic",
                     DataChannelCarrierKind.WebTransportUasc => "https",
+                    DataChannelCarrierKind.WebTransport => "opc.wt",
                     _ => transport == CarrierTransport.Wss ? Utils.UriSchemeOpcWss : Utils.UriSchemeOpcTcp
                 };
                 int port = transport switch
                 {
+                    CarrierTransport.InMemoryReliableStream => 4840,
 #if NET8_0_OR_GREATER
                     CarrierTransport.ManagedQuic => 0,
 #endif
@@ -1726,6 +2553,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     CarrierTransport.Wss => new HttpsTransportListener(Utils.UriSchemeOpcWss, Telemetry),
                     _ => new TcpTransportListener(Telemetry)
                 };
+                ClientManagement.Peer = ServerManagement;
+                ServerManagement.Peer = ClientManagement;
             }
 
             /// <summary>
@@ -1757,6 +2586,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Gets the ordinary Service callback count.
             /// </summary>
             public int ServiceRequests => Volatile.Read(ref m_serviceRequests);
+
+            /// <summary>Gets the fake native endpoints belonging to this one harness session.</summary>
+            public ManagementProvider ClientManagement { get; } = new(true);
+            public ManagementProvider ServerManagement { get; } = new(false);
+
+            /// <summary>Gets or sets whether the byte adapter exposes the fake native management provider.</summary>
+            public bool SupplyManagementProvider { get; set; } = true;
 
             /// <summary>
             /// Starts an authenticated live listener without constructing a Server or Session.
@@ -1808,7 +2644,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         HttpsMutualTls = true,
                         MaxChannelCount = 16
                     };
-                    if (transport == CarrierTransport.ReliableStream)
+                    if (transport == CarrierTransport.InMemoryReliableStream)
+                    {
+                        ((TcpTransportListener)harness.m_listener).OpenExternal(
+                            harness.m_baseUrl, settings, callback.Object);
+                    }
+                    else if (transport == CarrierTransport.ReliableStream)
                     {
                         ((TcpTransportListener)harness.m_listener).OpenExternal(
                             harness.m_baseUrl, settings, callback.Object);
@@ -1868,6 +2709,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 ITransportChannelFactory transportFactory = m_transport switch
                 {
+                    CarrierTransport.InMemoryReliableStream => new ReliableStreamChannelFactory(
+                        m_url.Scheme, CreateMemoryTransportFactory()),
                     CarrierTransport.ReliableStream => new ReliableStreamChannelFactory(m_url.Scheme),
                     CarrierTransport.Wss => new OpcWssTransportChannelFactory(),
                     _ => new TcpTransportChannelFactory()
@@ -1980,6 +2823,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 };
                 var wire = new ConcurrentQueue<byte[]>();
                 IUaSCByteTransportFactory? physicalTransport = null;
+                if (m_transport == CarrierTransport.InMemoryReliableStream)
+                {
+                    physicalTransport = CreateMemoryTransportFactory();
+                }
 #if NET8_0_OR_GREATER
                 if (m_transport == CarrierTransport.ManagedQuic && CanUseQuic)
                 {
@@ -2260,6 +3107,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     await context.DisposeAsync().ConfigureAwait(false);
                 }
+                await ClientManagement.DisposeStreamsAsync().ConfigureAwait(false);
+                await ServerManagement.DisposeStreamsAsync().ConfigureAwait(false);
                 m_clientCertificates.Dispose();
                 m_serverCertificates.Dispose();
                 m_clientCertificate.Dispose();
@@ -2409,6 +3258,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     ObjectTypeIds.HttpsCertificateType, ServerCertificate, issuers, Token).ConfigureAwait(false);
             }
 
+            /// <summary>Returns the exact certificate evidence for direct post-OPN attachment checks.</summary>
+            public DataChannelPeerIdentity CreateClientIdentity()
+            {
+                return new DataChannelPeerIdentity(ClientUri, ServerUri,
+                    DataChannelCertificateIdentity.GetKeyThumbprint(m_clientCertificate),
+                    DataChannelCertificateIdentity.GetKeyThumbprint(ServerCertificate),
+                    DataChannelProtectionMode.Confidential, true);
+            }
+
+            /// <summary>Reuses the external accepted-stream path with two in-process byte streams.</summary>
+            private UascStreamByteTransportFactory CreateMemoryTransportFactory()
+            {
+                return new UascStreamByteTransportFactory(
+                    (_, token) =>
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var toServer = Channel.CreateBounded<byte[]>(32);
+                        var toClient = Channel.CreateBounded<byte[]>(32);
+                        var client = new MemoryDuplexStream(toClient, toServer);
+                        var server = new MemoryDuplexStream(toServer, toClient);
+                        ((TcpTransportListener)m_listener).AcceptTransport(
+                            new AcceptedStreamFactory(server, CreateEndpoint().TransportProfileUri!,
+                                SupplyManagementProvider ? ServerManagement : null),
+                            m_serverCertificates, m_configuration.MaxBufferSize);
+                        return new ValueTask<Stream>(client);
+                    },
+                    "Test-InMemory-Reliable-Stream", CreateEndpoint().TransportProfileUri!,
+                    managementProvider: SupplyManagementProvider ? ClientManagement : null);
+            }
+
             private EndpointDescription CreateEndpoint()
             {
                 return new EndpointDescription
@@ -2420,6 +3299,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         DataChannelCarrierKind.SharedUasc => DataChannelProfiles.SharedUasc,
                         DataChannelCarrierKind.QuicUasc => DataChannelProfiles.UascQuic,
                         DataChannelCarrierKind.WebTransportUasc => DataChannelProfiles.UascWebTransport,
+                        DataChannelCarrierKind.WebTransport => DataChannelProfiles.WebTransport,
                         _ => throw new ArgumentOutOfRangeException(nameof(m_kind))
                     },
                     SecurityMode = m_mode,
@@ -2488,7 +3368,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// Connects through the public stream factory without a Data Channel or native management exchange.
         /// </summary>
-        private sealed class ReliableStreamChannelFactory(string scheme) : ITransportChannelFactory
+        private sealed class ReliableStreamChannelFactory(
+            string scheme, IUaSCByteTransportFactory? suppliedFactory = null) : ITransportChannelFactory
         {
             /// <inheritdoc/>
             public string UriScheme => scheme;
@@ -2497,7 +3378,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public ITransportChannel Create(ITelemetryContext telemetry)
             {
                 return new UaSCUaBinaryTransportChannel(
-                    new UascStreamByteTransportFactory(ConnectAsync, "Test-Reliable-Stream", scheme switch
+                    suppliedFactory ?? new UascStreamByteTransportFactory(ConnectAsync, "Test-Reliable-Stream", scheme switch
                     {
                         "opc.quic" => DataChannelProfiles.UascQuic,
                         "https" => DataChannelProfiles.UascWebTransport,
@@ -2527,7 +3408,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// Transfers an accepted stream into the listener's own buffer and security ownership.
         /// </summary>
-        private sealed class AcceptedStreamFactory(Stream stream, string profile) :
+        private sealed class AcceptedStreamFactory(
+            Stream stream, string profile, IDataChannelUascManagementProvider? managementProvider = null) :
             IUaSCByteTransportFactory, IUaSCTransportProfile
         {
             /// <inheritdoc/>
@@ -2540,7 +3422,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public IUaSCByteTransport Create(
                 BufferManager bufferManager, int receiveBufferSize, ITelemetryContext telemetry)
             {
-                return new UascStreamByteTransport(stream, bufferManager, receiveBufferSize, Implementation);
+                return new UascStreamByteTransport(
+                    stream, bufferManager, receiveBufferSize, Implementation, managementProvider: managementProvider);
             }
         }
 
@@ -2774,8 +3657,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         private sealed class RecordingTransport(
             IUaSCByteTransport inner,
-            ConcurrentQueue<byte[]> chunks) : IUaSCByteTransport, IUaSCByteTransportLimits
+            ConcurrentQueue<byte[]> chunks) :
+            IUaSCByteTransport, IUaSCByteTransportLimits, IDataChannelUascManagementProvider
         {
+            /// <inheritdoc/>
+            public DataChannelContext CreateContext(
+                IDataChannelCarrier managementCarrier, IDataChannelContextFactory contextFactory)
+            {
+                return inner is IDataChannelUascManagementProvider provider
+                    ? provider.CreateContext(managementCarrier, contextFactory)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
             /// <inheritdoc/>
             public EndPoint? LocalEndpoint => inner.LocalEndpoint;
 

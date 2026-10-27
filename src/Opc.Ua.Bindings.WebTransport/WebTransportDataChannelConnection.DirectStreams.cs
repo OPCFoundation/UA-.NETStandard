@@ -135,7 +135,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ReserveDirectTokenLocked(Guid token)
         {
-            if (!m_uascBaseline)
+            if (!m_uascBaseline || m_uascManagement)
             {
                 throw new DataChannelException(DataChannelResult.Unsupported);
             }

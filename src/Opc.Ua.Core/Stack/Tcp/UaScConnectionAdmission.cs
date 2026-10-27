@@ -257,6 +257,7 @@ namespace Opc.Ua.Bindings
             IDataChannelDirectBindingProvider,
             IDataChannelDirectStreamProvider,
             IDataChannelDirectDatagramProvider,
+            IDataChannelUascManagementProvider,
             IDisposable
         {
             /// <summary>
@@ -321,6 +322,24 @@ namespace Opc.Ua.Bindings
             /// <inheritdoc/>
             int IDataChannelDirectDatagramProvider.MaxDirectDatagramSize =>
                 m_transport is IDataChannelDirectDatagramProvider provider ? provider.MaxDirectDatagramSize : 0;
+
+            /// <inheritdoc/>
+            DataChannelContext IDataChannelUascManagementProvider.CreateContext(
+                IDataChannelCarrier managementCarrier,
+                IDataChannelContextFactory contextFactory)
+            {
+                if (managementCarrier == null)
+                {
+                    throw new ArgumentNullException(nameof(managementCarrier));
+                }
+                if (contextFactory == null)
+                {
+                    throw new ArgumentNullException(nameof(contextFactory));
+                }
+                return Transport is IDataChannelUascManagementProvider provider
+                    ? provider.CreateContext(managementCarrier, contextFactory)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
 
             /// <inheritdoc/>
             ValueTask<DataChannelResult> IDataChannelDirectDatagramProvider.SendDirectDatagramAsync(

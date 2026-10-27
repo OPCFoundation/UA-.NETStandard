@@ -77,6 +77,58 @@ namespace Opc.Ua.DataChannels.Wire
     internal static class UascFlowMessageCodec
     {
         /// <summary>
+        /// Decodes one final WebTransport management MSG containing exactly one common CONTROL record.
+        /// </summary>
+        internal static UascFlowMessage DecodeManagement(
+            DataChannelUascMessageKind kind,
+            byte chunkType,
+            uint requestId,
+            ByteString plaintextBody,
+            FlowCodecLimits limits)
+        {
+            if (kind != DataChannelUascMessageKind.Msg)
+            {
+                throw new FlowCodecException(FlowCodecError.WrongType);
+            }
+            if (chunkType != (byte)'F')
+            {
+                throw new FlowCodecException(FlowCodecError.NonFinalUasc);
+            }
+            FlowRecord record = FlowRecordCodec.DecodeExact(plaintextBody, limits);
+            if (record.Kind != FlowRecordKind.Control)
+            {
+                throw new FlowCodecException(FlowCodecError.WrongType);
+            }
+            if (requestId != record.MessageId)
+            {
+                throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
+            }
+            FlowControl control = FlowControlCodec.Decode(in record, limits);
+            FlowControlCodec.ValidateCarrier(control, FlowCarrier.WebTransport);
+            return new UascFlowMessage(control.Flow, record, control);
+        }
+
+        /// <summary>
+        /// Encodes a WebTransport management CONTROL record without a Service or length wrapper.
+        /// </summary>
+        internal static ByteString EncodeManagement(
+            uint channelId,
+            in FlowRecord record,
+            FlowCodecLimits limits,
+            out uint requestId)
+        {
+            if (record.Kind != FlowRecordKind.Control)
+            {
+                throw new FlowCodecException(FlowCodecError.WrongType);
+            }
+            FlowControl control = FlowControlCodec.Decode(in record, limits);
+            FlowControlCodec.ValidateCarrier(control, FlowCarrier.WebTransport);
+            ValidateControlChannel(channelId, control);
+            requestId = record.MessageId;
+            return FlowRecordCodec.Encode(in record, limits);
+        }
+
+        /// <summary>
         /// Decodes one verified final FLO or FLC body.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>

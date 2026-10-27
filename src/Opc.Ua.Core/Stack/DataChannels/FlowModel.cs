@@ -216,12 +216,13 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Identifies carriage through the authenticated UASC writer rather than direct native records.
+        /// Identifies carriers whose management messages use the authenticated UASC writer.
         /// </summary>
         internal static bool IsUasc(DataChannelCarrierKind kind)
         {
             return kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
-                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc;
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc or
+                DataChannelCarrierKind.WebTransport;
         }
 
         /// <summary>

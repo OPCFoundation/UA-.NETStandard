@@ -437,7 +437,8 @@ namespace Opc.Ua.Bindings
                         {
                             throw new WebTransportException("Input is not associated with this WebTransport session.");
                         }
-                        if (m_uascBaseline)
+                        if (m_uascBaseline &&
+                            (!m_uascManagement || ReferenceEquals(incoming, m_baselineStreamState)))
                         {
                             if (!ReferenceEquals(incoming, m_baselineStreamState))
                             {
@@ -467,7 +468,8 @@ namespace Opc.Ua.Bindings
                         {
                             throw new WebTransportException("A reset selected an unassociated WebTransport stream.");
                         }
-                        if (m_uascBaseline && !ReferenceEquals(interrupted, m_baselineStreamState) &&
+                        if (m_uascBaseline && !m_uascManagement &&
+                            !ReferenceEquals(interrupted, m_baselineStreamState) &&
                             (metadata.Kind == 22 && !interrupted.Stream.IsLocal ||
                                 metadata.Kind == 21 && interrupted.Stream.IsLocal))
                         {

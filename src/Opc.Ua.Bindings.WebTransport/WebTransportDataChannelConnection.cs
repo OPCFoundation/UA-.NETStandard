@@ -33,7 +33,8 @@ namespace Opc.Ua.Bindings
             IWebTransportConnectAuthorizer? authorizer,
             TimeProvider clock,
             bool uascBaseline = false,
-            Func<Uri, CancellationToken, ValueTask<bool>>? baselineAuthorizer = null)
+            Func<Uri, CancellationToken, ValueTask<bool>>? baselineAuthorizer = null,
+            bool uascManagement = false)
         {
             NativeConnection = native;
             m_handle = handle;
@@ -42,6 +43,7 @@ namespace Opc.Ua.Bindings
             m_options = options;
             m_authorizer = authorizer;
             m_uascBaseline = uascBaseline;
+            m_uascManagement = uascManagement;
             m_baselineAuthorizer = baselineAuthorizer;
             m_clock = clock;
             m_lifetime = m_shutdown.Token;
@@ -89,7 +91,9 @@ namespace Opc.Ua.Bindings
             throw new InvalidOperationException("The WebTransport baseline has no UASC-authenticated identity yet.");
 
         /// <inheritdoc/>
-        public int MaxRecordSize => m_options.MaxRecordSize;
+        public int MaxRecordSize => m_managementCarrier == null
+            ? m_options.MaxRecordSize
+            : Math.Min(m_options.MaxRecordSize, m_managementCarrier.MaxRecordSize);
 
         /// <inheritdoc/>
         public int MaxDatagramSize => Math.Max(0,
@@ -216,6 +220,7 @@ namespace Opc.Ua.Bindings
             WebTransportDataChannelOptions options,
             Func<Uri, CancellationToken, ValueTask<bool>>? connectAuthorizer = null,
             TimeProvider? timeProvider = null,
+            bool managementOnly = false,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(connection);
@@ -266,7 +271,7 @@ namespace Opc.Ua.Bindings
                 handle = CreateBaselinePeer(connection, endpointUrl, options, control, encoder, decoder);
                 carrier = new WebTransportDataChannelConnection(
                     connection, handle, reservation, endpointUrl, options, null, clock,
-                    uascBaseline: true, baselineAuthorizer: connectAuthorizer);
+                    uascBaseline: true, baselineAuthorizer: connectAuthorizer, uascManagement: managementOnly);
                 handle = null;
                 reservation = null;
                 carrier.AddPhysicalStream(control);
@@ -322,6 +327,50 @@ namespace Opc.Ua.Bindings
             ? m_baselineStream
             : throw new InvalidOperationException("The UASC baseline stream is not established.");
 
+        /// <summary>
+        /// Attaches native flow ingress to the identity proven on this session's UASC management stream.
+        /// </summary>
+        internal DataChannelContext AttachUascManagement(
+            IDataChannelCarrier managementCarrier,
+            IDataChannelContextFactory contextFactory)
+        {
+            ArgumentNullException.ThrowIfNull(managementCarrier);
+            ArgumentNullException.ThrowIfNull(contextFactory);
+            lock (m_gate)
+            {
+                if (!m_uascManagement || m_closing || m_context != null || m_managementCarrier != null ||
+                    m_management == null || managementCarrier.Kind != DataChannelCarrierKind.WebTransport ||
+                    managementCarrier.Identity.Protection != DataChannelProtectionMode.Confidential ||
+                    managementCarrier.Identity.IsTransportInitiator != NativeConnection.IsClient ||
+                    managementCarrier.Identity.IsContextInitiator != NativeConnection.IsClient)
+                {
+                    throw new DataChannelException(DataChannelResult.InvalidState);
+                }
+                m_identity = managementCarrier.Identity;
+                m_managementCarrier = managementCarrier;
+                m_contextAttachment = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+            try
+            {
+                DataChannelContext context = contextFactory.Create(this) ??
+                    throw new DataChannelException(DataChannelResult.InvalidState);
+                lock (m_gate)
+                {
+                    m_context = context;
+                    if (m_closing)
+                    {
+                        throw new DataChannelException(DataChannelResult.Closed);
+                    }
+                    m_attached.TrySetResult();
+                }
+                return context;
+            }
+            finally
+            {
+                m_contextAttachment.TrySetResult();
+            }
+        }
+
         /// <inheritdoc/>
         public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
         {
@@ -370,6 +419,12 @@ namespace Opc.Ua.Bindings
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(write);
+            if (m_uascManagement && write.Path == DataChannelPath.Management)
+            {
+                return m_managementCarrier == null
+                    ? DataChannelResult.InvalidState
+                    : await m_managementCarrier.SendAsync(write, cancellationToken).ConfigureAwait(false);
+            }
             if (write.Payload.Length > (write.Path == DataChannelPath.Datagram ? MaxDatagramSize : MaxRecordSize))
             {
                 return DataChannelResult.TooLarge;
@@ -739,6 +794,15 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                Task? attachment;
+                lock (m_gate)
+                {
+                    attachment = m_contextAttachment?.Task;
+                }
+                if (attachment != null)
+                {
+                    await attachment.ConfigureAwait(false);
+                }
                 if (m_context != null)
                 {
                     await m_context.InvalidateAsync(m_closeResult).ConfigureAwait(false);
@@ -1069,8 +1133,11 @@ namespace Opc.Ua.Bindings
         private readonly WebTransportDataChannelOptions m_options;
         private readonly IWebTransportConnectAuthorizer? m_authorizer;
         private readonly Func<Uri, CancellationToken, ValueTask<bool>>? m_baselineAuthorizer;
-        private readonly DataChannelPeerIdentity? m_identity;
+        private DataChannelPeerIdentity? m_identity;
         private readonly bool m_uascBaseline;
+        private readonly bool m_uascManagement;
+        private IDataChannelCarrier? m_managementCarrier;
+        private TaskCompletionSource? m_contextAttachment;
         private readonly TimeProvider m_clock;
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly CancellationToken m_lifetime;

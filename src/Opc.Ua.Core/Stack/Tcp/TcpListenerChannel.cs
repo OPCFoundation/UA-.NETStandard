@@ -270,7 +270,8 @@ namespace Opc.Ua.Bindings
             {
                 if (UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri))
                 {
-                    return !UascDataChannelEndpoint.MatchesReliableStreamEndpoint(url, endpoint);
+                    return !UascDataChannelEndpoint.MatchesReliableStreamEndpoint(url, endpoint) ||
+                        (endpoint.TransportProfileUri == DataChannelProfiles.WebTransport && DataChannelFactory == null);
                 }
                 DataChannelCarrierKind? candidate = UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri);
                 if (candidate != kind ||

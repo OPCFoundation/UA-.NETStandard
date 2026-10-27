@@ -47,21 +47,23 @@ namespace Opc.Ua.DataChannels
             ByteString plaintext,
             CancellationToken cancellationToken = default)
         {
-            if (IsNative)
+            if (IsNative && m_carrier.Kind != DataChannelCarrierKind.WebTransport)
             {
                 return DataChannelResult.Unsupported;
             }
             try
             {
-                UascFlowMessage message = UascFlowMessageCodec.Decode(
-                    m_wireCarrier, kind, chunkType, requestId, plaintext, m_codecLimits);
+                UascFlowMessage message = m_carrier.Kind == DataChannelCarrierKind.WebTransport
+                    ? UascFlowMessageCodec.DecodeManagement(kind, chunkType, requestId, plaintext, m_codecLimits)
+                    : UascFlowMessageCodec.Decode(
+                        m_wireCarrier, kind, chunkType, requestId, plaintext, m_codecLimits);
                 if (message.Control is { } control)
                 {
                     return await ReceiveControlAsync(
                         control,
                         message.Record,
                         DataChannelPath.Management,
-                        0,
+                        m_carrier.ManagementStreamId,
                         cancellationToken).ConfigureAwait(false);
                 }
 

@@ -9,9 +9,14 @@ The current target is the split OPC 10000-30, -31 and -32 drafts `0.3.0` at
 This revision splits out the Part 14 streaming extensions and adds an optional
 normative UAFX binding. Its Native WebTransport data-channel mapping requires
 server-authenticated TLS and a SignAndEncrypt UASC management stream on the same
-WebTransport session. This branch still uses ordinary Service dispatch on that
-stream and exporter-backed direct binding, so it does not conform to that
-mapping. Earlier regression evidence targets revision `ff4ff8e` unless its
+WebTransport session. `WebTransportUascTransport.ConnectDataChannelsAsync` and
+`ListenDataChannelsAsync` select that management-only path independently of the
+Part 32 Service baseline. Management CONTROL uses final protected MSG chunks
+with RequestId equal to the common-record MessageId; native flow streams and
+datagrams belong to the same session. No TLS exporter is used by this path.
+The common CONTROL codec still uses binary fields rather than the draft's JSON
+representation, and browser/native interoperability for this path remains
+unverified. Earlier regression evidence targets revision `ff4ff8e` unless its
 source scope is stated explicitly; it does not establish conformance to the new
 UAFX annex.
 The managed QUIC baseline and explicitly selected native QUIC/WebTransport
@@ -120,6 +125,17 @@ ordered and datagram delivery after exporter proof and ASSOCIATE/ACK/READY.
 Actual browser interoperability remains unimplemented. See the
 [WebTransport baseline API](../src/Opc.Ua.Bindings.WebTransport/NugetREADME.md#part-32-reliable-uasc-baseline).
 
+For the native `WebTransport` data profile, use `ConnectDataChannelsAsync` or
+`ListenDataChannelsAsync` with an `opc.wt` endpoint. The transport maps it to
+HTTPS for CONNECT and requires a separate SignAndEncrypt application handshake
+through `UascDataChannelClient` or the external UASC listener. Management MSG
+cannot dispatch Services or carry DATA. Flow streams use their actual
+bidirectional WebTransport identifiers; datagrams retain the native ChannelId
+prefix rather than a direct-binding token.
+See [native management construction](../src/Opc.Ua.Bindings.WebTransport/NugetREADME.md#native-data-channel-management).
+The older `WebTransportDataChannelTransport` mTLS entry points remain a legacy
+experiment and do not implement this authentication mapping.
+
 `UascStreamByteTransport` and its asynchronous connector factory are the shared
 reliable-stream adapter. External hosts must enforce transport negotiation,
 endpoint and stream admission before calling `TcpTransportListener.OpenExternal`
@@ -127,8 +143,8 @@ and `AcceptTransport`. The adapter itself is not a QUIC, HTTP/3 or browser
 implementation, and stream establishment alone does not authenticate a UASC
 application.
 
-The following table distinguishes the current baseline profiles from the
-separately selectable legacy native flow profiles.
+The following table distinguishes the current entry paths. Profile identifiers
+alone do not make the legacy WebTransport implementation conformant.
 
 Use `Opc.Ua.DataChannels.DataChannelProfiles`, rather than duplicating URI strings.
 Profile matching is exact; an unavailable profile is not substituted with another.
@@ -140,6 +156,7 @@ Profile matching is exact; an unavailable profile is not substituted with anothe
 | Part 31 QUIC baseline | `UascQuic` | `opc.quic`, ALPN `opcua-uasc-draft`; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services and configured FLO/FLC |
 | Part 32 WebTransport baseline | `UascWebTransport` | `https`, HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support unimplemented |
 | Legacy native QUIC flow | `Quic` | `opc.quic`, ALPN `opcua-flow/1`; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
+| Native WebTransport management | `WebTransport` | `opc.wt`, mapped HTTPS CONNECT; server-authenticated TLS plus SignAndEncrypt UASC management | None on management; no Sessions advertised |
 | Legacy native WebTransport flow | `WebTransport` | `opc.wt`, HTTP/3 and WebTransport draft-16; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
 
 Both UASC profiles support raw TCP, Kestrel TCP and binary WSS
@@ -149,8 +166,10 @@ carriers.
 
 UASC flow endpoints reject `SecurityMode.None`. Confidential protection is the
 default. Integrity-only requires explicit binding permission **and** resource
-policy approval. Legacy native flow endpoints use TLS/mTLS without an outer
+policy approval. Native QUIC flow endpoints use TLS/mTLS without an outer
 UASC layer; their discovery `None` fields do not mean unprotected data.
+Native WebTransport discovery requires SignAndEncrypt for its management stream;
+the older TLS-only WebTransport description is rejected.
 The Part 31/32 native baselines independently authenticate applications through
 SignAndEncrypt UASC; transport TLS identity does not replace that authentication.
 
@@ -474,8 +493,9 @@ signing/encryption remains available through its normal key provider.
 
 ## Optional native Client/Server lane
 
-Native configured flows do not create UASC or Sessions. An application can
-explicitly select `DataChannelProfiles.ClientServerResource` for an ordered,
+Legacy native configured flows do not create UASC or Sessions. The new native
+WebTransport management path creates a UASC channel but no Session. An application
+can explicitly select `DataChannelProfiles.ClientServerResource` for an ordered,
 duplex, confidential, opaque flow with no queue expiry. The common byte adapter
 carries one complete UACP/UASC chunk per DATA message and reuses ordinary
 Client/Server dispatch inside it.
@@ -491,8 +511,14 @@ readers when hosting the lane beside PubSub or other resources.
 
 ## Wire and resource boundaries
 
-Native ordered streams and datagrams use the common record header. A final
-UASC FLO body is exactly one unchanged UADP NetworkMessage; its first byte is
+Native ordered streams and datagrams use the common record header. The native
+WebTransport management path carries one complete CONTROL record in each final
+protected MSG, with RequestId equal to MessageId and no Service wrapper.
+DATA, non-final chunks, mismatched identifiers and trailing records are refused
+on that management path. END and revision barriers remain on their native
+stream. RESET still uses the legacy management exchange before FIN; that
+ordering differs from the pinned draft's data-stream RESET requirement.
+A final UASC FLO body is exactly one unchanged UADP NetworkMessage; its first byte is
 the first byte of that message, with no ChannelId or common-record prefix.
 Final FLC carries Revision, OperationId, then the CONTROL opcode and ordered
 little-endian fields. The binary codec implements opcodes `0..17`, including

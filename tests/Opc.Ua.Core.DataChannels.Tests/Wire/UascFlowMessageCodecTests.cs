@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using NUnit.Framework;
 using Opc.Ua.DataChannels;
 using Opc.Ua.DataChannels.Wire;
@@ -255,6 +256,222 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 () => UascFlowMessageCodec.Encode(
                     FlowCarrier.SharedUasc, 2, in end, new(), out _),
                 FlowCodecError.InvalidFlow);
+        }
+
+        /// <summary>
+        /// Native management MSG is exactly one common CONTROL record, not an FLC or Service body.
+        /// </summary>
+        [Test]
+        public void ManagementUsesLiteralCommonRecordAndFullWidthRequestId()
+        {
+            const string literal = "0e0000000104030201efcdab890a44332211";
+            FlowRecord record = FlowControlCodec.Encode(
+                new FlowSignal(FlowOperation.End, 0x11223344), 0x01020304, 0x89ABCDEF, new());
+
+            ByteString encoded = UascFlowMessageCodec.EncodeManagement(
+                0x11223344, in record, new(), out uint requestId);
+            UascFlowMessage decoded = UascFlowMessageCodec.DecodeManagement(
+                DataChannelUascMessageKind.Msg, (byte)'F', 0x89ABCDEF,
+                ByteString.FromHexString(literal), new());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.ToHexString().ToLowerInvariant(), Is.EqualTo(literal));
+                Assert.That(requestId, Is.EqualTo(0x89ABCDEFu));
+                Assert.That(decoded.ChannelId, Is.EqualTo(0x11223344u));
+                Assert.That(decoded.Record.Kind, Is.EqualTo(FlowRecordKind.Control));
+                Assert.That(decoded.Record.Revision, Is.EqualTo(0x01020304u));
+                Assert.That(decoded.Record.MessageId, Is.EqualTo(0x89ABCDEFu));
+                Assert.That(decoded.Record.Body.ToHexString().ToLowerInvariant(), Is.EqualTo("0a44332211"));
+                Assert.That(decoded.Control!.Operation, Is.EqualTo(FlowOperation.End));
+            });
+        }
+
+        /// <summary>
+        /// Neither half of the 32-bit correlation value may be dropped or replaced by the flow id.
+        /// </summary>
+        [TestCase(1u)]
+        [TestCase(0x00010001u)]
+        [TestCase(0x80000001u)]
+        [TestCase(uint.MaxValue)]
+        public void ManagementCorrelatesEveryRequestIdBit(uint messageId)
+        {
+            FlowRecord record = FlowControlCodec.Encode(new FlowSignal(FlowOperation.End, 7), 1, messageId, new());
+            ByteString body = UascFlowMessageCodec.EncodeManagement(7, in record, new(), out uint requestId);
+            Assert.That(requestId, Is.EqualTo(messageId));
+            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(body.Span[9..]), Is.EqualTo(messageId));
+            Assert.That(UascFlowMessageCodec.DecodeManagement(
+                DataChannelUascMessageKind.Msg, (byte)'F', messageId, body, new()).ChannelId, Is.EqualTo(7u));
+            foreach (uint wrongId in new[] { 0u, messageId ^ 1u, messageId ^ 0x00010000u, messageId ^ 0x80000000u })
+            {
+                AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', wrongId, body, new()),
+                    FlowCodecError.RequestIdMismatch);
+            }
+        }
+
+        /// <summary>
+        /// Only final MSG is accepted; ordinary baseline FLO/FLC cannot select native management.
+        /// </summary>
+        [TestCase(DataChannelUascMessageKind.Flo, (byte)'F', "WrongType")]
+        [TestCase(DataChannelUascMessageKind.Flc, (byte)'F', "WrongType")]
+        [TestCase((DataChannelUascMessageKind)255, (byte)'F', "WrongType")]
+        [TestCase(DataChannelUascMessageKind.Msg, (byte)'C', "NonFinalUasc")]
+        [TestCase(DataChannelUascMessageKind.Msg, (byte)'A', "NonFinalUasc")]
+        public void ManagementRejectsWrongMessageKindAndNonfinalChunks(
+            DataChannelUascMessageKind kind, byte finality, string error)
+        {
+            FlowCodecException exception = Assert.Throws<FlowCodecException>(() =>
+                UascFlowMessageCodec.DecodeManagement(kind, finality, 11, ManagementEndBody(), new()))!;
+            Assert.That(exception.Error.ToString(), Is.EqualTo(error));
+        }
+
+        /// <summary>
+        /// DATA cannot enter management in either direction and CONTROL must address its actual flow.
+        /// </summary>
+        [Test]
+        public void ManagementRejectsDataAndMismatchedAdmission()
+        {
+            var data = new FlowRecord(FlowRecordKind.Data, 1, 11, s_uadp);
+            AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(1, in data, new(), out _),
+                FlowCodecError.WrongType);
+            AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                DataChannelUascMessageKind.Msg, (byte)'F', 11, FlowRecordCodec.Encode(in data, new()), new()),
+                FlowCodecError.WrongType);
+            FlowRecord end = FlowControlCodec.Encode(new FlowSignal(FlowOperation.End, 1), 1, 11, new());
+            AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(2, in end, new(), out _),
+                FlowCodecError.InvalidFlow);
+        }
+
+        /// <summary>
+        /// Every incomplete prefix and both a trailing byte and a second complete record are refused.
+        /// </summary>
+        [Test]
+        public void ManagementRequiresExactlyOneCompleteRecord()
+        {
+            ByteString body = ManagementEndBody();
+            for (int length = 0; length < body.Length; length++)
+            {
+                ByteString prefix = new(body.Memory[..length]);
+                AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, prefix, new()), FlowCodecError.Truncated);
+            }
+            foreach (ByteString trailing in new[]
+            {
+                new ByteString((byte[])[.. body.ToArray(), 0]),
+                new ByteString((byte[])[.. body.ToArray(), .. body.ToArray()])
+            })
+            {
+                AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, trailing, new()), FlowCodecError.TrailingBytes);
+            }
+        }
+
+        /// <summary>
+        /// Invalid common headers and control bodies keep their precise parser refusal.
+        /// </summary>
+        [TestCase("0800000001010000000b0000000a01000000", "InvalidLength")]
+        [TestCase("ffffffff01010000000b0000000a01000000", "TooLarge")]
+        [TestCase("0e000000ff010000000b0000000a01000000", "UnknownKind")]
+        [TestCase("0e0000000101000000000000000a01000000", "InvalidMessageId")]
+        [TestCase("0e00000001000000000b0000000a01000000", "InvalidRevision")]
+        [TestCase("0e00000001010000000b000000ff01000000", "UnknownOperation")]
+        [TestCase("0e00000001010000000b0000000a00000000", "InvalidFlow")]
+        [TestCase("0900000001010000000b000000", "Truncated")]
+        [TestCase("0d00000001010000000b0000000a010000", "Truncated")]
+        [TestCase("0f00000001010000000b0000000a0100000000", "TrailingBytes")]
+        public void ManagementRejectsMalformedCommonRecord(string hex, string error)
+        {
+            FlowCodecException exception = Assert.Throws<FlowCodecException>(() =>
+                UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, ByteString.FromHexString(hex), new()))!;
+            Assert.That(exception.Error.ToString(), Is.EqualTo(error));
+        }
+
+        /// <summary>
+        /// Control-body and total-record limits apply independently and include their exact boundary.
+        /// </summary>
+        [TestCase(5, 18, true)]
+        [TestCase(6, 19, true)]
+        [TestCase(4, 18, false)]
+        [TestCase(5, 17, false)]
+        public void ManagementBoundsAreInclusiveOnEncodeAndDecode(int controlBytes, int recordBytes, bool allowed)
+        {
+            var limits = new FlowCodecLimits(maxDataBytes: 0, maxControlBytes: controlBytes, maxRecordBytes: recordBytes);
+            FlowRecord end = FlowControlCodec.Encode(new FlowSignal(FlowOperation.End, 1), 1, 11, new());
+            if (!allowed)
+            {
+                AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(1, in end, limits, out _),
+                    FlowCodecError.TooLarge);
+                AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, ManagementEndBody(), limits), FlowCodecError.TooLarge);
+                return;
+            }
+            ByteString encoded = UascFlowMessageCodec.EncodeManagement(1, in end, limits, out uint requestId);
+            UascFlowMessage decoded = UascFlowMessageCodec.DecodeManagement(
+                DataChannelUascMessageKind.Msg, (byte)'F', 11, ManagementEndBody(), limits);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded, Is.EqualTo(ManagementEndBody()));
+                Assert.That(requestId, Is.EqualTo(11u));
+                Assert.That(decoded.Control!.Operation, Is.EqualTo(FlowOperation.End));
+                Assert.That(decoded.ChannelId, Is.EqualTo(1u));
+            });
+        }
+
+        /// <summary>
+        /// Native management does not inherit the baseline's CREDIT or optional exporter binding protocol.
+        /// </summary>
+        [Test]
+        public void ManagementRejectsBaselineOnlyControlsAndForeignHello()
+        {
+            FlowControl[] controls =
+            [
+                new FlowCredit(1, 256, 512),
+                new FlowBinding(0, new ByteString(new byte[32]), new ByteString(new byte[32])),
+                new FlowAssociation(FlowOperation.Associate, 1, 0, new Guid("11112233-4455-6677-8899-aabbccddeeff")),
+                new FlowAssociation(FlowOperation.AssociateAck, 1, 1, new Guid("11112233-4455-6677-8899-aabbccddeeff")),
+                new FlowHello(1, FlowCarrier.Quic, "urn:local",
+                    new Guid("11112233-4455-6677-8899-aabbccddeeff"), 1,
+                    new ByteString(new byte[32]), FlowWireProtection.Confidential, 1024, 4096, 4)
+            ];
+            foreach (FlowControl control in controls)
+            {
+                FlowRecord record = FlowControlCodec.Encode(control, control.Flow == 0 ? 0u : 1u, 11, new());
+                AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(control.Flow, in record, new(), out _),
+                    FlowCodecError.CarrierMismatch);
+                AssertCodecError(() => UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, FlowRecordCodec.Encode(in record, new()), new()),
+                    FlowCodecError.CarrierMismatch);
+            }
+        }
+
+        /// <summary>
+        /// Invalid encode inputs cannot bypass the common header or CONTROL validation.
+        /// </summary>
+        [Test]
+        public void ManagementValidatesEncodeHeadersAndLimits()
+        {
+            FlowRecord valid = FlowControlCodec.Encode(new FlowSignal(FlowOperation.End, 1), 1, 11, new());
+            var zeroId = new FlowRecord(FlowRecordKind.Control, 1, 0, valid.Body);
+            var zeroRevision = new FlowRecord(FlowRecordKind.Control, 0, 11, valid.Body);
+            var unknown = new FlowRecord((FlowRecordKind)255, 1, 11, valid.Body);
+            AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(1, in zeroId, new(), out _),
+                FlowCodecError.InvalidMessageId);
+            AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(1, in zeroRevision, new(), out _),
+                FlowCodecError.InvalidRevision);
+            AssertCodecError(() => UascFlowMessageCodec.EncodeManagement(1, in unknown, new(), out _),
+                FlowCodecError.WrongType);
+            Assert.Throws<ArgumentNullException>(() =>
+                UascFlowMessageCodec.EncodeManagement(1, in valid, null!, out _));
+            Assert.Throws<ArgumentNullException>(() =>
+                UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', 11, ManagementEndBody(), null!));
+        }
+
+        private static ByteString ManagementEndBody()
+        {
+            return ByteString.FromHexString("0e00000001010000000b0000000a01000000");
         }
 
         private static void AssertCodecError(Action decode, FlowCodecError expected)

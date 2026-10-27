@@ -1,22 +1,116 @@
 # OPC UA WebTransport bindings
 
 **Experimental; full Parts 30–32 acceptance remains open.** The native H3
-binding now has a distinct HTTPS/UACP baseline in addition to the legacy flow
-carrier below. The legacy flow path still has a peer-STOP reliable-header
-retention blocker; this does not establish browser interoperability or direct
-delivery conformance for the new baseline.
+binding supports a management-only UASC path for native Data Channels and a
+separate HTTPS/UACP baseline for ordinary Services. Browser interoperability,
+the draft's JSON CONTROL representation, and native minimum-retention
+qualification remain open. The older mTLS flow carrier below is not an
+implementation of the revised WebTransport authentication mapping.
 
-The native flow path uses mutually authenticated native QUIC, HTTP/3 and
+The legacy native flow path uses mutually authenticated native QUIC, HTTP/3 and
 WebTransport draft-ietf-webtrans-http3-16. It is not a WebSocket fallback,
 Kestrel draft02, or a second QUIC runtime. `opc.wt` endpoints select exact
 HTTPS Extended CONNECT authority and path/query policy. The UACP baseline is a
 separate HTTPS profile and does not infer application identity from TLS.
 
-The generic native QUIC backend must provide ABI4, including independent received
-RESET and actual peer STOP observations, confirmed mutual authentication and
+The native QUIC backend must provide ABI4, including independent received
+RESET and actual peer STOP observations, confirmed TLS authentication and
 actual reliable-reset evidence. Older native images are refused, not assigned
-synthetic capabilities. ABI4's truthful observations do not resolve the
-minimum-header limitation above.
+synthetic capabilities. These observations do not establish minimum-retention
+qualification.
+
+## Native Data Channel management
+
+`WebTransportUascTransport.ConnectDataChannelsAsync` and
+`ListenDataChannelsAsync` select `DataChannelProfiles.WebTransport` at an
+`opc.wt` endpoint. The endpoint maps to HTTPS for CONNECT. TLS authenticates the
+HTTPS server; the first client-created WebTransport stream then carries
+HEL/ACK and SignAndEncrypt OPN to authenticate both OPC UA applications.
+Application identity is not inferred from TLS or HELLO fields.
+
+The authenticated UASC channel creates the native context through
+`IDataChannelUascManagementProvider`. The provider retains that exact
+application identity and attaches flow ingress on the same WebTransport
+session before HELLO starts. Repeated attachment is refused. Management writes
+use the existing UASC ordered writer, security sequence and token renewal.
+The native flow streams and datagrams do not require an exporter or
+ASSOCIATE token exchange.
+
+Management CONTROL records occupy one final protected MSG each. RequestId
+equals the common-record MessageId, and there is no Service TypeId or inner
+ByteString wrapper. The management dispatcher rejects DATA, ordinary Service
+bodies, non-final chunks, mismatched RequestIds and trailing records. Flow
+streams retain ordered DATA, revision barriers and directional END.
+Those streams use native stream identifiers within the same session; datagrams
+use the four-byte ChannelId prefix and common DATA record.
+
+Obtain TLS trust from certificate configuration and provide separate
+application-certificate settings and a context factory:
+
+```csharp
+using NativeQuicCredentials tlsTrust = NativeQuicCredentials.ForTlsClient(trustRootsDer);
+var transport = new WebTransportUascTransport(
+    backend, http3Library, applicationBudget, options);
+var endpoint = new Uri("opc.wt://device.example:4840/flow/v1");
+await using WebTransportUascBaselineConnection nativeSession =
+    await transport.ConnectDataChannelsAsync(
+        endpoint, tlsTrust, cancellationToken: cancellationToken);
+
+applicationSettings.DataChannels = contextFactory;
+var client = new UascDataChannelClient(nativeSession, telemetry);
+await using UascDataChannelConnection connection = await client.ConnectAsync(
+    endpoint, applicationSettings, cancellationToken);
+DataChannel flow = await connection.Context.OpenAsync(
+    parameters, cancellationToken: cancellationToken);
+DataChannelResult result = await flow.SendAsync(payload, cancellationToken: cancellationToken);
+if (result != DataChannelResult.Good)
+{
+    throw new DataChannelException(result);
+}
+```
+
+`applicationSettings` is a `TransportChannelSettings` with the exact
+`opc.wt` endpoint, `DataChannelProfiles.WebTransport`, SignAndEncrypt and a
+supported UASC security policy. It supplies the expected server application
+certificate, the client application certificate and its validator. The TLS
+trust roots do not replace that validation. `parameters` is an explicitly
+authorized native flow descriptor. `connection.Services` is null.
+
+For a server, use `ListenDataChannelsAsync` with server-only TLS credentials
+and an authorizer for the mapped HTTPS CONNECT endpoint. Pass each accepted
+connection to `TcpTransportListener.AcceptTransport` after `OpenExternal`.
+The external listener settings must contain the exact bound `opc.wt` endpoint,
+the `WebTransport` profile, SignAndEncrypt and the application context factory.
+The endpoint description carries the UASC application certificate and no
+Session user-token policies. Native QUIC's None security fields do not apply
+to this profile.
+
+```csharp
+await using WebTransportUascListener listener = await transport.ListenDataChannelsAsync(
+    endpoint, localUdpEndpoint, tlsServerCredentials, authorizeConnect,
+    cancellationToken: cancellationToken);
+uascListener.OpenExternal(listener.EndpointUrl, applicationListenerSettings, requestCallback);
+await using WebTransportUascBaselineConnection accepted =
+    await listener.AcceptAsync(cancellationToken);
+_ = uascListener.AcceptTransport(accepted, certificateValidator, maxBufferSize);
+```
+
+`WebTransportUascTransport.AddWebTransportUasc` registers the transport factory
+with `IOpcUaBuilder`. The host supplies the native backend, shared application
+budget and TLS snapshots; a resolved factory exposes both explicitly selected
+profiles.
+
+The H3 session and UASC channel have distinct lifetimes that end together:
+close the UASC channel before disposing its native session. A new native
+session must perform a new OPN/HELLO exchange; the implementation does not
+resume or pool TLS connections. UASC certificate invalidation closes the
+context, and native TLS/session loss faults all of its flows.
+
+The common CONTROL body is still encoded with the existing binary codec.
+RESET also retains the legacy management-path exchange before native FIN,
+rather than the draft's data-stream ordering. These entry points therefore do
+not establish conformance to the pinned draft's complete wire contract, even
+where the management framing matches.
 
 ## Part 32 reliable UASC baseline
 
@@ -115,6 +209,12 @@ The external listener's endpoint descriptions must advertise the exact
 does not dispose accepted connections. Close each UASC channel, then
 asynchronously dispose its baseline connection.
 
+## Legacy mTLS flow carrier
+
+This path does not perform the UASC management exchange described above.
+It remains available for the earlier experiment, not for advertising the
+revised native WebTransport profile.
+
 The application supplies `INativeQuicBackend`, `INativeQuicCredentialProvider`,
 `NativeHttp3Library`, `IDataChannelContextFactory`, one shared
 `DataChannelApplicationBudget`, and explicit `WebTransportDataChannelOptions`.
@@ -134,7 +234,7 @@ same explicit OPEN/authorization path.
 `IOpcUaBuilder`; `AddDataChannels` provides a standalone common context factory.
 A caller-supplied or Server-registered `IDataChannelContextFactory` is preserved.
 
-## Direct client usage
+### Direct client usage
 
 The providers below are application-owned. `resourcePolicy` must explicitly admit
 the requested resource for the actual application/key pair; it must deny unmatched
@@ -180,10 +280,11 @@ authority, for wildcard interfaces or explicit port forwarding. It does not
 enable origin pooling. Use `DataChannelDeliveryMode.Datagram` only when the
 resource policy explicitly admits genuinely unreliable application datagrams.
 
-Native endpoint discovery can use SecurityMode None / SecurityPolicy None to
-describe the absence of a UASC envelope. It does **not** mean unprotected traffic:
-confirmed TLS 1.3 mutual application authentication and exact expected keys
-remain mandatory.
+The legacy path has no UASC envelope. Its TLS-only security fields are not
+accepted by `ServerDataChannelProvider.RegisterEndpoint` for the revised
+WebTransport profile; use the management path's SignAndEncrypt application
+certificate description instead. Native QUIC retains its separate TLS-only
+discovery contract.
 
 One CONNECT/session and one application pair are permitted per fresh connection.
 No pooling, resumption, 0-RTT, redirects or retry on a rejected/closed CONNECT is

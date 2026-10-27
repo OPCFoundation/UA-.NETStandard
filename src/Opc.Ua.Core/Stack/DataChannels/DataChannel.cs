@@ -48,7 +48,12 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// One protected flow-control message.
         /// </summary>
-        Flc
+        Flc,
+
+        /// <summary>
+        /// One common CONTROL record on the native WebTransport UASC management stream.
+        /// </summary>
+        Msg
     }
 
     /// <summary>

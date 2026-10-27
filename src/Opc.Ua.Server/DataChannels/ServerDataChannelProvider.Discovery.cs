@@ -18,7 +18,7 @@ namespace Opc.Ua.Server.DataChannels
         /// <summary>
         /// Registers an actually implemented data endpoint. The availability callback must reflect
         /// listener/backend readiness; dispose the registration when that endpoint is withdrawn.
-        /// Native profiles require the real TLS application certificate despite their None UASC fields.
+        /// QUIC requires its TLS application certificate; WebTransport requires its UASC application certificate.
         /// </summary>
         public IDisposable RegisterEndpoint(EndpointDescription endpoint, Func<bool> isAvailable)
         {
@@ -103,30 +103,29 @@ namespace Opc.Ua.Server.DataChannels
             {
                 throw new ArgumentException("A complete authenticated data endpoint description is required.");
             }
-            bool native = endpoint.TransportProfileUri is DataChannelProfiles.Quic or DataChannelProfiles.WebTransport;
-            if (native)
+            if (endpoint.TransportProfileUri == DataChannelProfiles.Quic)
             {
                 if (endpoint.SecurityMode != MessageSecurityMode.None ||
                     endpoint.SecurityPolicyUri != SecurityPolicies.None || endpoint.UserIdentityTokens.Count != 0 ||
-                    (endpoint.TransportProfileUri == DataChannelProfiles.Quic && uri.Scheme != "opc.quic") ||
-                    (endpoint.TransportProfileUri == DataChannelProfiles.WebTransport && uri.Scheme != "https"))
+                    uri.Scheme != "opc.quic")
                 {
-                    throw new ArgumentException("Native descriptions represent TLS-only data endpoints, not Sessions.");
+                    throw new ArgumentException("Native QUIC descriptions represent TLS-only data endpoints, not Sessions.");
                 }
             }
             else
             {
                 UascDataChannelEndpoint.Validate(uri, endpoint, this, AllowIntegrity);
-                if (endpoint.TransportProfileUri == DataChannelProfiles.DedicatedUasc &&
+                if (endpoint.TransportProfileUri is DataChannelProfiles.DedicatedUasc or
+                    DataChannelProfiles.WebTransport &&
                     endpoint.UserIdentityTokens.Count != 0)
                 {
-                    throw new ArgumentException("Dedicated data endpoints cannot advertise Session authentication.");
+                    throw new ArgumentException("Management-only data endpoints cannot advertise Session authentication.");
                 }
             }
             foreach (string discoveryUrl in endpoint.Server.DiscoveryUrls)
             {
                 if (!Uri.TryCreate(discoveryUrl, UriKind.Absolute, out Uri? discovery) ||
-                    UascDataChannelEndpoint.IsFlowResource(discovery) || discovery.Scheme == "opc.quic" ||
+                    UascDataChannelEndpoint.IsFlowResource(discovery) || discovery.Scheme is "opc.quic" or "opc.wt" ||
                     discovery.AbsoluteUri == uri.AbsoluteUri)
                 {
                     throw new ArgumentException("A data endpoint is not a DiscoveryEndpoint.");

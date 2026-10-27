@@ -778,7 +778,15 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Confirms that an attachment factory returned a context for the exact supplied carrier.
+        /// Confirms that a composed carrier retains the selected profile and UASC-authenticated identity.
+        /// </summary>
+        internal bool UsesCarrierIdentity(DataChannelCarrierKind kind, DataChannelPeerIdentity identity)
+        {
+            return m_carrier.Kind == kind && ReferenceEquals(m_carrier.Identity, identity);
+        }
+
+        /// <summary>
+        /// Checks that a context uses the exact carrier selected by its host.
         /// </summary>
         internal bool UsesCarrier(IDataChannelCarrier carrier)
         {
