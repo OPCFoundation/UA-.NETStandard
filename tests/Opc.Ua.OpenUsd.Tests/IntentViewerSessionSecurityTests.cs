@@ -111,7 +111,7 @@ namespace Opc.Ua.OpenUsd.Tests
             // Invoke it directly so failures cannot trigger unbounded timer retries or network discovery.
             var reconnect = (Task<ServiceResult>)typeof(ManagedSession)
                 .GetMethod("HandleConnectEndpointAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .Invoke(managed, [reconnectEndpoint, CancellationToken.None])!;
+                .Invoke(managed, [reconnectEndpoint, null, CancellationToken.None])!;
             ServiceResult result = await reconnect.ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(wrongHost

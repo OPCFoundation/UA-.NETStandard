@@ -2789,6 +2789,43 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task AcceptedHeldConnectionIsUnavailableInsideAcceptingCallback()
+        {
+            ITelemetryContext telemetry = CreateTelemetry();
+            var harness = new FakeListenerHarness(Scheme);
+            Uri url = Url(20611);
+            await using var manager = new ReverseConnectManager(telemetry)
+            {
+                TransportBindings = harness.Registry
+            };
+            ReverseConnectClientConfiguration configuration = ConfigFor(url);
+            configuration.HoldTime = 120000;
+            await manager.StartServiceAsync(configuration).ConfigureAwait(false);
+
+            const string serverUri = "urn:server-a:UA:Server";
+            var endpointUrl = new Uri(Scheme + "://server-a:62541/Server");
+            var connection = new FakeConnectionWaitingEventArgs(serverUri, endpointUrl);
+            var availability = (IReverseConnectionAvailability)manager;
+            Task held = manager.InvokeConnectionWaitingForTest(connection);
+            Assert.That(held.IsCompleted, Is.False);
+            Assert.That(availability.GetAvailableEndpointUrls(serverUri), Is.EqualTo(new[] { endpointUrl }));
+
+            var observed = new TaskCompletionSource<IReadOnlyList<Uri>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            await manager.RegisterWaitingConnectionAsync(
+                endpointUrl,
+                serverUri,
+                (sender, accepted) => observed.TrySetResult(availability.GetAvailableEndpointUrls(serverUri)),
+                ReverseConnectManager.ReverseConnectStrategy.Once).ConfigureAwait(false);
+
+            IReadOnlyList<Uri> available = await observed.Task.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+            Assert.That(connection.Accepted, Is.True);
+            Assert.That(available, Is.Empty);
+            await held.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task StopDrainsHeldConnectionCallbackBeforeListenerClose()
         {
             ITelemetryContext telemetry = CreateTelemetry();

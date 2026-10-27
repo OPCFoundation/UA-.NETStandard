@@ -99,6 +99,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return VerifyCommittedResolutionInputAsync(false, sharedInput: true);
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        public Task ColdRecoverySharesRetainedInputAfterPredecisionConflict(int predecisionConflicts)
+        {
+            return VerifyCommittedResolutionInputAsync(
+                false, sharedInput: true, predecisionConflicts: predecisionConflicts);
+        }
+
         /// <summary>
         /// Verifies that cold recovery preserves an already active resolution input owner.
         /// </summary>
@@ -127,7 +135,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             RetainedInputDamage damage = RetainedInputDamage.None,
             bool nativeOrigin = true,
             bool sharedInput = false,
-            bool activeInput = false)
+            bool activeInput = false,
+            int predecisionConflicts = 0)
         {
             var consumed = new List<ByteString>();
             var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
@@ -151,19 +160,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     return m_converter.ConvertAsync(resource, content, snapshot, contents, token);
                 });
             m_coordinator.Dispose();
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle),
+                m_registry, host,
                 documentConverter: converter.Object)
             {
                 ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
             };
             m_coordinator.Event += (_, change) => m_events.Add(change);
-                if (nativeOrigin)
-                {
-                    await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                        new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
-                        callerContext: null).ConfigureAwait(false);
-                }
+            if (nativeOrigin)
+            {
+                await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions { AutoRefresh = false }, m_registry, m_coordinator),
+                    callerContext: null).ConfigureAwait(false);
+            }
             WotResource model = await AddUnitModelAsync("retained-input").ConfigureAwait(false);
             WotResource source = await AddAsync("retained-dependent").ConfigureAwait(false);
             await SetUnitDependencyAsync(source, model.ResourceId).ConfigureAwait(false);
@@ -186,6 +196,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 selection = [UnitSelector(source), UnitSelector(peer)];
             }
             ByteString committedInput = ByteString.From(TestMaterialization.Tm("urn:retained-input"));
+            var expectedInputs = new List<ByteString>();
+            host.BeforeCommit = () =>
+            {
+                expectedInputs.Add(committedInput);
+                Assert.That(consumed, Is.EqualTo(expectedInputs),
+                    "Each publication attempt must consume the retained input exactly once.");
+                if (predecisionConflicts > 0)
+                {
+                    predecisionConflicts--;
+                    throw new InvalidOperationException("Serving references changed during batch preparation.");
+                }
+            };
             WotRefreshResult initial = await m_coordinator.RefreshAsync(new WotRefreshRequest
             {
                 Selection = [.. selection],
@@ -193,7 +215,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Options = new WoTRefreshOptionsDataType { Atomicity = WoTAtomicityEnum.PerRegistry }
             }).ConfigureAwait(false);
             Assert.That(initial.NewGeneration, Is.EqualTo(activeInput ? 2u : 1u));
-            Assert.That(consumed, Is.EqualTo(new[] { committedInput }));
+            Assert.That(predecisionConflicts, Is.Zero);
+            Assert.That(expectedInputs, Has.Count.InRange(1, 3));
+            Assert.That(consumed, Is.EqualTo(expectedInputs));
             Assert.That((await ReadNodeClassAsync(Root(model)).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(activeInput ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
             WotResource active = m_registry.Current.FindResourceByXid(source.Xid)!;

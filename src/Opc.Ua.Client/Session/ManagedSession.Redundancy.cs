@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading;
@@ -414,7 +415,8 @@ namespace Opc.Ua.Client
                 probes[ii] = ProbeMemberAsync(snapshot.RedundantServers[ii], current, currentUri, ct);
             }
             RedundantServer[] servers = await Task.WhenAll(probes).ConfigureAwait(false);
-            return new ServerRedundancyInfo
+            // A member whose probe waited for a connection in vain is no longer selectable.
+            return ApplyMemberConnections(new ServerRedundancyInfo
             {
                 Mode = snapshot.Mode,
                 RedundantServers = servers,
@@ -424,7 +426,7 @@ namespace Opc.Ua.Client
                 EstimatedReturnTime = snapshot.EstimatedReturnTime,
                 CurrentServerId = snapshot.CurrentServerId,
                 ReadStatuses = snapshot.ReadStatuses
-            };
+            }, current);
         }
 
         private async Task<RedundantServer> ProbeMemberAsync(
@@ -457,15 +459,10 @@ namespace Opc.Ua.Client
             ISession? probe = null;
             try
             {
-                probe = await SessionFactory.CreateAsync(
-                    m_configuration,
+                probe = await CreateProbeSessionAsync(
+                    server.ServerUri,
                     DetachEndpoint(endpoint),
-                    false,
-                    m_checkDomain,
-                    m_sessionName,
-                    m_sessionTimeout,
                     identity == null ? null : new UserIdentity(identity.TokenHandler),
-                    m_preferredLocales,
                     linked.Token).ConfigureAwait(false);
                 (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await probe.ReadValuesAsync(
                     [VariableIds.Server_ServiceLevel, VariableIds.Server_ServerStatus_State],
@@ -495,6 +492,11 @@ namespace Opc.Ua.Client
             catch (Exception exception) when (exception is ServiceResultException or TimeoutException
                 or OperationCanceledException or IOException or SocketException)
             {
+                if (exception is TimeoutException or OperationCanceledException)
+                {
+                    // The member opened no connection within the probe timeout.
+                    m_connectingMembers.TryRemove(server.ServerUri, out _);
+                }
                 m_logger.ManagedSessionMemberServiceLevelProbeFailed(exception, endpoint.EndpointUrl);
                 return WithProbeError(server, exception switch
                 {
@@ -543,6 +545,157 @@ namespace Opc.Ua.Client
                 ResolutionError = error
             };
         }
+
+        /// <summary>
+        /// Creates the short session that reads a member's <c>ServiceLevel</c>,
+        /// over one of the member's reverse connections when
+        /// <see cref="ServerRedundancyOptions.MemberConnections"/> is set.
+        /// </summary>
+        private async Task<ISession> CreateProbeSessionAsync(
+            string serverUri,
+            ConfiguredEndpoint endpoint,
+            IUserIdentity? identity,
+            CancellationToken ct)
+        {
+            ITransportWaitingConnection? connection = m_memberConnections == null
+                ? null
+                : await WaitForRecoveryConnectionAsync(endpoint, null, switching: true, ct).ConfigureAwait(false);
+            if (connection == null)
+            {
+                return await SessionFactory.CreateAsync(
+                    m_configuration,
+                    endpoint,
+                    false,
+                    m_checkDomain,
+                    m_sessionName,
+                    m_sessionTimeout,
+                    identity,
+                    m_preferredLocales,
+                    ct).ConfigureAwait(false);
+            }
+
+            try
+            {
+                return await SessionFactory.CreateAsync(
+                    m_configuration,
+                    connection,
+                    endpoint,
+                    false,
+                    m_checkDomain,
+                    m_sessionName,
+                    m_sessionTimeout,
+                    identity,
+                    m_preferredLocales,
+                    ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                CloseUnusedConnection(connection);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Removes the endpoint of every other member that has no connection
+        /// available from <see cref="ServerRedundancyOptions.MemberConnections"/>
+        /// and was not seen with one before, and reports the member as not
+        /// connected, so it is neither probed nor selected. A member seen with
+        /// a connection stays selectable while it keeps opening connections,
+        /// because the probe and the failover take its connections.
+        /// </summary>
+        private ServerRedundancyInfo ApplyMemberConnections(
+            ServerRedundancyInfo snapshot,
+            ConfiguredEndpoint current)
+        {
+            IReverseConnectionAvailability? connections = m_memberConnections;
+            if (connections == null ||
+                snapshot.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
+                snapshot.RedundantServers.Count == 0)
+            {
+                return snapshot;
+            }
+
+            string? currentUri = current.Description?.Server?.ApplicationUri;
+            var servers = new RedundantServer[snapshot.RedundantServers.Count];
+            bool changed = false;
+            for (int ii = 0; ii < servers.Length; ii++)
+            {
+                RedundantServer server = snapshot.RedundantServers[ii];
+                servers[ii] = server;
+                if (string.IsNullOrEmpty(server.ServerUri) ||
+                    IsInitialServer(server.ServerUri) ||
+                    string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (SelectMemberEndpointUrl(connections, server.ServerUri, current) != null)
+                {
+                    continue;
+                }
+                servers[ii] = new RedundantServer
+                {
+                    ServerUri = server.ServerUri,
+                    ServiceLevel = server.ServiceLevel,
+                    ServiceLevelKnown = server.ServiceLevelKnown,
+                    ServerState = server.ServerState,
+                    ResolutionError = ReverseConnectRedundantServerEndpointResolver.NotConnected().Result
+                };
+                changed = true;
+            }
+            if (!changed)
+            {
+                return snapshot;
+            }
+            return new ServerRedundancyInfo
+            {
+                Mode = snapshot.Mode,
+                RedundantServers = servers,
+                ServiceLevel = snapshot.ServiceLevel,
+                ServiceLevelAccessible = snapshot.ServiceLevelAccessible,
+                ServiceLevelSubrange = snapshot.ServiceLevelSubrange,
+                EstimatedReturnTime = snapshot.EstimatedReturnTime,
+                CurrentServerId = snapshot.CurrentServerId,
+                ReadStatuses = snapshot.ReadStatuses
+            };
+        }
+
+        /// <summary>
+        /// Selects the endpoint url an available connection of the member
+        /// announces and remembers it, or returns the url remembered for a
+        /// member seen with a connection before, which a source keyed by the
+        /// announced url still serves when no connection is held at the moment.
+        /// </summary>
+        private Uri? SelectMemberEndpointUrl(
+            IReverseConnectionAvailability connections,
+            string serverUri,
+            ConfiguredEndpoint endpoint)
+        {
+            Uri? url = ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
+                connections, serverUri, endpoint);
+            if (url != null)
+            {
+                m_connectingMembers[serverUri] = url;
+                return url;
+            }
+            return m_connectingMembers.TryGetValue(serverUri, out Uri? announced) ? announced : null;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="serverUri"/> is the Server the session was
+        /// first connected to, or that Server is not known yet.
+        /// </summary>
+        private bool IsInitialServer(string serverUri)
+        {
+            string? initial = m_initialServerUri;
+            return string.IsNullOrEmpty(initial) || string.Equals(initial, serverUri, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// The ServerUris of members seen with an available connection and the
+        /// endpoint url their connections announced, until a probe waits for one
+        /// of their connections in vain.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Uri> m_connectingMembers = new(StringComparer.Ordinal);
 
         private RetryBudget CreateRecoveryBudget()
         {
