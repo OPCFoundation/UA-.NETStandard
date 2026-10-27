@@ -242,8 +242,8 @@ namespace Opc.Ua.PubSub.Server
                         return;
                     }
                     m_status.Value = GetStatus();
+                    m_status.ClearChangeMasks(m_context, false);
                 }
-                m_status.ClearChangeMasks(m_context, false);
             }
 
             /// <summary>

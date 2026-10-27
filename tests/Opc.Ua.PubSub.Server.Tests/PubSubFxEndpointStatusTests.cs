@@ -366,6 +366,46 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(oldReader.State.State, Is.EqualTo(PubSubState.Error));
         }
 
+        [Test]
+        public async Task FxEndpointStatusDisposalWaitsForActiveNotification()
+        {
+            await using var harness = new Harness();
+            IDataSetReader reader = Reader(PubSubState.Disabled)!;
+            var endpoint = CreateEndpoint(PubSubConnectionEndpointModeEnum.Subscriber);
+            using IDisposable binding = harness.Manager.BindFxEndpointStatus(harness.Context, endpoint, reader);
+            using var notificationEntered = new ManualResetEventSlim();
+            using var releaseNotification = new ManualResetEventSlim();
+            endpoint.Status!.StateChanged += (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Value) != 0)
+                {
+                    notificationEntered.Set();
+                    releaseNotification.Wait(TimeSpan.FromSeconds(5));
+                }
+            };
+
+            Task<bool> transition = Task.Run(() => reader.State.TryEnable());
+            Assert.That(notificationEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            var disposeStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task disposal = Task.Run(() =>
+            {
+                disposeStarted.TrySetResult(true);
+                binding.Dispose();
+            });
+            try
+            {
+                await disposeStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(disposal.Wait(TimeSpan.FromMilliseconds(100)), Is.False);
+            }
+            finally
+            {
+                releaseNotification.Set();
+            }
+
+            Assert.That(await transition.ConfigureAwait(false), Is.True);
+            await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
