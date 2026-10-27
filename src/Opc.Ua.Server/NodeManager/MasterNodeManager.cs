@@ -797,20 +797,34 @@ namespace Opc.Ua.Server
                     customNodeManager.GetRemovedExternalReferences(),
                 _ => []
             };
-            // Publication already reconciled these exact contributions. Replaying their removal could erase a
-            // replacement's same-identifier reference or invalidate an independent transaction's preparation.
-            ChangePreparer.GetServer(nodeManager)?.ExcludePreparedReferences(referencesToRemove);
-            if (referencesToRemove.Count > 0)
+            if (!m_destroyedReferenceCleanup.TryGetValue(nodeManager, out DestroyedReferenceCleanupPlan? cleanup))
             {
-                if (!m_destroyedReferenceCleanup.TryGetValue(nodeManager, out DestroyedReferenceCleanupPlan? cleanup))
+                if (m_inheritedReferenceCleanup.TryGetValue(
+                    nodeManager, out Dictionary<(NodeId, NodeId, bool, NodeId), LocalReference>? inherited))
+                {
+                    foreach (LocalReference reference in referencesToRemove)
+                    {
+                        inherited[(reference.SourceId, reference.ReferenceTypeId,
+                            reference.IsInverse, reference.TargetId)] = reference;
+                    }
+                    referencesToRemove = [.. inherited.Values];
+                }
+                // Publication already reconciled these exact contributions. Replaying their removal could erase a
+                // replacement's same-identifier reference or invalidate an independent transaction's preparation.
+                ChangePreparer.GetServer(nodeManager)?.ExcludePreparedReferences(referencesToRemove);
+                if (referencesToRemove.Count > 0)
                 {
                     cleanup = await PrepareDestroyedReferenceCleanupAsync(referencesToRemove, ct).ConfigureAwait(false);
                     m_destroyedReferenceCleanup.Add(nodeManager, cleanup);
                 }
+            }
+            if (cleanup is not null)
+            {
                 await cleanup.CompleteAsync(ct).ConfigureAwait(false);
                 m_destroyedReferenceCleanup.Remove(nodeManager);
                 cleanup.Dispose();
             }
+            m_inheritedReferenceCleanup.Remove(nodeManager);
             if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
             {
                 asyncManagerToClear.ClearRemovedExternalReferences();

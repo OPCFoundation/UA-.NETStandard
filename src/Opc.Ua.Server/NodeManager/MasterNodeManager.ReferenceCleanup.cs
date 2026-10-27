@@ -49,31 +49,51 @@ namespace Opc.Ua.Server
                 new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
             context.PinRouting(m_nodeManagers);
             NodeManagerRoutingTable.RoutingSnapshot view = context.RoutingSnapshot!;
-            var targets = new Dictionary<NodeId, bool>();
+            var targets = new Dictionary<NodeId, IAsyncNodeManager?>();
             var removals = new Dictionary<NodeState, List<IReference>>();
             var updates = new List<NodeState.ReferenceUpdate>();
             var owners = new HashSet<IAsyncNodeManager>();
             var admissions = new List<(GenerationGate Gate, int Slot)>();
             var external = new List<(IAsyncNodeManager Owner, object Handle, LocalReference Reference)>();
+            var inherited = new List<(IAsyncNodeManager Owner, LocalReference Reference)>();
             bool transferred = false;
             try
             {
                 foreach (LocalReference reference in references)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!targets.TryGetValue(reference.TargetId, out bool serving))
+                    if (!targets.TryGetValue(reference.TargetId, out IAsyncNodeManager? targetOwner))
                     {
-                        (object? target, _) = await m_serviceDispatch.GetManagerHandleAsync(
+                        (object? target, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
                             context, reference.TargetId, cancellationToken).ConfigureAwait(false);
-                        targets.Add(reference.TargetId, serving = target is not null);
-                    }
-                    if (serving)
-                    {
-                        continue;
+                        bool serving = false;
+                        if (target is not null && targetOwner is not null)
+                        {
+                            GenerationGate gate = view.GetGeneration(targetOwner).Gate;
+                            if (!gate.TryEnter(out int slot))
+                            {
+                                throw new InvalidOperationException("A reciprocal reference target has retired.");
+                            }
+                            try
+                            {
+                                serving = await targetOwner.GetNodeMetadataAsync(
+                                    context, target, BrowseResultMask.None, cancellationToken)
+                                    .ConfigureAwait(false) is not null;
+                            }
+                            finally
+                            {
+                                gate.Exit(slot);
+                            }
+                        }
+                        if (!serving)
+                        {
+                            targetOwner = null;
+                        }
+                        targets.Add(reference.TargetId, targetOwner);
                     }
                     (object? handle, IAsyncNodeManager? owner) = await m_serviceDispatch.GetManagerHandleAsync(
                         context, reference.SourceId, cancellationToken).ConfigureAwait(false);
-                    if (handle is null || owner is null)
+                    if (handle is null || owner is null || ReferenceEquals(owner, targetOwner))
                     {
                         continue;
                     }
@@ -98,6 +118,11 @@ namespace Opc.Ua.Server
                             }
                         }
                     }
+                    if (targetOwner is not null)
+                    {
+                        inherited.Add((targetOwner, reference));
+                        continue;
+                    }
                     if (UsesDirectReferenceStorage(owner) &&
                         handle is NodeHandle { Validated: true, Node: { } node })
                     {
@@ -117,7 +142,7 @@ namespace Opc.Ua.Server
                 {
                     updates.Add(removal.Key.PrepareReferences([], [.. removal.Value]));
                 }
-                if (updates.Count != 0 || external.Count != 0)
+                if (updates.Count != 0 || external.Count != 0 || inherited.Count != 0)
                 {
                     using NodeManagerRoutingTable.PreparedRoutes reservation = m_nodeManagers.PrepareBatch(
                         [], [], static _ => [], Server.TypeTree, view.Factory);
@@ -138,6 +163,13 @@ namespace Opc.Ua.Server
                     foreach (NodeState.ReferenceUpdate update in updates)
                     {
                         update.Dispose();
+                    }
+                    foreach ((IAsyncNodeManager owner, LocalReference reference) in inherited)
+                    {
+                        Dictionary<(NodeId, NodeId, bool, NodeId), LocalReference> pending =
+                            m_inheritedReferenceCleanup.GetValue(owner, static _ => []);
+                        pending[(reference.SourceId, reference.ReferenceTypeId,
+                            reference.IsInverse, reference.TargetId)] = reference;
                     }
                 }
                 var plan = new DestroyedReferenceCleanupPlan(updates, admissions, external);
@@ -241,5 +273,12 @@ namespace Opc.Ua.Server
         /// <summary>Retains failed destruction cleanup until its owning retired manager is reclaimed.</summary>
         private readonly ConditionalWeakTable<IAsyncNodeManager, DestroyedReferenceCleanupPlan>
             m_destroyedReferenceCleanup = new();
+
+        /// <summary>
+        /// Transfers deduplicated cleanup obligations under serving-image reservation, consumed after owner withdrawal.
+        /// </summary>
+        private readonly ConditionalWeakTable<
+            IAsyncNodeManager,
+            Dictionary<(NodeId, NodeId, bool, NodeId), LocalReference>> m_inheritedReferenceCleanup = new();
     }
 }

@@ -103,6 +103,173 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Removes a preserved runtime backlink when the last replacement no longer serves its target.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(3)]
+        public async Task RetiredCleanupPrunesInheritedRuntimeReferencesAfterReplacementRemovalAsync(
+            int replacementCount)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration current = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId rootId = new(kRootNodeId, ns);
+            NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
+            var oldRoot = (NodeHandle)await current.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false);
+            oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
+            objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            for (int i = 0; i < replacementCount; i++)
+            {
+                await using IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(current, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], null, timeout.Token)
+                    .ConfigureAwait(false);
+                NodeManagerBatchResult replaced = await replacement.CommitAsync(_ => default, timeout.Token)
+                    .ConfigureAwait(false);
+                await replaced.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                current = replacement.Registrations[0];
+                Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.True);
+            }
+            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(current)], null, timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult removed = await removal.CommitAsync(_ => default, timeout.Token)
+                .ConfigureAwait(false);
+            await removed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.False);
+        }
+
+        /// <summary>
+        /// Retains failed reciprocal observers and owner admissions without replaying successful observers.
+        /// </summary>
+        [Test]
+        public async Task RetiredCleanupRetriesOnlyFailedReferenceObserversAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration source = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }, kSecondModelNamespaceUri),
+                null, timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId rootId = new(kRootNodeId, ns);
+            ushort sourceNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri);
+            NodeId sourceId = new(kRootNodeId, sourceNamespace);
+            var sourceHandle = (NodeHandle)await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
+                .ConfigureAwait(false);
+            NodeState objects = sourceHandle.Node;
+            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false);
+            oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, sourceId);
+            objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
+            NodeManagerGeneration owner = NodeManagerGenerationRegistry.GetOrCreate(source.NodeManager);
+            long originalAdmissions = owner.Gate.ActiveCount;
+            NodeStateReferenceRemoved? previous = objects.OnReferenceRemoved;
+            int successful = 0;
+            int attempts = 0;
+            bool fail = true;
+            var failure = new SentinelException("Reciprocal reference notification failed.");
+            objects.OnReferenceRemoved += (_, type, _, target) =>
+            {
+                if (type == ReferenceTypeIds.HasComponent && target == rootId)
+                {
+                    successful++;
+                }
+            };
+            objects.OnReferenceRemoved += (_, type, _, target) =>
+            {
+                if (type == ReferenceTypeIds.HasComponent && target == rootId)
+                {
+                    attempts++;
+                    if (fail)
+                    {
+                        throw failure;
+                    }
+                }
+            };
+            try
+            {
+                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(original)], null, timeout.Token).ConfigureAwait(false);
+                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                    .ConfigureAwait(false);
+                AggregateException? notificationFailure = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(notificationFailure!.InnerExceptions, Is.EqualTo(new[] { failure }));
+                Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.False);
+                Assert.That(successful, Is.EqualTo(1));
+                Assert.That(attempts, Is.EqualTo(1));
+                Assert.That(owner.Gate.ActiveCount, Is.EqualTo(originalAdmissions + 1));
+                fail = false;
+                var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
+                await host.RemoveDestroyedExternalReferencesAsync(original.NodeManager, timeout.Token)
+                    .ConfigureAwait(false);
+                await host.RemoveDestroyedExternalReferencesAsync(original.NodeManager, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(successful, Is.EqualTo(1));
+                Assert.That(attempts, Is.EqualTo(2));
+                Assert.That(owner.Gate.ActiveCount, Is.EqualTo(originalAdmissions));
+            }
+            finally
+            {
+                fail = false;
+                objects.OnReferenceRemoved = previous;
+            }
+        }
+
+        /// <summary>
+        /// Distinguishes a lazily resolved replacement node from an absent node in the same namespace.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredCleanupValidatesLazyReplacementTargetsAsync(bool targetExists)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId rootId = new(kRootNodeId, ns);
+            NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
+            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false);
+            oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
+            objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
+            Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
+            var handle = new NodeHandle { NodeId = rootId, Validated = false };
+            replacement.Setup(value => value.GetManagerHandleAsync(rootId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(handle);
+            replacement.Setup(value => value.GetNodeMetadataAsync(
+                It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(replacement.Object).Gate.ActiveCount,
+                        Is.GreaterThan(0), "Lazy validation must enter the exact replacement generation.");
+                    return new ValueTask<NodeMetadata>(targetExists ? new NodeMetadata(handle, rootId) : null!);
+                });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacement.Object);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(original), NodeManagerBatchChange.Add(factory.Object)],
+                null, timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                .ConfigureAwait(false);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId),
+                Is.EqualTo(targetExists));
+            replacement.Verify(value => value.GetNodeMetadataAsync(
+                It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
