@@ -460,9 +460,11 @@ public async ValueTask OnDataChangeNotificationAsync(ISubscription subscription,
 Every `DataValueChange` and `EventNotification` carries the handle of the message it arrived
 in. On the classic engine, `Subscription.TryGetAcknowledgementHandle(notification, out handle)`
 returns it for a notification the fast callbacks received. Until it is confirmed, the server
-keeps the message in its retransmission queue. Confirming a handle twice, or after its
-subscription was retired, has no effect; the session forgets a confirmation once the
-acknowledgement ended.
+keeps the message in its retransmission queue. The session tracks an acknowledgement from
+just before its notification is delivered until the acknowledgement ends, and only accepts
+confirmations of tracked acknowledgements: confirming a handle twice, after its
+acknowledgement ended, or after its subscription was retired has no effect and keeps no
+state.
 
 **Custom policies.** Register a provider and, optionally, an observer through the session
 options, the builder (`WithAcknowledgementProvider`, `WithAcknowledgementObserver`) or
@@ -482,17 +484,23 @@ cannot be combined with `AcknowledgementMode.AfterConfirmation`.
 
 - Publish workers call the provider concurrently and without holding SDK locks; an
   implementation must be thread-safe. The acknowledgements are validated again after the
-  decision, so one whose subscription was retired meanwhile is not sent.
+  decision on both engines, so one whose subscription was deleted or recreated meanwhile
+  is retired instead of being sent against a reused subscription id.
 - Deferred acknowledgements are presented again with later Publish requests, even if no new
-  notification arrives, until they are sent or end.
+  notification arrives, until they are sent or end. They are not lost when a Publish
+  attempt is aborted while the provider decides.
 - If the provider throws, the whole batch is deferred (fail-closed); the error is logged.
 - The classic engine publishes synchronously: a decision that does not complete
   synchronously keeps its acknowledgements pending and is applied to a later Publish request.
+- Each acknowledgement has a single entry while it is pending or in flight: queuing it again
+  (for example after a transfer) does not create a second entry, so it ends exactly once.
 - Outcomes are delivered in order from a background loop, outside SDK locks. Dispositions:
   `Acknowledged` (the server confirmed), `NotRetained` (the server no longer holds the
   message or rejected the acknowledgement; the status tells why), `OwnerRetired` (the
   subscription was deleted, recreated or completed, another subscription owns its id, or
-  the session ended) and `Abandoned` (the engine was disposed before it could be sent).
+  the session ended) and `Abandoned` (the engine was disposed before the acknowledgement
+  was confirmed by the server, including one still in flight, or an obsolete
+  `PublishSequenceNumbersToAcknowledge` handler dropped it).
   Observer exceptions are logged and do not affect publishing.
 - Without a provider or observer, no provider calls, copies or outcome bookkeeping are
   added to the Publish path. Notifications still carry their handle; it reuses one cached

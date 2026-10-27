@@ -3033,10 +3033,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Delete the subscription.
-        /// Ignore errors, always reset all parameter.
-        /// </summary>
-        /// <summary>
         /// Records the acknowledgement handle of a delivered notification when the session
         /// has an acknowledgement configuration.
         /// </summary>
@@ -3056,6 +3052,10 @@ namespace Opc.Ua.Client
                 new AcknowledgementHandle(GetAcknowledgementScope(), sequenceNumber);
         }
 
+        /// <summary>
+        /// Delete the subscription.
+        /// Ignore errors, always reset all parameter.
+        /// </summary>
         private void DeleteSubscription()
         {
             // Acknowledgements of the deleted server subscription belong to a past lifetime.

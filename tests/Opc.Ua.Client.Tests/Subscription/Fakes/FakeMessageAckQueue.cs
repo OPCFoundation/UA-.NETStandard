@@ -100,6 +100,29 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         /// <summary>
+        /// The sequence numbers whose acknowledgement was tracked before delivery.
+        /// </summary>
+        public List<uint> TrackedSequenceNumbers
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_tracked];
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void TrackAcknowledgement(IMessageProcessor owner, long generation, uint sequenceNumber)
+        {
+            lock (m_lock)
+            {
+                m_tracked.Add(sequenceNumber);
+            }
+        }
+
+        /// <summary>
         /// The owner generation each entry of <see cref="QueuedAcks"/> was stamped with.
         /// </summary>
         public List<long> QueuedAckGenerations
@@ -286,5 +309,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// <summary>The queue's mutable storage, accessed only under <see cref="m_lock"/>.</summary>
         private readonly List<SubscriptionAcknowledgement> m_queuedAcks = [];
         private readonly List<long> m_queuedGenerations = [];
+        private readonly List<uint> m_tracked = [];
     }
 }

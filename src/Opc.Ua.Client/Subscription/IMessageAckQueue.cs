@@ -56,6 +56,16 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionAcknowledgement ack, CancellationToken ct = default);
 
         /// <summary>
+        /// Starts tracking the acknowledgement of a message before the message is
+        /// delivered, so that a confirmation the application makes while handling it
+        /// is accepted.
+        /// </summary>
+        /// <param name="owner">The processor that delivers the message.</param>
+        /// <param name="generation">The owner's message generation.</param>
+        /// <param name="sequenceNumber">The sequence number of the message.</param>
+        void TrackAcknowledgement(IMessageProcessor owner, long generation, uint sequenceNumber);
+
+        /// <summary>
         /// Records that <paramref name="owner"/> was just assigned
         /// <paramref name="subscriptionId"/> by the server. The most
         /// recently created owner of an identifier takes precedence over

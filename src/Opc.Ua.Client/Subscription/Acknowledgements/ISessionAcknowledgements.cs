@@ -44,8 +44,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Confirms that a notification was processed, so that its acknowledgement can be
         /// sent. Only has an effect in <see cref="AcknowledgementMode.AfterConfirmation"/>
-        /// mode. Confirming a handle more than once, or after its subscription was retired,
-        /// has no effect.
+        /// mode, for an acknowledgement that has not ended yet. Confirming a handle more than
+        /// once, after its acknowledgement ended, or after its subscription was retired has
+        /// no effect.
         /// </summary>
         /// <param name="handle">The acknowledgement of the processed notification.</param>
         void Confirm(AcknowledgementHandle handle);

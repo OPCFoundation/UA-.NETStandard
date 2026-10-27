@@ -918,6 +918,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else
                 {
+                    AckQueue.TrackAcknowledgement(this, MessageGeneration, message.SequenceNumber);
                     for (int i = 0; i < message.NotificationData.Count; i++)
                     {
                         await DispatchAsync(

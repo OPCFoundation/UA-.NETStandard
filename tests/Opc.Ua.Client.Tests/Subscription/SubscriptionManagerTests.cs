@@ -1364,7 +1364,14 @@ namespace Opc.Ua.Client.Subscriptions
                 observer.CountBySequenceNumber(3) == 1 &&
                 provider.Presented(retired) > 0 &&
                 provider.Presented(abandoned) > 0, testCt).ConfigureAwait(false);
-            Assert.That(manager.DropPendingForSubscription(retiring, retiring.Id), Is.EqualTo(1));
+            // Quiesced, so that no worker holds the deferred entry while it decides.
+            int dropped = 0;
+            await manager.RunWithPublishingQuiescedAsync(_ =>
+            {
+                dropped = manager.DropPendingForSubscription(retiring, retiring.Id);
+                return default;
+            }, testCt).ConfigureAwait(false);
+            Assert.That(dropped, Is.EqualTo(1));
             await manager.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(observer.Disposition(acknowledged), Is.EqualTo(AcknowledgementDisposition.Acknowledged));
@@ -1375,6 +1382,169 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(observer.Disposition(abandoned), Is.EqualTo(AcknowledgementDisposition.Abandoned));
             Assert.That(observer.All.GroupBy(outcome => outcome.Handle).All(group => group.Count() == 1), Is.True,
                 "Every acknowledgement ends exactly once.");
+        }
+
+        /// <summary>
+        /// An acknowledgement that is queued again while its first entry is still outstanding,
+        /// as a transfer recovery does, is kept once and ends once.
+        /// </summary>
+        [Test]
+        public async Task AnAcknowledgementQueuedTwiceEndsOnceAsync()
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var observer = new TestAcknowledgementObserver();
+            context.AcknowledgementObserver = observer;
+            var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+
+            for (int i = 0; i < 2; i++)
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 6 },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1));
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(observer.CountBySequenceNumber(6), Is.EqualTo(1));
+            Assert.That(observer.All.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.Abandoned));
+        }
+
+        /// <summary>
+        /// Without an observer, queued acknowledgements are not tracked and duplicates are
+        /// queued as before.
+        /// </summary>
+        [Test]
+        public async Task DuplicatesAreQueuedWithoutAnObserverAsync()
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+
+            for (int i = 0; i < 2; i++)
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 6 },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Previously deferred acknowledgements survive a Publish attempt that is aborted
+        /// while the provider decides, and are sent once a later decision approves them.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(15_000)]
+        public async Task DeferredAcknowledgementsSurviveACancelledDecisionAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var provider = new CancellableAcknowledgementProvider();
+            context.AcknowledgementProvider = provider;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<uint>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement.SequenceNumber);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 9 },
+                testCt).ConfigureAwait(false);
+            await provider.Blocked.Task.WaitAsync(testCt).ConfigureAwait(false);
+            await manager.RunWithPublishingQuiescedAsync(_ => default, testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Contains(9u), testCt).ConfigureAwait(false);
+            Assert.That(provider.Cancelled, Is.True, "The decision was cancelled with the attempt.");
+        }
+
+        /// <summary>
+        /// With confirmation mode, the manager tracks an acknowledgement before its
+        /// notification is delivered.
+        /// </summary>
+        [Test]
+        public async Task AcknowledgementsAreTrackedForConfirmationAsync()
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var confirmations = (ConfirmedAcknowledgementProvider)acknowledgements.Provider!;
+            context.AcknowledgementProvider = confirmations;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+
+            manager.TrackAcknowledgement(owner, owner.MessageGeneration, 3);
+            acknowledgements.Confirm(new AcknowledgementHandle(
+                owner.GetAcknowledgementScope(owner.MessageGeneration), 3));
+
+            Assert.That(confirmations.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(confirmations.PendingConfirmations, Is.EqualTo(1));
+            Assert.That(() => manager.TrackAcknowledgement(null!, 0, 3), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// Defers every acknowledgement once, then blocks the next decision until it is
+        /// cancelled, and approves everything afterwards.
+        /// </summary>
+        private sealed class CancellableAcknowledgementProvider : ISubscriptionAcknowledgementProvider
+        {
+            public TaskCompletionSource<bool> Blocked { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public bool Cancelled { get; private set; }
+
+            public async ValueTask<AcknowledgementDecision> DecideAsync(
+                ArrayOf<AcknowledgementHandle> acknowledgements,
+                CancellationToken ct = default)
+            {
+                int call = Interlocked.Increment(ref m_calls);
+                if (call == 1)
+                {
+                    return new AcknowledgementDecision(Enumerable.Range(0, acknowledgements.Count).ToArray());
+                }
+                if (call == 2)
+                {
+                    Blocked.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Cancelled = true;
+                        throw;
+                    }
+                }
+                return AcknowledgementDecision.SendAll;
+            }
+
+            private int m_calls;
         }
 
         /// <summary>

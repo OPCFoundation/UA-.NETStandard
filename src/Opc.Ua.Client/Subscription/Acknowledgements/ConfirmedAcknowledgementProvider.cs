@@ -35,29 +35,62 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Acknowledges a notification only after the application confirmed it. Confirmations
-    /// are kept until the acknowledgement ends, so the bookkeeping stays bounded by the
-    /// acknowledgements the session still tracks.
+    /// Acknowledges a notification only after the application confirmed it. The subscription
+    /// engines track an acknowledgement before its notification is delivered, and its terminal
+    /// outcome ends the tracking. Only tracked acknowledgements can be confirmed, so a late or
+    /// repeated confirmation has no effect and the state stays bounded by the acknowledgements
+    /// the session still holds.
     /// </summary>
     /// <param name="next">An application observer that also receives the outcomes.</param>
     internal sealed class ConfirmedAcknowledgementProvider(ISubscriptionAcknowledgementObserver? next) :
         ISubscriptionAcknowledgementProvider,
-        ISubscriptionAcknowledgementObserver
+        ISubscriptionAcknowledgementObserver,
+        IAcknowledgementTracker
     {
         /// <summary>
-        /// Gets the number of confirmations that wait for their acknowledgement to end.
+        /// Gets the number of tracked acknowledgements that have not ended yet.
         /// </summary>
-        public int PendingConfirmations => m_confirmed.Count;
+        public int TrackedAcknowledgements => m_tracked.Count;
 
         /// <summary>
-        /// Records that the application processed a notification.
+        /// Gets the number of tracked acknowledgements the application confirmed.
+        /// </summary>
+        public int PendingConfirmations
+        {
+            get
+            {
+                int confirmed = 0;
+                foreach (KeyValuePair<AcknowledgementHandle, bool> entry in m_tracked)
+                {
+                    if (entry.Value)
+                    {
+                        confirmed++;
+                    }
+                }
+                return confirmed;
+            }
+        }
+
+        /// <inheritdoc/>
+        public void Track(AcknowledgementHandle handle)
+        {
+            if (!handle.IsNull)
+            {
+                m_tracked.TryAdd(handle, false);
+            }
+        }
+
+        /// <summary>
+        /// Records that the application processed a notification. Has no effect unless the
+        /// acknowledgement is tracked and has not ended.
         /// </summary>
         /// <param name="handle">The notification's acknowledgement.</param>
         public void Confirm(AcknowledgementHandle handle)
         {
             if (!handle.IsNull)
             {
-                m_confirmed.TryAdd(handle, 0);
+                // Atomic with the removal on completion: an ended acknowledgement is not revived.
+                m_tracked.TryUpdate(handle, true, false);
             }
         }
 
@@ -69,7 +102,7 @@ namespace Opc.Ua.Client
             List<int>? deferred = null;
             for (int i = 0; i < acknowledgements.Count; i++)
             {
-                if (!m_confirmed.ContainsKey(acknowledgements[i]))
+                if (!m_tracked.TryGetValue(acknowledgements[i], out bool confirmed) || !confirmed)
                 {
                     (deferred ??= []).Add(i);
                 }
@@ -84,32 +117,13 @@ namespace Opc.Ua.Client
             ArrayOf<AcknowledgementOutcome> outcomes,
             CancellationToken ct = default)
         {
-            HashSet<AcknowledgementScope>? retired = null;
             for (int i = 0; i < outcomes.Count; i++)
             {
-                AcknowledgementOutcome outcome = outcomes[i];
-                m_confirmed.TryRemove(outcome.Handle, out _);
-                if (outcome.Disposition is AcknowledgementDisposition.OwnerRetired or
-                    AcknowledgementDisposition.Abandoned &&
-                    outcome.Handle.Scope != null)
-                {
-                    (retired ??= []).Add(outcome.Handle.Scope);
-                }
-            }
-            if (retired != null)
-            {
-                // Confirmations of a retired subscription lifetime can no longer be used.
-                foreach (AcknowledgementHandle confirmed in m_confirmed.Keys)
-                {
-                    if (confirmed.Scope != null && retired.Contains(confirmed.Scope))
-                    {
-                        m_confirmed.TryRemove(confirmed, out _);
-                    }
-                }
+                m_tracked.TryRemove(outcomes[i].Handle, out _);
             }
             return next?.OnCompletedAsync(outcomes, ct) ?? default;
         }
 
-        private readonly ConcurrentDictionary<AcknowledgementHandle, byte> m_confirmed = new();
+        private readonly ConcurrentDictionary<AcknowledgementHandle, bool> m_tracked = new();
     }
 }

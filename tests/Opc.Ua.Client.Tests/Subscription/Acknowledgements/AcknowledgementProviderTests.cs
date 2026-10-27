@@ -46,6 +46,7 @@ namespace Opc.Ua.Client.Tests
     {
         private static readonly int[] s_bothDeferred = [0, 1];
         private static readonly int[] s_secondDeferred = [1];
+        private static readonly int[] s_firstDeferred = [0];
 
         [Test]
         public void HandlesCompareByLifetimeAndSequenceNumber()
@@ -123,6 +124,8 @@ namespace Opc.Ua.Client.Tests
             var second = new AcknowledgementHandle(scope, 2);
             ISubscriptionAcknowledgementProvider provider = acknowledgements.Provider!;
             var confirmations = (ConfirmedAcknowledgementProvider)provider;
+            confirmations.Track(first);
+            confirmations.Track(second);
 
             AcknowledgementDecision decision = await provider.DecideAsync(new[] { first, second }).ConfigureAwait(false);
             Assert.That(decision.Deferred.ToArray(), Is.EqualTo(s_bothDeferred), "Nothing is confirmed yet.");
@@ -142,28 +145,50 @@ namespace Opc.Ua.Client.Tests
                 new AcknowledgementOutcome(first, AcknowledgementDisposition.Acknowledged, StatusCodes.Good)
             }).ConfigureAwait(false);
             Assert.That(confirmations.PendingConfirmations, Is.EqualTo(1));
+            Assert.That(confirmations.TrackedAcknowledgements, Is.EqualTo(1));
             Assert.That(observer.Outcomes.Single().Handle, Is.EqualTo(first), "The application observer is told too.");
         }
 
         [Test]
-        public async Task RetiredLifetimesDropTheirConfirmationsAsync()
+        public async Task ConfirmationsOfEndedOrUntrackedAcknowledgementsHaveNoEffectAsync()
         {
             var acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
-            var retired = new AcknowledgementScope(new object(), 1, 7);
-            var live = new AcknowledgementScope(new object(), 1, 8);
-            acknowledgements.Confirm(new AcknowledgementHandle(retired, 1));
-            acknowledgements.Confirm(new AcknowledgementHandle(retired, 2));
-            acknowledgements.Confirm(new AcknowledgementHandle(live, 1));
             var confirmations = (ConfirmedAcknowledgementProvider)acknowledgements.Provider!;
+            var scope = new AcknowledgementScope(new object(), 1, 7);
+            var ended = new AcknowledgementHandle(scope, 1);
+            var untracked = new AcknowledgementHandle(scope, 2);
+            confirmations.Track(ended);
 
             await acknowledgements.Observer!.OnCompletedAsync(new[]
             {
-                new AcknowledgementOutcome(new AcknowledgementHandle(retired, 1),
-                    AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid)
+                new AcknowledgementOutcome(ended, AcknowledgementDisposition.NotRetained,
+                    StatusCodes.BadSequenceNumberUnknown)
             }).ConfigureAwait(false);
+            acknowledgements.Confirm(ended);
+            acknowledgements.Confirm(ended);
+            acknowledgements.Confirm(untracked);
 
-            Assert.That(confirmations.PendingConfirmations, Is.EqualTo(1),
-                "Confirmations of a retired lifetime are dropped; others are kept.");
+            Assert.That(confirmations.TrackedAcknowledgements, Is.Zero, "Late confirmations are not kept.");
+            AcknowledgementDecision decision = await confirmations.DecideAsync(new[] { untracked })
+                .ConfigureAwait(false);
+            Assert.That(decision.Deferred.ToArray(), Is.EqualTo(s_firstDeferred),
+                "An untracked acknowledgement is never approved.");
+        }
+
+        [Test]
+        public void TrackingIsIdempotentAndKeepsTheConfirmation()
+        {
+            var acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var confirmations = (ConfirmedAcknowledgementProvider)acknowledgements.Provider!;
+            var handle = new AcknowledgementHandle(new AcknowledgementScope(new object(), 1, 7), 1);
+
+            confirmations.Track(handle);
+            acknowledgements.Confirm(handle);
+            confirmations.Track(handle);
+            confirmations.Track(AcknowledgementHandle.Null);
+
+            Assert.That(confirmations.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(confirmations.PendingConfirmations, Is.EqualTo(1));
         }
 
         [Test]

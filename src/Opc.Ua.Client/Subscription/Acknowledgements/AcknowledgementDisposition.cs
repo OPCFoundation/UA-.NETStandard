@@ -59,7 +59,8 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// The acknowledgement could not be sent or kept, for example because the
-        /// subscription manager was disposed.
+        /// subscription manager was disposed while it was pending or in flight, or the
+        /// obsolete deferral event dropped it.
         /// </summary>
         Abandoned = 4
     }

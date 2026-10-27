@@ -45,6 +45,8 @@ namespace Opc.Ua.Client.Subscriptions
     [TestFixture]
     public sealed class MessageProcessorTests
     {
+        private static readonly uint[] s_trackedBeforeDelivery = [4u];
+
         [SetUp]
         public void SetUp()
         {
@@ -143,6 +145,8 @@ namespace Opc.Ua.Client.Subscriptions
                 // Act
                 await sut.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable).ConfigureAwait(false);
                 await sut.DataChangeNotificationReceived.WaitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(m_completion.TrackedSequenceNumbers, Is.EqualTo(s_trackedBeforeDelivery),
+                    "The acknowledgement is tracked before the notification is delivered.");
                 // The processor dispatches the notification (which sets the
                 // event awaited above) and only then queues the acknowledgement,
                 // so asserting on QueuedAcks straight away races that last step.
