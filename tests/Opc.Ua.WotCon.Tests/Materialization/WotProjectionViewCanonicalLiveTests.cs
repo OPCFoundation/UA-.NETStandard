@@ -637,12 +637,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that canonical batch retirement honors the captured browse image.
+        /// Verifies that canonical batch retirement invalidates the captured browse continuation.
         /// </summary>
         /// <param name="immediate">The immediate flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CanonicalBatchRetirementHonorsTheCapturedBrowseImageAsync(bool immediate)
+        public async Task CanonicalBatchRetirementInvalidatesTheCapturedBrowseContinuationAsync(bool immediate)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync(withGraphResources: true)
                 .ConfigureAwait(false);
@@ -658,33 +658,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             BrowseResult first = await harness.BrowseInViewAsync(child, child, 1, 1).ConfigureAwait(false);
             Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(first.ContinuationPoint.IsNull, Is.False);
-            var retained = new List<NodeId>(first.References.ToArray()!.Select(harness.Target));
             WotCanonicalViewState changed = WotProjectionViewBuilder.PrepareCanonicalGraph(context, initial,
                 [harness.GraphRequest("child", child, [number, product], [])], []).State;
 
             await harness.PublishCanonicalBatchAsync(changed, registration, immediate).ConfigureAwait(false);
 
-            ByteString continuation = first.ContinuationPoint;
-            do
-            {
-                BrowseNextResponse response = await harness.Session.BrowseNextAsync(
-                    null, false, [continuation], CancellationToken.None).ConfigureAwait(false);
-                BrowseResult next = response.Results[0];
-                if (immediate)
-                {
-                    Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
-                    Assert.That(next.References.IsEmpty, Is.True);
-                    break;
-                }
-                Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
-                retained.AddRange(next.References.ToArray()!.Select(harness.Target));
-                continuation = next.ContinuationPoint;
-            }
-            while (!continuation.IsNull && continuation.Length != 0);
-            if (!immediate)
-            {
-                Assert.That(retained, Is.EquivalentTo(new[] { reading, number, product }));
-            }
+            BrowseNextResponse response = await harness.Session.BrowseNextAsync(
+                null, false, [first.ContinuationPoint], CancellationToken.None).ConfigureAwait(false);
+            BrowseResult next = response.Results[0];
+            Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(next.References.IsEmpty, Is.True);
             BrowseResult current = await harness.BrowseInViewAsync(child, child, 2).ConfigureAwait(false);
             Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(current.References.ToArray()!.Select(harness.Target),

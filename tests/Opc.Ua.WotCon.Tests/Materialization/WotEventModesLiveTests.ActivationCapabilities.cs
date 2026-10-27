@@ -435,11 +435,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
+                await RemoveAndRetireAsync(active).ConfigureAwait(false);
             }
             WotProjectionHandle recovered = await host.AddAsync(desired, ct).ConfigureAwait(false);
-            await host.RemoveAsync(recovered, CancellationToken.None).ConfigureAwait(false);
+            await RemoveAndRetireAsync(recovered).ConfigureAwait(false);
             Assert.That(channels.Channels.TrueForAll(channel => channel.DisposeCount == 1), Is.True);
+
+            async Task RemoveAndRetireAsync(WotProjectionHandle projection)
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                NodeManagerRegistration? registration = destination.Server.NodeManagerLifecycle.Registrations.Find(
+                    value => value.Id == projection.Registration!.Id);
+                Assert.That(registration, Is.Not.Null);
+                var lifecycle = (INodeManagerBatchLifecycle)destination.Server.NodeManagerLifecycle;
+                await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration!)], null, cleanup.Token).ConfigureAwait(false);
+                NodeManagerBatchResult result = await removal.CommitAsync(_ => default, cleanup.Token)
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                await result.Retirement.WaitAsync(cleanup.Token).ConfigureAwait(false);
+            }
         }
 
         private static UAVariable ActivationTypeProperty()

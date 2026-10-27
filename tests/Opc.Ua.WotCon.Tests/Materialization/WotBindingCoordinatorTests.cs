@@ -295,7 +295,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v1")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            // A content change triggers a shadow reload (an update, not a first add).
+            // A content change migrates the existing projection registration.
             await Upsert(registry, "td-a", Td("urn:td-a", "mem://store/v2")).ConfigureAwait(false);
             await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
@@ -308,14 +308,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(binders.DeactivatedPlans[0], Is.SameAs(planV1),
                 "Only the previously tracked plan may be deactivated on update.");
 
-            // Order: the shadow switch happens first, then the old plan is
+            // Order: the migration commits first, then the old plan is
             // deactivated, then the new plan is activated.
-            int shadow = recorder.IndexOf("shadow");
+            int migration = recorder.IndexOf("migrate");
             int deactivateOld = recorder.IndexOf("deactivate", planV1);
             int activateNew = recorder.IndexOf("activate", planV2);
-            Assert.That(shadow, Is.GreaterThanOrEqualTo(0), "The update must shadow-reload the projection.");
-            Assert.That(deactivateOld, Is.GreaterThan(shadow),
-                "The old plan must be deactivated only after the shadow switch succeeds.");
+            Assert.That(migration, Is.GreaterThanOrEqualTo(0), "The update must migrate the projection.");
+            Assert.That(deactivateOld, Is.GreaterThan(migration),
+                "The old plan must be deactivated only after the migration commits.");
             Assert.That(activateNew, Is.GreaterThan(deactivateOld),
                 "The new plan must be activated after the old plan is deactivated.");
         }

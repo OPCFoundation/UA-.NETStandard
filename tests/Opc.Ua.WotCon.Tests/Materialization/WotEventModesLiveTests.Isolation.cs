@@ -327,7 +327,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await source.StartAsync(false, ct).ConfigureAwait(false);
             await destination.StartAsync(false, ct).ConfigureAwait(false);
             var calls = Channel.CreateBounded<NativeConditionCall>(128);
-            NodeId sourceMethodId = await InstallActionSourceAsync(source, calls.Writer, ct).ConfigureAwait(false);
+            var actionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAction = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId sourceMethodId = await InstallActionSourceAsync(source, calls.Writer, ct,
+                beforeReturn: async token =>
+                {
+                    actionEntered.TrySetResult(true);
+                    await releaseAction.Task.WaitAsync(token).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             await source.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
             string sourceMethod = NodeId.ToExpandedNodeId(sourceMethodId, source.Session.NamespaceUris).ToString();
             WotProjectionDocument document = ActionProjection(mode, source.EndpointUrl, sourceMethod);
@@ -342,6 +349,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "d3-replacement-" + Guid.NewGuid().ToString("N"));
             var replacementClient = new ClientFixture(NUnitTelemetryContext.Create());
             ISession? replacementSession = null;
+            Task<CallMethodResult>? inFlightAction = null;
             try
             {
                 await destination.RefreshNamespaceTableAsync(ct).ConfigureAwait(false);
@@ -360,18 +368,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     new Uri(source.EndpointUrl), SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
                 await replacementSession.FetchNamespaceTablesAsync(ct).ConfigureAwait(false);
                 channels.Session = replacementSession;
-                WotProjectionHandle replacement = await host.ShadowReloadAsync(active, document, ct)
-                    .ConfigureAwait(false);
-                Assert.That(replacement.Generation, Is.GreaterThan(active.Generation));
-                active = replacement;
                 var comment = new LocalizedText("Retained generation");
-                CallMethodResult result = await InvokeNativeActionAsync(
-                    destination.Session, owner, action, oldEventId, comment, ct).ConfigureAwait(false);
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                inFlightAction = InvokeNativeActionAsync(
+                    destination.Session, owner, action, oldEventId, comment, ct);
+                await actionEntered.Task.WaitAsync(ct).ConfigureAwait(false);
                 NativeConditionCall oldCall = await calls.Reader.ReadAsync(ct).ConfigureAwait(false);
                 Assert.That(oldCall.EventId, Is.EqualTo(firstSourceId));
                 Assert.That(oldCall.SessionId, Is.EqualTo(source.Session.SessionId));
                 Assert.That(oldCall.SessionId, Is.Not.EqualTo(replacementSession.SessionId));
+                WotProjectionHandle replacement = await host.ShadowReloadAsync(active, document, ct)
+                    .ConfigureAwait(false);
+                Assert.That(replacement.Generation, Is.GreaterThan(active.Generation));
+                active = replacement;
+                Assert.That(inFlightAction.IsCompleted, Is.False);
+                releaseAction.TrySetResult(true);
+                CallMethodResult result = await inFlightAction.ConfigureAwait(false);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
 
                 await retained.DisposeAsync().ConfigureAwait(false);
                 retainedClosed = true;
@@ -407,21 +419,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             finally
             {
-                if (retained is not null && !retainedClosed)
+                releaseAction.TrySetResult(true);
+                try
                 {
-                    await retained.DisposeAsync().ConfigureAwait(false);
+                    if (inFlightAction is not null)
+                    {
+                        await inFlightAction.ConfigureAwait(false);
+                    }
                 }
-                await host.RemoveAsync(active, CancellationToken.None).ConfigureAwait(false);
-                if (replacementSession is not null)
+                finally
                 {
-                    await replacementSession.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                    replacementSession.Dispose();
-                }
-                calls.Writer.TryComplete();
-                await replacementClient.DisposeAsync().ConfigureAwait(false);
-                if (Directory.Exists(root))
-                {
-                    Directory.Delete(root, recursive: true);
+                    try
+                    {
+                        if (retained is not null && !retainedClosed)
+                        {
+                            await retained.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                            await host.RemoveAsync(active, cleanup.Token).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                if (replacementSession is not null)
+                                {
+                                    try
+                                    {
+                                        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                                        await replacementSession.CloseAsync(cleanup.Token).ConfigureAwait(false);
+                                    }
+                                    finally
+                                    {
+                                        replacementSession.Dispose();
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                calls.Writer.TryComplete();
+                                try
+                                {
+                                    await replacementClient.DisposeAsync().ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    if (Directory.Exists(root))
+                                    {
+                                        Directory.Delete(root, recursive: true);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
