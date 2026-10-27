@@ -134,10 +134,12 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
-                // the timeout hint runs from receipt, so time spent queued counts against it
+                // the timeout hint runs from receipt, so time spent queued counts against it;
+                // a request outside the queue budget (a parkable one) keeps its full hint
                 if (!RequestQueueBudget.TryGetRemaining(this, out TimeSpan timeout))
                 {
-                    timeout = TimeSpan.Zero;
+                    int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
+                    timeout = timeoutHint > 0 ? TimeSpan.FromMilliseconds(timeoutHint) : TimeSpan.Zero;
                 }
                 else if (timeout <= TimeSpan.Zero)
                 {
