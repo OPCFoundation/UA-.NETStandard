@@ -192,6 +192,65 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies that an explicitly selected published 1.0 TD may declare
+        /// its standard write operation while the server remains authoritative
+        /// and rejects mutation of its read-only state Variable.
+        /// </summary>
+        [Test]
+        public async Task PublishedOneZeroServerReadOnlyNodeDeniesWriteWithoutChangingValueAsync()
+        {
+            string endpoint = "opc.tcp://localhost:" +
+                m_serverFixture.Port.ToString(CultureInfo.InvariantCulture);
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Published read-only server state",
+                  "properties": {
+                    "state": {
+                      "type": "integer",
+                      "forms": [{
+                        "href": "{{endpoint}}",
+                        "uav:id": "{{StateNodeId}}"
+                      }]
+                    }
+                  }
+                }
+                """;
+            var selection = new WotBindingSelectionContext(
+                [], [], WotBindingProcessingMode.PublishedOneZero);
+            WotBindingPlan plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "published-read-only-state",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(document),
+                selection: selection));
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError), Is.False,
+                string.Join("; ", plan.Diagnostics.Where(diagnostic => diagnostic.IsError)
+                    .Select(diagnostic => diagnostic.Message)));
+            Assert.That(selection.ProcessingMode, Is.EqualTo(WotBindingProcessingMode.PublishedOneZero));
+
+            WotCompiledForm read = plan.CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.ReadProperty);
+            WotCompiledForm write = plan.CompiledForms.Single(
+                form => form.Operation == WoTBindingCapabilityEnum.WriteProperty);
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(2),
+                "The ordinary TD property defaults declare both read and write operations.");
+
+            await using IWotBindingChannel readChannel = await m_registry.OpenChannelAsync(read).ConfigureAwait(false);
+            WotReadResult before = await readChannel.ReadAsync().ConfigureAwait(false);
+            Assert.That(before.Status, Is.EqualTo(StatusCodes.Good));
+
+            await using IWotBindingChannel writeChannel = await m_registry.OpenChannelAsync(write).ConfigureAwait(false);
+            WotWriteResult denied = await writeChannel.WriteAsync(new DataValue(new Variant(987654))).ConfigureAwait(false);
+
+            Assert.That(denied.Status, Is.Not.EqualTo(StatusCodes.Good),
+                "A TD operation declaration must not be treated as a grant of native server write access.");
+            WotReadResult after = await readChannel.ReadAsync().ConfigureAwait(false);
+            Assert.That(after.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(after.Value.WrappedValue, Is.EqualTo(before.Value.WrappedValue),
+                "A rejected server write must leave the Variable unchanged.");
+        }
+
+        /// <summary>
         /// Verifies property write and readback using a namespace-portable source node identifier.
         /// </summary>
         [Test]

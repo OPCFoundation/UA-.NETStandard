@@ -314,6 +314,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConnectWebSocketAsync(Profiles.OpcUaWsSubProtocolOpenApi, CreateAuthorizationHeader(credential))
                 .ConfigureAwait(false);
 
+            Assert.That(listener.Upgrade.HasAuthorizationHeader,
+                Is.EqualTo(credential is not ("none" or "client-cert")));
+            Assert.That(listener.Upgrade.HasClientCertificate, Is.EqualTo(credential == "client-cert"));
+
             if (!expectOpen)
             {
                 Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
@@ -336,6 +340,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 return;
             }
 
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.SwitchingProtocols));
             Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
             Assert.That(socket.SubProtocol, Is.EqualTo(Profiles.OpcUaWsSubProtocolOpenApi));
             IServiceResponse response = await listener
@@ -359,7 +364,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public async Task TokenOpenApiWebSocketUpgradeCarriesUpstreamIdentityAsync()
+        public async Task TokenOpenApiWebSocketUpgradeWithoutAuthorizationHeaderCarriesUpstreamIdentityAsync()
         {
             var identities = new UpstreamIdentityProvider();
             await using AuthListener listener = await OpenAuthListenerAsync(
@@ -367,12 +372,17 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 configureServices: services => services.AddSingleton<ISessionlessIdentityProvider>(identities))
                 .ConfigureAwait(false);
 
+            string subProtocol = Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + CreateJwt(s_jwtSigningKey);
             using ClientWebSocket socket = await listener
                 .ConnectWebSocketAsync(
-                    Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + CreateJwt(s_jwtSigningKey),
+                    subProtocol,
                     authorization: null)
                 .ConfigureAwait(false);
+            Assert.That(listener.Upgrade.HasAuthorizationHeader, Is.False);
+            Assert.That(listener.Upgrade.HasClientCertificate, Is.False);
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.SwitchingProtocols));
             Assert.That(socket.State, Is.EqualTo(WebSocketState.Open));
+            Assert.That(socket.SubProtocol, Is.EqualTo(subProtocol));
             IServiceResponse response = await listener
                 .SendWebSocketRequestAsync(
                     socket,
@@ -387,6 +397,30 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(
                 listener.Callback.LastChannelContext!.UpstreamIdentity,
                 Is.SameAs(identities.LastIdentity));
+        }
+
+        [TestCase("bearer", "bearer-bogus")]
+        [TestCase("bearer", "bearer-forged")]
+        [TestCase("basic", "bearer-valid")]
+        [TestCase("mtls", "bearer-valid")]
+        public async Task TokenOpenApiWebSocketUpgradeWithoutAuthorizationHeaderRejectsUnvalidatedTokenAsync(
+            string authMode,
+            string credential)
+        {
+            await using AuthListener listener = await OpenAuthListenerAsync(authMode).ConfigureAwait(false);
+            string token = CreateAuthorizationHeader(credential)!.Parameter!;
+
+            using ClientWebSocket socket = await listener
+                .ConnectWebSocketAsync(
+                    Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + token,
+                    authorization: null)
+                .ConfigureAwait(false);
+
+            Assert.That(listener.Upgrade.HasAuthorizationHeader, Is.False);
+            Assert.That(listener.Upgrade.HasClientCertificate, Is.False);
+            Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
+            Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(listener.Callback.LastRequest, Is.Null);
         }
 
         [TestCase(true)]
@@ -409,6 +443,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             Assert.That(socket.State, Is.Not.EqualTo(WebSocketState.Open));
             Assert.That(socket.HttpStatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(listener.Upgrade.HasAuthorizationHeader, Is.EqualTo(!tokenInSubProtocol));
             Assert.That(listener.Callback.LastRequest, Is.Null);
         }
 
@@ -699,6 +734,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 new ServiceProviderOptions { ValidateScopes = true });
             var callback = new StubTransportListenerCallback();
             var factory = new HttpsTransportListenerFactory();
+            var upgrade = new WebSocketUpgradeRecorder();
+            factory.StartupContributors.Add(upgrade);
             factory.StartupContributors.Add(provider.GetRequiredService<WebApiHttpsStartupContributor>());
             HttpsTransportListener listener;
             int port;
@@ -730,7 +767,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 provider,
                 provider.GetRequiredService<WebApiServer>(),
                 listener,
-                callback);
+                callback,
+                upgrade);
             try
             {
                 await WaitForListenerReadyAsync(port).ConfigureAwait(false);
@@ -855,6 +893,36 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 #pragma warning restore CA1812
 
         /// <summary>
+        /// Records incoming upgrade credentials before authentication can modify the headers.
+        /// </summary>
+        private sealed class WebSocketUpgradeRecorder : IHttpsListenerStartupContributor
+        {
+            /// <summary>
+            /// Whether the client supplied an Authorization header on the last upgrade.
+            /// </summary>
+            public bool? HasAuthorizationHeader { get; private set; }
+
+            /// <summary>
+            /// Whether the client supplied a TLS certificate on the last upgrade.
+            /// </summary>
+            public bool? HasClientCertificate { get; private set; }
+
+            /// <inheritdoc/>
+            public void Configure(IApplicationBuilder appBuilder, HttpsTransportListener listener)
+            {
+                appBuilder.Use(async (context, next) =>
+                {
+                    if (context.WebSockets.IsWebSocketRequest)
+                    {
+                        HasAuthorizationHeader = context.Request.Headers.ContainsKey("Authorization");
+                        HasClientCertificate = context.Connection.ClientCertificate != null;
+                    }
+                    await next(context).ConfigureAwait(false);
+                });
+            }
+        }
+
+        /// <summary>
         /// A listener whose REST authentication comes from an application
         /// container configured the way an operator would.
         /// </summary>
@@ -871,17 +939,24 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 ServiceProvider provider,
                 WebApiServer server,
                 HttpsTransportListener listener,
-                StubTransportListenerCallback callback)
+                StubTransportListenerCallback callback,
+                WebSocketUpgradeRecorder upgrade)
             {
                 m_provider = provider;
                 m_server = server;
                 m_listener = listener;
                 Callback = callback;
+                Upgrade = upgrade;
             }
 
             public StubTransportListenerCallback Callback { get; }
 
             public HttpsTransportListener Listener => m_listener;
+
+            /// <summary>
+            /// The incoming upgrade credentials observed before authentication.
+            /// </summary>
+            public WebSocketUpgradeRecorder Upgrade { get; }
 
             public void Connect(int port, X509Certificate2? clientCertificate)
             {

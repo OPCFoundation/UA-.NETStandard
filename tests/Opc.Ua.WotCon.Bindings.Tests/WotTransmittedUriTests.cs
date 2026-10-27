@@ -269,6 +269,43 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// A complete endpoint resource path is retained whether the target is
+        /// carried in an absolute form href or in a query-relative href
+        /// resolved against the Thing base.
+        /// </summary>
+        [TestCase(
+            "opc.tcp://server.example:4840/UA/Plant/Line?tenant=west&id=nsu=urn%3Atest%3Aidentity;s=Pump%2FWest",
+            null)]
+        [TestCase(
+            "?tenant=west&id=nsu=urn%3Atest%3Aidentity;s=Pump%2FWest",
+            "opc.tcp://server.example:4840/UA/Plant/Line")]
+        public void OpcUaTargetKeepsCompleteResourcePathForFullAndBaseRelativeHref(
+            string href, string? baseUri)
+        {
+            var planner = new OpcUaBindingPlanner();
+            WotBindingCompilation result = planner.Compile(
+                MakeForm(href),
+                new WotBindingPlanContext(
+                    baseUri: baseUri,
+                    processingMode: WotBindingProcessingMode.PublishedOneZero));
+
+            Assert.That(result.IsSupported, Is.True, Diagnostics(result));
+            WotCompiledForm compiled = result.Entries[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    compiled.Addressing.Target,
+                    Is.EqualTo("nsu=urn:test:identity;s=Pump/West"));
+                Assert.That(
+                    compiled.Endpoint.BaseUri,
+                    Is.EqualTo(
+                        "opc.tcp://server.example:4840/UA/Plant/Line?tenant=west"));
+                Assert.That(compiled.Endpoint.Scheme, Is.EqualTo("opc.tcp"));
+                Assert.That(compiled.Endpoint.Host, Is.EqualTo("server.example"));
+            });
+        }
+
+        /// <summary>
         /// A blocked host is blocked in either spelling. Refusing only the
         /// A-label while a document writes the Unicode name refuses nothing.
         /// </summary>

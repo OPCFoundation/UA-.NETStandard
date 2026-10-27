@@ -136,6 +136,7 @@ namespace Opc.Ua.Wot
             var resolving = new HashSet<string>(StringComparer.Ordinal);
             var supportOnly = new List<(WotAffordanceKind Kind, string Name)>();
             var callReceivers = new List<(string Name, string Receiver, string Endpoint)>();
+            var callComponentOf = new List<(string Name, string Json)>();
 
             byte[]? bytes = await ResolveViewAsync(
                 document,
@@ -146,7 +147,8 @@ namespace Opc.Ua.Wot
                 diagnostics,
                 cancellationToken,
                 supportOnly,
-                callReceivers).ConfigureAwait(false);
+                callReceivers,
+                callComponentOf).ConfigureAwait(false);
 
             await CheckOrganizingAcyclicAsync(
                 projection,
@@ -165,6 +167,7 @@ namespace Opc.Ua.Wot
 #pragma warning restore CA2000
                     view.MarkSupportOnly(supportOnly);
                     view.CaptureSourceCallReceivers(callReceivers);
+                    view.CaptureSourceCallComponentOf(callComponentOf);
                 }
                 catch (Exception exception) when (
                     exception is JsonException or FormatException)
@@ -191,7 +194,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken,
             List<(WotAffordanceKind Kind, string Name)>? supportOnly = null,
-            List<(string Name, string Receiver, string Endpoint)>? callReceivers = null)
+            List<(string Name, string Receiver, string Endpoint)>? callReceivers = null,
+            List<(string Name, string Json)>? callComponentOf = null)
         {
             int errorsAtEntry = CountErrors(diagnostics);
             var openDocuments = new List<WotDocument>();
@@ -406,6 +410,17 @@ namespace Opc.Ua.Wot
                         }
                     }
                 }
+                if (callComponentOf is not null)
+                {
+                    foreach (ResolvedAffordance action in selection.Actions)
+                    {
+                        if (WotCallReceiver.TryCaptureActionComponentOf(
+                            action.Source.Document, action.Definition, out string componentOf))
+                        {
+                            callComponentOf.Add((action.Name, componentOf));
+                        }
+                    }
+                }
                 return Serialize(root);
             }
             finally
@@ -613,6 +628,7 @@ namespace Opc.Ua.Wot
                         return null;
                     }
                     var nestedReceivers = new List<(string Name, string Receiver, string Endpoint)>();
+                    var nestedComponentOf = new List<(string Name, string Json)>();
                     byte[]? nestedBytes = await ResolveViewAsync(
                         document,
                         nested,
@@ -620,7 +636,9 @@ namespace Opc.Ua.Wot
                         resolving,
                         context,
                         diagnostics,
-                        cancellationToken, callReceivers: nestedReceivers).ConfigureAwait(false);
+                        cancellationToken,
+                        callReceivers: nestedReceivers,
+                        callComponentOf: nestedComponentOf).ConfigureAwait(false);
                     if (nestedBytes is null)
                     {
                         return null;
@@ -632,6 +650,7 @@ namespace Opc.Ua.Wot
                         resolvedView = WotDocument.Parse(nestedBytes, m_options);
 #pragma warning restore CA2000
                         resolvedView.CaptureSourceCallReceivers(nestedReceivers);
+                        resolvedView.CaptureSourceCallComponentOf(nestedComponentOf);
                     }
                     catch (Exception exception) when (
                         exception is JsonException or FormatException)
