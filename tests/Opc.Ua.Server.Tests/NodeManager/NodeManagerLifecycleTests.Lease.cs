@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -307,6 +308,93 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Failed shutdown publication notifications cannot skip independent application cleanup or retire dependencies.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ShutdownPostSwapFailureStillReclaimsApplicationsBeforeRetiringSystemsAsync(
+            bool notifyBeforeFailure,
+            bool failCleanup)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            NodeManagerGeneration core = NodeManagerGenerationRegistry.GetOrCreate(master.CoreNodeManager!);
+            NodeManagerGeneration configuration = NodeManagerGenerationRegistry.GetOrCreate(
+                master.ConfigurationNodeManager!);
+            var failure = new InvalidOperationException("The shutdown publication notification failed.");
+            bool failPublication = false;
+            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
+                master, () => failPublication, notifyBeforeFailure, failure);
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(nameof(ServerInternalData.NodeManager))
+                ?? throw new AssertionException("The bound master NodeManager property was not found.");
+            nodeManagerProperty.SetValue(server, proxy.Object);
+            TrackingLifecycleNodeManager? manager = null;
+            TrackingLifecycleNodeManager? independent = null;
+            try
+            {
+                var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+                await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value), timeout.Token).ConfigureAwait(false);
+                await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                    kSecondRegistrationValue, value => independent = value,
+                    "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ShutdownPostSwapIndependent"),
+                    timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(manager);
+                AssertLifecycleValue(independent);
+                manager.DeleteAddressSpaceFailuresRemaining = failCleanup ? 1 : 0;
+                failPublication = true;
+
+                Exception? observed = await Assert.CatchAsync<Exception>(() =>
+                    lifecycle.CompleteShutdownAsync(server, retireSystems: true, timeout.Token).AsTask())
+                    .ConfigureAwait(false);
+
+                Assert.That(observed, Is.Not.Null);
+                Assert.That(observed!.ToString(), Does.Contain(failure.Message));
+                Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(independent.DisposeCount, Is.EqualTo(1));
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(failCleanup ? 0 : 1));
+                Assert.That(lifecycle.Registrations.Count, Is.Zero);
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.EqualTo(failCleanup ? 1 : 0));
+                Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                if (failCleanup)
+                {
+                    Assert.That(observed, Is.TypeOf<AggregateException>());
+                    Assert.That(((AggregateException)observed).Flatten().InnerExceptions, Has.Count.EqualTo(2));
+                    Assert.That(((AggregateException)observed).Flatten().InnerExceptions,
+                        Has.Exactly(1).TypeOf<SentinelException>());
+                }
+                else
+                {
+                    Assert.That(observed, Is.TypeOf<InvalidOperationException>());
+                }
+
+                failPublication = false;
+                await lifecycle.CompleteShutdownAsync(server, timeout.Token).ConfigureAwait(false);
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(failCleanup ? 2 : 1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(independent.DisposeCount, Is.EqualTo(1));
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+                Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            }
+            finally
+            {
+                if (manager is not null)
+                {
+                    manager.DeleteAddressSpaceFailuresRemaining = 0;
+                }
+                nodeManagerProperty.SetValue(server, master);
                 await FinishShutdownTestAsync().ConfigureAwait(false);
             }
         }

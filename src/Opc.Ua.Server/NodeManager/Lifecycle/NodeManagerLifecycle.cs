@@ -287,6 +287,7 @@ namespace Opc.Ua.Server
                 }
                 foreach (ArrayOf<NodeManagerBatchChange> changes in new[] { applications, systems })
                 {
+                    Exception? reconciliationFailure = null;
                     if (changes.Count != 0)
                     {
                         var shutdown = new ShutdownPublication(this, server, cleanupOwnership);
@@ -297,10 +298,26 @@ namespace Opc.Ua.Server
                             static _ => default, ct).ConfigureAwait(false);
                         if (result.CleanupFailure is { } failure)
                         {
-                            throw new InvalidOperationException("Shutdown removal reconciliation failed.", failure);
+                            reconciliationFailure = new InvalidOperationException(
+                                "Shutdown removal reconciliation failed.", failure);
                         }
                     }
-                    await m_reclaimer.CompleteShutdownAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        await m_reclaimer.CompleteShutdownAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (Exception cleanupFailure) when (
+                        reconciliationFailure is not null && cleanupFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Shutdown reconciliation and retirement cleanup failed.",
+                            reconciliationFailure,
+                            cleanupFailure);
+                    }
+                    if (reconciliationFailure is not null)
+                    {
+                        throw reconciliationFailure;
+                    }
                 }
                 shutdownCompleted = true;
             }
