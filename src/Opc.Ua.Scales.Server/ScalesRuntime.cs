@@ -577,7 +577,8 @@ namespace Opc.Ua.Scales.Server
                     throw;
                 }
 
-                bool inMachinesFolder = m_options.OrganizeIntoMachinesFolder && Manager.TryAddToMachinesFolder(node);
+                bool inMachinesFolder = m_options.OrganizeIntoMachinesFolder && Manager.TryOrganizeUnder(
+                    ExpandedNodeId.ToNodeId(Machinery.ObjectIds.Machines, SystemContext.NamespaceUris), node);
                 if (m_options.OrganizeIntoMachinesFolder && !inMachinesFolder)
                 {
                     m_scalesLogger.MachinesFolderUnavailable(node.BrowseName.Name);
@@ -860,7 +861,9 @@ namespace Opc.Ua.Scales.Server
                 m_owner = owner;
             }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Returns this construction to the runtime's active-operation count.
+            /// </summary>
             public void Dispose()
             {
                 m_owner.EndCreation();

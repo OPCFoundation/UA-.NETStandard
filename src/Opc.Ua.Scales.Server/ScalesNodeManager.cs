@@ -82,7 +82,20 @@ namespace Opc.Ua.Scales.Server
             ApplicationConfiguration configuration,
             IDiPostSetupRunner? postSetupRunner,
             IOptions<ScalesServerOptions>? options = null)
-            : base(server, configuration, postSetupRunner, ManagerNamespaceUris(options?.Value))
+            : this(server, configuration, postSetupRunner, options, default)
+        {
+        }
+
+        /// <summary>
+        /// Creates a Scales owner with additional DI companion models.
+        /// </summary>
+        public ScalesNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner,
+            IOptions<ScalesServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers)
+            : base(server, configuration, postSetupRunner, providers, ManagerNamespaceUris(options?.Value))
         {
             Runtime = new ScalesRuntime(this, options?.Value ?? new ScalesServerOptions());
             RegisterConformanceContributor(Runtime);
