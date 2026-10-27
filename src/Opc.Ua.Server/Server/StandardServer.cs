@@ -3444,7 +3444,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                if (serverInternal.NodeManager is IRequestRouting routing)
+                if (requestType != RequestType.Publish && serverInternal.NodeManager is IRequestRouting routing)
                 {
                     routing.PinRequest(context);
                 }
