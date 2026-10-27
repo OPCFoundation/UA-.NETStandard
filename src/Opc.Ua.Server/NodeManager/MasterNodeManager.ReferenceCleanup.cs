@@ -252,25 +252,41 @@ namespace Opc.Ua.Server
         {
             if (owner is AsyncCustomNodeManager asynchronous)
             {
-                // GetType also roots public override metadata through the base class annotation.
-                if (asynchronous.GetType() == typeof(AsyncCustomNodeManager))
-                {
-                    return true;
-                }
-                Func<object, NodeId, bool, ExpandedNodeId, bool, CancellationToken, ValueTask<ServiceResult>> deletion =
-                    owner.DeleteReferenceAsync;
-                return deletion.Method.DeclaringType == typeof(AsyncCustomNodeManager);
+                return UsesDirectReferenceStorage(asynchronous);
             }
             if (owner.SyncNodeManager is CustomNodeManager2 synchronous)
             {
-                if (synchronous.GetType() == typeof(CustomNodeManager2))
-                {
-                    return true;
-                }
-                Func<object, NodeId, bool, ExpandedNodeId, bool, ServiceResult> deletion = synchronous.DeleteReference;
-                return deletion.Method.DeclaringType == typeof(CustomNodeManager2);
+                return UsesDirectReferenceStorage(synchronous);
             }
             return false;
+        }
+
+        /// <summary>
+        /// Preserves asynchronous override metadata through a statically typed base-class boundary.
+        /// </summary>
+        private static bool UsesDirectReferenceStorage(AsyncCustomNodeManager owner)
+        {
+            // Interface pattern narrowing does not propagate the class's NativeAOT metadata requirements.
+            if (owner.GetType() == typeof(AsyncCustomNodeManager))
+            {
+                return true;
+            }
+            Func<object, NodeId, bool, ExpandedNodeId, bool, CancellationToken, ValueTask<ServiceResult>> deletion =
+                ((IAsyncNodeManager)owner).DeleteReferenceAsync;
+            return deletion.Method.DeclaringType == typeof(AsyncCustomNodeManager);
+        }
+
+        /// <summary>
+        /// Preserves synchronous override metadata through a statically typed base-class boundary.
+        /// </summary>
+        private static bool UsesDirectReferenceStorage(CustomNodeManager2 owner)
+        {
+            if (owner.GetType() == typeof(CustomNodeManager2))
+            {
+                return true;
+            }
+            Func<object, NodeId, bool, ExpandedNodeId, bool, ServiceResult> deletion = owner.DeleteReference;
+            return deletion.Method.DeclaringType == typeof(CustomNodeManager2);
         }
 
         /// <summary>

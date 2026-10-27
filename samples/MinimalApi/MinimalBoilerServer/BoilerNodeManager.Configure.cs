@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
 namespace Boiler
@@ -64,7 +65,7 @@ namespace Boiler
     /// </para>
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-    public partial class BoilerNodeManager
+    public partial class BoilerNodeManager : INodeManagerReadinessNotification
     {
         private long m_drumLevelTicks;
         private long m_pipeFlowTicks;
@@ -174,6 +175,12 @@ namespace Boiler
                 typed.Boilers.Boiler__1.DrumX001.Publish(GenerateDrumHeartbeatAsync);
                 return default;
             });
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         private long m_levelMeasurementTicks;
