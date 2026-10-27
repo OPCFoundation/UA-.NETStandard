@@ -278,6 +278,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return null;
             }
+            if (typeByte < (byte)UadpDiscoveryType.PublisherEndpoints ||
+                typeByte > (byte)UadpDiscoveryType.Probe)
+            {
+                return null;
+            }
             ushort[] ids;
             UadpDiscoveryProbeFilter? filter = null;
             try
@@ -327,6 +332,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             PubSubNetworkMessageContext context)
         {
             if (!reader.TryReadByte(out byte typeByte))
+            {
+                return null;
+            }
+            if (typeByte < (byte)UadpDiscoveryType.PublisherEndpoints ||
+                typeByte > (byte)UadpDiscoveryType.PubSubConnection)
             {
                 return null;
             }

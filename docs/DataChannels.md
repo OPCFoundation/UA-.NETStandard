@@ -737,8 +737,11 @@ or empty test run is not native acceptance.
   discovery requests or PublisherEndpoints responses without writer IDs.
   Callers can register explicit PublisherId, NetworkMessageType and optional
   discovery-subtype selectors for those messages. Subtype selectors apply only
-  to discovery NetworkMessageTypes 1 and 2; request subtype values are 1–6 and
-  response values are 1–5. A secured header hides the subtype;
+  to discovery NetworkMessageTypes 1 and 2. Request subtype values 1–6 identify
+  PublisherEndpoints, DataSetMetaData, DataSetWriterConfiguration,
+  ApplicationInformation, PubSubConnection and Probe, in that order. Response
+  subtype values are 1–5; Probe has no response subtype. A secured header hides
+  the subtype;
   when a matching subtype-specific association exists, the context rejects that
   message instead of falling back to a broader route. The
   [UASC discovery routing tests](../tests/Opc.Ua.Core.DataChannels.Tests/Runtime/FlowDeliveryTests.cs)
