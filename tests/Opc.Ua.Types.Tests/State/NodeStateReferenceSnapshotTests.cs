@@ -90,6 +90,78 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         /// <summary>
+        /// Empty edits, absent removals and duplicate additions cannot invalidate a prepared publication.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(1, false)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        public void NoOpReferencePublicationPreservesPreparedEdits(int operation, bool existing)
+        {
+            var node = new BaseObjectState(null);
+            var retained = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1000));
+            var missing = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1001));
+            if (existing)
+            {
+                node.AddReference(retained.ReferenceTypeId, retained.IsInverse, retained.TargetId);
+            }
+            int notifications = 0;
+            node.OnReferenceAdded = (_, _, _, _) => notifications++;
+            node.OnReferenceRemoved = (_, _, _, _) => notifications++;
+            using NodeState.ReferenceUpdate prepared = node.PrepareReferences([missing], []);
+            using (NodeState.ReferenceUpdate noOp = node.PrepareReferences(
+                operation == 2 ? [retained] : [], operation == 1 ? [missing] : []))
+            {
+                noOp.Reserve();
+                noOp.Remove();
+                noOp.Complete();
+                noOp.Dispose();
+                noOp.Notify(failure => Assert.Fail(failure.ToString()));
+            }
+            Assert.That(notifications, Is.Zero);
+            Assert.That(node.ReferenceExists(retained.ReferenceTypeId, retained.IsInverse, retained.TargetId),
+                Is.EqualTo(existing));
+            Assert.That(node.ReferenceExists(missing.ReferenceTypeId, missing.IsInverse, missing.TargetId), Is.False);
+            prepared.Reserve();
+            prepared.Remove();
+            prepared.Complete();
+            prepared.Dispose();
+            prepared.Notify(failure => Assert.Fail(failure.ToString()));
+            Assert.That(notifications, Is.EqualTo(1));
+            Assert.That(node.ReferenceExists(missing.ReferenceTypeId, missing.IsInverse, missing.TargetId), Is.True);
+        }
+
+        /// <summary>
+        /// Real removals and additions still invalidate a competing prepared publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ChangedReferencePublicationRejectsCompetingPreparedEdits(bool removal)
+        {
+            var node = new BaseObjectState(null);
+            var changed = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1000));
+            var pending = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1001));
+            if (removal)
+            {
+                node.AddReference(changed.ReferenceTypeId, changed.IsInverse, changed.TargetId);
+            }
+            using NodeState.ReferenceUpdate prepared = node.PrepareReferences([pending], []);
+            using (NodeState.ReferenceUpdate update = node.PrepareReferences(
+                removal ? [] : [changed], removal ? [changed] : []))
+            {
+                update.Reserve();
+                update.Remove();
+                update.Complete();
+            }
+            Assert.That(prepared.Reserve, Throws.TypeOf<InvalidOperationException>()
+                .With.Message.EqualTo("Serving references changed during preparation."));
+            Assert.That(node.ReferenceExists(changed.ReferenceTypeId, changed.IsInverse, changed.TargetId),
+                Is.EqualTo(!removal));
+            Assert.That(node.ReferenceExists(pending.ReferenceTypeId, pending.IsInverse, pending.TargetId), Is.False);
+        }
+
+        /// <summary>
         /// Proves abandoning a reserved update preserves serving references and releases mutation admission.
         /// </summary>
         [Test]

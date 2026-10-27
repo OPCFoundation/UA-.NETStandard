@@ -45,6 +45,29 @@ namespace Opc.Ua.Server
             List<LocalReference> references,
             CancellationToken cancellationToken)
         {
+            Task ready = Task.CompletedTask;
+            while (true)
+            {
+                await ready.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                m_dynamicMutationSemaphore.Release();
+                (DestroyedReferenceCleanupPlan? plan, ready) = await TryPrepareDestroyedReferenceCleanupAsync(
+                    references, cancellationToken).ConfigureAwait(false);
+                if (plan is not null)
+                {
+                    return plan;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases all pinned owners and prepared state before a contended cleanup waits or retries.
+        /// </summary>
+        private async ValueTask<(DestroyedReferenceCleanupPlan? Plan, Task Ready)>
+            TryPrepareDestroyedReferenceCleanupAsync(
+                List<LocalReference> references,
+                CancellationToken cancellationToken)
+        {
             using var context = new OperationContext(
                 new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
             context.PinRouting(m_nodeManagers);
@@ -58,6 +81,7 @@ namespace Opc.Ua.Server
             var external = new List<(IAsyncNodeManager Owner, object Handle, LocalReference Reference)>();
             var inherited = new List<(IAsyncNodeManager Owner, LocalReference Reference)>();
             bool transferred = false;
+            bool mutationHeld = false;
             try
             {
                 foreach (LocalReference reference in references)
@@ -73,7 +97,7 @@ namespace Opc.Ua.Server
                             GenerationGate gate = view.GetGeneration(targetOwner).Gate;
                             if (!gate.TryEnter(out int slot))
                             {
-                                throw new InvalidOperationException("A reciprocal reference target has retired.");
+                                return (null, m_nodeManagers.GetPublicationChange(view));
                             }
                             try
                             {
@@ -110,7 +134,7 @@ namespace Opc.Ua.Server
                             {
                                 if (!gate.TryEnter(out slot))
                                 {
-                                    throw new InvalidOperationException("A reciprocal reference owner has retired.");
+                                    return (null, m_nodeManagers.GetPublicationChange(view));
                                 }
                                 admissions.Add((gate, slot));
                                 slot = -1;
@@ -155,18 +179,26 @@ namespace Opc.Ua.Server
                         external.Add((owner, handle, reference));
                     }
                 }
-                foreach (KeyValuePair<NodeState, List<IReference>> removal in removals)
+                if (removals.Count != 0 || external.Count != 0 || inherited.Count != 0)
                 {
-                    updates.Add(removal.Key.PrepareReferences([], [.. removal.Value]));
-                }
-                if (updates.Count != 0 || external.Count != 0 || inherited.Count != 0)
-                {
+                    if (!await m_dynamicMutationSemaphore.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+                    {
+                        return (null, Task.CompletedTask);
+                    }
+                    mutationHeld = true;
                     using NodeManagerRoutingTable.PreparedRoutes reservation = m_nodeManagers.PrepareBatch(
                         [], [], static _ => [], Server.TypeTree, view.Factory);
-                    reservation.Reserve();
+                    if (!reservation.TryReserve(out Task ready))
+                    {
+                        return (null, ready);
+                    }
                     if (!ReferenceEquals(view, m_nodeManagers.Revision))
                     {
-                        throw new InvalidOperationException("Routing changed during reciprocal reference cleanup.");
+                        return (null, Task.CompletedTask);
+                    }
+                    foreach (KeyValuePair<NodeState, List<IReference>> removal in removals)
+                    {
+                        updates.Add(removal.Key.PrepareReferences([], [.. removal.Value]));
                     }
                     foreach (NodeState.ReferenceUpdate update in updates)
                     {
@@ -191,13 +223,17 @@ namespace Opc.Ua.Server
                 }
                 var plan = new DestroyedReferenceCleanupPlan(updates, admissions, external);
                 transferred = true;
-                return plan;
+                return (plan, Task.CompletedTask);
             }
             finally
             {
                 foreach (NodeState.ReferenceUpdate update in updates)
                 {
                     update.Dispose();
+                }
+                if (mutationHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
                 }
                 if (!transferred)
                 {
@@ -214,14 +250,23 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool UsesDirectReferenceStorage(IAsyncNodeManager owner)
         {
-            if (owner is AsyncCustomNodeManager)
+            if (owner is AsyncCustomNodeManager asynchronous)
             {
+                // GetType also roots public override metadata through the base class annotation.
+                if (asynchronous.GetType() == typeof(AsyncCustomNodeManager))
+                {
+                    return true;
+                }
                 Func<object, NodeId, bool, ExpandedNodeId, bool, CancellationToken, ValueTask<ServiceResult>> deletion =
                     owner.DeleteReferenceAsync;
                 return deletion.Method.DeclaringType == typeof(AsyncCustomNodeManager);
             }
             if (owner.SyncNodeManager is CustomNodeManager2 synchronous)
             {
+                if (synchronous.GetType() == typeof(CustomNodeManager2))
+                {
+                    return true;
+                }
                 Func<object, NodeId, bool, ExpandedNodeId, bool, ServiceResult> deletion = synchronous.DeleteReference;
                 return deletion.Method.DeclaringType == typeof(CustomNodeManager2);
             }

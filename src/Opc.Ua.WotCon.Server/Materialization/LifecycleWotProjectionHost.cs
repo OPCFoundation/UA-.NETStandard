@@ -130,12 +130,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IPreparedNodeManagerBatch prepared = await m_lifecycle
                     .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], cancellationToken)
                     .ConfigureAwait(false);
-                await using var preparedLifetime = prepared.ConfigureAwait(false);
-                NodeManagerBatchResult result = await prepared
-                    .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
+                NodeManagerBatchResult result;
+                await using (prepared.ConfigureAwait(false))
+                {
+                    result = await prepared.CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
+                }
                 if (result.CleanupFailure is { } failure)
                 {
                     throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
+                }
+                try
+                {
+                    await result.Retirement.ConfigureAwait(false);
+                }
+                catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
+                {
+                    throw new NodeManagerRemovalCommittedException(
+                        wrapper.Registration, result, retirementFailure);
                 }
             }
         }

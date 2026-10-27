@@ -3321,7 +3321,7 @@ namespace Opc.Ua.Server.Historian
                 if (systemContext.Server?.NodeManager is MasterNodeManager master)
                 {
                     admission = await master.CaptureHistoryContinuationAsync(
-                        systemContext.OperationContext!, state, cancellationToken)
+                        systemContext.OperationContext!, state, validateSource: false, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 if (ServiceResult.IsBad(admission))

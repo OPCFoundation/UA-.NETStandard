@@ -528,6 +528,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             object handle = new();
             owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(handle);
+            owner.Setup(value => value.GetNodeMetadataAsync(
+                It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new NodeMetadata(handle, source));
             Mock<IAsyncNodeManager> dependency = CreateLifecycleNodeManager(
                 kModelNamespaceUri + ":DestroyedReferenceDependency");
             var dependencyFactory = new Mock<IAsyncNodeManagerFactory>();
@@ -5218,6 +5221,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ownerSourceId,
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<object>(ownerHandle));
+            ownerManager.Setup(manager => manager.GetNodeMetadataAsync(
+                It.IsAny<OperationContext>(), ownerHandle, It.IsAny<BrowseResultMask>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new NodeMetadata(ownerHandle, ownerSourceId));
             ownerManager
                 .Setup(manager => manager.DeleteReferenceAsync(
                     ownerHandle,

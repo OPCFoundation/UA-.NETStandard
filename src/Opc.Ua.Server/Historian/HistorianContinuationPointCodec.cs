@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Historian
                         using var context = new OperationContext(
                             new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
                         ServiceResult admission = await master.CaptureHistoryContinuationAsync(
-                            context, state, cancellationToken).ConfigureAwait(false);
+                            context, state, validateSource: true, cancellationToken).ConfigureAwait(false);
                         if (ServiceResult.IsBad(admission))
                         {
                             return null;

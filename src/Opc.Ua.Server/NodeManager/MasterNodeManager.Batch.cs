@@ -204,6 +204,7 @@ namespace Opc.Ua.Server
             bool dynamicMutationSemaphoreHeld = false;
             bool startupShutdownSemaphoreHeld = false;
             bool decisionCommitted = false;
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
             try
             {
                 await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -266,8 +267,7 @@ namespace Opc.Ua.Server
                             referenceOwners.Add(source.Key, source.Value);
                         }
 
-                        using NodeManagerRoutingTable.PreparedRoutes routes =
-                            m_nodeManagers.PrepareBatch(
+                        routes = m_nodeManagers.PrepareBatch(
                                 candidates, removed,
                                 manager => (manager.NamespaceUris ?? Enumerable.Empty<string>())
                                     .Concat(ChangePreparer.GetServer(manager)?.NamespaceRegistrations ??
@@ -329,7 +329,6 @@ namespace Opc.Ua.Server
                         publishedOwners =
                             m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
-                        routes.Dispose();
                         namespaces.Dispose();
                         serverUris.Dispose();
                         types.Dispose();
@@ -338,10 +337,16 @@ namespace Opc.Ua.Server
                         {
                             update.Dispose();
                         }
+                        routes.Dispose();
                         await published().ConfigureAwait(false);
                     }
                     finally
                     {
+                        foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                        {
+                            update.Dispose();
+                        }
+                        routes?.Dispose();
                         if (startupShutdownSemaphoreHeld)
                         {
                             m_startupShutdownSemaphoreSlim.Release();

@@ -199,8 +199,11 @@ namespace Opc.Ua
                     {
                         throw new InvalidOperationException("Reference removals require an unused reservation.");
                     }
-                    owner.m_references = afterRemovals;
-                    owner.m_referenceRevision++;
+                    if (removed.Count != 0)
+                    {
+                        owner.m_references = afterRemovals;
+                        owner.m_referenceRevision++;
+                    }
                     m_removalsApplied = true;
                 }
             }
@@ -216,8 +219,11 @@ namespace Opc.Ua
                     {
                         throw new InvalidOperationException("Reference additions must follow reserved removals.");
                     }
-                    owner.m_references = afterAdditions;
-                    owner.m_referenceRevision++;
+                    if (added.Count != 0)
+                    {
+                        owner.m_references = afterAdditions;
+                        owner.m_referenceRevision++;
+                    }
                     m_completed = true;
                 }
             }

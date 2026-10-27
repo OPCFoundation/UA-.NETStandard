@@ -4582,7 +4582,11 @@ namespace Opc.Ua.Server
                     ? e
                     : new AggregateException("Startup and initial-publication cleanup failed.", e, publicationFailure);
                 var error = new ServiceResultException(
-                    ServiceResult.Create(failure, StatusCodes.BadInternalError, message));
+                    failure is ServiceResultException serviceFailure
+                        ? serviceFailure.StatusCode
+                        : StatusCodes.BadInternalError,
+                    message,
+                    failure);
                 ServerError = error.Result;
                 throw error;
             }

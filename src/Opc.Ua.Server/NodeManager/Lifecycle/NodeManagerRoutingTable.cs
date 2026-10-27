@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -1619,6 +1620,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Explains a failed admission by a real publication or a changed routing image, never a busy retry.
+        /// </summary>
+        internal Task GetPublicationChange(RoutingSnapshot previous)
+        {
+            lock (m_lock)
+            {
+                if (m_reservedRoutes is { } pending)
+                {
+                    return pending.WhenReleased;
+                }
+                if (!ReferenceEquals(m_snapshot, previous))
+                {
+                    return Task.CompletedTask;
+                }
+                throw new InvalidOperationException("An unchanged serving routing image cannot admit its owner.");
+            }
+        }
+
+        /// <summary>
         /// Throws if the routing image is reserved by a pending publication.
         /// </summary>
         private void EnsureMutable()
@@ -1686,6 +1706,23 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Gets completion of publication bookkeeping or abandonment.
+            /// </summary>
+            internal Task WhenReleased
+            {
+                get
+                {
+                    lock (m_owner.m_lock)
+                    {
+                        return m_disposed
+                            ? Task.CompletedTask
+                            : (m_released ??= new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                    }
+                }
+            }
+
+            /// <summary>
             /// Reserves the routing table for this publication so that no other routing change can interleave.
             /// </summary>
             public void Reserve()
@@ -1703,6 +1740,33 @@ namespace Opc.Ua.Server
                     m_owner.EnsureMutable();
                     ValidatePublicationTransitions(m_previous, m_next);
                     m_owner.m_reservedRoutes = this;
+                }
+            }
+
+            /// <summary>
+            /// Attempts reservation without treating a competing publication or stale image as cleanup failure.
+            /// </summary>
+            internal bool TryReserve(out Task ready)
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (m_disposed || m_published || ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        throw new InvalidOperationException("The routing publication is no longer preparable.");
+                    }
+                    if (m_owner.m_reservedRoutes is { } pending)
+                    {
+                        ready = pending.WhenReleased;
+                        return false;
+                    }
+                    ready = Task.CompletedTask;
+                    if (!ReferenceEquals(m_owner.m_snapshot, m_previous))
+                    {
+                        return false;
+                    }
+                    ValidatePublicationTransitions(m_previous, m_next);
+                    m_owner.m_reservedRoutes = this;
+                    return true;
                 }
             }
 
@@ -1729,6 +1793,7 @@ namespace Opc.Ua.Server
             /// <inheritdoc/>
             public void Dispose()
             {
+                TaskCompletionSource<bool>? released;
                 lock (m_owner.m_lock)
                 {
                     if (ReferenceEquals(m_owner.m_reservedRoutes, this))
@@ -1736,18 +1801,26 @@ namespace Opc.Ua.Server
                         m_owner.m_reservedRoutes = null;
                     }
                     m_disposed = true;
+                    released = m_released;
                 }
-                if (!m_published)
+                try
                 {
-                    m_next.Epoch.Close();
-                    foreach (NodeManagerGeneration generation in m_next.Generations)
+                    if (!m_published)
                     {
-                        if (!m_previous.Generations.Contains(generation) &&
-                            generation.Gate.State == NodeManagerGenerationState.Prepared)
+                        m_next.Epoch.Close();
+                        foreach (NodeManagerGeneration generation in m_next.Generations)
                         {
-                            generation.Gate.Abort();
+                            if (!m_previous.Generations.Contains(generation) &&
+                                generation.Gate.State == NodeManagerGenerationState.Prepared)
+                            {
+                                generation.Gate.Abort();
+                            }
                         }
                     }
+                }
+                finally
+                {
+                    released?.TrySetResult(true);
                 }
             }
 
@@ -1756,6 +1829,9 @@ namespace Opc.Ua.Server
             private readonly RoutingSnapshot m_next;
             private bool m_published;
             private bool m_disposed;
+
+            /// <summary>Signals completion only when another cleanup actually encounters this reservation.</summary>
+            private TaskCompletionSource<bool>? m_released;
         }
     }
 }

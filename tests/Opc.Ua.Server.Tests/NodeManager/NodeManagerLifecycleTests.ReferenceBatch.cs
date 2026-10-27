@@ -272,6 +272,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Cleanup waits outside owner admissions and retries against the decided publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredCleanupWaitsForPublicationWithoutHoldingSourceAdmissionAsync(bool removeSource)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string ownerUri = kModelNamespaceUri + ":ReservedCleanupOwner";
+            Mock<IAsyncNodeManager> owner = CreateLifecycleNodeManager(ownerUri);
+            ApplicationConfiguration? configuration = null;
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ownerFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal _, ApplicationConfiguration supplied, CancellationToken _) =>
+                {
+                    configuration = supplied;
+                    return new ValueTask<IAsyncNodeManager>(owner.Object);
+                });
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddAsync(ownerFactory.Object, timeout.Token).ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            var source = new NodeId(9902, (ushort)server.NamespaceUris.GetIndex(ownerUri));
+            object handle = new();
+            owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(handle);
+            owner.Setup(value => value.GetNodeMetadataAsync(
+                It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new NodeMetadata(handle, source));
+            owner.Setup(value => value.DeleteReferenceAsync(
+                handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                It.IsAny<CancellationToken>())).ReturnsAsync(ServiceResult.Good);
+            Mock<IAsyncNodeManager> addition = CreateLifecycleNodeManager(
+                kModelNamespaceUri + ":ReservedCleanupAddition");
+            var additionFactory = new Mock<IAsyncNodeManagerFactory>();
+            additionFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(addition.Object);
+            using var destroyed = new NodeManagementLifecycleNodeManager(
+                server, configuration!, m_logger, kModelNamespaceUri + ":ReservedCleanupDestroyed");
+            destroyed.GetRemovedExternalReferences().Add(
+                new LocalReference(source, ReferenceTypeIds.HasComponent, false, new NodeId(9903)));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                removeSource
+                    ? [NodeManagerBatchChange.Add(additionFactory.Object), NodeManagerBatchChange.Remove(registration)]
+                    : [NodeManagerBatchChange.Add(additionFactory.Object)],
+                null, timeout.Token).ConfigureAwait(false);
+            var deciding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<NodeManagerBatchResult> publication = prepared.CommitAsync(async cancellationToken =>
+            {
+                deciding.TrySetResult(true);
+                await release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }, timeout.Token).AsTask();
+            await deciding.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            try
+            {
+                Task cleanup = ((IDynamicNodeManagerHost)server.NodeManager)
+                    .RemoveDestroyedExternalReferencesAsync(destroyed, timeout.Token).AsTask();
+                Assert.That(cleanup.IsCompleted, Is.False, "A reserved publication is contention, not cleanup failure.");
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(owner.Object).Gate.ActiveCount, Is.Zero,
+                    "Waiting cleanup must release its exact source admission before a publication can drain it.");
+                owner.Verify(value => value.DeleteReferenceAsync(
+                    handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                    It.IsAny<CancellationToken>()), Times.Never);
+                release.TrySetResult(true);
+                NodeManagerBatchResult result = await publication.ConfigureAwait(false);
+                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await cleanup.WaitAsync(timeout.Token).ConfigureAwait(false);
+                owner.Verify(value => value.DeleteReferenceAsync(
+                    handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                    It.IsAny<CancellationToken>()), removeSource ? Times.Never() : Times.Once());
+                Assert.That(destroyed.GetRemovedExternalReferences(), Is.Empty);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Validates a lazy replacement source before pruning its backlink or skipping an absent source.
         /// </summary>
         [TestCase(false)]

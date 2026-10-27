@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -37,6 +39,74 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerRoutingTableTests
     {
+        /// <summary>
+        /// Contention waits for the full decision and requires a fresh image after publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompetingCleanupReservationWaitsForPublicationOrAbandonmentAsync(bool publish)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using NodeManagerRoutingTable.PreparedRoutes first = PrepareRoutingCandidate(table, CreateManager());
+            using NodeManagerRoutingTable.PreparedRoutes second = PrepareRoutingCandidate(table, CreateManager());
+            first.Reserve();
+            Assert.That(second.TryReserve(out Task ready), Is.False);
+            Assert.That(ready.IsCompleted, Is.False);
+            Assert.That(table.GetPublicationChange(table.Revision), Is.SameAs(ready));
+            if (publish)
+            {
+                first.Publish();
+                Assert.That(ready.IsCompleted, Is.False, "Visible routes do not finish publication bookkeeping.");
+            }
+            first.Dispose();
+            await ready.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(second.TryReserve(out Task changed), Is.EqualTo(!publish));
+            Assert.That(changed.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            if (publish)
+            {
+                using NodeManagerRoutingTable.PreparedRoutes fresh = PrepareRoutingCandidate(table, CreateManager());
+                Assert.That(fresh.TryReserve(out Task available), Is.True);
+                Assert.That(available.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            }
+        }
+
+        /// <summary>
+        /// Cancelling a wait cannot release the independent publication or lose its later completion.
+        /// </summary>
+        [Test]
+        public async Task CancellingReservationWaitDoesNotReleasePublicationAsync()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using NodeManagerRoutingTable.PreparedRoutes first = PrepareRoutingCandidate(table, CreateManager());
+            using NodeManagerRoutingTable.PreparedRoutes second = PrepareRoutingCandidate(table, CreateManager());
+            first.Reserve();
+            Assert.That(second.TryReserve(out Task ready), Is.False);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(() => ready.WaitAsync(cancellation.Token),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(ready.IsCompleted, Is.False);
+            Assert.That(second.TryReserve(out Task stillPending), Is.False);
+            Assert.That(stillPending, Is.SameAs(ready));
+            first.Dispose();
+            await ready.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(second.TryReserve(out _), Is.True);
+        }
+
+        /// <summary>
+        /// Only an observable route change or pending decision can justify retrying failed admission.
+        /// </summary>
+        [Test]
+        public void UnchangedRoutingImageCannotInventAdmissionRetry()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
+            Assert.That(() => table.GetPublicationChange(previous), Throws.TypeOf<InvalidOperationException>()
+                .With.Message.EqualTo("An unchanged serving routing image cannot admit its owner."));
+            table.Add(CreateManager(), InitialNamespaceIndexes);
+            Assert.That(table.GetPublicationChange(previous).Status, Is.EqualTo(TaskStatus.RanToCompletion));
+        }
+
         [TestCase("AddInitial", false)]
         [TestCase("AddInitial", true)]
         [TestCase("Initialize", false)]

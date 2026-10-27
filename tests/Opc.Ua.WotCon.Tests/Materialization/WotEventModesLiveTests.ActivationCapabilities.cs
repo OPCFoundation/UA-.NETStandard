@@ -143,7 +143,25 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 if (handle is not null)
                 {
-                    await host.RemoveAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                    var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    channels.Channels[0].BeforeDisposeAsync = () =>
+                    {
+                        entered.TrySetResult(true);
+                        return new ValueTask(release.Task);
+                    };
+                    Task removal = host.RemoveAsync(handle, CancellationToken.None).AsTask();
+                    try
+                    {
+                        await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                        Assert.That(removal.IsCompleted, Is.False,
+                            "Direct removal must await disposal, not only routing publication.");
+                    }
+                    finally
+                    {
+                        release.TrySetResult(true);
+                        await removal.ConfigureAwait(false);
+                    }
                 }
             }
             Assert.That(channels.Channels[0].DisposeCount, Is.EqualTo(1));
@@ -528,6 +546,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public int DisposeCount { get; private set; }
 
+            /// <summary>
+            /// Gets or sets the callback that holds disposal before the inner channel is released.
+            /// </summary>
+            public Func<ValueTask>? BeforeDisposeAsync { get; set; }
+
             /// <inheritdoc/>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public async ValueTask<WotEventSource> CaptureEventSourceAsync(CancellationToken cancellationToken = default)
@@ -624,6 +647,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async ValueTask DisposeAsync()
             {
                 DisposeCount++;
+                if (BeforeDisposeAsync is { } beforeDispose)
+                {
+                    await beforeDispose().ConfigureAwait(false);
+                }
                 await inner.DisposeAsync().ConfigureAwait(false);
             }
         }
