@@ -97,7 +97,8 @@ namespace Opc.Ua
                         maxRequestCount,
                         maxRequestCost,
                         decoupleHeldPublishRequests,
-                        RejectRequest);
+                        RejectRequest,
+                        GetEnqueueTimestamp);
                 }
 
                 m_meter = server.m_telemetry.CreateMeter();
