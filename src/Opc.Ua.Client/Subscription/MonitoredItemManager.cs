@@ -424,6 +424,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     memory[i] = new DataValueChange(monitored,
                         item.Value, item.DiagnosticInfo)
                     {
+                        ClientHandle = item.ClientHandle,
                         PartitionServerId = partitionId,
                         Acknowledgement = acknowledgement
                     };
@@ -455,6 +456,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new EventNotification(monitored, item.EventFields)
                     {
+                        ClientHandle = item.ClientHandle,
                         PartitionServerId = partitionId,
                         Acknowledgement = acknowledgement
                     };

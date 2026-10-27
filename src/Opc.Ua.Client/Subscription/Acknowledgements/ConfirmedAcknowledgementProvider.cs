@@ -37,14 +37,12 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Acknowledges a notification only after the application confirmed it. The subscription
     /// engines track an acknowledgement before its notification is delivered, and its terminal
-    /// outcome ends the tracking. Only tracked acknowledgements can be confirmed, so a late or
+    /// outcome synchronously ends the tracking. Only tracked acknowledgements can be confirmed, so a late or
     /// repeated confirmation has no effect and the state stays bounded by the acknowledgements
     /// the session still holds.
     /// </summary>
-    /// <param name="next">An application observer that also receives the outcomes.</param>
-    internal sealed class ConfirmedAcknowledgementProvider(ISubscriptionAcknowledgementObserver? next) :
+    internal sealed class ConfirmedAcknowledgementProvider :
         ISubscriptionAcknowledgementProvider,
-        ISubscriptionAcknowledgementObserver,
         IAcknowledgementTracker
     {
         /// <summary>
@@ -80,6 +78,12 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <inheritdoc/>
+        public void Complete(AcknowledgementHandle handle)
+        {
+            m_tracked.TryRemove(handle, out _);
+        }
+
         /// <summary>
         /// Records that the application processed a notification. Has no effect unless the
         /// acknowledgement is tracked and has not ended.
@@ -110,18 +114,6 @@ namespace Opc.Ua.Client
             return new ValueTask<AcknowledgementDecision>(deferred == null
                 ? AcknowledgementDecision.SendAll
                 : new AcknowledgementDecision(deferred.ToArray()));
-        }
-
-        /// <inheritdoc/>
-        public ValueTask OnCompletedAsync(
-            ArrayOf<AcknowledgementOutcome> outcomes,
-            CancellationToken ct = default)
-        {
-            for (int i = 0; i < outcomes.Count; i++)
-            {
-                m_tracked.TryRemove(outcomes[i].Handle, out _);
-            }
-            return next?.OnCompletedAsync(outcomes, ct) ?? default;
         }
 
         private readonly ConcurrentDictionary<AcknowledgementHandle, bool> m_tracked = new();

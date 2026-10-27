@@ -1370,6 +1370,63 @@ namespace Opc.Ua.Client.Tests
             Assert.That(provider.LastToken.IsCancellationRequested, Is.True);
         }
 
+        /// <summary>
+        /// Concurrent Publish calls cannot invoke the provider twice while the first call
+        /// has not yet returned its asynchronous decision.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ProviderDecisionIsReservedBeforeInvokingApplicationCodeAsync(CancellationToken ct)
+        {
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var decision = new TaskCompletionSource<AcknowledgementDecision>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            var provider = new Mock<ISubscriptionAcknowledgementProvider>();
+            provider.Setup(value => value.DecideAsync(
+                    It.IsAny<ArrayOf<AcknowledgementHandle>>(), It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<AcknowledgementHandle> _, CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        if (!release.Wait(TimeSpan.FromSeconds(5), token))
+                        {
+                            throw new TimeoutException("The test did not release the provider invocation.");
+                        }
+                    }
+                    return new ValueTask<AcknowledgementDecision>(decision.Task);
+                });
+            var configuration = new SessionAcknowledgements(
+                AcknowledgementMode.Immediate, provider.Object, null);
+            m_mockContext.Setup(value => value.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(value => value.Subscriptions).Returns([subscription]);
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+
+            engine.MinPublishRequestCount = 2;
+            Task<bool> first = Task.Run(() => engine.BeginPublish(5000), ct);
+            try
+            {
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(engine.BeginPublish(5000), Is.True);
+                Assert.That(Volatile.Read(ref calls), Is.EqualTo(1));
+                Assert.That(sent, Is.Empty);
+            }
+            finally
+            {
+                release.Set();
+                await first.ConfigureAwait(false);
+                decision.TrySetResult(AcknowledgementDecision.SendAll);
+            }
+            engine.BeginPublish(5000);
+            await WaitForAsync(() => sent.Contains(3u), ct).ConfigureAwait(false);
+        }
+
         private System.Collections.Concurrent.ConcurrentQueue<uint> CapturePublishedAcknowledgements()
         {
             var sent = new System.Collections.Concurrent.ConcurrentQueue<uint>();

@@ -1150,17 +1150,12 @@ namespace Opc.Ua.Client
             {
                 if (m_pendingDecision is { } pending)
                 {
-                    if (pending.Decision.IsCompleted)
+                    if (pending.Decision is { IsCompleted: true } completed)
                     {
                         m_pendingDecision = null;
-                        if (pending.Decision.Status == TaskStatus.RanToCompletion)
+                        if (completed.Status == TaskStatus.RanToCompletion)
                         {
-                            approved = TakeApprovedLocked(pending.Candidates, pending.Decision.Result, ref retired);
-                        }
-                        else
-                        {
-                            m_logger.AcknowledgementDecisionFailed(
-                                pending.Decision.Exception, pending.Candidates.Count);
+                            approved = TakeApprovedLocked(pending.Candidates, completed.Result, ref retired);
                         }
                     }
                 }
@@ -1175,6 +1170,7 @@ namespace Opc.Ua.Client
                         {
                             handles[i] = GetHandleLocked(candidates[i]);
                         }
+                        m_pendingDecision = (null, candidates);
                     }
                 }
             }
@@ -1192,6 +1188,10 @@ namespace Opc.Ua.Client
             catch (Exception ex)
             {
                 // Fail closed: the acknowledgements stay pending.
+                lock (m_acknowledgementsToSendLock)
+                {
+                    m_pendingDecision = null;
+                }
                 m_logger.AcknowledgementDecisionFailed(ex, candidates.Count);
                 return null;
             }
@@ -1200,6 +1200,7 @@ namespace Opc.Ua.Client
                 retired = null;
                 lock (m_acknowledgementsToSendLock)
                 {
+                    m_pendingDecision = null;
                     approved = TakeApprovedLocked(candidates, decision.Result, ref retired);
                 }
                 ReportOutcomes(retired);
@@ -1212,8 +1213,16 @@ namespace Opc.Ua.Client
             }
             // Publish again once the decision is known.
             task.ContinueWith(
-                static (_, state) => ((ClassicSubscriptionEngine)state!).QueueBeginPublish(),
-                this,
+                static (completed, state) =>
+                {
+                    var (engine, count) = ((ClassicSubscriptionEngine, int))state!;
+                    if (completed.IsFaulted)
+                    {
+                        engine.m_logger.AcknowledgementDecisionFailed(completed.Exception, count);
+                    }
+                    engine.QueueBeginPublish();
+                },
+                (this, candidates.Count),
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
@@ -1320,6 +1329,7 @@ namespace Opc.Ua.Client
             {
                 var handle = new AcknowledgementHandle(scope, acknowledgement.SequenceNumber);
                 m_outstandingHandles.Remove(handle);
+                (Acknowledgements?.Provider as IAcknowledgementTracker)?.Complete(handle);
                 (outcomes ??= []).Add(new AcknowledgementOutcome(handle, disposition, status));
             }
         }
@@ -1782,10 +1792,10 @@ namespace Opc.Ua.Client
         private readonly HashSet<AcknowledgementHandle> m_outstandingHandles = [];
 
         /// <summary>
-        /// A provider decision that did not complete synchronously, with the acknowledgements
-        /// it decides about. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// A reserved provider decision and its candidates. The task is null while the
+        /// provider is being invoked. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
         /// </summary>
-        private (Task<AcknowledgementDecision> Decision, List<SubscriptionAcknowledgement> Candidates)?
+        private (Task<AcknowledgementDecision>? Decision, List<SubscriptionAcknowledgement> Candidates)?
             m_pendingDecision;
 
         private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;

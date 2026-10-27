@@ -51,6 +51,7 @@ namespace Opc.Ua.Client
             ISubscriptionAcknowledgementObserver? observer)
         {
             Mode = mode;
+            Observer = observer;
             if (mode == AcknowledgementMode.AfterConfirmation)
             {
                 if (provider != null)
@@ -59,14 +60,12 @@ namespace Opc.Ua.Client
                         "An acknowledgement provider cannot be combined with acknowledging after confirmation.",
                         nameof(provider));
                 }
-                m_confirmations = new ConfirmedAcknowledgementProvider(observer);
+                m_confirmations = new ConfirmedAcknowledgementProvider();
                 Provider = m_confirmations;
-                Observer = m_confirmations;
             }
             else
             {
                 Provider = provider;
-                Observer = observer;
             }
         }
 

@@ -41,5 +41,11 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="handle">The acknowledgement of the notification.</param>
         void Track(AcknowledgementHandle handle);
+
+        /// <summary>
+        /// Retires internal confirmation state before an application observer is notified.
+        /// </summary>
+        /// <param name="handle">The acknowledgement that ended.</param>
+        void Complete(AcknowledgementHandle handle);
     }
 }

@@ -338,6 +338,11 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     m_deferredAcknowledgements.Clear();
                 }
+                foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
+                {
+                    (abandoned ??= []).Add(new AcknowledgementOutcome(
+                        handle, AcknowledgementDisposition.Abandoned, StatusCodes.BadShutdown));
+                }
                 ReportOutcomes(abandoned);
                 await CompleteOutcomeDeliveryAsync().ConfigureAwait(false);
                 lock (m_subscriptionLock)
@@ -363,6 +368,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         internal int QueuedAcknowledgementCount => m_acks.Reader.Count;
 
+        /// <summary>
+        /// Whether terminal state is required by confirmations or an application observer.
+        /// </summary>
+        private bool RequiresAcknowledgementTracking =>
+            m_session.AcknowledgementObserver != null || m_session.AcknowledgementProvider is IAcknowledgementTracker;
+
         /// <inheritdoc/>
         public ValueTask QueueAsync(IMessageProcessor owner, long generation,
             SubscriptionAcknowledgement ack, CancellationToken ct)
@@ -371,15 +382,15 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            var pending = new PendingAcknowledgement(
-                ack, owner, generation, owner.GetAcknowledgementScope(generation));
-            if (m_session.AcknowledgementObserver == null)
+            var pending = new PendingAcknowledgement(ack, owner.GetAcknowledgementScope(generation));
+            if (!RequiresAcknowledgementTracking)
             {
                 return m_acks.Writer.WriteAsync(pending, ct);
             }
-            if (!m_outstandingAcknowledgements.TryAdd(pending.Handle, 0))
+            if (!m_outstandingAcknowledgements.TryUpdate(pending.Handle, 1, 0))
             {
-                // Already queued, deferred or in flight: a second entry would end twice.
+                // Only receipt admits a lifetime. A duplicate or a retry after its terminal
+                // outcome must not create another lifetime with the same handle.
                 return default;
             }
             ValueTask write = m_acks.Writer.WriteAsync(pending, ct);
@@ -393,9 +404,16 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            if (m_session.AcknowledgementProvider is IAcknowledgementTracker tracker)
+            if (RequiresAcknowledgementTracking)
             {
-                tracker.Track(new AcknowledgementHandle(owner.GetAcknowledgementScope(generation), sequenceNumber));
+                var handle = new AcknowledgementHandle(owner.GetAcknowledgementScope(generation), sequenceNumber);
+                lock (m_subscriptionLock)
+                {
+                    if (m_outstandingAcknowledgements.TryAdd(handle, 0))
+                    {
+                        (m_session.AcknowledgementProvider as IAcknowledgementTracker)?.Track(handle);
+                    }
+                }
             }
         }
 
@@ -564,7 +582,7 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 ForgetOwnerLocked(owner, subscriptionId);
-                if (m_session.AcknowledgementObserver != null && !m_outstandingAcknowledgements.IsEmpty)
+                if (RequiresAcknowledgementTracking && !m_outstandingAcknowledgements.IsEmpty)
                 {
                     // Queued and in-flight acknowledgements end now as well: with no
                     // subscription left, no publish worker may run to discard them.
@@ -583,7 +601,7 @@ namespace Opc.Ua.Client.Subscriptions
             int dropped;
             lock (m_acknowledgementPolicyLock)
             {
-                if (m_session.AcknowledgementObserver != null)
+                if (RequiresAcknowledgementTracking)
                 {
                     foreach (PendingAcknowledgement pending in m_deferredAcknowledgements)
                     {
@@ -2164,7 +2182,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_logger.StaleAcknowledgementsDiscarded(unresolved);
                 }
-                if (m_session.AcknowledgementObserver != null)
+                if (RequiresAcknowledgementTracking)
                 {
                     ReportDroppedAcknowledgements(candidates, result, deferredStart);
                 }
@@ -2187,7 +2205,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     long generation = owner.MessageGeneration;
                     pending = new PendingAcknowledgement(
-                        acknowledgement, owner, generation, owner.GetAcknowledgementScope(generation));
+                        acknowledgement, owner.GetAcknowledgementScope(generation));
                     return true;
                 }
 
@@ -2350,7 +2368,7 @@ namespace Opc.Ua.Client.Subscriptions
             List<PendingAcknowledgement> sent,
             ArrayOf<StatusCode> results)
         {
-            if (sent.Count == 0 || m_session.AcknowledgementObserver == null)
+            if (sent.Count == 0 || !RequiresAcknowledgementTracking)
             {
                 return;
             }
@@ -2390,7 +2408,17 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            outcomes.RemoveAll(outcome => !m_outstandingAcknowledgements.TryRemove(outcome.Handle, out _));
+            lock (m_subscriptionLock)
+            {
+                outcomes.RemoveAll(outcome => !m_outstandingAcknowledgements.TryRemove(outcome.Handle, out _));
+                if (m_session.AcknowledgementProvider is IAcknowledgementTracker tracker)
+                {
+                    foreach (AcknowledgementOutcome outcome in outcomes)
+                    {
+                        tracker.Complete(outcome.Handle);
+                    }
+                }
+            }
             m_outcomeDispatcher.Report(m_session.AcknowledgementObserver, outcomes);
         }
 
@@ -2406,6 +2434,12 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException && m_acks.Writer.TryWrite(pending))
+                {
+                    // Cancellation of a queue attempt does not end a live message. Keep
+                    // the original lifetime queued so transfer/retry cannot revive it later.
+                    throw;
+                }
                 List<AcknowledgementOutcome>? abandoned = null;
                 AddOutcome(ref abandoned, pending, AcknowledgementDisposition.Abandoned,
                     ex is OperationCanceledException
@@ -2475,7 +2509,7 @@ namespace Opc.Ua.Client.Subscriptions
         private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
             int kept = 0;
-            bool observed = m_session.AcknowledgementObserver != null;
+            bool observed = RequiresAcknowledgementTracking;
             List<AcknowledgementOutcome>? outcomes = null;
             lock (m_subscriptionLock)
             {
@@ -2767,15 +2801,21 @@ namespace Opc.Ua.Client.Subscriptions
         /// that processor's message generation at the time.
         /// </summary>
         /// <param name="Acknowledgement">The acknowledgement to send.</param>
-        /// <param name="Owner">The producing processor.</param>
-        /// <param name="Generation">The owner's message generation when queued.</param>
         /// <param name="Scope">The owner's acknowledgement scope of that generation.</param>
         private readonly record struct PendingAcknowledgement(
             SubscriptionAcknowledgement Acknowledgement,
-            IMessageProcessor Owner,
-            long Generation,
             AcknowledgementScope Scope)
         {
+            /// <summary>
+            /// Gets the producing processor captured by the scope.
+            /// </summary>
+            public IMessageProcessor Owner => (IMessageProcessor)Scope.Owner;
+
+            /// <summary>
+            /// Gets the message generation captured by the scope.
+            /// </summary>
+            public long Generation => Scope.Generation;
+
             /// <summary>
             /// Gets the handle applications use for this acknowledgement.
             /// </summary>
@@ -3066,7 +3106,15 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         batch = await m_outer.PrepareAcknowledgementsToSendAsync(batch, attemptToken)
                             .ConfigureAwait(false);
-                        acks = batch.ConvertAll(pending => pending.Acknowledgement);
+                        if (batch.Count != 0)
+                        {
+                            var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count];
+                            for (int i = 0; i < wireAcknowledgements.Length; i++)
+                            {
+                                wireAcknowledgements[i] = batch[i].Acknowledgement;
+                            }
+                            acks = wireAcknowledgements;
+                        }
                         long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;

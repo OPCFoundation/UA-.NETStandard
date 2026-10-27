@@ -256,6 +256,21 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable);
 
         /// <summary>
+        /// Whether the processor has opted into complete-message delivery.
+        /// </summary>
+        protected virtual bool HandlesNotificationMessages => false;
+
+        /// <summary>
+        /// Delivers a complete message when <see cref="HandlesNotificationMessages"/> is true.
+        /// </summary>
+        protected virtual ValueTask OnNotificationMessageAsync(
+            NotificationMessage message, PublishState publishStateMask,
+            IReadOnlyList<string> stringTable, CancellationToken ct)
+        {
+            throw new NotSupportedException("Complete-message delivery is not enabled.");
+        }
+
+        /// <summary>
         /// On publish state changed
         /// </summary>
         /// <param name="stateMask"></param>
@@ -919,13 +934,21 @@ namespace Opc.Ua.Client.Subscriptions
                 else
                 {
                     AckQueue.TrackAcknowledgement(this, MessageGeneration, message.SequenceNumber);
-                    for (int i = 0; i < message.NotificationData.Count; i++)
+                    if (HandlesNotificationMessages)
                     {
-                        await DispatchAsync(
-                            message,
-                            publishStateMask,
-                            message.NotificationData[i],
-                            stringTable).ConfigureAwait(false);
+                        await DispatchCallbackAsync(() => OnNotificationMessageAsync(
+                            message, publishStateMask, stringTable, ct)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < message.NotificationData.Count; i++)
+                        {
+                            await DispatchAsync(
+                                message,
+                                publishStateMask,
+                                message.NotificationData[i],
+                                stringTable).ConfigureAwait(false);
+                        }
                     }
                 }
             }

@@ -438,8 +438,9 @@ engine, are fixed when the session is created and replace the obsolete
 | `AcknowledgementMode.AfterConfirmation` | Built-in provider: a notification is acknowledged only after the application confirmed its handle. |
 | `ISessionAcknowledgements` | Session facet (`session.TryGetAcknowledgements(out …)`, implemented by `Session` and `ManagedSession`) with `Mode` and `Confirm(handle)`. |
 
-**At-least-once delivery.** Enable confirmation, take the handle from the notification and
-confirm it once the data was delivered downstream:
+**Delivery before acknowledgement.** Enable confirmation and use a whole-message handler
+when processing can fan out or run asynchronously. One OPC UA `NotificationMessage` is
+the acknowledgement unit, even when it contains several data-change and event payloads:
 
 ```csharp
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -447,21 +448,47 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .AcknowledgeAfterConfirmation()
     .ConnectAsync(ct);
 
-// In the ISubscriptionNotificationHandler:
-public async ValueTask OnDataChangeNotificationAsync(ISubscription subscription,
-    uint sequenceNumber, DateTime publishTime, ReadOnlyMemory<DataValueChange> notification,
-    PublishState publishStateMask, IReadOnlyList<string> stringTable)
+// Register an ISubscriptionNotificationMessageHandler:
+ISubscription subscription = session.AddSubscription(handler, new SubscriptionOptions
 {
-    AcknowledgementHandle acknowledgement = notification.Span[0].Acknowledgement;
-    await m_pipeline.EnqueueAsync(notification, onDelivered: () => session.Confirm(acknowledgement));
+    PublishingInterval = TimeSpan.FromSeconds(1),
+    PublishingEnabled = true
+});
+
+// In the handler. DeliverAllPayloadsAsync is application code: it completes only
+// after every downstream operation succeeded, not just after enqueueing work.
+public async ValueTask OnNotificationMessageAsync(
+    SubscriptionNotificationMessage message, CancellationToken ct = default)
+{
+    await DeliverAllPayloadsAsync(message.Notifications, ct).ConfigureAwait(false);
+    session.Confirm(message.Acknowledgement);
 }
 ```
+
+The immutable envelope preserves payload order, the physical partition's acknowledgement
+identity, publish time and diagnostic string table. Each payload identifies data changes,
+events or a status change. Its arrays do not borrow pooled wire containers, so they can be
+retained after the callback returns; monitored-item references remain live SDK objects.
+`MoreNotifications` describes further Publish responses, not additional parts of this envelope.
+Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
+
+On V2, use the `ManagedSession.AddSubscription` or `ISubscriptionManager.Add` overload
+accepting `ISubscriptionNotificationMessageHandler`. On the classic engine, assign
+`Subscription.NotificationMessageHandler`. Whole-message handling replaces data/event
+callbacks for that subscription, avoiding duplicate delivery; keep-alive and state handling
+remain unchanged. A V2 handler can also implement `ISubscriptionNotificationHandler` to
+receive those lifecycle callbacks. Handler instances can be supplied directly or resolved
+from application DI. Existing load/restore factories accepting
+`ISubscriptionNotificationHandler` can return a handler implementing both interfaces;
+the restored subscription then uses whole-message delivery as well.
 
 Every `DataValueChange` and `EventNotification` carries the handle of the message it arrived
 in. A message can contain several data change and event payloads, delivered in separate
 handler calls that all carry the same handle; confirming the handle acknowledges the whole
-message, so confirm it only after all of them were processed. The example above assumes one
-payload per message; with several, count the payloads per handle before confirming.
+message, so do not confirm individual payloads independently. Existing payload handlers
+remain supported; use the complete-message API when the application cannot otherwise prove
+that it has processed the complete message. Returning from a handler never substitutes for
+explicit confirmation in `AfterConfirmation` mode.
 On the classic engine, `Subscription.TryGetAcknowledgementHandle(notification, out handle)`
 returns it for a notification the fast callbacks received. A classic `Subscription` served by
 the default V2 engine (the compatibility path) has no handle, because that path does not
@@ -471,6 +498,12 @@ just before its notification is delivered until the acknowledgement ends, and on
 confirmations of tracked acknowledgements: confirming a handle twice, after its
 acknowledgement ended, or after its subscription was retired has no effect and keeps no
 state.
+
+Delayed acknowledgement alone is not a downstream retry or durable-storage mechanism.
+The application still owns failed-publication retries and any durable buffering. Server
+retransmission queues are finite; `NotRetained` reports that retention ended, not successful
+downstream delivery. Managed model-change tracking uses its own whole-message subscription
+and confirms only after all events were processed, so it cannot confirm application streams.
 
 **Custom policies.** Register a provider and, optionally, an observer through the session
 options, the builder (`WithAcknowledgementProvider`, `WithAcknowledgementObserver`) or
@@ -500,6 +533,8 @@ mode.
 - If the provider throws, the whole batch is deferred (fail-closed); the error is logged.
 - The classic engine publishes synchronously: a decision that does not complete
   synchronously keeps its acknowledgements pending and is applied to a later Publish request.
+  The pending decision is reserved before invoking application code; concurrent Publish
+  calls cannot replace it or lose its result.
 - When a session is recreated in place (the managed session's reconnect path), in-flight
   acknowledgements are kept and validated again: a subscription transferred to the new
   session keeps its handles, while a recreated subscription retires them.
@@ -510,6 +545,8 @@ mode.
   Tracked in [#4930](https://github.com/OPCFoundation/UA-.NETStandard/issues/4930).
 - Each acknowledgement has a single entry while it is pending or in flight: queuing it again
   (for example after a transfer) does not create a second entry, so it ends exactly once.
+  Cancelling a local queue attempt preserves that outstanding lifecycle if the queue still
+  accepts work; a retry does not produce a second terminal outcome.
 - Outcomes are delivered in order from a background loop, outside SDK locks. Dispositions:
   `Acknowledged` (the server confirmed), `NotRetained` (the server no longer holds the
   message or rejected the acknowledgement; the status tells why), `OwnerRetired` (the
@@ -517,8 +554,13 @@ mode.
   the session ended) and `Abandoned` (the engine was disposed before the acknowledgement
   was confirmed by the server, including one still in flight, or an obsolete
   `PublishSequenceNumbersToAcknowledge` handler dropped it).
-  Observer exceptions are logged and do not affect publishing.
-- Without a provider or observer, no provider calls, copies or outcome bookkeeping are
+  Internal confirmation state is retired before observer delivery. A slow observer cannot
+  retain that internal state or revive an ended confirmation. Observer delivery is ordered,
+  asynchronous and buffered; a slow observer can still grow the notification backlog.
+  Observers should return promptly or hand work to their own processing pipeline.
+  Disposal waits up to five seconds for queued outcomes; an unresponsive observer can outlive
+  disposal. Observer exceptions are logged without retrying the callback and do not affect publishing.
+- Without a provider or observer, no provider calls or outcome bookkeeping are
   added to the Publish path. Notifications still carry their handle; it reuses one cached
   object per subscription lifetime and does not allocate per message.
 

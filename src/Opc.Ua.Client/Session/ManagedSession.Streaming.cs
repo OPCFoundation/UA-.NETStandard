@@ -54,8 +54,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// A shared lazy <see cref="IStreamingSubscription"/> over this
         /// session's V2 subscription manager (see
-        /// <see cref="ISession.TryGetSubscriptionManager"/>). Backs both
-        /// <see cref="ModelChange"/> (when enabled) and ad-hoc
+        /// <see cref="ISession.TryGetSubscriptionManager"/>). Backs ad-hoc
         /// <see cref="IAsyncEnumerable{T}"/>-based subscriptions.
         /// </summary>
         /// <remarks>
@@ -130,11 +129,16 @@ namespace Opc.Ua.Client
                     return;
                 }
 
-                m_modelChangeTracker ??= new ModelChangeTracker(
-                    DefaultStreaming,
-                    NodeCache,
-                    m_logger,
-                    namespaceTables: this);
+                if (m_modelChangeTracker == null)
+                {
+                    if (!TryGetSubscriptionManager(out Subscriptions.ISubscriptionManager? manager))
+                    {
+                        throw new InvalidOperationException(
+                            "Model-change tracking requires the V2 subscription engine.");
+                    }
+                    m_modelChangeTracker = new ModelChangeTracker(
+                        manager, this, NodeCache, m_logger, namespaceTables: this);
+                }
                 m_modelChangeTrackingEnabled = true;
                 tracker = m_modelChangeTracker;
             }
@@ -158,7 +162,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Disables address-space model change tracking. The tracker is
-        /// stopped but the streaming subscription is preserved.
+        /// stopped and its dedicated subscription is disposed.
         /// </summary>
         /// <param name="ct">Cancellation token.</param>
         public async ValueTask DisableModelChangeTrackingAsync(CancellationToken ct = default)

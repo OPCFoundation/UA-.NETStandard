@@ -84,33 +84,40 @@ namespace Opc.Ua.Subscriptions.Tests
             return base.TearDownAsync();
         }
 
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [CancelAfter(90_000)]
-        public async Task ConfirmedNotificationsAreAcknowledgedOnTheV2EngineAsync(CancellationToken ct)
+        public async Task ConfirmedNotificationsAreAcknowledgedOnTheV2EngineAsync(
+            bool wholeMessage, CancellationToken ct)
         {
             var observer = new RecordingObserver();
             ManagedSessionType session = await ConnectAsync(
                 nameof(ConfirmedNotificationsAreAcknowledgedOnTheV2EngineAsync), observer, classic: false, ct)
                 .ConfigureAwait(false);
             var handler = new HandleCollectingHandler();
+            var messages = new MessageCollectingHandler();
             try
             {
                 Assert.That(session.Mode, Is.EqualTo(AcknowledgementMode.AfterConfirmation));
-                ISubscription subscription = session.AddSubscription(handler, new Client.Subscriptions.SubscriptionOptions
+                var options = new Client.Subscriptions.SubscriptionOptions
                 {
                     PublishingInterval = TimeSpan.FromMilliseconds(200),
                     PublishingEnabled = true,
                     KeepAliveCount = 10,
                     LifetimeCount = 100
-                });
+                };
+                ISubscription subscription = wholeMessage
+                    ? session.AddSubscription(messages, options)
+                    : session.AddSubscription(handler, options);
                 Assert.That(subscription.TryAddMonitoredItem(
                     "CurrentTime",
                     VariableIds.Server_ServerStatus_CurrentTime,
                     o => o with { SamplingInterval = TimeSpan.FromMilliseconds(100), QueueSize = 10 },
                     out _), Is.True);
 
-                await WaitForAsync(() => handler.Handles.Count >= 3, ct).ConfigureAwait(false);
-                AcknowledgementHandle[] received = [.. handler.Handles.Take(3)];
+                ConcurrentQueue<AcknowledgementHandle> handles = wholeMessage ? messages.Handles : handler.Handles;
+                await WaitForAsync(() => handles.Count >= 3, ct).ConfigureAwait(false);
+                AcknowledgementHandle[] received = [.. handles.Take(3)];
                 Assert.That(received.All(handle => !handle.IsNull), Is.True);
 
                 // Unconfirmed notifications stay unacknowledged for several publish cycles.
@@ -133,15 +140,22 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [CancelAfter(90_000)]
-        public async Task ConfirmedNotificationsAreAcknowledgedOnTheClassicEngineAsync(CancellationToken ct)
+        public async Task ConfirmedNotificationsAreAcknowledgedOnTheClassicEngineAsync(
+            bool wholeMessage, CancellationToken ct)
         {
             var observer = new RecordingObserver();
             ManagedSessionType session = await ConnectAsync(
                 nameof(ConfirmedNotificationsAreAcknowledgedOnTheClassicEngineAsync), observer, classic: true, ct)
                 .ConfigureAwait(false);
             var handles = new ConcurrentQueue<AcknowledgementHandle>();
+            var messages = new MessageCollectingHandler();
+            if (wholeMessage)
+            {
+                handles = messages.Handles;
+            }
             try
             {
                 var subscription = new ClassicSubscription(Telemetry)
@@ -150,6 +164,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     PublishingInterval = 200,
                     KeepAliveCount = 10,
                     LifetimeCount = 100,
+                    NotificationMessageHandler = wholeMessage ? messages : null,
 #pragma warning disable CS0618 // The classic engine is exercised through its fast callback.
                     FastDataChangeCallback = (owner, notification, _) =>
                         {
@@ -247,6 +262,18 @@ namespace Opc.Ua.Subscriptions.Tests
             }
 
             private readonly ConcurrentDictionary<AcknowledgementHandle, byte> m_acknowledged = new();
+        }
+
+        private sealed class MessageCollectingHandler : ISubscriptionNotificationMessageHandler
+        {
+            public ConcurrentQueue<AcknowledgementHandle> Handles { get; } = new();
+
+            public ValueTask OnNotificationMessageAsync(
+                SubscriptionNotificationMessage message, CancellationToken ct = default)
+            {
+                Handles.Enqueue(message.Acknowledgement);
+                return default;
+            }
         }
 
         private sealed class HandleCollectingHandler : ISubscriptionNotificationHandler

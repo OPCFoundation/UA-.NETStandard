@@ -64,6 +64,12 @@ namespace Opc.Ua.Client.Subscriptions
         DiagnosticInfo? DiagnosticInfo)
     {
         /// <summary>
+        /// Gets the wire client handle, including on classic messages whose
+        /// <see cref="MonitoredItem"/> projection is not available.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
+        /// <summary>
         /// <para>
         /// Server-assigned subscription identifier of the partition
         /// that delivered this notification. For single-partition
@@ -119,6 +125,11 @@ namespace Opc.Ua.Client.Subscriptions
         IMonitoredItem? MonitoredItem,
         ArrayOf<Variant> Fields)
     {
+        /// <summary>
+        /// Gets the wire client handle, including on classic messages.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
         /// <summary>
         /// Server-assigned subscription identifier of the partition
         /// that delivered this notification. See

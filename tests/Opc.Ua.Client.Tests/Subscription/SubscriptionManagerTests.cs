@@ -1355,6 +1355,7 @@ namespace Opc.Ua.Client.Subscriptions
                 (disposing, disposing.MessageGeneration, 5u)
             })
             {
+                manager.TrackAcknowledgement(owner, generation, sequenceNumber);
                 await manager.QueueAsync(owner, generation,
                     new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = sequenceNumber },
                     testCt).ConfigureAwait(false);
@@ -1400,6 +1401,7 @@ namespace Opc.Ua.Client.Subscriptions
                 new SubscriptionOptions { DisableUnboundedItemMode = true }));
             FakeManagedSubscription owner = partitions[0];
 
+            manager.TrackAcknowledgement(owner, owner.MessageGeneration, 6);
             for (int i = 0; i < 2; i++)
             {
                 await manager.QueueAsync(owner, owner.MessageGeneration,
@@ -1509,11 +1511,11 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// An acknowledgement that cannot be queued ends as abandoned exactly once, and its
-        /// handle can be queued again afterwards.
+        /// A cancelled queue attempt preserves the original lifecycle, including a retry
+        /// with the same handle. It has only one terminal outcome.
         /// </summary>
         [Test]
-        public async Task AnAcknowledgementThatCannotBeQueuedIsAbandonedAsync()
+        public async Task CancelledQueueAttemptKeepsTheOriginalAcknowledgementAsync()
         {
             var context = new FakeSubscriptionManagerContext();
             List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
@@ -1526,20 +1528,21 @@ namespace Opc.Ua.Client.Subscriptions
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
             var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 6 };
+            manager.TrackAcknowledgement(owner, owner.MessageGeneration, 6);
 
             await Assert.ThatAsync(
                 async () => await manager.QueueAsync(owner, owner.MessageGeneration, acknowledgement, cancelled.Token)
                     .ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            await WaitUntilAsync(() => observer.CountBySequenceNumber(6) == 1, CancellationToken.None)
-                .ConfigureAwait(false);
+            Assert.That(observer.CountBySequenceNumber(6), Is.Zero, "A cancelled attempt is not a terminal message.");
             await manager.QueueAsync(owner, owner.MessageGeneration, acknowledgement, CancellationToken.None)
                 .ConfigureAwait(false);
-            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "The handle is no longer outstanding.");
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "A retry does not duplicate the original.");
             await manager.DisposeAsync().ConfigureAwait(false);
 
-            Assert.That(observer.All.Select(outcome => outcome.Disposition), Is.EqualTo(s_twiceAbandoned));
-            Assert.That(observer.All[0].Status, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(observer.CountBySequenceNumber(6), Is.EqualTo(1));
+            Assert.That(observer.All.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.Abandoned));
+            Assert.That(observer.All.Single().Status, Is.EqualTo(StatusCodes.BadShutdown));
         }
 
         /// <summary>
@@ -1557,6 +1560,7 @@ namespace Opc.Ua.Client.Subscriptions
             manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
                 new SubscriptionOptions { DisableUnboundedItemMode = true }));
             FakeManagedSubscription owner = partitions[0];
+            manager.TrackAcknowledgement(owner, owner.MessageGeneration, 4);
             await manager.QueueAsync(owner, owner.MessageGeneration,
                 new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 4 },
                 CancellationToken.None).ConfigureAwait(false);
@@ -1567,8 +1571,61 @@ namespace Opc.Ua.Client.Subscriptions
                 .ConfigureAwait(false);
             Assert.That(observer.All.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
             Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "No worker discarded the entry.");
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 4 },
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "A terminal handle cannot be revived.");
             await manager.DisposeAsync().ConfigureAwait(false);
             Assert.That(observer.CountBySequenceNumber(4), Is.EqualTo(1), "The queued entry does not end twice.");
+        }
+
+        /// <summary>
+        /// A blocked application observer cannot delay internal retirement or accept a late
+        /// confirmation of another subscription's completed message.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task SlowObserverDoesNotRetainInternalConfirmationStateAsync(CancellationToken ct)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var observer = new Mock<ISubscriptionAcknowledgementObserver>();
+            observer.Setup(value => value.OnCompletedAsync(
+                    It.IsAny<ArrayOf<AcknowledgementOutcome>>(), It.IsAny<CancellationToken>()))
+                .Callback(() => entered.TrySetResult(true))
+                .Returns(new ValueTask(release.Task));
+            var configuration = new SessionAcknowledgements(
+                AcknowledgementMode.AfterConfirmation, null, observer.Object);
+            var confirmations = (ConfirmedAcknowledgementProvider)configuration.Provider!;
+            var context = new FakeSubscriptionManagerContext
+            {
+                AcknowledgementProvider = configuration.Provider,
+                AcknowledgementObserver = configuration.Observer
+            };
+            List<FakeManagedSubscription> owners = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+                manager.TrackAcknowledgement(owners[i], owners[i].MessageGeneration, 1);
+            }
+            try
+            {
+                await manager.CompleteAsync(owners[0], owners[0].Id, ct).ConfigureAwait(false);
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                await manager.CompleteAsync(owners[1], owners[1].Id, ct).ConfigureAwait(false);
+                configuration.Confirm(new AcknowledgementHandle(
+                    owners[1].GetAcknowledgementScope(owners[1].MessageGeneration), 1));
+
+                Assert.That(confirmations.TrackedAcknowledgements, Is.Zero);
+                Assert.That(confirmations.PendingConfirmations, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
         }
 
         /// <summary>
@@ -3397,11 +3454,6 @@ namespace Opc.Ua.Client.Subscriptions
         private const string kDeferredWarningText = "deferred by the acknowledgement policy";
         private static readonly bool[] s_resumedThenPaused = [false, true];
 
-        private static readonly AcknowledgementDisposition[] s_twiceAbandoned =
-        [
-            AcknowledgementDisposition.Abandoned,
-            AcknowledgementDisposition.Abandoned
-        ];
         private FakeSubscriptionManagerContext m_session;
         private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;

@@ -1149,10 +1149,17 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .UseEndpoint(endpoint)
     .AcknowledgeAfterConfirmation()
     .ConnectAsync(ct).ConfigureAwait(false);
-// in the notification handler, once every change and event of the message (they share
-// change.Acknowledgement) was delivered downstream:
-session.Confirm(change.Acknowledgement);
+// Implement ISubscriptionNotificationMessageHandler and register it using
+// managedSession.AddSubscription(handler, options). After every payload of
+// SubscriptionNotificationMessage was delivered downstream:
+session.Confirm(message.Acknowledgement);
 ```
+
+Whole-message handlers receive one envelope containing all payloads in wire order.
+They replace data/event callbacks for the opted-in subscription; existing callbacks
+and all deprecations above remain unchanged. For the classic engine, set
+`Subscription.NotificationMessageHandler`. Do not confirm a shared handle from an
+individual data/event callback unless the application knows the entire message completed.
 
 See [Subscriptions: Acknowledgement providers](Subscriptions.md#acknowledgement-providers).
 

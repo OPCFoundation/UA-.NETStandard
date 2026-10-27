@@ -1650,11 +1650,13 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-                bool success = sut.MonitoredItems.TryAdd("Test", options, out _);
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem? monitoredItem);
                 Assert.That(success, Is.True);
+                Assert.That(monitoredItem, Is.Not.Null);
 
                 // Act
-                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(55,
+                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(
+                    unchecked(monitoredItem.ClientHandle + 1),
                     out IMonitoredItem? result);
 
                 // Assert

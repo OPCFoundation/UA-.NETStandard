@@ -125,6 +125,7 @@ namespace Opc.Ua.Client
 #pragma warning disable CS0618 // copies the obsolete classic fast callbacks until they are removed
                 FastDataChangeCallback = template.FastDataChangeCallback;
                 FastEventCallback = template.FastEventCallback;
+                NotificationMessageHandler = template.NotificationMessageHandler;
                 FastKeepAliveCallback = template.FastKeepAliveCallback;
 #pragma warning restore CS0618
             }
@@ -725,6 +726,12 @@ namespace Opc.Ua.Client
         /// client having initiated the transfer.
         /// </summary>
         public SubscriptionRecoveryPolicy RecoveryPolicy { get; set; }
+
+        /// <summary>
+        /// Gets or sets an asynchronous whole-message handler. When set, it replaces the
+        /// fast data-change and event callbacks, but not caching, keep-alives or state changes.
+        /// </summary>
+        public Subscriptions.ISubscriptionNotificationMessageHandler? NotificationMessageHandler { get; set; }
 
         /// <summary>
         /// Gets or sets the fast data change callback.
@@ -3415,6 +3422,12 @@ namespace Opc.Ua.Client
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
 #pragma warning restore CS0618
+                    Subscriptions.ISubscriptionNotificationMessageHandler? messageHandler = NotificationMessageHandler;
+                    if (messageHandler != null)
+                    {
+                        datachangeCallback = null;
+                        eventCallback = null;
+                    }
 
                     foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration,
                         AcknowledgementScope? acknowledgementScope) in messagesToProcess)
@@ -3510,6 +3523,14 @@ namespace Opc.Ua.Client
                                         publishStateChangedMask |= PublishStateChangedMask.Timeout;
                                     }
                                 }
+                            }
+                            if (messageHandler != null)
+                            {
+                                AcknowledgementScope scope = acknowledgementScope ?? GetAcknowledgementScope();
+                                var handle = new AcknowledgementHandle(scope, message.SequenceNumber);
+                                await messageHandler.OnNotificationMessageAsync(
+                                    Subscriptions.NotificationMessageDispatch.CreateClassic(message, handle), ct)
+                                    .ConfigureAwait(false);
                             }
                         }
                         catch (Exception e)

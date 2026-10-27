@@ -862,6 +862,70 @@ namespace Opc.Ua.Client.Subscriptions
                 publishTime, publishStateMask);
         }
 
+        /// <summary>
+        /// Gets the optional complete-message handler through a partition forwarding adapter.
+        /// </summary>
+        private ISubscriptionNotificationMessageHandler? MessageHandler =>
+            m_handler is PartitionForwardingHandler forwarding
+                ? forwarding.MessageHandler
+                : m_handler as ISubscriptionNotificationMessageHandler;
+
+        /// <inheritdoc/>
+        protected override bool HandlesNotificationMessages => MessageHandler != null;
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnNotificationMessageAsync(
+            NotificationMessage message, PublishState publishStateMask,
+            IReadOnlyList<string> stringTable, CancellationToken ct)
+        {
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token);
+            var handle = new AcknowledgementHandle(GetAcknowledgementScope(MessageGeneration), message.SequenceNumber);
+            try
+            {
+                SubscriptionNotificationMessage projected = NotificationMessageDispatch.Create(
+                    message, handle, [.. stringTable],
+                    data => m_monitoredItems.CreateNotification(data, handle),
+                    events => m_monitoredItems.CreateNotification(events, handle));
+                for (int i = 0; i < message.NotificationData.Count; i++)
+                {
+                    ExtensionObject payload = message.NotificationData[i];
+                    if (payload.TryGetValue(out StatusChangeNotification? status))
+                    {
+                        PublishState state = publishStateMask;
+                        if (status.Status == StatusCodes.GoodSubscriptionTransferred)
+                        {
+                            state |= PublishState.Transferred;
+                        }
+                        else if (status.Status == StatusCodes.BadTimeout)
+                        {
+                            state |= PublishState.Timeout;
+                        }
+                        await OnStatusChangeNotificationAsync(
+                            message.SequenceNumber, (DateTime)message.PublishTime, status, state, stringTable)
+                            .ConfigureAwait(false);
+                    }
+                }
+                await MessageHandler!.OnNotificationMessageAsync(projected, lifetime.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (PoolNotifications)
+                {
+                    foreach (ExtensionObject payload in message.NotificationData)
+                    {
+                        if (payload.TryGetValue(out DataChangeNotification? data))
+                        {
+                            ReuseDataChangeNotification(data);
+                        }
+                        else if (payload.TryGetValue(out EventNotificationList? events))
+                        {
+                            ReuseEventNotificationList(events);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
             DateTime publishTime, DataChangeNotification notification,

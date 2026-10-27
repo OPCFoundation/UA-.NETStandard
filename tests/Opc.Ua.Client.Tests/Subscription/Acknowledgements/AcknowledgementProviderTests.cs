@@ -196,13 +196,11 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decision.Deferred.IsEmpty, Is.True);
             Assert.That(confirmations.PendingConfirmations, Is.EqualTo(2));
 
-            await acknowledgements.Observer!.OnCompletedAsync(new[]
-            {
-                new AcknowledgementOutcome(first, AcknowledgementDisposition.Acknowledged, StatusCodes.Good)
-            }).ConfigureAwait(false);
+            confirmations.Complete(first);
             Assert.That(confirmations.PendingConfirmations, Is.EqualTo(1));
             Assert.That(confirmations.TrackedAcknowledgements, Is.EqualTo(1));
-            Assert.That(observer.Outcomes.Single().Handle, Is.EqualTo(first), "The application observer is told too.");
+            Assert.That(acknowledgements.Observer, Is.SameAs(observer),
+                "Application observation is separate from internal confirmation cleanup.");
         }
 
         [Test]
@@ -215,11 +213,7 @@ namespace Opc.Ua.Client.Tests
             var untracked = new AcknowledgementHandle(scope, 2);
             confirmations.Track(ended);
 
-            await acknowledgements.Observer!.OnCompletedAsync(new[]
-            {
-                new AcknowledgementOutcome(ended, AcknowledgementDisposition.NotRetained,
-                    StatusCodes.BadSequenceNumberUnknown)
-            }).ConfigureAwait(false);
+            confirmations.Complete(ended);
             acknowledgements.Confirm(ended);
             acknowledgements.Confirm(ended);
             acknowledgements.Confirm(untracked);

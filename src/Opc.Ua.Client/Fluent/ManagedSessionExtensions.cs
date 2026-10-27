@@ -48,6 +48,30 @@ namespace Opc.Ua.Client
     /// </summary>
     public static class ManagedSessionExtensions
     {
+        /// <summary>
+        /// Adds an opt-in whole-message subscription using an options snapshot.
+        /// </summary>
+        public static ISubscription AddSubscription(
+            this ManagedSession session,
+            ISubscriptionNotificationMessageHandler handler,
+            Subscriptions.SubscriptionOptions options)
+        {
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (handler == null)
+            {
+                throw new ArgumentNullException(nameof(handler));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            return session.GetSubscriptionManager().Add(
+                handler, new OptionsMonitor<Subscriptions.SubscriptionOptions>(options));
+        }
+
         private static ISubscriptionManager GetSubscriptionManager(
             this ManagedSession session)
         {

@@ -38,7 +38,10 @@ namespace Opc.Ua.Client
     /// </summary>
     /// <remarks>
     /// The observer is called without holding SDK locks and must be thread-safe. Exceptions
-    /// are logged and do not affect publishing.
+    /// are logged and do not affect publishing. Internal confirmation state is retired
+    /// before this callback. Delivery is buffered, so implementations should return promptly;
+    /// a slow observer can grow its notification backlog but cannot retain internal
+    /// confirmation state. Disposal waits at most five seconds for queued callbacks.
     /// </remarks>
     public interface ISubscriptionAcknowledgementObserver
     {
