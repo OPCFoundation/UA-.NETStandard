@@ -132,6 +132,13 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                 Assert.That(policy.Accesses.All(access => access.Session is null), Is.True);
                 Assert.That(budget.Usage.Flows, Is.EqualTo(1));
             });
+            await sender.DisposeAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(contexts.ClientCarrier.BoundStreams, Is.Zero);
+                Assert.That(contexts.ClientCarrier.FinishedStreams, Is.EqualTo(
+                    carrier is DataChannelCarrierKind.Quic or DataChannelCarrierKind.WebTransport ? 1 : 0));
+            });
         }
 
         [Test]
@@ -489,8 +496,8 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                     ClientCarrier, new DataChannelTestPair.ResourceAuthorizer(), new DataChannelOptions(),
                     new DataChannelApplicationBudget(), TimeProvider.System, NUnitTelemetryContext.Create());
                 Server = provider.Create(m_serverCarrier);
-                ClientCarrier.Attach(Server);
-                m_serverCarrier.Attach(Client);
+                ClientCarrier.Attach(Server, m_serverCarrier);
+                m_serverCarrier.Attach(Client, ClientCarrier);
             }
 
             public DataChannelContext Client { get; }

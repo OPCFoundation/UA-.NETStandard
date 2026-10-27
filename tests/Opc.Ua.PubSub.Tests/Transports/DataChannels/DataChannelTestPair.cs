@@ -57,8 +57,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 LeftBudget, TimeProvider.System, NUnitTelemetryContext.Create());
             Right = new DataChannelContext(RightCarrier, RightAuthorizer, options ?? new DataChannelOptions(),
                 RightBudget, TimeProvider.System, NUnitTelemetryContext.Create());
-            LeftCarrier.Attach(Right);
-            RightCarrier.Attach(Left);
+            LeftCarrier.Attach(Right, RightCarrier);
+            RightCarrier.Attach(Left, LeftCarrier);
         }
 
         /// <summary>
@@ -179,7 +179,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         /// <summary>
         /// An explicit test carrier: every committed write traverses a bounded queue into the peer's real parser.
         /// </summary>
-        internal sealed class InProcessCarrier : IDataChannelCarrier, IAsyncDisposable
+        internal sealed class InProcessCarrier : IDataChannelCarrier, IDataChannelFlowFinisher, IAsyncDisposable
         {
             /// <summary>
             /// Creates reciprocal synthetic verified identities for the in-process runtime fixture only.
@@ -259,11 +259,17 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             }
 
             /// <summary>
+            /// Gets streams released after both simulated transport directions delivered FIN.
+            /// </summary>
+            public int FinishedStreams => Volatile.Read(ref m_finishedStreams);
+
+            /// <summary>
             /// Starts the sole serialized inbound dispatcher after both contexts exist.
             /// </summary>
-            public void Attach(DataChannelContext peer)
+            public void Attach(DataChannelContext peer, InProcessCarrier peerCarrier)
             {
                 m_peer = peer;
+                m_peerCarrier = peerCarrier;
                 m_pump = Task.Run(PumpAsync);
             }
 
@@ -287,7 +293,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 {
                     return new ValueTask<bool>(streamId != ManagementStreamId &&
                         localStream == locallyOpened &&
-                        m_streams.Add(streamId));
+                        m_streams.TryAdd(streamId, new StreamCompletion()));
                 }
             }
 
@@ -331,13 +337,49 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                         Payloads.Enqueue(payload[(prefix + 13)..].Copy());
                     }
                 }
+                bool endOfStream = write.EndsDirection &&
+                    write.Path == DataChannelPath.Flow &&
+                    Kind is DataChannelCarrierKind.Quic or DataChannelCarrierKind.WebTransport;
+                if (endOfStream)
+                {
+                    lock (m_gate)
+                    {
+                        m_streams[write.StreamId].LocalEnded = true;
+                    }
+                }
                 await m_records.Writer.WriteAsync(
-                    new Packet(write.Path, write.StreamId, write.RequestId, payload, write.IsData),
+                    new Packet(write.Path, write.StreamId, write.RequestId, payload, write.IsData, endOfStream),
                     CancellationToken.None).ConfigureAwait(false);
                 return DataChannelResult.Good;
             }
 
-            /// <summary>
+            /// <inheritdoc/>
+            public async ValueTask FinishFlowAsync(
+                ulong streamId,
+                CancellationToken cancellationToken = default)
+            {
+                StreamCompletion completion;
+                bool sendFin;
+                lock (m_gate)
+                {
+                    completion = m_streams[streamId];
+                    sendFin = !completion.LocalEnded;
+                    completion.LocalEnded = true;
+                }
+                if (sendFin)
+                {
+                    await m_records.Writer.WriteAsync(
+                        new Packet(DataChannelPath.Flow, streamId, 0, ByteString.Empty, false, true),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                await completion.PeerFin.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                lock (m_gate)
+                {
+                    m_streams.Remove(streamId);
+                }
+                Interlocked.Increment(ref m_finishedStreams);
+            }
+
             /// <inheritdoc/>
             public ValueTask CloseFlowAsync(
                 ulong streamId,
@@ -346,7 +388,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             {
                 lock (m_gate)
                 {
-                    m_streams.Remove(streamId);
+                    if (m_streams.Remove(streamId, out StreamCompletion? completion))
+                    {
+                        completion.PeerFin.TrySetCanceled(CancellationToken.None);
+                    }
                 }
                 return default;
             }
@@ -400,7 +445,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                         else
                         {
                             result = await m_peer!.ReceiveStreamAsync(
-                                packet.StreamId, packet.Payload, cancellationToken: m_stop.Token).ConfigureAwait(false);
+                                packet.StreamId, packet.Payload, endOfStream: packet.EndOfStream,
+                                cancellationToken: m_stop.Token).ConfigureAwait(false);
+                            if (packet.EndOfStream)
+                            {
+                                m_peerCarrier!.ReceiveFin(packet.StreamId);
+                            }
                         }
                         if (packet.IsData)
                         {
@@ -418,6 +468,37 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             }
 
             /// <summary>
+            /// Releases the peer-FIN wait only after the ordered pump has delivered the direction's bytes.
+            /// </summary>
+            private void ReceiveFin(ulong streamId)
+            {
+                lock (m_gate)
+                {
+                    if (m_streams.TryGetValue(streamId, out StreamCompletion? completion))
+                    {
+                        completion.PeerFin.TrySetResult(true);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Tracks the two transport directions independently of Core flow termination.
+            /// </summary>
+            private sealed class StreamCompletion
+            {
+                /// <summary>
+                /// Gets or sets whether the local direction has queued its final bytes.
+                /// </summary>
+                public bool LocalEnded { get; set; }
+
+                /// <summary>
+                /// Gets the signal completed by the peer's ordered receive pump.
+                /// </summary>
+                public TaskCompletionSource<bool> PeerFin { get; } =
+                    new(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
+            /// <summary>
             /// Owns one committed record until the peer has finished processing it.
             /// </summary>
             private sealed record Packet(
@@ -425,17 +506,20 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 ulong StreamId,
                 uint RequestId,
                 ByteString Payload,
-                bool IsData);
+                bool IsData,
+                bool EndOfStream);
 
             private readonly Channel<Packet> m_records;
             private readonly Channel<DataChannelResult> m_dataResults = Channel.CreateUnbounded<DataChannelResult>(
                 new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
             private readonly CancellationTokenSource m_stop = new();
             private readonly Lock m_gate = new();
-            private readonly HashSet<ulong> m_streams = [];
+            private readonly Dictionary<ulong, StreamCompletion> m_streams = [];
             private DataChannelContext? m_peer;
+            private InProcessCarrier? m_peerCarrier;
             private Task? m_pump;
             private long m_streamId;
+            private int m_finishedStreams;
         }
     }
 }
