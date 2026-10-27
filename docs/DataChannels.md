@@ -589,6 +589,12 @@ baseline FLO without waiting for an impossible direct proof.
 Implemented
 controls use OPC UA Binary Guid layout and strict length-prefixed UTF-8 strings;
 HELLO carries an exactly 32-byte challenge.
+FLC HELLO uses carrier `0` for the canonical PubSub/UASC endpoint, `1` for the
+QUIC/UASC baseline and `2` for the WebTransport/UASC baseline. Legacy shared
+UASC retains `1`; legacy native common records retain `2` for QUIC and `3` for
+WebTransport. The selected profile determines interpretation; a carrier byte
+cannot switch profiles.
+
 Booleans are `0` or `1`; rates must be finite and nonnegative, with
 both zero representations treated as unlimited for ordered delivery. Datagram
 rates must be strictly positive. A Configured OPEN has no grant bytes;
@@ -597,7 +603,7 @@ a Session OPEN has exactly one Guid. There is no JSON CONTROL fallback.
 The control-only AdmissionId retains the model's ChannelId name. It is not
 serialized before UADP and is not a PublisherId. Configured UADP associations
 select the admitted resource from authenticated identity and visible source /
-writer fields. Both UASC profiles use zero RequestId; FLO and FLC are separate
+writer fields. FLO and FLC use zero RequestId and remain separate
 message types. Legacy native datagrams carry an external ChannelId and common record.
 Authenticated direct datagrams instead carry a 16-byte UA Binary Guid token,
 UInt32 revision and UInt32 nonwrapping per-direction sequence before unchanged

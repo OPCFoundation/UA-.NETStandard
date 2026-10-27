@@ -41,6 +41,33 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
     [NonParallelizable]
     public sealed class FlowContextTests
     {
+        /// <summary>
+        /// Emits the split transport specification's HELLO carrier byte on both UASC baseline peers.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.QuicUasc, 1)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc, 2)]
+        public async Task BaselineHelloUsesCanonicalTransportDiscriminator(
+            DataChannelCarrierKind kind,
+            byte expectedCarrier)
+        {
+            await using var pair = new FlowLoopback(kind);
+            await pair.StartAsync().ConfigureAwait(false);
+            foreach (TestFlowCarrier carrier in new[] { pair.InitiatorCarrier, pair.AcceptorCarrier })
+            {
+                CapturedFlowWrite hello = carrier.Writes.Single(write =>
+                    !write.IsData && write.Payload.Length > 13 && write.Payload.Span[8] == 0);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(hello.RequestId, Is.Zero);
+                    Assert.That(hello.ChannelId, Is.Zero);
+                    Assert.That(hello.Payload.Span[13], Is.EqualTo(expectedCarrier));
+                    Assert.That(carrier.Kind, Is.EqualTo(kind));
+                });
+            }
+            Assert.That(pair.Initiator.IsReady, Is.True);
+            Assert.That(pair.Acceptor.IsReady, Is.True);
+        }
+
         [Test]
         public async Task PhysicalCarrierCloseNotificationNeverReentersCarrierCloseDuringDisposal()
         {

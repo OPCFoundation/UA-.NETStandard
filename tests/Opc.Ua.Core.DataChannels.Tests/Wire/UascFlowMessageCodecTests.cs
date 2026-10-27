@@ -116,6 +116,117 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
+        /// Maps literal FLC carrier bytes without changing the logical identity or legacy common record.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, 0, 0)]
+        [TestCase(DataChannelCarrierKind.SharedUasc, 1, 1)]
+        [TestCase(DataChannelCarrierKind.QuicUasc, 2, 1)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc, 3, 2)]
+        public void FlcHelloUsesSelectedCarrierTable(
+            DataChannelCarrierKind kind,
+            int logicalCarrier,
+            byte wireCarrier)
+        {
+            FlowCarrier carrier = FlowModel.ToWire(kind);
+            FlowHello hello = Hello((FlowCarrier)logicalCarrier);
+            var fixture = new FrozenWire("quic_hello");
+            FlowRecord record = FlowControlCodec.Encode(hello, fixture.Revision, fixture.MessageId, new());
+            ByteString literal = HelloBody(wireCarrier);
+            ByteString encoded = UascFlowMessageCodec.Encode(carrier, 0, in record, new(), out uint requestId);
+            UascFlowMessage message = UascFlowMessageCodec.Decode(
+                carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, literal, new());
+            Assert.That(message.Control, Is.TypeOf<FlowHello>());
+            var decoded = (FlowHello)message.Control!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(requestId, Is.Zero);
+                Assert.That(encoded, Is.EqualTo(literal));
+                Assert.That(record.Body.Span[5], Is.EqualTo(logicalCarrier));
+                Assert.That(message.Record.Body.Span[5], Is.EqualTo(wireCarrier));
+                Assert.That(message.Record.Revision, Is.EqualTo(fixture.Revision));
+                Assert.That(message.Record.MessageId, Is.EqualTo(fixture.MessageId));
+                Assert.That(decoded.Carrier, Is.EqualTo((FlowCarrier)logicalCarrier));
+                Assert.That(decoded.Version, Is.EqualTo(hello.Version));
+                Assert.That(decoded.Application, Is.EqualTo(hello.Application));
+                Assert.That(decoded.Context, Is.EqualTo(hello.Context));
+                Assert.That(decoded.Generation, Is.EqualTo(hello.Generation));
+                Assert.That(decoded.Challenge, Is.EqualTo(hello.Challenge));
+                Assert.That(decoded.Protection, Is.EqualTo(hello.Protection));
+                Assert.That(decoded.MaxMessageSize, Is.EqualTo(hello.MaxMessageSize));
+                Assert.That(decoded.MaxReceiveBytes, Is.EqualTo(hello.MaxReceiveBytes));
+                Assert.That(decoded.MaxFlows, Is.EqualTo(hello.MaxFlows));
+            });
+        }
+
+        /// <summary>
+        /// Refuses foreign carriers and every byte outside the split transport discriminator table.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.QuicUasc, 1)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc, 2)]
+        public void NativeBaselineHelloRejectsEveryOtherCarrier(
+            DataChannelCarrierKind kind,
+            byte acceptedCarrier)
+        {
+            FlowCarrier carrier = FlowModel.ToWire(kind);
+            for (int value = 0; value <= byte.MaxValue; value++)
+            {
+                if (value == acceptedCarrier)
+                {
+                    continue;
+                }
+                ByteString body = HelloBody((byte)value);
+                AssertCodecError(() => UascFlowMessageCodec.Decode(
+                    carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, body, new()),
+                    value <= 2 ? FlowCodecError.CarrierMismatch : FlowCodecError.UnknownDiscriminator);
+            }
+        }
+
+        /// <summary>
+        /// Native baseline identities remain confidential even when their wire byte matches legacy shared UASC.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.QuicUasc, 1)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc, 2)]
+        public void NativeBaselineHelloCannotSelectIntegrity(
+            DataChannelCarrierKind kind,
+            byte wireCarrier)
+        {
+            byte[] body = HelloBody(wireCarrier).ToArray();
+            body[8 + 93] = 1;
+            FlowCarrier carrier = FlowModel.ToWire(kind);
+            AssertCodecError(() => UascFlowMessageCodec.Decode(
+                carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, new ByteString(body), new()),
+                FlowCodecError.CarrierMismatch);
+        }
+
+        /// <summary>
+        /// Native common records and WebTransport management MSG retain their legacy HELLO bytes.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.Quic, 2)]
+        [TestCase(DataChannelCarrierKind.WebTransport, 3)]
+        public void NativeCommonHelloPreservesLegacyDiscriminator(
+            DataChannelCarrierKind kind,
+            byte wireCarrier)
+        {
+            FlowCarrier carrier = FlowModel.ToWire(kind);
+            var fixture = new FrozenWire("quic_hello");
+            FlowRecord record = FlowControlCodec.Encode(Hello(carrier), fixture.Revision, fixture.MessageId, new());
+            ByteString encoded = FlowRecordCodec.Encode(in record, new());
+            var decoded = (FlowHello)FlowControlCodec.Decode(in record, new());
+            Assert.That(encoded.Span[18], Is.EqualTo(wireCarrier));
+            Assert.That(decoded.Carrier, Is.EqualTo(carrier));
+            if (kind == DataChannelCarrierKind.WebTransport)
+            {
+                ByteString management = UascFlowMessageCodec.EncodeManagement(
+                    0, in record, new(), out uint requestId);
+                UascFlowMessage received = UascFlowMessageCodec.DecodeManagement(
+                    DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded, new());
+                Assert.That(management, Is.EqualTo(encoded));
+                Assert.That(requestId, Is.EqualTo(fixture.MessageId));
+                Assert.That(((FlowHello)received.Control!).Carrier, Is.EqualTo(FlowCarrier.WebTransport));
+            }
+        }
+
+        /// <summary>
         /// Rejects non-final chunks and nonzero RequestIds for both message kinds.
         /// </summary>
         [TestCase(DataChannelUascMessageKind.Flo, (byte)'C', 0u, "NonFinalUasc")]
@@ -467,6 +578,32 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             Assert.Throws<ArgumentNullException>(() =>
                 UascFlowMessageCodec.DecodeManagement(
                     DataChannelUascMessageKind.Msg, (byte)'F', 11, ManagementEndBody(), null!));
+        }
+
+        /// <summary>
+        /// Selects the logical carrier on an independently authored HELLO specimen.
+        /// </summary>
+        private static FlowHello Hello(FlowCarrier carrier)
+        {
+            var expected = (FlowHello)new FrozenWire("quic_hello").ExpectedControl!;
+            return new FlowHello(
+                expected.Version, carrier, expected.Application, expected.Context, expected.Generation,
+                expected.Challenge, expected.Protection, expected.MaxMessageSize, expected.MaxReceiveBytes,
+                expected.MaxFlows);
+        }
+
+        /// <summary>
+        /// Combines literal fields with the FLC prefix and an independently selected carrier byte.
+        /// </summary>
+        private static ByteString HelloBody(byte carrier)
+        {
+            var fixture = new FrozenWire("quic_hello");
+            byte[] body = new byte[8 + fixture.ExpectedBody.Length];
+            BinaryPrimitives.WriteUInt32LittleEndian(body, fixture.Revision);
+            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(4), fixture.MessageId);
+            fixture.ExpectedBody.Span.CopyTo(body.AsSpan(8));
+            body[13] = carrier;
+            return new ByteString(body);
         }
 
         private static ByteString ManagementEndBody()

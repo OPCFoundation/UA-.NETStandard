@@ -44,7 +44,7 @@ namespace Opc.Ua.DataChannels.Wire
     }
 
     /// <summary>
-    /// Identifies a selected wire carrier, not an authenticated connection.
+    /// Identifies a logical carrier; numeric values retain the legacy common-record encoding.
     /// </summary>
     internal enum FlowCarrier
     {

@@ -56,7 +56,7 @@ namespace Opc.Ua.DataChannels.Wire
         internal uint ChannelId { get; }
 
         /// <summary>
-        /// Gets the decoded control record, or the unmodified DATA body.
+        /// Gets the parsed header and unmodified CONTROL or DATA body.
         /// </summary>
         internal FlowRecord Record { get; }
 
@@ -186,7 +186,7 @@ namespace Opc.Ua.DataChannels.Wire
                 throw new FlowCodecException(FlowCodecError.TooLarge);
             }
             var record = new FlowRecord(FlowRecordKind.Control, revision, operationId, controlBody);
-            FlowControl control = FlowControlCodec.Decode(in record, limits);
+            FlowControl control = FlowControlCodec.Decode(in record, limits, carrier);
             FlowControlCodec.ValidateCarrier(control, carrier, uascBaseline: true);
             if (plaintextBody.Length > limits.MaxRecordBytes - FlowRecordCodec.HeaderSize)
             {
@@ -238,7 +238,14 @@ namespace Opc.Ua.DataChannels.Wire
             byte[] body = new byte[length];
             BinaryPrimitives.WriteUInt32LittleEndian(body, record.Revision);
             BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(sizeof(uint)), record.MessageId);
-            record.Body.Span.CopyTo(body.AsSpan(sizeof(uint) * 2));
+            if (control is FlowHello)
+            {
+                FlowControlCodec.WriteBody(control, body.AsSpan(sizeof(uint) * 2), carrier);
+            }
+            else
+            {
+                record.Body.Span.CopyTo(body.AsSpan(sizeof(uint) * 2));
+            }
             return new ByteString(body);
         }
 

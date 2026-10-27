@@ -32,15 +32,18 @@ using System;
 namespace Opc.Ua.DataChannels.Wire
 {
     /// <summary>
-    /// Encodes the closed Part 28 binary CONTROL shapes without a Service or JSON envelope.
+    /// Encodes the closed binary CONTROL shapes without a Service or JSON envelope.
     /// </summary>
     internal static partial class FlowControlCodec
     {
         /// <summary>
-        /// Decodes exactly one bounded typed CONTROL body.
+        /// Decodes one bounded CONTROL body, using the selected UASC carrier's HELLO table when supplied.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
-        internal static FlowControl Decode(in FlowRecord record, FlowCodecLimits limits)
+        internal static FlowControl Decode(
+            in FlowRecord record,
+            FlowCodecLimits limits,
+            FlowCarrier? uascCarrier = null)
         {
             FlowRecordCodec.GetEncodedLength(in record, limits);
             if (record.Kind != FlowRecordKind.Control)
@@ -57,7 +60,7 @@ namespace Opc.Ua.DataChannels.Wire
             FlowControl control;
             if (operation == FlowOperation.Hello)
             {
-                control = ReadHello(ref reader);
+                control = ReadHello(ref reader, uascCarrier);
             }
             else if (operation == FlowOperation.Bind)
             {
@@ -108,9 +111,20 @@ namespace Opc.Ua.DataChannels.Wire
         {
             int length = GetEncodedBodyLength(control, revision, messageId, limits);
             byte[] buffer = new byte[length];
-            var writer = new FlowBinaryWriter(buffer, buffer.Length);
-            WriteControl(ref writer, control);
+            WriteBody(control, buffer);
             return new FlowRecord(FlowRecordKind.Control, revision, messageId, new ByteString(buffer));
+        }
+
+        /// <summary>
+        /// Writes a validated CONTROL into admitted storage with the selected UASC HELLO table, when supplied.
+        /// </summary>
+        internal static void WriteBody(
+            FlowControl control,
+            Span<byte> destination,
+            FlowCarrier? uascCarrier = null)
+        {
+            var writer = new FlowBinaryWriter(destination, destination.Length);
+            WriteControl(ref writer, control, uascCarrier);
         }
 
         /// <summary>
@@ -137,11 +151,23 @@ namespace Opc.Ua.DataChannels.Wire
         /// <summary>
         /// Reads context claims in their fixed binary order.
         /// </summary>
-        private static FlowHello ReadHello(ref FlowBinaryReader reader)
+        private static FlowHello ReadHello(ref FlowBinaryReader reader, FlowCarrier? uascCarrier)
         {
+            uint version = reader.UInt32();
+            bool nativeBaseline = uascCarrier is FlowCarrier.Quic or FlowCarrier.WebTransport;
+            byte value = reader.Discriminator(nativeBaseline ? (byte)2 : (byte)FlowCarrier.WebTransport);
+            FlowCarrier carrier = nativeBaseline
+                ? value switch
+                {
+                    0 => FlowCarrier.DedicatedUasc,
+                    1 => FlowCarrier.Quic,
+                    2 => FlowCarrier.WebTransport,
+                    _ => throw new FlowCodecException(FlowCodecError.UnknownDiscriminator)
+                }
+                : (FlowCarrier)value;
             return new FlowHello(
-                reader.UInt32(),
-                (FlowCarrier)reader.Discriminator((byte)FlowCarrier.WebTransport),
+                version,
+                carrier,
                 reader.String(FlowWireText.MaxUriBytes),
                 reader.Guid(),
                 reader.UInt64(),
@@ -190,16 +216,27 @@ namespace Opc.Ua.DataChannels.Wire
         }
 
         /// <summary>
-        /// Writes the opcode followed by only that operation's ordered fields.
+        /// Writes validated CONTROL fields, selecting transport HELLO bytes only for a native UASC baseline.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
-        private static void WriteControl(ref FlowBinaryWriter writer, FlowControl control)
+        private static void WriteControl(
+            ref FlowBinaryWriter writer,
+            FlowControl control,
+            FlowCarrier? uascCarrier = null)
         {
             writer.Byte((byte)control.Operation);
             if (control is FlowHello hello)
             {
                 writer.UInt32(hello.Version);
-                writer.Byte((byte)hello.Carrier);
+                byte carrier = uascCarrier is FlowCarrier.Quic or FlowCarrier.WebTransport
+                    ? hello.Carrier switch
+                    {
+                        FlowCarrier.Quic => (byte)1,
+                        FlowCarrier.WebTransport => (byte)2,
+                        _ => throw new FlowCodecException(FlowCodecError.CarrierMismatch)
+                    }
+                    : (byte)hello.Carrier;
+                writer.Byte(carrier);
                 writer.String(hello.Application);
                 writer.Guid(hello.Context);
                 writer.UInt64(hello.Generation);
