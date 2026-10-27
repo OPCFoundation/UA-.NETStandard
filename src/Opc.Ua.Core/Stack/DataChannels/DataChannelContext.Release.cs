@@ -43,16 +43,19 @@ namespace Opc.Ua.DataChannels
             FlowState flow,
             Task afterTransmission,
             DataChannelResult result,
-            bool interruptNative = true)
+            bool interruptNative = true,
+            bool finishNativeStream = false)
         {
             if (flow.ReleaseStarted)
             {
                 return flow.Released.Task;
             }
             flow.ReleaseStarted = true;
+            m_releasingFlows.Add(flow.Id, flow);
             m_pendingFlowReleases++;
             Task writer = flow.ActiveWrite?.Completion.Task ?? Task.CompletedTask;
-            _ = Task.Run(() => ReleaseFlowAsync(flow, afterTransmission, writer, result, interruptNative));
+            _ = Task.Run(() => ReleaseFlowAsync(
+                flow, afterTransmission, writer, result, interruptNative, finishNativeStream));
             return flow.Released.Task;
         }
 
@@ -65,7 +68,8 @@ namespace Opc.Ua.DataChannels
             Task afterTransmission,
             Task writer,
             DataChannelResult result,
-            bool interruptNative)
+            bool interruptNative,
+            bool finishNativeStream)
         {
             DataChannelResult outcome = DataChannelResult.Good;
             try
@@ -75,7 +79,39 @@ namespace Opc.Ua.DataChannels
                 {
                     await ReleaseDirectLaneAsync(flow.DirectLane).ConfigureAwait(false);
                 }
-                if (native && interruptNative)
+                if (native && finishNativeStream)
+                {
+                    using var deadline = m_clock.CreateCancellationTokenSource(m_options.DrainTimeout);
+                    using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                        deadline.Token, m_shutdown.Token);
+                    try
+                    {
+                        await afterTransmission.WaitAsync(linked.Token).ConfigureAwait(false);
+                        await writer.WaitAsync(linked.Token).ConfigureAwait(false);
+                        if (m_carrier is not IDataChannelFlowFinisher finisher)
+                        {
+                            throw new InvalidOperationException(
+                                "The native carrier does not support orderly flow FIN completion.");
+                        }
+                        if (flow.ResetSent)
+                        {
+                            await flow.ResetReceivedSignal.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                        }
+                        await finisher.FinishFlowAsync(flow.StreamId, linked.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (
+                        deadline.IsCancellationRequested && !m_shutdown.IsCancellationRequested)
+                    {
+                        await CloseContextAfterDrainTimeoutAsync().ConfigureAwait(false);
+                        outcome = DataChannelResult.Timeout;
+                    }
+                    catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
+                    {
+                        await m_carrier.CloseFlowAsync(flow.StreamId, result, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                }
+                else if (native && interruptNative)
                 {
                     // Native RESET is out-of-band: the common RESET can itself be blocked by connection byte credit.
                     await m_carrier.CloseFlowAsync(flow.StreamId, result, CancellationToken.None).ConfigureAwait(false);
@@ -88,7 +124,7 @@ namespace Opc.Ua.DataChannels
                 {
                     // Context shutdown supersedes an unsent RESET but must still release the real stream.
                 }
-                if (native && !interruptNative)
+                if (native && !interruptNative && !finishNativeStream)
                 {
                     await m_carrier.CloseFlowAsync(flow.StreamId, result, CancellationToken.None).ConfigureAwait(false);
                 }
@@ -118,6 +154,7 @@ namespace Opc.Ua.DataChannels
                     NotifyStateLocked(flow);
                 }
                 m_pendingFlowReleases--;
+                m_releasingFlows.Remove(flow.Id);
                 flow.Released.TrySetResult(outcome);
                 PulseCapacityLocked();
                 WakeLocked();

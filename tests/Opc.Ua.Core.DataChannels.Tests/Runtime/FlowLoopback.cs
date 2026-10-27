@@ -292,7 +292,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
     /// In-process carrier with explicit pre/post-commit gates and bounded fault injection.
     /// </summary>
     internal sealed class TestFlowCarrier :
-        IDataChannelCarrier, IDataChannelDirectBindingProvider, IDataChannelDirectStreamProvider,
+        IDataChannelCarrier, IDataChannelFlowFinisher, IDataChannelDirectBindingProvider,
+        IDataChannelDirectStreamProvider,
         IDataChannelDirectDatagramProvider
     {
         internal TestFlowCarrier(
@@ -385,10 +386,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         internal bool RejectBinding { get; set; }
         internal bool UseQueuedUascIngress { get; set; }
         internal bool BlockFlowClose { get; set; }
+        internal bool BlockFlowFinish { get; set; }
         internal bool ReleaseManagementOnFlowClose { get; set; }
         internal int SegmentSize { get; set; } = int.MaxValue;
         internal int ActiveSends => Volatile.Read(ref m_active);
         internal int ClosedFlows => Volatile.Read(ref m_closedFlows);
+        internal int FinishedFlows => Volatile.Read(ref m_finishedFlows);
+        internal int EndDirectionWrites => Volatile.Read(ref m_endDirectionWrites);
         internal int CloseCalls => Volatile.Read(ref m_closeCalls);
         internal TaskCompletionSource<bool> BeforeEntered { get; } = NewSignal();
         internal TaskCompletionSource<bool> AfterEntered { get; } = NewSignal();
@@ -398,6 +402,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         internal TaskCompletionSource<bool> DeliveryRelease { get; } = NewSignal();
         internal TaskCompletionSource<bool> FlowCloseEntered { get; } = NewSignal();
         internal TaskCompletionSource<bool> FlowCloseRelease { get; } = NewSignal();
+        internal TaskCompletionSource<bool> FlowFinishEntered { get; } = NewSignal();
+        internal TaskCompletionSource<bool> FlowFinishRelease { get; } = NewSignal();
 
         public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
         {
@@ -448,6 +454,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 if (!write.TryCommit())
                 {
                     return write.Result;
+                }
+                if (write.EndsDirection)
+                {
+                    Interlocked.Increment(ref m_endDirectionWrites);
                 }
                 if (GateAfter?.Invoke(write) == true)
                 {
@@ -661,6 +671,20 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             }
         }
 
+        public ValueTask FinishFlowAsync(
+            ulong streamId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref m_finishedFlows);
+            if (!BlockFlowFinish)
+            {
+                return default;
+            }
+            FlowFinishEntered.TrySetResult(true);
+            return new ValueTask(FlowFinishRelease.Task.WaitAsync(cancellationToken));
+        }
+
         public async ValueTask CloseAsync(
             DataChannelResult result,
             CancellationToken cancellationToken = default)
@@ -679,6 +703,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             AfterRelease.TrySetResult(true);
             DeliveryRelease.TrySetResult(true);
             FlowCloseRelease.TrySetResult(true);
+            FlowFinishRelease.TrySetResult(true);
         }
 
         private static TaskCompletionSource<bool> NewSignal()
@@ -707,6 +732,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         private readonly Dictionary<ulong, Task> m_deliveryTasks = [];
         private int m_active;
         private int m_closedFlows;
+        private int m_finishedFlows;
+        private int m_endDirectionWrites;
         private int m_closed;
         private int m_closeCalls;
     }

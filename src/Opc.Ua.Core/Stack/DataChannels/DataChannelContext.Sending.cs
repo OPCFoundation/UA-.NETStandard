@@ -592,7 +592,9 @@ namespace Opc.Ua.DataChannels
                 item.Encoded,
                 item.IsData,
                 item.Flow?.Parameters.Priority ?? 0,
-                () => CommitWrite(item));
+                () => CommitWrite(item),
+                endsDirection: item.Control?.Operation == FlowOperation.End ||
+                    item.Control?.Operation == FlowOperation.Ready && item.Flow is { MaySend: false });
             try
             {
                 if (IsDirectDatagramWrite(item))

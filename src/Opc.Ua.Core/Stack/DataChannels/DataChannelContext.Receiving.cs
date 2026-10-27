@@ -918,9 +918,19 @@ namespace Opc.Ua.DataChannels
                 FlowState? flow = null;
                 if (control.Flow != 0 && !m_flows.TryGetValue(control.Flow, out flow))
                 {
-                    return control.Operation is FlowOperation.Reset or FlowOperation.Status
-                        ? DataChannelResult.UnknownChannel
-                        : RefuseLocked(control.Flow, record.Revision, DataChannelResult.UnknownChannel);
+                    if (control is FlowOutcome { Operation: FlowOperation.Reset } &&
+                        m_releasingFlows.TryGetValue(control.Flow, out FlowState? releasing) &&
+                        releasing.ResetSent &&
+                        !releasing.ResetReceived)
+                    {
+                        flow = releasing;
+                    }
+                    else
+                    {
+                        return control.Operation is FlowOperation.Reset or FlowOperation.Status
+                            ? DataChannelResult.UnknownChannel
+                            : RefuseLocked(control.Flow, record.Revision, DataChannelResult.UnknownChannel);
+                    }
                 }
                 if (flow?.RevocationToken.IsCancellationRequested == true &&
                     control.Operation is not (FlowOperation.Reset or FlowOperation.Status))
@@ -998,8 +1008,16 @@ namespace Opc.Ua.DataChannels
                             CheckEndedLocked(flow);
                             break;
                         case FlowOutcome { Operation: FlowOperation.Reset } outcome when flow != null:
-                            TerminateFlowLocked(flow, FlowModel.FromWire(outcome.Status));
-                            QueueFlowReleaseLocked(flow, Task.CompletedTask, FlowModel.FromWire(outcome.Status));
+                            if (flow.ResetReceived)
+                            {
+                                return DataChannelResult.InvalidState;
+                            }
+                            flow.ResetReceived = true;
+                            flow.ResetReceivedSignal.TrySetResult(DataChannelResult.Good);
+                            if (!flow.ResetSent)
+                            {
+                                QueueResetLocked(flow, FlowModel.FromWire(outcome.Status));
+                            }
                             break;
                         case FlowProbe probe:
                             DataChannelResult probed = ReceiveProbeLocked(flow, probe);

@@ -18,7 +18,8 @@ namespace Opc.Ua.Bindings
     /// Owns one exact native WebTransport session and its common flow context.
     /// HTTP/3 framing belongs to the native engine; records, readiness and resource authorization belong to Core.
     /// </summary>
-    public sealed partial class WebTransportDataChannelConnection : IDataChannelCarrier, IAsyncDisposable
+    public sealed partial class WebTransportDataChannelConnection :
+        IDataChannelCarrier, IDataChannelFlowFinisher, IAsyncDisposable
     {
         /// <summary>
         /// Adopts authenticated transport, real critical stream allocations and pre-admitted resources.
@@ -470,6 +471,93 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+        public async ValueTask FinishFlowAsync(
+            ulong streamId,
+            CancellationToken cancellationToken = default)
+        {
+            StreamState? stream;
+            lock (m_gate)
+            {
+                if (!m_streams.TryGetValue(streamId, out stream) || stream.Retired)
+                {
+                    return;
+                }
+                if (ReferenceEquals(stream, m_management))
+                {
+                    throw new DataChannelException(DataChannelResult.InvalidState);
+                }
+            }
+
+            await stream.Writer.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (!stream.Stream.IsSendFinished)
+                {
+                    while (true)
+                    {
+                        Task changed;
+                        PendingSend? pending = null;
+                        lock (m_gate)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            if (m_closing || stream.Closing || stream.Retired)
+                            {
+                                throw new DataChannelException(DataChannelResult.Closed);
+                            }
+                            var candidate = new PendingSend();
+                            if (TryCommandLocked(
+                                13, streamId, 0, 1, default, out Http3Error error))
+                            {
+                                stream.PendingSend = candidate;
+                                pending = candidate;
+                            }
+                            else if (!error.Retryable)
+                            {
+                                throw new WebTransportException(error);
+                            }
+                            changed = m_changed.Task;
+                        }
+                        if (pending == null)
+                        {
+                            await changed.WaitAsync(cancellationToken).ConfigureAwait(false);
+                            continue;
+                        }
+                        DataChannelResult sent = await pending.Completion.Task
+                            .WaitAsync(cancellationToken).ConfigureAwait(false);
+                        lock (m_gate)
+                        {
+                            if (ReferenceEquals(stream.PendingSend, pending))
+                            {
+                                stream.PendingSend = null;
+                            }
+                        }
+                        if (sent != DataChannelResult.Good)
+                        {
+                            throw new DataChannelException(sent);
+                        }
+                        break;
+                    }
+                }
+
+                await stream.Stream.WaitForPeerFinAsync(cancellationToken).ConfigureAwait(false);
+                await stream.PeerFin.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (!stream.Stream.IsReceiveFinished)
+                {
+                    throw new DataChannelException(DataChannelResult.Closed);
+                }
+                await stream.Stream.CloseAsync().ConfigureAwait(false);
+                lock (m_gate)
+                {
+                    RetireStreamLocked(stream);
+                }
+            }
+            finally
+            {
+                stream.Writer.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public async ValueTask CloseAsync(
             DataChannelResult result,
             CancellationToken cancellationToken = default)
@@ -889,6 +977,12 @@ namespace Opc.Ua.Bindings
             /// Serial receive continuation, including EOF and reset.
             /// </summary>
             internal Task ReceiveTail { get; set; } = Task.CompletedTask;
+
+            /// <summary>
+            /// Completes after native peer FIN has been admitted through the common context.
+            /// </summary>
+            internal TaskCompletionSource PeerFin { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <summary>
             /// Serial complete common-record writer.

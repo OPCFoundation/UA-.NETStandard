@@ -459,7 +459,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             Assert.That(pair.Initiator.IsReady, Is.True);
             Assert.That(pair.Acceptor.IsReady, Is.True);
             Assert.That(other.Local.State, Is.EqualTo(DataChannelState.Open));
-            Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.EqualTo(1));
+            Assert.That(pair.InitiatorCarrier.FinishedFlows, Is.EqualTo(1));
+            Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.Zero);
             Assert.That(await other.Local.SendAsync(new ByteString("*"u8.ToArray())).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await other.Remote.ReadAsync().ConfigureAwait(false);

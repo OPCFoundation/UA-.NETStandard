@@ -53,7 +53,8 @@ namespace Opc.Ua.Bindings
                             }
                             pending = new PendingSend();
                             stream.PendingSend = pending;
-                            if (!TryCommandLocked(13, stream.Stream.StreamId, 0, 0,
+                            if (!TryCommandLocked(13, stream.Stream.StreamId, 0,
+                                write.EndsDirection ? 1UL : 0UL,
                                 write.Payload.Slice(offset, length), out Http3Error error))
                             {
                                 stream.PendingSend = null;

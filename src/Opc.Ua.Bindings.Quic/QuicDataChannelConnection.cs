@@ -15,7 +15,8 @@ namespace Opc.Ua.Bindings
     /// One native-only QUIC data context. HELLO, OPEN/ACCEPT/READY, records and revisions belong to Core.
     /// No UASC, Session, model registration or ClientServer flow is implicitly opened.
     /// </summary>
-    public sealed class QuicDataChannelConnection : IDataChannelCarrier, IAsyncDisposable
+    public sealed class QuicDataChannelConnection :
+        IDataChannelCarrier, IDataChannelFlowFinisher, IAsyncDisposable
     {
         /// <summary>
         /// Creates the carrier after mTLS and actual management-stream ownership have been verified.
@@ -290,7 +291,10 @@ namespace Opc.Ua.Bindings
                         return DataChannelResult.InvalidState;
                     }
                     sent = await stream.SendAsync(
-                        write.Payload, tryCommit: write.TryCommit, cancellationToken: cancellationToken)
+                        write.Payload,
+                        flags: write.EndsDirection ? 1u : 0u,
+                        tryCommit: write.TryCommit,
+                        cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
                 }
                 if (sent == null)
@@ -353,6 +357,30 @@ namespace Opc.Ua.Bindings
                 await stream.CloseAsync((ulong)result).ConfigureAwait(false);
                 RemoveStream(streamId);
             }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask FinishFlowAsync(
+            ulong streamId,
+            CancellationToken cancellationToken = default)
+        {
+            StreamIngress? ingress;
+            lock (m_gate)
+            {
+                ingress = m_ingress.GetValueOrDefault(streamId);
+            }
+            if (ingress == null)
+            {
+                return;
+            }
+            await ingress.Stream.FinishWritesAsync(cancellationToken).ConfigureAwait(false);
+            await ingress.Pump.WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (!ingress.Stream.IsReceiveFinished)
+            {
+                throw new DataChannelException(DataChannelResult.Closed);
+            }
+            await ingress.Stream.CloseAsync().ConfigureAwait(false);
+            RemoveStream(streamId);
         }
 
         /// <inheritdoc/>

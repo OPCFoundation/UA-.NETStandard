@@ -31,6 +31,7 @@ using System;
 using System.Buffers.Binary;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.DataChannels;
 using Opc.Ua.DataChannels.Wire;
@@ -275,6 +276,134 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await unaffected.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(message!.MessageId, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A native flow whose FIN exchange exceeds DrainTimeout closes its containing context.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.Quic)]
+        [TestCase(DataChannelCarrierKind.WebTransport)]
+        public async Task NativeFinDrainTimeoutClosesTheContainingContext(DataChannelCarrierKind carrier)
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
+            var options = new DataChannelOptions { DrainTimeout = TimeSpan.FromSeconds(5) };
+            var pair = new FlowLoopback(carrier, options, clock: clock);
+            pair.InitiatorCarrier.BlockFlowFinish = true;
+            pair.AcceptorCarrier.BlockFlowFinish = true;
+            bool expectedDrainTimeout = false;
+            try
+            {
+                await pair.StartAsync().ConfigureAwait(false);
+                FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+
+                Assert.That(await flow.Local.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+                Assert.That(await flow.Remote.ReadAsync().ConfigureAwait(false), Is.Null);
+                Task<DataChannelResult> ending = flow.Remote.EndAsync().AsTask();
+                await Task.WhenAll(
+                    pair.InitiatorCarrier.FlowFinishEntered.Task,
+                    pair.AcceptorCarrier.FlowFinishEntered.Task).WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                clock.Advance(options.DrainTimeout);
+                await FlowLoopback.EventuallyAsync(() => !pair.Initiator.IsReady && !pair.Acceptor.IsReady)
+                    .ConfigureAwait(false);
+                expectedDrainTimeout = true;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(flow.Local.GetStatus().Result, Is.EqualTo(DataChannelResult.Timeout));
+                    Assert.That(
+                        flow.Remote.GetStatus().Result,
+                        Is.EqualTo(DataChannelResult.Timeout),
+                        $"initiatorReady={pair.Initiator.IsReady}, acceptorReady={pair.Acceptor.IsReady}, " +
+                        $"local={flow.Local.GetStatus().State}/{flow.Local.GetStatus().Result}, " +
+                        $"remote={flow.Remote.GetStatus().State}/{flow.Remote.GetStatus().Result}, " +
+                        $"closeCalls={pair.InitiatorCarrier.CloseCalls}/{pair.AcceptorCarrier.CloseCalls}");
+                });
+                DataChannelException? endingFailure = null;
+                try
+                {
+                    await ending.ConfigureAwait(false);
+                }
+                catch (DataChannelException exception)
+                {
+                    endingFailure = exception;
+                }
+                if (endingFailure != null)
+                {
+                    Assert.That(endingFailure.Result, Is.EqualTo(DataChannelResult.Timeout));
+                }
+            }
+            finally
+            {
+                try
+                {
+                    await pair.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (DataChannelException) when (expectedDrainTimeout)
+                {
+                    // The expected native release failure is surfaced by context disposal.
+                }
+            }
+        }
+
+        /// <summary>
+        /// Native ordered END writes carry FIN and retire a flow without disturbing its context.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.Quic)]
+        [TestCase(DataChannelCarrierKind.WebTransport)]
+        public async Task NativeOrderedEndFinishesBothStreamDirections(DataChannelCarrierKind carrier)
+        {
+            await using var pair = new FlowLoopback(carrier);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+
+            Assert.That(await flow.Local.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            Assert.That(await flow.Remote.ReadAsync().ConfigureAwait(false), Is.Null);
+            Assert.That(await flow.Remote.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+
+            await FlowLoopback.EventuallyAsync(() =>
+                pair.InitiatorCarrier.FinishedFlows == 1 && pair.AcceptorCarrier.FinishedFlows == 1)
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(pair.InitiatorCarrier.EndDirectionWrites, Is.EqualTo(1));
+                Assert.That(pair.AcceptorCarrier.EndDirectionWrites, Is.EqualTo(1));
+                Assert.That(pair.Initiator.IsReady, Is.True);
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Native RESET is echoed once, then both stream directions finish without closing the context.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.Quic)]
+        [TestCase(DataChannelCarrierKind.WebTransport)]
+        public async Task NativeResetIsExchangedBeforeBothStreamDirectionsFinish(DataChannelCarrierKind carrier)
+        {
+            await using var pair = new FlowLoopback(carrier);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+
+            await flow.Local.ResetAsync(DataChannelResult.NotAuthorized).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(flow.Local.GetStatus().State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(flow.Local.GetStatus().Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+                Assert.That(flow.Remote.GetStatus().State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(flow.Remote.GetStatus().Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+                Assert.That(pair.InitiatorCarrier.Writes.Count(
+                    write => TestFlowCarrier.Operation(write, carrier) == FlowOperation.Reset), Is.EqualTo(1));
+                Assert.That(pair.AcceptorCarrier.Writes.Count(
+                    write => TestFlowCarrier.Operation(write, carrier) == FlowOperation.Reset), Is.EqualTo(1));
+                Assert.That(pair.InitiatorCarrier.FinishedFlows, Is.EqualTo(1));
+                Assert.That(pair.AcceptorCarrier.FinishedFlows, Is.EqualTo(1));
+                Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.Zero);
+                Assert.That(pair.AcceptorCarrier.ClosedFlows, Is.Zero);
+                Assert.That(pair.Initiator.IsReady, Is.True);
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
         }
 
         [TestCase(DataChannelCarrierKind.Quic)]

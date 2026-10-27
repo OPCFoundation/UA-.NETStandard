@@ -357,6 +357,7 @@ namespace Opc.Ua.Bindings
                 if (read.ReadOutcome == 1)
                 {
                     await FeedStreamAsync(state, default, true).ConfigureAwait(false);
+                    state.PeerFin.TrySetResult();
                     if (!native.IsBidirectional)
                     {
                         // The H3 engine rejects closure of critical uni streams. An accepted FIN therefore

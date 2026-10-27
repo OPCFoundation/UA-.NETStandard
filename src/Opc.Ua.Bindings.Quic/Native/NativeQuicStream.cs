@@ -1,6 +1,7 @@
 // Copyright (c) OPC Foundation. Licensed under the OPC Foundation MIT License 1.00.
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Native.QuicGo;
@@ -58,6 +59,34 @@ namespace Opc.Ua.Bindings.Native
         public bool IsClosed => Volatile.Read(ref m_closing);
 
         /// <summary>
+        /// Gets whether the local sending direction has completed FIN.
+        /// </summary>
+        public bool IsSendFinished
+        {
+            get
+            {
+                lock (m_gate)
+                {
+                    return m_sendFinished;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets whether the peer's sending direction has completed FIN.
+        /// </summary>
+        public bool IsReceiveFinished
+        {
+            get
+            {
+                lock (m_gate)
+                {
+                    return m_receiveFinished;
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets directional-operation cancellation when this flow is released.
         /// </summary>
         public CancellationToken Closed { get; }
@@ -75,11 +104,20 @@ namespace Opc.Ua.Bindings.Native
             try
             {
                 ObjectDisposedException.ThrowIf(IsClosed, this);
-                return await Connection.Backend.StreamAsync(
+                NativeQuicCompletion read = await Connection.Backend.StreamAsync(
                     Handle, NativeQuicStreamOperation.Read,
                     new NativeQuicRequest(Connection.Settings.OperationTimeout,
                         capacity: checked((uint)Connection.Settings.ReadSize)),
                     linked.Token).ConfigureAwait(false);
+                if (read.ReadOutcome == 1)
+                {
+                    lock (m_gate)
+                    {
+                        m_receiveFinished = true;
+                    }
+                    m_receiveFinishedSignal.TrySetResult();
+                }
+                return read;
             }
             finally
             {
@@ -119,6 +157,11 @@ namespace Opc.Ua.Bindings.Native
                         cancellation.Dispose();
                         throw new InvalidOperationException("The native stream's send direction was reset.");
                     }
+                    if (m_sendFinished)
+                    {
+                        cancellation.Dispose();
+                        throw new InvalidOperationException("The native stream's send direction already finished.");
+                    }
                     m_activeSend = cancellation;
                 }
                 try
@@ -157,6 +200,43 @@ namespace Opc.Ua.Bindings.Native
             finally
             {
                 m_writer.Release();
+            }
+        }
+
+        /// <summary>
+        /// Completes the local direction with FIN after all earlier writes.
+        /// </summary>
+        public async ValueTask FinishWritesAsync(CancellationToken cancellationToken = default)
+        {
+            if (IsSendFinished)
+            {
+                return;
+            }
+            NativeQuicCompletion? sent = await SendAsync(
+                ByteString.Empty, flags: 1, cancellationToken: cancellationToken).ConfigureAwait(false);
+            if (sent == null || sent.NativeStatus != NativeQuicStatus.Success || sent.BytesTransferred != 0)
+            {
+                throw sent == null
+                    ? new IOException("The native stream did not admit its FIN.")
+                    : new NativeQuicTransportException(sent);
+            }
+        }
+
+        /// <summary>
+        /// Waits for the peer's actual stream FIN.
+        /// </summary>
+        public Task WaitForPeerFinAsync(CancellationToken cancellationToken = default)
+        {
+            return WaitForPeerFinCoreAsync(cancellationToken);
+        }
+
+        private async Task WaitForPeerFinCoreAsync(CancellationToken cancellationToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Closed);
+            await m_receiveFinishedSignal.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+            if (!IsReceiveFinished)
+            {
+                throw new InvalidOperationException("The native stream closed before peer FIN.");
             }
         }
 
@@ -281,7 +361,14 @@ namespace Opc.Ua.Bindings.Native
             try
             {
                 await signal.ConfigureAwait(false);
-                if (!Connection.IsClosed && (IsBidirectional || !IsLocal))
+                bool receiveFinished;
+                bool graceful;
+                lock (m_gate)
+                {
+                    receiveFinished = m_receiveFinished;
+                    graceful = m_sendFinished && receiveFinished && !m_resetting;
+                }
+                if (!Connection.IsClosed && !receiveFinished && (IsBidirectional || !IsLocal))
                 {
                     NativeQuicCompletion stopped = await NativeQuicConnection.DrainCleanupAdmissionAsync(
                         () => Connection.Backend.StreamAsync(
@@ -296,11 +383,6 @@ namespace Opc.Ua.Bindings.Native
                     idle = m_activeOperations == 0 ? Task.CompletedTask : m_idle.Task;
                 }
                 await idle.ConfigureAwait(false);
-                bool graceful;
-                lock (m_gate)
-                {
-                    graceful = m_sendFinished && !m_resetting;
-                }
                 if (!Connection.IsClosed && !graceful && (IsBidirectional || IsLocal))
                 {
                     NativeQuicCompletion reset = await NativeQuicConnection.DrainCleanupAdmissionAsync(
@@ -428,6 +510,8 @@ namespace Opc.Ua.Bindings.Native
         private readonly SemaphoreSlim m_writer = new(1, 1);
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly TaskCompletionSource m_completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource m_receiveFinishedSignal =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource m_idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource<NativeQuicCompletion>? m_reset;
         private NativeQuicCancellation? m_activeSend;
@@ -436,6 +520,7 @@ namespace Opc.Ua.Bindings.Native
 
         /// <summary>Whether FIN completed without an explicit send reset.</summary>
         private bool m_sendFinished;
+        private bool m_receiveFinished;
         private int m_activeOperations;
     }
 }

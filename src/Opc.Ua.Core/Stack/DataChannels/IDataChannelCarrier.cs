@@ -183,6 +183,21 @@ namespace Opc.Ua.DataChannels
     }
 
     /// <summary>
+    /// Completes an orderly native flow by sending FIN and waiting for the peer FIN before releasing its stream.
+    /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+    public interface IDataChannelFlowFinisher
+    {
+        /// <summary>
+        /// Sends FIN when the local direction has not ended and waits for the peer's FIN.
+        /// </summary>
+        ValueTask FinishFlowAsync(
+            ulong streamId,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Carries verified application/key evidence, not untrusted HELLO claims.
     /// </summary>
     [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
@@ -297,7 +312,8 @@ namespace Opc.Ua.DataChannels
             ByteString payload,
             bool isData,
             byte priority,
-            Func<DataChannelResult> commit)
+            Func<DataChannelResult> commit,
+            bool endsDirection = false)
         {
             Path = path;
             ChannelId = channelId;
@@ -305,6 +321,7 @@ namespace Opc.Ua.DataChannels
             RequestId = requestId;
             Payload = payload;
             IsData = isData;
+            EndsDirection = endsDirection;
             Priority = priority;
             m_commit = commit;
         }
@@ -338,6 +355,11 @@ namespace Opc.Ua.DataChannels
         /// Gets whether this is application DATA.
         /// </summary>
         public bool IsData { get; }
+
+        /// <summary>
+        /// Gets whether this ordered write ends the local native stream direction.
+        /// </summary>
+        public bool EndsDirection { get; }
 
         /// <summary>
         /// Gets the admitted local scheduling priority.

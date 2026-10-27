@@ -80,18 +80,19 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
-            pair.InitiatorCarrier.BlockFlowClose = true;
+            pair.InitiatorCarrier.BlockFlowFinish = true;
             Task reset = flow.Local.ResetAsync().AsTask();
-            await pair.InitiatorCarrier.FlowCloseEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await pair.InitiatorCarrier.FlowFinishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Task repeated = flow.Local.DisposeAsync().AsTask();
             Assert.Multiple(() =>
             {
                 Assert.That(reset.IsCompleted, Is.False);
                 Assert.That(repeated.IsCompleted, Is.False);
                 Assert.That(pair.InitiatorBudget.Usage.Streams, Is.EqualTo(2));
-                Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.EqualTo(1));
+                Assert.That(pair.InitiatorCarrier.FinishedFlows, Is.EqualTo(1));
+                Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.Zero);
             });
-            pair.InitiatorCarrier.FlowCloseRelease.TrySetResult(true);
+            pair.InitiatorCarrier.FlowFinishRelease.TrySetResult(true);
             await Task.WhenAll(reset, repeated).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Assert.That(pair.InitiatorBudget.Usage.Streams, Is.EqualTo(1));
             Assert.That(pair.Initiator.IsReady, Is.True);

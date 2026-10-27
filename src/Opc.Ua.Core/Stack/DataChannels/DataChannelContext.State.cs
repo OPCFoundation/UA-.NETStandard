@@ -600,9 +600,22 @@ namespace Opc.Ua.DataChannels
             m_closeResult = result;
             m_closedNotification = true;
             m_uascPublisherRoutes.Clear();
-            foreach (FlowState flow in m_flows.Values.ToArray())
+            foreach (FlowState flow in m_flows.Values.Concat(m_releasingFlows.Values).Distinct().ToArray())
             {
-                TerminateFlowLocked(flow, result == DataChannelResult.Good ? DataChannelResult.Closed : result);
+                DataChannelResult flowResult = result == DataChannelResult.Good
+                    ? DataChannelResult.Closed : result;
+                if (flow.State == DataChannelState.Closed && result != DataChannelResult.Good)
+                {
+                    flow.State = DataChannelState.Faulted;
+                    flow.Result = flowResult;
+                    flow.Ended.TrySetResult(flowResult);
+                    flow.ReadChanged.Complete();
+                    NotifyStateLocked(flow);
+                }
+                else
+                {
+                    TerminateFlowLocked(flow, flowResult);
+                }
                 QueueFlowReleaseLocked(flow, Task.CompletedTask, result);
             }
             while (m_management.Count != 0)
@@ -779,6 +792,7 @@ namespace Opc.Ua.DataChannels
 
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly Dictionary<uint, FlowState> m_flows = [];
+        private readonly Dictionary<uint, FlowState> m_releasingFlows = [];
         private readonly Dictionary<uint, long> m_reservations = [];
         private readonly Dictionary<ulong, FlowStreamInput> m_streams = [];
         private readonly HashSet<ulong> m_usedStreams = [];

@@ -159,7 +159,9 @@ namespace Opc.Ua.DataChannels
             {
                 TerminateFlowLocked(flow, DataChannelResult.Good, false);
                 QueueFlowReleaseLocked(flow, flow.ActiveWrite?.Completion.Task ?? Task.CompletedTask,
-                    DataChannelResult.Good, interruptNative: false);
+                    DataChannelResult.Good,
+                    interruptNative: false,
+                    finishNativeStream: IsNative && flow.StreamReserved && flow.DirectLane == null);
             }
             else
             {
@@ -215,6 +217,17 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private Task<DataChannelResult> QueueResetLocked(FlowState flow, DataChannelResult result)
         {
+            if (flow.ResetSent)
+            {
+                return flow.Released.Task;
+            }
+            flow.ResetSent = true;
+            bool interruptNative = flow.ActiveWrite?.Committed == true;
+            bool finishNativeStream = !interruptNative &&
+                flow.Ready &&
+                IsNative &&
+                flow.StreamReserved &&
+                flow.DirectLane == null;
             Task<DataChannelResult> sent = QueueControlLocked(
                 new FlowOutcome(FlowOperation.Reset, flow.Id, FlowModel.ToWire(result)),
                 flow.SendRevision,
@@ -223,7 +236,39 @@ namespace Opc.Ua.DataChannels
                 flow: flow,
                 urgent: true);
             TerminateFlowLocked(flow, result);
-            return QueueFlowReleaseLocked(flow, sent, result);
+            return QueueFlowReleaseLocked(
+                flow,
+                sent,
+                result,
+                interruptNative: interruptNative || !finishNativeStream,
+                finishNativeStream: finishNativeStream);
+        }
+
+        /// <summary>
+        /// Closes the whole context when an orderly native stream does not complete its FIN exchange in time.
+        /// </summary>
+        private async ValueTask CloseContextAfterDrainTimeoutAsync()
+        {
+            bool closeCarrier;
+            lock (m_gate)
+            {
+                CloseLocked(DataChannelResult.Timeout);
+                closeCarrier = !m_carrierCloseStarted;
+                m_carrierCloseStarted = true;
+            }
+            CancelShutdown();
+            if (closeCarrier)
+            {
+                try
+                {
+                    await m_carrier.CloseAsync(DataChannelResult.Timeout, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    m_logger.FlowCarrierFailure(exception);
+                }
+            }
         }
 
         /// <summary>
@@ -556,6 +601,11 @@ namespace Opc.Ua.DataChannels
                     }
                     if (flow.Draining && m_clock.GetElapsedTime(flow.DrainStarted) >= m_options.DrainTimeout)
                     {
+                        if (IsNative && flow.StreamReserved && flow.DirectLane == null)
+                        {
+                            CloseLocked(DataChannelResult.Timeout);
+                            break;
+                        }
                         ResetLocked(flow, DataChannelResult.Timeout);
                         continue;
                     }

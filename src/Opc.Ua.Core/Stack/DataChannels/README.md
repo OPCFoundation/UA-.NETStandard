@@ -98,8 +98,12 @@ flows or of the underlying connection.
 - Reset/disposal joins actual per-flow native release and outstanding writer
   ownership. Repeated disposal joins the same release; a flow owner must not
   destroy a shared host while that join is pending. Cleanup failures are observable.
-  An explicit native reset starts native stream interruption before waiting for
-  the common RESET record, which can itself be blocked by connection byte credit.
+  A ready native flow without a committed writer exchanges a common RESET record
+  in each direction, then completes both stream directions with FIN. With a
+  committed writer in flight, the runtime interrupts that stream before waiting
+  for the common RESET record, which may be blocked by connection byte credit.
+  A flow that is not ready to exchange RESET also uses stream interruption. If
+  orderly native release exceeds `DrainTimeout`, the runtime closes the context.
 - Native flow/reset failures remain flow-scoped. Native management failure,
   invalid authentication, and failed committed UASC chunks invalidate the context.
   A datagram rejected after a path-capacity reduction is not reported as delivered.

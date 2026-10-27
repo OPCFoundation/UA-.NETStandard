@@ -128,6 +128,16 @@ namespace Opc.Ua.DataChannels
         internal bool AuthorizationChecking { get; set; }
         internal bool RecheckRequested { get; set; }
         internal bool ReleaseStarted { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this endpoint has emitted the flow's one RESET control.
+        /// </summary>
+        internal bool ResetSent { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this endpoint has received the peer's RESET control.
+        /// </summary>
+        internal bool ResetReceived { get; set; }
         internal long OpenStarted { get; }
         internal DateTime StartedAt { get; }
         internal long DrainStarted { get; set; }
@@ -183,6 +193,11 @@ namespace Opc.Ua.DataChannels
         internal TaskCompletionSource<DataChannelResult> Opened { get; } = NewCompletion();
         internal TaskCompletionSource<DataChannelResult> Ended { get; } = NewCompletion();
         internal TaskCompletionSource<DataChannelResult> Released { get; } = NewCompletion();
+
+        /// <summary>
+        /// Signals the peer RESET needed before graceful native stream completion.
+        /// </summary>
+        internal TaskCompletionSource<DataChannelResult> ResetReceivedSignal { get; } = NewCompletion();
 
         /// <summary>
         /// Creates an outcome signal without inline user continuations.
