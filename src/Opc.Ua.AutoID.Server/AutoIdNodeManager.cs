@@ -44,10 +44,10 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     /// <remarks>
     /// The owner for a server whose only Device Integration based companion is AutoID: it loads DI
-    /// and, through <see cref="AutoIdMachineryModelProvider"/>, AutoID, owns the
+    /// and, through <see cref="AutoIdModelProvider"/>, AutoID, owns the
     /// <see cref="AutoIdRuntime"/> that creates the readers below the <c>DeviceSet</c>, and disposes
-    /// it on shutdown. To combine AutoID with other companions, compose it into the Machinery owner
-    /// instead (<c>AddAutoIdToMachinery</c>).
+    /// it on shutdown. To combine AutoID with other companions, compose it into their owner
+    /// instead (<c>AddAutoIdModel</c>, or <c>AddAutoIdToMachinery</c> for Machinery).
     /// </remarks>
     public sealed class AutoIdNodeManager : DiNodeManager
     {
@@ -79,7 +79,20 @@ namespace Opc.Ua.AutoID.Server
             ApplicationConfiguration configuration,
             IDiPostSetupRunner? postSetupRunner,
             IOptions<AutoIdServerOptions>? options = null)
-            : base(server, configuration, postSetupRunner, ManagerNamespaceUris(options?.Value))
+            : this(server, configuration, postSetupRunner, options, default)
+        {
+        }
+
+        /// <summary>
+        /// Creates an AutoID owner with additional DI companion models.
+        /// </summary>
+        public AutoIdNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner,
+            IOptions<AutoIdServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers)
+            : base(server, configuration, postSetupRunner, providers, ManagerNamespaceUris(options?.Value))
         {
             Runtime = new AutoIdRuntime(this, options?.Value ?? new AutoIdServerOptions());
         }
@@ -101,10 +114,10 @@ namespace Opc.Ua.AutoID.Server
             CancellationToken cancellationToken = default)
         {
             // The stand-alone owner is a Device Integration owner that loads DI and then the same
-            // AutoID model provider a composed Machinery owner uses.
+            // AutoID model provider a composed owner uses.
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
-            new AutoIdMachineryModelProvider(Runtime.Options).AddPredefinedNodes(nodes, context);
+            new AutoIdModelProvider(Runtime.Options).AddPredefinedNodes(nodes, context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 

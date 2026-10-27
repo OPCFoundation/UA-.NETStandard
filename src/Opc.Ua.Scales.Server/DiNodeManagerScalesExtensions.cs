@@ -43,9 +43,8 @@ namespace Opc.Ua.Scales.Server
         /// Gets or creates the owner's shared Scales runtime after its models have loaded.
         /// </summary>
         /// <remarks>
-        /// The first call selects the runtime options. The stock Machinery manager releases the
-        /// runtime automatically; a custom DI manager calls
-        /// <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/> on shutdown.
+        /// The first call selects the runtime options. Every DI owner releases the runtime
+        /// automatically through <see cref="DiNodeManager.RegisterResource"/>.
         /// The runtime contributes capabilities to the owner without another manager or namespace.
         /// </remarks>
         /// <param name="manager">The owner that loaded DI, IA, Machinery, PackML and Scales.</param>

@@ -58,7 +58,12 @@ namespace Opc.Ua.Machinery.Server
 
             return s_managerCoordinators.GetValue(
                 manager,
-                static _ => new MachineryBuildCoordinator());
+                static owner =>
+                {
+                    var coordinator = new MachineryBuildCoordinator();
+                    owner.RegisterResource(new ResourceCleanup(coordinator));
+                    return coordinator;
+                });
         }
 
         /// <summary>
@@ -228,38 +233,9 @@ namespace Opc.Ua.Machinery.Server
         }
 
         /// <summary>
-        /// Takes over the resources a registered machine build created — a
-        /// result transfer manager, a job-management change pump — so they live
-        /// as long as the machine, which lives as long as the manager.
+        /// Releases live machine resources, newest first, without retaining already removed machines.
         /// </summary>
-        /// <param name="resources">The resources to take over.</param>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="resources"/> is <see langword="null"/>.
-        /// </exception>
-        public void AdoptResources(IReadOnlyList<IAsyncDisposable> resources)
-        {
-            if (resources == null)
-            {
-                throw new ArgumentNullException(nameof(resources));
-            }
-            lock (m_lock)
-            {
-                for (int ii = 0; ii < resources.Count; ii++)
-                {
-                    m_resources.Add(resources[ii]);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Releases every adopted resource, newest first. The node manager
-        /// calls this when it is disposed; a failure of one resource does not
-        /// keep the others from being released.
-        /// </summary>
-        /// <exception cref="AggregateException">
-        /// One or more resources failed to release.
-        /// </exception>
-        public async ValueTask DisposeResourcesAsync()
+        private async ValueTask DisposeResourcesAsync()
         {
             IAsyncDisposable[] resources;
             lock (m_lock)
@@ -267,7 +243,6 @@ namespace Opc.Ua.Machinery.Server
                 resources = [.. m_resources];
                 m_resources.Clear();
             }
-
             List<Exception>? errors = null;
             for (int ii = resources.Length - 1; ii >= 0; ii--)
             {
@@ -282,9 +257,7 @@ namespace Opc.Ua.Machinery.Server
             }
             if (errors != null)
             {
-                throw new AggregateException(
-                    "Releasing the resources of the Machinery machines failed.",
-                    errors);
+                throw new AggregateException("Releasing the resources of the Machinery machines failed.", errors);
             }
         }
 
@@ -404,6 +377,17 @@ namespace Opc.Ua.Machinery.Server
         private readonly List<IAsyncDisposable> m_resources = [];
         private readonly Lock m_lock = new();
 
+        /// <summary>
+        /// Connects the shared coordinator's resource registry to its DI owner's lifetime.
+        /// </summary>
+        private sealed class ResourceCleanup(MachineryBuildCoordinator coordinator) : IAsyncDisposable
+        {
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync()
+            {
+                return coordinator.DisposeResourcesAsync();
+            }
+        }
         private sealed class NamespaceNodeIdReservations
         {
             public HashSet<NodeId> NodeIds { get; } = [];

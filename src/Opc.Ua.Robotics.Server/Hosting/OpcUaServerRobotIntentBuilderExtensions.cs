@@ -74,7 +74,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 RobotIntentServerOptions options = services
                     .GetRequiredService<IOptions<RobotIntentServerOptions>>()
                     .Value;
-                IRobotIntentModelProvider[] providers = [.. services.GetServices<IRobotIntentModelProvider>()];
+                Opc.Ua.ArrayOf<IRobotIntentModelProvider> providers = services
+                    .GetDiModelProviders<IRobotIntentModelProvider>(
+                        static plain => new RobotIntentDiModelProviderAdapter(plain));
                 return new RobotIntentNodeManagerFactory(
                     providers,
                     options,
@@ -85,7 +87,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 RobotIntentServerOptions options = services
                     .GetRequiredService<IOptions<RobotIntentServerOptions>>()
                     .Value;
-                IRobotIntentModelProvider[] providers = [.. services.GetServices<IRobotIntentModelProvider>()];
+                Opc.Ua.ArrayOf<IRobotIntentModelProvider> providers = services
+                    .GetDiModelProviders<IRobotIntentModelProvider>(
+                        static plain => new RobotIntentDiModelProviderAdapter(plain));
                 return new RobotIntentHostedNodeManagerFactory(
                     providers,
                     options,

@@ -30,25 +30,25 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.Options;
-using Opc.Ua.Machinery.Server;
 
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
-    /// Loads the OPC 30010 AutoID model into a Machinery node manager, next to the Device
-    /// Integration model its core provider loads.
+    /// Loads the OPC 30010 AutoID model into a Device Integration based node manager, next to the
+    /// Device Integration model its core provider loads.
     /// </summary>
     /// <remarks>
-    /// Registered by <c>AddAutoIdToMachinery</c>. Only the AutoID nodes are added: the DI nodes the
-    /// owner loaded already are kept, so DI is loaded once however many companions are composed.
+    /// Registered with <c>AddAutoIdModel</c> or <c>AddAutoIdToMachinery</c>. Only the AutoID nodes
+    /// are added: the DI nodes the owner loaded already are kept, so DI is loaded once however
+    /// many companions are composed.
     /// </remarks>
-    public sealed class AutoIdMachineryModelProvider : IMachineryModelProvider
+    public sealed class AutoIdModelProvider : Opc.Ua.Di.Server.IDiModelProvider
     {
         /// <summary>
         /// Creates a provider with optional additional namespace registrations.
         /// </summary>
         /// <param name="options">The AutoID options; defaults when <see langword="null"/>.</param>
-        public AutoIdMachineryModelProvider(IOptions<AutoIdServerOptions>? options = null)
+        public AutoIdModelProvider(IOptions<AutoIdServerOptions>? options = null)
             : this(options?.Value)
         {
         }
@@ -56,7 +56,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Creates a provider for explicit options, as the stand-alone owner does.
         /// </summary>
-        internal AutoIdMachineryModelProvider(AutoIdServerOptions? options)
+        internal AutoIdModelProvider(AutoIdServerOptions? options)
         {
             m_options = (options ?? new AutoIdServerOptions()).Validate();
         }
@@ -105,6 +105,7 @@ namespace Opc.Ua.AutoID.Server
             nodes.AddAutoIdTypeSystem(context);
         }
 
+        /// <summary>The validated model and namespace options.</summary>
         private readonly AutoIdServerOptions m_options;
     }
 }

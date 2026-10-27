@@ -1582,6 +1582,7 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AutoID", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AutoID.Server", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AutoID.Client", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists", true),

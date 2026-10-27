@@ -199,6 +199,7 @@
     <Project Path="src/Opc.Ua.AutoID/Opc.Ua.AutoID.csproj" />
     <Project Path="src/Opc.Ua.AutoID.Client/Opc.Ua.AutoID.Client.csproj" />
     <Project Path="src/Opc.Ua.AutoID.Server/Opc.Ua.AutoID.Server.csproj" />
+    <Project Path="src/Opc.Ua.AutoID.Machinery.Server/Opc.Ua.AutoID.Machinery.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />

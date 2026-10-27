@@ -69,8 +69,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     if (service.ImplementationInstance is not DiAddressSpaceOwnership ownership ||
                         ownership.OwnerName != nameof(OpcUaServerVisionBuilderExtensions.AddVision))
                     {
-                        throw new InvalidOperationException(
-                            "Another manager owns DI. Use AddVisionToMachinery to share that owner.");
+                        builder.Services.ClaimDiAddressSpace(
+                            nameof(OpcUaServerVisionBuilderExtensions.AddVision),
+                            "Use AddVisionToMachinery to share that owner.");
                     }
                     ownsDi = true;
                 }
@@ -81,8 +82,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             if (!ownsDi)
             {
-                builder.Services.AddSingleton(
-                    new DiAddressSpaceOwnership(nameof(OpcUaServerVisionBuilderExtensions.AddVision)));
+                builder.Services.ClaimDiAddressSpace(nameof(OpcUaServerVisionBuilderExtensions.AddVision));
             }
             builder.Services.Configure<VisionServerOptions>(
                 options => options.MachineVisionParts |= MachineVisionParts.Assets);

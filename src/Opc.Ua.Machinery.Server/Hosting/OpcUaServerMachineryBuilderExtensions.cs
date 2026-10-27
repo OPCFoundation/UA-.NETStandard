@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.ISA95.Server.Hosting;
@@ -72,7 +73,11 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddMachinery),
+                "Load the Machinery models into the existing manager with " +
+                "nodes.AddMachineryTypeSystem(context, parts) and configure them " +
+                "with ConfigureMachineryFor<TNodeManager>().");
             if (options.Parts.HasFlag(MachineryParts.Jobs))
             {
                 // OPC 40001-3 loads the ISA-95 Job Control V2 model into this
@@ -99,9 +104,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 MachineryServerOptions resolved = services
                     .GetRequiredService<IOptions<MachineryServerOptions>>()
                     .Value;
-                IMachineryModelProvider[] providers = services
-                    .GetServices<IMachineryModelProvider>()
-                    .ToArray();
+                ArrayOf<IMachineryModelProvider> providers = services
+                    .GetDiModelProviders<IMachineryModelProvider>(
+                        static plain => new DiModelProviderAdapter(plain));
                 IDiPostSetupRunner? runner = services.GetService<IDiPostSetupRunner>();
                 return new MachineryNodeManagerFactory(providers, resolved, runner);
             });
@@ -219,9 +224,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a synchronous configurator for an exact custom manager type.
         /// </summary>
         /// <remarks>
-        /// The custom manager releases the resources of the machines it hosts
-        /// with <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/>
-        /// from its <c>DisposeAsyncCore</c>.
+        /// The DI owner releases the resources of the machines it hosts automatically.
         /// </remarks>
         /// <typeparam name="TNodeManager">The exact custom DI node manager type.</typeparam>
         public static IOpcUaServerBuilder ConfigureMachineryFor<TNodeManager>(
@@ -360,27 +363,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 }
             }
             await context.SealAsync(postSetupContext.CancellationToken).ConfigureAwait(false);
-        }
-
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by " +
-                        $"'{ownerName}'. AddMachinery cannot register a second DI-owning " +
-                        $"manager. Load the Machinery models into the existing manager with " +
-                        $"nodes.AddMachineryTypeSystem(context, parts) and configure them " +
-                        $"with ConfigureMachineryFor<TNodeManager>().");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddMachinery)));
         }
 
         private interface IMachineryConfigurationRegistration

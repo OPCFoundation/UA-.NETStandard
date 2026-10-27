@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.Perception;
 
@@ -43,26 +44,8 @@ namespace Opc.Ua.Vision.Server
     /// vendor extensions or pre-materialised instances that are known at
     /// startup.
     /// </remarks>
-    public interface IVisionModelProvider
+    public interface IVisionModelProvider : IDiModelProvider
     {
-        /// <summary>
-        /// Gets the deterministic provider execution order. Providers run in
-        /// ascending order; the built-in provider uses <c>int.MinValue</c> so
-        /// application providers run afterwards by default.
-        /// </summary>
-        int Order { get; }
-
-        /// <summary>
-        /// Gets the namespace URIs contributed by this provider. Providers
-        /// that replace the built-in provider must advertise the Vision
-        /// namespace URI.
-        /// </summary>
-        ArrayOf<string> NamespaceUris { get; }
-
-        /// <summary>
-        /// Adds predefined nodes into <paramref name="nodes"/>.
-        /// </summary>
-        void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context);
     }
 
     /// <summary>

@@ -53,18 +53,6 @@ namespace Opc.Ua.AutoID.Server
         }
 
         /// <summary>
-        /// Gets the DI <c>DeviceSet</c> of the node manager, or <see langword="null"/> when the
-        /// manager does not publish one.
-        /// </summary>
-        public NodeState? FindDeviceSet()
-        {
-            return m_manager.FindPredefinedNode(NodeId.Create(
-                Di.Objects.DeviceSet,
-                DiNodeManager.DiNamespaceUri,
-                m_manager.Server.NamespaceUris));
-        }
-
-        /// <summary>
         /// Resolves the <c>Components</c> add-in of <paramref name="machine"/> that a reader becomes
         /// a component of, and fails before anything is registered when the reader cannot be one.
         /// </summary>
@@ -215,94 +203,6 @@ namespace Opc.Ua.AutoID.Server
                     readerName,
                     string.Join(" and ", missing));
             }
-        }
-
-        /// <summary>
-        /// Returns whether <c>DeviceSet</c> reaches <paramref name="target"/> through forward
-        /// hierarchical references of nodes of the node manager.
-        /// </summary>
-        public bool IsReachableFrom(NodeState deviceSet, NodeState target)
-        {
-            if (ReferenceEquals(deviceSet, target))
-            {
-                return true;
-            }
-            ServerSystemContext context = m_manager.SystemContext;
-            TypeTable typeTree = m_manager.Server.TypeTree;
-            var visited = new HashSet<NodeId> { deviceSet.NodeId };
-            var pending = new Queue<NodeState>();
-            pending.Enqueue(deviceSet);
-            var children = new List<BaseInstanceState>();
-            var references = new List<IReference>();
-            while (pending.Count > 0)
-            {
-                NodeState node = pending.Dequeue();
-                children.Clear();
-                node.GetChildren(context, children);
-                foreach (BaseInstanceState child in children)
-                {
-                    // A child can hang off its parent by a non-hierarchical reference, for example
-                    // a condition by HasCondition; it is no path from DeviceSet.
-                    if (!IsHierarchical(typeTree, child))
-                    {
-                        continue;
-                    }
-                    if (ReferenceEquals(child, target))
-                    {
-                        return true;
-                    }
-                    if (child.NodeClass != NodeClass.Method && visited.Add(child.NodeId))
-                    {
-                        pending.Enqueue(child);
-                    }
-                }
-                references.Clear();
-                node.GetReferences(context, references);
-                foreach (IReference reference in references)
-                {
-                    if (reference.IsInverse ||
-                        reference.TargetId.IsAbsolute ||
-                        !typeTree.IsTypeOf(
-                            reference.ReferenceTypeId,
-                            Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences))
-                    {
-                        continue;
-                    }
-                    var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
-                    NodeState? next = targetId.IsNull ? null : m_manager.FindPredefinedNode(targetId);
-                    if (next == null)
-                    {
-                        continue;
-                    }
-                    if (ReferenceEquals(next, target))
-                    {
-                        return true;
-                    }
-                    if (visited.Add(next.NodeId))
-                    {
-                        pending.Enqueue(next);
-                    }
-                }
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Organizes <paramref name="device"/> from <c>DeviceSet</c>, in both directions.
-        /// </summary>
-        public static void Organize(NodeState deviceSet, NodeState device)
-        {
-            deviceSet.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, device.NodeId);
-            device.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId);
-        }
-
-        /// <summary>
-        /// Removes what <see cref="Organize"/> added.
-        /// </summary>
-        public static void RemoveOrganize(NodeState deviceSet, NodeState device)
-        {
-            deviceSet.RemoveReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, device.NodeId);
-            device.RemoveReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId);
         }
 
         /// <summary>

@@ -71,7 +71,7 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(exception.Message, Does.Contain("already owned by 'AddMachinery'"));
                 Assert.That(exception.Message,
-                    Does.Contain(nameof(OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery)),
+                    Does.Contain(nameof(OpcUaAutoIdMachineryExtensions.AddAutoIdToMachinery)),
                     "the failure names the way out");
                 Assert.That(builder.Services.Count(d => d.ServiceType == typeof(AutoIdNodeManagerFactory)), Is.Zero);
             });
@@ -103,8 +103,8 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(services.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
                     Is.EqualTo("AddMachinery"));
-                Assert.That(services.GetServices<IMachineryModelProvider>()
-                    .Count(model => model is AutoIdMachineryModelProvider), Is.EqualTo(1));
+                Assert.That(services.GetServices<Opc.Ua.Di.Server.IDiModelProvider>()
+                    .Count(model => model is AutoIdModelProvider), Is.EqualTo(1));
                 Assert.That(services.GetServices<IMachineryModelProvider>()
                     .Count(model => model is PumpsMachineryModelProvider), Is.EqualTo(1));
                 Assert.That(builder.Services.Any(d => d.ServiceType == typeof(AutoIdNodeManagerFactory)), Is.False,
@@ -123,7 +123,7 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.Throws<InvalidOperationException>(() => builder.AddAutoIdToMachinery());
                 Assert.Throws<ArgumentNullException>(
-                    () => OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery(null!));
+                    () => OpcUaAutoIdMachineryExtensions.AddAutoIdToMachinery(null!));
                 Assert.Throws<ArgumentNullException>(
                     () => OpcUaAutoIdCompositionExtensions.ConfigureAutoIdFor<MachineryNodeManager>(
                         null!, (_, _) => default));
@@ -132,7 +132,7 @@ namespace Opc.Ua.AutoID.Tests
             builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
             Assert.Throws<ArgumentOutOfRangeException>(
                 () => builder.AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.Zero));
-            Assert.That(builder.Services.Any(d => d.ImplementationType == typeof(AutoIdMachineryModelProvider)),
+            Assert.That(builder.Services.Any(d => d.ImplementationType == typeof(AutoIdModelProvider)),
                 Is.False, "a rejected registration adds no model");
         }
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.AutoID.Tests
             await using var fixture = new ComposedOwner();
             await fixture.StartAsync();
             ServerSystemContext context = fixture.Manager.SystemContext;
-            var provider = new AutoIdMachineryModelProvider(
+            var provider = new AutoIdModelProvider(
                 Options.Create(new AutoIdServerOptions { AdditionalNamespaceUris = ["urn:tests:autoid:extra"] }));
             var nodes = new NodeStateCollection();
             ServiceResultException error = Assert.Throws<ServiceResultException>(
@@ -734,6 +734,34 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Presents a plain Device Integration provider to a directly constructed Machinery owner.
+        /// </summary>
+        private sealed class PlainProviderAdapter : IMachineryModelProvider
+        {
+            /// <summary>
+            /// Wraps the provider.
+            /// </summary>
+            public PlainProviderAdapter(Opc.Ua.Di.Server.IDiModelProvider provider)
+            {
+                m_provider = provider;
+            }
+
+            /// <inheritdoc/>
+            public int Order => m_provider.Order;
+
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespaceUris => m_provider.NamespaceUris;
+
+            /// <inheritdoc/>
+            public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
+            {
+                m_provider.AddPredefinedNodes(nodes, context);
+            }
+
+            private readonly Opc.Ua.Di.Server.IDiModelProvider m_provider;
+        }
+
+        /// <summary>
         /// Hosts a Machinery node manager directly, with the providers deliberately out of order.
         /// </summary>
         private sealed class ComposedOwner : IAsyncDisposable
@@ -769,7 +797,7 @@ namespace Opc.Ua.AutoID.Tests
                 var providers = new List<IMachineryModelProvider>();
                 if (withAutoId)
                 {
-                    providers.Add(new AutoIdMachineryModelProvider());
+                    providers.Add(new PlainProviderAdapter(new AutoIdModelProvider()));
                 }
                 providers.Add(new MachineryModelProvider(MachineryParts.BuildingBlocks));
                 Manager = new MachineryNodeManager(

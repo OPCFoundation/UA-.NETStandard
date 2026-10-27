@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Hosting;
@@ -73,7 +76,10 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddPumps),
+                "Load the Pumps model into the existing manager with nodes.AddOpcUaPumps(context) " +
+                "and configure it with ConfigureDevicesFor<TNodeManager>().");
 
             // The post-setup runner is registered by ConfigureDevicesFor /
             // ConfigurePumps, which is the only thing that needs it. Doing it
@@ -86,7 +92,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.Services.Configure(configure);
             }
 
-            return builder.AddNodeManager<PumpsNodeManagerFactory>();
+            builder.Services.AddSingleton(static services => new PumpsNodeManagerFactory(
+                services.GetService<IDiPostSetupRunner>(),
+                services.GetService<IOptions<PumpsServerOptions>>(),
+                services.GetServices<IDiModelProvider>().ToArray()));
+            builder.Services.AddSingleton(static services => new OpcUaServerNodeManagerRegistration(
+                services.GetRequiredService<PumpsNodeManagerFactory>()));
+            return builder;
         }
 
         /// <summary>
@@ -140,23 +152,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 configure(context);
                 return default;
             });
-        }
-
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. AddPumps cannot register a second DI-owning manager. Load the Pumps model into the existing manager with nodes.AddOpcUaPumps(context) and configure it with ConfigureDevicesFor<TNodeManager>().");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddPumps)));
         }
 
         private sealed class PumpsSetupContext : IPumpsSetupContext

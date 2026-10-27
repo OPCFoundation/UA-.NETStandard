@@ -23,6 +23,7 @@ OPCFoundation.NetStandard.Opc.Ua.AMB.Client
 OPCFoundation.NetStandard.Opc.Ua.AMB.Server
 OPCFoundation.NetStandard.Opc.Ua.AutoID
 OPCFoundation.NetStandard.Opc.Ua.AutoID.Client
+OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server
 OPCFoundation.NetStandard.Opc.Ua.AutoID.Server
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Client
