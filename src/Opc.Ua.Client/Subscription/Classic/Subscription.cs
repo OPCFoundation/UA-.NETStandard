@@ -3136,13 +3136,16 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DeleteSubscription()
         {
-            // Acknowledgements of the deleted server subscription belong to a past lifetime.
+            // The id is cleared before the generation advances, so an acknowledgement stamped
+            // in between belongs to the ended lifetime and never shares a scope with a later
+            // lifetime that reuses the id. Retired afterwards: none can be stamped for this
+            // subscription any more.
+            TransferId = Id = 0;
             Interlocked.Increment(ref m_acknowledgementGeneration);
             if (Session is Session { SubscriptionEngine: ClassicSubscriptionEngine engine })
             {
-                engine.RetireAcknowledgementsOf(this);
+                engine.RetireAcknowledgementsOf(this, includeCurrentLifetime: true);
             }
-            TransferId = Id = 0;
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;
             CurrentPublishingEnabled = false;

@@ -588,8 +588,14 @@ namespace Opc.Ua.Client
                 // nothing more to do if session changed.
                 if (sessionId != m_context.SessionId)
                 {
-                    RetireAcknowledgements(acknowledgementsToSend, AcknowledgementDisposition.OwnerRetired,
-                        StatusCodes.BadSessionIdInvalid);
+                    if (Acknowledgements != null)
+                    {
+                        // The session was recreated in place. A subscription transferred to the new
+                        // session keeps its lifetime, so the acknowledgement is sent there; one that
+                        // was recreated, or whose message the server no longer holds, is ended by
+                        // the validation before the next request. Each still ends exactly once.
+                        RequeueFailedAcknowledgements(acknowledgementsToSend);
+                    }
                     if (m_context.Connected)
                     {
                         m_logger.PublishAbandonedAfterErrorMessageSession2(
@@ -1302,29 +1308,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Ends acknowledgements that will not be sent anymore.
-        /// </summary>
-        private void RetireAcknowledgements(
-            List<SubscriptionAcknowledgement>? acknowledgements,
-            AcknowledgementDisposition disposition,
-            StatusCode status)
-        {
-            if (acknowledgements == null || acknowledgements.Count == 0)
-            {
-                return;
-            }
-            List<AcknowledgementOutcome>? outcomes = null;
-            lock (m_acknowledgementsToSendLock)
-            {
-                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
-                {
-                    EndAcknowledgementLocked(ref outcomes, acknowledgement, disposition, status);
-                }
-            }
-            ReportOutcomes(outcomes);
-        }
-
-        /// <summary>
         /// Ends a tracked acknowledgement and adds its outcome.
         /// </summary>
         private void EndAcknowledgementLocked(
@@ -1394,11 +1377,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Ends the tracked acknowledgements, pending or in flight, of a subscription lifetime
-        /// that ended, without waiting for another Publish request: deleting the last
-        /// subscription may stop publishing altogether.
+        /// that ended, without waiting for another Publish request: deleting or removing the
+        /// last subscription may stop publishing altogether.
         /// </summary>
-        /// <param name="subscription">The subscription whose previous lifetime ended.</param>
-        internal void RetireAcknowledgementsOf(Subscription subscription)
+        /// <param name="subscription">The subscription whose lifetime ended.</param>
+        /// <param name="includeCurrentLifetime">Whether the subscription's current lifetime
+        /// ended too, because it no longer belongs to this session.</param>
+        internal void RetireAcknowledgementsOf(Subscription subscription, bool includeCurrentLifetime = false)
         {
             List<AcknowledgementOutcome>? retired = null;
             lock (m_acknowledgementsToSendLock)
@@ -1414,7 +1399,7 @@ namespace Opc.Ua.Client
                 {
                     if (entry.Value != null &&
                         ReferenceEquals(entry.Value.Owner, subscription) &&
-                        !entry.Value.Equals(current))
+                        (includeCurrentLifetime || !entry.Value.Equals(current)))
                     {
                         (ended ??= []).Add(entry.Key);
                     }

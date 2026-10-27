@@ -496,6 +496,14 @@ mode.
 - If the provider throws, the whole batch is deferred (fail-closed); the error is logged.
 - The classic engine publishes synchronously: a decision that does not complete
   synchronously keeps its acknowledgements pending and is applied to a later Publish request.
+- When a session is recreated in place (the managed session's reconnect path), in-flight
+  acknowledgements are kept and validated again: a subscription transferred to the new
+  session keeps its handles, while a recreated subscription retires them.
+- Known limitation: transferring a classic subscription to a *different* `Session` object
+  (`TransferSubscriptionsAsync` on another session) does not hand its tracked
+  acknowledgements over. The old session ends them when it is disposed and the new session
+  tracks the messages it still holds again, so an acknowledgement can be reported twice.
+  Tracked in [#4930](https://github.com/OPCFoundation/UA-.NETStandard/issues/4930).
 - Each acknowledgement has a single entry while it is pending or in flight: queuing it again
   (for example after a transfer) does not create a second entry, so it ends exactly once.
 - Outcomes are delivered in order from a background loop, outside SDK locks. Dispositions:

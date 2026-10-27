@@ -69,7 +69,8 @@ namespace Opc.Ua.Client
             m_outcomes.Enqueue((observer, [.. outcomes]));
             lock (m_lock)
             {
-                m_loop ??= DeliverAsync();
+                // On the thread pool, never on a caller's synchronization context.
+                m_loop ??= Task.Run(DeliverAsync);
             }
         }
 
@@ -102,7 +103,6 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task DeliverAsync()
         {
-            await Task.Yield();
             while (true)
             {
                 while (m_outcomes.TryDequeue(

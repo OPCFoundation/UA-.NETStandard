@@ -1096,6 +1096,31 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Removing a classic subscription from its session ends its current lifetime too, so its
+        /// pending acknowledgements end without another Publish request.
+        /// </summary>
+        [Test]
+        public async Task RemovingASubscriptionRetiresItsCurrentLifetimeAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 4);
+
+            engine.RetireAcknowledgementsOf(subscription);
+            Assert.That(observer.Outcomes, Is.Empty, "The current lifetime is kept when only older ones ended.");
+            engine.RetireAcknowledgementsOf(subscription, includeCurrentLifetime: true);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+        }
+
+        /// <summary>
         /// An acknowledgement retired while its Publish request is in flight is not requeued when
         /// the request then fails, so it cannot be sent later under a reused id.
         /// </summary>
@@ -1148,6 +1173,63 @@ namespace Opc.Ua.Client.Tests
             Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
             Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
         }
+
+        /// <summary>
+        /// When the session is recreated in place while a Publish request is in flight, its tracked
+        /// acknowledgements are not retired but sent again on the new session, so a subscription
+        /// transferred to it keeps its handles and each acknowledgement ends once.
+        /// </summary>
+        [Test]
+        public async Task InFlightAcknowledgementsSurviveAnInPlaceSessionRecreateAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            List<SubscriptionAcknowledgement>? inFlight = null;
+            var sent = new System.Collections.Concurrent.ConcurrentQueue<uint>();
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>((_, acknowledgements, _) =>
+                {
+                    if (inFlight == null)
+                    {
+                        inFlight = [.. acknowledgements];
+                    }
+                    else
+                    {
+                        foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                        {
+                            sent.Enqueue(acknowledgement.SequenceNumber);
+                        }
+                    }
+                    return new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task);
+                });
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(inFlight, Has.Count.EqualTo(1));
+
+            // The request fails for the previous session after the session was recreated in place.
+            InvokeOnPublishComplete(
+                engine,
+                Task.FromException<PublishResponse>(new ServiceResultException(StatusCodes.BadSessionIdInvalid)),
+                new NodeId(9),
+                inFlight);
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.BeginPublish(timeout: 5000);
+
+            Assert.That(observer.Outcomes, Is.Empty, "Nothing ended: the subscription lives on.");
+            Assert.That(sent, Is.EqualTo(s_resentOnce), "Sent once on the new session; the transfer adds no duplicate.");
+        }
+        private static readonly uint[] s_resentOnce = [3u];
 
         private static readonly uint[] s_inFlightAndPending = [3u, 4u, 5u];
 
