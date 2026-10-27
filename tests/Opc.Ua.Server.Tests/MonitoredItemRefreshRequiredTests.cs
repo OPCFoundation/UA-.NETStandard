@@ -1,0 +1,214 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System.Collections.Generic;
+using System.Linq;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Tests;
+
+namespace Opc.Ua.Server.Tests
+{
+    /// <summary>
+    /// CTT Base Info EventQueueOverflow EventType / 001: after an event queue overflow
+    /// that lost Condition events the Server sends a RefreshRequiredEventType event.
+    /// </summary>
+    /// <remarks>
+    /// OPC 10000-9 5.11.4 RefreshRequiredEventType: "When a Server detects an Event
+    /// queue overflow, it shall track if any Condition Events have been lost, if any
+    /// Condition Events were lost, it shall issue a RefreshRequiredEventType Event to
+    /// the Client after the Event queue is no longer in an overflow state."
+    /// Condition events are queued as <see cref="InstanceStateSnapshot"/> of a
+    /// <see cref="ConditionState"/> (ConditionState.ReportStateChange).
+    /// </remarks>
+    [TestFixture]
+    [Category("MonitoredItem")]
+    [Parallelizable]
+    public class MonitoredItemRefreshRequiredTests
+    {
+        /// <summary>
+        /// DiscardOldest: the oldest event, a Condition event, is discarded. The publish
+        /// returns the overflow event first, the remaining events, and then the
+        /// RefreshRequired event once the queue has left the overflow state.
+        /// </summary>
+        [Test]
+        public void DiscardOldestLosingConditionEventQueuesRefreshRequired()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, 2, discardOldest: true);
+
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
+
+            object?[] handles = [.. result.Select(r => r.Handle)];
+            Assert.That(handles, Has.Length.EqualTo(4));
+            Assert.That(handles[0], Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(handles[1], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[2], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[3], Is.AssignableTo<RefreshRequiredEventState>());
+        }
+
+        /// <summary>
+        /// No DiscardOldest: the incoming Condition event is dropped. The overflow event
+        /// and then the RefreshRequired event follow the queued events.
+        /// </summary>
+        [Test]
+        public void NoDiscardLosingConditionEventQueuesRefreshRequired()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, 2, discardOldest: false);
+
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AlarmConditionState(null));
+
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
+
+            object?[] handles = [.. result.Select(r => r.Handle)];
+            Assert.That(handles, Has.Length.EqualTo(4));
+            Assert.That(handles[0], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[1], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[2], Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(handles[3], Is.AssignableTo<RefreshRequiredEventState>());
+        }
+
+        /// <summary>
+        /// An overflow that lost only non-Condition events needs no ConditionRefresh:
+        /// the publish is unchanged (overflow event plus the queued events).
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void OverflowWithoutLostConditionEventsDoesNotQueueRefreshRequired(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, 2, discardOldest);
+
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            if (discardOldest)
+            {
+                // drop the oldest (the condition) and queue a new audit event...
+                monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+                var drained = new Queue<EventFieldList>();
+                monitoredItem.Publish(new OperationContext(monitoredItem), drained, 10);
+            }
+
+            // ...then overflow again, losing only audit events.
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, 10);
+
+            Assert.That(result.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
+            Assert.That(result.Select(r => r.Handle), Has.One.AssignableTo<EventQueueOverflowEventState>());
+        }
+
+        /// <summary>
+        /// The RefreshRequired event is sent only once the overflow event was delivered;
+        /// when the publish is full it follows in the next publish.
+        /// </summary>
+        [Test]
+        public void RefreshRequiredIsDeferredWhenThePublishIsFull()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, 2, discardOldest: false);
+
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+
+            var first = new Queue<EventFieldList>();
+            bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, 3);
+            Assert.That(first.Select(r => r.Handle), Has.None.AssignableTo<RefreshRequiredEventState>());
+            Assert.That(first.Last().Handle, Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(more, Is.True, "The RefreshRequired event is still pending.");
+
+            var second = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), second, 3);
+            Assert.That(second.Select(r => r.Handle).ToArray(), Has.Length.EqualTo(1));
+            Assert.That(second.Single().Handle, Is.AssignableTo<RefreshRequiredEventState>());
+
+            var third = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), third, 3);
+            Assert.That(third, Is.Empty, "The RefreshRequired event is sent once.");
+        }
+
+        private static InstanceStateSnapshot CreateConditionEvent(ITelemetryContext telemetry)
+        {
+            var condition = new AlarmConditionState(null);
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(new SystemContext(telemetry), condition);
+            return snapshot;
+        }
+
+        private static MonitoredItem CreateMonitoredItem(
+            ITelemetryContext telemetry,
+            uint queueSize,
+            bool discardOldest)
+        {
+            var filter = new EventFilter();
+
+            var serverMock = new Mock<IServerInternal>();
+            serverMock.Setup(s => s.Telemetry).Returns(telemetry);
+            serverMock.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            serverMock.Setup(s => s.MonitoredItemQueueFactory)
+                .Returns(queueFactory);
+
+            var nodeMangerMock = new Mock<IAsyncNodeManager>();
+
+            return new MonitoredItem(
+                serverMock.Object,
+                nodeMangerMock.Object,
+                null!,
+                1,
+                2,
+                new ReadValueId(),
+                DiagnosticsMasks.All,
+                TimestampsToReturn.Server,
+                MonitoringMode.Reporting,
+                3,
+                filter,
+                filter,
+                null,
+                1000.0,
+                queueSize,
+                discardOldest,
+                1000);
+        }
+    }
+}
