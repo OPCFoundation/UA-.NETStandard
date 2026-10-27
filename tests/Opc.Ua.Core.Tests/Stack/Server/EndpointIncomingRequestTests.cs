@@ -515,6 +515,38 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// A request whose budget runs out after dequeue but before its call starts is faulted
+        /// with BadTimeout without invoking its service.
+        /// </summary>
+        [Test]
+        public async Task CallAsync_WhenBudgetSpent_ReturnsTimeoutWithoutInvokingServiceAsync()
+        {
+            using var server = new TestServer();
+            server.OnScheduleIncomingRequest = (r) => { };
+
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = 1000 } };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            int serviceCalls = 0;
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (_, _, _) =>
+            {
+                Interlocked.Increment(ref serviceCalls);
+                return new ValueTask<IServiceResponse>(new ReadResponse());
+            });
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
+            TestEndpointBase.SetAge(incoming, TimeSpan.FromSeconds(5));
+
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(serviceCalls, Is.Zero);
+        }
+
+        /// <summary>
         /// A request that is still within its timeout hint at dequeue only gets what is left
         /// of the hint, not the full hint again.
         /// </summary>
