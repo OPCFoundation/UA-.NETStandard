@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,10 +47,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Configured namespace order survives failed creation and restart without publishing candidate discoveries.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
         [NonParallelizable]
-        public async Task InitialFactoryNamespaceBootstrapOrderSurvivesAbortAndRestartAsync(bool failFirst)
+        public async Task InitialFactoryNamespaceBootstrapOrderSurvivesAbortAndRestartAsync(
+            bool failFirst,
+            bool mixedFactories)
         {
             const string firstUri = "urn:opcfoundation:tests:bootstrap:first";
             const string secondUri = "urn:opcfoundation:tests:bootstrap:second";
@@ -60,13 +65,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NamespaceTable? sharedNamespaces = null;
             int firstIndexDuringCreate = -1;
             int secondIndexDuringCreate = -1;
+            var creationOrder = new List<string>();
+            var addressSpaceOrder = new List<string>();
+            IAsyncNodeManager? asyncManager = null;
+            INodeManager? syncManager = null;
             bool reject = failFirst;
             var factory = new Mock<IAsyncNodeManagerFactory>();
-            factory.SetupGet(value => value.NamespacesUris).Returns([firstUri, firstUri, secondUri]);
+            factory.SetupGet(value => value.NamespacesUris)
+                .Returns(mixedFactories ? [secondUri, firstUri] : [firstUri, firstUri, secondUri]);
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns((IServerInternal staged, ApplicationConfiguration _, CancellationToken _) =>
                 {
+                    creationOrder.Add("async");
                     IServerInternal shared = owner!.CurrentInstance;
                     sharedNamespaces = shared.NamespaceUris;
                     firstIndexDuringCreate = sharedNamespaces.GetIndex(firstUri);
@@ -80,13 +91,36 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     var manager = new Mock<IAsyncNodeManager>();
                     manager.SetupGet(value => value.NamespaceUris).Returns([firstUri, secondUri, discoveredUri]);
+                    manager.Setup(value => value.CreateAddressSpaceAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                        .Callback(() => addressSpaceOrder.Add("async"));
+                    asyncManager = manager.Object;
                     Assert.That(shared.NodeManager.AsyncNodeManagers, Does.Not.Contain(manager.Object));
                     return new ValueTask<IAsyncNodeManager>(manager.Object);
+                });
+            var syncFactory = new Mock<INodeManagerFactory>();
+            syncFactory.SetupGet(value => value.NamespacesUris).Returns([firstUri, firstUri]);
+            syncFactory.Setup(value => value.Create(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>()))
+                .Returns(() =>
+                {
+                    creationOrder.Add("sync");
+                    var manager = new Mock<INodeManager>();
+                    manager.SetupGet(value => value.NamespaceUris).Returns([firstUri]);
+                    manager.Setup(value => value.CreateAddressSpace(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>()))
+                        .Callback(() => addressSpaceOrder.Add("sync"));
+                    syncManager = manager.Object;
+                    return manager.Object;
                 });
             var fixture = new ServerFixture<StandardServer>(telemetry =>
             {
                 owner = new StandardServer(telemetry);
                 owner.AddNodeManager(factory.Object);
+                if (mixedFactories)
+                {
+                    owner.AddNodeManager(syncFactory.Object);
+                }
                 return owner;
             })
             {
@@ -98,18 +132,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 for (int attempt = 0; attempt < 2; attempt++)
                 {
+                    creationOrder.Clear();
+                    addressSpaceOrder.Clear();
                     if (reject)
                     {
                         ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await fixture.StartAsync(pki).ConfigureAwait(false)).ConfigureAwait(false);
                         Assert.That(failure!.InnerException, Is.TypeOf<InvalidOperationException>()
                             .With.Message.EqualTo("Injected initial factory creation failure."));
+                        Assert.That(creationOrder, Has.Count.EqualTo(1));
+                        Assert.That(creationOrder[0], Is.EqualTo("async"));
+                        Assert.That(addressSpaceOrder, Is.Empty);
                     }
                     else
                     {
                         StandardServer started = await fixture.StartAsync(pki).ConfigureAwait(false);
                         Assert.That(started.CurrentInstance.NamespaceUris.GetIndex(discoveredUri),
                             Is.GreaterThan(3), "A successful initial publication retains candidate discoveries.");
+                        string[] expectedOrder = mixedFactories ? ["async", "sync"] : ["async"];
+                        Assert.That(creationOrder, Is.EqualTo(expectedOrder));
+                        Assert.That(addressSpaceOrder, Is.EqualTo(expectedOrder));
+                        IReadOnlyList<IAsyncNodeManager> managers =
+                            started.CurrentInstance.NodeManager.AsyncNodeManagers;
+                        if (mixedFactories)
+                        {
+                            Assert.That(managers[managers.Count - 2], Is.SameAs(asyncManager));
+                            Assert.That(managers[managers.Count - 1].SyncNodeManager, Is.SameAs(syncManager));
+                        }
+                        else
+                        {
+                            Assert.That(managers[managers.Count - 1], Is.SameAs(asyncManager));
+                        }
                     }
                     using (Assert.EnterMultipleScope())
                     {

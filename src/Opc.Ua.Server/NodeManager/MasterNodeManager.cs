@@ -176,9 +176,22 @@ namespace Opc.Ua.Server
                 {
                     throw new ArgumentException("An initial factory cannot be null.", nameof(initialFactories));
                 }
-                foreach (string namespaceUri in initialFactory.NamespacesUris)
+                if (initialFactory is NodeManagerLifecycleExtensions.SyncFactoryAdapter)
                 {
-                    server.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                    foreach (string namespaceUri in initialFactory.NamespacesUris)
+                    {
+                        server.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                    }
+                }
+            }
+            foreach (IAsyncNodeManagerFactory initialFactory in initialFactories)
+            {
+                if (initialFactory is not NodeManagerLifecycleExtensions.SyncFactoryAdapter)
+                {
+                    foreach (string namespaceUri in initialFactory.NamespacesUris)
+                    {
+                        server.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                    }
                 }
             }
 

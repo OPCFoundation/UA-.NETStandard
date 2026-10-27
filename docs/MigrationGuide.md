@@ -151,6 +151,15 @@ Move serving-service registrations, such as historian builder/provider bindings,
 `INodeManagerReadinessNotification.OnServerReadyAsync`; this callback runs after publication and
 runtime initialization and is awaited before startup succeeds.
 
+Factory-declared namespaces are reserved before diagnostics, with synchronous declarations first
+and asynchronous declarations second; duplicate declarations do not consume additional indexes.
+Address-space preparation and dispatch remain asynchronous-first. A namespace appended only by a
+manager constructor or `CreateAddressSpaceAsync` stays private until publication, so its index now
+follows `http://opcfoundation.org/UA/Diagnostics` instead of its 1.5.x position. Declare those
+namespaces in the factory's `NamespacesUris` property to reserve them before diagnostics.
+Clients should resolve namespace URIs from the server's `NamespaceArray` rather than hard-code
+`ns=` indexes.
+
 Because initial publication uses prepared transactions, `StandardServer` requires the default
 `EncodeableFactory`, not an arbitrary `IEncodeableFactory` implementation. Use the default factory's
 builder to register custom encodeable types. An unsupported factory is rejected before NodeManager
