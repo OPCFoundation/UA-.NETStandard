@@ -185,6 +185,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decReq.DataSetWriterIds, Is.EqualTo(new ushort[] { 7 }));
         }
 
+        [TestCase(int.MinValue)]
+        [TestCase(-255)]
+        [TestCase(0)]
+        [TestCase(7)]
+        [TestCase(257)]
+        [TestCase(int.MaxValue)]
+        public void DiscoveryRequestEncodeRejectsUnsupportedSubtype(int subtype)
+        {
+            var request = new UadpDiscoveryRequestMessage
+            {
+                DiscoveryType = (UadpDiscoveryType)subtype,
+                DataSetWriterIds = []
+            };
+
+            Assert.That(
+                () => UadpDiscoveryCoder.Encode(request, UadpTestUtilities.NewContext()),
+                Throws.InvalidOperationException);
+        }
+
         [Test]
         [TestSpec("7.2.4.6.8")]
         public void DiscoveryResponse_DataSetMetaData_RoundTrips()
@@ -265,6 +284,24 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decRes.WriterConfiguration!.Name, Is.EqualTo("Group1"));
             Assert.That(decRes.WriterConfiguration!.WriterGroupId, Is.EqualTo((ushort)5));
             Assert.That(decRes.WriterConfiguration!.PublishingInterval, Is.EqualTo(1000.0));
+        }
+
+        [TestCase(int.MinValue)]
+        [TestCase(-255)]
+        [TestCase(0)]
+        [TestCase(6)]
+        [TestCase(257)]
+        [TestCase(int.MaxValue)]
+        public void DiscoveryResponseEncodeRejectsUnsupportedSubtype(int subtype)
+        {
+            var response = new UadpDiscoveryResponseMessage
+            {
+                DiscoveryType = (UadpDiscoveryType)subtype
+            };
+
+            Assert.That(
+                () => UadpDiscoveryCoder.Encode(response, UadpTestUtilities.NewContext()),
+                Throws.InvalidOperationException);
         }
 
         [Test]

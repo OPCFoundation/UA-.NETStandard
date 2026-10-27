@@ -206,6 +206,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             bool securityEnabled,
             out int payloadOffset)
         {
+            if ((int)message.DiscoveryType < (int)UadpDiscoveryType.PublisherEndpoints ||
+                (int)message.DiscoveryType > (int)UadpDiscoveryType.Probe)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported discovery request type {message.DiscoveryType}.");
+            }
             byte[] buffer = new byte[1024];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             UadpDiscoveryWire.WriteCommonHeader(
@@ -234,6 +240,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             bool securityEnabled,
             out int payloadOffset)
         {
+            if ((int)message.DiscoveryType < (int)UadpDiscoveryType.PublisherEndpoints ||
+                (int)message.DiscoveryType > (int)UadpDiscoveryType.PubSubConnection)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported discovery response type {message.DiscoveryType}.");
+            }
             byte[] buffer = new byte[8192];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             UadpDiscoveryWire.WriteCommonHeader(
