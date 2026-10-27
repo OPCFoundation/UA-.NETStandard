@@ -605,38 +605,49 @@ namespace Opc.Ua.Server
                     {
                         case null:
                         case "":
+                            // use the new generated private key if one exists and matches the provided public key.
+                            // Resolve the key once: a failed attempt has already deleted the existing
+                            // certificate from the store, so a retry could not load its key again.
+                            X509Certificate2 keySource;
+                            if (certificateGroup.TemporaryApplicationCertificate != null &&
+                                X509Utils.VerifyKeyPair(
+                                    newCert,
+                                    certificateGroup.TemporaryApplicationCertificate))
+                            {
+                                keySource = certificateGroup.TemporaryApplicationCertificate;
+                            }
+                            else
+                            {
+                                certWithPrivateKey = await existingCertIdentifier
+                                    .LoadPrivateKeyExAsync(
+                                        passwordProvider,
+                                        m_configuration.ApplicationUri,
+                                        Server.Telemetry,
+                                        ct)
+                                    .ConfigureAwait(false);
+                                if (certWithPrivateKey == null)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed,
+                                        "A private key was not found");
+                                }
+                                keySource = certWithPrivateKey;
+                            }
+
                             for (int attempt = 0; ; attempt++)
                             {
-                                X509Certificate2 exportableKey;
-                                // use the new generated private key if one exists and matches the provided public key
-                                if (certificateGroup.TemporaryApplicationCertificate != null &&
-                                    X509Utils.VerifyKeyPair(
-                                        newCert,
-                                        certificateGroup.TemporaryApplicationCertificate))
-                                {
-                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        certificateGroup.TemporaryApplicationCertificate,
-                                        false);
-                                }
-                                else
-                                {
-                                    certWithPrivateKey = await existingCertIdentifier
-                                        .LoadPrivateKeyExAsync(
-                                            passwordProvider,
-                                            m_configuration.ApplicationUri,
-                                            Server.Telemetry,
-                                            ct)
-                                        .ConfigureAwait(false);
-                                    if (certWithPrivateKey == null)
-                                    {
-                                        throw new ServiceResultException(
-                                            StatusCodes.BadSecurityChecksFailed,
-                                            "A private key was not found");
-                                    }
-                                    exportableKey = X509Utils.CreateCopyWithPrivateKey(
-                                        certWithPrivateKey,
-                                        false);
-                                }
+                                X509Certificate2 exportableKey = X509Utils.CreateCopyWithPrivateKey(
+                                    keySource,
+                                    false);
+
+                                // On Windows the copy keeps its key in a temporary key container that is
+                                // deleted when the copy is released (or finalized). The combined certificate
+                                // only references that container, so keep the copy alive until the store
+                                // has exported the combined certificate; otherwise a GC in between fails
+                                // the export with "Keyset does not exist".
+                                using X509Certificate2 ownedKeyCopy = ReferenceEquals(exportableKey, keySource)
+                                    ? null
+                                    : exportableKey;
 
                                 // On macOS combine the new certificate with a private copy of
                                 // the key. CopyWithPrivateKey shares the native key handle with
@@ -678,7 +689,9 @@ namespace Opc.Ua.Server
                         case "PFX":
                             for (int attempt = 0; ; attempt++)
                             {
-                                certWithPrivateKey = X509Utils.CreateCertificateFromPKCS12(
+                                // keep the imported key alive until the store has exported the combined
+                                // certificate, its key container is deleted when it is released
+                                using X509Certificate2 pfxKey = X509Utils.CreateCertificateFromPKCS12(
                                     privateKey,
                                     passwordProvider?.GetPassword(existingCertIdentifier),
 #if !NET9_0_OR_GREATER
@@ -691,7 +704,7 @@ namespace Opc.Ua.Server
                                 updateCertificate.CertificateWithPrivateKey =
                                     CertificateFactory.CreateCertificateWithPrivateKey(
                                         newCert,
-                                        certWithPrivateKey);
+                                        pfxKey);
                                 try
                                 {
                                     await UpdateCertificateInternalAsync(

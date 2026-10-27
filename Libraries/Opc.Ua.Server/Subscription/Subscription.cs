@@ -637,6 +637,23 @@ namespace Opc.Ua.Server
                 {
                     monitoredItem.SetupResendDataTrigger();
                 }
+
+                // Queue the items for the next Publish response. If a publishing cycle
+                // has already moved changed items to m_itemsToPublish while no Publish
+                // request was waiting, the next request is answered from that list
+                // without another check of m_itemsToCheck, and unchanged items would
+                // miss the resent values.
+                LinkedListNode<IMonitoredItem> current = m_itemsToCheck.First;
+                while (current != null)
+                {
+                    LinkedListNode<IMonitoredItem> next = current.Next;
+                    if (current.Value.IsResendData)
+                    {
+                        m_itemsToCheck.Remove(current);
+                        m_itemsToPublish.AddLast(current);
+                    }
+                    current = next;
+                }
             }
         }
 

@@ -1083,6 +1083,60 @@ namespace Opc.Ua.Server.Tests
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Change one monitored value and let a publishing cycle pass without a
+        /// Publish request, so the changed item already waits for publishing.
+        /// ResendData must still return the values of all monitored items in
+        /// the next Publish response, not only the item that changed.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task ResendDataAfterLatePublishingCycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic
+                .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
+
+            // creates the subscription and consumes the initial values
+            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                serverTestServices,
+                m_requestHeader,
+                testSet,
+                kQueueSize,
+                0).ConfigureAwait(false);
+
+            try
+            {
+                // change a single value, then wait past the 1 s publishing interval
+                await UpdateValuesAsync([testSet[2]]).ConfigureAwait(false);
+                Thread.Sleep(1500);
+
+                await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var acknowledgements = new SubscriptionAcknowledgementCollection();
+                PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
+                Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+                var dataChanges = (DataChangeNotification)publishResponse.NotificationMessage.NotificationData[0].Body;
+                Assert.AreEqual(testSet.Length, dataChanges.MonitoredItems.Count,
+                    "ResendData shall return a value for each monitored item in the next Publish response");
+            }
+            finally
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                await serverTestServices.DeleteSubscriptionsAsync(m_requestHeader, subscriptionIds).ConfigureAwait(false);
+            }
+        }
+
         private async Task<CallMethodRequestCollection> ResendDataCallAsync(
             StatusCode expectedStatus,
             UInt32Collection subscriptionIds)
