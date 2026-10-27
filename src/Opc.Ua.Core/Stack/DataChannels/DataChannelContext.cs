@@ -66,7 +66,7 @@ namespace Opc.Ua.DataChannels
             }
             m_logger = telemetry.CreateLogger<DataChannelContext>();
             m_options.Validate();
-            m_wireCarrier = FlowModel.ToWire(carrier.Kind);
+            m_wireCarrier = FlowModel.ToWire(carrier.Kind, carrier.Identity.TransportProfileUri);
             m_codecLimits = new FlowCodecLimits(
                 options.MaxMessageSize,
                 options.MaxControlBytes,

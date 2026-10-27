@@ -30,10 +30,10 @@ namespace Opc.Ua.Client.DataChannels
             {
                 return true;
             }
-            return expected.TransportProfileUri == DataChannelProfiles.SharedUasc &&
-                actual.TransportProfileUri == DataChannelProfiles.SharedUasc &&
-                expectedUrl.AbsolutePath == DataChannelProfiles.SharedResource &&
-                actualUrl.AbsolutePath == DataChannelProfiles.SharedResource &&
+            return expected.TransportProfileUri is DataChannelProfiles.SharedUasc or DataChannelProfiles.PubSubUasc &&
+                actual.TransportProfileUri == expected.TransportProfileUri &&
+                UascDataChannelEndpoint.GetResourceProfile(expectedUrl.AbsolutePath) == expected.TransportProfileUri &&
+                UascDataChannelEndpoint.GetResourceProfile(actualUrl.AbsolutePath) == actual.TransportProfileUri &&
                 expectedUrl.Query.Length == 0 && actualUrl.Query.Length == 0;
         }
 
@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.DataChannels
         private static bool IsFlow(string? profile)
         {
             return profile is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
-                DataChannelProfiles.Quic or DataChannelProfiles.WebTransport;
+                DataChannelProfiles.PubSubUasc or DataChannelProfiles.Quic or DataChannelProfiles.WebTransport;
         }
 
         /// <summary>

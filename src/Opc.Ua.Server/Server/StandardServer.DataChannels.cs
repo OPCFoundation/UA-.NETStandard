@@ -129,15 +129,14 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
+                string? profile = UascDataChannelEndpoint.GetResourceProfile(uri.AbsolutePath);
                 DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetResourceKind(uri);
-                if (provider == null || kind == null ||
+                if (provider == null || kind == null || profile == null ||
                     uri.Scheme is not (Utils.UriSchemeOpcTcp or Utils.UriSchemeOpcWss))
                 {
                     throw new ServiceResultException(StatusCodes.BadNotSupported);
                 }
-                endpoint.TransportProfileUri = kind == DataChannelCarrierKind.DedicatedUasc
-                    ? DataChannelProfiles.DedicatedUasc
-                    : DataChannelProfiles.SharedUasc;
+                endpoint.TransportProfileUri = profile;
                 if (endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
                     !(endpoint.SecurityMode == MessageSecurityMode.Sign && provider.AllowIntegrity))
                 {

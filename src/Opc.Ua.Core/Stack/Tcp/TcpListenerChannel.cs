@@ -220,7 +220,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal bool HasDataChannelEndpoints => m_endpointCandidates.Exists(endpoint =>
             endpoint.TransportProfileUri is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
-                DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
+                DataChannelProfiles.PubSubUasc or DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
                 UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri));
 
         /// <summary>
@@ -258,7 +258,8 @@ namespace Opc.Ua.Bindings
             {
                 return false;
             }
-            DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetResourceKind(url);
+            string? profile = UascDataChannelEndpoint.GetResourceProfile(url.AbsolutePath);
+            DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetKind(profile);
             if (UascDataChannelEndpoint.IsFlowResource(url) &&
                 (!kind.HasValue || DataChannelFactory == null ||
                     url.Query.Length != 0 || url.Fragment.Length != 0 || url.UserInfo.Length != 0))
@@ -282,7 +283,8 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
                 return kind.HasValue
-                    ? UascDataChannelEndpoint.GetResourceKind(expected) != kind
+                    ? profile != endpoint.TransportProfileUri ||
+                        UascDataChannelEndpoint.GetResourceProfile(expected.AbsolutePath) != profile
                     : UascDataChannelEndpoint.IsFlowResource(expected);
             });
             if (m_endpointCandidates.Count == 0 || !base.SetEndpointUrl(endpointUrl))

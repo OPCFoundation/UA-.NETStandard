@@ -2,10 +2,15 @@
 
 **Experimental; full Parts 30–32 acceptance remains open.** The native H3
 binding supports a management-only UASC path for native Data Channels and a
-separate HTTPS/UACP baseline for ordinary Services. Browser interoperability,
-the draft's JSON CONTROL representation, and native minimum-retention
-qualification remain open. The older mTLS flow carrier below is not an
-implementation of the revised WebTransport authentication mapping.
+separate HTTPS/UACP baseline for ordinary Services. The split Parts 30–32
+target is revision
+[`7cc6a2e`](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac);
+it requires binary FLC, not JSON CONTROL. Browser interoperability and native
+minimum-retention qualification remain open. The management-only path follows
+the separate legacy experiment at
+[`2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels),
+not the Part 32 baseline. The older mTLS flow carrier below does not implement
+that experiment's revised WebTransport authentication mapping.
 
 The legacy native flow path uses mutually authenticated native QUIC, HTTP/3 and
 WebTransport draft-ietf-webtrans-http3-16. It is not a WebSocket fallback,
@@ -108,9 +113,10 @@ context, and native TLS/session loss faults all of its flows.
 
 The common CONTROL body is still encoded with the existing binary codec.
 RESET also retains the legacy management-path exchange before native FIN,
-rather than the draft's data-stream ordering. These entry points therefore do
-not establish conformance to the pinned draft's complete wire contract, even
-where the management framing matches.
+rather than the older experiment's data-stream ordering. These entry points
+therefore do not establish conformance to that experiment's complete wire
+contract. The split Parts 31–32 direct binding uses a different contract:
+COMMIT and END occupy the ordered data stream; RESET remains on secured FLC.
 
 ## Part 32 reliable UASC baseline
 

@@ -48,7 +48,7 @@ namespace Opc.Ua.DataChannels.Wire
     /// </summary>
     internal enum FlowCarrier
     {
-        /// <summary>Dedicated UASC FLO bodies.</summary>
+        /// <summary>UASC discriminator zero, also used by the legacy dedicated profile.</summary>
         DedicatedUasc,
 
         /// <summary>Shared UASC FLO bodies.</summary>

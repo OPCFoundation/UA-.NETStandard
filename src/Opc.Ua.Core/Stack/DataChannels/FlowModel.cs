@@ -200,11 +200,17 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Explicitly maps a selected carrier.
+        /// Maps the selected endpoint profile without changing the runtime's Service-sharing policy.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        internal static FlowCarrier ToWire(DataChannelCarrierKind value)
+        internal static FlowCarrier ToWire(DataChannelCarrierKind value, string? transportProfileUri = null)
         {
+            if (transportProfileUri == DataChannelProfiles.PubSubUasc)
+            {
+                return value == DataChannelCarrierKind.SharedUasc
+                    ? FlowCarrier.DedicatedUasc
+                    : throw new ArgumentOutOfRangeException(nameof(value));
+            }
             return value switch
             {
                 DataChannelCarrierKind.DedicatedUasc => FlowCarrier.DedicatedUasc,

@@ -58,7 +58,7 @@ namespace Opc.Ua.DataChannels
         /// <summary>Shared FLO/UASC transport profile.</summary>
         public const string SharedUasc = "http://opcfoundation.org/UA-Profile/Transport/flow-shared-uasc-v1";
 
-        /// <summary>Part 14 PubSub-over-UASC transport profile used by the optional UAFX binding.</summary>
+        /// <summary>Part 30 PubSub-over-UASC transport profile, also used by the optional UAFX binding.</summary>
         public const string PubSubUasc = "http://opcfoundation.org/UA-Profile/Transport/pubsub-uasc";
 
         /// <summary>Native QUIC transport profile.</summary>
@@ -78,6 +78,9 @@ namespace Opc.Ua.DataChannels
 
         /// <summary>Explicit shared UASC endpoint resource.</summary>
         public const string SharedResource = "/flow/v1/shared";
+
+        /// <summary>Explicit Part 30 PubSub-over-UASC endpoint resource.</summary>
+        public const string PubSubResource = "/pubsub/uasc";
 
         /// <summary>Complete ordinary UADP data and discovery NetworkMessage payloads.</summary>
         public const string UadpPayload = "urn:opcfoundation:ua:flow:payload:uadp:1";

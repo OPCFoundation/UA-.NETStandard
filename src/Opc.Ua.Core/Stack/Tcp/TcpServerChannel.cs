@@ -1240,6 +1240,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadSecurityChecksFailed,
                     "Flow contexts require authenticated application certificates and an explicit provider.");
             }
+            string? transportProfileUri = EndpointDescription?.TransportProfileUri;
             var identity = new DataChannelPeerIdentity(
                 UascDataChannelEndpoint.GetApplicationUri(
                     ServerCertificate, EndpointDescription?.Server?.ApplicationUri),
@@ -1250,7 +1251,10 @@ namespace Opc.Ua.Bindings
                     ? DataChannelProtectionMode.Confidential
                     : DataChannelProtectionMode.Integrity,
                 isTransportInitiator: ReverseConnectionUrl != null,
-                isContextInitiator: false);
+                isContextInitiator: transportProfileUri == DataChannelProfiles.PubSubUasc && ReverseConnectionUrl != null)
+            {
+                TransportProfileUri = transportProfileUri
+            };
             DataChannelContext context = AttachDataChannels(
                 kind, identity, isUascInitiator: false, DataChannelFactory);
             using CertificateCollection peerChain =

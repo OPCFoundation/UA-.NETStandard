@@ -5,18 +5,22 @@ carriers and optional Client/Server lane below retain behavior developed against
 the superseded OPC 10000-28 draft `0.2.0` at
 [`OPCF-Members/OPC10000-Core@726c915`](https://github.com/OPCF-Members/OPC10000-Core/tree/726c91572a4e5725e114115cf0f69ab8cc2a6b0f/source/data-channels).
 The current target is the split OPC 10000-30, -31 and -32 drafts `0.3.0` at
-[`OPCF-Members/OPC10000-Core@2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af).
+[`OPCF-Members/OPC10000-Core@7cc6a2e`](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac).
 This revision splits out the Part 14 streaming extensions and adds an optional
-normative UAFX binding. Its Native WebTransport data-channel mapping requires
-server-authenticated TLS and a SignAndEncrypt UASC management stream on the same
-WebTransport session. `WebTransportUascTransport.ConnectDataChannelsAsync` and
+normative UAFX binding. Part 30 requires binary FLC and rejects JSON CONTROL.
+The separate legacy native WebTransport experiment at
+[`2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels)
+uses server-authenticated TLS and a SignAndEncrypt UASC management stream on
+the same WebTransport session. That revision does not contain the split
+Parts 30–32 publications. `WebTransportUascTransport.ConnectDataChannelsAsync` and
 `ListenDataChannelsAsync` select that management-only path independently of the
 Part 32 Service baseline. Management CONTROL uses final protected MSG chunks
 with RequestId equal to the common-record MessageId; native flow streams and
 datagrams belong to the same session. No TLS exporter is used by this path.
-The common CONTROL codec still uses binary fields rather than the draft's JSON
-representation, and browser/native interoperability for this path remains
-unverified. Earlier regression evidence targets revision `ff4ff8e` unless its
+The legacy path's CONTROL codec still uses binary fields rather than that
+experiment's JSON representation; this is not a Part 30 binary-FLC defect.
+Browser/native interoperability for this path remains unverified.
+Earlier regression evidence targets revision `ff4ff8e` unless its
 source scope is stated explicitly; it does not establish conformance to the new
 UAFX annex.
 The managed QUIC baseline and explicitly selected native QUIC/WebTransport
@@ -98,6 +102,45 @@ provisioning separately.
 
 ## Select a carrier and a payload
 
+The Part 30 endpoint uses `DataChannelProfiles.PubSubUasc` and the exact resource
+`DataChannelProfiles.PubSubResource` (`/pubsub/uasc`) over `opc.tcp` or binary
+`opc.wss`. A server with `UseDataChannels` or `AddDataChannels` selects and
+advertises this capability when that resource is configured as a base address.
+The client selects the same profile and resource in its endpoint description
+and supplies its context factory in `TransportChannelSettings.DataChannels`.
+Both peers authenticate through UASC before FLC HELLO confirms the capability.
+HELLO uses the ordinary-UASC carrier discriminator `0`; ordinary Services and
+admitted FLO/FLC share the connection.
+
+Given a configured or discovered `selectedEndpoint`, application-certificate
+settings, an authorized `contextFactory` and the host's transport bindings:
+
+```csharp
+if (selectedEndpoint.TransportProfileUri != DataChannelProfiles.PubSubUasc)
+{
+    throw new InvalidOperationException("Select an endpoint advertising PubSub over UASC.");
+}
+
+applicationSettings.Description = selectedEndpoint;
+applicationSettings.DataChannels = contextFactory;
+var client = new UascDataChannelClient(bindings, telemetry);
+await using UascDataChannelConnection connection = await client.ConnectAsync(
+    new Uri(selectedEndpoint.EndpointUrl), applicationSettings, cancellationToken);
+DataChannelContext context = connection.Context;
+```
+
+The client validates the exact resource/profile pair and protected settings
+before opening the transport. Do not relabel an ordinary endpoint description
+to enable this capability.
+
+This endpoint reuses `DataChannelCarrierKind.SharedUasc`; that runtime kind
+does not identify which endpoint profile was selected. `/flow/v1/shared` and
+its legacy profile remain separately selectable, not aliases for `/pubsub/uasc`.
+The legacy shared profile retains its HELLO carrier discriminator `1`.
+Client validation, TCP HEL, WSS upgrade and Session endpoint matching reject a
+profile paired with another profile's resource. A reserved `/pubsub` path with
+no supported capability cannot fall back to ordinary Services or HTTP handlers.
+
 The managed QUIC baseline is exposed separately through `QuicUascTransport`,
 `DataChannelProfiles.UascQuic` and ALPN `opcua-uasc-draft`. It feeds ordinary
 UACP/UASC directly and can carry Services alone or explicitly configured
@@ -151,15 +194,16 @@ Profile matching is exact; an unavailable profile is not substituted with anothe
 
 | Carrier | Profile constant | Endpoint and security | Ordinary Services |
 | --- | --- | --- | --- |
-| Dedicated FLO/UASC | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC | Ordinary MSG remains standard Services |
-| Shared FLO/UASC | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC | Share the authenticated SecureChannel |
+| Part 30 PubSub/UASC | `PubSubUasc` | `opc.tcp` or binary `opc.wss`, resource `/pubsub/uasc`; protected UASC | Share the authenticated SecureChannel |
+| Legacy dedicated FLO/UASC | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC | Not exposed by the dedicated facade |
+| Legacy shared FLO/UASC | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC | Share the authenticated SecureChannel |
 | Part 31 QUIC baseline | `UascQuic` | `opc.quic`, ALPN `opcua-uasc-draft`; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services and configured FLO/FLC |
 | Part 32 WebTransport baseline | `UascWebTransport` | `https`, HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support unimplemented |
 | Legacy native QUIC flow | `Quic` | `opc.quic`, ALPN `opcua-flow/1`; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
 | Native WebTransport management | `WebTransport` | `opc.wt`, mapped HTTPS CONNECT; server-authenticated TLS plus SignAndEncrypt UASC management | None on management; no Sessions advertised |
 | Legacy native WebTransport flow | `WebTransport` | `opc.wt`, HTTP/3 and WebTransport draft-16; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
 
-Both UASC profiles support raw TCP, Kestrel TCP and binary WSS
+The Part 30 and legacy UASC endpoints support raw TCP, Kestrel TCP and binary WSS
 (`opcua+uacp`). WSS is not WebTransport. HTTPS request/response, JSON WebSocket,
 Kestrel's older WebTransport draft and browser WebTransport are not substitute
 carriers.
@@ -216,11 +260,13 @@ IDs become available for another admission after the flow terminates.
 Directions are relative to the **flow opener**: `OpenerToAcceptor`,
 `AcceptorToOpener` or `Duplex`. The context initiator, transport initiator,
 flow opener and PubSub Publisher are distinct roles. The context initiator
-sends the first HELLO and selects ContextId and Generation. The UASC initiator
-fills that role for dedicated and shared UASC; the transport initiator fills it
-for native carriers. Odd ChannelIds belong to the context initiator. Ordered
-and Datagram delivery are distinct contracts; a datagram request never silently
-becomes an ordered stream.
+sends the first HELLO and selects ContextId and Generation. The physical
+transport initiator fills that role for native carriers and the Part 30 endpoint,
+including a reverse-connected TCP server; this does not change which peer initiates UASC.
+The legacy dedicated/shared endpoints retain the UASC initiator as their context
+initiator. Odd ChannelIds belong to the context initiator. Ordered and Datagram
+delivery are distinct contracts; a datagram request never silently becomes an
+ordered stream.
 
 ## Compose the application
 
@@ -259,11 +305,11 @@ DataChannelContext context = connection.Context;
 The selected endpoint description must match the RHE endpoint URL and server
 application URI. These advertised values do not authenticate the peer: the
 ordinary UASC application-certificate validation and protected HELLO still run.
-The handoff overload never substitutes a new outbound connection. The physical
-server initiator owns the context identity and odd ChannelIds; the UASC client
-remains the OPN requester and uses its original cryptographic role. Either peer
-can open flows, independently of those roles. Integrity-only flows still need
-explicit binding and resource-policy approval.
+The handoff overload never substitutes a new outbound connection. For the
+Part 30 endpoint, the physical server initiator owns the context identity and
+odd ChannelIds; the UASC client remains the OPN requester and uses its original
+cryptographic role. Either peer can open flows, independently of those roles.
+Integrity-only flows still need explicit binding and resource-policy approval.
 
 For native transport construction and deployment, see the
 [QUIC binding](../src/Opc.Ua.Bindings.Quic/NugetREADME.md) and
@@ -455,8 +501,9 @@ rejected.
 Multiple writers can share an authorized flow; different resource permissions,
 delivery contracts or lifetimes need separate flows.
 
-The optional UAFX configuration bridge uses the standard
-`DataChannelProfiles.PubSubUasc` profile. `ConfigureUafx` validates an
+The optional UAFX configuration bridge uses the same
+`DataChannelProfiles.PubSubUasc` profile and `/pubsub/uasc` endpoint as Part 30.
+`ConfigureUafx` validates an
 `opc.tcp` or `opc.wss` address, null transport-specific settings at the connection,
 group and DataSetWriter/DataSetReader scopes, and a local
 ordered/confidential UADP policy with `application/octet-stream`; it does not
@@ -475,9 +522,11 @@ payloads and message-settings objects from non-UADP models rather than
 substituting an encoding or ignoring incompatible settings. Transport-specific
 network service requests are rejected even on disabled components, before
 changing the profile or creating a runtime transport. This is only the
-transport/config bridge: Part 81 ConnectionManager procedures,
-endpoint ownership, role claims, authorization, status, persistence and
-recovery remain unimplemented, so this API does not establish UAFX conformance.
+transport/config bridge. `PubSubFxReservationMethods` additionally binds
+verification and Session-owned communication-ID reservation, while
+`BindFxEndpointStatus` projects actual reader/writer health. Full
+ConnectionManager procedures, host-owned endpoint lifecycle, persistence and
+recovery remain incomplete, so these APIs do not establish UAFX conformance.
 The [UAFX model package](UAFX.md) supplies the standard generated Part 81
 contracts independently of this transport bridge.
 
@@ -516,8 +565,10 @@ WebTransport management path carries one complete CONTROL record in each final
 protected MSG, with RequestId equal to MessageId and no Service wrapper.
 DATA, non-final chunks, mismatched identifiers and trailing records are refused
 on that management path. END and revision barriers remain on their native
-stream. RESET still uses the legacy management exchange before FIN; that
-ordering differs from the pinned draft's data-stream RESET requirement.
+stream. RESET still uses the legacy management exchange before FIN, which
+differs from the older native experiment's data-stream RESET requirement.
+For the split Parts 31–32 direct binding, COMMIT and END occupy the ordered
+data stream; RESET and other controls remain on secured FLC.
 A final UASC FLO body is exactly one unchanged UADP NetworkMessage; its first byte is
 the first byte of that message, with no ChannelId or common-record prefix.
 Final FLC carries Revision, OperationId, then the CONTROL opcode and ordered
@@ -756,11 +807,13 @@ or empty test run is not native acceptance.
   including provisional-flow conflicts, stable route snapshots and ordinary
   UADP writer-set preservation. This bounded common-runtime and actual reverse
   TCP evidence does not establish the complete transport assertion matrix.
-- **UAFX integration is partial.** The standard `pubsub-uasc` profile, strict
+- **UAFX integration is partial.** The standard `pubsub-uasc` endpoint, strict
   local-policy validation and an opt-in shared-UASC PubSub transport bridge are
   implemented. The [UAFX model package](UAFX.md) supplies generated Part 81
-  contracts. ConnectionManager/AutomationComponent configuration,
-  endpoint ownership, authorization, status, persistence and recovery are not.
+  contracts. Verification and communication-ID reservation are bound to the
+  AutomationComponent Methods; reader/writer state can be projected onto a
+  host-owned ConnectionEndpoint. Full ConnectionManager procedures and the
+  concrete host-owned endpoint lifecycle, persistence and recovery are incomplete.
   This does not establish the Data Channel UAFX Binding Facet or a UAFX role
   claim. The binding selects ordered, confidential PubSub over UASC; it does
   not apply to QUIC, WebTransport or type-3 streaming payloads.
@@ -819,10 +872,10 @@ or empty test run is not native acceptance.
 
 ## References
 
-- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels)
-- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/quic)
-- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/webtransport)
-- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/25250437f7086f173e825a6720476c01abe9e3af/source/transport-common/contract.md)
+- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/data-channels)
+- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/quic)
+- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/webtransport)
+- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/transport-common/contract.md)
 - [PubSub integration](PubSub.md#data-channels-experimental)
 - [Optional native Client/Server lane](DataChannelClientServer.md)
 - [Certificate manager and secret store](CertificateManager.md)

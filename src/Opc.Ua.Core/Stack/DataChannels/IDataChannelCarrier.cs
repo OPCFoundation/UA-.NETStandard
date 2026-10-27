@@ -310,6 +310,11 @@ namespace Opc.Ua.DataChannels
         /// Gets whether this peer initiates the data context independently of the transport role.
         /// </summary>
         public bool IsContextInitiator { get; }
+
+        /// <summary>
+        /// Gets the exact profile selected by the authenticated UASC endpoint, when available.
+        /// </summary>
+        internal string? TransportProfileUri { get; init; }
     }
 
     /// <summary>

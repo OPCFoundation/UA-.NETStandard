@@ -291,5 +291,290 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 DataChannels = Mock.Of<IDataChannelContextFactory>()
             };
         }
+
+        [TestCase("/pubsub/uasc", DataChannelProfiles.PubSubUasc, true)]
+        [TestCase("/flow/v1/shared", DataChannelProfiles.SharedUasc, true)]
+        [TestCase("/flow/v1/dedicated", DataChannelProfiles.DedicatedUasc, true)]
+        [TestCase("", null, false)]
+        [TestCase("/ordinary", null, false)]
+        [TestCase("/pubsubscription", null, false)]
+        [TestCase("/pubsub", null, true)]
+        [TestCase("/pubsub/", null, true)]
+        [TestCase("/pubsub/other", null, true)]
+        [TestCase("/pubsub/uasc/", null, true)]
+        [TestCase("/pubsub/uasc/extra", null, true)]
+        [TestCase("/PubSub/Uasc", null, true)]
+        [TestCase("/flow", null, true)]
+        [TestCase("/flow/v2/shared", null, true)]
+        public void CanonicalPart30ConstantsAndResourceMappingsAreExact(
+            string resource, string? profile, bool reserved)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(DataChannelProfiles.PubSubUasc,
+                    Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/pubsub-uasc"));
+                Assert.That(DataChannelProfiles.PubSubResource, Is.EqualTo("/pubsub/uasc"));
+                Assert.That(UascDataChannelEndpoint.GetKind(DataChannelProfiles.PubSubUasc),
+                    Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+                Assert.That(UascDataChannelEndpoint.GetResourceProfile(resource), Is.EqualTo(profile));
+                Assert.That(UascDataChannelEndpoint.IsFlowResource(resource), Is.EqualTo(reserved));
+                Assert.That(UascDataChannelEndpoint.GetResourceKind(resource),
+                    Is.EqualTo(profile == null ? (DataChannelCarrierKind?)null :
+                        profile == DataChannelProfiles.DedicatedUasc
+                            ? DataChannelCarrierKind.DedicatedUasc : DataChannelCarrierKind.SharedUasc));
+            });
+        }
+
+        [TestCase("opc.tcp")]
+        [TestCase("opc.wss")]
+        public void CanonicalPart30ValidationAcceptsProtectedCanonicalEndpoints(string scheme)
+        {
+            var url = new Uri($"{scheme}://localhost:4840/pubsub/uasc");
+            TransportChannelSettings settings = CreateSettings(url, DataChannelProfiles.PubSubUasc);
+            DataChannelCarrierKind? selected = UascDataChannelEndpoint.Validate(
+                url, settings.Description, settings.DataChannels, allowIntegrity: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected, Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+                Assert.That(UascDataChannelEndpoint.GetResourceProfile(url.AbsolutePath),
+                    Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/pubsub-uasc"));
+                Assert.That(settings.Description!.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+                Assert.That(settings.Description.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            });
+        }
+
+        [TestCaseSource(nameof(CanonicalPart30ResourceMismatches))]
+        public async Task CanonicalPart30ClientRejectsActualOrDescribedResourceMismatchBeforeTransportCreationAsync(
+            string scheme, bool changeDescription, string profile, string validResource, string invalidResource)
+        {
+            var valid = new Uri($"{scheme}://localhost:4840{validResource}");
+            Uri invalid = invalidResource switch
+            {
+                "userinfo" => new Uri($"{scheme}://user@localhost:4840/pubsub/uasc"),
+                "scheme" => new Uri("https://localhost:4840/pubsub/uasc"),
+                "other-uasc-scheme" => new Uri(
+                    $"{(scheme == "opc.tcp" ? "opc.wss" : "opc.tcp")}://localhost:4840/pubsub/uasc"),
+                _ => new Uri($"{scheme}://localhost:4840{invalidResource}")
+            };
+            TransportChannelSettings settings = CreateSettings(valid, profile);
+            if (profile != Profiles.UaTcpTransport)
+            {
+                Assert.That(UascDataChannelEndpoint.Validate(
+                    valid, settings.Description, settings.DataChannels, false),
+                    Is.EqualTo(profile == DataChannelProfiles.DedicatedUasc
+                        ? DataChannelCarrierKind.DedicatedUasc : DataChannelCarrierKind.SharedUasc));
+            }
+            settings.Description!.EndpointUrl = changeDescription ? invalid.AbsoluteUri : valid.AbsoluteUri;
+
+            await CanonicalPart30AssertRefusedAsync(
+                changeDescription ? valid : invalid, settings, StatusCodes.BadNotSupported).ConfigureAwait(false);
+        }
+
+        [TestCase("opc.tcp")]
+        [TestCase("opc.wss")]
+        public async Task CanonicalPart30ClientRejectsMissingContextBeforeTransportCreationAsync(string scheme)
+        {
+            var url = new Uri($"{scheme}://localhost:4840/pubsub/uasc");
+            TransportChannelSettings settings = CreateSettings(url, DataChannelProfiles.PubSubUasc);
+            settings.DataChannels = null;
+
+            await CanonicalPart30AssertRefusedAsync(url, settings, StatusCodes.BadNotSupported).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task CanonicalPart30ClientRejectsUnprotectedModeBeforeTransportCreationAsync(
+            [Values("opc.tcp", "opc.wss")] string scheme,
+            [Values(MessageSecurityMode.None, MessageSecurityMode.Sign)] MessageSecurityMode mode)
+        {
+            var url = new Uri($"{scheme}://localhost:4840/pubsub/uasc");
+            TransportChannelSettings settings = CreateSettings(url, DataChannelProfiles.PubSubUasc);
+            settings.Description!.SecurityMode = mode;
+
+            await CanonicalPart30AssertRefusedAsync(
+                url, settings, StatusCodes.BadSecurityModeRejected).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task CanonicalPart30ClientRejectsMissingAuthenticatedPolicyBeforeTransportCreationAsync(
+            [Values("opc.tcp", "opc.wss")] string scheme,
+            [Values(null, "", SecurityPolicies.None)] string? policy)
+        {
+            var url = new Uri($"{scheme}://localhost:4840/pubsub/uasc");
+            TransportChannelSettings settings = CreateSettings(url, DataChannelProfiles.PubSubUasc);
+            settings.Description!.SecurityPolicyUri = policy;
+
+            await CanonicalPart30AssertRefusedAsync(
+                url, settings, StatusCodes.BadSecurityPolicyRejected).ConfigureAwait(false);
+        }
+
+        [Test]
+        public void CanonicalPart30ExplicitIntegrityOptInPreservesLegacyBehavior(
+            [Values(DataChannelProfiles.PubSubUasc, DataChannelProfiles.SharedUasc)] string profile)
+        {
+            string resource = profile == DataChannelProfiles.PubSubUasc ? "/pubsub/uasc" : "/flow/v1/shared";
+            var url = new Uri("opc.tcp://localhost:4840" + resource);
+            TransportChannelSettings settings = CreateSettings(url, profile);
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateProtection(
+                MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, false));
+            ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                UascDataChannelEndpoint.ValidateProtection(
+                    MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256, false))!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+
+            settings.Description!.SecurityMode = MessageSecurityMode.Sign;
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateProtection(
+                MessageSecurityMode.Sign, SecurityPolicies.Basic256Sha256, true));
+            Assert.That(UascDataChannelEndpoint.Validate(url, settings.Description, settings.DataChannels, true),
+                Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+            Assert.That(UascDataChannelEndpoint.GetResourceProfile(resource), Is.EqualTo(profile));
+        }
+
+        [TestCase("opc.tcp")]
+        [TestCase("opc.wss")]
+        public void CanonicalPart30ListenerValidationAcceptsOnlyProtectedExactProfileResourcePairs(string scheme)
+        {
+            var url = new Uri($"{scheme}://localhost:4840/pubsub/uasc");
+            TransportChannelSettings channel = CreateSettings(url, DataChannelProfiles.PubSubUasc);
+            EndpointDescription ordinary = CreateSettings(
+                new Uri($"{scheme}://localhost:4840/ordinary"), Profiles.UaTcpTransport).Description!;
+            EndpointDescription legacy = CreateSettings(
+                new Uri($"{scheme}://localhost:4840/flow/v1/shared"), DataChannelProfiles.SharedUasc).Description!;
+            var settings = new TransportListenerSettings { DataChannels = channel.DataChannels };
+            settings.Descriptions = null;
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateListener(settings));
+            settings.Descriptions = [];
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateListener(settings));
+            settings.Descriptions = [ordinary];
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateListener(settings));
+            Assert.That(UascDataChannelEndpoint.Validate(
+                new Uri(ordinary.EndpointUrl!), ordinary, settings.DataChannels, false), Is.Null);
+            settings.Descriptions = [channel.Description!];
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateListener(settings));
+            settings.Descriptions = [ordinary, channel.Description!, legacy];
+            Assert.DoesNotThrow(() => UascDataChannelEndpoint.ValidateListener(settings));
+            Assert.That(settings.Descriptions, Has.Count.EqualTo(3));
+
+            (string Defect, StatusCode Status)[] defects =
+            [
+                ("factory", StatusCodes.BadNotSupported),
+                ("none", StatusCodes.BadSecurityModeRejected),
+                ("sign", StatusCodes.BadSecurityModeRejected),
+                ("policy", StatusCodes.BadSecurityPolicyRejected),
+                ("legacy-profile", StatusCodes.BadNotSupported),
+                ("/flow/v1/shared", StatusCodes.BadNotSupported),
+                ("/pubsub/other", StatusCodes.BadNotSupported),
+                ("/pubsub/uasc?fallback=true", StatusCodes.BadNotSupported),
+                ("/pubsub/uasc#fragment", StatusCodes.BadNotSupported),
+                ("userinfo", StatusCodes.BadNotSupported)
+            ];
+            foreach ((string defect, StatusCode status) in defects)
+            {
+                EndpointDescription candidate = (EndpointDescription)channel.Description!.Clone();
+                settings.DataChannels = defect == "factory" ? null : channel.DataChannels;
+                switch (defect)
+                {
+                    case "none":
+                        candidate.SecurityMode = MessageSecurityMode.None;
+                        break;
+                    case "sign":
+                        candidate.SecurityMode = MessageSecurityMode.Sign;
+                        break;
+                    case "policy":
+                        candidate.SecurityPolicyUri = SecurityPolicies.None;
+                        break;
+                    case "legacy-profile":
+                        candidate.TransportProfileUri = DataChannelProfiles.SharedUasc;
+                        break;
+                    case "userinfo":
+                        candidate.EndpointUrl = $"{scheme}://user@localhost:4840/pubsub/uasc";
+                        break;
+                    case "factory":
+                        break;
+                    default:
+                        candidate.EndpointUrl = $"{scheme}://localhost:4840{defect}";
+                        break;
+                }
+                settings.Descriptions = [ordinary, candidate, legacy];
+                ServiceResultException error = Assert.Throws<ServiceResultException>(
+                    () => UascDataChannelEndpoint.ValidateListener(settings), defect)!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(error.StatusCode, Is.EqualTo(status), defect);
+                    Assert.That(settings.Descriptions, Has.Count.EqualTo(3), defect);
+                    Assert.That(settings.Descriptions[0], Is.SameAs(ordinary), defect);
+                });
+            }
+        }
+
+        [TestCase("opc.tcp")]
+        [TestCase("opc.wss")]
+        public void CanonicalPart30ValidationAllowsDifferentAuthoritiesForExactResources(string scheme)
+        {
+            var actual = new Uri($"{scheme}://connection.invalid:4841/pubsub/uasc");
+            var described = new Uri($"{scheme}://advertisement.invalid:4842/pubsub/uasc");
+            TransportChannelSettings settings = CreateSettings(described, DataChannelProfiles.PubSubUasc);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(UascDataChannelEndpoint.Validate(
+                    actual, settings.Description, settings.DataChannels, false),
+                    Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+                Assert.That(settings.Description!.EndpointUrl,
+                    Is.EqualTo($"{scheme}://advertisement.invalid:4842/pubsub/uasc"));
+                Assert.That(UascDataChannelEndpoint.GetResourceProfile(actual.AbsolutePath),
+                    Is.EqualTo("http://opcfoundation.org/UA-Profile/Transport/pubsub-uasc"));
+            });
+        }
+
+        private static System.Collections.Generic.IEnumerable<TestCaseData> CanonicalPart30ResourceMismatches()
+        {
+            (string Profile, string Valid, string Invalid)[] pairs =
+            [
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/other"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/uasc/"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/uasc/extra"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/PubSub/Uasc"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/uasc?fallback=true"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/pubsub/uasc#fragment"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "userinfo"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "scheme"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "other-uasc-scheme"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/flow/v1/shared"),
+                (DataChannelProfiles.PubSubUasc, "/pubsub/uasc", "/flow/v1/dedicated"),
+                (DataChannelProfiles.SharedUasc, "/flow/v1/shared", "/pubsub/uasc"),
+                (DataChannelProfiles.DedicatedUasc, "/flow/v1/dedicated", "/pubsub/uasc"),
+                (Profiles.UaTcpTransport, "/ordinary", "/pubsub/uasc"),
+                (Profiles.UaTcpTransport, "/ordinary", "/pubsub/other")
+            ];
+            foreach (string scheme in new[] { "opc.tcp", "opc.wss" })
+            {
+                foreach (bool description in new[] { false, true })
+                {
+                    foreach ((string profile, string valid, string invalid) in pairs)
+                    {
+                        yield return new TestCaseData(scheme, description, profile, valid, invalid);
+                    }
+                }
+            }
+        }
+
+        private static async Task CanonicalPart30AssertRefusedAsync(
+            Uri url, TransportChannelSettings settings, StatusCode status)
+        {
+            var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
+            var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ConnectAsync(url, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error.StatusCode, Is.EqualTo(status));
+                Assert.That(registry.Invocations, Is.Empty);
+            });
+            registry.VerifyNoOtherCalls();
+        }
     }
 }

@@ -1166,11 +1166,10 @@ namespace Opc.Ua.Bindings
         {
             string resource = context.Request.Path.Value ?? "/";
             bool isFlowResource = UascDataChannelEndpoint.IsFlowResource(resource);
-            DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetResourceKind(resource);
+            string? profile = UascDataChannelEndpoint.GetResourceProfile(resource);
             if (isFlowResource &&
-                (!kind.HasValue || m_dataChannelFactory == null || context.Request.QueryString.HasValue ||
-                    !m_descriptions.Exists(endpoint =>
-                        UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri) == kind)))
+                (profile == null || m_dataChannelFactory == null || context.Request.QueryString.HasValue ||
+                    !m_descriptions.Exists(endpoint => endpoint.TransportProfileUri == profile)))
             {
                 await WriteResponseAsync(
                     context.Response,
@@ -2291,10 +2290,12 @@ namespace Opc.Ua.Bindings
                         m_telemetry);
                     lease.Attach(transport);
                     var perWsListener = new WssChannelListener(this);
-                    DataChannelCarrierKind? resourceKind = UascDataChannelEndpoint.GetResourceKind(
+                    string? resourceProfile = UascDataChannelEndpoint.GetResourceProfile(
                         context.Request.Path.Value ?? "/");
                     List<EndpointDescription> endpoints = m_descriptions.FindAll(endpoint =>
-                        UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri) == resourceKind &&
+                        (resourceProfile == null
+                            ? UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri) == null
+                            : endpoint.TransportProfileUri == resourceProfile) &&
                         endpoint.TransportProfileUri is not
                             (DataChannelProfiles.Quic or DataChannelProfiles.WebTransport));
                     channel = m_reverseConnectListener

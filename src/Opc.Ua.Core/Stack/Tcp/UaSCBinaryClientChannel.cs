@@ -949,6 +949,7 @@ namespace Opc.Ua.Bindings
 
                 if (m_dataChannelKind is DataChannelCarrierKind kind && DataChannels == null)
                 {
+                    string? transportProfileUri = EndpointDescription?.TransportProfileUri;
                     var identity = new DataChannelPeerIdentity(
                         UascDataChannelEndpoint.GetApplicationUri(ClientCertificate!, null),
                         UascDataChannelEndpoint.GetApplicationUri(
@@ -959,7 +960,10 @@ namespace Opc.Ua.Bindings
                             ? DataChannelProtectionMode.Confidential
                             : DataChannelProtectionMode.Integrity,
                         isTransportInitiator: !ReverseSocket,
-                        isContextInitiator: true);
+                        isContextInitiator: transportProfileUri != DataChannelProfiles.PubSubUasc || !ReverseSocket)
+                    {
+                        TransportProfileUri = transportProfileUri
+                    };
                     DataChannelContext context = AttachDataChannels(
                         kind, identity, isUascInitiator: true, m_dataChannelFactory!);
                     using CertificateCollection peerChain =

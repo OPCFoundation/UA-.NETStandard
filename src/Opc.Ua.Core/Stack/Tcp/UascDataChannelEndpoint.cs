@@ -47,7 +47,8 @@ namespace Opc.Ua.Bindings
             return profile switch
             {
                 DataChannelProfiles.DedicatedUasc => DataChannelCarrierKind.DedicatedUasc,
-                DataChannelProfiles.SharedUasc => DataChannelCarrierKind.SharedUasc,
+                DataChannelProfiles.SharedUasc or DataChannelProfiles.PubSubUasc =>
+                    DataChannelCarrierKind.SharedUasc,
                 DataChannelProfiles.UascQuic => DataChannelCarrierKind.QuicUasc,
                 DataChannelProfiles.UascWebTransport => DataChannelCarrierKind.WebTransportUasc,
                 DataChannelProfiles.WebTransport => DataChannelCarrierKind.WebTransport,
@@ -96,7 +97,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Gets the profile selected by an exact version-one endpoint resource.
+        /// Gets the dispatch mode selected by an exact endpoint resource.
         /// </summary>
         internal static DataChannelCarrierKind? GetResourceKind(Uri endpoint)
         {
@@ -104,14 +105,23 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Gets the profile selected by an HTTP endpoint resource.
+        /// Gets the dispatch mode selected by an HTTP endpoint resource.
         /// </summary>
         internal static DataChannelCarrierKind? GetResourceKind(string resource)
         {
+            return GetKind(GetResourceProfile(resource));
+        }
+
+        /// <summary>
+        /// Gets the exact selected profile without treating legacy resources as aliases.
+        /// </summary>
+        internal static string? GetResourceProfile(string resource)
+        {
             return resource switch
             {
-                DataChannelProfiles.DedicatedResource => DataChannelCarrierKind.DedicatedUasc,
-                DataChannelProfiles.SharedResource => DataChannelCarrierKind.SharedUasc,
+                DataChannelProfiles.DedicatedResource => DataChannelProfiles.DedicatedUasc,
+                DataChannelProfiles.SharedResource => DataChannelProfiles.SharedUasc,
+                DataChannelProfiles.PubSubResource => DataChannelProfiles.PubSubUasc,
                 _ => null
             };
         }
@@ -130,7 +140,9 @@ namespace Opc.Ua.Bindings
         internal static bool IsFlowResource(string resource)
         {
             return resource.Equals("/flow", StringComparison.OrdinalIgnoreCase) ||
-                resource.StartsWith("/flow/", StringComparison.OrdinalIgnoreCase);
+                resource.StartsWith("/flow/", StringComparison.OrdinalIgnoreCase) ||
+                resource.Equals("/pubsub", StringComparison.OrdinalIgnoreCase) ||
+                resource.StartsWith("/pubsub/", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
@@ -165,11 +177,11 @@ namespace Opc.Ua.Bindings
 
             if (factory == null ||
                 url.Scheme is not (Utils.UriSchemeOpcTcp or Utils.UriSchemeOpcWss) ||
-                GetResourceKind(url) != kind ||
+                GetResourceProfile(url.AbsolutePath) != endpoint!.TransportProfileUri ||
                 url.Query.Length != 0 || url.Fragment.Length != 0 || url.UserInfo.Length != 0 ||
                 !Uri.TryCreate(endpoint!.EndpointUrl, UriKind.Absolute, out Uri? described) ||
                 described.Scheme != url.Scheme ||
-                GetResourceKind(described) != kind ||
+                GetResourceProfile(described.AbsolutePath) != endpoint.TransportProfileUri ||
                 described.Query.Length != 0 || described.Fragment.Length != 0 || described.UserInfo.Length != 0)
             {
                 throw Unsupported();

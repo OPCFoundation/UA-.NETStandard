@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.DataChannels
         internal static bool IsDataProfile(string? profile)
         {
             return profile is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
-                DataChannelProfiles.Quic or DataChannelProfiles.WebTransport;
+                DataChannelProfiles.PubSubUasc or DataChannelProfiles.Quic or DataChannelProfiles.WebTransport;
         }
 
         /// <summary>
