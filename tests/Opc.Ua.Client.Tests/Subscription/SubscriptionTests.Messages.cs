@@ -34,6 +34,24 @@ namespace Opc.Ua.Client.Subscriptions
     public sealed partial class SubscriptionTests
     {
         /// <summary>
+        /// A concrete handler implementing both interfaces can use the existing registration
+        /// API and the whole-message entry point without an explicit interface cast.
+        /// </summary>
+        [Test]
+        public void CombinedHandlersHaveUnambiguousRegistration()
+        {
+            var handler = new NotificationMessageDispatch.HandlerAdapter(
+                new Mock<ISubscriptionNotificationMessageHandler>().Object);
+            var options = new SubscriptionOptions { PublishingEnabled = true };
+            ManagedSession session = null!;
+
+            Assert.That(() => session.AddSubscription(handler, options),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("session"));
+            Assert.That(() => session.AddMessageSubscription(handler, options),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("session"));
+        }
+
+        /// <summary>
         /// Whole-message registration rejects missing dependencies at its API boundary.
         /// </summary>
         [Test]
@@ -46,7 +64,7 @@ namespace Opc.Ua.Client.Subscriptions
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("manager"));
             Assert.That(() => SubscriptionNotificationMessageExtensions.Add(manager, null!, m_options),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("handler"));
-            Assert.That(() => SubscriptionNotificationMessageExtensions.Add(manager, handler, null!),
+            Assert.That(() => manager.Add(handler, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("options"));
         }
 
@@ -66,9 +84,7 @@ namespace Opc.Ua.Client.Subscriptions
             messages.Setup(value => value.OnNotificationMessageAsync(
                     It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
                 .Callback((SubscriptionNotificationMessage message, CancellationToken _) =>
-                {
-                    received.TrySetResult(message);
-                })
+                    received.TrySetResult(message))
                 .Returns(default(ValueTask));
             using var forwarding = new PartitionForwardingHandler(m_mockNotificationDataHandler.Object);
             ISubscriptionNotificationHandler handler = partitioned ? forwarding : m_mockNotificationDataHandler.Object;

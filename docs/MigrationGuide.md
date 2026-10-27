@@ -1101,7 +1101,11 @@ await subscription.CreateAsync(ct).ConfigureAwait(false);
 // now
 ISubscription subscription = managedSession.AddSubscription(
     handler, // ISubscriptionNotificationHandler
-    new SubscriptionOptions { PublishingInterval = TimeSpan.FromSeconds(1) });
+    new SubscriptionOptions
+    {
+        PublishingInterval = TimeSpan.FromSeconds(1),
+        PublishingEnabled = true
+    });
 ```
 
 Monitored items are added with `subscription.MonitoredItems.TryAdd(...)`. See
@@ -1150,7 +1154,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .AcknowledgeAfterConfirmation()
     .ConnectAsync(ct).ConfigureAwait(false);
 // Implement ISubscriptionNotificationMessageHandler and register it using
-// managedSession.AddSubscription(handler, options). After every payload of
+// managedSession.AddMessageSubscription(handler, options). After every payload of
 // SubscriptionNotificationMessage was delivered downstream:
 session.Confirm(message.Acknowledgement);
 ```

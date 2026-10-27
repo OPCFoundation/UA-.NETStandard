@@ -107,7 +107,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     LifetimeCount = 100
                 };
                 ISubscription subscription = wholeMessage
-                    ? session.AddSubscription(messages, options)
+                    ? session.AddMessageSubscription(messages, options)
                     : session.AddSubscription(handler, options);
                 Assert.That(subscription.TryAddMonitoredItem(
                     "CurrentTime",

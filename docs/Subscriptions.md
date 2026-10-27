@@ -449,7 +449,7 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .ConnectAsync(ct);
 
 // Register an ISubscriptionNotificationMessageHandler:
-ISubscription subscription = session.AddSubscription(handler, new SubscriptionOptions
+ISubscription subscription = session.AddMessageSubscription(handler, new SubscriptionOptions
 {
     PublishingInterval = TimeSpan.FromSeconds(1),
     PublishingEnabled = true
@@ -472,8 +472,10 @@ retained after the callback returns; monitored-item references remain live SDK o
 `MoreNotifications` describes further Publish responses, not additional parts of this envelope.
 Whole-message delivery is opt-in and does not allocate an envelope for existing handlers.
 
-On V2, use the `ManagedSession.AddSubscription` or `ISubscriptionManager.Add` overload
-accepting `ISubscriptionNotificationMessageHandler`. On the classic engine, assign
+On V2, use `ManagedSession.AddMessageSubscription` or the `ISubscriptionManager.Add`
+overload accepting `ISubscriptionNotificationMessageHandler`. The distinct managed-session
+method name avoids overload ambiguity for handlers implementing both notification interfaces;
+the existing `ManagedSession.AddSubscription` API remains unchanged. On the classic engine, assign
 `Subscription.NotificationMessageHandler`. Whole-message handling replaces data/event
 callbacks for that subscription, avoiding duplicate delivery; keep-alive and state handling
 remain unchanged. A V2 handler can also implement `ISubscriptionNotificationHandler` to

@@ -50,8 +50,12 @@ namespace Opc.Ua.Client
     {
         /// <summary>
         /// Adds an opt-in whole-message subscription using an options snapshot.
+        /// The distinct name also supports handlers implementing both notification interfaces.
         /// </summary>
-        public static ISubscription AddSubscription(
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="session"/>, <paramref name="handler"/>, or <paramref name="options"/> is <c>null</c>.
+        /// </exception>
+        public static ISubscription AddMessageSubscription(
             this ManagedSession session,
             ISubscriptionNotificationMessageHandler handler,
             Subscriptions.SubscriptionOptions options)
