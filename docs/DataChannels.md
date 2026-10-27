@@ -733,17 +733,20 @@ or empty test run is not native acceptance.
   DataSetWriterId resolves to the same resource; unmatched or ambiguous traffic
   is rejected rather than routed by arrival order. Metadata and
   writer-configuration discovery bodies are also
-  matched when they expose DataSetWriterIds. Subscriber routes do not admit
-  discovery requests; callers can register them separately where needed.
-  Publisher-only discovery messages, secured headers that hide writer identity,
-  and message-subtype authorization still need further conformance work. Type 3
-  is accepted only on its explicitly selected A/V or opaque application profile;
-  it is not admitted by an ordinary UADP or PubSub reader route. Explicit type-3
-  route registration rejects WriterGroupId and DataSetWriterId selectors because
-  those fields are absent from the supported minimal streaming headers.
-  Ordinary UADP writer selectors remain supported. This does not
-  establish full source/writer association compliance or conformance to the
-  current Data Channels source.
+  matched when they expose DataSetWriterIds. Reader-derived routes do not admit
+  discovery requests or PublisherEndpoints responses without writer IDs.
+  Callers can register explicit PublisherId and NetworkMessageType associations
+  for those messages; the
+  [publisher-only discovery routing test](../tests/Opc.Ua.Core.DataChannels.Tests/Runtime/FlowDeliveryTests.cs)
+  covers an empty-writer discovery request and PublisherEndpoints response.
+  Secured headers that hide writer identity and discovery-subtype authorization
+  still need further conformance work. Type 3 is accepted only on its explicitly
+  selected A/V or opaque application profile; it is not admitted by an ordinary
+  UADP or PubSub reader route. Explicit type-3 route registration rejects
+  WriterGroupId and DataSetWriterId selectors because those fields are absent
+  from the supported minimal streaming headers. Ordinary UADP writer selectors
+  remain supported. This does not establish full source/writer association
+  compliance or conformance to the current Data Channels source.
 - **WebTransport peer-STOP retention is implemented in the pinned QUIC backend.**
   Its overlay preserves an established reliable boundary and outstanding prefix
   frames when peer `STOP_SENDING` arrives before local cancellation. A local

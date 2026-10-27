@@ -775,6 +775,39 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
+        /// Routes discovery messages without writer IDs through explicit PublisherId and message-type associations.
+        /// </summary>
+        [Test]
+        public async Task UascPublisherRoutesPublisherOnlyDiscoveryByNetworkMessageType()
+        {
+            await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair requestTarget = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:discovery-request"))
+                .ConfigureAwait(false);
+            FlowPair responseTarget = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:discovery-response"))
+                .ConfigureAwait(false);
+            using IDisposable requestRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:discovery-request", new Variant(42u), null, null, 1);
+            using IDisposable responseRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:discovery-response", new Variant(42u), null, null, 2);
+            ByteString request = ByteString.FromHexString("9182042a0000000200000000");
+            ByteString publisherEndpoints = ByteString.FromHexString("9182082a00000001010000000000000000");
+
+            Assert.That(await ReceivePublisherFloAsync(pair, request, requestTarget.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(requestTarget.Remote, request, 1).ConfigureAwait(false);
+            Assert.That(await ReceivePublisherFloAsync(
+                pair, publisherEndpoints, responseTarget.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(responseTarget.Remote, publisherEndpoints, 1).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(requestTarget.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(responseTarget.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
         /// Uses NetworkMessageType as an independent selector for the same publisher and writer.
         /// </summary>
         [Test]
