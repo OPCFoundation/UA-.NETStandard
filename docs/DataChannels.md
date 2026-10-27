@@ -5,11 +5,15 @@ carriers and optional Client/Server lane below retain behavior developed against
 the superseded OPC 10000-28 draft `0.2.0` at
 [`OPCF-Members/OPC10000-Core@726c915`](https://github.com/OPCF-Members/OPC10000-Core/tree/726c91572a4e5725e114115cf0f69ab8cc2a6b0f/source/data-channels).
 The current target is the split OPC 10000-30, -31 and -32 drafts `0.3.0` at
-[`OPCF-Members/OPC10000-Core@7cc6a2e`](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac).
+[`OPCF-Members/OPC10000-Core@2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af).
 This revision splits out the Part 14 streaming extensions and adds an optional
-normative UAFX binding. Earlier regression evidence targets revision `ff4ff8e`
-unless its source scope is stated explicitly; it does not establish conformance
-to the new UAFX annex.
+normative UAFX binding. Its Native WebTransport data-channel mapping requires
+server-authenticated TLS and a SignAndEncrypt UASC management stream on the same
+WebTransport session. This branch still uses ordinary Service dispatch on that
+stream and exporter-backed direct binding, so it does not conform to that
+mapping. Earlier regression evidence targets revision `ff4ff8e` unless its
+source scope is stated explicitly; it does not establish conformance to the new
+UAFX annex.
 The managed QUIC baseline and explicitly selected native QUIC/WebTransport
 baselines now carry ordinary UACP/UASC independently of the legacy native flow
 protocol. Windows native loopbacks complete HEL/ACK, SignAndEncrypt OPN,
@@ -789,10 +793,10 @@ or empty test run is not native acceptance.
 
 ## References
 
-- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/ff4ff8e24f2bb7cbca4c500e333ab5f368aaf7ac/source/data-channels)
-- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/ff4ff8e24f2bb7cbca4c500e333ab5f368aaf7ac/source/quic)
-- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/ff4ff8e24f2bb7cbca4c500e333ab5f368aaf7ac/source/webtransport)
-- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/ff4ff8e24f2bb7cbca4c500e333ab5f368aaf7ac/source/transport-common/contract.md)
+- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels)
+- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/quic)
+- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/webtransport)
+- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/25250437f7086f173e825a6720476c01abe9e3af/source/transport-common/contract.md)
 - [PubSub integration](PubSub.md#data-channels-experimental)
 - [Optional native Client/Server lane](DataChannelClientServer.md)
 - [Certificate manager and secret store](CertificateManager.md)
