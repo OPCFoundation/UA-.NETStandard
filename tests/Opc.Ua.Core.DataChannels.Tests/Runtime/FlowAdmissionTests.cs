@@ -478,11 +478,27 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             });
         }
 
-        [Test]
-        public async Task IncompleteProvisionalStreamIsBoundedAndExpiresAtOpenTimeout()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task IncompleteProvisionalStreamIsBoundedAndExpiresAtOpenTimeout(bool delayHelloCompletion)
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
+            if (delayHelloCompletion)
+            {
+                pair.AcceptorCarrier.GateAfterDelivery = write =>
+                    TestFlowCarrier.Operation(write, DataChannelCarrierKind.Quic) == FlowOperation.Hello;
+            }
             await pair.StartAsync().ConfigureAwait(false);
+            if (delayHelloCompletion)
+            {
+                await pair.AcceptorCarrier.Delivered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(pair.AcceptorCarrier.ActiveSends, Is.EqualTo(1));
+                pair.AcceptorCarrier.DeliveryRelease.TrySetResult(true);
+            }
+            // HELLO readiness can precede release of its writer-owned buffers.
+            await FlowLoopback.EventuallyAsync(() =>
+                pair.AcceptorBudget.Usage.BufferedBytes == FlowStreamInput.ParserStorageBytes &&
+                pair.AcceptorBudget.Usage.Messages == 0).ConfigureAwait(false);
             byte[] header = Header(100);
             Assert.That(await pair.Acceptor.ReceiveStreamAsync(4, new ByteString(header)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
