@@ -35,6 +35,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
@@ -181,6 +182,52 @@ namespace Opc.Ua.PubSub.Tests.Application
             release.SetResult(true);
             _ = await mutation.ConfigureAwait(false);
             Assert.That(await transition.ConfigureAwait(false), Is.EqualTo(PubSubState.Disabled));
+        }
+
+        [Test]
+        public async Task RuntimeControlRetainsConnectionUntilDisableCompletesBeforeRemoval()
+        {
+            var closeStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowClose = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transportFactory = new BlockingCloseTransportFactory(closeStarted, allowClose);
+            await using IPubSubApplication app = BuildApp(transportFactory);
+            try
+            {
+                var concrete = (PubSubApplication)app;
+                concrete.SetAddressSpaceNamespaceIndex(17);
+                NodeId componentId = await app.AddConnectionAsync(new PubSubConnectionDataType
+                {
+                    Name = "runtime-control-removal",
+                    TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                    Address = new ExtensionObject(
+                        new NetworkAddressUrlDataType { Url = "opc.udp://224.0.0.22:4840" })
+                }).ConfigureAwait(false);
+                var runtimeControl = (IPubSubRuntimeControlApplication)app;
+                IPubSubConnection originalConnection = app.Connections[0];
+                _ = await runtimeControl.SetComponentEnabledAsync(componentId, true).ConfigureAwait(false);
+
+                Task<PubSubState> disable = runtimeControl.SetComponentEnabledAsync(
+                    componentId, false).AsTask();
+                Task closeOrTimeout = await Task.WhenAny(closeStarted.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(closeOrTimeout, Is.SameAs(closeStarted.Task));
+
+                Task removal = app.RemoveConnectionAsync(componentId).AsTask();
+                Assert.That(removal.IsCompleted, Is.False);
+                Assert.That(app.Connections, Has.Count.EqualTo(1));
+                Assert.That(app.Connections[0], Is.SameAs(originalConnection));
+
+                allowClose.TrySetResult(true);
+                Assert.That(await disable.ConfigureAwait(false), Is.EqualTo(PubSubState.Disabled));
+                await removal.ConfigureAwait(false);
+                Assert.That(app.Connections, Is.Empty);
+                _ = await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await runtimeControl.SetComponentEnabledAsync(componentId, true).ConfigureAwait(false));
+            }
+            finally
+            {
+                allowClose.TrySetResult(true);
+            }
         }
 
         [TestCase(0)]
@@ -613,6 +660,11 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private static IPubSubApplication BuildApp()
         {
+            return BuildApp(new StubTransportFactory());
+        }
+
+        private static IPubSubApplication BuildApp(IPubSubTransportFactory transportFactory)
+        {
             return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("mutation-tests")
                 .UseConfiguration(new PubSubConfigurationDataType
@@ -621,7 +673,7 @@ namespace Opc.Ua.PubSub.Tests.Application
                     PublishedDataSets = []
                 })
                 .UseAllStandardEncoders()
-                .AddTransportFactory(new StubTransportFactory())
+                .AddTransportFactory(transportFactory)
                 .Build();
         }
 
@@ -723,6 +775,98 @@ namespace Opc.Ua.PubSub.Tests.Application
                 m_isConnected = false;
                 return default;
             }
+        }
+
+        private sealed class BlockingCloseTransportFactory : IPubSubTransportFactory
+        {
+            public BlockingCloseTransportFactory(
+                TaskCompletionSource<bool> closeStarted,
+                TaskCompletionSource<bool> allowClose)
+            {
+                m_closeStarted = closeStarted;
+                m_allowClose = allowClose;
+            }
+
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+            {
+                _ = connection;
+                _ = telemetry;
+                _ = timeProvider;
+                return new BlockingCloseTransport(m_closeStarted, m_allowClose);
+            }
+
+            private readonly TaskCompletionSource<bool> m_closeStarted;
+            private readonly TaskCompletionSource<bool> m_allowClose;
+        }
+
+        private sealed class BlockingCloseTransport : IPubSubTransport
+        {
+            public BlockingCloseTransport(
+                TaskCompletionSource<bool> closeStarted,
+                TaskCompletionSource<bool> allowClose)
+            {
+                m_closeStarted = closeStarted;
+                m_allowClose = allowClose;
+            }
+
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected { get; private set; }
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                IsConnected = true;
+                return default;
+            }
+
+            public async ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                m_closeStarted.TrySetResult(true);
+                await m_allowClose.Task.ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                IsConnected = false;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                _ = payload;
+                _ = topic;
+                cancellationToken.ThrowIfCancellationRequested();
+                return default;
+            }
+
+            public IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                return TestAsyncEnumerable.Empty<PubSubTransportFrame>();
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                IsConnected = false;
+                return default;
+            }
+
+            private readonly TaskCompletionSource<bool> m_closeStarted;
+            private readonly TaskCompletionSource<bool> m_allowClose;
         }
     }
 }

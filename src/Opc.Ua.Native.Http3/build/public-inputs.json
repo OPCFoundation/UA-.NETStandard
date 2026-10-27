@@ -272,7 +272,7 @@
       {
         "base": "sdk",
         "path": "lib/10.0.26100.0/um/x64/kernel32.lib",
-        "sha256": "341c7d56125a03b458e4d5093e4c79b33123ccfdfd610fe236937b8e6f3134bb"
+        "sha256": "842f5ce7ad8cf5aab7491b791e7968d2be510ae93f4019d3311797289399d221"
       },
       {
         "base": "sdk",
@@ -292,7 +292,7 @@
       {
         "base": "sdk",
         "path": "lib/10.0.26100.0/ucrt/x64/libucrt.lib",
-        "sha256": "ea2ffa5d9b1ebc3fa76f34c364471750db8951b341dbccbc1bef628ef1a20e39"
+        "sha256": "c3a20426b5142bfd0848468a3b95c47440759f0391ef2764e5020672811803cb"
       }
     ]
   },
