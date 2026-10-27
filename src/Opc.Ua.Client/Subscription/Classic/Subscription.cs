@@ -3044,7 +3044,7 @@ namespace Opc.Ua.Client
         {
             SessionAcknowledgements? acknowledgements = Session switch
             {
-                Client.Session session => session.Acknowledgements,
+                Session session => session.Acknowledgements,
                 ManagedSession managed => managed.AcknowledgementSettings,
                 _ => null
             };
@@ -4056,8 +4056,10 @@ namespace Opc.Ua.Client
         private ITelemetryContext? m_telemetry;
         private AcknowledgementScope? m_acknowledgementScope;
         private long m_acknowledgementGeneration;
+
         private readonly ConditionalWeakTable<NotificationData, StrongBox<AcknowledgementHandle>>
             m_acknowledgementHandles = new();
+
         private ILogger m_logger;
         private ILogger m_eventLogger;
 

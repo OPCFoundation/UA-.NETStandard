@@ -418,8 +418,7 @@ namespace Quickstarts
                     MinLifetimeInterval = lifetime,
                     KeepAliveCount = 5
                 };
-#pragma warning restore CS0618
-#pragma warning restore CA2000
+#pragma warning restore CS0618, CA2000
 
                 session.AddSubscription(subscription);
 
@@ -1314,8 +1313,7 @@ namespace Quickstarts
                     FastDataChangeCallback = FastDataChangeNotification,
                     FastKeepAliveCallback = FastKeepAliveNotification
                 };
-#pragma warning restore CS0618
-#pragma warning restore CA2000
+#pragma warning restore CS0618, CA2000
 
                 session.AddSubscription(subscription);
 

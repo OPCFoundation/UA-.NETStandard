@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void HandlesCompareByLifetimeAndSequenceNumber()
         {
-            object owner = new object();
+            object owner = new();
             var scope = new AcknowledgementScope(owner, 1, 7);
             var sameLifetime = new AcknowledgementHandle(scope, 3);
             var otherLifetime = new AcknowledgementHandle(new AcknowledgementScope(owner, 2, 7), 3);
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void ScopeIsReusedWhileTheLifetimeIsCurrent()
         {
-            object owner = new object();
+            object owner = new();
             AcknowledgementScope? cached = null;
 
             var first = AcknowledgementScope.GetOrCreate(ref cached, owner, 1, 7);
