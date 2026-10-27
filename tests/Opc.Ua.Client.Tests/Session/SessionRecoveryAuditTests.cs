@@ -238,6 +238,7 @@ namespace Opc.Ua.Client.Tests
         {
             var clock = new ObservableFakeTimeProvider();
             using var keepAlive = new SemaphoreSlim(0);
+            var completedKeepAlives = System.Threading.Channels.Channel.CreateUnbounded<KeepAliveEventArgs>();
             var originalPublish = new AsyncOperationGate();
             var activation = new AsyncOperationGate();
             var resumedPublish = new AsyncOperationGate();
@@ -330,6 +331,13 @@ namespace Opc.Ua.Client.Tests
                 harness.Manager, harness.Configuration, primary, updateBeforeConnect: false,
                 engineFactory: ClassicSubscriptionEngineFactory.Instance, timeProvider: clock,
                 ct: cancellation.Token).ConfigureAwait(false);
+            session.KeepAlive += (current, args) =>
+            {
+                if (current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                {
+                    completedKeepAlives.Writer.TryWrite(args);
+                }
+            };
             session.MinPublishRequestCount = 1;
             session.MaxPublishRequestCount = 1;
             session.EnableTokenReuseFailover = recovery == "token";
@@ -385,6 +393,11 @@ namespace Opc.Ua.Client.Tests
                         clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
                         Assert.That(await keepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
                             "Reusing a session must restart ongoing keepalive reads.");
+                        // Wait for response processing before advancing past the next keepalive deadline.
+                        KeepAliveEventArgs completed = await completedKeepAlives.Reader.ReadAsync(cancellation.Token)
+                            .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                        Assert.That(completed.Status, Is.Null);
+                        Assert.That(completed.CurrentState, Is.EqualTo(ServerState.Running));
                     }
                 }
             }
