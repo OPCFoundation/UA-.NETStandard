@@ -451,11 +451,15 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             TestContext.Out
                 .WriteLine("TargetSession is now SessionId={0}", targetSession.SessionId);
 
+            // The initial values of a transferred subscription can span several
+            // publish responses, so wait for the full count asserted below, not
+            // just the first notification.
             await TestPolling.WaitUntilAsync(
                 () => staticTargetNotifications.Count >= expectedStaticBatchCount &&
                     Volatile.Read(ref targetKeepAliveCount) > 0 &&
                     Enumerable.Range(1, kTestSubscriptions - 1).All(index =>
-                        Volatile.Read(ref targetSubscriptionCounters[index]) > 0 &&
+                        Volatile.Read(ref targetSubscriptionCounters[index]) >=
+                            (sendInitialValues ? (int)transferSubscriptions[index].MonitoredItemCount : 1) &&
                         Volatile.Read(ref targetSubscriptionFastDataCounters[index]) > 0),
                 timeoutMessage: "The target did not deliver expected notifications and a keepalive.")
                 .ConfigureAwait(false);
