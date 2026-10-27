@@ -395,6 +395,114 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A factory cannot restore a retired owner while an admitted operation still prevents its reclamation.
+        /// </summary>
+        /// <param name="synchronous">Whether a fresh adapter returns the same synchronous resource identity.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FactoryCannotRestoreRetiringGenerationBeforeItsAdmissionDrainsAsync(bool synchronous)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            TrackingLifecycleNodeManager? tracked = null;
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
+                {
+                    if (synchronous)
+                    {
+                        var adapter = new Mock<AsyncNodeManagerAdapter>(
+                            new ReferenceSynchronousNodeManager(server, configuration)) { CallBase = true };
+                        adapter.As<INodeManagerReloadParticipant>().Setup(value => value.PrepareReloadAsync(
+                            It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                            .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+                        return new ValueTask<IAsyncNodeManager>(adapter.Object);
+                    }
+                    tracked = new TrackingLifecycleNodeManager(
+                        server, configuration, m_logger, kModelNamespaceUri, kFirstRegistrationValue);
+                    return new ValueTask<IAsyncNodeManager>(tracked);
+                });
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            NodeManagerRegistration original = await lifecycle.AddAsync(factory.Object, timeout.Token)
+                .ConfigureAwait(false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(original.NodeManager);
+            ChangePreparer.StagingServer? originalClaim = ChangePreparer.GetServer(original.NodeManager);
+            Assert.That(originalClaim, Is.Not.Null);
+            Assert.That(generation.Gate.TryEnter(out int stripe), Is.True);
+            NodeManagerRegistration current = original;
+            NodeManagerBatchResult? publication = null;
+            try
+            {
+                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(original, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], timeout.Token)
+                    .ConfigureAwait(false))
+                {
+                    publication = await replacement.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                    current = replacement.Registrations[0];
+                }
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Retirement.IsCompleted, Is.False);
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Task drain = generation.Gate.WaitForDrainAsync();
+                Assert.That(drain.IsCompleted, Is.False);
+                NodeManagerGeneration replacementGeneration =
+                    NodeManagerGenerationRegistry.GetOrCreate(current.NodeManager);
+                Assert.That(replacementGeneration.Slot, Is.SameAs(generation.Slot));
+                var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+                NodeManagerRoutingTable.RoutingSnapshot view = host.RoutingRevision;
+                long revision = lifecycle.Revision;
+                IAsyncNodeManager reused = synchronous
+                    ? new AsyncNodeManagerAdapter(RequireLifecycleValue(original.NodeManager.SyncNodeManager))
+                    : original.NodeManager;
+                var reuseFactory = new Mock<IAsyncNodeManagerFactory>();
+                reuseFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(reused);
+
+                await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(current, reuseFactory.Object)], timeout.Token).AsTask(),
+                    Throws.TypeOf<NodeManagerAlreadyRegisteredException>()).ConfigureAwait(false);
+
+                reuseFactory.Verify(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
+                    Times.Once);
+                Assert.That(NodeManagerGenerationRegistry.TryGet(reused, out NodeManagerGeneration? retained), Is.True);
+                Assert.That(retained, Is.SameAs(generation));
+                Assert.That(ChangePreparer.GetServer(reused), Is.SameAs(originalClaim));
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Assert.That(generation.Gate.WaitForDrainAsync(), Is.SameAs(drain));
+                Assert.That(drain.IsCompleted, Is.False);
+                Assert.That(publication.Retirement.IsCompleted, Is.False);
+                Assert.That(host.RoutingRevision, Is.SameAs(view));
+                Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(lifecycle.Registrations.Find(value => value.Id == current.Id), Is.SameAs(current));
+                Assert.That(replacementGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                if (tracked is not null)
+                {
+                    Assert.That(tracked.DeleteAddressSpaceCount, Is.Zero);
+                    Assert.That(tracked.DisposeCount, Is.Zero);
+                }
+            }
+            finally
+            {
+                generation.Gate.Exit(stripe);
+                if (publication is not null)
+                {
+                    await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                await RemoveAndRetireAsync(lifecycle, current, timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            Assert.That(generation.Gate.WaitForDrainAsync().IsCompleted, Is.True);
+            if (tracked is not null)
+            {
+                Assert.That(tracked.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(tracked.DisposeCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
         /// Rejects unsupported factories before creating or owning initial candidates.
         /// </summary>
         [Test]
