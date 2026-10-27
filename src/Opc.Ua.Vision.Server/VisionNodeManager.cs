@@ -284,7 +284,7 @@ namespace Opc.Ua.Vision.Server
         }
 
         /// <summary>
-        /// Deduplicates provider instances and preserves their original type-name ordering.
+        /// Loads built-in dependencies first, then orders distinct providers by priority and original type name.
         /// </summary>
         internal static ArrayOf<IVisionModelProvider> NormalizeProviders(
             ArrayOf<IVisionModelProvider> providers,
@@ -308,6 +308,11 @@ namespace Opc.Ua.Vision.Server
             sorted.Sort(static (left, right) =>
             {
                 int result = (right.Provider is VisionModelProvider).CompareTo(left.Provider is VisionModelProvider);
+                if (result == 0)
+                {
+                    result = (right.Provider is IVisionDependencyModelProvider)
+                        .CompareTo(left.Provider is IVisionDependencyModelProvider);
+                }
                 if (result == 0)
                 {
                     result = left.Provider.Order.CompareTo(right.Provider.Order);

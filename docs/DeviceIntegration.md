@@ -597,6 +597,11 @@ providers into their DI-owning managers, deduplicating shared instances;
 Machinery and Robotics keep their built-in dependencies first. Register a provider
 through either `AddDiModel` or the family's `Add*Model`, not both.
 
+Vision loads its built-in model first, then `IVisionDependencyModelProvider`
+registrations, then other providers. The Machine Vision Assets dependency provider
+loads DI and Machinery before neutral providers, even when a neutral provider uses
+`Order = int.MinValue`. Priority and type-name ordering apply within each group.
+
 Use `AddDiModel<TProvider, TNodeManager>(configure)` to register the model and
 a configuration callback together. It accepts a synchronous action or an
 awaited `ValueTask` delegate. Repeated calls register the provider once but retain

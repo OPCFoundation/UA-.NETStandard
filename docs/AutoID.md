@@ -247,6 +247,11 @@ receives the stand-alone runtime, so configuration code can be shared by both
 hosting paths. `Opc.Ua.AutoID.Server` references only the Machinery model for component
 identification. A stand-alone server loads only the DI and AutoID models.
 
+`AddAutoIdToMachinery` remains available as an obsolete alias of `AddAutoIdModel`
+in the same server package. It forwards options and model registration without
+claiming an owner or depending on the Machinery server package. Use `AddAutoIdModel`
+in new code and register owner configuration before dependent reader callbacks.
+
 For a plain DI owner, use `AddOpcUaDi().AddAutoIdModel()` and
 `ConfigureAutoIdFor<DiNodeManager>`. The
 [DI hosting guide](DeviceIntegration.md#composing-companion-models) describes

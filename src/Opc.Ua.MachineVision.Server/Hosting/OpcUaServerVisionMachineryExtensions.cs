@@ -114,7 +114,7 @@ namespace Opc.Ua.Vision.Server
     /// <summary>
     /// Loads the Part 2 dependency closure for a standalone Vision node manager.
     /// </summary>
-    public sealed class VisionMachineryStandaloneModelProvider : IVisionModelProvider
+    public sealed class VisionMachineryStandaloneModelProvider : IVisionDependencyModelProvider
     {
         /// <inheritdoc/>
         public int Order => int.MinValue + 1;

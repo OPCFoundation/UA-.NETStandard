@@ -49,6 +49,18 @@ namespace Opc.Ua.Vision.Server
     }
 
     /// <summary>
+    /// Loads dependencies required by companion providers on a Vision owner.
+    /// </summary>
+    /// <remarks>
+    /// Dependency providers run after the built-in Vision model and before other providers,
+    /// regardless of their <see cref="IDiModelProvider.Order"/>. Dependencies are ordered
+    /// among themselves by priority, type name and registration order.
+    /// </remarks>
+    public interface IVisionDependencyModelProvider : IVisionModelProvider
+    {
+    }
+
+    /// <summary>
     /// Built-in Vision model provider.
     /// </summary>
     public sealed class VisionModelProvider : IVisionModelProvider

@@ -45,6 +45,25 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OpcUaAutoIdCompositionExtensions
     {
         /// <summary>
+        /// Adds the AutoID model to the existing DI owner through the legacy Machinery entry point.
+        /// </summary>
+        /// <remarks>
+        /// Register the owner and its configuration before dependent AutoID callbacks.
+        /// This compatibility alias does not register a Machinery server or another DI owner.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Configures the AutoID options.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        [Obsolete("Use AddAutoIdModel instead. Register owner configuration before dependent AutoID callbacks.")]
+        public static IOpcUaServerBuilder AddAutoIdToMachinery(
+            this IOpcUaServerBuilder builder,
+            Action<AutoIdServerOptions>? configure = null)
+        {
+            return builder.AddAutoIdModel(configure);
+        }
+
+        /// <summary>
         /// Registers a delegate that creates readers on the selected Device Integration owner once
         /// its address space is initialised. Successive delegates share one
         /// <see cref="AutoIdRuntime"/> and run in registration order; any exception aborts server

@@ -77,22 +77,27 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(normalized[2], Is.SameAs(second));
         }
 
-        [TestCase(false, false, MachineVisionParts.None)]
-        [TestCase(false, true, MachineVisionParts.None)]
-        [TestCase(true, false, MachineVisionParts.None)]
-        [TestCase(true, true, MachineVisionParts.None)]
-        [TestCase(false, false, MachineVisionParts.Control)]
-        [TestCase(false, true, MachineVisionParts.Control)]
-        [TestCase(true, false, MachineVisionParts.Control)]
-        [TestCase(true, true, MachineVisionParts.Control)]
-        [TestCase(false, false, MachineVisionParts.Assets)]
-        [TestCase(false, true, MachineVisionParts.Assets)]
-        [TestCase(true, false, MachineVisionParts.Assets)]
-        [TestCase(true, true, MachineVisionParts.Assets)]
+        [TestCase(false, false, MachineVisionParts.None, 100)]
+        [TestCase(false, true, MachineVisionParts.None, 100)]
+        [TestCase(true, false, MachineVisionParts.None, 100)]
+        [TestCase(true, true, MachineVisionParts.None, 100)]
+        [TestCase(false, false, MachineVisionParts.Control, 100)]
+        [TestCase(false, true, MachineVisionParts.Control, 100)]
+        [TestCase(true, false, MachineVisionParts.Control, 100)]
+        [TestCase(true, true, MachineVisionParts.Control, 100)]
+        [TestCase(false, false, MachineVisionParts.Assets, 100)]
+        [TestCase(false, true, MachineVisionParts.Assets, 100)]
+        [TestCase(true, false, MachineVisionParts.Assets, 100)]
+        [TestCase(true, true, MachineVisionParts.Assets, 100)]
+        [TestCase(false, false, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(false, true, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(true, false, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(true, true, MachineVisionParts.Assets, int.MinValue)]
         public async Task VisionFactoriesLoadNeutralProvidersOnlyWhenOwningDiAsync(
             bool hosted,
             bool neutralFirst,
-            MachineVisionParts parts)
+            MachineVisionParts parts,
+            int neutralOrder)
         {
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync().ConfigureAwait(false);
@@ -129,6 +134,9 @@ namespace Opc.Ua.Vision.Tests
             services.AddSingleton(family.Object);
             services.AddSingleton<IDiModelProvider>(family.Object);
             using ServiceProvider provider = services.BuildServiceProvider();
+            RecordingDiProvider neutral = (RecordingDiProvider)provider.GetServices<IDiModelProvider>()
+                .Single(model => model is RecordingDiProvider);
+            neutral.Order = neutralOrder;
             IAsyncNodeManagerFactory factory = hosted
                 ? provider.GetRequiredService<VisionHostedNodeManagerFactory>()
                 : provider.GetRequiredService<VisionNodeManagerFactory>();
@@ -145,8 +153,6 @@ namespace Opc.Ua.Vision.Tests
                 fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
             await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
 
-            RecordingDiProvider neutral = (RecordingDiProvider)provider.GetServices<IDiModelProvider>()
-                .Single(model => model is RecordingDiProvider);
             Assert.Multiple(() =>
             {
                 Assert.That(neutral.Calls, Is.EqualTo(ownsDi ? 1 : 0));
@@ -178,7 +184,7 @@ namespace Opc.Ua.Vision.Tests
         {
             public const string NamespaceUri = "urn:test:vision:neutral";
 
-            public int Order => 100;
+            public int Order { get; set; } = 100;
 
             public ArrayOf<string> NamespaceUris => new[] { NamespaceUri };
 

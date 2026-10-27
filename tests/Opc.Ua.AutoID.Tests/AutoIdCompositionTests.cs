@@ -59,6 +59,49 @@ namespace Opc.Ua.AutoID.Tests
     [NonParallelizable]
     public sealed class AutoIdCompositionTests
     {
+#pragma warning disable CS0618 // Pin legacy API compatibility. TODO: remove when the alias is removed.
+        [Test]
+        public void LegacyMachineryRegistrationForwardsOptionsAndDeduplicatesTheNeutralModel()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+            builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
+
+            IOpcUaServerBuilder returned = OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery(
+                builder, options => options.MaximumTagReadLength = 128);
+            builder.AddAutoIdToMachinery().AddAutoIdModel();
+
+            using ServiceProvider services = builder.Services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(returned, Is.SameAs(builder));
+                Assert.That(services.GetServices<IDiModelProvider>().Single(), Is.TypeOf<AutoIdModelProvider>());
+                Assert.That(services.GetRequiredService<IOptions<AutoIdServerOptions>>().Value.MaximumTagReadLength,
+                    Is.EqualTo(128u));
+                Assert.That(services.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                    Is.EqualTo("AddMachinery"));
+                Assert.That(builder.Services.Any(d => d.ServiceType == typeof(AutoIdNodeManagerFactory)), Is.False);
+            });
+        }
+
+        [Test]
+        public void LegacyMachineryRegistrationPreservesNeutralValidation()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+            Assert.Throws<ArgumentNullException>(
+                () => OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery(null!));
+            Assert.Throws<ArgumentOutOfRangeException>(
+                () => builder.AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.Zero));
+            Assert.That(builder.Services.Any(d => d.ImplementationType == typeof(AutoIdModelProvider)), Is.False);
+
+            builder.AddAutoIdToMachinery().AddOpcUaDi();
+
+            using ServiceProvider services = builder.Services.BuildServiceProvider();
+            Assert.That(services.GetServices<IDiModelProvider>().Single(), Is.TypeOf<AutoIdModelProvider>());
+            Assert.That(services.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                Is.EqualTo("AddOpcUaDi"));
+        }
+#pragma warning restore CS0618
+
         [Test]
         public void AddAutoIdNextToMachineryIsRefusedAndNamesTheComposition()
         {
