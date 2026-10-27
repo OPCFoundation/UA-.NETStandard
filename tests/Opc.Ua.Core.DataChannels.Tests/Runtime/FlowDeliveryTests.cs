@@ -808,6 +808,36 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
+        /// Rejects secured discovery when hidden writer IDs leave more than one resource eligible.
+        /// </summary>
+        [Test]
+        public async Task UascPublisherRoutesRejectAmbiguousSecuredDiscoveryWithoutVisibleWriterIds()
+        {
+            await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair first = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:secured-first"))
+                .ConfigureAwait(false);
+            FlowPair second = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:secured-second"))
+                .ConfigureAwait(false);
+            using IDisposable firstRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:secured-first", new Variant(42u), null, 34, 2);
+            using IDisposable secondRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:secured-second", new Variant(42u), null, 35, 2);
+            ByteString securedDiscovery = ByteString.FromHexString("9192082a000000deadbeef");
+
+            Assert.That(await ReceivePublisherFloAsync(pair, securedDiscovery, first.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.InvalidState));
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(first.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(second.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
         /// Uses NetworkMessageType as an independent selector for the same publisher and writer.
         /// </summary>
         [Test]

@@ -737,16 +737,17 @@ or empty test run is not native acceptance.
   discovery requests or PublisherEndpoints responses without writer IDs.
   Callers can register explicit PublisherId and NetworkMessageType associations
   for those messages; the
-  [publisher-only discovery routing test](../tests/Opc.Ua.Core.DataChannels.Tests/Runtime/FlowDeliveryTests.cs)
-  covers an empty-writer discovery request and PublisherEndpoints response.
-  Secured headers that hide writer identity and discovery-subtype authorization
-  still need further conformance work. Type 3 is accepted only on its explicitly
-  selected A/V or opaque application profile; it is not admitted by an ordinary
-  UADP or PubSub reader route. Explicit type-3 route registration rejects
-  WriterGroupId and DataSetWriterId selectors because those fields are absent
-  from the supported minimal streaming headers. Ordinary UADP writer selectors
-  remain supported. This does not establish full source/writer association
-  compliance or conformance to the current Data Channels source.
+  [UASC discovery routing tests](../tests/Opc.Ua.Core.DataChannels.Tests/Runtime/FlowDeliveryTests.cs)
+  cover an empty-writer discovery request, PublisherEndpoints response and
+  rejection of secured traffic whose hidden writer IDs leave multiple resources
+  eligible. Discovery-subtype authorization still needs further conformance
+  work. Type 3 is accepted only on its explicitly selected A/V or opaque
+  application profile; it is not admitted by an ordinary UADP or PubSub reader
+  route. Explicit type-3 route registration rejects WriterGroupId and
+  DataSetWriterId selectors because those fields are absent from the supported
+  minimal streaming headers. Ordinary UADP writer selectors remain supported.
+  This does not establish full source/writer association compliance or
+  conformance to the current Data Channels source.
 - **WebTransport peer-STOP retention is implemented in the pinned QUIC backend.**
   Its overlay preserves an established reliable boundary and outstanding prefix
   frames when peer `STOP_SENDING` arrives before local cancellation. A local
