@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -267,7 +268,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.EqualTo(targetExists));
             replacement.Verify(value => value.GetNodeMetadataAsync(
                 It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()),
-                Times.Once);
+                Times.Exactly(2), "The node is validated independently as a target and a reciprocal source.");
+        }
+
+        /// <summary>
+        /// Validates a lazy replacement source before pruning its backlink or skipping an absent source.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task RetiredCleanupValidatesLazyReplacementSourcesAsync(bool sourceExists)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration source = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }, kSecondModelNamespaceUri),
+                null, timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration target = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            ushort sourceNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri);
+            ushort targetNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId sourceId = new(kRootNodeId, sourceNamespace);
+            NodeId targetId = new(kRootNodeId, targetNamespace);
+            var oldSource = (NodeHandle)await source.NodeManager.GetManagerHandleAsync(sourceId, timeout.Token)
+                .ConfigureAwait(false);
+            var oldTarget = (NodeHandle)await target.NodeManager.GetManagerHandleAsync(targetId, timeout.Token)
+                .ConfigureAwait(false);
+            oldSource.Node.AddReference(ReferenceTypeIds.HasComponent, false, targetId);
+            oldTarget.Node.AddReference(ReferenceTypeIds.HasComponent, true, sourceId);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
+                    new ValueTask<IAsyncNodeManager>(
+                        new LazyReferenceSourceNodeManager(server, configuration, targetId, sourceExists)));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(target), NodeManagerBatchChange.Replace(source, factory.Object)],
+                null, timeout.Token).ConfigureAwait(false);
+            var replacement = (LazyReferenceSourceNodeManager)prepared.Registrations[0].NodeManager;
+            int removed = 0;
+            if (replacement.Source is { } node)
+            {
+                node.OnReferenceRemoved += (_, type, _, id) =>
+                {
+                    if (type == ReferenceTypeIds.HasComponent && id == targetId)
+                    {
+                        removed++;
+                    }
+                };
+            }
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            try
+            {
+                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(replacement.ValidationCount, Is.GreaterThan(0));
+                Assert.That(removed, Is.EqualTo(sourceExists ? 1 : 0));
+                if (replacement.Source is { } remaining)
+                {
+                    Assert.That(remaining.ReferenceExists(ReferenceTypeIds.HasComponent, false, targetId), Is.False);
+                    Assert.That(remaining.ReferenceExists(
+                        ReferenceTypeIds.HasComponent, false, ObjectIds.Server), Is.True);
+                }
+            }
+            finally
+            {
+                var cleanupNode = new BaseObjectState(null) { NodeId = sourceId };
+                replacement.ValidateIssuedHandlesForCleanup(replacement.Source ?? cleanupNode);
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
+                try
+                {
+                    await host.RemoveDestroyedExternalReferencesAsync(target.NodeManager, cleanup.Token)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    await host.RemoveDestroyedExternalReferencesAsync(source.NodeManager, cleanup.Token)
+                        .ConfigureAwait(false);
+                }
+            }
         }
 
         [TestCase(false)]
@@ -851,6 +933,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(translated.Results[0].Targets[0].TargetId, Is.EqualTo(new ExpandedNodeId(target)));
                 Assert.That(translated.Results[0].Targets[0].RemainingPathIndex, Is.EqualTo(uint.MaxValue));
             }
+        }
+
+        /// <summary>
+        /// Resolves an existing or absent replacement source through the native lazy-validation path.
+        /// </summary>
+        private sealed class LazyReferenceSourceNodeManager : AsyncCustomNodeManager
+        {
+            /// <summary>
+            /// Creates a replacement with an optional source and a backlink to a retiring target.
+            /// </summary>
+            public LazyReferenceSourceNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                NodeId targetId,
+                bool sourceExists)
+                : base(server, configuration, kSecondModelNamespaceUri)
+            {
+                m_targetId = targetId;
+                m_sourceExists = sourceExists;
+            }
+
+            /// <summary>
+            /// Gets the actual source, if this generation contains it.
+            /// </summary>
+            public NodeState? Source { get; private set; }
+
+            /// <summary>
+            /// Gets the number of source validations performed under owner admission.
+            /// </summary>
+            public int ValidationCount => Volatile.Read(ref m_validationCount);
+
+            /// <inheritdoc/>
+            public override async ValueTask CreateAddressSpaceAsync(
+                IDictionary<NodeId, IList<IReference>> externalReferences,
+                CancellationToken cancellationToken = default)
+            {
+                if (m_sourceExists)
+                {
+                    var source = new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId(kRootNodeId, NamespaceIndexes[0]),
+                        BrowseName = new QualifiedName(kRootBrowseName, NamespaceIndexes[0]),
+                        DisplayName = LocalizedText.From(kRootBrowseName)
+                    };
+                    source.AddReference(ReferenceTypeIds.HasComponent, false, m_targetId);
+                    source.AddReference(ReferenceTypeIds.HasComponent, false, ObjectIds.Server);
+                    Source = source;
+                    await AddPredefinedNodeAsync(SystemContext, source, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            /// <inheritdoc/>
+            public override ValueTask<object> GetManagerHandleAsync(
+                NodeId nodeId,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (nodeId == new NodeId(kRootNodeId, NamespaceIndexes[0]))
+                {
+                    var handle = new NodeHandle { NodeId = nodeId, Validated = false };
+                    m_handles.Enqueue(handle);
+                    return new ValueTask<object>(handle);
+                }
+                return base.GetManagerHandleAsync(nodeId, cancellationToken);
+            }
+
+            /// <summary>
+            /// Resolves issued placeholders so a failing regression cannot strand cached retirement cleanup.
+            /// </summary>
+            public void ValidateIssuedHandlesForCleanup(NodeState source)
+            {
+                foreach (NodeHandle handle in m_handles)
+                {
+                    handle.Node = source;
+                    handle.Validated = true;
+                }
+            }
+
+            /// <inheritdoc/>
+            protected override ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Interlocked.Increment(ref m_validationCount);
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(this).Gate.ActiveCount, Is.GreaterThan(0));
+                return new ValueTask<NodeState>(Source is { } source
+                    ? ValidationComplete(context, handle, source, cache)
+                    : null!);
+            }
+
+            /// <summary>Identifies the retiring target of the source's runtime backlink.</summary>
+            private readonly NodeId m_targetId;
+
+            /// <summary>Determines whether the replacement actually contains the source.</summary>
+            private readonly bool m_sourceExists;
+
+            /// <summary>Retains issued placeholders until regression cleanup releases any cached deletion plan.</summary>
+            private readonly ConcurrentQueue<NodeHandle> m_handles = new();
+
+            /// <summary>Counts source metadata validations.</summary>
+            private int m_validationCount;
         }
 
         private sealed class ReferenceContributorNodeManager : NodeManagementLifecycleNodeManager

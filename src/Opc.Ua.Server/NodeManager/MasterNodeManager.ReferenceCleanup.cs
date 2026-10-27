@@ -50,6 +50,7 @@ namespace Opc.Ua.Server
             context.PinRouting(m_nodeManagers);
             NodeManagerRoutingTable.RoutingSnapshot view = context.RoutingSnapshot!;
             var targets = new Dictionary<NodeId, IAsyncNodeManager?>();
+            var sources = new Dictionary<NodeId, (object? Handle, IAsyncNodeManager? Owner)>();
             var removals = new Dictionary<NodeState, List<IReference>>();
             var updates = new List<NodeState.ReferenceUpdate>();
             var owners = new HashSet<IAsyncNodeManager>();
@@ -91,32 +92,48 @@ namespace Opc.Ua.Server
                         }
                         targets.Add(reference.TargetId, targetOwner);
                     }
-                    (object? handle, IAsyncNodeManager? owner) = await m_serviceDispatch.GetManagerHandleAsync(
-                        context, reference.SourceId, cancellationToken).ConfigureAwait(false);
+                    if (!sources.TryGetValue(reference.SourceId, out var source))
+                    {
+                        (object? candidateHandle, IAsyncNodeManager? candidateOwner) =
+                            await m_serviceDispatch.GetManagerHandleAsync(
+                                context, reference.SourceId, cancellationToken).ConfigureAwait(false);
+                        if (candidateHandle is null || candidateOwner is null ||
+                            ReferenceEquals(candidateOwner, targetOwner))
+                        {
+                            continue;
+                        }
+                        if (owners.Add(candidateOwner))
+                        {
+                            GenerationGate gate = view.GetGeneration(candidateOwner).Gate;
+                            int slot = -1;
+                            try
+                            {
+                                if (!gate.TryEnter(out slot))
+                                {
+                                    throw new InvalidOperationException("A reciprocal reference owner has retired.");
+                                }
+                                admissions.Add((gate, slot));
+                                slot = -1;
+                            }
+                            finally
+                            {
+                                if (slot >= 0)
+                                {
+                                    gate.Exit(slot);
+                                }
+                            }
+                        }
+                        source = await candidateOwner.GetNodeMetadataAsync(
+                            context, candidateHandle, BrowseResultMask.None, cancellationToken)
+                            .ConfigureAwait(false) is null
+                            ? (null, null)
+                            : (candidateHandle, candidateOwner);
+                        sources.Add(reference.SourceId, source);
+                    }
+                    var (handle, owner) = source;
                     if (handle is null || owner is null || ReferenceEquals(owner, targetOwner))
                     {
                         continue;
-                    }
-                    if (owners.Add(owner))
-                    {
-                        GenerationGate gate = view.GetGeneration(owner).Gate;
-                        int slot = -1;
-                        try
-                        {
-                            if (!gate.TryEnter(out slot))
-                            {
-                                throw new InvalidOperationException("A reciprocal reference owner has retired.");
-                            }
-                            admissions.Add((gate, slot));
-                            slot = -1;
-                        }
-                        finally
-                        {
-                            if (slot >= 0)
-                            {
-                                gate.Exit(slot);
-                            }
-                        }
                     }
                     if (targetOwner is not null)
                     {
