@@ -775,10 +775,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
-        /// Routes discovery messages without writer IDs through explicit PublisherId and message-type associations.
+        /// Routes discovery messages without writer IDs through explicit PublisherId, message class, and subtype.
         /// </summary>
         [Test]
-        public async Task UascPublisherRoutesPublisherOnlyDiscoveryByNetworkMessageType()
+        public async Task UascPublisherRoutesPublisherOnlyDiscoveryBySubtype()
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
             await pair.StartAsync().ConfigureAwait(false);
@@ -786,12 +786,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 .ConfigureAwait(false);
             FlowPair responseTarget = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:discovery-response"))
                 .ConfigureAwait(false);
+            FlowPair metadataTarget = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:discovery-metadata"))
+                .ConfigureAwait(false);
             using IDisposable requestRoute = pair.Acceptor.RegisterUascPublisherRoute(
-                "urn:publisher:discovery-request", new Variant(42u), null, null, 1);
+                "urn:publisher:discovery-request", new Variant(42u), null, null, 1, 2);
             using IDisposable responseRoute = pair.Acceptor.RegisterUascPublisherRoute(
-                "urn:publisher:discovery-response", new Variant(42u), null, null, 2);
+                "urn:publisher:discovery-response", new Variant(42u), null, null, 2, 1);
+            using IDisposable metadataRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:discovery-metadata", new Variant(42u), null, null, 2, 2);
             ByteString request = ByteString.FromHexString("9182042a0000000200000000");
             ByteString publisherEndpoints = ByteString.FromHexString("9182082a00000001010000000000000000");
+            ByteString metadataResponse = ByteString.FromHexString("9182082a0000000201002200dead");
 
             Assert.That(await ReceivePublisherFloAsync(pair, request, requestTarget.Remote).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
@@ -800,18 +805,22 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 pair, publisherEndpoints, responseTarget.Remote).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             await AssertPublisherMessageAsync(responseTarget.Remote, publisherEndpoints, 1).ConfigureAwait(false);
+            Assert.That(await ReceivePublisherFloAsync(pair, metadataResponse, metadataTarget.Remote)
+                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(metadataTarget.Remote, metadataResponse, 1).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(requestTarget.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
                 Assert.That(responseTarget.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(metadataTarget.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
             });
         }
 
         /// <summary>
-        /// Rejects secured discovery when hidden writer IDs leave more than one resource eligible.
+        /// Rejects secured discovery when its hidden subtype would select a subtype-scoped route.
         /// </summary>
         [Test]
-        public async Task UascPublisherRoutesRejectAmbiguousSecuredDiscoveryWithoutVisibleWriterIds()
+        public async Task UascPublisherRoutesRejectSecuredDiscoveryWithHiddenSubtype()
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
             await pair.StartAsync().ConfigureAwait(false);
@@ -819,20 +828,26 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 .ConfigureAwait(false);
             FlowPair second = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:secured-second"))
                 .ConfigureAwait(false);
+            FlowPair broad = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:secured-broad"))
+                .ConfigureAwait(false);
             using IDisposable firstRoute = pair.Acceptor.RegisterUascPublisherRoute(
-                "urn:publisher:secured-first", new Variant(42u), null, 34, 2);
+                "urn:publisher:secured-first", new Variant(42u), null, 34, 2, 2);
             using IDisposable secondRoute = pair.Acceptor.RegisterUascPublisherRoute(
-                "urn:publisher:secured-second", new Variant(42u), null, 35, 2);
+                "urn:publisher:secured-second", new Variant(42u), null, 35, 2, 2);
+            using IDisposable broadRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:secured-broad", new Variant(42u), null, null, 2);
             ByteString securedDiscovery = ByteString.FromHexString("9192082a000000deadbeef");
 
             Assert.That(await ReceivePublisherFloAsync(pair, securedDiscovery, first.Remote).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.InvalidState));
+                Is.EqualTo(DataChannelResult.UnknownChannel));
             Assert.Multiple(() =>
             {
                 Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
                 Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(broad.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
                 Assert.That(first.Remote.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(second.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(broad.Remote.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(pair.Acceptor.IsReady, Is.True);
             });
         }
@@ -890,6 +905,21 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             });
             Assert.Throws<ArgumentOutOfRangeException>(() =>
                 pair.Acceptor.RegisterUascPublisherRoute("urn:publisher:invalid-type", Variant.Null, null, null, 4));
+            Assert.Throws<ArgumentException>(() =>
+            {
+                using IDisposable invalid = pair.Acceptor.RegisterUascPublisherRoute(
+                    "urn:publisher:invalid-discovery-class", Variant.Null, null, null, 0, 1);
+            });
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                using IDisposable invalid = pair.Acceptor.RegisterUascPublisherRoute(
+                    "urn:publisher:invalid-discovery-type", Variant.Null, null, null, 2, 7);
+            });
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                using IDisposable invalid = pair.Acceptor.RegisterUascPublisherRoute(
+                    "urn:publisher:invalid-response-probe", Variant.Null, null, null, 2, 6);
+            });
         }
 
         /// <summary>

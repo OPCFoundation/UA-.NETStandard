@@ -96,6 +96,36 @@ namespace Opc.Ua.DataChannels
             ushort? dataSetWriterId,
             byte? networkMessageType)
         {
+            return RegisterUascPublisherRoute(
+                resourceUri, publisherId, writerGroupId, dataSetWriterId, networkMessageType, null);
+        }
+
+        /// <summary>
+        /// Registers one configured UADP source, writer, message class, and discovery subtype with a resource.
+        /// A subtype-specific route requires a visible, unencrypted discovery header.
+        /// </summary>
+        /// <param name="resourceUri">The exact resource URI configured for the PubSub flow.</param>
+        /// <param name="publisherId">The expected PublisherId, or null to accept any PublisherId.</param>
+        /// <param name="writerGroupId">The expected visible WriterGroupId, or null to accept any group.</param>
+        /// <param name="dataSetWriterId">The expected visible DataSetWriterId, or null to accept any writer.</param>
+        /// <param name="networkMessageType">The Part 14 NetworkMessageType value, or null for any class.</param>
+        /// <param name="discoveryType">
+        /// The Part 14 discovery subtype value, or null for any subtype. Values 1 through 6 apply to
+        /// NetworkMessageType 1; values 1 through 5 apply to NetworkMessageType 2.
+        /// </param>
+        /// <returns>An ownership token that removes the association when disposed.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="DataChannelException"></exception>
+        public IDisposable RegisterUascPublisherRoute(
+            string resourceUri,
+            Variant publisherId,
+            ushort? writerGroupId,
+            ushort? dataSetWriterId,
+            byte? networkMessageType,
+            byte? discoveryType)
+        {
             if (string.IsNullOrWhiteSpace(resourceUri))
             {
                 throw new ArgumentNullException(nameof(resourceUri));
@@ -123,6 +153,19 @@ namespace Opc.Ua.DataChannels
                     "Minimal application-payload headers contain no writer group or DataSet writer identifiers.",
                     nameof(networkMessageType));
             }
+            if (discoveryType.HasValue)
+            {
+                if (networkMessageType is not (1 or 2))
+                {
+                    throw new ArgumentException(
+                        "A discovery subtype requires a discovery NetworkMessageType.",
+                        nameof(discoveryType));
+                }
+                if (discoveryType is < 1 or > 6 || (networkMessageType == 2 && discoveryType == 6))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(discoveryType));
+                }
+            }
 
             lock (m_gate)
             {
@@ -134,10 +177,12 @@ namespace Opc.Ua.DataChannels
                     item.PublisherId.Equals(publisherId) &&
                     item.WriterGroupId == writerGroupId &&
                     item.DataSetWriterId == dataSetWriterId &&
-                    item.NetworkMessageType == networkMessageType);
+                    item.NetworkMessageType == networkMessageType &&
+                    item.DiscoveryType == discoveryType);
                 UascPublisherRoute? conflictingRoute = m_uascPublisherRoutes.Find(item =>
                     !string.Equals(item.ResourceUri, resourceUri, StringComparison.Ordinal) &&
-                    RoutesConflict(item, publisherId, writerGroupId, dataSetWriterId, networkMessageType));
+                    RoutesConflict(
+                        item, publisherId, writerGroupId, dataSetWriterId, networkMessageType, discoveryType));
                 if (conflictingRoute is not null)
                 {
                     throw new DataChannelException(DataChannelResult.InvalidArgument);
@@ -145,7 +190,7 @@ namespace Opc.Ua.DataChannels
                 if (route is null)
                 {
                     route = new UascPublisherRoute(
-                        publisherId, writerGroupId, dataSetWriterId, networkMessageType, resourceUri);
+                        publisherId, writerGroupId, dataSetWriterId, networkMessageType, discoveryType, resourceUri);
                     m_uascPublisherRoutes.Add(route);
                 }
                 route.Registrations++;
@@ -189,7 +234,8 @@ namespace Opc.Ua.DataChannels
             Variant publisherId,
             ushort? writerGroupId,
             ushort? dataSetWriterId,
-            byte? networkMessageType)
+            byte? networkMessageType,
+            byte? discoveryType)
         {
             if (!existing.PublisherId.Equals(publisherId))
             {
@@ -197,12 +243,15 @@ namespace Opc.Ua.DataChannels
             }
             bool sameAssociation = existing.WriterGroupId == writerGroupId &&
                 existing.DataSetWriterId == dataSetWriterId &&
-                existing.NetworkMessageType == networkMessageType;
+                existing.NetworkMessageType == networkMessageType &&
+                existing.DiscoveryType == discoveryType;
             bool existingPublisherOnly = !existing.WriterGroupId.HasValue &&
                 !existing.DataSetWriterId.HasValue &&
-                !existing.NetworkMessageType.HasValue;
+                !existing.NetworkMessageType.HasValue &&
+                !existing.DiscoveryType.HasValue;
             bool requestedPublisherOnly = !writerGroupId.HasValue && !dataSetWriterId.HasValue;
             requestedPublisherOnly &= !networkMessageType.HasValue;
+            requestedPublisherOnly &= !discoveryType.HasValue;
             return sameAssociation || existingPublisherOnly || requestedPublisherOnly;
         }
 
@@ -233,6 +282,7 @@ namespace Opc.Ua.DataChannels
             ushort? writerGroupId,
             ushort? dataSetWriterId,
             byte? networkMessageType,
+            byte? discoveryType,
             string resourceUri)
         {
             /// <summary>
@@ -254,6 +304,11 @@ namespace Opc.Ua.DataChannels
             /// Gets the expected NetworkMessageType, or null for a wildcard.
             /// </summary>
             internal byte? NetworkMessageType { get; } = networkMessageType;
+
+            /// <summary>
+            /// Gets the expected discovery subtype, or null for a wildcard.
+            /// </summary>
+            internal byte? DiscoveryType { get; } = discoveryType;
 
             /// <summary>
             /// Gets the exact resource URI for the association.

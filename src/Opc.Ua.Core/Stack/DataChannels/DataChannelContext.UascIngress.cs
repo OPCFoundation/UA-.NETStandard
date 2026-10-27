@@ -229,6 +229,26 @@ namespace Opc.Ua.DataChannels
             {
                 candidates.RemoveAll(static route => route.NetworkMessageType.HasValue);
             }
+            if (header.NetworkMessageType is 1 or 2)
+            {
+                if (header.DiscoveryType is byte discoveryType)
+                {
+                    List<UascPublisherRoute> exactDiscoveryRoutes = [.. candidates.Where(route =>
+                        route.DiscoveryType == discoveryType)];
+                    if (exactDiscoveryRoutes.Count > 0)
+                    {
+                        candidates = exactDiscoveryRoutes;
+                    }
+                    else
+                    {
+                        candidates.RemoveAll(static route => route.DiscoveryType.HasValue);
+                    }
+                }
+                else if (candidates.Exists(static route => route.DiscoveryType.HasValue))
+                {
+                    return DataChannelResult.UnknownChannel;
+                }
+            }
             if (header.WriterGroupId is ushort writerGroupId)
             {
                 List<UascPublisherRoute> exactGroupRoutes = [.. candidates.Where(route =>

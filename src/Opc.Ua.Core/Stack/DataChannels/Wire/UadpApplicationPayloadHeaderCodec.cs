@@ -71,12 +71,14 @@ namespace Opc.Ua.DataChannels.Wire
             byte networkMessageType,
             Variant publisherId,
             ushort? writerGroupId = null,
-            ushort[]? dataSetWriterIds = null)
+            ushort[]? dataSetWriterIds = null,
+            byte? discoveryType = null)
         {
             NetworkMessageType = networkMessageType;
             PublisherId = publisherId;
             WriterGroupId = writerGroupId;
             DataSetWriterIds = dataSetWriterIds ?? [];
+            DiscoveryType = discoveryType;
         }
 
         /// <summary>
@@ -98,6 +100,11 @@ namespace Opc.Ua.DataChannels.Wire
         /// Gets the visible DataSetWriterIds in the payload header.
         /// </summary>
         internal ushort[] DataSetWriterIds { get; }
+
+        /// <summary>
+        /// Gets the visible discovery subtype, or null when it is hidden by security or not applicable.
+        /// </summary>
+        internal byte? DiscoveryType { get; }
     }
 
     /// <summary>
@@ -221,13 +228,21 @@ namespace Opc.Ua.DataChannels.Wire
             }
             if (networkMessageType == DiscoveryRequestNetworkMessageType)
             {
-                ushort[] discoveryWriterIds = ReadDiscoveryRequestWriterIds(bytes, ref offset);
-                return new UadpNetworkMessageHeader(networkMessageType, publisherId, dataSetWriterIds: discoveryWriterIds);
+                ushort[] discoveryWriterIds = ReadDiscoveryRequestWriterIds(bytes, ref offset, out byte discoveryType);
+                return new UadpNetworkMessageHeader(
+                    networkMessageType,
+                    publisherId,
+                    dataSetWriterIds: discoveryWriterIds,
+                    discoveryType: discoveryType);
             }
             if (networkMessageType == DiscoveryResponseNetworkMessageType)
             {
-                ushort[] discoveryWriterIds = ReadDiscoveryResponseWriterIds(bytes, ref offset);
-                return new UadpNetworkMessageHeader(networkMessageType, publisherId, dataSetWriterIds: discoveryWriterIds);
+                ushort[] discoveryWriterIds = ReadDiscoveryResponseWriterIds(bytes, ref offset, out byte discoveryType);
+                return new UadpNetworkMessageHeader(
+                    networkMessageType,
+                    publisherId,
+                    dataSetWriterIds: discoveryWriterIds,
+                    discoveryType: discoveryType);
             }
 
             ushort? writerGroupId = null;
@@ -310,10 +325,13 @@ namespace Opc.Ua.DataChannels.Wire
         /// Extracts writer identities from the common UADP discovery-request body prefix.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
-        private static ushort[] ReadDiscoveryRequestWriterIds(ReadOnlySpan<byte> bytes, ref int offset)
+        private static ushort[] ReadDiscoveryRequestWriterIds(
+            ReadOnlySpan<byte> bytes,
+            ref int offset,
+            out byte discoveryType)
         {
             RequireRemaining(bytes, offset, sizeof(byte) + sizeof(uint));
-            offset++;
+            discoveryType = bytes[offset++];
             return ReadDiscoveryWriterIdList(bytes, ref offset);
         }
 
@@ -321,10 +339,13 @@ namespace Opc.Ua.DataChannels.Wire
         /// Extracts writer identities exposed by metadata and writer-configuration responses.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
-        private static ushort[] ReadDiscoveryResponseWriterIds(ReadOnlySpan<byte> bytes, ref int offset)
+        private static ushort[] ReadDiscoveryResponseWriterIds(
+            ReadOnlySpan<byte> bytes,
+            ref int offset,
+            out byte discoveryType)
         {
             RequireRemaining(bytes, offset, sizeof(byte) + sizeof(ushort));
-            byte discoveryType = bytes[offset++];
+            discoveryType = bytes[offset++];
             offset += sizeof(ushort);
             if (discoveryType == DataSetMetaDataDiscoveryType)
             {
