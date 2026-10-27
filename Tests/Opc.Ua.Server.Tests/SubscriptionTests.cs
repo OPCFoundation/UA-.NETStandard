@@ -469,6 +469,53 @@ namespace Opc.Ua.Server.Tests
             });
         }
 
+        [Test]
+        public async Task PublishEvictsOnlyExcessUnacknowledgedMessagesWhenQueueIsFullAsync()
+        {
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 100,
+                maxNotificationsPerPublish: 1);
+            int cycle = 1;
+            var publishLimits = new List<uint>();
+            Mock<IDataChangeMonitoredItem> firstItem = CreateDataChangeMonitoredItem(
+                id: 1,
+                notificationCount: 2,
+                publishLimits);
+            firstItem.SetupGet(i => i.IsReadyToPublish).Returns(() => cycle == 1);
+            Mock<IDataChangeMonitoredItem> secondItem = CreateDataChangeMonitoredItem(
+                id: 2,
+                notificationCount: 9,
+                publishLimits);
+            secondItem.SetupGet(i => i.IsReadyToPublish).Returns(() => cycle == 2);
+            await RegisterMonitoredItemsAsync(
+                subscription,
+                firstItem.Object,
+                secondItem.Object).ConfigureAwait(false);
+            var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
+
+            // First cycle sends sequence numbers 1 and 2, which stay unacknowledged.
+            SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+            subscription.PublishTimerExpired();
+            subscription.Publish(context, out _, out _);
+            subscription.Publish(context, out _, out _);
+
+            // Second cycle builds 9 messages for a queue of 10: only sequence number 1 must be evicted.
+            cycle = 2;
+            SetExpiryTime(subscription, HiResClock.TickCount64 - 100);
+            subscription.PublishTimerExpired();
+            NotificationMessage message = subscription.Publish(context, out _, out bool moreNotifications);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(message.SequenceNumber, Is.EqualTo(3));
+                Assert.That(moreNotifications, Is.True);
+                Assert.That(subscription.Republish(context, 2).SequenceNumber, Is.EqualTo(2));
+                ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                    () => subscription.Republish(context, 1));
+                Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
+            });
+        }
+
         [TestCase(0, 0L, 0L)]
         [TestCase(0, 25L, 25L)]
         [TestCase(10, 0L, 10L)]

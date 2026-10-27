@@ -1069,21 +1069,15 @@ namespace Opc.Ua.Server
             }
 
             // remove old messages if queue is full.
-            if (m_sentMessages.Count > m_maxMessageCount - messages.Count)
+            int excessCount = m_sentMessages.Count + messages.Count - (int)m_maxMessageCount;
+            if (excessCount > 0)
             {
                 lock (DiagnosticsWriteLock)
                 {
                     Diagnostics.UnacknowledgedMessageCount += (uint)messages.Count;
                 }
 
-                if (m_maxMessageCount <= messages.Count)
-                {
-                    m_sentMessages.Clear();
-                }
-                else
-                {
-                    m_sentMessages.RemoveRange(0, messages.Count);
-                }
+                m_sentMessages.RemoveRange(0, excessCount);
             }
 
             // save new message
