@@ -277,6 +277,7 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 channelReconnectTimeout: null,
                 rediscoveredEndpointValidator: null,
+                acknowledgements: null,
                 ct);
         }
 
@@ -384,6 +385,7 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 options.ChannelReconnectTimeout,
                 options.ValidateRediscoveredEndpoint,
+                CreateAcknowledgements(options),
                 ct).ConfigureAwait(false);
             try
             {
@@ -434,6 +436,7 @@ namespace Opc.Ua.Client
             bool? updateBeforeConnect,
             TimeSpan? channelReconnectTimeout,
             RediscoveredEndpointValidator? rediscoveredEndpointValidator,
+            SessionAcknowledgements? acknowledgements,
             CancellationToken ct)
         {
             if (sessionFactory == null)
@@ -491,7 +494,8 @@ namespace Opc.Ua.Client
                     connection != null,
                 m_updateBeforeConnect = updateBeforeConnect,
                 m_channelReconnectTimeout = channelReconnectTimeout,
-                ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
+                ValidateRediscoveredEndpoint = rediscoveredEndpointValidator,
+                m_acknowledgements = acknowledgements
             };
 
             managed.StateMachine.Start();
@@ -700,6 +704,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         public Subscription DefaultSubscription
         {
             get => InnerSession.DefaultSubscription;
@@ -879,6 +886,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         public event PublishSequenceNumbersToAcknowledgeEventHandler
             PublishSequenceNumbersToAcknowledge
         {
@@ -3005,8 +3014,10 @@ namespace Opc.Ua.Client
             session.KeepAlive += OnInnerKeepAlive;
             session.Notification += OnInnerNotification;
             session.PublishError += OnInnerPublishError;
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
             session.PublishSequenceNumbersToAcknowledge +=
                 OnInnerPublishSequenceNumbers;
+#pragma warning restore CS0618
             session.SubscriptionsChanged +=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing += OnInnerSessionClosing;
@@ -3024,8 +3035,10 @@ namespace Opc.Ua.Client
             session.KeepAlive -= OnInnerKeepAlive;
             session.Notification -= OnInnerNotification;
             session.PublishError -= OnInnerPublishError;
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
             session.PublishSequenceNumbersToAcknowledge -=
                 OnInnerPublishSequenceNumbers;
+#pragma warning restore CS0618
             session.SubscriptionsChanged -=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing -= OnInnerSessionClosing;

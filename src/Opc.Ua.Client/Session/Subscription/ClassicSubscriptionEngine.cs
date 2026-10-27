@@ -61,6 +61,7 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(context));
             m_logger = context.Telemetry
                 .CreateLogger<ClassicSubscriptionEngine>();
+            m_outcomeDispatcher = new AcknowledgementOutcomeDispatcher(m_logger);
             m_eventLogger = context.Telemetry
                 .CreateLogger(ClientEventIds.LegacyCategoryName);
             m_minPublishRequestCount = kDefaultPublishRequestCount;
@@ -217,6 +218,20 @@ namespace Opc.Ua.Client
                 // Signal only: Dispose is synchronous. The throttled republish and
                 // the orphan cleanup both stop as soon as the token trips.
                 m_backgroundWork.Dispose();
+
+                // Acknowledgements that were never sent end with the engine.
+                List<AcknowledgementOutcome>? abandoned = null;
+                lock (m_acknowledgementsToSendLock)
+                {
+                    foreach (SubscriptionAcknowledgement acknowledgement in m_acknowledgementsToSend)
+                    {
+                        EndAcknowledgementLocked(ref abandoned, acknowledgement,
+                            AcknowledgementDisposition.Abandoned, StatusCodes.BadShutdown);
+                    }
+                    m_acknowledgementScopes.Clear();
+                }
+                ReportOutcomes(abandoned);
+                _ = m_outcomeDispatcher.CompleteAsync().AsTask();
             }
         }
 
@@ -302,20 +317,28 @@ namespace Opc.Ua.Client
 
             // collect the current set of acknowledgements.
             List<SubscriptionAcknowledgement>? acknowledgementsToSend = null;
-            lock (m_acknowledgementsToSendLock)
+            ISubscriptionAcknowledgementProvider? provider = Acknowledgements?.Provider;
+            if (provider != null)
             {
-                (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
-                    m_context.PrepareAcknowledgementsToSend(m_acknowledgementsToSend);
-                acknowledgementsToSend = toSend;
-                m_acknowledgementsToSend = updatedPending;
+                acknowledgementsToSend = TakeApprovedAcknowledgements(provider) ?? [];
+            }
+            else
+            {
+                lock (m_acknowledgementsToSendLock)
+                {
+                    (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
+                        m_context.PrepareAcknowledgementsToSend(m_acknowledgementsToSend);
+                    acknowledgementsToSend = toSend;
+                    m_acknowledgementsToSend = updatedPending;
 
 #if DEBUG_SEQUENTIALPUBLISHING
-                foreach (var toSend in acknowledgementsToSend)
-                {
-                    m_latestAcknowledgementsSent[toSend.SubscriptionId]
-                        = toSend.SequenceNumber;
-                }
+                    foreach (var toSend in acknowledgementsToSend)
+                    {
+                        m_latestAcknowledgementsSent[toSend.SubscriptionId]
+                            = toSend.SequenceNumber;
+                    }
 #endif
+                }
             }
 
             uint timeoutHint = timeout > 0
@@ -467,6 +490,8 @@ namespace Opc.Ua.Client
                     return;
                 }
 
+                ReportAcknowledgementResults(acknowledgementsToSend, acknowledgeResults);
+
                 // nothing more to do if session changed.
                 if (sessionId != m_context.SessionId)
                 {
@@ -541,6 +566,8 @@ namespace Opc.Ua.Client
                 // nothing more to do if session changed.
                 if (sessionId != m_context.SessionId)
                 {
+                    RetireAcknowledgements(acknowledgementsToSend, AcknowledgementDisposition.OwnerRetired,
+                        StatusCodes.BadSessionIdInvalid);
                     if (m_context.Connected)
                     {
                         m_logger.PublishAbandonedAfterErrorMessageSession2(
@@ -767,7 +794,23 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                List<AcknowledgementOutcome>? pruned = null;
+                if (m_acknowledgementScopes.Count != 0)
+                {
+                    var kept = new HashSet<SubscriptionAcknowledgement>(
+                        acknowledgementsToSend, IdentityComparer<SubscriptionAcknowledgement>.Instance);
+                    foreach (SubscriptionAcknowledgement previous in m_acknowledgementsToSend)
+                    {
+                        if (!kept.Contains(previous))
+                        {
+                            // The server no longer lists the message.
+                            EndAcknowledgementLocked(ref pruned, previous, AcknowledgementDisposition.NotRetained,
+                                StatusCodes.BadSequenceNumberUnknown);
+                        }
+                    }
+                }
                 m_acknowledgementsToSend = acknowledgementsToSend;
+                ReportOutcomes(pruned);
 
                 if (notificationMessage.IsEmpty && m_logger.IsEnabled(LogLevel.Trace))
                 {
@@ -1023,6 +1066,255 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Gets the session's acknowledgement configuration, or <c>null</c>.
+        /// </summary>
+        private SessionAcknowledgements? Acknowledgements =>
+            (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements;
+
+        /// <summary>
+        /// Finds the subscription that currently uses a server id.
+        /// </summary>
+        private Subscription? FindSubscription(uint subscriptionId)
+        {
+            foreach (Subscription subscription in m_context.Subscriptions)
+            {
+                if (subscription.Id == subscriptionId)
+                {
+                    return subscription;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Takes the acknowledgements the provider approves for the next Publish request.
+        /// The provider is called without holding the acknowledgement lock. A decision that
+        /// does not complete synchronously keeps its acknowledgements pending until a later
+        /// request, so the synchronous publish path never blocks on it.
+        /// </summary>
+        private List<SubscriptionAcknowledgement>? TakeApprovedAcknowledgements(
+            ISubscriptionAcknowledgementProvider provider)
+        {
+            List<SubscriptionAcknowledgement> candidates;
+            AcknowledgementHandle[] handles;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (m_pendingDecision is { } pending)
+                {
+                    if (!pending.Decision.IsCompleted)
+                    {
+                        return null;
+                    }
+                    m_pendingDecision = null;
+                    if (pending.Decision.Status != TaskStatus.RanToCompletion)
+                    {
+                        m_logger.AcknowledgementDecisionFailed(pending.Decision.Exception, pending.Candidates.Count);
+                        return null;
+                    }
+                    return TakeApprovedLocked(pending.Candidates, pending.Decision.Result);
+                }
+                if (m_acknowledgementsToSend.Count == 0)
+                {
+                    return null;
+                }
+                candidates = [.. m_acknowledgementsToSend];
+                handles = new AcknowledgementHandle[candidates.Count];
+                for (int i = 0; i < handles.Length; i++)
+                {
+                    handles[i] = GetHandleLocked(candidates[i]);
+                }
+            }
+
+            ValueTask<AcknowledgementDecision> decision;
+            try
+            {
+                decision = provider.DecideAsync(handles);
+            }
+            catch (Exception ex)
+            {
+                // Fail closed: the acknowledgements stay pending.
+                m_logger.AcknowledgementDecisionFailed(ex, candidates.Count);
+                return null;
+            }
+            if (decision.IsCompletedSuccessfully)
+            {
+                lock (m_acknowledgementsToSendLock)
+                {
+                    return TakeApprovedLocked(candidates, decision.Result);
+                }
+            }
+            Task<AcknowledgementDecision> task = decision.AsTask();
+            lock (m_acknowledgementsToSendLock)
+            {
+                m_pendingDecision = (task, candidates);
+            }
+            // Publish again once the decision is known.
+            task.ContinueWith(
+                static (_, state) => ((ClassicSubscriptionEngine)state!).QueueBeginPublish(),
+                this,
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            return null;
+        }
+
+        /// <summary>
+        /// Removes the approved acknowledgements of a decided batch from the pending ones and
+        /// returns them. Acknowledgements that ended in the meantime are skipped.
+        /// </summary>
+        private List<SubscriptionAcknowledgement>? TakeApprovedLocked(
+            List<SubscriptionAcknowledgement> candidates,
+            AcknowledgementDecision decision)
+        {
+            bool[] deferred = new bool[candidates.Count];
+            for (int i = 0; i < decision.Deferred.Count; i++)
+            {
+                int index = decision.Deferred[i];
+                if ((uint)index < (uint)deferred.Length)
+                {
+                    deferred[index] = true;
+                }
+            }
+            var approved = new HashSet<SubscriptionAcknowledgement>(IdentityComparer<SubscriptionAcknowledgement>.Instance);
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (!deferred[i])
+                {
+                    approved.Add(candidates[i]);
+                }
+            }
+            if (approved.Count == 0)
+            {
+                return null;
+            }
+            var toSend = new List<SubscriptionAcknowledgement>(approved.Count);
+            m_acknowledgementsToSend.RemoveAll(acknowledgement =>
+            {
+                if (approved.Contains(acknowledgement))
+                {
+                    toSend.Add(acknowledgement);
+                    return true;
+                }
+                return false;
+            });
+            return toSend.Count == 0 ? null : toSend;
+        }
+
+        /// <summary>
+        /// Gets the handle of a tracked acknowledgement.
+        /// </summary>
+        private AcknowledgementHandle GetHandleLocked(SubscriptionAcknowledgement acknowledgement)
+        {
+            return m_acknowledgementScopes.TryGetValue(acknowledgement, out AcknowledgementScope? scope) &&
+                scope != null
+                ? new AcknowledgementHandle(scope, acknowledgement.SequenceNumber)
+                : default;
+        }
+
+        /// <summary>
+        /// Reports how the acknowledgements of a successful Publish request ended.
+        /// </summary>
+        private void ReportAcknowledgementResults(
+            List<SubscriptionAcknowledgement>? sent,
+            ArrayOf<StatusCode> results)
+        {
+            if (sent == null || sent.Count == 0)
+            {
+                return;
+            }
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (m_acknowledgementScopes.Count == 0)
+                {
+                    return;
+                }
+                for (int i = 0; i < sent.Count; i++)
+                {
+                    StatusCode status = i < results.Count ? results[i] : StatusCodes.BadUnexpectedError;
+                    EndAcknowledgementLocked(ref outcomes, sent[i],
+                        StatusCode.IsGood(status)
+                            ? AcknowledgementDisposition.Acknowledged
+                            : AcknowledgementDisposition.NotRetained,
+                        status);
+                }
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Ends acknowledgements that will not be sent anymore.
+        /// </summary>
+        private void RetireAcknowledgements(
+            List<SubscriptionAcknowledgement>? acknowledgements,
+            AcknowledgementDisposition disposition,
+            StatusCode status)
+        {
+            if (acknowledgements == null || acknowledgements.Count == 0)
+            {
+                return;
+            }
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    EndAcknowledgementLocked(ref outcomes, acknowledgement, disposition, status);
+                }
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Ends a tracked acknowledgement and adds its outcome.
+        /// </summary>
+        private void EndAcknowledgementLocked(
+            ref List<AcknowledgementOutcome>? outcomes,
+            SubscriptionAcknowledgement acknowledgement,
+            AcknowledgementDisposition disposition,
+            StatusCode status)
+        {
+            if (m_acknowledgementScopes.Remove(acknowledgement, out AcknowledgementScope? scope) && scope != null)
+            {
+                (outcomes ??= []).Add(new AcknowledgementOutcome(
+                    new AcknowledgementHandle(scope, acknowledgement.SequenceNumber), disposition, status));
+            }
+        }
+
+        /// <summary>
+        /// Hands outcomes to the observer, outside any lock.
+        /// </summary>
+        private void ReportOutcomes(List<AcknowledgementOutcome>? outcomes)
+        {
+            m_outcomeDispatcher.Report(Acknowledgements?.Observer, outcomes);
+        }
+
+        /// <summary>
+        /// Compares instances by object identity.
+        /// </summary>
+        /// <typeparam name="T">The compared reference type.</typeparam>
+        private sealed class IdentityComparer<T> : IEqualityComparer<T>
+            where T : class
+        {
+            /// <summary>
+            /// The shared instance.
+            /// </summary>
+            public static IdentityComparer<T> Instance { get; } = new();
+
+            /// <inheritdoc/>
+            public bool Equals(T? x, T? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            /// <inheritdoc/>
+            public int GetHashCode(T obj)
+            {
+                return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+            }
+        }
+
+        /// <summary>
         /// Adds an acknowledgement to the list to send.
         /// </summary>
         /// <exception cref="ArgumentNullException">
@@ -1039,11 +1331,16 @@ namespace Opc.Ua.Client
 
             Debug.Assert(m_acknowledgementsToSendLock.IsHeldByCurrentThread);
 
-            acknowledgementsToSend.Add(new SubscriptionAcknowledgement
+            var acknowledgement = new SubscriptionAcknowledgement
             {
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
-            });
+            };
+            acknowledgementsToSend.Add(acknowledgement);
+            if (Acknowledgements != null)
+            {
+                m_acknowledgementScopes[acknowledgement] = FindSubscription(subscriptionId)?.GetAcknowledgementScope();
+            }
         }
 
         /// <summary>
@@ -1093,8 +1390,18 @@ namespace Opc.Ua.Client
                 {
                     return 0;
                 }
+                List<AcknowledgementOutcome>? retired = null;
+                foreach (SubscriptionAcknowledgement acknowledgement in m_acknowledgementsToSend)
+                {
+                    if (acknowledgement.SubscriptionId == subscriptionId)
+                    {
+                        EndAcknowledgementLocked(ref retired, acknowledgement,
+                            AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
+                    }
+                }
                 m_acknowledgementsToSend.RemoveAll(
                     ack => ack.SubscriptionId == subscriptionId);
+                ReportOutcomes(retired);
                 return before - m_acknowledgementsToSend.Count;
             }
         }
@@ -1218,6 +1525,7 @@ namespace Opc.Ua.Client
                 return cached.Item2;
             }
         }
+
         private readonly ISubscriptionEngineContext m_context;
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
@@ -1225,6 +1533,23 @@ namespace Opc.Ua.Client
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly Lock m_acknowledgementsToSendLock = new();
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
+
+        /// <summary>
+        /// Acknowledgement scope of each tracked acknowledgement. Only maintained when the
+        /// session has an acknowledgement configuration. Guarded by
+        /// <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<SubscriptionAcknowledgement, AcknowledgementScope?> m_acknowledgementScopes =
+            new(IdentityComparer<SubscriptionAcknowledgement>.Instance);
+
+        /// <summary>
+        /// A provider decision that did not complete synchronously, with the acknowledgements
+        /// it decides about. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private (Task<AcknowledgementDecision> Decision, List<SubscriptionAcknowledgement> Candidates)?
+            m_pendingDecision;
+
+        private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;
         private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
         private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;
@@ -1446,6 +1771,13 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             uint sequenceNumber,
             NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 28, Level = LogLevel.Error,
+            Message = "The acknowledgement provider failed; {Count} acknowledgements stay pending.")]
+        public static partial void AcknowledgementDecisionFailed(
+            this ILogger logger,
+            Exception? exception,
+            int count);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 27, Level = LogLevel.Error,
             Message = "Unexpected error sending republish request.")]

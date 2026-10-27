@@ -134,6 +134,12 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         /// <inheritdoc/>
+        public ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; set; }
+
+        /// <inheritdoc/>
+        public ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; set; }
+
+        /// <inheritdoc/>
         public bool HasAcknowledgementPolicy => OnPrepareAcknowledgements != null;
 
         /// <summary>

@@ -869,8 +869,10 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
+                var acknowledgement = new AcknowledgementHandle(
+                    GetAcknowledgementScope(MessageGeneration), sequenceNumber);
                 await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
@@ -889,8 +891,10 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
+                var acknowledgement = new AcknowledgementHandle(
+                    GetAcknowledgementScope(MessageGeneration), sequenceNumber);
                 await m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally

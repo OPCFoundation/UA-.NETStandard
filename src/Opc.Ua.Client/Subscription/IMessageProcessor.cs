@@ -52,6 +52,15 @@ namespace Opc.Ua.Client.Subscriptions
         long MessageGeneration { get; }
 
         /// <summary>
+        /// Gets the acknowledgement scope of a message generation of this
+        /// subscription. The scope of the current generation is cached, so
+        /// handles created while dispatching a message and the
+        /// acknowledgement queued for it compare equal.
+        /// </summary>
+        /// <param name="generation">The message generation.</param>
+        AcknowledgementScope GetAcknowledgementScope(long generation);
+
+        /// <summary>
         /// Allows the session to add the notification message
         /// to the subscription for dispatch. This is called by
         /// the subscription manager when a message is received.

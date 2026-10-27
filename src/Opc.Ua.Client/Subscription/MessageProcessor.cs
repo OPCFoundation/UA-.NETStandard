@@ -62,6 +62,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// <inheritdoc/>
         public long MessageGeneration => Volatile.Read(ref m_generation);
 
+        /// <inheritdoc/>
+        public AcknowledgementScope GetAcknowledgementScope(long generation)
+        {
+            return generation == MessageGeneration
+                ? AcknowledgementScope.GetOrCreate(ref m_acknowledgementScope, this, generation, Id)
+                : new AcknowledgementScope(this, generation, Id);
+        }
+
         /// <summary>
         /// Number of notification messages detected as missing during
         /// gap-walking of the SequenceNumber on this subscription.
@@ -1110,6 +1118,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
         private long m_generation;
+        private AcknowledgementScope? m_acknowledgementScope;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;

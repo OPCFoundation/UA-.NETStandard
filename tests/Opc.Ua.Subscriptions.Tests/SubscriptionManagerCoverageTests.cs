@@ -614,6 +614,12 @@ namespace Opc.Ua.Subscriptions.Tests
             }
 
             /// <inheritdoc/>
+            public Client.ISubscriptionAcknowledgementProvider? AcknowledgementProvider => null;
+
+            /// <inheritdoc/>
+            public Client.ISubscriptionAcknowledgementObserver? AcknowledgementObserver => null;
+
+            /// <inheritdoc/>
             public bool HasAcknowledgementPolicy => false;
 
             /// <inheritdoc/>
@@ -720,6 +726,11 @@ namespace Opc.Ua.Subscriptions.Tests
             public uint Id { get; init; }
 
             public long MessageGeneration => 0;
+
+            public Client.AcknowledgementScope GetAcknowledgementScope(long generation)
+            {
+                return new Client.AcknowledgementScope(this, generation, Id);
+            }
 
             public bool Created { get; init; }
 

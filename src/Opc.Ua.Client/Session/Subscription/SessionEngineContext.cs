@@ -72,6 +72,9 @@ namespace Opc.Ua.Client
                 m_session.m_PublishSequenceNumbersToAcknowledge != null;
 
             /// <inheritdoc/>
+            public SessionAcknowledgements? Acknowledgements => m_session.Acknowledgements;
+
+            /// <inheritdoc/>
             public DateTime LastKeepAliveTime => m_session.LastKeepAliveTime;
 
             /// <inheritdoc/>

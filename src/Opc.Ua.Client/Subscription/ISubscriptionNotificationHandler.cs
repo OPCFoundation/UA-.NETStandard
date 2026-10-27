@@ -84,6 +84,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// </para>
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this change
+        /// arrived in. Confirm it with
+        /// <see cref="ISessionAcknowledgements.Confirm"/> once the change was
+        /// processed when the session acknowledges after confirmation.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>
@@ -117,6 +125,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// notifications.
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this event
+        /// arrived in. See <see cref="DataValueChange.Acknowledgement"/>.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>

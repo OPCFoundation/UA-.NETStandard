@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -116,9 +117,11 @@ namespace Opc.Ua.Client
             {
                 m_StateChanged = template.m_StateChanged;
                 m_PublishStatusChanged = template.m_PublishStatusChanged;
+#pragma warning disable CS0618 // copies the obsolete classic fast callbacks until they are removed
                 FastDataChangeCallback = template.FastDataChangeCallback;
                 FastEventCallback = template.FastEventCallback;
                 FastKeepAliveCallback = template.FastKeepAliveCallback;
+#pragma warning restore CS0618
             }
 
             // copy the list of monitored items.
@@ -725,6 +728,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastDataChangeNotificationEventHandler? FastDataChangeCallback { get; set; }
 
         /// <summary>
@@ -734,6 +740,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastEventNotificationEventHandler? FastEventCallback { get; set; }
 
         /// <summary>
@@ -743,6 +752,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only one callback is allowed at a time but it is more efficient to call than an event.
         /// </remarks>
+        [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+            "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+            "See docs/MigrationGuide.md.")]
         public FastKeepAliveNotificationEventHandler? FastKeepAliveCallback { get; set; }
 
         /// <summary>
@@ -833,6 +845,40 @@ namespace Opc.Ua.Client
         /// The unique identifier assigned by the server.
         /// </summary>
         public uint Id { get; private set; }
+
+        /// <summary>
+        /// Gets the acknowledgement handle of a data change or event notification this
+        /// subscription delivered through <see cref="FastDataChangeCallback"/> or
+        /// <see cref="FastEventCallback"/>. Handles are only recorded when the session has an
+        /// acknowledgement configuration (for example
+        /// <see cref="AcknowledgementMode.AfterConfirmation"/>).
+        /// </summary>
+        /// <param name="notification">The notification the callback received.</param>
+        /// <param name="handle">The acknowledgement of the message it arrived in.</param>
+        /// <returns><c>true</c> if a handle was recorded for the notification.</returns>
+        public bool TryGetAcknowledgementHandle(NotificationData notification, out AcknowledgementHandle handle)
+        {
+            if (notification != null &&
+                m_acknowledgementHandles.TryGetValue(notification, out StrongBox<AcknowledgementHandle>? box))
+            {
+                handle = box.Value;
+                return true;
+            }
+            handle = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Gets the acknowledgement scope of the subscription's current lifetime.
+        /// </summary>
+        internal AcknowledgementScope GetAcknowledgementScope()
+        {
+            return AcknowledgementScope.GetOrCreate(
+                ref m_acknowledgementScope,
+                this,
+                Interlocked.Read(ref m_acknowledgementGeneration),
+                Id);
+        }
 
         /// <summary>
         /// Whether the subscription has been created on the server.
@@ -2990,8 +3036,30 @@ namespace Opc.Ua.Client
         /// Delete the subscription.
         /// Ignore errors, always reset all parameter.
         /// </summary>
+        /// <summary>
+        /// Records the acknowledgement handle of a delivered notification when the session
+        /// has an acknowledgement configuration.
+        /// </summary>
+        private void RecordAcknowledgementHandle(NotificationData notification, uint sequenceNumber)
+        {
+            SessionAcknowledgements? acknowledgements = Session switch
+            {
+                Client.Session session => session.Acknowledgements,
+                ManagedSession managed => managed.AcknowledgementSettings,
+                _ => null
+            };
+            if (acknowledgements == null)
+            {
+                return;
+            }
+            m_acknowledgementHandles.GetValue(notification, static _ => new StrongBox<AcknowledgementHandle>()).Value =
+                new AcknowledgementHandle(GetAcknowledgementScope(), sequenceNumber);
+        }
+
         private void DeleteSubscription()
         {
+            // Acknowledgements of the deleted server subscription belong to a past lifetime.
+            Interlocked.Increment(ref m_acknowledgementGeneration);
             TransferId = Id = 0;
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;
@@ -3234,7 +3302,9 @@ namespace Opc.Ua.Client
                 }
 
                 // process new keep alive messages.
+#pragma warning disable CS0618 // dispatches the obsolete classic fast callbacks until they are removed
                 FastKeepAliveNotificationEventHandler? keepAliveCallback = FastKeepAliveCallback;
+#pragma warning restore CS0618
                 if (keepAliveToProcess != null && keepAliveCallback != null)
                 {
                     foreach (IncomingMessage message in keepAliveToProcess)
@@ -3252,9 +3322,11 @@ namespace Opc.Ua.Client
                 if (messagesToProcess != null)
                 {
                     int noNotificationsReceived;
+#pragma warning disable CS0618 // dispatches the obsolete classic fast callbacks until they are removed
                     FastDataChangeNotificationEventHandler? datachangeCallback
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
+#pragma warning restore CS0618
 
                     foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
                         in messagesToProcess)
@@ -3268,6 +3340,7 @@ namespace Opc.Ua.Client
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
+                                    RecordAcknowledgementHandle(datachange, message.SequenceNumber);
                                     datachange.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
@@ -3297,6 +3370,7 @@ namespace Opc.Ua.Client
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
+                                    RecordAcknowledgementHandle(events, message.SequenceNumber);
                                     events.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += events.Events.Count;
@@ -3980,6 +4054,10 @@ namespace Opc.Ua.Client
 
         private Tuple<ITelemetryContext?, ActivitySource>? m_activitySource;
         private ITelemetryContext? m_telemetry;
+        private AcknowledgementScope? m_acknowledgementScope;
+        private long m_acknowledgementGeneration;
+        private readonly ConditionalWeakTable<NotificationData, StrongBox<AcknowledgementHandle>>
+            m_acknowledgementHandles = new();
         private ILogger m_logger;
         private ILogger m_eventLogger;
 
@@ -4108,6 +4186,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive data change notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastDataChangeNotificationEventHandler(
         Subscription subscription,
         DataChangeNotification notification,
@@ -4116,6 +4197,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive event notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastEventNotificationEventHandler(
         Subscription subscription,
         EventNotificationList notification,
@@ -4124,6 +4208,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive keep alive notifications via a direct function call instead of a .NET Event.
     /// </summary>
+    [Obsolete("Use the managed subscription model (ISubscriptionManager with an " +
+        "ISubscriptionNotificationHandler) instead of the classic fast callbacks. " +
+        "See docs/MigrationGuide.md.")]
     public delegate void FastKeepAliveNotificationEventHandler(
         Subscription subscription,
         NotificationData notification);

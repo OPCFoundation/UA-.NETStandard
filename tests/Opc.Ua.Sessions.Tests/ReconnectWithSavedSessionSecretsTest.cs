@@ -38,6 +38,8 @@ using Opc.Ua.Client.TestFramework;
 using ISession = Opc.Ua.Client.ISession;
 using Subscription = Opc.Ua.Client.Subscription;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>

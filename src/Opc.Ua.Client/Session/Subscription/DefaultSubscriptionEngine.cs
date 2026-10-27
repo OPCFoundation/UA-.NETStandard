@@ -264,6 +264,14 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
+            public ISubscriptionAcknowledgementProvider? AcknowledgementProvider =>
+                (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements?.Provider;
+
+            /// <inheritdoc/>
+            public ISubscriptionAcknowledgementObserver? AcknowledgementObserver =>
+                (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements?.Observer;
+
+            /// <inheritdoc/>
             public bool HasAcknowledgementPolicy =>
                 m_context is not IAcknowledgementPolicyCapability capability ||
                 capability.HasAcknowledgementPolicy;

@@ -39,6 +39,8 @@ covers cross-cutting changes.
 - [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
+- [Migrating from the classic subscription fast callbacks and DefaultSubscription](#migrating-from-the-classic-subscription-fast-callbacks-and-defaultsubscription)
+- [Migrating from the PublishSequenceNumbersToAcknowledge event](#migrating-from-the-publishsequencenumberstoacknowledge-event)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
@@ -1068,6 +1070,90 @@ fails with `Bad_WriteNotSupported` without the received timestamps and remembers
   definition for structures without fields, and sets the `DefaultEncodingId` of concrete
   structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
   subtype; NodeSet export writes only those fields.
+
+## Migrating from the classic subscription fast callbacks and DefaultSubscription
+
+The following classic client members are `[Obsolete]` and produce `CS0618`:
+
+| Obsolete member | Replacement |
+| --- | --- |
+| `Subscription.FastDataChangeCallback` and `FastDataChangeNotificationEventHandler` | `ISubscriptionNotificationHandler.OnDataChangeNotificationAsync` |
+| `Subscription.FastEventCallback` and `FastEventNotificationEventHandler` | `ISubscriptionNotificationHandler.OnEventDataNotificationAsync` |
+| `Subscription.FastKeepAliveCallback` and `FastKeepAliveNotificationEventHandler` | `ISubscriptionNotificationHandler.OnKeepAliveNotificationAsync` |
+| `ISession.DefaultSubscription` (and `Session`, `ManagedSession`, `RedundantClientSession`) | `ISubscriptionManager.Add` with `SubscriptionOptions` |
+
+The members keep working; existing classic code builds with a warning. New
+code should use the managed (V2) subscription model: implement
+`ISubscriptionNotificationHandler` and add the subscription through the
+session's `ISubscriptionManager`. The options that `DefaultSubscription`
+used as a template are passed explicitly in `SubscriptionOptions`.
+
+```csharp
+// was
+var subscription = new Subscription(session.DefaultSubscription)
+{
+    PublishingInterval = 1000,
+    FastDataChangeCallback = OnDataChange
+};
+session.AddSubscription(subscription);
+await subscription.CreateAsync(ct).ConfigureAwait(false);
+
+// now
+ISubscription subscription = managedSession.AddSubscription(
+    handler, // ISubscriptionNotificationHandler
+    new SubscriptionOptions { PublishingInterval = TimeSpan.FromSeconds(1) });
+```
+
+Monitored items are added with `subscription.MonitoredItems.TryAdd(...)`. See
+[Subscriptions: Classic → V2 surface mapping](Subscriptions.md#classic--v2-surface-mapping)
+for the complete mapping.
+
+## Migrating from the PublishSequenceNumbersToAcknowledge event
+
+`ISession.PublishSequenceNumbersToAcknowledge` (and its implementations on `Session`,
+`ManagedSession` and `RedundantClientSession`) is `[Obsolete]`. Acknowledgements are now
+controlled by injectable, asynchronous providers instead of an event that edits mutable
+lists. The event still works with its previous behaviour as long as no provider is
+configured.
+
+| Was | Now |
+| --- | --- |
+| Defer acknowledgements in the event until downstream delivery, keyed by subscription id and sequence number | `AcknowledgementMode.AfterConfirmation` (`ManagedSessionBuilder.AcknowledgeAfterConfirmation()`) and `session.Confirm(handle)` with the `AcknowledgementHandle` carried by `DataValueChange.Acknowledgement` / `EventNotification.Acknowledgement` (classic: `Subscription.TryGetAcknowledgementHandle`) |
+| Any other policy in the event | An `ISubscriptionAcknowledgementProvider` (`ManagedSessionOptions.AcknowledgementProvider`, `WithAcknowledgementProvider`, or `AddAcknowledgementProvider<T>()`) |
+| Bookkeeping cleaned up from several events | An `ISubscriptionAcknowledgementObserver`, told exactly once how every acknowledgement ended |
+
+Differences to be aware of:
+
+- A provider is called concurrently and without SDK locks, so it must be thread-safe. If it
+  throws, the batch is deferred (fail-closed); the event sent everything (fail-open).
+- Handles stay unambiguous when the server reuses a subscription id; keys made of the
+  subscription id and sequence number do not.
+- With a provider configured, the event is not raised.
+
+```csharp
+// was
+session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+{
+    foreach (SubscriptionAcknowledgement ack in e.AcknowledgementsToSend.ToList())
+    {
+        if (!delivered.Contains((ack.SubscriptionId, ack.SequenceNumber)))
+        {
+            e.AcknowledgementsToSend.Remove(ack);
+            e.DeferredAcknowledgementsToSend.Add(ack);
+        }
+    }
+};
+
+// now
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .AcknowledgeAfterConfirmation()
+    .ConnectAsync(ct).ConfigureAwait(false);
+// in the notification handler, once the change was delivered downstream:
+session.Confirm(change.Acknowledgement);
+```
+
+See [Subscriptions: Acknowledgement providers](Subscriptions.md#acknowledgement-providers).
 
 ## Migrating from 1.05.377 to 1.05.378
 

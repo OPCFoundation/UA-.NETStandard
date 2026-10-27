@@ -36,6 +36,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 #pragma warning disable CA2000, CA2007
 
 namespace Opc.Ua.Client.Tests

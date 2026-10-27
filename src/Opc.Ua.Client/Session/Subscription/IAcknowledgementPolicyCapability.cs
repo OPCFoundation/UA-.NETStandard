@@ -43,5 +43,11 @@ namespace Opc.Ua.Client
         /// Gets a value indicating whether an acknowledgement-deferral policy is registered.
         /// </summary>
         bool HasAcknowledgementPolicy { get; }
+
+        /// <summary>
+        /// Gets the session's acknowledgement configuration, or <c>null</c> when the session
+        /// uses the defaults.
+        /// </summary>
+        SessionAcknowledgements? Acknowledgements { get; }
     }
 }

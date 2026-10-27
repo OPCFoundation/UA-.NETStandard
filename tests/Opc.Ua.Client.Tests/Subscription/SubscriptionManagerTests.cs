@@ -1205,6 +1205,254 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// An acknowledgement provider decides instead of the legacy deferral policy: deferred
+        /// acknowledgements are presented again with later requests until the provider sends
+        /// them, and their handles identify the owner's message.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementProviderDefersAndPresentsAgainAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var provider = new TestAcknowledgementProvider();
+            context.AcknowledgementProvider = provider;
+            context.OnPrepareAcknowledgements = acknowledgements => (acknowledgements, []);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            var expected = new AcknowledgementHandle(
+                owner.GetAcknowledgementScope(owner.MessageGeneration), 5);
+            provider.Defer = handle => handle == expected && !provider.Release;
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => provider.Presented(expected) >= 3, testCt).ConfigureAwait(false);
+            Assert.That(sent, Is.Empty, "A deferred acknowledgement is not sent.");
+
+            provider.Release = true;
+            await WaitUntilAsync(() => sent.Any(ack => ack.SequenceNumber == 5), testCt).ConfigureAwait(false);
+            Assert.That(context.PrepareCalls, Is.Zero, "The legacy policy is not applied with a provider.");
+        }
+
+        /// <summary>
+        /// A provider that throws defers the whole batch (fail-closed); the acknowledgements
+        /// are sent once a later decision approves them.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementProviderFailureDefersTheBatchAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var provider = new TestAcknowledgementProvider { FailuresLeft = 2 };
+            context.AcknowledgementProvider = provider;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<uint>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement.SequenceNumber);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 8 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Contains(8u), testCt).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref provider.FailuresLeft), Is.Negative, "The provider failed twice first.");
+            Assert.That(sent.Count(sequenceNumber => sequenceNumber == 8u), Is.EqualTo(1),
+                "The acknowledgement is only sent once the provider approved it.");
+        }
+
+        /// <summary>
+        /// Every acknowledgement ends exactly once and is reported to the observer: a sent
+        /// one with the server's result, a stale one as retired, a deferred one when its
+        /// owner retires, and the remaining ones as abandoned when the manager is disposed.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(15_000)]
+        public async Task EveryAcknowledgementIsReportedExactlyOnceAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var provider = new TestAcknowledgementProvider();
+            var observer = new TestAcknowledgementObserver();
+            context.AcknowledgementProvider = provider;
+            context.AcknowledgementObserver = observer;
+            var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                response.Results = acknowledgements.ConvertAll(ack => ack.SequenceNumber == 2
+                    ? StatusCodes.BadSequenceNumberUnknown
+                    : StatusCodes.Good);
+                return response;
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription sending = partitions[0];
+            FakeManagedSubscription retiring = partitions[1];
+            FakeManagedSubscription disposing = partitions[2];
+            static AcknowledgementHandle Handle(FakeManagedSubscription owner, long generation, uint sequenceNumber) =>
+                new(owner.GetAcknowledgementScope(generation), sequenceNumber);
+            AcknowledgementHandle acknowledged = Handle(sending, sending.MessageGeneration, 1);
+            AcknowledgementHandle rejected = Handle(sending, sending.MessageGeneration, 2);
+            AcknowledgementHandle retired = Handle(retiring, retiring.MessageGeneration, 4);
+            AcknowledgementHandle abandoned = Handle(disposing, disposing.MessageGeneration, 5);
+            provider.Defer = handle => handle == retired || handle == abandoned;
+            manager.Resume();
+
+            foreach ((FakeManagedSubscription owner, long generation, uint sequenceNumber) in new[]
+            {
+                (sending, sending.MessageGeneration, 1u),
+                (sending, sending.MessageGeneration, 2u),
+                (sending, sending.MessageGeneration - 1, 3u),
+                (retiring, retiring.MessageGeneration, 4u),
+                (disposing, disposing.MessageGeneration, 5u)
+            })
+            {
+                await manager.QueueAsync(owner, generation,
+                    new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = sequenceNumber },
+                    testCt).ConfigureAwait(false);
+            }
+            await WaitUntilAsync(() => observer.Count(acknowledged) == 1 &&
+                observer.Count(rejected) == 1 &&
+                observer.CountBySequenceNumber(3) == 1 &&
+                provider.Presented(retired) > 0 &&
+                provider.Presented(abandoned) > 0, testCt).ConfigureAwait(false);
+            Assert.That(manager.DropPendingForSubscription(retiring, retiring.Id), Is.EqualTo(1));
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(observer.Disposition(acknowledged), Is.EqualTo(AcknowledgementDisposition.Acknowledged));
+            Assert.That(observer.Disposition(rejected), Is.EqualTo(AcknowledgementDisposition.NotRetained));
+            Assert.That(observer.All.Single(outcome => outcome.Handle.SequenceNumber == 3).Disposition,
+                Is.EqualTo(AcknowledgementDisposition.OwnerRetired), "A stale acknowledgement is retired, not sent.");
+            Assert.That(observer.Disposition(retired), Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(observer.Disposition(abandoned), Is.EqualTo(AcknowledgementDisposition.Abandoned));
+            Assert.That(observer.All.GroupBy(outcome => outcome.Handle).All(group => group.Count() == 1), Is.True,
+                "Every acknowledgement ends exactly once.");
+        }
+
+        /// <summary>
+        /// Acknowledgement provider used by the provider tests.
+        /// </summary>
+        private sealed class TestAcknowledgementProvider : ISubscriptionAcknowledgementProvider
+        {
+            public Func<AcknowledgementHandle, bool> Defer { get; set; } = _ => false;
+
+            public bool Release { get; set; }
+
+            public int FailuresLeft;
+
+            public int Presented(AcknowledgementHandle handle)
+            {
+                return m_presented.TryGetValue(handle, out int count) ? count : 0;
+            }
+
+            public ValueTask<AcknowledgementDecision> DecideAsync(
+                ArrayOf<AcknowledgementHandle> acknowledgements,
+                CancellationToken ct = default)
+            {
+                if (Interlocked.Decrement(ref FailuresLeft) >= 0)
+                {
+                    throw new InvalidOperationException("Injected provider failure.");
+                }
+                var deferred = new List<int>();
+                for (int i = 0; i < acknowledgements.Count; i++)
+                {
+                    m_presented.AddOrUpdate(acknowledgements[i], 1, (_, count) => count + 1);
+                    if (Defer(acknowledgements[i]))
+                    {
+                        deferred.Add(i);
+                    }
+                }
+                return new ValueTask<AcknowledgementDecision>(new AcknowledgementDecision(deferred.ToArray()));
+            }
+
+            private readonly ConcurrentDictionary<AcknowledgementHandle, int> m_presented = new();
+        }
+
+        /// <summary>
+        /// Acknowledgement observer used by the provider tests.
+        /// </summary>
+        private sealed class TestAcknowledgementObserver : ISubscriptionAcknowledgementObserver
+        {
+            public IReadOnlyList<AcknowledgementOutcome> All => [.. m_outcomes];
+
+            public int Count(AcknowledgementHandle handle)
+            {
+                return m_outcomes.Count(outcome => outcome.Handle == handle);
+            }
+
+            public int CountBySequenceNumber(uint sequenceNumber)
+            {
+                return m_outcomes.Count(outcome => outcome.Handle.SequenceNumber == sequenceNumber);
+            }
+
+            public AcknowledgementDisposition Disposition(AcknowledgementHandle handle)
+            {
+                return m_outcomes.Single(outcome => outcome.Handle == handle).Disposition;
+            }
+
+            public ValueTask OnCompletedAsync(
+                ArrayOf<AcknowledgementOutcome> outcomes,
+                CancellationToken ct = default)
+            {
+                foreach (AcknowledgementOutcome outcome in outcomes)
+                {
+                    m_outcomes.Enqueue(outcome);
+                }
+                return default;
+            }
+
+            private readonly ConcurrentQueue<AcknowledgementOutcome> m_outcomes = new();
+        }
+
+        /// <summary>
         /// Acknowledgements a deferral handler adds itself are attributed to the live owner of
         /// their id and validated like queued ones; those without a live owner are not sent.
         /// </summary>

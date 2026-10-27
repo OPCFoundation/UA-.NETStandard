@@ -75,6 +75,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_session = session;
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
+            m_outcomeDispatcher = new AcknowledgementOutcomeDispatcher(m_logger);
             ReturnDiagnostics = returnDiagnostics;
             m_disposeToken = m_cts.Token;
             m_publishController = PublishControllerAsync(m_disposeToken);
@@ -321,11 +322,24 @@ namespace Opc.Ua.Client.Subscriptions
                 m_publishQuiescenceGate.Release();
                 m_publishQuiescenceGate.Dispose();
                 m_cts.Dispose();
+                List<AcknowledgementOutcome>? abandoned = null;
+                while (m_acks.Reader.TryRead(out PendingAcknowledgement queued))
+                {
+                    AddOutcome(ref abandoned, queued, AcknowledgementDisposition.Abandoned,
+                        StatusCodes.BadShutdown);
+                }
                 (m_acks as IDisposable)?.Dispose();
                 lock (m_acknowledgementPolicyLock)
                 {
+                    foreach (PendingAcknowledgement deferred in m_deferredAcknowledgements)
+                    {
+                        AddOutcome(ref abandoned, deferred, AcknowledgementDisposition.Abandoned,
+                            StatusCodes.BadShutdown);
+                    }
                     m_deferredAcknowledgements.Clear();
                 }
+                ReportOutcomes(abandoned);
+                await CompleteOutcomeDeliveryAsync().ConfigureAwait(false);
                 lock (m_subscriptionLock)
                 {
                     m_claims.Clear();
@@ -357,7 +371,8 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            return m_acks.Writer.WriteAsync(new PendingAcknowledgement(ack, owner, generation), ct);
+            return m_acks.Writer.WriteAsync(new PendingAcknowledgement(
+                ack, owner, generation, owner.GetAcknowledgementScope(generation)), ct);
         }
 
         /// <inheritdoc/>
@@ -525,13 +540,27 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 ForgetOwnerLocked(owner, subscriptionId);
             }
+            List<AcknowledgementOutcome>? retired = null;
+            int dropped;
             lock (m_acknowledgementPolicyLock)
             {
-                int dropped = m_deferredAcknowledgements.RemoveAll(
+                if (m_session.AcknowledgementObserver != null)
+                {
+                    foreach (PendingAcknowledgement pending in m_deferredAcknowledgements)
+                    {
+                        if (ReferenceEquals(pending.Owner, owner))
+                        {
+                            AddOutcome(ref retired, pending, AcknowledgementDisposition.OwnerRetired,
+                                StatusCodes.BadSubscriptionIdInvalid);
+                        }
+                    }
+                }
+                dropped = m_deferredAcknowledgements.RemoveAll(
                     pending => ReferenceEquals(pending.Owner, owner));
                 UpdateDeferredWarning();
-                return dropped;
             }
+            ReportOutcomes(retired);
+            return dropped;
         }
 
         /// <inheritdoc/>
@@ -2112,7 +2141,9 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         return false;
                     }
-                    pending = new PendingAcknowledgement(acknowledgement, owner, owner.MessageGeneration);
+                    long generation = owner.MessageGeneration;
+                    pending = new PendingAcknowledgement(
+                        acknowledgement, owner, generation, owner.GetAcknowledgementScope(generation));
                     return true;
                 }
 
@@ -2131,6 +2162,160 @@ namespace Opc.Ua.Client.Subscriptions
                     return byIdentity.TryGetValue(acknowledgement, out pending);
                 }
             }
+        }
+
+        /// <summary>
+        /// Prepares the acknowledgements of the next Publish request. With an
+        /// <see cref="ISubscriptionAcknowledgementProvider"/>, the provider decides which
+        /// acknowledgements are sent and which are deferred, without holding any lock; the
+        /// legacy deferral event is then not raised. Otherwise the legacy policy applies.
+        /// </summary>
+        /// <param name="acknowledgements">The worker's batch; it may be reused for the result.</param>
+        /// <param name="ct">The Publish attempt's cancellation token.</param>
+        private async ValueTask<List<PendingAcknowledgement>> PrepareAcknowledgementsToSendAsync(
+            List<PendingAcknowledgement> acknowledgements,
+            CancellationToken ct)
+        {
+            ISubscriptionAcknowledgementProvider? provider = m_session.AcknowledgementProvider;
+            if (provider == null)
+            {
+                return PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            List<PendingAcknowledgement> candidates = acknowledgements;
+            lock (m_acknowledgementPolicyLock)
+            {
+                if (m_deferredAcknowledgements.Count != 0)
+                {
+                    candidates = [.. acknowledgements, .. m_deferredAcknowledgements];
+                    m_deferredAcknowledgements.Clear();
+                }
+            }
+            RemoveStaleAcknowledgements(candidates);
+            if (candidates.Count == 0)
+            {
+                lock (m_acknowledgementPolicyLock)
+                {
+                    UpdateDeferredWarning();
+                }
+                return candidates;
+            }
+
+            var handles = new AcknowledgementHandle[candidates.Count];
+            for (int i = 0; i < handles.Length; i++)
+            {
+                handles[i] = candidates[i].Handle;
+            }
+            AcknowledgementDecision decision;
+            try
+            {
+                decision = await provider.DecideAsync(handles, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The worker requeues the batch of an abandoned attempt.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Fail closed: nothing is acknowledged that the provider did not approve.
+                m_logger.AcknowledgementProviderFailed(ex, candidates.Count);
+                DeferAcknowledgements(candidates);
+                return [];
+            }
+
+            ArrayOf<int> deferredIndices = decision.Deferred;
+            if (deferredIndices.Count == 0)
+            {
+                // Validated again: a subscription can retire while the provider decides.
+                RemoveStaleAcknowledgements(candidates);
+                return candidates;
+            }
+            bool[] deferred = new bool[candidates.Count];
+            for (int i = 0; i < deferredIndices.Count; i++)
+            {
+                int index = deferredIndices[i];
+                if ((uint)index < (uint)deferred.Length)
+                {
+                    deferred[index] = true;
+                }
+            }
+            var toSend = new List<PendingAcknowledgement>(candidates.Count);
+            var toDefer = new List<PendingAcknowledgement>(deferredIndices.Count);
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                (deferred[i] ? toDefer : toSend).Add(candidates[i]);
+            }
+            DeferAcknowledgements(toDefer);
+            RemoveStaleAcknowledgements(toSend);
+            return toSend;
+        }
+
+        /// <summary>
+        /// Keeps acknowledgements for a later Publish request.
+        /// </summary>
+        private void DeferAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            lock (m_acknowledgementPolicyLock)
+            {
+                m_deferredAcknowledgements.AddRange(acknowledgements);
+                UpdateDeferredWarning();
+            }
+        }
+
+        /// <summary>
+        /// Reports how the acknowledgements of a successful Publish request ended.
+        /// </summary>
+        /// <param name="sent">The acknowledgements of the request, in request order.</param>
+        /// <param name="results">The server's result per acknowledgement.</param>
+        private void ReportAcknowledgementResults(
+            List<PendingAcknowledgement> sent,
+            ArrayOf<StatusCode> results)
+        {
+            if (sent.Count == 0 || m_session.AcknowledgementObserver == null)
+            {
+                return;
+            }
+            var outcomes = new List<AcknowledgementOutcome>(sent.Count);
+            for (int i = 0; i < sent.Count; i++)
+            {
+                StatusCode status = i < results.Count ? results[i] : StatusCodes.BadUnexpectedError;
+                outcomes.Add(new AcknowledgementOutcome(
+                    sent[i].Handle,
+                    StatusCode.IsGood(status)
+                        ? AcknowledgementDisposition.Acknowledged
+                        : AcknowledgementDisposition.NotRetained,
+                    status));
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Adds an outcome to a lazily created list.
+        /// </summary>
+        private static void AddOutcome(
+            ref List<AcknowledgementOutcome>? outcomes,
+            in PendingAcknowledgement pending,
+            AcknowledgementDisposition disposition,
+            StatusCode status)
+        {
+            (outcomes ??= []).Add(new AcknowledgementOutcome(pending.Handle, disposition, status));
+        }
+
+        /// <summary>
+        /// Hands outcomes to the observer, outside any lock and without blocking a worker.
+        /// </summary>
+        private void ReportOutcomes(List<AcknowledgementOutcome>? outcomes)
+        {
+            m_outcomeDispatcher.Report(m_session.AcknowledgementObserver, outcomes);
+        }
+
+        /// <summary>
+        /// Delivers the outcomes that are still pending and stops the delivery loop.
+        /// </summary>
+        private ValueTask CompleteOutcomeDeliveryAsync()
+        {
+            return m_outcomeDispatcher.CompleteAsync();
         }
 
         /// <summary>
@@ -2165,10 +2350,16 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
             RemoveStaleAcknowledgements(acknowledgements);
+            List<AcknowledgementOutcome>? abandoned = null;
             foreach (PendingAcknowledgement pending in acknowledgements)
             {
-                m_acks.Writer.TryWrite(pending);
+                if (!m_acks.Writer.TryWrite(pending))
+                {
+                    AddOutcome(ref abandoned, pending, AcknowledgementDisposition.Abandoned,
+                        StatusCodes.BadShutdown);
+                }
             }
+            ReportOutcomes(abandoned);
         }
 
         /// <summary>
@@ -2178,14 +2369,30 @@ namespace Opc.Ua.Client.Subscriptions
         private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
             int kept = 0;
+            bool observed = m_session.AcknowledgementObserver != null;
+            List<AcknowledgementOutcome>? outcomes = null;
             lock (m_subscriptionLock)
             {
                 for (int i = 0; i < acknowledgements.Count; i++)
                 {
                     PendingAcknowledgement pending = acknowledgements[i];
-                    if (ValidateLocked(pending) == AcknowledgementState.Valid)
+                    AcknowledgementState state = ValidateLocked(pending);
+                    if (state == AcknowledgementState.Valid)
                     {
                         acknowledgements[kept++] = pending;
+                    }
+                    else if (observed)
+                    {
+                        if (state == AcknowledgementState.NotHeld)
+                        {
+                            AddOutcome(ref outcomes, pending, AcknowledgementDisposition.NotRetained,
+                                StatusCodes.BadSequenceNumberUnknown);
+                        }
+                        else
+                        {
+                            AddOutcome(ref outcomes, pending, AcknowledgementDisposition.OwnerRetired,
+                                StatusCodes.BadSubscriptionIdInvalid);
+                        }
                     }
                 }
             }
@@ -2195,6 +2402,7 @@ namespace Opc.Ua.Client.Subscriptions
                 acknowledgements.RemoveRange(kept, removed);
                 m_logger.StaleAcknowledgementsDiscarded(removed);
             }
+            ReportOutcomes(outcomes);
         }
 
         /// <summary>
@@ -2431,10 +2639,18 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="Acknowledgement">The acknowledgement to send.</param>
         /// <param name="Owner">The producing processor.</param>
         /// <param name="Generation">The owner's message generation when queued.</param>
+        /// <param name="Scope">The owner's acknowledgement scope of that generation.</param>
         private readonly record struct PendingAcknowledgement(
             SubscriptionAcknowledgement Acknowledgement,
             IMessageProcessor Owner,
-            long Generation);
+            long Generation,
+            AcknowledgementScope Scope)
+        {
+            /// <summary>
+            /// Gets the handle applications use for this acknowledgement.
+            /// </summary>
+            public AcknowledgementHandle Handle => new(Scope, Acknowledgement.SequenceNumber);
+        }
 
         /// <summary>
         /// Orders queued acknowledgements by sequence number, so that older messages are
@@ -2718,7 +2934,8 @@ namespace Opc.Ua.Client.Subscriptions
                             m_outer.RequeueAcknowledgements(batch);
                             continue;
                         }
-                        batch = m_outer.PrepareAcknowledgementsToSend(batch);
+                        batch = await m_outer.PrepareAcknowledgementsToSendAsync(batch, attemptToken)
+                            .ConfigureAwait(false);
                         acks = batch.ConvertAll(pending => pending.Acknowledgement);
                         long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
@@ -2743,6 +2960,7 @@ namespace Opc.Ua.Client.Subscriptions
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                         m_outer.LogAcknowledgementResults(acknowledgeResults);
+                        m_outer.ReportAcknowledgementResults(batch, acknowledgeResults);
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -3323,6 +3541,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private readonly List<SubscriptionAcknowledgement> m_presentedAcknowledgements = [];
         private bool m_deferredWarningRaised;
+        private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;
         /// <summary>
         /// Most recently created owner of each server id. Guarded by <see cref="m_subscriptionLock"/>.
         /// </summary>
@@ -3588,6 +3807,13 @@ namespace Opc.Ua.Client.Subscriptions
             int handle,
             int count,
             int total);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 1, Level = LogLevel.Error,
+            Message = "The acknowledgement provider failed; {Count} acknowledgements are deferred.")]
+        public static partial void AcknowledgementProviderFailed(
+            this ILogger logger,
+            Exception exception,
+            int count);
 
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 0, Level = LogLevel.Information,
             Message = "PUBLISH Worker #{Handle}-{Id} - Discarded message #{SequenceNumber} of " +

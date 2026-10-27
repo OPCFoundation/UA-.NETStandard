@@ -408,6 +408,7 @@ namespace Quickstarts
                 // below, which disposes all of its subscriptions when it is disposed.
                 // TODO: remove this suppression if CA2000 learns this ownership transfer pattern.
 #pragma warning disable CA2000
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
                     DisplayName = "Console ReferenceClient Subscription",
@@ -417,6 +418,7 @@ namespace Quickstarts
                     MinLifetimeInterval = lifetime,
                     KeepAliveCount = 5
                 };
+#pragma warning restore CS0618
 #pragma warning restore CA2000
 
                 session.AddSubscription(subscription);
@@ -1283,7 +1285,10 @@ namespace Quickstarts
                 ISession session = uaClient.Session;
 
                 // test for deferred ack of sequence numbers
+                // TODO: migrate the sample to an ISubscriptionAcknowledgementProvider.
+#pragma warning disable CS0618 // The sample still demonstrates the obsolete deferral event.
                 session.PublishSequenceNumbersToAcknowledge += DeferSubscriptionAcknowledge;
+#pragma warning restore CS0618
 
                 // set a minimum amount of three publish requests per session
                 session.MinPublishRequestCount = 3;
@@ -1293,6 +1298,7 @@ namespace Quickstarts
                 // below, which disposes all of its subscriptions when it is disposed.
                 // TODO: remove this suppression if CA2000 learns this ownership transfer pattern.
 #pragma warning disable CA2000
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
                 var subscription = new Subscription(session.DefaultSubscription)
                 {
                     DisplayName = "Console ReferenceClient Subscription",
@@ -1308,6 +1314,7 @@ namespace Quickstarts
                     FastDataChangeCallback = FastDataChangeNotification,
                     FastKeepAliveCallback = FastKeepAliveNotification
                 };
+#pragma warning restore CS0618
 #pragma warning restore CA2000
 
                 session.AddSubscription(subscription);

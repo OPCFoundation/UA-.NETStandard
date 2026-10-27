@@ -39,6 +39,8 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Subscriptions.Classic.Tests
 {
     /// <summary>
