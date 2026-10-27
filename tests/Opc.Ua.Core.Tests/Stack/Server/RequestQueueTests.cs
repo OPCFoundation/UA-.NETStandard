@@ -226,6 +226,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
+        /// <summary>
+        /// A server that has not started has no request queue, so a request is halted
+        /// instead of starting workers for a queue that is replaced at start.
+        /// </summary>
+        [Test]
+        public void RequestBeforeStartIsHalted()
+        {
+            using var server = new TestServer();
+            var request = new TestEndpointIncomingRequest();
+
+            server.ScheduleIncomingRequest(request);
+
+            Assert.That(request.ProcessingStarted.Task.IsCompleted, Is.False);
+            Assert.That(request.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+        }
+
+        /// <summary>
+        /// The queue's worker counts are not applied to the process-wide ThreadPool.
+        /// </summary>
+        [Test]
+        public void QueueLeavesThreadPoolLimitsUnchanged()
+        {
+            ThreadPool.GetMinThreads(out int minWorkers, out int minIo);
+            ThreadPool.GetMaxThreads(out int maxWorkers, out int maxIo);
+            using var server = new TestServer();
+
+            server.ReplaceRequestQueue(minWorkers + 1, minWorkers + 2, 10);
+
+            ThreadPool.GetMinThreads(out int minWorkersAfter, out int minIoAfter);
+            ThreadPool.GetMaxThreads(out int maxWorkersAfter, out int maxIoAfter);
+            Assert.That(minWorkersAfter, Is.EqualTo(minWorkers));
+            Assert.That(minIoAfter, Is.EqualTo(minIo));
+            Assert.That(maxWorkersAfter, Is.EqualTo(maxWorkers));
+            Assert.That(maxIoAfter, Is.EqualTo(maxIo));
+        }
+
         [Test]
         public async Task TestRequestProcessingAsync()
         {

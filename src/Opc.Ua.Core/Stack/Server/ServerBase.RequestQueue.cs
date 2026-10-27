@@ -104,19 +104,8 @@ namespace Opc.Ua
                 m_totalThreadCount = 0;
                 m_stopped = false;
 
-                ThreadPool.GetMinThreads(out minThreadCount, out int minCompletionPortThreads);
-
-                ThreadPool.SetMinThreads(
-                    Math.Max(minThreadCount, m_minThreadCount),
-                    Math.Max(minCompletionPortThreads, m_minThreadCount)
-                );
-
-                ThreadPool.GetMaxThreads(out maxThreadCount, out int maxCompletionPortThreads);
-
-                ThreadPool.SetMaxThreads(
-                    Math.Max(maxThreadCount, m_maxThreadCount),
-                    Math.Max(maxCompletionPortThreads, m_maxThreadCount)
-                );
+                // The process-wide ThreadPool limits are left to the host: workers are
+                // asynchronous and do not occupy a pool thread while they wait.
 
                 // Start worker tasks. Increment m_totalThreadCount before Task.Run so that
                 // ScheduleIncomingRequest sees the correct worker count immediately and does
