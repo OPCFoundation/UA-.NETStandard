@@ -55,12 +55,6 @@ minor-version guides in order; removal timing is specific to the API and release
 not a universal grace period or SemVer guarantee.
 Consult the [Security Policy](../SECURITY.md) for maintained release lines.
 
-The obsolete AutoID composition helper `AddAutoIdToMachinery` forwards to
-`AddAutoIdModel` in the same server assembly. Replace the call with
-`AddAutoIdModel(options)` and register the owner's configuration before dependent
-`ConfigureAutoIdFor<TNodeManager>` callbacks. No integration package is required;
-see [AutoID composition](AutoID.md#coexisting-with-a-server-that-already-owns-di).
-
 > **Pro TIP.** Point your favourite coding agent at this guide and let
 > it do the migration work for you. The
 > [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
