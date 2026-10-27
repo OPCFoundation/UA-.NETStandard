@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
+using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -44,6 +45,71 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [TestFixture]
     public sealed class NodeManagerSystemSlotTests
     {
+        /// <summary>
+        /// Reference model reservation respects provisioning mode across optional mixed managers and restart.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [NonParallelizable]
+        public async Task ReferenceSampleNamespaceReservationSurvivesOptionalManagersAndRestartAsync(
+            bool allNodeManagers,
+            bool provisioningMode)
+        {
+            string pki = Path.Combine(Path.GetTempPath(),
+                nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
+            var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true,
+                AllNodeManagers = allNodeManagers,
+                ProvisioningMode = provisioningMode
+            };
+            string[]? initialNamespaces = null;
+            try
+            {
+                for (int attempt = 0; attempt < 2; attempt++)
+                {
+                    ReferenceServer server = await fixture.StartAsync(pki).ConfigureAwait(false);
+                    NamespaceTable namespaces = server.CurrentInstance.NamespaceUris;
+                    Assert.That(namespaces.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
+                        Is.EqualTo(provisioningMode ? -1 : 2));
+                    bool foundReference = false;
+                    bool foundOptionalSync = false;
+                    foreach (IAsyncNodeManager manager in server.CurrentInstance.NodeManager.AsyncNodeManagers)
+                    {
+                        if (manager is ReferenceNodeManager reference)
+                        {
+                            foundReference = true;
+                            Assert.That(reference.NamespaceIndex, Is.EqualTo(2));
+                        }
+                        foundOptionalSync |= manager.SyncNodeManager is Boiler.BoilerNodeManager;
+                    }
+                    Assert.That(foundReference, Is.EqualTo(!provisioningMode),
+                        "Only non-provisioning startup uses the asynchronous reference model factory.");
+                    Assert.That(foundOptionalSync, Is.EqualTo(allNodeManagers && !provisioningMode));
+                    string[] snapshot = namespaces.GetSnapshot(out _).ToArray()!;
+                    if (initialNamespaces != null)
+                    {
+                        Assert.That(snapshot, Is.EqualTo(initialNamespaces),
+                            "Restart must retain the complete namespace ordering.");
+                    }
+                    initialNamespaces = snapshot;
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(pki))
+                {
+                    Directory.Delete(pki, recursive: true);
+                }
+            }
+        }
+
         /// <summary>
         /// Configured namespace order survives failed creation and restart without publishing candidate discoveries.
         /// </summary>

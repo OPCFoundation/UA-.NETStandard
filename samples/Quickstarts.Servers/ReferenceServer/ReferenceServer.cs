@@ -149,6 +149,11 @@ namespace Quickstarts.ReferenceServer
         {
             m_logger.CreatingReferenceServerNodeManager();
 
+            if (!ProvisioningMode)
+            {
+                server.NamespaceUris.GetIndexOrAppend(Namespaces.ReferenceServer);
+            }
+
             // OPC UA Part 17 — AliasName provider for the reference server.
             //
             // Registers a Part 17 InMemoryAliasNameStore directly with the

@@ -160,6 +160,10 @@ namespaces in the factory's `NamespacesUris` property to reserve them before dia
 Clients should resolve namespace URIs from the server's `NamespaceArray` rather than hard-code
 `ns=` indexes.
 
+The reference server sample reserves its primary model URI before optional sample NodeManagers.
+With the default namespace table, the reference model therefore remains at index 2; provisioning
+mode does not reserve that model.
+
 Because initial publication uses prepared transactions, `StandardServer` requires the default
 `EncodeableFactory`, not an arbitrary `IEncodeableFactory` implementation. Use the default factory's
 builder to register custom encodeable types. An unsupported factory is rejected before NodeManager
