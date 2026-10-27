@@ -870,7 +870,13 @@ for arbitrary federated or non-registry providers. Validate reports unperformed 
 
 `IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
 
-The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation. Updates use shadow reload, so existing monitored items keep the retired generation alive until they drain while new reads and monitored items use the replacement generation.
+The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation.
+
+Updates use shadow reload. New requests use the replacement generation; compatible
+monitored items migrate to it, and incompatible items are invalidated. Admitted
+work can finish on the retiring generation; idle monitored items and parked
+Publish requests do not keep it alive. Provenance remains tied to its producing
+generation while it drains and returns `BadNoData` after physical reclamation.
 
 The default `NullWotBinderRegistry` remains the no-binding baseline. With it, affordance forms either **fail a strict closure** (`StrictBindings = true`) or **materialize as degraded nodes** (`BadConfigurationError`) when non-strict. Protocol support is opt-in: `AddWotProtocolBinders()` registers all eight planners, while `AddHttpWotBinding()`, `AddMqttWotBinding()`, `AddModbusWotBinding()`, and `AddOpcUaWotBinding()` add their concrete executors. The core server registers none of these by default; see [WoT protocol bindings](WotBindings.md).
 
