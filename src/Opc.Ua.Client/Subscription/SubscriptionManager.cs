@@ -560,11 +560,26 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(owner));
             }
+            List<AcknowledgementOutcome>? retired = null;
             lock (m_subscriptionLock)
             {
                 ForgetOwnerLocked(owner, subscriptionId);
+                if (m_session.AcknowledgementObserver != null && !m_outstandingAcknowledgements.IsEmpty)
+                {
+                    // Queued and in-flight acknowledgements end now as well: with no
+                    // subscription left, no publish worker may run to discard them.
+                    foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
+                    {
+                        if (handle.Scope is { } scope &&
+                            ReferenceEquals(scope.Owner, owner) &&
+                            IsRetiredScopeLocked(scope))
+                        {
+                            (retired ??= []).Add(new AcknowledgementOutcome(handle,
+                                AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid));
+                        }
+                    }
+                }
             }
-            List<AcknowledgementOutcome>? retired = null;
             int dropped;
             lock (m_acknowledgementPolicyLock)
             {
@@ -2537,6 +2552,30 @@ namespace Opc.Ua.Client.Subscriptions
                 }
             }
             return AcknowledgementState.Valid;
+        }
+
+        /// <summary>
+        /// Whether a subscription lifetime no longer owns its acknowledgements: its owner was
+        /// removed, recreated or deleted, changed its server id, or was superseded by a more
+        /// recently created owner of the id.
+        /// </summary>
+        private bool IsRetiredScopeLocked(AcknowledgementScope scope)
+        {
+            if (scope.Owner is not IMessageProcessor owner)
+            {
+                return true;
+            }
+            uint subscriptionId = scope.SubscriptionId;
+            if (owner.Id != subscriptionId ||
+                owner.MessageGeneration != scope.Generation ||
+                !IsRegisteredLocked(owner) ||
+                m_superseded.Contains(owner))
+            {
+                return true;
+            }
+            return m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                !ReferenceEquals(claim.Owner, owner) &&
+                IsLiveOwnerLocked(claim.Owner, subscriptionId);
         }
 
         /// <summary>

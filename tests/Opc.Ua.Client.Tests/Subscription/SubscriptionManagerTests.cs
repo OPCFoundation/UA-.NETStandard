@@ -1543,6 +1543,35 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Retiring the last subscription ends its queued acknowledgements right away, even
+        /// though no publish worker runs to discard them, and they end only once.
+        /// </summary>
+        [Test]
+        public async Task QueuedAcknowledgementsOfTheLastRetiredSubscriptionEndAsync()
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var observer = new TestAcknowledgementObserver();
+            context.AcknowledgementObserver = observer;
+            var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 4 },
+                CancellationToken.None).ConfigureAwait(false);
+
+            await manager.CompleteAsync(owner, owner.Id, CancellationToken.None).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => observer.CountBySequenceNumber(4) == 1, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(observer.All.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "No worker discarded the entry.");
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(observer.CountBySequenceNumber(4), Is.EqualTo(1), "The queued entry does not end twice.");
+        }
+
+        /// <summary>
         /// Defers every acknowledgement once, then blocks the next decision until it is
         /// cancelled, and approves everything afterwards.
         /// </summary>

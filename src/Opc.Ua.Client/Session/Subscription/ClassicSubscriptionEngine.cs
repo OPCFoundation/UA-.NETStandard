@@ -730,6 +730,7 @@ namespace Opc.Ua.Client
                 (DateTime)responseHeader.Timestamp);
 
             // collect the current set of acknowledgements.
+            AcknowledgementScope? receivedScope = null;
             lock (m_acknowledgementsToSendLock)
             {
                 // clear out acknowledgements for messages that the
@@ -743,7 +744,7 @@ namespace Opc.Ua.Client
                 // server.
                 if (notificationMessage.NotificationData.Count > 0)
                 {
-                    AddAcknowledgementToSend(
+                    receivedScope = AddAcknowledgementToSend(
                         acknowledgementsToSend,
                         subscriptionId,
                         notificationMessage.SequenceNumber);
@@ -900,14 +901,15 @@ namespace Opc.Ua.Client
                 // notification.
                 notificationMessage.StringTable = responseHeader.StringTable;
 
-                // update subscription cache.
+                // update subscription cache with the scope tracked at receipt, so the
+                // delivered notifications carry the handle the engine acknowledges.
                 if (republished)
                 {
-                    subscription.SaveRepublishedMessageInCache(notificationMessage);
+                    subscription.SaveRepublishedMessageInCache(notificationMessage, receivedScope);
                 }
                 else
                 {
-                    subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage);
+                    subscription.SaveMessageInCache(availableSequenceNumbers, notificationMessage, receivedScope);
                 }
 
                 // raise the notification.
@@ -1486,7 +1488,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ArgumentNullException">
         /// <paramref name="acknowledgementsToSend"/> is <c>null</c>.</exception>
-        private void AddAcknowledgementToSend(
+        /// <returns>The scope the acknowledgement is tracked with, or <c>null</c>.</returns>
+        private AcknowledgementScope? AddAcknowledgementToSend(
             List<SubscriptionAcknowledgement> acknowledgementsToSend,
             uint subscriptionId,
             uint sequenceNumber)
@@ -1503,17 +1506,18 @@ namespace Opc.Ua.Client
                 SubscriptionId = subscriptionId,
                 SequenceNumber = sequenceNumber
             };
+            AcknowledgementScope? scope = null;
             SessionAcknowledgements? acknowledgements = Acknowledgements;
             if (acknowledgements != null)
             {
-                AcknowledgementScope? scope = FindSubscription(subscriptionId)?.GetAcknowledgementScope();
+                scope = FindSubscription(subscriptionId)?.GetAcknowledgementScope();
                 if (scope != null)
                 {
                     var handle = new AcknowledgementHandle(scope, sequenceNumber);
                     if (!m_outstandingHandles.Add(handle))
                     {
                         // Already pending or in flight: a second entry would end twice.
-                        return;
+                        return scope;
                     }
                     // Tracked before the message is delivered, so it can be confirmed.
                     (acknowledgements.Provider as IAcknowledgementTracker)?.Track(handle);
@@ -1521,6 +1525,7 @@ namespace Opc.Ua.Client
                 m_acknowledgementScopes[acknowledgement] = scope;
             }
             acknowledgementsToSend.Add(acknowledgement);
+            return scope;
         }
 
         /// <summary>

@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Tests;
 
 #pragma warning disable CS0618 // tests exercise the obsolete classic API
@@ -284,6 +285,45 @@ namespace Opc.Ua.Client.Tests
                 ).ConfigureAwait(false);
 
             Assert.That(subscription.Notifications, Is.EqualTo([messages[2], messages[3], messages[4], messages[5]]));
+        }
+
+        /// <summary>
+        /// A notification carries the acknowledgement handle captured when its message was
+        /// received, even if the subscription lifetime changes before the message is
+        /// dispatched, so it matches the acknowledgement the engine tracks.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DispatchedNotificationsCarryTheHandleCapturedAtReceiptAsync(CancellationToken ct)
+        {
+            using var session = SessionMock.Create();
+            session.Acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var delivered = new TaskCompletionSource<DataChangeNotification>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            using var subscription = new Subscription(
+                NUnitTelemetryContext.Create(),
+                new() { PublishingEnabled = true })
+            {
+                FastDataChangeCallback = (_, notification, _) => delivered.TrySetResult(notification),
+                Session = BuildSessionMock()
+            };
+            // Created through the mocked services, which starts the dispatch worker, then bound to a
+            // session with an acknowledgement configuration.
+            await subscription.CreateAsync(ct).ConfigureAwait(false);
+            subscription.Session = session;
+            var received = new AcknowledgementScope(subscription, 5, subscription.Id);
+            Assert.That(subscription.GetAcknowledgementScope(), Is.Not.SameAs(received),
+                "The lifetime changed after the message was received.");
+
+            subscription.SaveMessageInCache([1u], new NotificationMessage
+            {
+                SequenceNumber = 1,
+                NotificationData = [new(new DataChangeNotification { SequenceNumber = 1 })]
+            }, received);
+            DataChangeNotification notification = await delivered.Task.WaitAsync(ct).ConfigureAwait(false);
+
+            Assert.That(subscription.TryGetAcknowledgementHandle(notification, out AcknowledgementHandle handle), Is.True);
+            Assert.That(handle, Is.EqualTo(new AcknowledgementHandle(received, 1)));
         }
 
         [Test]

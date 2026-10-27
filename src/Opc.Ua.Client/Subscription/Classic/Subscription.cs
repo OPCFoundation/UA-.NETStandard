@@ -2180,7 +2180,19 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
-            SaveMessageInCache(availableSequenceNumbers, message, true);
+            SaveMessageInCache(availableSequenceNumbers, message, true, null);
+        }
+
+        /// <summary>
+        /// Adds the notification message to internal cache, with the acknowledgement scope the
+        /// engine tracked when the message was received.
+        /// </summary>
+        internal void SaveMessageInCache(
+            ArrayOf<uint> availableSequenceNumbers,
+            NotificationMessage message,
+            AcknowledgementScope? acknowledgementScope)
+        {
+            SaveMessageInCache(availableSequenceNumbers, message, true, acknowledgementScope);
         }
 
         /// <summary>
@@ -2190,15 +2202,28 @@ namespace Opc.Ua.Client
         /// kept: otherwise every other missing message would be given up
         /// while the server still holds it.
         /// </summary>
-        internal void SaveRepublishedMessageInCache(NotificationMessage message)
+        internal void SaveRepublishedMessageInCache(
+            NotificationMessage message,
+            AcknowledgementScope? acknowledgementScope = null)
         {
-            SaveMessageInCache(default, message, false);
+            SaveMessageInCache(default, message, false, acknowledgementScope);
         }
 
+        /// <summary>
+        /// Adds a received message to the cache of messages waiting for dispatch.
+        /// </summary>
+        /// <param name="availableSequenceNumbers">The sequence numbers the server holds.</param>
+        /// <param name="message">The received message.</param>
+        /// <param name="updateAvailableSequenceNumbers">Whether to replace the available
+        /// sequence numbers.</param>
+        /// <param name="acknowledgementScope">The scope the engine tracked the acknowledgement
+        /// with, or <c>null</c> to capture the current one. Delivered notifications carry the
+        /// same handle.</param>
         private void SaveMessageInCache(
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message,
-            bool updateAvailableSequenceNumbers)
+            bool updateAvailableSequenceNumbers,
+            AcknowledgementScope? acknowledgementScope)
         {
             PublishStateChangedEventHandler? callback = null;
 
@@ -2258,6 +2283,10 @@ namespace Opc.Ua.Client
                         newEntry.Message = message;
                         newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
                         newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
+                        newEntry.AcknowledgementScope =
+                            acknowledgementScope != null && ReferenceEquals(acknowledgementScope.Owner, this)
+                                ? acknowledgementScope
+                                : GetAcknowledgementScope();
                     }
                 }
 
@@ -3083,9 +3112,13 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Records the acknowledgement handle of a delivered notification when the session
-        /// has an acknowledgement configuration.
+        /// has an acknowledgement configuration. The handle uses the scope captured when the
+        /// message was received, so it matches the acknowledgement the engine tracks.
         /// </summary>
-        private void RecordAcknowledgementHandle(NotificationData notification, uint sequenceNumber)
+        private void RecordAcknowledgementHandle(
+            NotificationData notification,
+            AcknowledgementScope? acknowledgementScope,
+            uint sequenceNumber)
         {
             SessionAcknowledgements? acknowledgements = Session switch
             {
@@ -3098,7 +3131,7 @@ namespace Opc.Ua.Client
                 return;
             }
             m_acknowledgementHandles.GetValue(notification, static _ => new StrongBox<AcknowledgementHandle>()).Value =
-                new AcknowledgementHandle(GetAcknowledgementScope(), sequenceNumber);
+                new AcknowledgementHandle(acknowledgementScope ?? GetAcknowledgementScope(), sequenceNumber);
         }
 
         /// <summary>
@@ -3238,7 +3271,8 @@ namespace Opc.Ua.Client
                 PublishStateChangedEventHandler? callback = null;
 
                 // list of new messages to process.
-                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration)>?
+                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration,
+                    AcknowledgementScope? AcknowledgementScope)>?
                     messagesToProcess = null;
 
                 // list of keep alive messages to process.
@@ -3266,7 +3300,8 @@ namespace Opc.Ua.Client
                             (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
                             (messagesToProcess ??= []).Add(
-                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration));
+                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration,
+                                    ii.Value.AcknowledgementScope));
 
                             // remove the oldest items. The emptiness check keeps a
                             // negative MaxMessageCount from throwing on RemoveFirst.
@@ -3377,8 +3412,8 @@ namespace Opc.Ua.Client
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
 #pragma warning restore CS0618
 
-                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
-                        in messagesToProcess)
+                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration,
+                        AcknowledgementScope? acknowledgementScope) in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
                         try
@@ -3389,7 +3424,7 @@ namespace Opc.Ua.Client
                                 {
                                     datachange.PublishTime = message.PublishTime;
                                     datachange.SequenceNumber = message.SequenceNumber;
-                                    RecordAcknowledgementHandle(datachange, message.SequenceNumber);
+                                    RecordAcknowledgementHandle(datachange, acknowledgementScope, message.SequenceNumber);
                                     datachange.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += datachange.MonitoredItems.Count;
@@ -3419,7 +3454,7 @@ namespace Opc.Ua.Client
                                 {
                                     events.PublishTime = message.PublishTime;
                                     events.SequenceNumber = message.SequenceNumber;
-                                    RecordAcknowledgementHandle(events, message.SequenceNumber);
+                                    RecordAcknowledgementHandle(events, acknowledgementScope, message.SequenceNumber);
                                     events.MoreNotifications = message.MoreNotifications;
 
                                     noNotificationsReceived += events.Events.Count;
@@ -4129,6 +4164,7 @@ namespace Opc.Ua.Client
             public StatusCode RepublishStatus;
             public bool SavedDuringTransfer;
             public int TransferGeneration;
+            public AcknowledgementScope? AcknowledgementScope;
         }
     }
 

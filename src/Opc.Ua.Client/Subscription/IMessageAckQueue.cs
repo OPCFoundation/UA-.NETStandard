@@ -118,8 +118,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// Retires the acknowledgement state <paramref name="owner"/> holds
         /// under <paramref name="subscriptionId"/> and removes its deferred
         /// acknowledgements. Used when a subscription is recreated, deleted
-        /// or completed. Queued and in-flight acknowledgements are not
-        /// scanned; they fail send-time validation.
+        /// or completed. Queued and in-flight acknowledgements fail send-time
+        /// validation; when an observer receives outcomes, those of the retired
+        /// lifetime are reported as retired right away.
         /// </summary>
         /// <param name="owner">The subscription retiring the id.</param>
         /// <param name="subscriptionId">The retired server id.</param>
