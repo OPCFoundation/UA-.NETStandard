@@ -153,8 +153,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     "m_receivedTimestamp", BindingFlags.NonPublic | BindingFlags.Instance)!;
                 field.SetValue(
                     incomingRequest,
-                    TimeProvider.System.GetTimestamp() -
-                        (long)(age.TotalSeconds * TimeProvider.System.TimestampFrequency));
+                    System.Diagnostics.Stopwatch.GetTimestamp() -
+                        (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency));
             }
 
             public void TestEquality(IServiceRequest req1, IServiceRequest req2, IServiceRequest req3)

@@ -2491,8 +2491,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     }
                 };
                 SecureChannelContext = new SecureChannelContext("channel", null, RequestEncoding.Binary);
-                ReceivedTimestamp = TimeProvider.System.GetTimestamp() -
-                    (long)(age.TotalSeconds * TimeProvider.System.TimestampFrequency);
+                ReceivedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp() -
+                    (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
             }
 
             public IServiceRequest Request { get; }

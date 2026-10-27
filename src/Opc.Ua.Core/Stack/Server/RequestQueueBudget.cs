@@ -26,8 +26,8 @@
  * The complete license agreement can be found here:
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
-
 using System;
+using System.Diagnostics;
 
 namespace Opc.Ua
 {
@@ -35,6 +35,10 @@ namespace Opc.Ua
     /// The request queue's view of a request's time budget and of the retry-after hint it
     /// sends when it rejects a request because it is full.
     /// </summary>
+    /// <remarks>
+    /// Runs once or twice for every request: integer <see cref="Stopwatch"/> ticks only, and
+    /// nothing is allocated unless a request is rejected.
+    /// </remarks>
     internal static class RequestQueueBudget
     {
         /// <summary>
@@ -48,30 +52,50 @@ namespace Opc.Ua
         internal static readonly TimeSpan MaxQueueFullRetryAfter = TimeSpan.FromMilliseconds(200);
 
         /// <summary>
-        /// Gets how much of the request's <see cref="RequestHeader.TimeoutHint"/> is left,
-        /// counted from receipt so that time spent queued is included.
+        /// Gets the request's <see cref="RequestHeader.TimeoutHint"/> in milliseconds and its
+        /// receipt timestamp when the queue counts its waiting time against the hint.
         /// </summary>
         /// <returns>
         /// <c>false</c> when the request has no queue budget: no positive hint, a request that
         /// does not report its receipt, or a parkable request (a held Publish), whose hint the
         /// subscription layer applies from when it is handled.
         /// </returns>
-        public static bool TryGetRemaining(IEndpointIncomingRequest request, out TimeSpan remaining)
+        private static bool TryGetBudget(
+            IEndpointIncomingRequest request,
+            out int timeoutHint,
+            out long receivedTimestamp)
         {
-            remaining = TimeSpan.Zero;
-            if (request is not IQueueAwareIncomingRequest queueAware ||
-                request is IParkableIncomingRequest { ParkSink: not null })
+            timeoutHint = 0;
+            receivedTimestamp = 0;
+            if (request is not IQueueAwareIncomingRequest queueAware)
             {
                 return false;
             }
             // as before, a hint above Int32.MaxValue ms means no timeout
-            int timeoutHint = (int)(request.Request?.RequestHeader?.TimeoutHint ?? 0);
-            if (timeoutHint <= 0)
+            timeoutHint = (int)(request.Request?.RequestHeader?.TimeoutHint ?? 0);
+            if (timeoutHint <= 0 || request is IParkableIncomingRequest { ParkSink: not null })
             {
                 return false;
             }
+            receivedTimestamp = queueAware.ReceivedTimestamp;
+            return true;
+        }
+
+        /// <summary>
+        /// Gets how much of the request's <see cref="RequestHeader.TimeoutHint"/> is left,
+        /// counted from receipt so that time spent queued is included.
+        /// </summary>
+        /// <returns><c>false</c> when the request has no queue budget.</returns>
+        public static bool TryGetRemaining(IEndpointIncomingRequest request, out TimeSpan remaining)
+        {
+            if (!TryGetBudget(request, out int timeoutHint, out long receivedTimestamp))
+            {
+                remaining = TimeSpan.Zero;
+                return false;
+            }
+            long elapsed = Stopwatch.GetTimestamp() - receivedTimestamp;
             remaining = TimeSpan.FromMilliseconds(timeoutHint) -
-                TimeProvider.System.GetElapsedTime(queueAware.ReceivedTimestamp);
+                TimeSpan.FromTicks((long)(elapsed * s_ticksPerTimestamp));
             return true;
         }
 
@@ -80,7 +104,8 @@ namespace Opc.Ua
         /// </summary>
         public static bool HasExpired(IEndpointIncomingRequest request)
         {
-            return TryGetRemaining(request, out TimeSpan remaining) && remaining <= TimeSpan.Zero;
+            return TryGetBudget(request, out int timeoutHint, out long receivedTimestamp) &&
+                Stopwatch.GetTimestamp() - receivedTimestamp >= timeoutHint * s_timestampsPerMillisecond;
         }
 
         /// <summary>
@@ -89,14 +114,30 @@ namespace Opc.Ua
         /// </summary>
         public static ServerBusyException CreateQueueFullException()
         {
-            var retryAfter = TimeSpan.FromMilliseconds(UnsecureRandom.Shared.Next(
-                (int)MinQueueFullRetryAfter.TotalMilliseconds,
-                (int)MaxQueueFullRetryAfter.TotalMilliseconds + 1));
-            return new ServerBusyException(
-                new ServiceResult(
-                    StatusCodes.BadServerTooBusy,
-                    new LocalizedText("The server request queue is full.")),
-                retryAfter);
+            // the low timestamp bits are jitter enough and, unlike a shared random, take no
+            // lock on the path that runs most when the server is overloaded
+            int minMs = (int)MinQueueFullRetryAfter.TotalMilliseconds;
+            int spreadMs = (int)MaxQueueFullRetryAfter.TotalMilliseconds - minMs + 1;
+            int jitterMs = (int)((ulong)Stopwatch.GetTimestamp() % (ulong)spreadMs);
+            return new ServerBusyException(s_queueFull, TimeSpan.FromMilliseconds(minMs + jitterMs));
         }
+
+        /// <summary>
+        /// The result of every queue-full rejection; immutable, so it is shared.
+        /// </summary>
+        private static readonly ServiceResult s_queueFull = new(
+            StatusCodes.BadServerTooBusy,
+            new LocalizedText("The server request queue is full."));
+
+        /// <summary>
+        /// <see cref="TimeSpan"/> ticks per <see cref="Stopwatch"/> timestamp unit.
+        /// </summary>
+        private static readonly double s_ticksPerTimestamp =
+            (double)TimeSpan.TicksPerSecond / Stopwatch.Frequency;
+
+        /// <summary>
+        /// <see cref="Stopwatch"/> timestamp units per millisecond.
+        /// </summary>
+        private static readonly long s_timestampsPerMillisecond = Stopwatch.Frequency / 1000;
     }
 }

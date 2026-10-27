@@ -55,7 +55,7 @@ namespace Opc.Ua
     internal interface IQueueAwareIncomingRequest
     {
         /// <summary>
-        /// The <see cref="TimeProvider.System"/> timestamp taken when the request was
+        /// The <see cref="Stopwatch"/> timestamp taken when the request was
         /// received, before it was queued.
         /// </summary>
         long ReceivedTimestamp { get; }
@@ -100,7 +100,7 @@ namespace Opc.Ua
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
                 m_lease = m_vts.Lease;
                 m_transportCancellationToken = default;
-                m_receivedTimestamp = TimeProvider.System.GetTimestamp();
+                m_receivedTimestamp = Stopwatch.GetTimestamp();
             }
 
             /// <inheritdoc/>
@@ -280,7 +280,7 @@ namespace Opc.Ua
             private readonly RequestParkSink? m_parkSink;
 
             /// <summary>
-            /// The <see cref="TimeProvider.System"/> timestamp of receipt, before queueing.
+            /// The <see cref="Stopwatch"/> timestamp of receipt, before queueing.
             /// </summary>
             private readonly long m_receivedTimestamp;
             private CancellationToken m_transportCancellationToken;

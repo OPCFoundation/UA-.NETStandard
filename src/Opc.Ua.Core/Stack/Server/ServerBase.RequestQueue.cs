@@ -350,10 +350,10 @@ namespace Opc.Ua
                                     StatusCodes.BadServerHalted : StatusCodes.BadRequestCancelledByClient);
                             continue;
                         }
-                        if (RequestQueueBudget.HasExpired(queued.Request))
+                        // the fair queue drops expired requests when it selects them
+                        if (entry == null && RequestQueueBudget.HasExpired(queued.Request))
                         {
                             // the client gave up while the request was queued
-                            entry?.Dispose();
                             CompleteRequest(queued.Request, StatusCodes.BadTimeout);
                             continue;
                         }

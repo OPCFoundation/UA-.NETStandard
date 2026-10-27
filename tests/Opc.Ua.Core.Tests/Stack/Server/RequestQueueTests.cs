@@ -81,8 +81,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public QueueAwareTestRequest(uint timeoutHint = 0, TimeSpan age = default)
             {
                 Request = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = timeoutHint } };
-                ReceivedTimestamp = TimeProvider.System.GetTimestamp() -
-                    (long)(age.TotalSeconds * TimeProvider.System.TimestampFrequency);
+                ReceivedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp() -
+                    (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
             }
 
             public IServiceRequest Request { get; }
