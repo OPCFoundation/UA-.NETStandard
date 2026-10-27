@@ -1963,7 +1963,9 @@ namespace Opc.Ua.Server
                             NodeManagerReconciliationStage.Readiness,
                             [generation],
                             () => CompleteReadinessAsync(
-                                batch.Server, batch.Host, state, CancellationToken.None, batch.Initial))
+                                batch.Server, batch.Host, state,
+                                batch.Initial is not null ? cancellationToken : CancellationToken.None,
+                                batch.Initial))
                             .ConfigureAwait(false);
                     }
                     finally

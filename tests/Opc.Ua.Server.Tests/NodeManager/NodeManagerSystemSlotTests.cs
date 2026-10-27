@@ -54,7 +54,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const string firstUri = "urn:opcfoundation:tests:bootstrap:first";
             const string secondUri = "urn:opcfoundation:tests:bootstrap:second";
             const string discoveredUri = "urn:opcfoundation:tests:bootstrap:discovered";
-            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string pki = Path.Combine(Path.GetTempPath(),
                 nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
             StandardServer? owner = null;
             NamespaceTable? sharedNamespaces = null;
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [NonParallelizable]
         public async Task HostedMasterShutdownJoinsServerStopAttemptAsync(bool failDelete)
         {
-            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string pki = Path.Combine(Path.GetTempPath(),
                 nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<SystemLifetimeServer>(telemetry => new SystemLifetimeServer(telemetry))
             {
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [NonParallelizable]
         public async Task HostedMasterShutdownClosesOwnerTransportsAsync()
         {
-            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string pki = Path.Combine(Path.GetTempPath(),
                 nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<SystemLifetimeServer>(telemetry => new SystemLifetimeServer(telemetry))
             {
@@ -245,7 +245,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [NonParallelizable]
         public async Task FailedSessionShutdownRetainsSystemDependenciesUntilRetryAsync()
         {
-            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string pki = Path.Combine(Path.GetTempPath(),
                 nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<SystemLifetimeServer>(telemetry => new SystemLifetimeServer(telemetry))
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool cancelDrain,
             bool disposeServer)
         {
-            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string pki = Path.Combine(Path.GetTempPath(),
                 nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<SystemLifetimeServer>(telemetry => new SystemLifetimeServer(telemetry))
             {

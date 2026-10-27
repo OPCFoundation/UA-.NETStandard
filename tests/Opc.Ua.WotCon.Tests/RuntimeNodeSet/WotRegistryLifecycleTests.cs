@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "wrl",
                 Guid.NewGuid().ToString("N").Substring(0, 12));
 

@@ -870,6 +870,8 @@ their materialization before accepting clients, so discovery by browsing sees th
 - Cancellation can abort preparation or the durable decision. After publication, runtime readiness
   receives a noncancelable token and runs to completion; it cannot undo the published transaction.
   A participant that independently throws cancellation reports a committed reconciliation failure.
+  Initial startup readiness receives the startup token instead: cancellation must release awaited
+  initialization so the server can shut down the published managers and their dependencies.
 - A readiness failure after publication leaves the registration live and is reported in the committed
   result's `CleanupFailure`. Its `Registrations`, `Revision`, and `Slots` remain authoritative;
   do not retry an addition as a new registration. A startup failure is reported after

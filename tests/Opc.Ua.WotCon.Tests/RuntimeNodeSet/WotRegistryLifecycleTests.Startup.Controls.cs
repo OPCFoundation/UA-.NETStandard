@@ -330,6 +330,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             Task<ReferenceServer> startup = StartStoredInitialServerAsync(
                 dependencyInjection: false, afterRegistry: readiness, cancellationToken: cancellation.Token);
+            InvalidOperationException? startupFailure = null;
             try
             {
                 await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
@@ -342,17 +343,26 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 if (cancel)
                 {
                     cancellation.Cancel();
-                    OperationCanceledException failure = (await Assert.CatchAsync<OperationCanceledException>(
-                        async () => await startup.ConfigureAwait(false)))!;
+                }
+                else
+                {
+                    readiness.Release.TrySetResult(true);
+                }
+                startupFailure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await startup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
+                Assert.That(startupFailure.InnerException, Is.InstanceOf<AggregateException>());
+                var reconciliationFailure = (AggregateException)startupFailure.InnerException!;
+                Assert.That(reconciliationFailure.InnerExceptions, Has.Count.EqualTo(1));
+                if (cancel)
+                {
+                    Assert.That(reconciliationFailure.InnerException, Is.InstanceOf<OperationCanceledException>());
+                    var failure = (OperationCanceledException)reconciliationFailure.InnerException!;
                     Assert.That(failure.CancellationToken, Is.EqualTo(readiness.ReceivedToken));
                     Assert.That(readiness.ReceivedToken.IsCancellationRequested, Is.True);
                 }
                 else
                 {
-                    readiness.Release.TrySetResult(true);
-                    InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
-                        async () => await startup.ConfigureAwait(false)))!;
-                    Assert.That(failure, Is.SameAs(readiness.Failure));
+                    Assert.That(reconciliationFailure.InnerException, Is.SameAs(readiness.Failure));
                 }
             }
             finally
@@ -366,7 +376,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
                 {
                 }
-                catch (InvalidOperationException failure) when (ReferenceEquals(failure, readiness.Failure))
+                catch (InvalidOperationException failure) when (ReferenceEquals(failure, startupFailure))
                 {
                 }
             }
