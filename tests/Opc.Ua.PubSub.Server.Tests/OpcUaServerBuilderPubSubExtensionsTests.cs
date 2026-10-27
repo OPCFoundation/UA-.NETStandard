@@ -30,12 +30,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Fx.Ac;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security.Sks;
 using Opc.Ua.PubSub.Server.Hosting;
@@ -451,6 +453,76 @@ namespace Opc.Ua.PubSub.Server.Tests
             await using ServiceProvider sp = services.BuildServiceProvider();
             PubSubNodeManagerFactory factory = sp.GetRequiredService<PubSubNodeManagerFactory>();
             Assert.That(factory.NamespacesUris.ToArray(), Contains.Item(PubSubNodeManager.NamespaceUri));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task FxDiResolvedBinderDispatchesRegisteredLifecycleAsync(bool registerLifecycleFirst)
+        {
+            ServiceCollection services = BuildServicesWithRuntime();
+            IPubSubServerBuilder builder = services.AddOpcUa().AddServer(_ => { })
+                .AddPubSub(options => options.ExposeConfigurationMethods = true);
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            if (registerLifecycleFirst)
+            {
+                builder.WithFxConnectionLifecycle(lifecycle.Object);
+                builder.WithFxCommunicationIdReservations();
+            }
+            else
+            {
+                builder.WithFxCommunicationIdReservations();
+                builder.WithFxConnectionLifecycle(lifecycle.Object);
+            }
+
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            PubSubFxReservationMethods binder = provider.GetRequiredService<PubSubFxReservationMethods>();
+            PubSubServerOptions registeredOptions =
+                provider.GetRequiredService<IOptions<PubSubServerOptions>>().Value;
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.GetRequiredService<IPubSubFxConnectionLifecycle>(), Is.SameAs(lifecycle.Object));
+                Assert.That(registeredOptions.ExposeConfigurationMethods, Is.True,
+                    "The authorized call requires the explicitly configured method option.");
+                Assert.That(registeredOptions.ExposeFxModel, Is.False,
+                    "Registering the FX binder and lifecycle must not enable the FX model.");
+            });
+
+            await using var harness = new PubSubCommunicationIdMethodTests.Harness(
+                options: new PubSubServerOptions { ExposeFxModel = true, ExposeConfigurationMethods = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            CloseConnectionsMethodState method = component.CloseConnections!;
+            ArrayOf<NodeId> endpoints =
+                [new NodeId("endpoint:z", 1), new NodeId("endpoint:a", 1), new NodeId("endpoint:z", 1)];
+            ArrayOf<StatusCode> expected =
+                [StatusCodes.BadInvalidState, StatusCodes.Good, StatusCodes.BadNodeIdUnknown];
+            const bool remove = true;
+            binder.Bind(component);
+
+            lifecycle.Setup(value => value.CloseConnectionsAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(), It.IsAny<ArrayOf<NodeId>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .Returns((ISystemContext context, AutomationComponentState actualComponent,
+                    ArrayOf<NodeId> actualEndpoints, bool actualRemove, CancellationToken cancellationToken) =>
+                {
+                    Assert.That(context, Is.SameAs(harness.Context));
+                    Assert.That(actualComponent, Is.SameAs(component));
+                    Assert.That(actualEndpoints, Is.EqualTo(endpoints));
+                    Assert.That(actualRemove, Is.EqualTo(remove));
+                    Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                    return new ValueTask<ArrayOf<StatusCode>>(expected);
+                });
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, [Variant.From(endpoints), Variant.From(remove)]).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outputs, Has.Count.EqualTo(1));
+            Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> actualResults), Is.True);
+            Assert.That(actualResults, Is.EqualTo(expected));
+            lifecycle.Verify(value => value.CloseConnectionsAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(), It.IsAny<ArrayOf<NodeId>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         internal static ServiceCollection BuildServicesWithRuntime()

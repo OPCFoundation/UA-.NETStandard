@@ -2717,6 +2717,622 @@ namespace Opc.Ua.PubSub.Server.Tests
                 It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        [TestCase(4u)]
+        [TestCase(8u)]
+        [TestCase(16u)]
+        [TestCase(32u)]
+        [TestCase(128u)]
+        [TestCase(71u)]
+        [TestCase(75u)]
+        [TestCase(83u)]
+        [TestCase(99u)]
+        [TestCase(195u)]
+        public async Task FxUnsupportedLifecycleCommandsFailBeforeVerificationAndReservationAsync(uint commandMask)
+        {
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, CancellationToken _) => new ValueTask<Variant>(Variant.From(7UL)));
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            int resolverCalls = 0;
+            EstablishConnectionsMethodState method = harness.BindFx(_ =>
+            {
+                resolverCalls++;
+                return new ValueTask<string?>("opc.tcp://localhost:4840/uafx");
+            });
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            NodeId assetId = new("unsupported-command-asset", namespaceIndex);
+            _ = harness.AddVerifiableAsset(assetId, AssetVerificationResultEnum.Match);
+            NodeId functionalEntityId = new("unsupported-command-fe", namespaceIndex);
+            _ = harness.AddVerifiableFunctionalEntity(
+                functionalEntityId, FunctionalEntityVerificationResultEnum.Match);
+            var asset = new AssetVerificationDataType
+            {
+                AssetToVerify = assetId,
+                VerificationMode = AssetVerificationModeEnum.AssetCompatibility,
+                ExpectedVerificationResult = AssetVerificationResultEnum.Match
+            };
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                functionalEntityId, [ExpectedVerificationVariable("expected", namespaceIndex)]);
+            PubSubReserveCommunicationIds2DataType request = FxRequest();
+            request.TransportProfileUri = DataChannelProfiles.PubSubUasc;
+            request.RequestTransportSpecificInfo = true;
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context,
+                FxArguments(commandMask, [asset], [endpoint], request)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(outputs, Is.Empty);
+            Assert.That(harness.VerifyAssetCalls, Is.Zero);
+            Assert.That(harness.VerifyFunctionalEntityCalls, Is.Zero);
+            Assert.That(resolverCalls, Is.Zero);
+            policy.Verify(value => value.ResolveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            (ServiceResult next, List<Variant> nextOutputs) = await harness.CallAsync(
+                method, harness.Context, FxReserveArguments(FxRequest())).ConfigureAwait(false);
+            Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(FxResults(harness, nextOutputs)[0].WriterGroupIds, Is.EqualTo(new ushort[] { 0x8000 }));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task FxLifecycleBindingRejectsInvalidCloseMethodWithoutPartialInstallationAsync(
+            int invalidMethodShape)
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            EstablishConnectionsMethodState establish = component.EstablishConnections!;
+            CloseConnectionsMethodState? close = invalidMethodShape switch
+            {
+                0 => null,
+                1 => new CloseConnectionsMethodState(component),
+                2 => CreateMisparentedCloseMethod(harness),
+                _ => throw new ArgumentOutOfRangeException(nameof(invalidMethodShape))
+            };
+            component.CloseConnections = close;
+            NodeId originalComponentId = component.NodeId;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            var binding = new PubSubFxReservationMethods(
+                harness.Application, new PubSubServerOptions { ExposeFxModel = true }, lifecycle.Object);
+
+            Assert.That(() => binding.Bind(component), Throws.ArgumentException);
+
+            Assert.That(component.NodeId, Is.EqualTo(originalComponentId));
+            Assert.That(component.EstablishConnections, Is.SameAs(establish));
+            Assert.That(component.CloseConnections, Is.SameAs(close));
+            AssertNoMethodHandlers(establish);
+            if (close is not null)
+            {
+                AssertNoMethodHandlers(close);
+            }
+            lifecycle.Verify(value => value.CloseConnectionsAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(), It.IsAny<ArrayOf<NodeId>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task FxVerificationRejectsNullSelectedEndpointNodeBeforeCallingHostAsync()
+        {
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, CancellationToken _) => new ValueTask<Variant>(Variant.From(7UL)));
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            MethodState method = harness.BindFx();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            NodeId functionalEntityId = new("null-endpoint-fe", namespaceIndex);
+            _ = harness.AddVerifiableFunctionalEntity(
+                functionalEntityId, FunctionalEntityVerificationResultEnum.Match);
+            var endpoint = FxEndpoint(
+                functionalEntityId, [ExpectedVerificationVariable("expected", namespaceIndex)]);
+            endpoint.ConnectionEndpoint = new ConnectionEndpointDefinitionDataType
+            {
+                SwitchField = ConnectionEndpointDefinitionDataTypeFields.Node,
+                Node = NodeId.Null
+            };
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    (uint)FxCommandMask.VerifyFunctionalEntityCmd |
+                    (uint)FxCommandMask.ReserveCommunicationIdsCmd,
+                    ArrayOf<AssetVerificationDataType>.Empty, [endpoint], FxRequest()))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(outputs, Is.Empty);
+            Assert.That(harness.VerifyFunctionalEntityCalls, Is.Zero);
+            policy.Verify(value => value.ResolveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            (ServiceResult next, List<Variant> nextOutputs) = await harness.CallAsync(
+                method, harness.Context, FxReserveArguments(FxRequest())).ConfigureAwait(false);
+            Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(FxResults(harness, nextOutputs)[0].WriterGroupIds, Is.EqualTo(new ushort[] { 0x8000 }));
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task FxCloseDispatchRejectsArityAndArgumentTypesBeforeLifecycleAsync(int invalidCall)
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            CloseConnectionsMethodState method = component.CloseConnections!;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            new PubSubFxReservationMethods(
+                harness.Application, new PubSubServerOptions { ExposeFxModel = true }, lifecycle.Object)
+                .Bind(component);
+            ArrayOf<NodeId> endpoints = [new NodeId("dispatch-endpoint", 4)];
+            ArrayOf<Variant> arguments = invalidCall switch
+            {
+                0 => [Variant.From(endpoints)],
+                1 => [Variant.From(endpoints), Variant.From(false), Variant.From(1)],
+                2 => [Variant.From("not-an-endpoint-array"), Variant.From(false)],
+                3 => [Variant.From(endpoints), Variant.From("not-a-boolean")],
+                _ => throw new ArgumentOutOfRangeException(nameof(invalidCall))
+            };
+            var argumentErrors = new List<ServiceResult>();
+            var outputs = new List<Variant>();
+
+            ServiceResult result = await method.CallAsync(
+                harness.Context, component.NodeId, arguments, argumentErrors, outputs).ConfigureAwait(false);
+
+            Assert.That(outputs, Is.Empty);
+            if (invalidCall == 0)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+                Assert.That(argumentErrors, Is.Empty);
+            }
+            else if (invalidCall == 1)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
+                Assert.That(argumentErrors, Is.Empty);
+            }
+            else
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(argumentErrors, Has.Count.EqualTo(2));
+                Assert.That(argumentErrors[invalidCall == 2 ? 0 : 1].StatusCode,
+                    Is.EqualTo(StatusCodes.BadTypeMismatch));
+                Assert.That(argumentErrors[invalidCall == 2 ? 1 : 0].StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+            }
+            lifecycle.Verify(value => value.CloseConnectionsAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(), It.IsAny<ArrayOf<NodeId>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task FxAllSupportedCommandsExecuteInStageOrderAsync()
+        {
+            var events = new List<string>();
+            var assetEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var functionalEntityEntered =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reservationEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var assetGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var functionalEntityGate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()))
+                .Returns((string _, CancellationToken _) =>
+                {
+                    events.Add("reservation");
+                    reservationEntered.TrySetResult(true);
+                    return new ValueTask<Variant>(Variant.From(7UL));
+                });
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            EstablishConnectionsMethodState method = harness.BindFx();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            NodeId assetId = new("ordered-asset", namespaceIndex);
+            MethodState verifyAsset = harness.AddVerifiableAsset(assetId, AssetVerificationResultEnum.Match)
+                .FindChild(harness.Context, new QualifiedName("VerifyAsset",
+                    namespaceIndex)) as MethodState ?? throw new InvalidOperationException();
+            verifyAsset.OnCallMethod2Async = async (_, _, _, _, outputs, _) =>
+            {
+                events.Add("asset");
+                assetEntered.TrySetResult(true);
+                await assetGate.Task.ConfigureAwait(false);
+                outputs[0] = Variant.From((int)AssetVerificationResultEnum.Match);
+                outputs[1] = Variant.From(ArrayOf<StatusCode>.Empty);
+                outputs[2] = Variant.From(ArrayOf<StatusCode>.Empty);
+                return ServiceResult.Good;
+            };
+            NodeId functionalEntityId = new("ordered-fe", namespaceIndex);
+            MethodState verifyFunctionalEntity = harness.AddVerifiableFunctionalEntity(
+                functionalEntityId, FunctionalEntityVerificationResultEnum.Match);
+            verifyFunctionalEntity.OnCallMethod2Async = async (_, _, _, _, outputs, _) =>
+            {
+                events.Add("functional-entity");
+                functionalEntityEntered.TrySetResult(true);
+                await functionalEntityGate.Task.ConfigureAwait(false);
+                outputs[0] = Variant.From((int)FunctionalEntityVerificationResultEnum.Match);
+                outputs[1] = Variant.From(ArrayOf<StatusCode>.Empty);
+                return ServiceResult.Good;
+            };
+            var asset = new AssetVerificationDataType
+            {
+                AssetToVerify = assetId,
+                VerificationMode = AssetVerificationModeEnum.AssetCompatibility,
+                ExpectedVerificationResult = AssetVerificationResultEnum.Match,
+                ExpectedVerificationVariables = []
+            };
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                functionalEntityId, [ExpectedVerificationVariable("ordered-variable", namespaceIndex)]);
+            Task<(ServiceResult Result, List<Variant> Outputs)> pending = harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    (uint)FxCommandMask.VerifyAssetCmd |
+                    (uint)FxCommandMask.VerifyFunctionalEntityCmd |
+                    (uint)FxCommandMask.ReserveCommunicationIdsCmd,
+                    [asset], [endpoint], FxRequest()));
+
+            try
+            {
+                await assetEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(string.Join(",", events), Is.EqualTo("asset"));
+                Assert.That(harness.VerifyFunctionalEntityCalls, Is.Zero);
+                Assert.That(reservationEntered.Task.IsCompleted, Is.False);
+                Assert.That(pending.IsCompleted, Is.False);
+                assetGate.SetResult(true);
+                await functionalEntityEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(string.Join(",", events), Is.EqualTo("asset,functional-entity"));
+                Assert.That(reservationEntered.Task.IsCompleted, Is.False);
+                Assert.That(pending.IsCompleted, Is.False);
+                functionalEntityGate.SetResult(true);
+                await reservationEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                (ServiceResult result, List<Variant> outputs) =
+                    await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+                Assert.That(string.Join(",", events), Is.EqualTo("asset,functional-entity,reservation"));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(outputs, Has.Count.EqualTo(4));
+                AssetVerificationResultDataType[] assetResults = FxAssetResults(harness, outputs);
+                Assert.That(assetResults, Has.Length.EqualTo(1));
+                Assert.That(assetResults[0].VerificationStatus, Is.EqualTo(StatusCodes.Good));
+                Assert.That(assetResults[0].VerificationResult, Is.EqualTo(AssetVerificationResultEnum.Match));
+                ConnectionEndpointConfigurationResultDataType[] endpointResults =
+                    FxEndpointResults(harness, outputs);
+                Assert.That(endpointResults, Has.Length.EqualTo(1));
+                Assert.That(endpointResults[0].FunctionalEntityNodeResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(endpointResults[0].ConnectionEndpointId, Is.EqualTo(endpoint.ConnectionEndpoint.Node));
+                Assert.That(endpointResults[0].VerificationStatus, Is.EqualTo(StatusCodes.Good));
+                Assert.That(endpointResults[0].VerificationResult,
+                    Is.EqualTo(FunctionalEntityVerificationResultEnum.Match));
+                PubSubReserveCommunicationIdsResult2DataType[] reservationResults = FxResults(harness, outputs);
+                Assert.That(reservationResults, Has.Length.EqualTo(1));
+                Assert.That(reservationResults[0].Result, Is.EqualTo(StatusCodes.Good));
+                Assert.That(reservationResults[0].DefaultPublisherId.TryGetValue(out ulong publisher), Is.True);
+                Assert.That(publisher, Is.EqualTo(7UL));
+                Assert.That(reservationResults[0].WriterGroupIds, Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(reservationResults[0].DataSetWriterIds, Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(outputs[3].TryGetValue(
+                    out ArrayOf<CommunicationConfigurationResultDataType> configurations,
+                    harness.Context.AsMessageContext()), Is.True);
+                Assert.That(configurations.IsEmpty, Is.True);
+            }
+            finally
+            {
+                assetGate.TrySetResult(true);
+                functionalEntityGate.TrySetResult(true);
+                await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(125)]
+        [TestCase(126)]
+        [TestCase(127)]
+        [TestCase(128)]
+        public async Task FxCombinedRequestBudgetIsCheckedBeforeAnyStageAsync(int functionalEntityCount)
+        {
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Variant>(Variant.From(7UL)));
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            EstablishConnectionsMethodState method = harness.BindFx();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            NodeId assetId = new("budget-asset", namespaceIndex);
+            _ = harness.AddVerifiableAsset(assetId, AssetVerificationResultEnum.Match);
+            var asset = new AssetVerificationDataType
+            {
+                AssetToVerify = assetId,
+                VerificationMode = AssetVerificationModeEnum.AssetCompatibility,
+                ExpectedVerificationResult = AssetVerificationResultEnum.Match
+            };
+            ConnectionEndpointConfigurationDataType[] endpoints =
+                Enumerable.Range(0, functionalEntityCount).Select(index =>
+                {
+                    NodeId functionalEntityId = new($"budget-fe-{index}", namespaceIndex);
+                    _ = harness.AddVerifiableFunctionalEntity(
+                        functionalEntityId, FunctionalEntityVerificationResultEnum.Match);
+                    return FxEndpoint(functionalEntityId,
+                        [ExpectedVerificationVariable($"budget-variable-{index}", namespaceIndex)]);
+                }).ToArray();
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    (uint)FxCommandMask.VerifyAssetCmd |
+                    (uint)FxCommandMask.VerifyFunctionalEntityCmd |
+                    (uint)FxCommandMask.ReserveCommunicationIdsCmd,
+                    [asset], endpoints, FxRequest())).ConfigureAwait(false);
+
+            if (functionalEntityCount <= 126)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(outputs, Has.Count.EqualTo(4));
+                Assert.That(harness.VerifyAssetCalls, Is.EqualTo(1));
+                Assert.That(harness.VerifyFunctionalEntityCalls, Is.EqualTo(functionalEntityCount));
+                AssetVerificationResultDataType[] assetResults = FxAssetResults(harness, outputs);
+                Assert.That(assetResults, Has.Length.EqualTo(1));
+                Assert.That(assetResults[0].VerificationStatus, Is.EqualTo(StatusCodes.Good));
+                Assert.That(assetResults[0].VerificationResult, Is.EqualTo(AssetVerificationResultEnum.Match));
+                ConnectionEndpointConfigurationResultDataType[] endpointResults =
+                    FxEndpointResults(harness, outputs);
+                Assert.That(endpointResults, Has.Length.EqualTo(functionalEntityCount));
+                Assert.That(endpointResults.Select(value => value.ConnectionEndpointId),
+                    Is.EqualTo(endpoints.Select(value => value.ConnectionEndpoint.Node)));
+                Assert.That(endpointResults.Select(value => value.FunctionalEntityNodeResult),
+                    Is.All.EqualTo(StatusCodes.Good));
+                Assert.That(endpointResults.Select(value => value.VerificationStatus),
+                    Is.All.EqualTo(StatusCodes.Good));
+                Assert.That(endpointResults.Select(value => value.VerificationResult),
+                    Is.All.EqualTo(FunctionalEntityVerificationResultEnum.Match));
+                Assert.That(FxResults(harness, outputs), Has.Length.EqualTo(1));
+                Assert.That(FxResults(harness, outputs)[0].Result, Is.EqualTo(StatusCodes.Good));
+                Assert.That(FxResults(harness, outputs)[0].WriterGroupIds,
+                    Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(FxResults(harness, outputs)[0].DataSetWriterIds,
+                    Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(FxResults(harness, outputs)[0].DefaultPublisherId.TryGetValue(out ulong publisher),
+                    Is.True);
+                Assert.That(publisher, Is.EqualTo(7UL));
+            }
+            else
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+                Assert.That(outputs, Is.Empty);
+                Assert.That(harness.VerifyAssetCalls, Is.Zero);
+                Assert.That(harness.VerifyFunctionalEntityCalls, Is.Zero);
+                policy.Verify(value => value.ResolveAsync(
+                    It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+                (ServiceResult next, List<Variant> nextOutputs) = await harness.CallAsync(
+                    method, harness.Context, FxReserveArguments(FxRequest())).ConfigureAwait(false);
+                Assert.That(next.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(FxResults(harness, nextOutputs), Has.Length.EqualTo(1));
+                Assert.That(FxResults(harness, nextOutputs)[0].Result, Is.EqualTo(StatusCodes.Good));
+                Assert.That(FxResults(harness, nextOutputs)[0].WriterGroupIds,
+                    Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(FxResults(harness, nextOutputs)[0].DataSetWriterIds,
+                    Is.EqualTo(new ushort[] { 0x8000 }));
+                Assert.That(FxResults(harness, nextOutputs)[0].DefaultPublisherId.TryGetValue(out ulong publisher),
+                    Is.True);
+                Assert.That(publisher, Is.EqualTo(7UL));
+            }
+            policy.Verify(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task FxLifecycleBindingsRemainIsolatedAcrossComponentsAndAwaitHostCompletionAsync()
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState firstComponent = harness.CreateFxComponentWithCloseConnections();
+            AutomationComponentState secondComponent = harness.CreateFxComponentWithCloseConnections();
+            firstComponent.NodeId = new NodeId("component:first", 1);
+            firstComponent.EstablishConnections!.NodeId = new NodeId("component:first:establish", 1);
+            firstComponent.CloseConnections!.NodeId = new NodeId("component:first:close", 1);
+            secondComponent.NodeId = new NodeId("component:second", 1);
+            secondComponent.EstablishConnections!.NodeId = new NodeId("component:second:establish", 1);
+            secondComponent.CloseConnections!.NodeId = new NodeId("component:second:close", 1);
+            ServerSystemContext secondContext = new(harness.Context.Server)
+            {
+                SessionId = new NodeId(456u),
+                UserIdentity = harness.Context.UserIdentity
+            };
+            ArrayOf<NodeId> firstEndpoints =
+                [new NodeId("first:endpoint:a", 1), new NodeId("first:endpoint:b", 1)];
+            ArrayOf<NodeId> secondEndpoints =
+                [new NodeId("second:endpoint:b", 1), new NodeId("second:endpoint:a", 1)];
+            ArrayOf<StatusCode> firstResults = [StatusCodes.Good, StatusCodes.BadNodeIdUnknown];
+            ArrayOf<StatusCode> secondResults = [StatusCodes.BadInvalidState, StatusCodes.Good];
+            var firstCall = new TaskCompletionSource<CloseLifecycleCall>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondCall = new TaskCompletionSource<CloseLifecycleCall>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var firstGate = new TaskCompletionSource<ArrayOf<StatusCode>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondGate = new TaskCompletionSource<ArrayOf<StatusCode>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            lifecycle.Setup(value => value.CloseConnectionsAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(), It.IsAny<ArrayOf<NodeId>>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .Returns((ISystemContext context, AutomationComponentState component, ArrayOf<NodeId> endpoints,
+                    bool remove, CancellationToken token) =>
+                {
+                    var call = new CloseLifecycleCall(context, component, endpoints, remove, token);
+                    if (ReferenceEquals(component, firstComponent))
+                    {
+                        firstCall.TrySetResult(call);
+                        return AwaitLifecycleResultsAsync(firstGate.Task);
+                    }
+                    if (ReferenceEquals(component, secondComponent))
+                    {
+                        secondCall.TrySetResult(call);
+                        return AwaitLifecycleResultsAsync(secondGate.Task);
+                    }
+                    throw new InvalidOperationException("The binder dispatched an unbound component.");
+                });
+            var binder = new PubSubFxReservationMethods(
+                harness.Application, new PubSubServerOptions { ExposeFxModel = true }, lifecycle.Object);
+            binder.Bind(firstComponent);
+            binder.Bind(secondComponent);
+            using var firstCancellation = new CancellationTokenSource();
+            using var secondCancellation = new CancellationTokenSource();
+            Task<(ServiceResult Result, List<Variant> Outputs)> firstPending = harness.CallAsync(
+                firstComponent.CloseConnections!, harness.Context,
+                [Variant.From(firstEndpoints), Variant.From(false)], firstCancellation.Token);
+            Task<(ServiceResult Result, List<Variant> Outputs)> secondPending = harness.CallAsync(
+                secondComponent.CloseConnections!, secondContext,
+                [Variant.From(secondEndpoints), Variant.From(true)], secondCancellation.Token);
+
+            try
+            {
+                CloseLifecycleCall[] calls = await Task.WhenAll(
+                    firstCall.Task.WaitAsync(TimeSpan.FromSeconds(10)),
+                    secondCall.Task.WaitAsync(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+                Assert.That(calls[0].Context, Is.SameAs(harness.Context));
+                Assert.That(calls[0].Component, Is.SameAs(firstComponent));
+                Assert.That(calls[0].Endpoints, Is.EqualTo(firstEndpoints));
+                Assert.That(calls[0].Remove, Is.False);
+                Assert.That(calls[0].Token, Is.EqualTo(firstCancellation.Token));
+                Assert.That(calls[1].Context, Is.SameAs(secondContext));
+                Assert.That(calls[1].Component, Is.SameAs(secondComponent));
+                Assert.That(calls[1].Endpoints, Is.EqualTo(secondEndpoints));
+                Assert.That(calls[1].Remove, Is.True);
+                Assert.That(calls[1].Token, Is.EqualTo(secondCancellation.Token));
+                Assert.That(firstPending.IsCompleted, Is.False);
+                Assert.That(secondPending.IsCompleted, Is.False);
+
+                secondGate.SetResult(secondResults);
+                (ServiceResult secondResult, List<Variant> secondOutputs) =
+                    await secondPending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(secondOutputs, Has.Count.EqualTo(1));
+                Assert.That(secondOutputs[0].TryGetValue(out ArrayOf<StatusCode> actualSecondResults), Is.True);
+                Assert.That(actualSecondResults, Is.EqualTo(secondResults));
+                Assert.That(firstPending.IsCompleted, Is.False);
+
+                firstGate.SetResult(firstResults);
+                (ServiceResult firstResult, List<Variant> firstOutputs) =
+                    await firstPending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(firstResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(firstOutputs, Has.Count.EqualTo(1));
+                Assert.That(firstOutputs[0].TryGetValue(out ArrayOf<StatusCode> actualFirstResults), Is.True);
+                Assert.That(actualFirstResults, Is.EqualTo(firstResults));
+                lifecycle.Verify(value => value.CloseConnectionsAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<AutomationComponentState>(),
+                    It.IsAny<ArrayOf<NodeId>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
+            }
+            finally
+            {
+                firstGate.TrySetResult(firstResults);
+                secondGate.TrySetResult(secondResults);
+                await Task.WhenAll(firstPending, secondPending)
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+        }
+
+        private static CloseConnectionsMethodState CreateMisparentedCloseMethod(Harness harness)
+        {
+            var otherComponent = new AutomationComponentState(null)
+            {
+                NodeId = new NodeId("other-component", 1)
+            };
+            var method = new CloseConnectionsMethodState(otherComponent);
+            method.Create(harness.Context, new NodeId("misparented-close", 1),
+                new QualifiedName("CloseConnections"), new LocalizedText("CloseConnections"), true);
+            return method;
+        }
+
+        [Test]
+        public async Task FxFunctionalEntityNotSetWithoutErrorsDoesNotAbortReservationAsync()
+        {
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<Variant>(Variant.From(7UL)));
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            EstablishConnectionsMethodState method = harness.BindFx();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            NodeId functionalEntityId = new("not-set-without-errors-fe", namespaceIndex);
+            _ = harness.AddVerifiableFunctionalEntity(
+                functionalEntityId, FunctionalEntityVerificationResultEnum.NotSet,
+                verificationErrors: ArrayOf<StatusCode>.Empty);
+            NodeIdValuePair expectedVariable = ExpectedVerificationVariable("expected", namespaceIndex);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                functionalEntityId, [expectedVariable]);
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    (uint)FxCommandMask.VerifyFunctionalEntityCmd |
+                    (uint)FxCommandMask.ReserveCommunicationIdsCmd,
+                    ArrayOf<AssetVerificationDataType>.Empty, [endpoint], FxRequest())).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outputs, Has.Count.EqualTo(4));
+            Assert.That(harness.VerifyFunctionalEntityCalls, Is.EqualTo(1));
+            Assert.That(harness.LastVerifyFunctionalEntityInputs.Count, Is.EqualTo(1));
+            Assert.That(harness.LastVerifyFunctionalEntityInputs[0].TryGetValue(
+                out ArrayOf<NodeIdValuePair> passedVariables, harness.Context.AsMessageContext()), Is.True);
+            Assert.That(passedVariables, Is.EqualTo(new[] { expectedVariable }));
+            Assert.That(FxAssetResults(harness, outputs), Is.Empty);
+            ConnectionEndpointConfigurationResultDataType[] endpointResults = FxEndpointResults(harness, outputs);
+            Assert.That(endpointResults, Has.Length.EqualTo(1));
+            Assert.That(endpointResults[0].FunctionalEntityNodeResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(endpointResults[0].ConnectionEndpointId, Is.EqualTo(endpoint.ConnectionEndpoint.Node));
+            Assert.That(endpointResults[0].VerificationStatus, Is.EqualTo(StatusCodes.Good));
+            Assert.That(endpointResults[0].VerificationResult,
+                Is.EqualTo(FunctionalEntityVerificationResultEnum.NotSet));
+            Assert.That(endpointResults[0].VerificationVariablesErrors.IsEmpty, Is.True);
+            PubSubReserveCommunicationIdsResult2DataType[] reservations = FxResults(harness, outputs);
+            Assert.That(reservations, Has.Length.EqualTo(1));
+            Assert.That(reservations[0].Result, Is.EqualTo(StatusCodes.Good));
+            Assert.That(reservations[0].WriterGroupIds, Is.EqualTo(new ushort[] { 0x8000 }));
+            Assert.That(reservations[0].DataSetWriterIds, Is.EqualTo(new ushort[] { 0x8000 }));
+            Assert.That(reservations[0].DefaultPublisherId.TryGetValue(out ulong publisher), Is.True);
+            Assert.That(publisher, Is.EqualTo(7UL));
+            policy.Verify(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        private static void AssertNoMethodHandlers(MethodState method)
+        {
+            Assert.That(method.OnCallMethod, Is.Null);
+            Assert.That(method.OnCallMethod2, Is.Null);
+            Assert.That(method.OnCallMethodWithResultAsync, Is.Null);
+            Assert.That(method.OnCallMethod2Async, Is.Null);
+            if (method is EstablishConnectionsMethodState establish)
+            {
+                Assert.That(establish.OnCall, Is.Null);
+                Assert.That(establish.OnCallAsync, Is.Null);
+            }
+            if (method is CloseConnectionsMethodState close)
+            {
+                Assert.That(close.OnCall, Is.Null);
+                Assert.That(close.OnCallAsync, Is.Null);
+            }
+        }
+
+        private static async ValueTask<ArrayOf<StatusCode>> AwaitLifecycleResultsAsync(
+            Task<ArrayOf<StatusCode>> results)
+        {
+            return await results.ConfigureAwait(false);
+        }
+
+        private sealed record CloseLifecycleCall(
+            ISystemContext Context,
+            AutomationComponentState Component,
+            ArrayOf<NodeId> Endpoints,
+            bool Remove,
+            CancellationToken Token);
+
         private static async ValueTask<ArrayOf<StatusCode>> WaitForCancellationAsync(
             TaskCompletionSource<bool> entered,
             CancellationToken cancellationToken)
@@ -2724,6 +3340,187 @@ namespace Opc.Ua.PubSub.Server.Tests
             entered.TrySetResult(true);
             await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
             return [];
+        }
+
+        [Test]
+        public async Task FxEndpointLifecycleRunsAfterReservationsAndReturnsOrderedResults()
+        {
+            var events = new List<string>();
+            var policy = new Mock<IPubSubDefaultPublisherIdPolicy>();
+            policy.Setup(value => value.ResolveAsync(
+                Profiles.PubSubUdpUadpTransport, It.IsAny<CancellationToken>()))
+                .Returns((string _, CancellationToken _) =>
+                {
+                    events.Add("reserve");
+                    return new ValueTask<Variant>(Variant.From(7UL));
+                });
+            await using var harness = new Harness(policy.Object,
+                new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            EstablishConnectionsMethodState method = component.EstablishConnections!;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                new NodeId("lifecycle-functional-entity", namespaceIndex),
+                ArrayOf<NodeIdValuePair>.Empty);
+            endpoint.ConfigurationData = [ExpectedVerificationVariable("configuration", namespaceIndex)];
+            ArrayOf<ConnectionEndpointConfigurationDataType> endpoints = [endpoint];
+            uint commandMask = (uint)FxCommandMask.ReserveCommunicationIdsCmd |
+                (uint)FxCommandMask.SetConfigurationDataCmd;
+            var endpointResult = new ConnectionEndpointConfigurationResultDataType
+            {
+                ConnectionEndpointId = endpoint.ConnectionEndpoint.Node,
+                FunctionalEntityNodeResult = StatusCodes.Good,
+                ConnectionEndpointResult = StatusCodes.Good,
+                VerificationResult = FunctionalEntityVerificationResultEnum.NotSet,
+                VerificationStatus = StatusCodes.Good,
+                VerificationVariablesErrors = [],
+                EstablishControlResult = [],
+                ConfigurationDataResult = [StatusCodes.Good],
+                ReassignControlResult = [],
+                CommunicationLinksResult = StatusCodes.Good,
+                EnableCommunicationResult = StatusCodes.Good
+            };
+            lifecycle.Setup(value => value.EstablishConnectionsAsync(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AutomationComponentState>(),
+                commandMask,
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationDataType>>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationResultDataType>>(),
+                It.IsAny<ArrayOf<ReserveCommunicationIdsResultDataType>>(),
+                It.IsAny<ArrayOf<CommunicationConfigurationDataType>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((ISystemContext context, AutomationComponentState actualComponent, uint actualCommandMask,
+                    ArrayOf<ConnectionEndpointConfigurationDataType> actualEndpoints,
+                    ArrayOf<ConnectionEndpointConfigurationResultDataType> initialResults,
+                    ArrayOf<ReserveCommunicationIdsResultDataType> reservationResults,
+                    ArrayOf<CommunicationConfigurationDataType> actualConfigurations,
+                    CancellationToken cancellationToken) =>
+                {
+                    events.Add("lifecycle");
+                    Assert.That(context, Is.SameAs(harness.Context));
+                    Assert.That(actualComponent, Is.SameAs(component));
+                    Assert.That(actualCommandMask, Is.EqualTo(commandMask));
+                    Assert.That(actualEndpoints, Is.EqualTo(endpoints));
+                    Assert.That(initialResults.Count, Is.EqualTo(1));
+                    Assert.That(initialResults[0].VerificationStatus, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(reservationResults.Count, Is.EqualTo(1));
+                    Assert.That(reservationResults[0],
+                        Is.InstanceOf<PubSubReserveCommunicationIdsResult2DataType>());
+                    var reservation =
+                        (PubSubReserveCommunicationIdsResult2DataType)reservationResults[0];
+                    Assert.That(reservation.Result, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(reservation.WriterGroupIds.Count, Is.EqualTo(1));
+                    Assert.That(reservation.WriterGroupIds[0], Is.EqualTo((ushort)0x8000));
+                    Assert.That(actualConfigurations, Is.Empty);
+                    Assert.That(cancellationToken, Is.EqualTo(CancellationToken.None));
+                    return new ValueTask<PubSubFxEstablishConnectionsResult>(
+                        new PubSubFxEstablishConnectionsResult(
+                            ServiceResult.Good,
+                            [endpointResult],
+                            ArrayOf<CommunicationConfigurationResultDataType>.Empty));
+                });
+            new PubSubFxReservationMethods(
+                harness.Application,
+                new PubSubServerOptions { ExposeFxModel = true },
+                lifecycle.Object).Bind(component);
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    commandMask,
+                    ArrayOf<AssetVerificationDataType>.Empty,
+                    endpoints,
+                    FxRequest())).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(string.Join(",", events), Is.EqualTo("reserve,lifecycle"));
+            Assert.That(outputs, Has.Count.EqualTo(4));
+            ConnectionEndpointConfigurationResultDataType[] endpointResults =
+                FxEndpointResults(harness, outputs);
+            Assert.That(endpointResults, Has.Length.EqualTo(1));
+            Assert.That(endpointResults[0].ConnectionEndpointId, Is.EqualTo(endpointResult.ConnectionEndpointId));
+            Assert.That(endpointResults[0].ConfigurationDataResult, Is.EqualTo(new[] { StatusCodes.Good }));
+            Assert.That(FxResults(harness, outputs)[0].Result, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outputs[3].TryGetValue(
+                out ArrayOf<CommunicationConfigurationResultDataType> configurations,
+                harness.Context.AsMessageContext()), Is.True);
+            Assert.That(configurations, Is.Empty);
+            lifecycle.Verify(value => value.EstablishConnectionsAsync(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AutomationComponentState>(),
+                commandMask,
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationDataType>>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationResultDataType>>(),
+                It.IsAny<ArrayOf<ReserveCommunicationIdsResultDataType>>(),
+                It.IsAny<ArrayOf<CommunicationConfigurationDataType>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
+        public async Task FxEndpointLifecycleWithoutHostCapabilityFailsClosed()
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            EstablishConnectionsMethodState method = harness.BindFx();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                new NodeId("lifecycle-functional-entity", namespaceIndex),
+                ArrayOf<NodeIdValuePair>.Empty);
+            endpoint.ConfigurationData = [ExpectedVerificationVariable("configuration", namespaceIndex)];
+            uint commandMask = (uint)FxCommandMask.SetConfigurationDataCmd;
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    commandMask,
+                    ArrayOf<AssetVerificationDataType>.Empty,
+                    [endpoint])).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(outputs, Is.Empty);
+        }
+
+        [Test]
+        public async Task FxEndpointLifecycleRejectsMalformedHostResultShape()
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            EstablishConnectionsMethodState method = component.EstablishConnections!;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            uint commandMask = (uint)FxCommandMask.SetConfigurationDataCmd;
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                new NodeId("lifecycle-functional-entity", namespaceIndex),
+                ArrayOf<NodeIdValuePair>.Empty);
+            endpoint.ConfigurationData = [ExpectedVerificationVariable("configuration", namespaceIndex)];
+            lifecycle.Setup(value => value.EstablishConnectionsAsync(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AutomationComponentState>(),
+                commandMask,
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationDataType>>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationResultDataType>>(),
+                It.IsAny<ArrayOf<ReserveCommunicationIdsResultDataType>>(),
+                It.IsAny<ArrayOf<CommunicationConfigurationDataType>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PubSubFxEstablishConnectionsResult>(
+                    new PubSubFxEstablishConnectionsResult(
+                        ServiceResult.Good,
+                        ArrayOf<ConnectionEndpointConfigurationResultDataType>.Empty,
+                        ArrayOf<CommunicationConfigurationResultDataType>.Empty)));
+            new PubSubFxReservationMethods(
+                harness.Application,
+                new PubSubServerOptions { ExposeFxModel = true },
+                lifecycle.Object).Bind(component);
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    commandMask,
+                    ArrayOf<AssetVerificationDataType>.Empty,
+                    [endpoint])).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(outputs, Is.Empty);
         }
 
         private static PubSubReserveCommunicationIds2DataType FxRequest()

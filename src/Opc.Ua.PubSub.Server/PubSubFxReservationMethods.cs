@@ -41,10 +41,8 @@ using Opc.Ua.Server;
 namespace Opc.Ua.PubSub.Server
 {
     /// <summary>
-    /// Binds supported Part 81 verification and reservation commands to the application's Session-owned Part 14
-    /// transaction, and optionally delegates CloseConnections to a host-owned lifecycle transaction. Other
-    /// EstablishConnections commands and ConnectionEndpoint creation/configuration are not implemented by this
-    /// binding.
+    /// Binds Part 81 verification and reservation commands to the application's Session-owned Part 14 transaction,
+    /// and delegates endpoint lifecycle commands to an optional host-owned capability.
     /// </summary>
     [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
         UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
@@ -64,7 +62,8 @@ namespace Opc.Ua.PubSub.Server
         /// <param name="application">The PubSub application supporting communication-ID reservations.</param>
         /// <param name="options">The PubSub server options governing configuration method authorization.</param>
         /// <param name="connectionLifecycle">
-        /// Optional host capability that atomically closes or removes ConnectionEndpoints.
+        /// Optional host capability that processes endpoint lifecycle commands and closes or removes
+        /// ConnectionEndpoints.
         /// </param>
         public PubSubFxReservationMethods(
             IPubSubApplication application,
@@ -127,7 +126,8 @@ namespace Opc.Ua.PubSub.Server
             method.OnCallAsync = (context, calledMethod, objectId, commandMask, assets, endpoints,
                 reservations, configurations, cancellationToken) =>
                 EstablishConnectionsAsync(context, objectId, component, componentId, commandMask,
-                    assets, endpoints, reservations, configurations, listeningEndpoint, cancellationToken);
+                    assets, endpoints, reservations, configurations, listeningEndpoint, m_connectionLifecycle,
+                    cancellationToken);
             if (m_connectionLifecycle is { } connectionLifecycle)
             {
                 CloseConnectionsMethodState closeMethod = component.CloseConnections!;
@@ -224,6 +224,7 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<ReserveCommunicationIdsDataType> reservations,
             ArrayOf<CommunicationConfigurationDataType> configurations,
             Func<CancellationToken, ValueTask<string?>>? listeningEndpoint,
+            IPubSubFxConnectionLifecycle? connectionLifecycle,
             CancellationToken cancellationToken)
         {
             var result = new EstablishConnectionsMethodStateResult
@@ -252,8 +253,18 @@ namespace Opc.Ua.PubSub.Server
                 uint verifyAssetCommand = (uint)FxCommandMask.VerifyAssetCmd;
                 uint verifyFunctionalEntityCommand = (uint)FxCommandMask.VerifyFunctionalEntityCmd;
                 uint reserveCommunicationIdsCommand = (uint)FxCommandMask.ReserveCommunicationIdsCmd;
-                if ((commandMask & ~(verifyAssetCommand |
-                    verifyFunctionalEntityCommand | reserveCommunicationIdsCommand)) != 0)
+                uint createConnectionEndpointCommand = (uint)FxCommandMask.CreateConnectionEndpointCmd;
+                uint establishControlCommand = (uint)FxCommandMask.EstablishControlCmd;
+                uint setConfigurationDataCommand = (uint)FxCommandMask.SetConfigurationDataCmd;
+                uint reassignControlCommand = (uint)FxCommandMask.ReassignControlCmd;
+                uint setCommunicationConfigurationCommand =
+                    (uint)FxCommandMask.SetCommunicationConfigurationCmd;
+                uint enableCommunicationCommand = (uint)FxCommandMask.EnableCommunicationCmd;
+                uint supportedCommands = verifyAssetCommand | verifyFunctionalEntityCommand |
+                    reserveCommunicationIdsCommand | createConnectionEndpointCommand | establishControlCommand |
+                    setConfigurationDataCommand | reassignControlCommand |
+                    setCommunicationConfigurationCommand | enableCommunicationCommand;
+                if ((commandMask & ~supportedCommands) != 0)
                 {
                     result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidState);
                     return result;
@@ -261,11 +272,92 @@ namespace Opc.Ua.PubSub.Server
                 bool verifyAssets = (commandMask & verifyAssetCommand) != 0;
                 bool verifyFunctionalEntities = (commandMask & verifyFunctionalEntityCommand) != 0;
                 bool reserveCommunicationIds = (commandMask & reserveCommunicationIdsCommand) != 0;
+                bool createConnectionEndpoints = (commandMask & createConnectionEndpointCommand) != 0;
+                bool establishControl = (commandMask & establishControlCommand) != 0;
+                bool setConfigurationData = (commandMask & setConfigurationDataCommand) != 0;
+                bool reassignControl = (commandMask & reassignControlCommand) != 0;
+                bool setCommunicationConfiguration = (commandMask & setCommunicationConfigurationCommand) != 0;
+                bool enableCommunication = (commandMask & enableCommunicationCommand) != 0;
+                bool hasEndpointCommands = verifyFunctionalEntities || createConnectionEndpoints || establishControl ||
+                    setConfigurationData || reassignControl || setCommunicationConfiguration || enableCommunication;
+                bool hasLifecycleCommands = createConnectionEndpoints || establishControl || setConfigurationData ||
+                    reassignControl || setCommunicationConfiguration || enableCommunication;
+                if (hasLifecycleCommands && connectionLifecycle is null)
+                {
+                    result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidState);
+                    return result;
+                }
                 if ((verifyAssets && assets.IsEmpty) || (!verifyAssets && !assets.IsEmpty) ||
-                    (verifyFunctionalEntities && endpoints.IsEmpty) ||
-                    (!verifyFunctionalEntities && !endpoints.IsEmpty) || !configurations.IsEmpty ||
+                    (hasEndpointCommands && endpoints.IsEmpty) || (!hasEndpointCommands && !endpoints.IsEmpty) ||
                     (reserveCommunicationIds && reservations.IsEmpty) ||
-                    (!reserveCommunicationIds && !reservations.IsEmpty))
+                    (!reserveCommunicationIds && !reservations.IsEmpty) ||
+                    (setCommunicationConfiguration && configurations.Count != 1) ||
+                    (!setCommunicationConfiguration && !configurations.IsEmpty))
+                {
+                    result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                    return result;
+                }
+                bool hasExpectedVariables = false;
+                bool hasEndpointParameter = false;
+                bool hasControlGroup = false;
+                bool hasConfigurationData = false;
+                bool hasCommunicationLinks = false;
+                for (int i = 0; i < endpoints.Count; i++)
+                {
+                    ConnectionEndpointConfigurationDataType endpoint = endpoints[i];
+                    hasExpectedVariables |= !endpoint.ExpectedVerificationVariables.IsEmpty;
+                    hasControlGroup |= !endpoint.ControlGroups.IsEmpty;
+                    hasConfigurationData |= !endpoint.ConfigurationData.IsEmpty;
+                    bool endpointHasCommunicationLinks = endpoint.CommunicationLinks is not null &&
+                        endpoint.CommunicationLinks.GetType() != typeof(CommunicationLinkConfigurationDataType);
+                    hasCommunicationLinks |= endpointHasCommunicationLinks;
+                    switch (endpoint.ConnectionEndpoint.SwitchField)
+                    {
+                        case ConnectionEndpointDefinitionDataTypeFields.Node:
+                            if (endpoint.ConnectionEndpoint.Node.IsNull)
+                            {
+                                result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                                return result;
+                            }
+                            break;
+                        case ConnectionEndpointDefinitionDataTypeFields.Parameter:
+                            hasEndpointParameter = true;
+                            if (!createConnectionEndpoints)
+                            {
+                                result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                                return result;
+                            }
+                            break;
+                        default:
+                            result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                            return result;
+                    }
+                    if (!verifyFunctionalEntities && !endpoint.ExpectedVerificationVariables.IsEmpty)
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                        return result;
+                    }
+                    if (!establishControl && !reassignControl && !endpoint.ControlGroups.IsEmpty)
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                        return result;
+                    }
+                    if (!setConfigurationData && !endpoint.ConfigurationData.IsEmpty)
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                        return result;
+                    }
+                    if (!setCommunicationConfiguration && endpointHasCommunicationLinks)
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
+                        return result;
+                    }
+                }
+                if ((verifyFunctionalEntities && !hasExpectedVariables) ||
+                    (createConnectionEndpoints && !hasEndpointParameter) ||
+                    ((establishControl || reassignControl) && !hasControlGroup) ||
+                    (setConfigurationData && !hasConfigurationData) ||
+                    (setCommunicationConfiguration && !hasCommunicationLinks))
                 {
                     result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
                     return result;
@@ -282,31 +374,6 @@ namespace Opc.Ua.PubSub.Server
                             AssetVerificationResultEnum.Match or
                             AssetVerificationResultEnum.Compatible or
                             AssetVerificationResultEnum.Mismatch))
-                    {
-                        result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
-                        return result;
-                    }
-                }
-                if (verifyFunctionalEntities)
-                {
-                    bool hasExpectedVariables = false;
-                    for (int i = 0; i < endpoints.Count; i++)
-                    {
-                        ConnectionEndpointConfigurationDataType endpoint = endpoints[i];
-                        hasExpectedVariables |= !endpoint.ExpectedVerificationVariables.IsEmpty;
-                        if (endpoint.ConnectionEndpoint.SwitchField !=
-                                ConnectionEndpointDefinitionDataTypeFields.Node ||
-                            endpoint.ConnectionEndpoint.Node.IsNull ||
-                            !endpoint.ControlGroups.IsEmpty ||
-                            !endpoint.ConfigurationData.IsEmpty ||
-                            (endpoint.CommunicationLinks is not null &&
-                                endpoint.CommunicationLinks.GetType() != typeof(CommunicationLinkConfigurationDataType)))
-                        {
-                            result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
-                            return result;
-                        }
-                    }
-                    if (!hasExpectedVariables)
                     {
                         result.ServiceResult = new ServiceResult(StatusCodes.BadInvalidArgument);
                         return result;
@@ -425,6 +492,40 @@ namespace Opc.Ua.PubSub.Server
                         result.ServiceResult = new ServiceResult(StatusCodes.Uncertain);
                     }
                 }
+
+                if (!aborted && hasLifecycleCommands && connectionLifecycle is { } lifecycle)
+                {
+                    PubSubFxEstablishConnectionsResult lifecycleResult =
+                        await lifecycle.EstablishConnectionsAsync(
+                            context,
+                            component,
+                            commandMask,
+                            endpoints,
+                            result.ConnectionEndpointConfigurationResults,
+                            result.ReserveCommunicationIdsResults,
+                            configurations,
+                            cancellationToken).ConfigureAwait(false);
+                    if (lifecycleResult is null)
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadUnexpectedError);
+                        return result;
+                    }
+                    if (lifecycleResult.ConnectionEndpointConfigurationResults.IsNull ||
+                        lifecycleResult.ConnectionEndpointConfigurationResults.Count != endpoints.Count ||
+                        (setCommunicationConfiguration
+                            ? lifecycleResult.CommunicationConfigurationResults.IsNull ||
+                                lifecycleResult.CommunicationConfigurationResults.Count != 1
+                            : !lifecycleResult.CommunicationConfigurationResults.IsEmpty))
+                    {
+                        result.ServiceResult = new ServiceResult(StatusCodes.BadUnexpectedError);
+                        return result;
+                    }
+                    result.ConnectionEndpointConfigurationResults =
+                        lifecycleResult.ConnectionEndpointConfigurationResults;
+                    result.CommunicationConfigurationResults =
+                        lifecycleResult.CommunicationConfigurationResults;
+                    result.ServiceResult = lifecycleResult.ServiceResult;
+                }
             }
             catch (ServiceResultException exception)
             {
@@ -515,7 +616,7 @@ namespace Opc.Ua.PubSub.Server
             ArrayOf<NodeIdValuePair> expectedVariables = endpoint.ExpectedVerificationVariables;
             if (expectedVariables.IsEmpty)
             {
-                result.ConnectionEndpointId = endpoint.ConnectionEndpoint.Node;
+                result.ConnectionEndpointId = GetConnectionEndpointNodeId(endpoint);
                 result.VerificationStatus = StatusCodes.GoodNoData;
                 return result;
             }
@@ -562,9 +663,19 @@ namespace Opc.Ua.PubSub.Server
                 (verificationResult != FunctionalEntityVerificationResultEnum.NotSet ||
                     verificationErrors.IsEmpty))
             {
-                result.ConnectionEndpointId = endpoint.ConnectionEndpoint.Node;
+                result.ConnectionEndpointId = GetConnectionEndpointNodeId(endpoint);
             }
             return result;
+        }
+
+        /// <summary>
+        /// Returns the existing endpoint NodeId when the union selects its Node member.
+        /// </summary>
+        private static NodeId GetConnectionEndpointNodeId(ConnectionEndpointConfigurationDataType endpoint)
+        {
+            return endpoint.ConnectionEndpoint.SwitchField == ConnectionEndpointDefinitionDataTypeFields.Node
+                ? endpoint.ConnectionEndpoint.Node
+                : NodeId.Null;
         }
 
         /// <summary>

@@ -51,8 +51,8 @@ namespace Microsoft.Extensions.DependencyInjection
     {
         /// <summary>
         /// Registers injectable Part 81 reservation methods for host-owned AutomationComponents.
-        /// A host lifecycle capability registered with <see cref="WithFxConnectionLifecycle"/> is also used
-        /// to bind the component's <c>CloseConnections</c> Method.
+        /// A host lifecycle capability registered with <see cref="WithFxConnectionLifecycle"/> handles
+        /// endpoint lifecycle commands and the component's <c>CloseConnections</c> Method.
         /// </summary>
         [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
             UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
@@ -70,7 +70,8 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the host-owned, list-level lifecycle transaction used by Part 81 <c>CloseConnections</c>.
+        /// Registers the host-owned lifecycle capability used by Part 81 endpoint commands and
+        /// <c>CloseConnections</c>.
         /// </summary>
         /// <param name="builder">PubSub server builder.</param>
         /// <param name="lifecycle">Host implementation that authorizes and transacts endpoint lifecycle.</param>

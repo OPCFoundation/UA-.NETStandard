@@ -42,9 +42,10 @@ structures. `PubSubReserveCommunicationIds2DataType` and
 
 `Opc.Ua.PubSub.Server` provides the experimental `PubSubFxReservationMethods`
 binding for the `VerifyAssetCmd`, `VerifyFunctionalEntityCmd`, and
-`ReserveCommunicationIdsCmd` commands of `EstablishConnections`. It can also
-bind `CloseConnections` to a host-owned `IPubSubFxConnectionLifecycle`
-transaction. The host implements that capability because it owns the endpoint
+`ReserveCommunicationIdsCmd` commands of `EstablishConnections`. It can
+delegate the remaining `EstablishConnections` commands and bind
+`CloseConnections` to a host-owned `IPubSubFxConnectionLifecycle`
+implementation. The host supplies that capability because it owns the endpoint
 nodes, ConnectionManager authorization, and shared-resource ownership. The
 binding delegates
 asset verification to each addressed `IAssetRevisionType.VerifyAsset` method,
@@ -84,23 +85,32 @@ The server's PubSub node manager forwards Session closure to the reservation
 provider. A standalone host must perform that forwarding itself, as described
 in [PubSub communication-ID reservations](PubSubCommunicationIds.md).
 Registration does not enable configuration methods, expose the model, replace
-an existing handler, or implement endpoint creation/configuration/enablement.
+an existing handler, or provide a concrete host lifecycle implementation.
 Registering a lifecycle capability causes `Bind` to install the generated
 `CloseConnections` Method handler only when that Method has no existing handler.
+When an `EstablishConnections` call selects endpoint lifecycle commands, the
+binding invokes the same capability after all selected verification and
+reservation commands succeed. The host processes the selected endpoint
+commands in Part 81 order and returns one ordered endpoint result per request.
+The capability receives the ordered verification and communication-ID
+reservation results so the host can use reserved identifiers during endpoint
+configuration.
 
 Calls require an actual Session with the `ConfigureAdmin` role and
-`ExposeConfigurationMethods = true`. The accepted command masks are any
-non-empty combination of `VerifyAssetCmd`, `VerifyFunctionalEntityCmd`, and
-`ReserveCommunicationIdsCmd`; other command bits fail explicitly. Each set
-command requires a non-empty input array, and each unset command requires an
-empty array. `VerifyFunctionalEntityCmd` requires at least one non-empty
-`ExpectedVerificationVariables` array. Its endpoint entries must select the
-`ConnectionEndpointDefinitionDataType.Node` member; control groups,
-configuration data, and communication links must remain unset because their
-commands are not implemented by this binding. The other endpoint command
-inputs and communication-configuration inputs must also remain empty. A call
-is limited to 128 combined asset-verification, endpoint-verification, and
-reservation requests.
+`ExposeConfigurationMethods = true`. The binding accepts non-empty
+combinations of the nine defined `EstablishConnections` command bits. A
+command that creates or changes endpoints requires a registered
+`IPubSubFxConnectionLifecycle`; without one, those command bits fail with
+`BadInvalidState` before verification or reservation begins. Each selected
+command requires its input, and each unselected command requires an empty
+input. `VerifyFunctionalEntityCmd` requires at least one non-empty
+`ExpectedVerificationVariables` array. Endpoint definitions select the Node
+member unless `CreateConnectionEndpointCmd` supplies a Parameter member.
+`ControlGroups`, `ConfigurationData`, and `CommunicationLinks` are accepted
+only with their corresponding control, configuration-data, or communication
+configuration commands. `SetCommunicationConfigurationCmd` requires one
+communication-configuration input. A call is limited to 128 combined
+asset-verification, endpoint, and reservation requests.
 
 Asset verification preserves input order, invokes each asset's
 `VerifyAsset` method with the supplied mode and expected-variable arrays, and
@@ -231,25 +241,27 @@ Generated C# is produced during compilation and is not checked in.
 ## Implementation boundary
 
 These are model contracts, not a complete ConnectionManager or
-AutomationComponent lifecycle implementation. The binding above provides only
-the documented verification and reservation operations; applications remain
-responsible for authorization, lifecycle orchestration, endpoint association,
-enablement, status binding, persistence and cleanup according to Part 81 and
-their selected Part 84 profiles. Loading a model or completing a Method call is
-not evidence of valid PubSub DataSet reception or UAFX conformance.
+AutomationComponent lifecycle implementation. The binding above implements
+verification and reservation and delegates endpoint lifecycle commands to an
+optional host capability. Applications remain responsible for supplying that
+capability and for endpoint association, status binding, persistence, and
+cleanup according to Part 81 and their selected Part 84 profiles. Loading a
+model or completing a Method call is not evidence of valid PubSub DataSet
+reception or UAFX conformance.
 
 `Opc.Ua.PubSub.Server` can load these declarations into its node manager when
 `PubSubServerOptions.ExposeFxModel` is enabled. This is opt-in and registers
 the generated encodeable types and the DI, FX Data, AutomationComponent, and
 ConnectionManager namespaces. Model exposure alone does not bind
 `EstablishConnections` or `CloseConnections`. The binding above implements
-asset and functional-entity verification plus communication-ID reservation;
-`CloseConnections` is delegated to the optional host transaction. Endpoint
-creation, control, configuration, and enablement remain unimplemented.
+asset and functional-entity verification plus communication-ID reservation.
+`EstablishConnections` endpoint commands and `CloseConnections` are delegated
+to the optional host capability. This package does not provide a concrete host
+lifecycle implementation for endpoint creation, control, configuration, or
+enablement.
 
 The experimental [Data Channel binding](DataChannels.md) provides the
 `ConfigureUafx` transport-configuration bridge. It does not install Part 81
 configuration or grant a ConnectionManager authority over authenticated data
-peers. The `EstablishConnections` binding above supports asset verification,
-functional-entity verification, and communication-ID reservation only; it does
-not implement endpoint creation, control, configuration, or enablement.
+peers. A host lifecycle capability must still implement and authorize the
+endpoint operations delegated by `EstablishConnections` and `CloseConnections`.
