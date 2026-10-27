@@ -331,13 +331,6 @@ namespace Opc.Ua.Client.Tests
                 harness.Manager, harness.Configuration, primary, updateBeforeConnect: false,
                 engineFactory: ClassicSubscriptionEngineFactory.Instance, timeProvider: clock,
                 ct: cancellation.Token).ConfigureAwait(false);
-            session.KeepAlive += (current, args) =>
-            {
-                if (current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
-                {
-                    completedKeepAlives.Writer.TryWrite(args);
-                }
-            };
             session.MinPublishRequestCount = 1;
             session.MaxPublishRequestCount = 1;
             session.EnableTokenReuseFailover = recovery == "token";
@@ -370,6 +363,14 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(session.Reconnecting, Is.True);
                 Assert.That(session.GoodPublishRequestCount, Is.Zero,
                     "The old Publish must finish while recovery owns admission, without refilling itself.");
+                session.KeepAlive += (current, args) =>
+                {
+                    if (args.Status == null &&
+                        current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                    {
+                        completedKeepAlives.Writer.TryWrite(args);
+                    }
+                };
                 activation.Release();
                 await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.SessionId, Is.EqualTo(sessionId));
