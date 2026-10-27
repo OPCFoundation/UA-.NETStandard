@@ -228,12 +228,35 @@ namespace Opc.Ua.Server
             m_pendingTransforms.Clear();
             m_overflowPositions.Clear();
             m_overflowAtStart = false;
+            ConditionEventsLost = false;
         }
 
         /// <summary>
         /// True if the queue is overflowing, i.e. an EventQueueOverflowEventType event is pending.
         /// </summary>
         public bool Overflow => m_overflowAtStart || m_overflowPositions.Count > 0;
+
+        /// <summary>
+        /// Classifies the handle of an event as a Condition event.
+        /// </summary>
+        internal Func<object?, bool>? IsConditionEvent { get; set; }
+
+        /// <summary>
+        /// True if a Condition event was discarded because of a queue overflow and no
+        /// RefreshRequired event was sent for it yet (OPC 10000-9 5.11.4).
+        /// </summary>
+        internal bool ConditionEventsLost { get; set; }
+
+        /// <summary>
+        /// Records an event that was discarded because the queue overflowed.
+        /// </summary>
+        internal void TrackDiscardedEvent(object? handle)
+        {
+            if (handle != null && IsConditionEvent != null && IsConditionEvent(handle))
+            {
+                ConditionEventsLost = true;
+            }
+        }
 
         /// <summary>
         /// Checks the last 1k queue entries if the event is already in there
@@ -325,13 +348,15 @@ namespace Opc.Ua.Server
                 if (!m_discardOldest)
                 {
                     // the incoming event is lost.
+                    TrackDiscardedEvent(fields.Handle);
                     ReportDiscardedEvents(1);
                     throw new InvalidOperationException(
                         "Queue is full and no discarding of old values is allowed");
                 }
-                if (m_eventQueue.Dequeue(out _))
+                if (m_eventQueue.Dequeue(out EventFieldList discarded))
                 {
                     RemovePendingTransforms(1, true);
+                    TrackDiscardedEvent(discarded.Handle);
                 }
                 ReportDiscardedEvents(1);
             }
@@ -393,6 +418,7 @@ namespace Opc.Ua.Server
                     // the event cannot be expressed with the current select clauses: it is
                     // lost, which the client learns from an overflow event at its position.
                     m_discardedEventHandler?.Invoke();
+                    TrackDiscardedEvent(fields.Handle);
                     eventsDropped = true;
                     if (!m_discardOldest)
                     {
