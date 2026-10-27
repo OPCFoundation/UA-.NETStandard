@@ -96,6 +96,12 @@ namespace Opc.Ua.Di.Server
         /// <summary>Resources retained until the next explicit drain or manager disposal.</summary>
         private readonly List<IAsyncDisposable> m_resources = [];
 
+        /// <summary>The latest resource drain, joined by overlapping drains and shutdown.</summary>
+        private Task m_resourceDrain = Task.CompletedTask;
+
+        /// <summary>Whether final shutdown has closed resource registration.</summary>
+        private bool m_resourceRegistrationClosed;
+
         /// <summary>Distinguishes runtime registration from initial model loading.</summary>
         private bool m_modelsLoaded;
         private readonly HashSet<SoftwareLoadingMode> m_softwareUpdateLoadingModes = [];
@@ -374,6 +380,7 @@ namespace Opc.Ua.Di.Server
         /// </summary>
         /// <param name="resource">The resource to release with the manager.</param>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException">Final manager shutdown has started.</exception>
         public void RegisterResource(IAsyncDisposable resource)
         {
             if (resource == null)
@@ -382,6 +389,10 @@ namespace Opc.Ua.Di.Server
             }
             lock (m_resourceGate)
             {
+                if (m_resourceRegistrationClosed)
+                {
+                    throw new ObjectDisposedException(nameof(DiNodeManager));
+                }
                 if (!m_resources.Exists(registered => ReferenceEquals(registered, resource)))
                 {
                     m_resources.Add(resource);
@@ -565,17 +576,67 @@ namespace Opc.Ua.Di.Server
         /// <summary>
         /// Releases the registered resources, newest first. Repeated calls release only resources
         /// registered since the previous call, and a failure does not prevent the remaining releases.
+        /// Overlapping drains await the preceding batch and include its failures.
         /// </summary>
         /// <exception cref="AggregateException">One or more resources failed to release.</exception>
-        public async ValueTask DisposeResourcesAsync()
+        public ValueTask DisposeResourcesAsync()
+        {
+            return DrainResourcesAsync(closeRegistration: false);
+        }
+
+        /// <summary>
+        /// Releases companion resources before the manager itself, even if a resource fails.
+        /// Closes registration atomically with the final snapshot and joins pending explicit drains.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            try
+            {
+                await DrainResourcesAsync(closeRegistration: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Captures a batch and publishes its completion before invoking any resource callbacks.
+        /// </summary>
+        private ValueTask DrainResourcesAsync(bool closeRegistration)
         {
             IAsyncDisposable[] resources;
+            Task preceding;
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (m_resourceGate)
             {
+                m_resourceRegistrationClosed |= closeRegistration;
+                preceding = m_resourceDrain.IsCompleted ? Task.CompletedTask : m_resourceDrain;
                 resources = [.. m_resources];
                 m_resources.Clear();
+                m_resourceDrain = completion.Task;
             }
+            _ = CompleteResourceDrainAsync(preceding, resources, completion);
+            return new ValueTask(completion.Task);
+        }
+
+        /// <summary>
+        /// Awaits the previous batch, attempts every resource, and shares the combined result.
+        /// </summary>
+        private static async Task CompleteResourceDrainAsync(
+            Task preceding,
+            IAsyncDisposable[] resources,
+            TaskCompletionSource<bool> completion)
+        {
             List<Exception>? errors = null;
+            try
+            {
+                await preceding.ConfigureAwait(false);
+            }
+            catch (AggregateException ex)
+            {
+                errors = [.. ex.InnerExceptions];
+            }
             for (int ii = resources.Length - 1; ii >= 0; ii--)
             {
                 try
@@ -589,22 +650,12 @@ namespace Opc.Ua.Di.Server
             }
             if (errors != null)
             {
-                throw new AggregateException("Releasing the resources of the node manager failed.", errors);
+                completion.TrySetException(
+                    new AggregateException("Releasing the resources of the node manager failed.", errors));
             }
-        }
-
-        /// <summary>
-        /// Releases companion resources before the manager itself, even if a resource fails.
-        /// </summary>
-        protected override async ValueTask DisposeAsyncCore()
-        {
-            try
+            else
             {
-                await DisposeResourcesAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                await base.DisposeAsyncCore().ConfigureAwait(false);
+                completion.TrySetResult(true);
             }
         }
 
@@ -1471,6 +1522,9 @@ namespace Opc.Ua.Di.Server
     /// </summary>
     internal static partial class DiNodeManagerLog
     {
+        /// <summary>
+        /// Reports a failure to remove a device during creation rollback.
+        /// </summary>
         [LoggerMessage(EventId = DiServerEventIds.DiNodeManager + 0, Level = LogLevel.Error,
             Message = "Could not remove device '{Name}' after its creation failed.")]
         public static partial void DeviceRollbackFailed(this ILogger logger, Exception ex, string? name);

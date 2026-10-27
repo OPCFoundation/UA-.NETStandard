@@ -145,16 +145,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken = cancellationToken;
             }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the reader runtime shared by callbacks for this owner.
+            /// </summary>
             public AutoIdRuntime Runtime { get; }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the DI owner hosting the reader runtime.
+            /// </summary>
             public DiNodeManager Manager => Runtime.Manager;
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the current configuration cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken { get; }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Resolves a required service from the hosting container.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return m_services.GetRequiredService<T>();

@@ -39,7 +39,6 @@ covers cross-cutting changes.
 - [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
-- [Composing AutoID with Machinery](#composing-autoid-with-machinery)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
   - [Asynchronous as default](#asynchronous-as-default)
   - [Observability](#observability)
@@ -1069,18 +1068,6 @@ fails with `Bad_WriteNotSupported` without the received timestamps and remembers
   definition for structures without fields, and sets the `DefaultEncodingId` of concrete
   structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
   subtype; NodeSet export writes only those fields.
-
-## Composing AutoID with Machinery
-
-- **Package split.** `AddAutoIdToMachinery` moved to the new package
-  `OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server`, so `Opc.Ua.AutoID.Server` no longer
-  depends on `Opc.Ua.Machinery.Server`. Add the package and rebuild; the extension-method
-  call is unchanged. Code that calls the static class directly uses
-  `OpcUaAutoIdMachineryExtensions.AddAutoIdToMachinery`.
-- **Rename.** `AutoIdMachineryModelProvider` is now `AutoIdModelProvider`, a plain
-  `IDiModelProvider`. Register it with `AddAutoIdModel` on any DI owner.
-- **Ordering.** `ConfigureAutoIdFor<T>` now runs after the Machinery configuration of the same node
-  manager. Register your `ConfigureMachineryFor<T>` callbacks before it.
 
 ## Migrating from 1.05.377 to 1.05.378
 

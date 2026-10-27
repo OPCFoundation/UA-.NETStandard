@@ -133,6 +133,61 @@ namespace Opc.Ua.Di.Tests
             });
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ManagerShutdownJoinsInFlightDrainAndRejectsLateRegistrationAsync(
+            bool fail, bool concurrentDrain)
+        {
+            DiNodeManager manager = CreateManager();
+            var failure = new InvalidOperationException("blocked cleanup failed");
+            var resource = new BlockingResource(fail ? failure : null);
+            manager.RegisterResource(resource);
+            Task firstDrain = manager.DisposeResourcesAsync().AsTask();
+            Task? nextDrain = concurrentDrain ? manager.DisposeResourcesAsync().AsTask() : null;
+            Task shutdown = manager.DisposeAsync().AsTask();
+            var lateResource = new Probe("late", []);
+            try
+            {
+                Assert.That(firstDrain.IsCompleted, Is.False);
+                Assert.That(nextDrain?.IsCompleted, Is.Not.True);
+                Assert.That(shutdown.IsCompleted, Is.False);
+                Assert.Throws<ObjectDisposedException>(() => manager.RegisterResource(lateResource));
+            }
+            finally
+            {
+                resource.Release();
+            }
+            if (fail)
+            {
+                AggregateException firstError = (await Assert.ThrowsAsync<AggregateException>(
+                    () => firstDrain).ConfigureAwait(false))!;
+                Assert.That(firstError.Flatten().InnerExceptions, Does.Contain(failure));
+                if (nextDrain != null)
+                {
+                    AggregateException nextError = (await Assert.ThrowsAsync<AggregateException>(
+                        () => nextDrain).ConfigureAwait(false))!;
+                    Assert.That(nextError.Flatten().InnerExceptions, Does.Contain(failure));
+                }
+                AggregateException shutdownError = (await Assert.ThrowsAsync<AggregateException>(
+                    () => shutdown).ConfigureAwait(false))!;
+                Assert.That(shutdownError.Flatten().InnerExceptions, Does.Contain(failure));
+            }
+            else
+            {
+                await firstDrain.ConfigureAwait(false);
+                if (nextDrain != null)
+                {
+                    await nextDrain.ConfigureAwait(false);
+                }
+                await shutdown.ConfigureAwait(false);
+            }
+            Assert.Throws<ObjectDisposedException>(() => manager.RegisterResource(lateResource));
+            Assert.That(lateResource.Count, Is.Zero);
+            Assert.That(resource.Count, Is.EqualTo(1));
+        }
+
         [Test]
         public async Task TryOrganizeUnderAddsCorrectBidirectionalOrganizesReferencesAsync()
         {
@@ -262,18 +317,63 @@ namespace Opc.Ua.Di.Tests
             return references;
         }
 
+        /// <summary>
+        /// Exposes node indexing for organization tests.
+        /// </summary>
         private sealed class OrganizationManager(
             IServerInternal server,
             ApplicationConfiguration configuration) : DiNodeManager(server, configuration)
         {
+            /// <summary>
+            /// Indexes a test node in this manager.
+            /// </summary>
             public ValueTask AddForTestAsync(NodeState node) => AddPredefinedNodeAsync(node);
         }
 
+        /// <summary>
+        /// Keeps cleanup pending until the test releases it.
+        /// </summary>
+        private sealed class BlockingResource(Exception? failure) : IAsyncDisposable
+        {
+            /// <summary>
+            /// Gets the number of cleanup attempts.
+            /// </summary>
+            public int Count { get; private set; }
+
+            /// <summary>
+            /// Waits for release, then reports any injected cleanup failure.
+            /// </summary>
+            public async ValueTask DisposeAsync()
+            {
+                Count++;
+                await m_release.Task.ConfigureAwait(false);
+                if (failure != null)
+                {
+                    throw failure;
+                }
+            }
+
+            /// <summary>
+            /// Allows pending cleanup to complete.
+            /// </summary>
+            public void Release() => m_release.TrySetResult(true);
+
+            /// <summary>The deterministic cleanup gate.</summary>
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// Records resource cleanup order and optional failures.
+        /// </summary>
         private sealed class Probe : IAsyncDisposable
         {
             private readonly List<string> m_trace;
             private readonly Exception? m_error;
 
+            /// <summary>
+            /// Creates a resource with a trace label and an optional failure.
+            /// </summary>
             public Probe(string label, List<string> trace, Exception? error = null)
             {
                 Label = label;
@@ -281,9 +381,19 @@ namespace Opc.Ua.Di.Tests
                 m_error = error;
             }
 
+            /// <summary>
+            /// Gets the label recorded when cleanup is attempted.
+            /// </summary>
             public string Label { get; }
+
+            /// <summary>
+            /// Gets the number of cleanup attempts.
+            /// </summary>
             public int Count { get; private set; }
 
+            /// <summary>
+            /// Records cleanup and returns any injected failure.
+            /// </summary>
             public ValueTask DisposeAsync()
             {
                 Count++;
@@ -291,7 +401,14 @@ namespace Opc.Ua.Di.Tests
                 return m_error == null ? default : new ValueTask(Task.FromException(m_error));
             }
 
+            /// <summary>
+            /// Compares labels so tests distinguish value equality from resource identity.
+            /// </summary>
             public override bool Equals(object? obj) => obj is Probe probe && probe.Label == Label;
+
+            /// <summary>
+            /// Gets the hash of the equality label.
+            /// </summary>
             public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(Label);
         }
     }

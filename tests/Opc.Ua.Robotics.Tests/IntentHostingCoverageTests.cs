@@ -61,7 +61,7 @@ namespace Opc.Ua.Robotics.Tests
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task RobotIntentFactoriesMergeNeutralProvidersWithoutDuplicatingFamilyInstances(
+        public async Task RobotIntentFactoriesLeaveNeutralProvidersToTheDiOwnerAsync(
             bool hosted,
             bool neutralFirst)
         {
@@ -73,15 +73,21 @@ namespace Opc.Ua.Robotics.Tests
             {
                 builder.AddDiModel<RecordingDiProvider>();
             }
-            builder.AddRobotIntent();
+            builder.AddOpcUaDi().AddRobotIntent();
             builder.AddDiModel<RecordingDiProvider>().AddDiModel<RecordingDiProvider>();
             var family = new Mock<IRobotIntentModelProvider>();
             family.SetupGet(model => model.Order).Returns(200);
             family.SetupGet(model => model.NamespaceUris).Returns(s_familyNamespaceUris);
             family.Setup(model => model.AddPredefinedNodes(
                     It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()))
-                .Callback<NodeStateCollection, ISystemContext>((nodes, _) =>
-                    Assert.That(nodes.Any(node => node.SymbolicName == "NeutralProvider"), Is.True));
+                .Callback<NodeStateCollection, ISystemContext>((nodes, context) =>
+                {
+                    int diIndex = context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi);
+                    bool hasDeviceSet = diIndex >= 0 && nodes.Any(node =>
+                        node.NodeId == new NodeId(Di.Objects.DeviceSet, (ushort)diIndex));
+                    Assert.That(nodes.Any(node => node.SymbolicName == "NeutralProvider"), Is.EqualTo(hasDeviceSet));
+                });
+            services.AddSingleton(family.Object);
             services.AddSingleton(family.Object);
             services.AddSingleton<IDiModelProvider>(family.Object);
             using ServiceProvider provider = services.BuildServiceProvider();
@@ -91,10 +97,10 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(factory.NamespacesUris.ToArray(),
                 Is.SupersetOf(new[]
                 {
-                    RecordingDiProvider.NamespaceUri,
                     "urn:test:robot-intent:family",
                     global::Opc.Ua.RobotIntent.Namespaces.RobotIntent
                 }));
+            Assert.That(factory.NamespacesUris.ToArray(), Does.Not.Contain(RecordingDiProvider.NamespaceUri));
 
             await using var manager = (RobotIntentNodeManager)await factory.CreateAsync(
                 fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
@@ -104,18 +110,23 @@ namespace Opc.Ua.Robotics.Tests
                 .Single(model => model is RecordingDiProvider);
             Assert.Multiple(() =>
             {
-                Assert.That(neutral.Calls, Is.EqualTo(1));
-                Assert.That(neutral.BuiltInNodesLoaded, Is.True);
+                Assert.That(neutral.Calls, Is.Zero);
                 Assert.That(provider.GetServices<IDiModelProvider>()
                     .Count(model => model is RecordingDiProvider), Is.EqualTo(1));
                 Assert.That(provider.GetRequiredService<IRobotIntentModelProvider>(), Is.SameAs(family.Object));
                 Assert.That(manager.FindPredefinedNode<NodeState>(new NodeId(
                     "NeutralProvider",
                     manager.SystemContext.NamespaceUris.GetIndexOrAppend(RecordingDiProvider.NamespaceUri)))
-                    ?.SymbolicName, Is.EqualTo("NeutralProvider"));
+                    ?.SymbolicName, Is.Null);
             });
             family.Verify(model => model.AddPredefinedNodes(
                 It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()), Times.Once);
+
+            await using var diOwner = (DiNodeManager)await provider.GetRequiredService<DiNodeManagerFactory>()
+                .CreateAsync(fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
+            await diOwner.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            Assert.That(neutral.Calls, Is.EqualTo(1));
+            Assert.That(neutral.BuiltInNodesLoaded, Is.True);
         }
 
         public sealed class RecordingDiProvider : IDiModelProvider
@@ -133,7 +144,9 @@ namespace Opc.Ua.Robotics.Tests
             public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
             {
                 Calls++;
-                BuiltInNodesLoaded = nodes.Count > 0;
+                BuiltInNodesLoaded = nodes.Any(node => node.NodeId == NodeId.Create(
+                    Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, context.NamespaceUris));
+                Assert.That(BuiltInNodesLoaded, Is.True, "Neutral providers require the actual DI owner's DeviceSet.");
                 nodes.Add(new BaseObjectState(null)
                 {
                     NodeId = new NodeId("NeutralProvider", context.NamespaceUris.GetIndexOrAppend(NamespaceUri)),

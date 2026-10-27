@@ -154,20 +154,39 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
+        /// <summary>
+        /// Exposes the standalone Pumps owner through the shared DI setup context.
+        /// </summary>
         private sealed class PumpsSetupContext : IPumpsSetupContext
         {
+            /// <summary>
+            /// Creates a Pumps context backed by the owner's DI context.
+            /// </summary>
             public PumpsSetupContext(PumpsNodeManager manager, IDiPostSetupContext context)
             {
                 Manager = manager;
                 DiContext = context;
             }
 
+            /// <summary>
+            /// Gets the standalone Pumps owner.
+            /// </summary>
             public PumpsNodeManager Manager { get; }
 
+            /// <summary>
+            /// Gets the shared context used for DI configuration.
+            /// </summary>
             public IDiPostSetupContext DiContext { get; }
 
+            /// <summary>
+            /// Gets the owner's setup cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken => DiContext.CancellationToken;
 
+            /// <summary>
+            /// Resolves a required service from the owner's context.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return DiContext.GetRequiredService<T>();

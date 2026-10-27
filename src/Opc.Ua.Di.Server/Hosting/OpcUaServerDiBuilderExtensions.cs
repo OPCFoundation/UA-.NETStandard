@@ -53,9 +53,9 @@ namespace Microsoft.Extensions.DependencyInjection
     /// services.AddOpcUa()
     ///         .AddServer(o => { ... })
     ///         .AddOpcUaDi()                         // plain DI manager
-    ///         .ConfigureDevicesFor&lt;DiNodeManager&gt;(ctx =&gt;
+    ///         .ConfigureDevicesFor&lt;DiNodeManager&gt;(async ctx =&gt;
     ///         {
-    ///             ctx.CreateDeviceAsync(...).AsTask().Wait();
+    ///             await ctx.CreateDeviceAsync(...);
     ///         });
     /// </code>
     /// <para>
@@ -133,6 +133,79 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers a companion model and a synchronous configuration callback for a DI owner.
+        /// </summary>
+        /// <typeparam name="TProvider">The companion model provider.</typeparam>
+        /// <typeparam name="TNodeManager">The owner type targeted by the callback.</typeparam>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Configures instances after the owner's models are loaded.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <remarks>
+        /// Model registration is shared by all DI owners and deduplicated by provider type.
+        /// Each call adds a callback in registration order. Register the owner's configuration
+        /// before dependent companion callbacks.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// The builder or configuration callback is null.
+        /// </exception>
+        public static IOpcUaServerBuilder AddDiModel<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider,
+            TNodeManager>(
+                this IOpcUaServerBuilder builder,
+                Action<IDiPostSetupContext> configure)
+            where TProvider : class, IDiModelProvider
+            where TNodeManager : DiNodeManager
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            return builder.AddDiModel<TProvider, TNodeManager>(context =>
+            {
+                configure(context);
+                return default;
+            });
+        }
+
+        /// <summary>
+        /// Registers a companion model and an awaited configuration callback for a DI owner.
+        /// </summary>
+        /// <typeparam name="TProvider">The companion model provider.</typeparam>
+        /// <typeparam name="TNodeManager">The owner type targeted by the callback.</typeparam>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Configures instances after the owner's models are loaded.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <remarks>
+        /// Callbacks run in registration order with <c>ConfigureDevicesFor</c> callbacks.
+        /// Exceptions abort startup. The callback receives services and cancellation through its context.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// The builder or configuration callback is null.
+        /// </exception>
+        public static IOpcUaServerBuilder AddDiModel<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider,
+            TNodeManager>(
+                this IOpcUaServerBuilder builder,
+                Func<IDiPostSetupContext, ValueTask> configure)
+            where TProvider : class, IDiModelProvider
+            where TNodeManager : DiNodeManager
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            return builder.AddDiModel<TProvider>().ConfigureDevicesFor<TNodeManager>(configure);
+        }
+
+        /// <summary>
         /// Gets the model providers a DI-owning node manager of a companion family
         /// should load: the providers registered for the family plus the plain
         /// <see cref="IDiModelProvider"/> registrations made with
@@ -161,8 +234,16 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(adapt));
             }
-            var result = new List<TFamily>(services.GetServices<TFamily>());
-            var seen = new List<IDiModelProvider>(result);
+            var result = new List<TFamily>();
+            var seen = new List<IDiModelProvider>();
+            foreach (TFamily family in services.GetServices<TFamily>())
+            {
+                if (!seen.Exists(existing => ReferenceEquals(existing, family)))
+                {
+                    seen.Add(family);
+                    result.Add(family);
+                }
+            }
             foreach (IDiModelProvider plain in services.GetServices<IDiModelProvider>())
             {
                 if (!seen.Exists(existing => ReferenceEquals(existing, plain)))
@@ -251,6 +332,9 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             private readonly Func<IDiPostSetupContext, ValueTask> m_configure;
 
+            /// <summary>
+            /// Creates a registration for a callback and its target owner type.
+            /// </summary>
             public DelegateDiPostSetupConfigurator(
                 Type targetManagerType,
                 Func<IDiPostSetupContext, ValueTask> configure)
@@ -261,8 +345,14 @@ namespace Microsoft.Extensions.DependencyInjection
                     ?? throw new ArgumentNullException(nameof(configure));
             }
 
+            /// <summary>
+            /// Gets the owner type matched by the post-setup runner.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the registered callback with the owner's context.
+            /// </summary>
             public ValueTask RunAsync(IDiPostSetupContext context)
             {
                 return m_configure(context);

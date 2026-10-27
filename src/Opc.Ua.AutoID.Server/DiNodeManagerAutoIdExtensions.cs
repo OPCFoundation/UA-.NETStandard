@@ -72,7 +72,7 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Load the AutoID model on the owner with AddAutoIdModel (or AddAutoIdToMachinery) " +
+                    "Load the AutoID model on the owner with AddAutoIdModel or AddDiModel<AutoIdModelProvider> " +
                     "before creating readers.");
             }
             AutoIdRuntime runtime = s_runtimes.GetValue(

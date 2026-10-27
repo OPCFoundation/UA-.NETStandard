@@ -10,7 +10,6 @@ tag access methods and diagnostics events.
 | --- | --- |
 | `Opc.Ua.AutoID` | The information model: node states, DataTypes, identifiers, encodeables and client proxies |
 | `Opc.Ua.AutoID.Server` | Reader hosting on the Device Integration node manager, a provider contract for the reader hardware, the OPC 30010 methods and events, simulated readers |
-| `Opc.Ua.AutoID.Machinery.Server` | Optional `AddAutoIdToMachinery` integration with the Machinery owner |
 | `Opc.Ua.AutoID.Client` | Reader discovery, typed scan and tag calls, device snapshots and an asynchronous stream of events |
 | `Opc.Ua.Mcp.AutoID` | Nine bounded MCP tools; no tool changes a tag |
 
@@ -128,7 +127,7 @@ owns the DI namespace. Readers are therefore hosted in one of two ways:
 - `AddAutoId` registers a node manager of its own that loads the DI and AutoID
   models and creates one device per reader below `DeviceSet`. Use it when AutoID
   is the only DI-based companion of the server.
-- `AddAutoIdToMachinery` loads the AutoID model into the Machinery node manager
+- `AddAutoIdModel` loads the AutoID model into the Machinery node manager
   of `AddMachinery`, which then owns DI for every companion of the server; the
   readers are created in that manager, below the same `DeviceSet` as the
   machines, pumps or scales. See
@@ -189,8 +188,7 @@ owners would each load their own copy of `DeviceSet`, the server would route
 `DeviceSet` to the first one, and readers created in the second one would not
 be browsable.
 
-To host readers next to machines, install
-`OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server` and call `AddAutoIdToMachinery` after
+To host readers next to machines, call `AddAutoIdModel` after
 `AddMachinery` and create the readers with `ConfigureAutoIdFor<TNodeManager>`.
 Other Machinery-based companions compose into the same owner:
 
@@ -208,7 +206,7 @@ services.AddOpcUa()
         options.InstanceNamespaceUri = "urn:acme:plant:instances";
     })
     .AddPumpsToMachinery()                       // optional, any *ToMachinery companion
-    .AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.FromSeconds(10))
+    .AddAutoIdModel(options => options.MaximumScanDuration = TimeSpan.FromSeconds(10))
     .ConfigureMachinery(async (machinery, ct) =>
     {
         await machinery.AddMachine(new QualifiedName("Press1", machinery.InstanceNamespaceIndex))
@@ -241,17 +239,20 @@ services.AddOpcUa()
 | Lifetime | The owner disposes the runtime on shutdown: scans stop, providers detach, owned providers are disposed |
 
 Successive `ConfigureAutoIdFor<MachineryNodeManager>` delegates run in
-registration order in the DI post-setup pipeline, after Machinery configuration,
-and share one `AutoIdRuntime`; `context.Manager` is the Machinery
+registration order in the DI post-setup pipeline. Register Machinery configuration first;
+then the reader callbacks run after it and share one `AutoIdRuntime`.
+`context.Manager` is the Machinery
 owner. `ConfigureAutoIdFor<AutoIdNodeManager>` works with `AddAutoId` and
 receives the stand-alone runtime, so configuration code can be shared by both
-hosting paths. The optional integration package references `Opc.Ua.Machinery.Server`;
-`Opc.Ua.AutoID.Server` references only the Machinery model for component
+hosting paths. `Opc.Ua.AutoID.Server` references only the Machinery model for component
 identification. A stand-alone server loads only the DI and AutoID models.
 
 For a plain DI owner, use `AddOpcUaDi().AddAutoIdModel()` and
-`ConfigureAutoIdFor<DiNodeManager>`. The [composition guide](DiCompanionComposition.md)
-describes model providers shared with other owners.
+`ConfigureAutoIdFor<DiNodeManager>`. The
+[DI hosting guide](DeviceIntegration.md#composing-companion-models) describes
+`AddDiModel<AutoIdModelProvider, TNodeManager>(configure)`, which combines model
+registration with an owner-targeted callback. The same helper accepts other companion
+providers and DI-derived owners without another integration package.
 
 ### Placement
 
@@ -285,7 +286,7 @@ machine (OPC 40001-1 11.1 leaves that to the domain specifications), and a
 reader is a component of a machine only when the application asks for it.
 
 `AsComponentOf` needs AutoID composed into the Machinery owner
-(`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
+(`AddMachinery().AddAutoIdModel()` or a DI owner that loads the Machinery model) and a
 machine of that owner that publishes the `Components` add-in, here built with
 `WithComponents`. The runtime finds the add-in through the `HasAddIn` reference
 from the machine's `MachineryBuildingBlocks` folder (OPC 40001-1 7.1).

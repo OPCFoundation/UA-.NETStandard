@@ -20,15 +20,14 @@ services.AddOpcUa()
 
 `AddAutoId` owns the Device Integration namespace and cannot be combined with
 `AddOpcUaDi`, `AddMachinery` or another DI owner. To host readers next to
-machines and other Machinery-based companions, add the
-`OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server` package and compose AutoID into the
+machines and other Machinery-based companions, compose AutoID into the
 Machinery node manager instead; the readers then share its `DeviceSet`:
 
 ```csharp
 services.AddOpcUa()
     .AddServer(options => { /* application name, endpoints, PKI */ })
     .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
-    .AddAutoIdToMachinery()
+    .AddAutoIdModel()
     .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
     {
         await context.Runtime
@@ -39,7 +38,10 @@ services.AddOpcUa()
 
 `AddOpcUaDi().AddAutoIdModel()` hosts readers on the plain DI owner without
 the Machinery server package; use `ConfigureAutoIdFor<DiNodeManager>` there.
-With Machinery, AutoID callbacks run after the Machinery configuration.
+Register Machinery configuration before AutoID callbacks so machines exist when
+readers attach to them. The generic
+`AddDiModel<AutoIdModelProvider, TNodeManager>(configure)` helper combines model
+registration with an owner-targeted callback without an integration package.
 
 Every reader stays reachable from the DI `DeviceSet` (OPC 10000-100 4.9).
 `WithParent` places it below another node; if DeviceSet cannot reach it,

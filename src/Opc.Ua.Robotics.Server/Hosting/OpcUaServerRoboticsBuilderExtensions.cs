@@ -313,13 +313,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Associates Robotics configuration with its exact DI owner type.
+        /// </summary>
         private interface IRoboticsConfigurationRegistration
         {
+            /// <summary>
+            /// Gets the exact DI owner type for this registration.
+            /// </summary>
             Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Applies the registration to the owner's Robotics build context.
+            /// </summary>
             ValueTask ConfigureAsync(IRoboticsBuildContext context);
         }
 
+        /// <summary>
+        /// Invokes a delegate in the Robotics configuration pipeline.
+        /// </summary>
         private sealed class DelegateRoboticsConfigurationRegistration
             : IRoboticsConfigurationRegistration
         {
@@ -328,6 +340,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken,
                 ValueTask> m_configure;
 
+            /// <summary>
+            /// Creates a callback registration for the specified DI owner type.
+            /// </summary>
             public DelegateRoboticsConfigurationRegistration(
                 Type targetManagerType,
                 Func<IRoboticsBuildContext, CancellationToken, ValueTask> configure)
@@ -336,25 +351,44 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this callback.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask ConfigureAsync(IRoboticsBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);
             }
         }
 
+        /// <summary>
+        /// Resolves a service-based Robotics configurator for the specified owner type.
+        /// </summary>
+        /// <typeparam name="TConfigurator">The registered configurator service type.</typeparam>
         private sealed class ClassRoboticsConfigurationRegistration<TConfigurator>
             : IRoboticsConfigurationRegistration
             where TConfigurator : class, IRoboticsConfigurator
         {
+            /// <summary>
+            /// Creates a configurator registration for the specified DI owner type.
+            /// </summary>
             public ClassRoboticsConfigurationRegistration(Type targetManagerType)
             {
                 TargetManagerType = targetManagerType;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this configurator.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Resolves and invokes the configurator with the owner's build context.
+            /// </summary>
             public ValueTask ConfigureAsync(IRoboticsBuildContext context)
             {
                 return context.GetRequiredService<TConfigurator>().ConfigureAsync(
@@ -363,6 +397,10 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Records that the Robotics pipeline is registered once for this DI owner type.
+        /// </summary>
+        /// <typeparam name="TNodeManager">The DI owner type.</typeparam>
         private sealed class RoboticsPipelineMarker<TNodeManager>
             where TNodeManager : DiNodeManager;
 

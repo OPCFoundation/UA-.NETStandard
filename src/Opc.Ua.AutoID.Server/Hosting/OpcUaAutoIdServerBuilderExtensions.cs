@@ -56,7 +56,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// server. To host readers next to machines or other DI based companions, call
         /// <see cref="OpcUaAutoIdCompositionExtensions.AddAutoIdModel"/> after the owner's
         /// registration instead: the readers are then created in that owner. For Machinery use
-        /// <c>AddAutoIdToMachinery</c> from the <c>Opc.Ua.AutoID.Machinery.Server</c> package.
+        /// <c>AddDiModel&lt;AutoIdModelProvider, TNodeManager&gt;</c> with a configuration callback.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the AutoID options.</param>
@@ -79,7 +79,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.ClaimDiAddressSpace(
                 nameof(AddAutoId),
-                "Compose the readers into the owner with AddAutoIdModel (AddAutoIdToMachinery for Machinery) " +
+                "Compose the readers into the owner with AddAutoIdModel " +
                 "and ConfigureAutoIdFor<TNodeManager>(), or load the AutoID model into the existing manager " +
                 "with nodes.AddAutoIdTypeSystem(context) and create the readers with " +
                 "manager.CreateAutoIdRuntime().");
@@ -154,22 +154,44 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
+        /// <summary>
+        /// Exposes the standalone AutoID owner through the shared DI setup context.
+        /// </summary>
         private sealed class AutoIdSetupContext : IAutoIdSetupContext
         {
+            /// <summary>
+            /// Creates an AutoID context backed by the owner's DI context.
+            /// </summary>
             public AutoIdSetupContext(AutoIdNodeManager manager, IDiPostSetupContext context)
             {
                 Manager = manager;
                 DiContext = context;
             }
 
+            /// <summary>
+            /// Gets the standalone AutoID owner.
+            /// </summary>
             public AutoIdNodeManager Manager { get; }
 
+            /// <summary>
+            /// Gets the reader runtime owned by the node manager.
+            /// </summary>
             public AutoIdRuntime Runtime => Manager.Runtime;
 
+            /// <summary>
+            /// Gets the shared context used for DI configuration.
+            /// </summary>
             public IDiPostSetupContext DiContext { get; }
 
+            /// <summary>
+            /// Gets the owner's setup cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken => DiContext.CancellationToken;
 
+            /// <summary>
+            /// Resolves a required service from the owner's context.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return DiContext.GetRequiredService<T>();

@@ -71,7 +71,7 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(exception.Message, Does.Contain("already owned by 'AddMachinery'"));
                 Assert.That(exception.Message,
-                    Does.Contain(nameof(OpcUaAutoIdMachineryExtensions.AddAutoIdToMachinery)),
+                    Does.Contain(nameof(OpcUaAutoIdCompositionExtensions.AddAutoIdModel)),
                     "the failure names the way out");
                 Assert.That(builder.Services.Count(d => d.ServiceType == typeof(AutoIdNodeManagerFactory)), Is.Zero);
             });
@@ -90,13 +90,13 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
-        public void AddAutoIdToMachineryKeepsTheMachineryOwnerAndRegistersOneProvider()
+        public void AddAutoIdModelKeepsTheMachineryOwnerAndRegistersOneProvider()
         {
             IOpcUaServerBuilder builder = CreateServerBuilder();
             builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
                 .AddPumpsToMachinery()
-                .AddAutoIdToMachinery(options => options.MaximumTagReadLength = 128)
-                .AddAutoIdToMachinery();
+                .AddAutoIdModel(options => options.MaximumTagReadLength = 128)
+                .AddAutoIdModel();
 
             using ServiceProvider services = builder.Services.BuildServiceProvider();
             Assert.Multiple(() =>
@@ -121,9 +121,8 @@ namespace Opc.Ua.AutoID.Tests
             IOpcUaServerBuilder builder = CreateServerBuilder();
             Assert.Multiple(() =>
             {
-                Assert.Throws<InvalidOperationException>(() => builder.AddAutoIdToMachinery());
                 Assert.Throws<ArgumentNullException>(
-                    () => OpcUaAutoIdMachineryExtensions.AddAutoIdToMachinery(null!));
+                    () => OpcUaAutoIdCompositionExtensions.AddAutoIdModel(null!));
                 Assert.Throws<ArgumentNullException>(
                     () => OpcUaAutoIdCompositionExtensions.ConfigureAutoIdFor<MachineryNodeManager>(
                         null!, (_, _) => default));
@@ -131,9 +130,23 @@ namespace Opc.Ua.AutoID.Tests
             });
             builder.AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks);
             Assert.Throws<ArgumentOutOfRangeException>(
-                () => builder.AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.Zero));
+                () => builder.AddAutoIdModel(options => options.MaximumScanDuration = TimeSpan.Zero));
             Assert.That(builder.Services.Any(d => d.ImplementationType == typeof(AutoIdModelProvider)),
                 Is.False, "a rejected registration adds no model");
+        }
+
+        [Test]
+        public void AutoIdModelCanBeRegisteredBeforeAnyOwner()
+        {
+            IOpcUaServerBuilder builder = CreateServerBuilder();
+
+            builder.AddAutoIdModel().AddOpcUaDi();
+
+            using ServiceProvider services = builder.Services.BuildServiceProvider();
+            Assert.That(services.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                Is.EqualTo("AddOpcUaDi"));
+            Assert.That(services.GetServices<Opc.Ua.Di.Server.IDiModelProvider>().Single(),
+                Is.TypeOf<AutoIdModelProvider>());
         }
 
         [Test]
@@ -185,7 +198,7 @@ namespace Opc.Ua.AutoID.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
-                Assert.That(error.Message, Does.Contain("AddAutoIdToMachinery"));
+                Assert.That(error.Message, Does.Contain("AddAutoIdModel"));
                 Assert.Throws<ArgumentNullException>(() => DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime(null!));
             });
         }

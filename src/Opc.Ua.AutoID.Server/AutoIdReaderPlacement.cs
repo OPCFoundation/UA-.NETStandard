@@ -72,7 +72,7 @@ namespace Opc.Ua.AutoID.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "The reader '{0}' cannot be a component of a machine: AutoID is not composed with " +
-                    "Machinery. Register it with AddAutoIdToMachinery, or load the Machinery model into " +
+                    "Machinery. Register the owner with AddMachinery, or load the Machinery model into " +
                     "the Device Integration owner.",
                     readerName);
             }

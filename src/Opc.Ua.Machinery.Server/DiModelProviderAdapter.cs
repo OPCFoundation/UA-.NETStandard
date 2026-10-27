@@ -36,23 +36,38 @@ namespace Opc.Ua.Machinery.Server
     /// </summary>
     internal sealed class DiModelProviderAdapter : IMachineryModelProvider
     {
-        private readonly IDiModelProvider m_provider;
-
+        /// <summary>
+        /// Creates an adapter for the registered provider instance.
+        /// </summary>
         public DiModelProviderAdapter(IDiModelProvider provider)
         {
             m_provider = provider;
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the wrapped provider's model loading order.
+        /// </summary>
         public int Order => m_provider.Order;
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the namespaces contributed by the wrapped provider.
+        /// </summary>
         public ArrayOf<string> NamespaceUris => m_provider.NamespaceUris;
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the original provider type used to break model ordering ties.
+        /// </summary>
+        internal System.Type ProviderType => m_provider.GetType();
+
+        /// <summary>
+        /// Loads predefined nodes through the wrapped provider.
+        /// </summary>
         public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
         {
             m_provider.AddPredefinedNodes(nodes, context);
         }
+
+        /// <summary>The registered provider instance.</summary>
+        private readonly IDiModelProvider m_provider;
     }
 }

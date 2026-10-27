@@ -38,7 +38,7 @@ namespace Opc.Ua.AutoID.Server
     /// Device Integration model its core provider loads.
     /// </summary>
     /// <remarks>
-    /// Registered with <c>AddAutoIdModel</c> or <c>AddAutoIdToMachinery</c>. Only the AutoID nodes
+    /// Registered with <c>AddAutoIdModel</c> or the generic <c>AddDiModel</c> helper. Only the AutoID nodes
     /// are added: the DI nodes the owner loaded already are kept, so DI is loaded once however
     /// many companions are composed.
     /// </remarks>

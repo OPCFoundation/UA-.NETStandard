@@ -56,7 +56,6 @@ namespace Opc.Ua.Tools.Tests
         [
             "OPCFoundation.NetStandard.Opc.Ua.AutoID",
             "OPCFoundation.NetStandard.Opc.Ua.AutoID.Client",
-            "OPCFoundation.NetStandard.Opc.Ua.AutoID.Machinery.Server",
             "OPCFoundation.NetStandard.Opc.Ua.AutoID.Server",
             "OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID"
         ];
@@ -106,10 +105,10 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// AutoID ships the model, server, client, optional Machinery integration and MCP packages.
+        /// AutoID ships the model, server, client and MCP packages without a registration-only package.
         /// </summary>
         [Test]
-        public async Task ExpectedPackageInventoryContainsTheFiveAutoIdPackagesAsync()
+        public async Task ExpectedPackageInventoryContainsTheFourAutoIdPackagesAsync()
         {
             string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);

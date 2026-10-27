@@ -96,9 +96,8 @@ namespace Opc.Ua.AutoID.Tests
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task MachineryCallbacksCompleteBeforeAutoIdCallbackAsync(bool registerAutoIdCallbackFirst)
+        [Test]
+        public async Task MachineryCallbacksCompleteBeforeAutoIdCallbackAsync()
         {
             var services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa()
@@ -114,27 +113,6 @@ namespace Opc.Ua.AutoID.Tests
             var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             object? machineryMarker = null;
             object? markerObservedByAutoId = null;
-            void AddAutoIdConfigurator()
-            {
-                builder.ConfigureAutoIdFor<MachineryNodeManager>((context, _) =>
-                {
-                    trace.Add("autoid");
-                    markerObservedByAutoId = machineryMarker;
-                    Assert.That(context.Manager, Is.TypeOf<MachineryNodeManager>());
-                    return default;
-                });
-            }
-
-            if (registerAutoIdCallbackFirst)
-            {
-                AddAutoIdConfigurator();
-                builder.AddAutoIdToMachinery();
-            }
-            else
-            {
-                builder.AddAutoIdToMachinery();
-            }
-
             builder.ConfigureMachineryFor<MachineryNodeManager>(async (_, _) =>
             {
                 trace.Add("machinery-start");
@@ -149,10 +127,14 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(machineryMarker, Is.Not.Null);
                 return default;
             });
-            if (!registerAutoIdCallbackFirst)
+            builder.AddDiModel<AutoIdModelProvider, MachineryNodeManager>(context =>
             {
-                AddAutoIdConfigurator();
-            }
+                trace.Add("autoid");
+                markerObservedByAutoId = machineryMarker;
+                Assert.That(context.Manager, Is.TypeOf<MachineryNodeManager>());
+                Assert.That(context.Manager.CreateAutoIdRuntime().Manager, Is.SameAs(context.Manager));
+                return default;
+            });
 
             using ServiceProvider provider = services.BuildServiceProvider();
             Mock<IServerInternal> server = CreateOfflineServer();

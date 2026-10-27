@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -101,9 +102,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                Opc.Ua.ArrayOf<IVisionModelProvider> providers = services
-                    .GetDiModelProviders<IVisionModelProvider>(
-                        static plain => new VisionDiModelProviderAdapter(plain));
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionNodeManagerFactory(
                     providers,
                     options,
@@ -114,9 +117,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                Opc.Ua.ArrayOf<IVisionModelProvider> providers = services
-                    .GetDiModelProviders<IVisionModelProvider>(
-                        static plain => new VisionDiModelProviderAdapter(plain));
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionHostedNodeManagerFactory(
                     providers,
                     options,
@@ -374,8 +379,14 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Adapts a callback to the Vision post-setup contract.
+        /// </summary>
         private sealed class DelegateVisionConfigurator : IVisionPostSetupConfigurator
         {
+            /// <summary>
+            /// Creates a callback registration for the specified manager type.
+            /// </summary>
             public DelegateVisionConfigurator(
                 Type targetManagerType,
                 Func<IVisionBuildContext, CancellationToken, ValueTask> configure)
@@ -384,8 +395,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the manager type matched by the post-setup runner.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask RunAsync(IVisionBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);

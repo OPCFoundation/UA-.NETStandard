@@ -39,7 +39,7 @@ namespace Opc.Ua.Di.Server
     {
         /// <summary>
         /// Returns the providers ordered by <see cref="IDiModelProvider.Order"/>,
-        /// then type name, then registration order.
+        /// then type name, then registration order, retaining each instance once.
         /// </summary>
         public static ArrayOf<IDiModelProvider> Normalize(ArrayOf<IDiModelProvider> providers)
         {
@@ -48,7 +48,10 @@ namespace Opc.Ua.Di.Server
             {
                 IDiModelProvider provider = providers[ii] ??
                     throw new ArgumentException("Model providers must not contain null.", nameof(providers));
-                indexed.Add((provider, ii));
+                if (!indexed.Exists(entry => ReferenceEquals(entry.Provider, provider)))
+                {
+                    indexed.Add((provider, ii));
+                }
             }
             indexed.Sort(static (x, y) =>
             {

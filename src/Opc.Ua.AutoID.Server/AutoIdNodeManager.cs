@@ -47,7 +47,7 @@ namespace Opc.Ua.AutoID.Server
     /// and, through <see cref="AutoIdModelProvider"/>, AutoID, owns the
     /// <see cref="AutoIdRuntime"/> that creates the readers below the <c>DeviceSet</c>, and disposes
     /// it on shutdown. To combine AutoID with other companions, compose it into their owner
-    /// instead (<c>AddAutoIdModel</c>, or <c>AddAutoIdToMachinery</c> for Machinery).
+    /// instead with <c>AddAutoIdModel</c> and a typed configuration callback.
     /// </remarks>
     public sealed class AutoIdNodeManager : DiNodeManager
     {

@@ -197,6 +197,24 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task MachineAdoptionAfterExplicitDrainRearmsOwnerCleanupAsync()
+        {
+            DiNodeManager manager = CreateDiManager();
+            MachineryBuildCoordinator coordinator = MachineryBuildCoordinator.Get(manager);
+            var trace = new List<string>();
+            for (int batch = 0; batch < 3; batch++)
+            {
+                var resource = new Probe("batch" + batch, trace);
+                await AdoptResourceAsync(manager, coordinator, resource, "machine" + batch).ConfigureAwait(false);
+                await manager.DisposeResourcesAsync().ConfigureAwait(false);
+                Assert.That(resource.Count, Is.EqualTo(1));
+                Assert.That(coordinator.ResourceCount, Is.Zero);
+            }
+            Assert.That(trace, Is.EqualTo(new List<string> { "batch0", "batch1", "batch2" }));
+            await manager.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task CoordinatorRejectsNullManagerAndAcceptsEmptyAdoptionAsync()
         {
             ArgumentNullException managerError = Assert.Throws<ArgumentNullException>(
@@ -218,12 +236,13 @@ namespace Opc.Ua.Machinery.Tests
         private static async Task AdoptResourceAsync(
             DiNodeManager manager,
             MachineryBuildCoordinator coordinator,
-            IAsyncDisposable resource)
+            IAsyncDisposable resource,
+            string name = "adoption-root")
         {
             var root = new BaseObjectState(null)
             {
-                NodeId = new NodeId("adoption-root", 1),
-                BrowseName = new QualifiedName("AdoptionRoot")
+                NodeId = new NodeId(name, 1),
+                BrowseName = new QualifiedName(name)
             };
             await manager.AddPredefinedNodeAsync(root).ConfigureAwait(false);
             await coordinator.AdoptMachineResourcesAsync(manager, root, [resource]).ConfigureAwait(false);
@@ -268,11 +287,17 @@ namespace Opc.Ua.Machinery.Tests
             ServerConfiguration = new ServerConfiguration()
         };
 
+        /// <summary>
+        /// Records resource cleanup order and optional failures.
+        /// </summary>
         private sealed class Probe : IAsyncDisposable
         {
             private readonly List<string> m_trace;
             private readonly Exception? m_error;
 
+            /// <summary>
+            /// Creates a resource with a trace label and an optional failure.
+            /// </summary>
             public Probe(string label, List<string> trace, Exception? error = null)
             {
                 Label = label;
@@ -280,9 +305,19 @@ namespace Opc.Ua.Machinery.Tests
                 m_error = error;
             }
 
+            /// <summary>
+            /// Gets the label recorded when cleanup is attempted.
+            /// </summary>
             public string Label { get; }
+
+            /// <summary>
+            /// Gets the number of cleanup attempts.
+            /// </summary>
             public int Count { get; private set; }
 
+            /// <summary>
+            /// Records cleanup and returns any injected failure.
+            /// </summary>
             public ValueTask DisposeAsync()
             {
                 Count++;

@@ -861,7 +861,9 @@ namespace Opc.Ua.Scales.Server
                 m_owner = owner;
             }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Returns this construction to the runtime's active-operation count.
+            /// </summary>
             public void Dispose()
             {
                 m_owner.EndCreation();

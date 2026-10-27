@@ -56,14 +56,7 @@ namespace Opc.Ua.Machinery.Server
                 throw new ArgumentNullException(nameof(manager));
             }
 
-            return s_managerCoordinators.GetValue(
-                manager,
-                static owner =>
-                {
-                    var coordinator = new MachineryBuildCoordinator();
-                    owner.RegisterResource(new ResourceCleanup(coordinator));
-                    return coordinator;
-                });
+            return GetCleanup(manager).Coordinator;
         }
 
         /// <summary>
@@ -367,38 +360,73 @@ namespace Opc.Ua.Machinery.Server
             }
         }
 
+        /// <summary>
+        /// Gets the stable owner registration shared across explicit cleanup batches.
+        /// </summary>
+        private static ResourceCleanup GetCleanup(DiNodeManager manager)
+        {
+            return s_managerCoordinators.GetValue(manager, static _ => new ResourceCleanup());
+        }
+
         private static readonly ConditionalWeakTable<
             DiNodeManager,
-            MachineryBuildCoordinator> s_managerCoordinators = new();
+            ResourceCleanup> s_managerCoordinators = new();
         private readonly Dictionary<ushort, NamespaceNodeIdReservations>
             m_nodeIdReservations = [];
         private readonly Dictionary<NodeId, HashSet<QualifiedName>>
             m_rootBrowseNameReservations = [];
         private readonly List<IAsyncDisposable> m_resources = [];
+
         private readonly Lock m_lock = new();
 
         /// <summary>
-        /// Connects the shared coordinator's resource registry to its DI owner's lifetime.
+        /// Keeps the cached coordinator and its reusable owner registration together.
         /// </summary>
-        private sealed class ResourceCleanup(MachineryBuildCoordinator coordinator) : IAsyncDisposable
+        private sealed class ResourceCleanup : IAsyncDisposable
         {
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the coordinator shared by all batches for this owner.
+            /// </summary>
+            public MachineryBuildCoordinator Coordinator { get; } = new();
+
+            /// <summary>
+            /// Releases the current machine batch when the DI owner drains its resources.
+            /// </summary>
             public ValueTask DisposeAsync()
             {
-                return coordinator.DisposeResourcesAsync();
+                return Coordinator.DisposeResourcesAsync();
             }
         }
+
+        /// <summary>
+        /// Tracks live and reserved node identifiers in one instance namespace.
+        /// </summary>
         private sealed class NamespaceNodeIdReservations
         {
+            /// <summary>
+            /// Gets the identifiers reserved for in-progress or live nodes.
+            /// </summary>
             public HashSet<NodeId> NodeIds { get; } = [];
 
+            /// <summary>
+            /// Gets the weak owner references used to reclaim expired reservations.
+            /// </summary>
             public Dictionary<NodeId, WeakReference<NodeState>> Owners { get; } = [];
 
+            /// <summary>
+            /// Gets or sets the last allocated numeric identifier.
+            /// </summary>
             public uint LastUsedNodeId { get; set; }
         }
 
+        /// <summary>
+        /// Releases a root BrowseName reservation once when disposed.
+        /// </summary>
         private sealed class RootBrowseNameReservation : IDisposable
         {
+            /// <summary>
+            /// Creates a reservation for a BrowseName beneath the specified parent.
+            /// </summary>
             public RootBrowseNameReservation(
                 MachineryBuildCoordinator coordinator,
                 NodeId parentNodeId,
@@ -409,6 +437,9 @@ namespace Opc.Ua.Machinery.Server
                 m_browseName = browseName;
             }
 
+            /// <summary>
+            /// Returns the BrowseName to the coordinator's available names.
+            /// </summary>
             public void Dispose()
             {
                 MachineryBuildCoordinator? coordinator =
