@@ -87,9 +87,11 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// The acknowledgement of the notification message this change
-        /// arrived in. Confirm it with
-        /// <see cref="ISessionAcknowledgements.Confirm"/> once the change was
-        /// processed when the session acknowledges after confirmation.
+        /// arrived in. All changes and events of one message share this
+        /// handle, and confirming it acknowledges the whole message. When the
+        /// session acknowledges after confirmation, call
+        /// <see cref="ISessionAcknowledgements.Confirm"/> only once every
+        /// change and event that carries the same handle was processed.
         /// </summary>
         public AcknowledgementHandle Acknowledgement { get; init; }
     }
@@ -128,7 +130,9 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// The acknowledgement of the notification message this event
-        /// arrived in. See <see cref="DataValueChange.Acknowledgement"/>.
+        /// arrived in, shared by all changes and events of the message.
+        /// Confirm it only once all of them were processed; see
+        /// <see cref="DataValueChange.Acknowledgement"/>.
         /// </summary>
         public AcknowledgementHandle Acknowledgement { get; init; }
     }

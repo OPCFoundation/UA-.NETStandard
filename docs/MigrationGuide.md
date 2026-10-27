@@ -1149,7 +1149,8 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .UseEndpoint(endpoint)
     .AcknowledgeAfterConfirmation()
     .ConnectAsync(ct).ConfigureAwait(false);
-// in the notification handler, once the change was delivered downstream:
+// in the notification handler, once every change and event of the message (they share
+// change.Acknowledgement) was delivered downstream:
 session.Confirm(change.Acknowledgement);
 ```
 

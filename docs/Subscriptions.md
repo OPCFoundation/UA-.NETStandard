@@ -458,7 +458,11 @@ public async ValueTask OnDataChangeNotificationAsync(ISubscription subscription,
 ```
 
 Every `DataValueChange` and `EventNotification` carries the handle of the message it arrived
-in. On the classic engine, `Subscription.TryGetAcknowledgementHandle(notification, out handle)`
+in. A message can contain several data change and event payloads, delivered in separate
+handler calls that all carry the same handle; confirming the handle acknowledges the whole
+message, so confirm it only after all of them were processed. The example above assumes one
+payload per message; with several, count the payloads per handle before confirming.
+On the classic engine, `Subscription.TryGetAcknowledgementHandle(notification, out handle)`
 returns it for a notification the fast callbacks received. A classic `Subscription` served by
 the default V2 engine (the compatibility path) has no handle, because that path does not
 track its acknowledgements. Until it is confirmed, the server

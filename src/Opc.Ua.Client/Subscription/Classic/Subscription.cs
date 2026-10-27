@@ -858,7 +858,8 @@ namespace Opc.Ua.Client
         /// subscription engine tracks the acknowledgement, which it does when the session has
         /// an acknowledgement configuration (for example
         /// <see cref="AcknowledgementMode.AfterConfirmation"/>). A classic subscription served
-        /// by the default V2 engine has no handles.
+        /// by the default V2 engine has no handles. All notifications of one message share the
+        /// handle; confirm it only after all of them were processed.
         /// </summary>
         /// <param name="notification">The notification the callback received.</param>
         /// <param name="handle">The acknowledgement of the message it arrived in.</param>
