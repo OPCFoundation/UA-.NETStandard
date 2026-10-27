@@ -199,6 +199,35 @@ namespace Opc.Ua.Gds.Tests
             m_securityPolicyUri = securityPolicyUri;
         }
 
+        /// <summary>
+        /// Compares two TrustLists ignoring the order of the entries in each list.
+        /// ReadTrustList returns the store contents in directory enumeration order,
+        /// which is not stable across a rewrite of the store (on Linux it follows
+        /// the file name hash), so an order-sensitive compare fails as soon as a
+        /// list holds more than one entry.
+        /// </summary>
+        private static bool AreEquivalent(TrustListDataType expected, TrustListDataType actual)
+        {
+            return expected.SpecifiedLists == actual.SpecifiedLists &&
+                AreEquivalent(expected.TrustedCertificates, actual.TrustedCertificates) &&
+                AreEquivalent(expected.TrustedCrls, actual.TrustedCrls) &&
+                AreEquivalent(expected.IssuerCertificates, actual.IssuerCertificates) &&
+                AreEquivalent(expected.IssuerCrls, actual.IssuerCrls);
+
+            static bool AreEquivalent(ArrayOf<ByteString> expected, ArrayOf<ByteString> actual)
+            {
+                return expected.Count == actual.Count &&
+                    Sorted(expected).SequenceEqual(Sorted(actual), StringComparer.Ordinal);
+            }
+
+            static IEnumerable<string> Sorted(ArrayOf<ByteString> entries)
+            {
+                return (entries.ToArray() ?? [])
+                    .Select(entry => Utils.ToHexString(entry.ToArray()))
+                    .OrderBy(entry => entry, StringComparer.Ordinal);
+            }
+        }
+
         private static bool IsCurveSupported(ECCurve curve)
         {
             ECDsa? key = null;
@@ -464,13 +493,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(applyChangesRequired, Is.True);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
+            Assert.That(AreEquivalent(expectEmptyTrustList, emptyTrustList), Is.True);
             applyChangesRequired = await m_pushClient.PushClient
                 .UpdateTrustListAsync(fullTrustList).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.True);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
+            Assert.That(AreEquivalent(expectFullTrustList, fullTrustList), Is.True);
         }
 
         [Test]
@@ -493,13 +522,13 @@ namespace Opc.Ua.Gds.Tests
                 .UpdateTrustListAsync(groupId, emptyTrustList, 0).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.False);
             TrustListDataType expectEmptyTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(expectEmptyTrustList, emptyTrustList), Is.True);
+            Assert.That(AreEquivalent(expectEmptyTrustList, emptyTrustList), Is.True);
 
             applyChangesRequired = await m_pushClient.PushClient
                 .UpdateTrustListAsync(groupId, fullTrustList, 0).ConfigureAwait(false);
             Assert.That(applyChangesRequired, Is.False);
             TrustListDataType expectFullTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(expectFullTrustList, fullTrustList), Is.True);
+            Assert.That(AreEquivalent(expectFullTrustList, fullTrustList), Is.True);
         }
 
         [Test]
@@ -535,12 +564,12 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(
                 afterAddTrustList.IssuerCertificates.Count,
                 Is.EqualTo(beforeTrustList.IssuerCertificates.Count));
-            Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterAddTrustList), Is.False);
 
             await m_pushClient.PushClient.RemoveCertificateAsync(groupId, trustedCert.Thumbprint, true).ConfigureAwait(false);
 
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync(groupId).ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.True);
         }
 
         /// <summary>
@@ -593,11 +622,11 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(
                 afterAddTrustList.IssuerCertificates.Count,
                 Is.EqualTo(beforeTrustList.IssuerCertificates.Count));
-            Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterAddTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(trustedCert.Thumbprint, true).ConfigureAwait(false);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.True);
         }
 
         [Test]
@@ -613,7 +642,7 @@ namespace Opc.Ua.Gds.Tests
                 afterAddTrustList.TrustedCertificates.Count,
                 Is.GreaterThan(beforeTrustList.TrustedCertificates.Count));
             Assert.That(beforeTrustList.TrustedCrls.Count, Is.EqualTo(afterAddTrustList.TrustedCrls.Count));
-            Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterAddTrustList), Is.False);
             ServiceResultException serviceResultException = await Assert
                 .ThrowsAsync<ServiceResultException>(() =>
                     m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false).AsTask());
@@ -622,11 +651,11 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(StatusCodes.BadInvalidArgument),
                 serviceResultException.Message);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, true).ConfigureAwait(false);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.True);
         }
 
         [Test]
@@ -651,16 +680,16 @@ namespace Opc.Ua.Gds.Tests
                 afterAddTrustList.IssuerCertificates.Count,
                 Is.GreaterThan(beforeTrustList.IssuerCertificates.Count));
             Assert.That(beforeTrustList.IssuerCrls.Count, Is.EqualTo(afterAddTrustList.IssuerCrls.Count));
-            Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterAddTrustList), Is.False);
             await Assert.ThatAsync(
                 () => m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, true).AsTask(),
                 Throws.Exception).ConfigureAwait(false);
             TrustListDataType afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.False);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.False);
             await m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false).ConfigureAwait(false);
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
             afterRemoveTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
-            Assert.That(Utils.IsEqual(beforeTrustList, afterRemoveTrustList), Is.True);
+            Assert.That(AreEquivalent(beforeTrustList, afterRemoveTrustList), Is.True);
         }
 
         [Test]
