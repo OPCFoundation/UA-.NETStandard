@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -95,8 +97,29 @@ namespace Opc.Ua
                         maxRequestCount,
                         maxRequestCost,
                         decoupleHeldPublishRequests,
-                        CompleteRequest);
+                        RejectRequest);
                 }
+
+                m_meter = server.m_telemetry.CreateMeter();
+                m_rejections = m_meter.CreateCounter<long>(
+                    "opcua.server.request_queue.rejections",
+                    description: "Requests the request queue completed without running them, by status code.");
+                m_timeInQueue = m_meter.CreateHistogram<double>(
+                    "opcua.server.request_queue.time_in_queue",
+                    unit: "s",
+                    description: "Time a request waited in the request queue before it was dequeued.");
+                m_meter.CreateObservableGauge(
+                    "opcua.server.request_queue.queued",
+                    () => m_fairQueue?.Count ?? m_queue.Reader.Count,
+                    description: "Requests waiting in the request queue.");
+                m_meter.CreateObservableGauge(
+                    "opcua.server.request_queue.executing",
+                    () => Volatile.Read(ref m_activeThreadCount),
+                    description: "Requests executing and holding a worker.");
+                m_meter.CreateObservableGauge(
+                    "opcua.server.request_queue.parked",
+                    () => Math.Max(0, Volatile.Read(ref m_processingCount) - Volatile.Read(ref m_activeThreadCount)),
+                    description: "Requests parked (for example held Publish requests) after releasing their worker.");
 
                 m_workers = [];
                 m_cts = new CancellationTokenSource();
@@ -167,7 +190,8 @@ namespace Opc.Ua
                         serverStopped = m_stopped;
                         if (!serverStopped)
                         {
-                            queueFull = !m_queue.Writer.TryWrite(new QueuedRequest(request, cancellationToken));
+                            queueFull = !m_queue.Writer.TryWrite(
+                                new QueuedRequest(request, GetEnqueueTimestamp(), cancellationToken));
                             if (!queueFull &&
                                 m_totalThreadCount < m_maxThreadCount &&
                                 m_activeThreadCount >= m_totalThreadCount)
@@ -181,7 +205,7 @@ namespace Opc.Ua
 
                 if (serverStopped)
                 {
-                    CompleteRequest(request, StatusCodes.BadServerHalted);
+                    RejectRequest(request, StatusCodes.BadServerHalted);
                     return;
                 }
 
@@ -191,7 +215,7 @@ namespace Opc.Ua
                     {
                         if (!m_fairQueue.TryEnqueue(request, cancellationToken, out StatusCode error))
                         {
-                            CompleteRequest(request, error);
+                            RejectRequest(request, error);
                         }
                         else
                         {
@@ -207,9 +231,29 @@ namespace Opc.Ua
                 }
                 if (queueFull)
                 {
-                    CompleteRequest(request, StatusCodes.BadServerTooBusy);
-                    // TODO: make a metric
+                    RejectRequest(request, StatusCodes.BadServerTooBusy);
                     m_server.m_logger.RequestQueueFull(m_activeThreadCount);
+                }
+            }
+
+            /// <summary>
+            /// Takes the enqueue timestamp for the time-in-queue histogram, or 0 when
+            /// nothing listens to it.
+            /// </summary>
+            private long GetEnqueueTimestamp()
+            {
+                return m_timeInQueue.Enabled ? Stopwatch.GetTimestamp() : 0;
+            }
+
+            /// <summary>
+            /// Records how long a dequeued request waited, if its enqueue time was taken.
+            /// </summary>
+            private void RecordTimeInQueue(long enqueueTimestamp)
+            {
+                if (enqueueTimestamp != 0 && m_timeInQueue.Enabled)
+                {
+                    m_timeInQueue.Record(
+                        (double)(Stopwatch.GetTimestamp() - enqueueTimestamp) / Stopwatch.Frequency);
                 }
             }
 
@@ -268,7 +312,7 @@ namespace Opc.Ua
                 m_fairQueue?.Dispose();
                 while (m_queue.Reader.TryRead(out QueuedRequest request))
                 {
-                    CompleteRequest(request.Request, StatusCodes.BadServerHalted);
+                    RejectRequest(request.Request, StatusCodes.BadServerHalted);
                 }
                 try
                 {
@@ -294,6 +338,7 @@ namespace Opc.Ua
                 }
                 await processing.ConfigureAwait(false);
                 m_cts.Dispose();
+                m_meter.Dispose();
             }
 
             /// <summary>
@@ -323,17 +368,19 @@ namespace Opc.Ua
                                 m_server.m_logger.RequestQueueProcessingFailed(ex);
                                 continue;
                             }
-                            queued = new QueuedRequest(entry.Request, entry.CancellationToken);
+                            queued = new QueuedRequest(
+                                entry.Request, entry.EnqueueTimestamp, entry.CancellationToken);
                         }
                         else
                         {
                             queued = await m_queue.Reader.ReadAsync(ct).ConfigureAwait(false);
                         }
+                        RecordTimeInQueue(queued.EnqueueTimestamp);
                         if (ct.IsCancellationRequested || Volatile.Read(ref m_stopped) ||
                             queued.CancellationToken.IsCancellationRequested)
                         {
                             entry?.Dispose();
-                            CompleteRequest(
+                            RejectRequest(
                                 queued.Request,
                                 ct.IsCancellationRequested || Volatile.Read(ref m_stopped) ?
                                     StatusCodes.BadServerHalted : StatusCodes.BadRequestCancelledByClient);
@@ -429,7 +476,7 @@ namespace Opc.Ua
                         StatusCode status = entry.GetRevalidationStatus();
                         if (StatusCode.IsBad(status))
                         {
-                            CompleteRequest(request, status);
+                            RejectRequest(request, status);
                             return;
                         }
                     }
@@ -485,10 +532,28 @@ namespace Opc.Ua
             }
 
             /// <summary>
-            /// Couples a retained request with its caller-controlled lifetime.
+            /// Counts a request the queue completes without running it, then completes it.
+            /// </summary>
+            private void RejectRequest(IEndpointIncomingRequest request, StatusCode statusCode)
+            {
+                if (m_rejections.Enabled)
+                {
+                    // Symbolic ids are interned, so the tag allocates nothing per rejection.
+                    string? status = statusCode.SymbolicId ??
+                        (StatusCode.TryGetInternedStatusCode(statusCode.Code, out StatusCode interned) ?
+                            interned.SymbolicId : null);
+                    m_rejections.Add(1, new KeyValuePair<string, object?>("status", status ?? "Bad"));
+                }
+                CompleteRequest(request, statusCode);
+            }
+
+            /// <summary>
+            /// Couples a retained request with its caller-controlled lifetime and the
+            /// <see cref="Stopwatch"/> time it was queued (0 when not measured).
             /// </summary>
             private readonly record struct QueuedRequest(
                 IEndpointIncomingRequest Request,
+                long EnqueueTimestamp,
                 CancellationToken CancellationToken);
 
             /// <summary>
@@ -527,7 +592,23 @@ namespace Opc.Ua
             /// Worker cancellation source retained until shutdown has drained all handlers.
             /// </summary>
             private readonly CancellationTokenSource m_cts;
+
+            /// <summary>
+            /// Request queue instruments, disposed once shutdown has drained all handlers.
+            /// </summary>
+            private readonly Meter m_meter;
 #pragma warning restore CA2213
+
+            /// <summary>
+            /// Requests completed by the queue without running, tagged by status code.
+            /// </summary>
+            private readonly Counter<long> m_rejections;
+
+            /// <summary>
+            /// Time from enqueue to dequeue, in seconds.
+            /// </summary>
+            private readonly Histogram<double> m_timeInQueue;
+
             /// <summary>
             /// Worker tasks joined by asynchronous shutdown.
             /// </summary>

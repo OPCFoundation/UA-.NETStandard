@@ -2537,7 +2537,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             private int m_duplicateReleases;
         }
 
-        private class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
+        internal class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
             IResourceIsolationAdmissionEvidence
         {
             public TestProvider(

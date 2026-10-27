@@ -1115,7 +1115,13 @@ namespace Opc.Ua
                 Request = request;
                 Owner = owner;
                 CancellationToken = cancellationToken;
+                EnqueueTimestamp = Stopwatch.GetTimestamp();
             }
+
+            /// <summary>
+            /// Gets the <see cref="Stopwatch"/> time the request was admitted.
+            /// </summary>
+            internal long EnqueueTimestamp { get; }
 
             /// <summary>
             /// Retained queue slot.

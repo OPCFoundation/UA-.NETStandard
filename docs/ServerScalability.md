@@ -235,6 +235,16 @@ Guidance:
 - **Increasing the minimum worker count did not help the one-processor workload.** A `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not CPU per request or latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for the measured scheduling change. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.
 - `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that an admission limit, not the CPU, is the limit. With an isolation profile that is not necessarily the queue count: the retained request bytes, the parked-request stage or a per-owner limit reject requests the same way while queue entries are free. Check the `opcua.server.isolation.rejections` metric (its `stage` and `reason` labels) and `opcua.server.isolation.usage` before raising `MaxQueuedRequestCount`; see [transport behavior and overload signals](ResourceIsolation.md#transport-behavior-and-overload-signals).
 
+The request queue publishes these metrics in every isolation profile, on the meter named after the `Opc.Ua.Core` assembly:
+
+| Instrument | Type | Meaning |
+|---|---|---|
+| `opcua.server.request_queue.queued` | gauge | Requests waiting for a worker. |
+| `opcua.server.request_queue.executing` | gauge | Requests executing on a worker. |
+| `opcua.server.request_queue.parked` | gauge | Requests (held `Publish` requests) that parked and released their worker. |
+| `opcua.server.request_queue.time_in_queue` | histogram, s | Time from admission until a worker took the request. |
+| `opcua.server.request_queue.rejections` | counter, `status` | Requests the queue completed without running them, by status code: `BadServerTooBusy` (queue full), `BadServerHalted` (stopping), `BadRequestCancelledByClient` (cancelled while queued) or the status of a failed admission or revalidation. |
+
 ## Scaling out
 
 A single node's handshake throughput is bounded by its cores. To scale beyond one node, distribute connections across several server nodes behind a connection-distributing front end. The stack provides distributed mirroring of the address space, sessions, and subscriptions for exactly this high-availability and distributed topology.
