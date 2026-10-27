@@ -85,11 +85,13 @@ namespace Opc.Ua.Server
         /// <param name="context">The operation whose routing view owns the read.</param>
         /// <param name="state">The continuation state to capture.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        /// <param name="validateSource">Whether restoration must validate the current live source node.</param>
         /// <returns>Good if captured or not required; otherwise the reason it cannot be captured.</returns>
         internal async ValueTask<ServiceResult> CaptureHistoryContinuationAsync(
             OperationContext context,
             HistorianContinuationState state,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool validateSource = false)
         {
             if (state.Ownership.Generation is not null)
             {
@@ -97,12 +99,30 @@ namespace Opc.Ua.Server
             }
             using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             (object? handle, IAsyncNodeManager? source) = await GetManagerHandleAsync(
-                context, state.OriginNodeId, cancellationToken).ConfigureAwait(false);
+                context, state.OriginNodeId.IsNull ? state.NodeId : state.OriginNodeId, cancellationToken)
+                .ConfigureAwait(false);
             if (handle is null || source is null)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
-            state.Ownership.Generation = GetGeneration(context, source).Reference;
+            NodeManagerGeneration generation = GetGeneration(context, source);
+            if (validateSource)
+            {
+                using GenerationGate.Lease? admission = TryEnterHistoryContinuation(generation);
+                if (admission is null)
+                {
+                    return StatusCodes.BadContinuationPointInvalid;
+                }
+                NodeMetadata? metadata = await source.GetNodeMetadataAsync(
+                    context, handle, BrowseResultMask.None, cancellationToken).ConfigureAwait(false);
+                if (metadata is null)
+                {
+                    return StatusCodes.BadNodeIdUnknown;
+                }
+                state.Ownership.Generation = generation.Reference;
+                return ServiceResult.Good;
+            }
+            state.Ownership.Generation = generation.Reference;
             return ServiceResult.Good;
         }
 

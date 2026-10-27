@@ -47,7 +47,8 @@ namespace Opc.Ua.Server
             HistorianContinuationState state,
             CancellationToken cancellationToken)
         {
-            return m_serviceDispatch.CaptureHistoryContinuationAsync(context, state, cancellationToken);
+            return m_serviceDispatch.CaptureHistoryContinuationAsync(
+                context, state, cancellationToken, validateSource: true);
         }
     }
 }

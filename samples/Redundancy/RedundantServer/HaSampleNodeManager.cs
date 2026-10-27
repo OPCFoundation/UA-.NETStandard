@@ -150,7 +150,7 @@ namespace RedundantServer
     /// <summary>
     /// Minimal <see cref="FluentNodeManagerBase"/> address space that participates in distributed replication.
     /// </summary>
-    public sealed class HaSampleNodeManager : FluentNodeManagerBase
+    public sealed class HaSampleNodeManager : FluentNodeManagerBase, INodeManagerReadinessNotification
     {
         private readonly ILeaderElection m_leaderElection;
         private readonly HaSampleReplicaInfo m_replicaInfo;
@@ -311,25 +311,25 @@ namespace RedundantServer
 
             if (m_historian != null)
             {
-#pragma warning disable CA2000 // ownership transfers to the server's historian-builder registry
-                HistorianBuilder historian = new HistorianBuilder(Server)
-                    .UseProvider(m_historian);
-#pragma warning restore CA2000
-                await historian.HistorizeAsync(
-                    m_counter,
-                    SystemContext,
-                    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                    capabilities: HistorianNodeCapabilities.DataReadWrite,
-                    autoCapture: false,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                await historian.HistorizeEventsAsync(
-                    m_historyEvents,
-                    SystemContext,
-                    capabilities: HistorianNodeCapabilities.EventReadWrite with
-                    {
-                        EventTypes = [ObjectTypeIds.BaseEventType]
-                    },
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                DeferPublishedAuthoringUntilReady(builder, async (published, ct) =>
+                {
+                    HistorianBuilder historian = published.UseHistorian().UseProvider(m_historian);
+                    await historian.HistorizeAsync(
+                        m_counter,
+                        SystemContext,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        capabilities: HistorianNodeCapabilities.DataReadWrite,
+                        autoCapture: false,
+                        cancellationToken: ct).ConfigureAwait(false);
+                    await historian.HistorizeEventsAsync(
+                        m_historyEvents,
+                        SystemContext,
+                        capabilities: HistorianNodeCapabilities.EventReadWrite with
+                        {
+                            EventTypes = [ObjectTypeIds.BaseEventType]
+                        },
+                        cancellationToken: ct).ConfigureAwait(false);
+                });
             }
 
             // Registering the staged subtree and re-running the reverse
@@ -339,6 +339,12 @@ namespace RedundantServer
             await CompleteConfigureAsync(externalReferences, cancellationToken)
                 .ConfigureAwait(false);
             await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         private void AddFactoryAssignedNodes(FolderState parent, ushort namespaceIndex)

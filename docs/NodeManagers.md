@@ -1187,8 +1187,10 @@ History providers likewise need not capture or declare NodeManager dependencies;
 retired generation are rejected rather than preserving access to its provider. See
 [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).
 
-A replicated history record lets a standby clean up the original Session's state but cannot resume
-the read; the Client gets `BadContinuationPointInvalid` and starts a new read.
+A portable history record preserves the provider identity and resume token, not a process-local
+generation identity. A standby validates the provider and captures its local owning generation
+before admitting the restored cursor. Later pages still require that generation's gate to remain
+open; local retirement invalidates the cursor rather than rebinding it to a replacement.
 
 #### Namespaces
 

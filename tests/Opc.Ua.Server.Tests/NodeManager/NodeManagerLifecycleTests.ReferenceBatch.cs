@@ -44,6 +44,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Verifies that destruction removes dangling runtime links without changing a replacement's links.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredCleanupPreservesReplacementAndPrunesRemovedRuntimeReferencesAsync(bool replace)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            ushort ns = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId rootId = new(kRootNodeId, ns);
+            NodeId valueId = new(kValueNodeId, ns);
+            NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
+            var oldRoot = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(rootId, timeout.Token)
+                .ConfigureAwait(false);
+            var oldValue = (NodeHandle)await original.NodeManager.GetManagerHandleAsync(valueId, timeout.Token)
+                .ConfigureAwait(false);
+            oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, false, valueId);
+            oldValue.Node.AddReference(ReferenceTypeIds.HasComponent, true, rootId);
+            oldRoot.Node.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
+            objects.AddReference(ReferenceTypeIds.HasComponent, false, rootId);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [replace
+                    ? NodeManagerBatchChange.Replace(original, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))
+                    : NodeManagerBatchChange.Remove(original)], null, timeout.Token).ConfigureAwait(false);
+            NodeState? replacementRoot = null;
+            NodeState? replacementValue = null;
+            if (replace)
+            {
+                IAsyncNodeManager replacement = prepared.Registrations[0].NodeManager;
+                var root = (NodeHandle)await replacement.GetManagerHandleAsync(rootId, timeout.Token)
+                    .ConfigureAwait(false);
+                var value = (NodeHandle)await replacement.GetManagerHandleAsync(valueId, timeout.Token)
+                    .ConfigureAwait(false);
+                replacementRoot = root.Node;
+                replacementValue = value.Node;
+                replacementRoot.AddReference(ReferenceTypeIds.HasComponent, false, valueId);
+                replacementValue.AddReference(ReferenceTypeIds.HasComponent, true, rootId);
+                replacementRoot.AddReference(ReferenceTypeIds.HasComponent, true, ObjectIds.ObjectsFolder);
+            }
+
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.EqualTo(replace));
+            if (replace)
+            {
+                Assert.That(replacementRoot!.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, false, valueId), Is.True);
+                Assert.That(replacementValue!.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, true, rootId), Is.True);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]

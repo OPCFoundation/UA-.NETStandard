@@ -54,8 +54,8 @@ namespace Opc.Ua.Server.Historian
     /// active. The session disposes available entries on eviction or close. Checked-out
     /// entries remain owned until their request completes, fails, or is cancelled.
     /// Successor and restoration copies share the weak issuing-generation identity until the
-    /// last copy is disposed. Portable native cursors can be durably mirrored, but their
-    /// generation identity and provider tokens remain process-local.
+    /// last copy is disposed. Portable native cursors can be durably mirrored; restoration captures
+    /// the receiving server's owning generation rather than serializing a process-local generation identity.
     /// </para>
     /// </remarks>
     internal sealed class HistorianContinuationState : IHistoryContinuationPoint

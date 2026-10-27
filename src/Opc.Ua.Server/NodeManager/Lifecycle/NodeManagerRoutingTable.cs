@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Server
             ArrayOf<IAsyncNodeManager> removed,
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
             TypeTable typeTree,
-            EncodeableFactory factory,
+            EncodeableFactory? factory,
             ArrayOf<INodeManagerReadImage> readImages = default)
         {
             lock (m_lock)

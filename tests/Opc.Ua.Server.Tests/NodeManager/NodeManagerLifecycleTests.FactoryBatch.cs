@@ -321,7 +321,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.StartAsync(Path.Combine(m_pkiRoot, "foreign-factory")).ConfigureAwait(false))
                     .ConfigureAwait(false);
-                Assert.That(failure!.InnerException, Is.TypeOf<NotSupportedException>());
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                Assert.That(failure.InnerException, Is.TypeOf<ServiceResultException>());
+                var originalCause = (ServiceResultException)failure.InnerException!;
+                Assert.That(originalCause.LocalizedText.Text,
+                    Is.EqualTo("[NotSupportedException] The server factory does not support prepared publication."));
                 Assert.That(rejectedServer, Is.Not.Null);
                 Assert.That(((NodeManagerLifecycle)rejectedServer!.NodeManagerLifecycle).HasPendingShutdownCleanup,
                     Is.False, "An unsupported factory must be rejected before system generations become owned.");

@@ -230,29 +230,49 @@ namespace Opc.Ua.Server.Historian
                     return null;
                 }
 
-                HistorianContinuationState state = ReadRequest(
-                    decoder,
-                    envelope.Id,
-                    provider,
-                    kind,
-                    nodeId,
-                    providerNodeId,
-                    kind == HistorianReadKind.Annotations &&
-                    formatVersion <
-                        kAnnotationRequestNodeIdFormatVersion,
-                    (uint)formatVersion,
-                    new HistorianResumeToken(resumeToken),
-                    timestamps,
-                    string.IsNullOrEmpty(indexRangeText)
-                        ? default
-                        : NumericRange.Parse(indexRangeText),
-                    dataEncoding);
-                if (decoder.Position != envelope.Payload.Length)
+                HistorianContinuationState? state = null;
+                try
                 {
-                    state.Dispose();
-                    return null;
+                    state = ReadRequest(
+                        decoder,
+                        envelope.Id,
+                        provider,
+                        kind,
+                        nodeId,
+                        providerNodeId,
+                        kind == HistorianReadKind.Annotations &&
+                        formatVersion <
+                            kAnnotationRequestNodeIdFormatVersion,
+                        (uint)formatVersion,
+                        new HistorianResumeToken(resumeToken),
+                        timestamps,
+                        string.IsNullOrEmpty(indexRangeText)
+                            ? default
+                            : NumericRange.Parse(indexRangeText),
+                        dataEncoding);
+                    if (decoder.Position != envelope.Payload.Length)
+                    {
+                        return null;
+                    }
+                    if (m_server.NodeManager is MasterNodeManager master)
+                    {
+                        using var context = new OperationContext(
+                            new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+                        ServiceResult admission = await master.CaptureHistoryContinuationAsync(
+                            context, state, cancellationToken).ConfigureAwait(false);
+                        if (ServiceResult.IsBad(admission))
+                        {
+                            return null;
+                        }
+                    }
+                    HistorianContinuationState admitted = state;
+                    state = null;
+                    return admitted;
                 }
-                return state;
+                finally
+                {
+                    state?.Dispose();
+                }
             }
             catch (Exception exception) when (exception is
                 ServiceResultException or

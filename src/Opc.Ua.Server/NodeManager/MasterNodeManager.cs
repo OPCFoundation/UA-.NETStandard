@@ -802,7 +802,14 @@ namespace Opc.Ua.Server
             ChangePreparer.GetServer(nodeManager)?.ExcludePreparedReferences(referencesToRemove);
             if (referencesToRemove.Count > 0)
             {
-                await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);
+                if (!m_destroyedReferenceCleanup.TryGetValue(nodeManager, out DestroyedReferenceCleanupPlan? cleanup))
+                {
+                    cleanup = await PrepareDestroyedReferenceCleanupAsync(referencesToRemove, ct).ConfigureAwait(false);
+                    m_destroyedReferenceCleanup.Add(nodeManager, cleanup);
+                }
+                await cleanup.CompleteAsync(ct).ConfigureAwait(false);
+                m_destroyedReferenceCleanup.Remove(nodeManager);
+                cleanup.Dispose();
             }
             if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
             {
