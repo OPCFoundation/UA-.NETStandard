@@ -3458,6 +3458,86 @@ namespace Opc.Ua.PubSub.Server.Tests
         }
 
         [Test]
+        public async Task FxEndpointLifecycleIsSkippedWhenReservationFails()
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            EstablishConnectionsMethodState method = component.EstablishConnections!;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                new NodeId("failed-reservation-functional-entity", namespaceIndex),
+                ArrayOf<NodeIdValuePair>.Empty);
+            endpoint.ConfigurationData = [ExpectedVerificationVariable("configuration", namespaceIndex)];
+            PubSubReserveCommunicationIds2DataType request = FxRequest();
+            request.TransportProfileUri = "urn:unsupported";
+            uint commandMask = (uint)FxCommandMask.ReserveCommunicationIdsCmd |
+                (uint)FxCommandMask.SetConfigurationDataCmd;
+            new PubSubFxReservationMethods(
+                harness.Application,
+                new PubSubServerOptions { ExposeFxModel = true },
+                lifecycle.Object).Bind(component);
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    commandMask,
+                    ArrayOf<AssetVerificationDataType>.Empty,
+                    [endpoint],
+                    request)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(FxResults(harness, outputs).Single().Result, Is.EqualTo(StatusCodes.BadNotSupported));
+            lifecycle.Verify(value => value.EstablishConnectionsAsync(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AutomationComponentState>(),
+                It.IsAny<uint>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationDataType>>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationResultDataType>>(),
+                It.IsAny<ArrayOf<ReserveCommunicationIdsResultDataType>>(),
+                It.IsAny<ArrayOf<CommunicationConfigurationDataType>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Test]
+        public async Task FxEndpointLifecycleMapsHostServiceFailure()
+        {
+            await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
+            await harness.InitializeAsync().ConfigureAwait(false);
+            AutomationComponentState component = harness.CreateFxComponentWithCloseConnections();
+            EstablishConnectionsMethodState method = component.EstablishConnections!;
+            var lifecycle = new Mock<IPubSubFxConnectionLifecycle>();
+            lifecycle.Setup(value => value.EstablishConnectionsAsync(
+                It.IsAny<ISystemContext>(),
+                It.IsAny<AutomationComponentState>(),
+                It.IsAny<uint>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationDataType>>(),
+                It.IsAny<ArrayOf<ConnectionEndpointConfigurationResultDataType>>(),
+                It.IsAny<ArrayOf<ReserveCommunicationIdsResultDataType>>(),
+                It.IsAny<ArrayOf<CommunicationConfigurationDataType>>(),
+                It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadInvalidState));
+            ushort namespaceIndex = (ushort)harness.Namespaces.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            ConnectionEndpointConfigurationDataType endpoint = FxEndpoint(
+                new NodeId("failed-lifecycle-functional-entity", namespaceIndex),
+                ArrayOf<NodeIdValuePair>.Empty);
+            endpoint.ConfigurationData = [ExpectedVerificationVariable("configuration", namespaceIndex)];
+            new PubSubFxReservationMethods(
+                harness.Application,
+                new PubSubServerOptions { ExposeFxModel = true },
+                lifecycle.Object).Bind(component);
+
+            (ServiceResult result, List<Variant> outputs) = await harness.CallAsync(
+                method, harness.Context, FxArguments(
+                    (uint)FxCommandMask.SetConfigurationDataCmd,
+                    ArrayOf<AssetVerificationDataType>.Empty,
+                    [endpoint])).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(outputs, Is.Empty);
+        }
+
+        [Test]
         public async Task FxEndpointLifecycleWithoutHostCapabilityFailsClosed()
         {
             await using var harness = new Harness(options: new PubSubServerOptions { ExposeFxModel = true });
