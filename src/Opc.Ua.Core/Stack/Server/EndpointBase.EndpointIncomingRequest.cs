@@ -47,6 +47,25 @@ namespace Opc.Ua
         CancellationToken ScheduledCancellationToken { get; }
     }
 
+    /// <summary>
+    /// An incoming request that tells the request queue when it was received, so time spent
+    /// queued counts against its <see cref="RequestHeader.TimeoutHint"/>, and that accepts a
+    /// typed fault, so a queue rejection can carry a retry-after hint.
+    /// </summary>
+    internal interface IQueueAwareIncomingRequest
+    {
+        /// <summary>
+        /// The <see cref="TimeProvider.System"/> timestamp taken when the request was
+        /// received, before it was queued.
+        /// </summary>
+        long ReceivedTimestamp { get; }
+
+        /// <summary>
+        /// Completes the request with a fault built from <paramref name="error"/>.
+        /// </summary>
+        void OperationFailed(ServiceResultException error);
+    }
+
     public abstract partial class EndpointBase
     {
         /// <summary>
@@ -61,7 +80,8 @@ namespace Opc.Ua
         protected sealed class EndpointIncomingRequest :
             IParkableIncomingRequest,
             IEquatable<EndpointIncomingRequest>,
-            ILinksScheduledCancellation
+            ILinksScheduledCancellation,
+            IQueueAwareIncomingRequest
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -80,6 +100,7 @@ namespace Opc.Ua
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
                 m_lease = m_vts.Lease;
                 m_transportCancellationToken = default;
+                m_receivedTimestamp = TimeProvider.System.GetTimestamp();
             }
 
             /// <inheritdoc/>
@@ -113,10 +134,22 @@ namespace Opc.Ua
             /// <inheritdoc/>
             public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
+                // the timeout hint runs from receipt, so time spent queued counts against it
+                if (!RequestQueueBudget.TryGetRemaining(this, out TimeSpan timeout))
+                {
+                    timeout = TimeSpan.Zero;
+                }
+                else if (timeout <= TimeSpan.Zero)
+                {
+                    m_vts.TrySetResult(
+                        m_lease,
+                        m_endpoint.CreateFault(Request, new ServiceResultException(StatusCodes.BadTimeout)));
+                    return;
+                }
+
                 // one token source per request for the caller, the transport and the timeout hint
-                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
                 using var requestLifetime = new RequestLifetime(
-                    timeoutHint > 0 ? TimeSpan.FromMilliseconds(timeoutHint) : TimeSpan.Zero,
+                    timeout,
                     cancellationToken,
                     m_transportCancellationToken);
 
@@ -193,6 +226,15 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
+            void IQueueAwareIncomingRequest.OperationFailed(ServiceResultException error)
+            {
+                m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, error));
+            }
+
+            /// <inheritdoc/>
+            long IQueueAwareIncomingRequest.ReceivedTimestamp => m_receivedTimestamp;
+
+            /// <inheritdoc/>
             public override bool Equals(object? obj)
             {
                 return Equals(obj as EndpointIncomingRequest);
@@ -236,6 +278,11 @@ namespace Opc.Ua
             /// </summary>
             private readonly int m_lease;
             private readonly RequestParkSink? m_parkSink;
+
+            /// <summary>
+            /// The <see cref="TimeProvider.System"/> timestamp of receipt, before queueing.
+            /// </summary>
+            private readonly long m_receivedTimestamp;
             private CancellationToken m_transportCancellationToken;
         }
     }

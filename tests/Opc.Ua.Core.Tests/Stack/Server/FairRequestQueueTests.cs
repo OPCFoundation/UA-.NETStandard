@@ -1002,6 +1002,62 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(parked.CompletionCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Selection faults a request whose timeout hint ran out while it was queued, returns
+        /// its admission accounting and dispatches the next request instead.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DequeueTimesOutExpiredRequestAndReturnsItsAccounting(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId a = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            var expired = new QueueAwareRequest(a, 1, timeoutHint: 1000, age: TimeSpan.FromSeconds(5));
+            var withinHint = new QueueAwareRequest(a, 2, timeoutHint: 60_000, age: TimeSpan.FromSeconds(5));
+            Assert.That(queue.TryEnqueue(expired, default, out StatusCode status), Is.True, status.ToString());
+            Assert.That(queue.TryEnqueue(withinHint, default, out status), Is.True, status.ToString());
+
+            // dropping the expired head uses up the owner's attempt, like a cancelled head
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(expired.Status, Is.EqualTo(StatusCodes.BadTimeout));
+            FairRequestQueue.Entry entry = Dequeue(queue);
+            Assert.That(entry.Request, Is.SameAs(withinHint));
+            entry.Dispose();
+
+            Assert.That(expired.Status, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(queue.TryDequeue(out _), Is.False);
+            Assert.That(queue.Count, Is.Zero);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A request the fair queue rejects as too busy is faulted with a retry-after hint.
+        /// </summary>
+        [Test]
+        public async Task FairQueueFullRejectionCarriesRetryAfterAsync()
+        {
+            // the running request keeps the only request-cost unit until it completes
+            var provider = new TestProvider(costCapacity: 10);
+            NodeId a = provider.AddOwner("A");
+            using var server = new QueueServer(provider, workers: 1);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var running = new TestRequest(a);
+            server.Enqueue(running);
+            await running.Started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            var rejected = new QueueAwareRequest(a, 2);
+            server.Enqueue(rejected);
+            await rejected.Completed.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(rejected.Status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(rejected.Fault, Is.InstanceOf<ServerBusyException>());
+            Assert.That(((ServerBusyException)rejected.Fault!).RetryAfter, Is.Not.Null);
+            running.Release();
+            await server.FinishAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task StopCancelsQueuedRunningAndParkedRequestsWithoutSyncWaitingAsync(bool useFairScheduling)
@@ -2384,7 +2440,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     this, minWorkers ?? workers, workers, 100, decoupleHeldPublishRequests, provider, requestCost);
             }
 
-            public void Enqueue(TestRequest request, CancellationToken cancellationToken = default)
+            public void Enqueue(IEndpointIncomingRequest request, CancellationToken cancellationToken = default)
             {
                 m_queue.ScheduleIncomingRequest(request, cancellationToken);
             }
@@ -2416,6 +2472,55 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             private readonly RequestQueue m_queue;
+        }
+
+        /// <summary>
+        /// Reports its receipt time and accepts typed faults, as endpoint requests do.
+        /// </summary>
+        private sealed class QueueAwareRequest : IEndpointIncomingRequest, IQueueAwareIncomingRequest
+        {
+            public QueueAwareRequest(NodeId token, uint handle, uint timeoutHint = 0, TimeSpan age = default)
+            {
+                Request = new ReadRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        AuthenticationToken = token,
+                        RequestHandle = handle,
+                        TimeoutHint = timeoutHint
+                    }
+                };
+                SecureChannelContext = new SecureChannelContext("channel", null, RequestEncoding.Binary);
+                ReceivedTimestamp = TimeProvider.System.GetTimestamp() -
+                    (long)(age.TotalSeconds * TimeProvider.System.TimestampFrequency);
+            }
+
+            public IServiceRequest Request { get; }
+            public SecureChannelContext SecureChannelContext { get; }
+            public long ReceivedTimestamp { get; }
+            public StatusCode Status { get; private set; }
+            public ServiceResultException? Fault { get; private set; }
+            public TaskCompletionSource<bool> Completed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                OperationCompleted(new ReadResponse(), StatusCodes.Good);
+                return default;
+            }
+
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            {
+                Status = error.StatusCode;
+                Completed.TrySetResult(true);
+            }
+
+            public void OperationFailed(ServiceResultException error)
+            {
+                Fault = error;
+                Status = error.StatusCode;
+                Completed.TrySetResult(true);
+            }
         }
 
         private sealed class TestRequest : IParkableIncomingRequest
