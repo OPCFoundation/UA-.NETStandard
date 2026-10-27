@@ -4581,7 +4581,8 @@ namespace Opc.Ua.Server
                 Exception failure = publicationFailure is null
                     ? e
                     : new AggregateException("Startup and initial-publication cleanup failed.", e, publicationFailure);
-                var error = new ServiceResultException(StatusCodes.BadInternalError, message, failure);
+                var error = new ServiceResultException(
+                    ServiceResult.Create(failure, StatusCodes.BadInternalError, message));
                 ServerError = error.Result;
                 throw error;
             }

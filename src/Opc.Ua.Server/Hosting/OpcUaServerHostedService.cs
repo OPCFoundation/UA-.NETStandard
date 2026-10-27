@@ -804,11 +804,6 @@ namespace Opc.Ua.Server.Hosting
 
         private async ValueTask StopApplicationAsync(CancellationToken cancellationToken)
         {
-            if (m_server is not null)
-            {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
-            }
-
             IApplicationInstance? application = Interlocked.Exchange(ref m_application, null);
             if (application != null)
             {
@@ -832,7 +827,12 @@ namespace Opc.Ua.Server.Hosting
                     }
                     finally
                     {
+                        INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
                         m_server?.Dispose();
+                        if (lifecycle is not null)
+                        {
+                            m_nodeManagerLifecycle.Detach(lifecycle);
+                        }
                         m_server = null;
                     }
                 }
@@ -840,15 +840,17 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
-        /// Detaches the node-manager lifecycle and disposes the server and background service.
+        /// Disposes the server before detaching its lifecycle and disposing the background service.
         /// </summary>
         public override void Dispose()
         {
-            if (m_server is not null)
-            {
-                m_nodeManagerLifecycle.Detach(m_server.NodeManagerLifecycle);
-            }
+            INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
             m_server?.Dispose();
+            if (lifecycle is not null)
+            {
+                m_nodeManagerLifecycle.Detach(lifecycle);
+            }
+            m_server = null;
             base.Dispose();
         }
     }
