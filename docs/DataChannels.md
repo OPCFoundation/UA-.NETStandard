@@ -744,11 +744,17 @@ or empty test run is not native acceptance.
   Ordinary UADP writer selectors remain supported. This does not
   establish full source/writer association compliance or conformance to the
   current Data Channels source.
-- **WebTransport peer-STOP reset retention remains blocked.** The pinned QUIC
-  backend can discard the reliable-header boundary in its automatic STOP response.
-  The draft-16 header requirement and HTTP/3 accounting checks remain enforced.
-  A private opt-in native-policy candidate requires review and qualification
-  before adoption; observing the peer STOP alone does not satisfy this requirement.
+- **WebTransport peer-STOP retention is implemented in the pinned QUIC backend.**
+  Its overlay preserves an established reliable boundary and outstanding prefix
+  frames when peer `STOP_SENDING` arrives before local cancellation. A local
+  reset that already owns the send direction is not replaced; streams without
+  a reliable prefix retain ordinary reset behavior. The native WebTransport
+  loopback test
+  [`AcknowledgedPrefixRemainsReliableAfterPeerStop`](../tests/Opc.Ua.Bindings.WebTransport.Tests/WebTransportNativeLifecycleTests.cs)
+  covers this path. The [QUIC peer-STOP regression](../tests/Opc.Ua.Native.QuicGo.Tests/native/peer_stop_regression.py)
+  checks both opener roles, delayed peer STOP, crossed resets and a zero-error
+  STOP. These tests do not establish browser interoperability or full Part 32
+  conformance, and native qualification still requires the reviewed assets.
 - Native release signing, final-artifact advisory/SBOM evidence and minimum-host
   acceptance are separate gates. Local unsigned validation packages are not
   approved product distributions.
