@@ -774,6 +774,116 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Preserves unrelated surviving-source writes and rejects writes overlapping a retiring contribution.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedBatchReferenceReservationsRespectChangedContributionSourcesAsync(bool removeContributor)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), null, timeout.Token).ConfigureAwait(false);
+            NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
+            NodeId target = new("ConcurrentNotifier",
+                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+            NodeId root = new(kRootNodeId, target.NamespaceIndex);
+            var captured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var mutated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int armed = 0;
+            Mock<IAsyncNodeManager> probe = CreateLifecycleNodeManager(kModelNamespaceUri + ":ReferenceMutationProbe");
+            probe.As<IDisposable>();
+            probe.Setup(value => value.GetManagerHandleAsync(ObjectIds.ObjectsFolder, It.IsAny<CancellationToken>()))
+                .Returns(async (NodeId _, CancellationToken token) =>
+                {
+                    if (Interlocked.Exchange(ref armed, 0) != 0)
+                    {
+                        captured.TrySetResult(true);
+                        await mutated.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                    return null!;
+                });
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(probe.Object);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            ArrayOf<NodeManagerBatchChange> changes = removeContributor
+                ? [NodeManagerBatchChange.Remove(registration), NodeManagerBatchChange.Add(factory.Object)]
+                : [NodeManagerBatchChange.Add(factory.Object)];
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                changes, null, timeout.Token).ConfigureAwait(false);
+            Task mutation = MutateAsync();
+            int decisions = 0;
+            try
+            {
+                Volatile.Write(ref armed, 1);
+                ValueTask DecideAsync(CancellationToken _)
+                {
+                    decisions++;
+                    return default;
+                }
+                if (removeContributor)
+                {
+                    await Assert.ThatAsync(() => prepared.CommitAsync(DecideAsync, timeout.Token).AsTask(),
+                        Throws.TypeOf<InvalidOperationException>()
+                            .With.Message.StartsWith("Serving references changed during preparation."))
+                        .ConfigureAwait(false);
+                    Assert.That(decisions, Is.Zero);
+                    Assert.That(prepared.IsCommitted, Is.False);
+                }
+                else
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(DecideAsync, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    Assert.That(decisions, Is.EqualTo(1));
+                    Assert.That(prepared.IsCommitted, Is.True);
+                    Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasNotifier, false, target), Is.True,
+                        "Publishing an unchanged contribution must not install a stale full reference image.");
+                }
+                await mutation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root),
+                    Is.EqualTo(!removeContributor));
+                Assert.That(lifecycle.Registrations.Find(value => value.Id == registration.Id), Is.SameAs(registration));
+            }
+            finally
+            {
+                captured.TrySetResult(true);
+                await mutation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                objects.RemoveReference(ReferenceTypeIds.HasNotifier, false, target);
+                if (prepared.IsCommitted)
+                {
+                    NodeManagerRegistration published = lifecycle.Registrations.ToList()
+                        .Single(value => ReferenceEquals(value.NodeManager, probe.Object));
+                    await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, published, timeout.Token)
+                        .ConfigureAwait(false);
+                }
+                await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, registration, timeout.Token)
+                    .ConfigureAwait(false);
+            }
+
+            async Task MutateAsync()
+            {
+                await captured.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                try
+                {
+                    if (removeContributor)
+                    {
+                        Assert.That(objects.RemoveReference(ReferenceTypeIds.Organizes, false, root), Is.True);
+                    }
+                    else
+                    {
+                        objects.AddReference(ReferenceTypeIds.HasNotifier, false, target);
+                    }
+                }
+                finally
+                {
+                    mutated.TrySetResult(true);
+                }
+            }
+        }
+
         [Test]
         public async Task PreparedBatchReferenceImagesSurviveOrdinaryRoutingChangesAsync()
         {

@@ -464,6 +464,8 @@ namespace Opc.Ua.Server
                 ArrayOf<IReference> removals = oldReferences is null
                     ? []
                     : [.. oldReferences.Keys.Where(reference => newReferences?.ContainsKey(reference) != true)];
+                bool contributionsChanged = removals.Count != 0 ||
+                    newReferences?.Keys.Any(reference => oldReferences?.ContainsKey(reference) != true) == true;
                 var ownerNodes = new List<(IAsyncNodeManager Owner, NodeState Node)>();
                 bool hasUnsupportedOwner = false;
                 foreach (IAsyncNodeManager owner in owners)
@@ -501,8 +503,12 @@ namespace Opc.Ua.Server
                             "A prepared reference source has multiple NodeManager owners.");
                     }
                     ownerNodes.Add((owner, node));
-                    sources.Add(new PreparedReferenceSource(
-                        owner, node.PrepareReferences(additions, newOwners.Contains(owner) ? [] : removals)));
+                    bool newOwner = newOwners.Contains(owner);
+                    if (newOwner || contributionsChanged)
+                    {
+                        sources.Add(new PreparedReferenceSource(
+                            owner, node.PrepareReferences(additions, newOwner ? [] : removals)));
+                    }
                 }
                 if (hasUnsupportedOwner && ownerNodes.Count > 0)
                 {
