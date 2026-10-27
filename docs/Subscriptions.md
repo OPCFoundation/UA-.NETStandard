@@ -606,6 +606,10 @@ for an ingress slot before joining the workers and disposing their subscriptions
 cooperative whole-message handler cannot therefore deadlock this shutdown ordering.
 Queued messages do not enter application callbacks after manager shutdown and are not
 acknowledged merely because the ingress buffer is drained.
+Logical subscription disposal starts shutdown of every physical partition before awaiting
+any partition's retirement. This lets a blocked whole-message handler observe cancellation
+even when a sibling callback is waiting for the shared forwarding gate. The forwarding
+handler remains alive until all partition disposals finish; their retirement may overlap.
 Ordinary Publish quiescence does not cancel admission of a successfully received
 response. Cancellation removes the capacity waiter itself, so it cannot consume a
 slot after its caller has stopped waiting.

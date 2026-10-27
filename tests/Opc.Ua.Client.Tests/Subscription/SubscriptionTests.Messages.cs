@@ -35,6 +35,74 @@ namespace Opc.Ua.Client.Subscriptions
     public sealed partial class SubscriptionTests
     {
         /// <summary>
+        /// Every partition must begin shutdown before retirement waits for a sibling whose
+        /// keep-alive is queued behind the active whole-message handler's forwarding gate.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        [CancelAfter(20_000)]
+        public async Task LogicalDisposalCancelsAllPartitionsBeforeWaitingAsync(
+            bool primaryActive, CancellationToken ct)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var waiting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken handlerToken = default;
+            Mock<ISubscriptionNotificationMessageHandler> messages =
+                m_mockNotificationDataHandler.As<ISubscriptionNotificationMessageHandler>();
+            messages.Setup(value => value.OnNotificationMessageAsync(
+                    It.IsAny<SubscriptionNotificationMessage>(), It.IsAny<CancellationToken>()))
+                .Returns((SubscriptionNotificationMessage _, CancellationToken token) =>
+                {
+                    handlerToken = token;
+                    entered.TrySetResult(true);
+                    return new ValueTask(release.Task.WaitAsync(token));
+                });
+            m_mockSubscriptionServices.Setup(value => value.DeleteSubscriptionsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            var forwarding = new PartitionForwardingHandler(m_mockNotificationDataHandler.Object);
+            var primary = new TestSubscription(m_session, forwarding, m_completion,
+                OptionsFactory.Create<SubscriptionOptions>(), m_telemetry, 7);
+            var secondary = new TestSubscription(m_session, forwarding, m_completion,
+                OptionsFactory.Create<SubscriptionOptions>(), m_telemetry, 8);
+            var logical = new LogicalSubscription(primary);
+            logical.AppendPreloadedPartition(secondary);
+            logical.AttachForwardingHandler(forwarding);
+            forwarding.BindLogical(logical);
+            TestSubscription activePartition = primaryActive ? primary : secondary;
+            TestSubscription waitingPartition = primaryActive ? secondary : primary;
+            waitingPartition.OnKeepAliveAsync = () =>
+            {
+                ValueTask dispatch = forwarding.OnKeepAliveNotificationAsync(
+                    waitingPartition, 1, DateTime.UtcNow, PublishState.KeepAlive);
+                waiting.TrySetResult(!dispatch.IsCompleted);
+                return dispatch;
+            };
+            Task? disposing = null;
+            try
+            {
+                await activePartition.OnPublishReceivedAsync(CreateMixedMessage(), [3], []).ConfigureAwait(false);
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                await waitingPartition.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+                Assert.That(await waiting.Task.WaitAsync(ct).ConfigureAwait(false), Is.True);
+
+                disposing = logical.DisposeAsync().AsTask();
+                await disposing.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+
+                Assert.That(handlerToken.IsCancellationRequested, Is.True);
+                Assert.That(primary.Created, Is.False);
+                Assert.That(secondary.Created, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await (disposing ?? logical.DisposeAsync().AsTask()).WaitAsync(ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Manager shutdown must release a Publish worker blocked by a full ingress buffer
         /// before waiting for subscription shutdown to cancel the active message handler.
         /// </summary>
