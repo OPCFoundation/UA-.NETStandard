@@ -74,6 +74,56 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// Reports its receipt time and accepts typed faults, as endpoint requests do.
+        /// </summary>
+        private sealed class QueueAwareTestRequest : IEndpointIncomingRequest, IQueueAwareIncomingRequest
+        {
+            public QueueAwareTestRequest(uint timeoutHint = 0, TimeSpan age = default)
+            {
+                Request = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = timeoutHint } };
+                ReceivedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp() -
+                    (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
+            }
+
+            public IServiceRequest Request { get; }
+
+            public SecureChannelContext SecureChannelContext => null!;
+
+            public long ReceivedTimestamp { get; }
+
+            public int CallCount => Volatile.Read(ref m_callCount);
+
+            public StatusCode? CompletedStatusCode { get; private set; }
+
+            public ServiceResultException? Fault { get; private set; }
+
+            public TaskCompletionSource<bool> Completed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_callCount);
+                Completed.TrySetResult(true);
+                return default;
+            }
+
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            {
+                CompletedStatusCode = error?.StatusCode;
+                Completed.TrySetResult(true);
+            }
+
+            public void OperationFailed(ServiceResultException error)
+            {
+                Fault = error;
+                CompletedStatusCode = error.StatusCode;
+                Completed.TrySetResult(true);
+            }
+
+            private int m_callCount;
+        }
+
+        /// <summary>
         /// Records the token the queue passes to <see cref="CallAsync"/>, optionally declaring that
         /// it links its scheduled token itself, as endpoint requests do.
         /// </summary>
@@ -294,6 +344,67 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             req2.ProcessingCompleted.TrySetResult(true);
             req3.ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// The shared queue faults a request whose timeout hint ran out while it was queued
+        /// and never processes it; requests without a hint or within it still run.
+        /// </summary>
+        [Test]
+        public async Task ExpiredQueuedRequestTimesOutWithoutProcessingAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 10);
+
+            var expired = new QueueAwareTestRequest(timeoutHint: 1000, age: TimeSpan.FromSeconds(5));
+            var withinHint = new QueueAwareTestRequest(timeoutHint: 60_000, age: TimeSpan.FromSeconds(5));
+            var noHint = new QueueAwareTestRequest(age: TimeSpan.FromSeconds(5));
+            server.ScheduleIncomingRequest(expired);
+            server.ScheduleIncomingRequest(withinHint);
+            server.ScheduleIncomingRequest(noHint);
+
+            await AwaitOrFailAsync(
+                Task.WhenAll(expired.Completed.Task, withinHint.Completed.Task, noHint.Completed.Task),
+                "the queued requests to complete").ConfigureAwait(false);
+
+            Assert.That(expired.CompletedStatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(expired.CallCount, Is.Zero);
+            Assert.That(withinHint.CallCount, Is.EqualTo(1));
+            Assert.That(noHint.CallCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A queue-full rejection reaches the request as a server-busy fault with a short,
+        /// jittered retry-after hint.
+        /// </summary>
+        [Test]
+        public async Task QueueFullRejectionCarriesRetryAfterAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 1);
+
+            var blocking = new TestEndpointIncomingRequest();
+            server.ScheduleIncomingRequest(blocking);
+            await AwaitOrFailAsync(blocking.ProcessingStarted.Task, "the blocking request to start")
+                .ConfigureAwait(false);
+
+            var queued = new QueueAwareTestRequest();
+            var rejected = new QueueAwareTestRequest();
+            server.ScheduleIncomingRequest(queued);
+            server.ScheduleIncomingRequest(rejected);
+            await AwaitOrFailAsync(rejected.Completed.Task, "the rejection").ConfigureAwait(false);
+
+            Assert.That(rejected.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(rejected.CallCount, Is.Zero);
+            Assert.That(rejected.Fault, Is.InstanceOf<ServerBusyException>());
+            TimeSpan? retryAfter = ((ServerBusyException)rejected.Fault!).RetryAfter;
+            Assert.That(retryAfter, Is.Not.Null);
+            Assert.That(retryAfter!.Value, Is.InRange(
+                RequestQueueBudget.MinQueueFullRetryAfter, RequestQueueBudget.MaxQueueFullRetryAfter));
+
+            blocking.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(queued.Completed.Task, "the queued request to run").ConfigureAwait(false);
+            Assert.That(queued.CallCount, Is.EqualTo(1));
         }
 
         [Test]

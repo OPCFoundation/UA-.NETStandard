@@ -256,6 +256,11 @@ namespace Opc.Ua
                     {
                         error = StatusCodes.BadRequestCancelledByClient;
                     }
+                    else if (RequestQueueBudget.HasExpired(candidate.Request))
+                    {
+                        // the client gave up while the request was queued
+                        error = StatusCodes.BadTimeout;
+                    }
                     else
                     {
                         error = GetRevalidationStatus(candidate);
