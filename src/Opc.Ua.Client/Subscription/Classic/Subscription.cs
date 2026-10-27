@@ -50,6 +50,11 @@ namespace Opc.Ua.Client
         private const uint kMaxSequenceNumberGap = 1024;
 
         /// <summary>
+        /// Orders the server id claims of all subscriptions in the process.
+        /// </summary>
+        private static long s_idClaims;
+
+        /// <summary>
         /// Duration to wait before republishing missed notification
         /// </summary>
         public const int RepublishMessageTimeout = 2500;
@@ -878,6 +883,48 @@ namespace Opc.Ua.Client
                 this,
                 Interlocked.Read(ref m_acknowledgementGeneration),
                 Id);
+        }
+
+        /// <summary>
+        /// Gets the order in which the subscription claimed its current server id, or 0. A
+        /// later claim of the same id by another subscription supersedes this one.
+        /// </summary>
+        internal long IdClaim => Interlocked.Read(ref m_idClaim);
+
+        /// <summary>
+        /// Gets a value indicating whether another subscription claimed the server id later,
+        /// for example because the server reused it while this subscription was still
+        /// registered.
+        /// </summary>
+        internal bool IsIdClaimSuperseded
+        {
+            get
+            {
+                long claim = IdClaim;
+                return claim != 0 && Interlocked.Read(ref m_supersededIdClaim) == claim;
+            }
+        }
+
+        /// <summary>
+        /// Marks the current id claim as superseded by a later claim of the same id. The
+        /// acknowledgements of the current lifetime are retired, and the mark stays after
+        /// the later claimant is retired, until this subscription claims an id again.
+        /// </summary>
+        internal void SupersedeIdClaim()
+        {
+            long claim = IdClaim;
+            if (claim != 0 && Interlocked.Exchange(ref m_supersededIdClaim, claim) != claim)
+            {
+                Interlocked.Increment(ref m_acknowledgementGeneration);
+            }
+        }
+
+        /// <summary>
+        /// Records that the subscription claimed its current server id.
+        /// </summary>
+        private void ClaimId()
+        {
+            Interlocked.Exchange(ref m_idClaim, Interlocked.Increment(ref s_idClaims));
         }
 
         /// <summary>
@@ -2009,6 +2056,7 @@ namespace Opc.Ua.Client
 
                 // sets state to 'Created'
                 Id = id;
+                ClaimId();
                 TransferItems(serverHandles, clientHandles, out IList<MonitoredItem> itemsToModify);
 
                 await ModifyItemsAsync(ct).ConfigureAwait(false);
@@ -2968,6 +3016,7 @@ namespace Opc.Ua.Client
 
                 CurrentPublishingEnabled = PublishingEnabled;
                 TransferId = Id = subscriptionId;
+                ClaimId();
                 m_changeMask |= SubscriptionChangeMask.Created;
             }
 
@@ -4056,6 +4105,8 @@ namespace Opc.Ua.Client
         private ITelemetryContext? m_telemetry;
         private AcknowledgementScope? m_acknowledgementScope;
         private long m_acknowledgementGeneration;
+        private long m_idClaim;
+        private long m_supersededIdClaim;
 
         private readonly ConditionalWeakTable<NotificationData, StrongBox<AcknowledgementHandle>>
             m_acknowledgementHandles = new();

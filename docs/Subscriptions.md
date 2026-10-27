@@ -478,7 +478,9 @@ services.AddOpcUa()
 ```
 
 Options set on `ManagedSessionOptions` take precedence over registered services. A provider
-cannot be combined with `AcknowledgementMode.AfterConfirmation`.
+cannot be combined with `AcknowledgementMode.AfterConfirmation`: setting both on the options
+fails when the session is created, and a registered provider service is not used in that
+mode.
 
 **Behaviour.**
 

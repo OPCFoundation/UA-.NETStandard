@@ -1442,19 +1442,20 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.UseSecurityPolicies(securityPolicies);
             }
 
+            ISubscriptionAcknowledgementProvider? acknowledgementProvider = sessionOptions.AcknowledgementProvider;
             if (sessionOptions.AcknowledgementMode == AcknowledgementMode.AfterConfirmation)
             {
+                // A registered provider does not apply in confirmation mode. A provider set in the
+                // options conflicts with it and is rejected when the session is created.
                 builder.AcknowledgeAfterConfirmation();
             }
             else
             {
-                ISubscriptionAcknowledgementProvider? acknowledgementProvider =
-                    sessionOptions.AcknowledgementProvider ??
-                    sp.GetService<ISubscriptionAcknowledgementProvider>();
-                if (acknowledgementProvider != null)
-                {
-                    builder.WithAcknowledgementProvider(acknowledgementProvider);
-                }
+                acknowledgementProvider ??= sp.GetService<ISubscriptionAcknowledgementProvider>();
+            }
+            if (acknowledgementProvider != null)
+            {
+                builder.WithAcknowledgementProvider(acknowledgementProvider);
             }
             ISubscriptionAcknowledgementObserver? acknowledgementObserver =
                 sessionOptions.AcknowledgementObserver ??

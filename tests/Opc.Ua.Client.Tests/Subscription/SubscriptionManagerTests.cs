@@ -1509,6 +1509,40 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// An acknowledgement that cannot be queued ends as abandoned exactly once, and its
+        /// handle can be queued again afterwards.
+        /// </summary>
+        [Test]
+        public async Task AnAcknowledgementThatCannotBeQueuedIsAbandonedAsync()
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var observer = new TestAcknowledgementObserver();
+            context.AcknowledgementObserver = observer;
+            var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+            var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 6 };
+
+            await Assert.ThatAsync(
+                async () => await manager.QueueAsync(owner, owner.MessageGeneration, acknowledgement, cancelled.Token)
+                    .ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            await WaitUntilAsync(() => observer.CountBySequenceNumber(6) == 1, CancellationToken.None)
+                .ConfigureAwait(false);
+            await manager.QueueAsync(owner, owner.MessageGeneration, acknowledgement, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "The handle is no longer outstanding.");
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(observer.All.Select(outcome => outcome.Disposition), Is.EqualTo(s_twiceAbandoned));
+            Assert.That(observer.All[0].Status, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+        }
+
+        /// <summary>
         /// Defers every acknowledgement once, then blocks the next decision until it is
         /// cancelled, and approves everything afterwards.
         /// </summary>
@@ -3333,6 +3367,12 @@ namespace Opc.Ua.Client.Subscriptions
         private const string kRejectedText = "The server rejected acknowledgements";
         private const string kDeferredWarningText = "deferred by the acknowledgement policy";
         private static readonly bool[] s_resumedThenPaused = [false, true];
+
+        private static readonly AcknowledgementDisposition[] s_twiceAbandoned =
+        [
+            AcknowledgementDisposition.Abandoned,
+            AcknowledgementDisposition.Abandoned
+        ];
         private FakeSubscriptionManagerContext m_session;
         private ITelemetryContext m_telemetry;
         private Mock<ISubscriptionNotificationHandler> m_mockNotificationDataHandler;

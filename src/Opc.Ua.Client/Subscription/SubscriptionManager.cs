@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.Subscriptions
                 return default;
             }
             ValueTask write = m_acks.Writer.WriteAsync(pending, ct);
-            return write.IsCompletedSuccessfully ? default : AwaitQueuedAsync(write, pending.Handle);
+            return write.IsCompletedSuccessfully ? default : AwaitQueuedAsync(write, pending);
         }
 
         /// <inheritdoc/>
@@ -2380,17 +2380,23 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Completes a queue write and stops tracking the acknowledgement if it was not queued.
+        /// Completes a queue write. An acknowledgement that could not be queued ends as
+        /// abandoned, exactly once.
         /// </summary>
-        private async ValueTask AwaitQueuedAsync(ValueTask write, AcknowledgementHandle handle)
+        private async ValueTask AwaitQueuedAsync(ValueTask write, PendingAcknowledgement pending)
         {
             try
             {
                 await write.ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
-                m_outstandingAcknowledgements.TryRemove(handle, out _);
+                List<AcknowledgementOutcome>? abandoned = null;
+                AddOutcome(ref abandoned, pending, AcknowledgementDisposition.Abandoned,
+                    ex is OperationCanceledException
+                        ? StatusCodes.BadRequestCancelledByClient
+                        : StatusCodes.BadShutdown);
+                ReportOutcomes(abandoned);
                 throw;
             }
         }

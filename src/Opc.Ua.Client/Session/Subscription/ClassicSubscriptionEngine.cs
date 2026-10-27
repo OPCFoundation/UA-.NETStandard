@@ -325,12 +325,27 @@ namespace Opc.Ua.Client
             }
             else
             {
+                List<AcknowledgementOutcome>? ended = null;
                 lock (m_acknowledgementsToSendLock)
                 {
+                    // Tracked only with an acknowledgement observer: validate before and after the
+                    // legacy handler, and end the entries it dropped.
+                    bool tracked = m_acknowledgementScopes.Count != 0;
+                    List<SubscriptionAcknowledgement>? presented = null;
+                    if (tracked)
+                    {
+                        RemoveStaleLocked(ref ended);
+                        presented = [.. m_acknowledgementsToSend];
+                    }
                     (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
                         m_context.PrepareAcknowledgementsToSend(m_acknowledgementsToSend);
                     acknowledgementsToSend = toSend;
                     m_acknowledgementsToSend = updatedPending;
+                    if (presented != null)
+                    {
+                        EndDroppedLocked(presented, toSend, updatedPending, ref ended);
+                        RemoveStaleLocked(toSend, ref ended);
+                    }
 
 #if DEBUG_SEQUENTIALPUBLISHING
                     foreach (var toSend in acknowledgementsToSend)
@@ -340,6 +355,7 @@ namespace Opc.Ua.Client
                     }
 #endif
                 }
+                ReportOutcomes(ended);
             }
 
             uint timeoutHint = timeout > 0
@@ -831,15 +847,14 @@ namespace Opc.Ua.Client
 
             bool subscriptionCreationInProgress = false;
 
-            // find the subscription.
+            // find the subscription that most recently claimed the id.
             foreach (Subscription current in m_context.Subscriptions)
             {
                 if (current.Id == subscriptionId)
                 {
-                    subscription = current;
-                    break;
+                    subscription = SelectLatestClaim(subscription, current);
                 }
-                if (current.Id == default)
+                else if (current.Id == default)
                 {
                     // Subscription is being created, disable
                     // cleanup mechanism
@@ -1081,18 +1096,43 @@ namespace Opc.Ua.Client
             (m_context as IAcknowledgementPolicyCapability)?.Acknowledgements;
 
         /// <summary>
-        /// Finds the subscription that currently uses a server id.
+        /// Finds the subscription that most recently claimed a server id. An older
+        /// subscription still registered under the id is marked superseded, so that its
+        /// acknowledgements are never sent under the reused id.
         /// </summary>
-        private Subscription? FindSubscription(uint subscriptionId)
+        /// <param name="subscriptionId">The server id.</param>
+        /// <param name="includeSuperseded">Whether a superseded subscription is returned
+        /// when no other subscription holds the id.</param>
+        private Subscription? FindSubscription(uint subscriptionId, bool includeSuperseded = false)
         {
+            Subscription? owner = null;
             foreach (Subscription subscription in m_context.Subscriptions)
             {
                 if (subscription.Id == subscriptionId)
                 {
-                    return subscription;
+                    owner = SelectLatestClaim(owner, subscription);
                 }
             }
-            return null;
+            return owner != null && (includeSuperseded || !owner.IsIdClaimSuperseded) ? owner : null;
+        }
+
+        /// <summary>
+        /// Returns the subscription with the later claim of a shared server id and marks the
+        /// other one superseded.
+        /// </summary>
+        private static Subscription SelectLatestClaim(Subscription? current, Subscription candidate)
+        {
+            if (current == null || ReferenceEquals(current, candidate))
+            {
+                return candidate;
+            }
+            if (candidate.IdClaim > current.IdClaim)
+            {
+                current.SupersedeIdClaim();
+                return candidate;
+            }
+            candidate.SupersedeIdClaim();
+            return current;
         }
 
         /// <summary>
@@ -1149,7 +1189,7 @@ namespace Opc.Ua.Client
             ValueTask<AcknowledgementDecision> decision;
             try
             {
-                decision = provider.DecideAsync(handles);
+                decision = provider.DecideAsync(handles, m_backgroundWork.ShutdownToken);
             }
             catch (Exception ex)
             {
@@ -1316,15 +1356,26 @@ namespace Opc.Ua.Client
         /// </summary>
         private void RemoveStaleLocked(ref List<AcknowledgementOutcome>? retired)
         {
-            if (m_acknowledgementScopes.Count == 0 || m_acknowledgementsToSend.Count == 0)
+            RemoveStaleLocked(m_acknowledgementsToSend, ref retired);
+        }
+
+        /// <summary>
+        /// Ends the tracked acknowledgements of a list whose subscription was deleted,
+        /// recreated or superseded since they were queued, and removes them from the list.
+        /// </summary>
+        private void RemoveStaleLocked(
+            List<SubscriptionAcknowledgement> acknowledgements,
+            ref List<AcknowledgementOutcome>? retired)
+        {
+            if (m_acknowledgementScopes.Count == 0 || acknowledgements.Count == 0)
             {
                 return;
             }
             Dictionary<uint, Subscription>? owners = null;
             int kept = 0;
-            for (int i = 0; i < m_acknowledgementsToSend.Count; i++)
+            for (int i = 0; i < acknowledgements.Count; i++)
             {
-                SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[i];
+                SubscriptionAcknowledgement acknowledgement = acknowledgements[i];
                 if (m_acknowledgementScopes.TryGetValue(acknowledgement, out AcknowledgementScope? scope) &&
                     scope != null &&
                     !IsCurrent(scope, owners ??= GetOwnersLocked()))
@@ -1333,9 +1384,9 @@ namespace Opc.Ua.Client
                         AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
                     continue;
                 }
-                m_acknowledgementsToSend[kept++] = acknowledgement;
+                acknowledgements[kept++] = acknowledgement;
             }
-            m_acknowledgementsToSend.RemoveRange(kept, m_acknowledgementsToSend.Count - kept);
+            acknowledgements.RemoveRange(kept, acknowledgements.Count - kept);
 
             static bool IsCurrent(AcknowledgementScope scope, Dictionary<uint, Subscription> owners)
             {
@@ -1350,16 +1401,48 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the subscriptions by their server id.
+        /// Ends the presented acknowledgements the legacy deferral handler neither sent nor
+        /// retained.
+        /// </summary>
+        private void EndDroppedLocked(
+            List<SubscriptionAcknowledgement> presented,
+            List<SubscriptionAcknowledgement> toSend,
+            List<SubscriptionAcknowledgement> retained,
+            ref List<AcknowledgementOutcome>? ended)
+        {
+            var kept = new HashSet<SubscriptionAcknowledgement>(
+                toSend, IdentityComparer<SubscriptionAcknowledgement>.Instance);
+            kept.UnionWith(retained);
+            foreach (SubscriptionAcknowledgement acknowledgement in presented)
+            {
+                if (!kept.Contains(acknowledgement))
+                {
+                    EndAcknowledgementLocked(ref ended, acknowledgement,
+                        AcknowledgementDisposition.Abandoned, StatusCodes.BadRequestCancelledByClient);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the current owner of each server id. Superseded subscriptions own no id.
         /// </summary>
         private Dictionary<uint, Subscription> GetOwnersLocked()
         {
             var owners = new Dictionary<uint, Subscription>();
             foreach (Subscription subscription in m_context.Subscriptions)
             {
-                if (subscription.Id != 0)
+                uint id = subscription.Id;
+                if (id != 0)
                 {
-                    owners.TryAdd(subscription.Id, subscription);
+                    owners[id] = SelectLatestClaim(
+                        owners.TryGetValue(id, out Subscription? current) ? current : null, subscription);
+                }
+            }
+            foreach (KeyValuePair<uint, Subscription> owner in owners.ToList())
+            {
+                if (owner.Value.IsIdClaimSuperseded)
+                {
+                    owners.Remove(owner.Key);
                 }
             }
             return owners;
