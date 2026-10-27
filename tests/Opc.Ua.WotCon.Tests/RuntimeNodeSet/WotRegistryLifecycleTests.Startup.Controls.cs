@@ -59,12 +59,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     public sealed partial class WotRegistryLifecycleTests
     {
         /// <summary>
-        /// Verifies that stored registry startup cancellation retains parent for cleanup.
+        /// Verifies that preparation cancellation retains the committed parent for cleanup.
         /// </summary>
         [Test]
-        public async Task StoredRegistryStartupCancellationRetainsParentForCleanupAsync()
+        public async Task StoredRegistryPreparationCancellationRetainsCommittedParentForCleanupAsync()
         {
-            var runtime = new StartupRuntimeProbe();
+            using var preparationCancellation = new CancellationTokenSource();
+            var runtime = new StartupRuntimeProbe(preparationCancellation: preparationCancellation.Token);
             (int baseline, DeadlineProjectionHost host, _) =
                 await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -76,12 +77,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
             finally
             {
-                cancellation.Cancel();
+                preparationCancellation.Cancel();
             }
 
-            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
                 async () => await startup.ConfigureAwait(false)))!;
+            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
             Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
+            Assert.That(cancellation.IsCancellationRequested, Is.False);
             Assert.That(runtime.ReceivedToken.IsCancellationRequested, Is.True);
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(host.AddCalls, Is.EqualTo(1));
@@ -105,10 +108,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             WotRegistrySnapshot before = m_registry.Current;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
                 async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
             Assert.That(failure.InnerException, Is.SameAs(runtime.Failure));
             m_registryRegistration = FindStartupRegistryRegistration();
+            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
             Assert.That(host.AddCalls, Is.EqualTo(1));
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(runtime.Entered.Task.IsCompleted, Is.True,
@@ -141,13 +145,14 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 await PrepareControlledStartupAsync(converter: converter).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+            NodeManagerAddCommittedException failure = (await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
                 async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerException, Is.InstanceOf<ServiceResultException>());
             Assert.That(((ServiceResultException)failure.InnerException!).StatusCode,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
             m_registryRegistration = FindStartupRegistryRegistration();
+            Assert.That(failure.Registration, Is.SameAs(m_registryRegistration));
             Assert.That(host.AddCalls, Is.Zero, "Failed conversion must not attempt native publication.");
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
@@ -199,7 +204,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
                 await AssertStartupSensorAsync(readable: false).ConfigureAwait(false);
                 using var conflictDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 {
                     if (reload)
                     {
@@ -215,8 +220,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                             m_registryRegistration, callerContext: null, conflictDeadline.Token).ConfigureAwait(false);
                     }
                 }))!;
-                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
-                Assert.That(failure.Message, Does.Contain("publication admission"));
+                Assert.That(failure.Message, Does.Contain("completing readiness"));
                 Assert.That(conflictDeadline.IsCancellationRequested, Is.False);
                 Assert.That(cleanup.RemoveCalls, Is.Zero);
             }
@@ -434,8 +438,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 IWotProjectionBindingRuntimeFactory? runtime = null, IWotDocumentConverter? converter = null)
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            await m_server.NodeManagerLifecycle.RemoveAsync(
-                m_registryRegistration, callerContext: null, cancellation.Token).ConfigureAwait(false);
+            await RemoveRegistryAndRetireAsync(m_registryRegistration, cancellation.Token).ConfigureAwait(false);
             m_registryRegistration = null!;
             int baseline = m_server.NodeManagerLifecycle.Registrations.Count;
             await WriteStartupControlStoreAsync().ConfigureAwait(false);
@@ -531,8 +534,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             NodeManagerRegistration previous = m_registryRegistration;
-            await m_server.NodeManagerLifecycle.RemoveAsync(
-                previous, callerContext: null, cancellation.Token).ConfigureAwait(false);
+            await RemoveRegistryAndRetireAsync(previous, cancellation.Token).ConfigureAwait(false);
             Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline));
             await AssertStartupSensorAsync(readable: false).ConfigureAwait(false);
 
@@ -551,6 +553,21 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Waits for registry retirement before releasing its borrowed dependencies.
+        /// </summary>
+        private async Task RemoveRegistryAndRetireAsync(
+            NodeManagerRegistration registration, CancellationToken cancellationToken)
+        {
+            IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration)], cancellationToken).ConfigureAwait(false);
+            await using var removalLifetime = removal.ConfigureAwait(false);
+            NodeManagerBatchResult result = await removal.CommitAsync(static _ => default, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
         private async Task<ReferenceServer> StartStoredInitialServerAsync(
@@ -690,7 +707,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
-        private sealed class StartupRuntimeProbe(bool fail = false) : IWotProjectionBindingRuntimeFactory
+        private sealed class StartupRuntimeProbe(
+            bool fail = false,
+            CancellationToken preparationCancellation = default) : IWotProjectionBindingRuntimeFactory
         {
             /// <summary>
             /// Gets the failure for <c>StartupRuntimeProbe</c>.
@@ -726,9 +745,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 ArrayOf<WotBindingPlan> bindingPlans,
                 CancellationToken cancellationToken = default)
             {
-                ReceivedToken = cancellationToken;
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, preparationCancellation);
+                ReceivedToken = linked.Token;
                 Entered.TrySetResult(true);
-                await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await Release.Task.WaitAsync(linked.Token).ConfigureAwait(false);
                 if (fail)
                 {
                     throw Failure;
