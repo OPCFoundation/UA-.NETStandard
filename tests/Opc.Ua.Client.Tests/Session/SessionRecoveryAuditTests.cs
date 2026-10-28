@@ -442,6 +442,8 @@ namespace Opc.Ua.Client.Tests
         public async Task RestoredUserNameCredentialsAreResuppliedWithoutSerializationAsync(bool renewal)
         {
             await using var harness = new SessionChannelHarness();
+            // The harness endpoint is unsecured; this test covers credential re-supply, not token encryption.
+            harness.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
             ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
             endpoint.Description.UserIdentityTokens =
             [
@@ -486,6 +488,58 @@ namespace Opc.Ua.Client.Tests
             Assert.That(token!.UserName, Is.EqualTo("snapshot-user"));
             Assert.That(token.Password.ToArray(), Is.EqualTo(secret));
             Assert.That(target.SessionId, Is.EqualTo(source.SessionId));
+        }
+
+        /// <summary>
+        /// A restored session activates for the first time on its reconnect,
+        /// so that is where a plain text password is gated. With the default
+        /// configuration the reconnect is rejected before the credentials
+        /// reach the channel, whether the snapshot carries the identity or a
+        /// renewal callback supplies it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RestoredUserNameRejectsPlaintextPasswordOnReconnectByDefaultAsync(bool renewal)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            endpoint.Description.UserIdentityTokens =
+            [
+                new UserTokenPolicy
+                {
+                    PolicyId = "user", TokenType = UserTokenType.UserName, SecurityPolicyUri = SecurityPolicies.None
+                }
+            ];
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            await using var session = new Session(channel.Channel, harness.Configuration, endpoint);
+            var supplied = new UserIdentity("snapshot-user", Guid.NewGuid().ToByteArray());
+            var saved = new SessionConfiguration
+            {
+                SessionName = "snapshot",
+                SessionId = new NodeId("restored", 1),
+                AuthenticationToken = new NodeId("token", 1),
+                UserIdentityTokenPolicy = SecurityPolicies.None
+            };
+            if (renewal)
+            {
+                saved.IdentityToken = new UserNameIdentityToken { UserName = "snapshot-user", PolicyId = "user" };
+                session.RenewUserIdentity += (_, _) => supplied;
+            }
+            else
+            {
+                saved.Identity = supplied;
+            }
+            session.Restore(saved);
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(error.Message,
+                Does.Contain(nameof(SecurityConfiguration.AllowUnencryptedUserNameTokens)));
+            channel.Mock.Verify(value => value.SendRequestAsync(
+                It.Is<IServiceRequest>(request => request is ActivateSessionRequest),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]
