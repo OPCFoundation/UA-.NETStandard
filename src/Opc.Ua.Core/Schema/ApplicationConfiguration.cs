@@ -1039,21 +1039,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The minimum number of threads assigned to processing requests.
+        /// The lower bound of the request concurrency limit; values below 1 are raised to 1.
         /// </summary>
-        /// <value>The minimum request thread count.</value>
+        /// <remarks>
+        /// Requests do not run on dedicated threads. With a resource isolation profile
+        /// other than SharedOnly, this many request workers are started with the server.
+        /// <see cref="MaxRequestThreadCount"/> is raised to this value.
+        /// </remarks>
+        /// <value>The minimum request concurrency.</value>
         [DataTypeField(Order = 3)]
         public int MinRequestThreadCount { get; set; } = 10;
 
         /// <summary>
-        /// The maximum number of threads assigned to processing requests.
+        /// The maximum number of requests that execute at once (the request concurrency limit).
         /// </summary>
-        /// <value>The maximum request thread count.</value>
+        /// <remarks>
+        /// Requests run on the .NET thread pool, not on dedicated threads. A request that
+        /// finds the limit reached waits in the request queue (see
+        /// <see cref="MaxQueuedRequestCount"/>). With <see cref="DecoupleHeldPublishRequests"/>
+        /// a held request, such as a <c>Publish</c> waiting for notifications, does not
+        /// count against the limit while it waits.
+        /// </remarks>
+        /// <value>The maximum request concurrency.</value>
         [DataTypeField(Order = 4)]
         public int MaxRequestThreadCount { get; set; } = 100;
 
         /// <summary>
-        /// The maximum number of requests that will be queued waiting for a thread.
+        /// The maximum number of requests that will be queued waiting to execute.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataTypeField(Order = 5)]

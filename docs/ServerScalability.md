@@ -219,13 +219,13 @@ The following settings size a single node for its hardware (see also the sizing 
 
 ### Request workers and the request queue
 
-A decoded request waits in the server's request queue until a request worker takes it. Workers are asynchronous loops on the .NET thread pool, not dedicated threads; a worker counts as busy while it executes a request and, with `DecoupleHeldPublishRequests`, is released when a `Publish` parks. With the FairShare, Balanced (default) or TrustedReservations [isolation profile](ResourceIsolation.md) the queue serves the callers in weighted turns; with SharedOnly it is one FIFO.
+The "thread" settings are concurrency limits: requests run on the .NET thread pool, not on dedicated threads. With SharedOnly, a decoded request takes one of `MaxRequestThreadCount` permits and runs at once; when every permit is in use it waits in a FIFO queue, and a finished request hands its permit to the oldest waiting one. With the FairShare, Balanced (default) or TrustedReservations [isolation profile](ResourceIsolation.md) the request waits until a request worker (an asynchronous loop on the thread pool) takes it, and the queue serves the callers in weighted turns. In both modes, with `DecoupleHeldPublishRequests`, a `Publish` that parks releases its permit or worker.
 
 | Setting | Configuration default | Current behaviour |
 |---|---|---|
-| `MinRequestThreadCount` | 10 | Workers started with the server (at least 1). The thread pool's limits are not changed; up to 2.0.1 the server raised the thread pool's minimum worker and I/O threads to this value. |
-| `MaxRequestThreadCount` | 100 | Upper bound of workers (values below 100, or below `MinRequestThreadCount`, are raised). A worker is added only when a request is queued and every worker is busy; workers are not retired. |
-| `MaxQueuedRequestCount` | 200 | Requests of established sessions that can wait for a worker (values below 100 are raised to 100). A request that finds the queue full is answered with `BadServerTooBusy`. |
+| `MinRequestThreadCount` | 10 | At least 1. With an isolation profile, the workers started with the server; with SharedOnly no workers are started. `MaxRequestThreadCount` is raised to it. The thread pool's limits are not changed; up to 2.0.1 the server raised the thread pool's minimum worker and I/O threads to this value. |
+| `MaxRequestThreadCount` | 100 | Requests executing at once. With an isolation profile, the upper bound of workers; a worker is added only when a request is queued and every worker is busy, and workers are not retired. Up to 2.0.1 values below 100 were raised to 100. |
+| `MaxQueuedRequestCount` | 200 | Requests of established sessions that can wait to execute (values below 100 are raised to 100). A request that finds the queue full is answered with `BadServerTooBusy`. |
 
 Guidance:
 
