@@ -546,13 +546,15 @@ namespace Opc.Ua.Client.Subscriptions
                             {
                                 await DeleteForRecreateAsync(oldId, token)
                                     .ConfigureAwait(false);
-                                AckQueue.DropPendingForSubscription(oldId);
+                                AckQueue.DropPendingForSubscription(this, oldId);
                             }
                             else
                             {
                                 // The pending acknowledgements under that id
-                                // now belong to the sibling; leave them.
+                                // now belong to the sibling; only this owner's
+                                // deferred acknowledgements are dropped.
                                 Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
+                                AckQueue.DropPendingForSubscription(this, oldId);
                                 StopKeepAliveTimer();
                                 OnSubscriptionDeleteCompleted();
                             }
@@ -664,6 +666,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                uint retiredId = Id;
                 await ResetMessageGenerationAsync(
                     _ =>
                     {
@@ -688,6 +691,11 @@ namespace Opc.Ua.Client.Subscriptions
                     },
                     _ => default,
                     ct).ConfigureAwait(false);
+                if (retiredId != 0)
+                {
+                    // The server-side subscription is gone; retire this owner's claim on it.
+                    AckQueue.DropPendingForSubscription(this, retiredId);
+                }
             }
             finally
             {
@@ -854,6 +862,70 @@ namespace Opc.Ua.Client.Subscriptions
                 publishTime, publishStateMask);
         }
 
+        /// <summary>
+        /// Gets the optional complete-message handler through a partition forwarding adapter.
+        /// </summary>
+        private ISubscriptionNotificationMessageHandler? MessageHandler =>
+            m_handler is PartitionForwardingHandler forwarding
+                ? forwarding.MessageHandler
+                : m_handler as ISubscriptionNotificationMessageHandler;
+
+        /// <inheritdoc/>
+        protected override bool HandlesNotificationMessages => MessageHandler != null;
+
+        /// <inheritdoc/>
+        protected override async ValueTask OnNotificationMessageAsync(
+            NotificationMessage message, PublishState publishStateMask,
+            IReadOnlyList<string> stringTable, CancellationToken ct)
+        {
+            using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(ct, m_cts.Token);
+            var handle = new AcknowledgementHandle(GetAcknowledgementScope(MessageGeneration), message.SequenceNumber);
+            try
+            {
+                SubscriptionNotificationMessage projected = NotificationMessageDispatch.Create(
+                    message, handle, [.. stringTable],
+                    data => m_monitoredItems.CreateNotification(data, handle),
+                    events => m_monitoredItems.CreateNotification(events, handle));
+                for (int i = 0; i < message.NotificationData.Count; i++)
+                {
+                    ExtensionObject payload = message.NotificationData[i];
+                    if (payload.TryGetValue(out StatusChangeNotification? status))
+                    {
+                        PublishState state = publishStateMask;
+                        if (status.Status == StatusCodes.GoodSubscriptionTransferred)
+                        {
+                            state |= PublishState.Transferred;
+                        }
+                        else if (status.Status == StatusCodes.BadTimeout)
+                        {
+                            state |= PublishState.Timeout;
+                        }
+                        await OnStatusChangeNotificationAsync(
+                            message.SequenceNumber, (DateTime)message.PublishTime, status, state, stringTable)
+                            .ConfigureAwait(false);
+                    }
+                }
+                await MessageHandler!.OnNotificationMessageAsync(projected, lifetime.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (PoolNotifications)
+                {
+                    foreach (ExtensionObject payload in message.NotificationData)
+                    {
+                        if (payload.TryGetValue(out DataChangeNotification? data))
+                        {
+                            ReuseDataChangeNotification(data);
+                        }
+                        else if (payload.TryGetValue(out EventNotificationList? events))
+                        {
+                            ReuseEventNotificationList(events);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <inheritdoc/>
         protected override async ValueTask OnDataChangeNotificationAsync(uint sequenceNumber,
             DateTime publishTime, DataChangeNotification notification,
@@ -861,8 +933,10 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
+                var acknowledgement = new AcknowledgementHandle(
+                    GetAcknowledgementScope(MessageGeneration), sequenceNumber);
                 await m_handler.OnDataChangeNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
@@ -881,8 +955,10 @@ namespace Opc.Ua.Client.Subscriptions
         {
             try
             {
+                var acknowledgement = new AcknowledgementHandle(
+                    GetAcknowledgementScope(MessageGeneration), sequenceNumber);
                 await m_handler.OnEventDataNotificationAsync(this, sequenceNumber,
-                    publishTime, m_monitoredItems.CreateNotification(notification),
+                    publishTime, m_monitoredItems.CreateNotification(notification, acknowledgement),
                     publishStateMask, stringTable).ConfigureAwait(false);
             }
             finally
@@ -1308,7 +1384,15 @@ namespace Opc.Ua.Client.Subscriptions
                 AckQueue.Update();
                 return;
             }
+            uint retiredId = Id;
             await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
+
+            // Publishing is not quiesced: the generation advanced, so a stale
+            // acknowledgement a worker holds in flight is discarded if requeued.
+            if (retiredId != 0)
+            {
+                AckQueue.DropPendingForSubscription(this, retiredId);
+            }
         }
 
         private async ValueTask DeleteCoreAsync(CancellationToken ct)
@@ -1393,7 +1477,7 @@ namespace Opc.Ua.Client.Subscriptions
                         response.RevisedPublishingInterval, options.PublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
                     options.Priority, options.MaxNotificationsPerPublish,
-                    options.PublishingEnabled);
+                    options.PublishingEnabled, response.ResponseHeader.Timestamp);
             }
             finally
             {
@@ -1486,11 +1570,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="priority"></param>
         /// <param name="maxNotificationsPerPublish"></param>
         /// <param name="publishingEnabled"></param>
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown.</param>
         internal void OnSubscriptionUpdateComplete(bool created,
             uint subscriptionId, TimeSpan revisedPublishingInterval,
             uint revisedKeepAliveCount, uint revisedLifetimeCount,
             byte priority, uint maxNotificationsPerPublish,
-            bool publishingEnabled)
+            bool publishingEnabled, DateTimeUtc createdAt = default)
         {
             bool keepAliveSettingsChanged =
                 CurrentKeepAliveCount != revisedKeepAliveCount ||
@@ -1559,7 +1645,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 Id = subscriptionId;
                 StartKeepAliveTimer();
-                NotifyManagerOfCreation();
+                NotifyManagerOfCreation(createdAt);
                 m_createdEvent.Set();
             }
             else if (keepAliveSettingsChanged)

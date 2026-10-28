@@ -67,6 +67,7 @@
                 <xs:element name="TrustedHttpsCertificates" type="CertificateTrustList" />
             </xs:sequence>
             <xs:element name="SuppressNonceValidationErrors" type="xs:boolean" minOccurs="0" />
+            <xs:element name="AllowUnencryptedUserNameTokens" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
     </xs:complexType>
 

@@ -48,6 +48,8 @@ using Opc.Ua.WotCon.Server.Materialization;
 using Quickstarts.ReferenceServer;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>

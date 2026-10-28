@@ -73,6 +73,12 @@ namespace Opc.Ua
         public const int HistoryClient = 580;
 
         /// <summary>
+        /// Additional <c>SubscriptionManagerLog</c> messages; the
+        /// <see cref="SubscriptionManager"/> block is fully used.
+        /// </summary>
+        public const int SubscriptionManagerContinued = 590;
+
+        /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider
         /// (Guid 8CFA469E-18C6-480F-9B74-B005DACDE3D3). Loggers created for this

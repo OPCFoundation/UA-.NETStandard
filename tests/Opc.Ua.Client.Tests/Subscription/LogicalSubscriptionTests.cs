@@ -375,6 +375,64 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(fake.DisposeAsyncCalls, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A synchronous failure in one partition must not prevent siblings from starting shutdown.
+        /// </summary>
+        [Test]
+        public async Task DisposalFailureStillStartsEveryPartitionAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            secondary.OnDisposeAsync = () => throw new InvalidOperationException("Injected disposal failure.");
+            var logical = new LogicalSubscription(primary);
+            logical.AppendPreloadedPartition(secondary);
+
+            await Assert.ThatAsync(async () => await logical.DisposeAsync().ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+
+            Assert.That(primary.DisposeAsyncCalls, Is.EqualTo(1));
+            Assert.That(secondary.DisposeAsyncCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The shared forwarding handler remains usable until the last partition retires,
+        /// even if the primary has already finished its disposal.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ForwarderOutlivesEveryPartitionDisposalAsync(CancellationToken ct)
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            secondary.OnDisposeAsync = () => new ValueTask(release.Task);
+            var logical = new LogicalSubscription(primary);
+            logical.AppendPreloadedPartition(secondary);
+            var handler = new Mock<ISubscriptionNotificationHandler>();
+            var forwarding = new PartitionForwardingHandler(handler.Object);
+            forwarding.BindLogical(logical);
+            logical.AttachForwardingHandler(forwarding);
+            Task disposing = logical.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(primary.DisposeAsyncCalls, Is.EqualTo(1));
+                Assert.That(secondary.DisposeAsyncCalls, Is.EqualTo(1));
+                Assert.That(disposing.IsCompleted, Is.False);
+                await forwarding.OnKeepAliveNotificationAsync(
+                    secondary, 1, DateTime.UtcNow, PublishState.KeepAlive).ConfigureAwait(false);
+                handler.Verify(value => value.OnKeepAliveNotificationAsync(
+                    logical, 1, It.IsAny<DateTime>(), PublishState.KeepAlive), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await disposing.WaitAsync(ct).ConfigureAwait(false);
+            }
+            await Assert.ThatAsync(async () => await forwarding.OnKeepAliveNotificationAsync(
+                secondary, 2, DateTime.UtcNow, PublishState.KeepAlive).ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>()).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task MonitoredItemsDelegatesToPrimaryInFastPathAsync()
         {
