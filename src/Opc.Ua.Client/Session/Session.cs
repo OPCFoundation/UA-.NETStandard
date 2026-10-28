@@ -194,8 +194,10 @@ namespace Opc.Ua.Client
                 // Clone rather than share: both sessions dispose their default
                 // subscription. Assigning through the property also disposes
                 // the instance the chained constructor created.
+#pragma warning disable CS0618 // clones the obsolete classic subscription template until it is removed
                 DefaultSubscription = template.m_defaultSubscription
                     .CloneSubscription(false);
+#pragma warning restore CS0618
             }
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
@@ -318,8 +320,10 @@ namespace Opc.Ua.Client
             m_identity = new UserIdentity();
 
             // update the default subscription.
+#pragma warning disable CS0618 // initializes the obsolete classic subscription template until it is removed
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration!
                 .MinSubscriptionLifetime;
+#pragma warning restore CS0618
 
             // initialize operation limits from client configuration.
             if (m_configuration.ClientConfiguration.OperationLimits != null)
@@ -679,6 +683,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
         {
             add => m_PublishSequenceNumbersToAcknowledge += value;
@@ -903,6 +909,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         public Subscription DefaultSubscription
         {
             get => m_defaultSubscription ??= CreateSubscription(new SubscriptionOptions

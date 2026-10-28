@@ -40,6 +40,8 @@ using Opc.Ua.Client.TestFramework;
 using ISession = Opc.Ua.Client.ISession;
 using Subscription = Opc.Ua.Client.Subscription;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
@@ -268,7 +270,6 @@ namespace Opc.Ua.Sessions.Tests
 
                         foreach (KeyValuePair<NodeId, Type> node in nodeIds)
                         {
-#pragma warning disable CS0618 // Type or member is obsolete
                             nodesToWrite.Add(new WriteValue
                             {
                                 NodeId = node.Key,
@@ -279,7 +280,6 @@ namespace Opc.Ua.Sessions.Tests
                                     )
                                 )
                             });
-#pragma warning restore CS0618 // Type or member is obsolete
                         }
 
                         try

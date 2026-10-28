@@ -41,6 +41,8 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Security.Certificates;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>

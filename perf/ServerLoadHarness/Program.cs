@@ -1313,6 +1313,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return;
             }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
+#pragma warning disable CS0618 // the harness intentionally benchmarks the classic engine and its fast callbacks
             var subscription = new Subscription(session.DefaultSubscription)
             {
                 PublishingInterval = m_publishingInterval,
@@ -1324,6 +1325,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 subscription.FastDataChangeCallback = OnDataChange;
             }
+#pragma warning restore CS0618
             try
             {
                 foreach (NodeId nodeId in m_nodeIds)

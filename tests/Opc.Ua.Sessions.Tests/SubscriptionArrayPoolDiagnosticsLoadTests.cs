@@ -47,6 +47,8 @@ using MonitoredItem = Opc.Ua.Client.MonitoredItem;
 using Subscription = Opc.Ua.Client.Subscription;
 
 #if NET10_0_OR_GREATER
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Sessions.Tests
 {
     /// <summary>
