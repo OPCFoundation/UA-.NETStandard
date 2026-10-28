@@ -97,25 +97,17 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Pins routes on the operation and bridges contextless metadata readers until P2.
+        /// Borrows the operation's view until service return, retaining explicit context-owned pins.
         /// </summary>
         /// <param name="context">The operation receiving the view.</param>
-        /// <param name="snapshot">A continuation's issuing view, or null for service entry.</param>
-        /// <returns>The scope restoring the operation's previous view.</returns>
-        internal OperationContext.RoutingScope CaptureRouting(
-            OperationContext context,
-            NodeManagerRoutingTable.RoutingSnapshot? snapshot = null)
+        /// <returns>The scope releasing borrowed service ownership.</returns>
+        internal OperationContext.RoutingScope CaptureRouting(OperationContext context)
         {
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            if (snapshot is null)
-            {
-                context.PinRouting(m_nodeManagers);
-                snapshot = GetRouting(context);
-            }
-            return context.UseRouting(snapshot);
+            return context.CaptureRouting(m_nodeManagers);
         }
 
         /// <summary>

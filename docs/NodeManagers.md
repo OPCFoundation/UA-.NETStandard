@@ -219,6 +219,19 @@ read live routes, and internal subscriber contexts are not permanently pinned. B
 resumes validate the issuing generation and resolve later-page targets through the request's current view. Metadata lookups
 use shared additive type and encodeable registrations, not request-selected metadata images.
 
+Service dispatch borrows an unpinned `OperationContext` without taking ownership of the context itself.
+Nested and overlapping calls on that same context share one captured routing view until the last
+service scope returns, including exception and cancellation unwinding. The next call then captures
+the current view. Continuous overlap can extend this shared view and delay retirement; there is no
+bounded-retirement guarantee for a context that never reaches quiescence. Independent contexts retain
+independent views, and callbacks receive the original context instance.
+
+An explicit internal `PinRouting` call transfers the current view to context ownership, even if a
+borrowed service scope acquired it first. Service return does not release that explicit pin.
+Disposing a context is terminal: no new service scope or explicit pin may enter afterward, but
+already-active borrowed scopes retain their admission until they finish. The final scope releases
+the view without restoring a stale snapshot.
+
 Request tracking handles cancellation and deadlines independently of routing lifetime. Validation does not
 register a separate lifecycle scope, and publication never snapshots or drains all executing requests.
 Retirement waits only for the retired generation's view pins and admitted generation work.

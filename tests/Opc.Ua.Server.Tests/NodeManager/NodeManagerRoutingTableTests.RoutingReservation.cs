@@ -149,6 +149,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var readImage = new TestReadImage(firstPermanent, 1);
             PublishReadImage(table, readImage);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
             var initializedTypes = new TypeTable(new NamespaceTable());
             var initializedFactory = (EncodeableFactory)EncodeableFactory.Create();
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, candidate);
@@ -229,10 +232,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Neither publication nor a later write may reveal an unrelated hidden owner.");
             Assert.That(table.GetReadImage(firstPermanent),
                 mutation == "Clear" ? Is.Null : Is.SameAs(readImage));
-            using (var context = new OperationContext(
-                new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
+            using (context.CaptureRouting(table))
             {
-                using OperationContext.RoutingScope routingScope = context.UseRouting(previous);
                 Assert.That(CreateReadImageSource(table, firstPermanent).Object.GetReadImage(context, firstPermanent),
                     Is.SameAs(readImage));
                 var routing = table.GetDispatchView(previous);
