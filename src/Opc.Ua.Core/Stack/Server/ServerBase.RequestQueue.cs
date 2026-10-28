@@ -316,6 +316,11 @@ namespace Opc.Ua
                             ct.IsCancellationRequested || Volatile.Read(ref m_stopped) ?
                                 StatusCodes.BadServerHalted : StatusCodes.BadRequestCancelledByClient);
                     }
+                    else if (RequestQueueBudget.HasExpired(queued.Request))
+                    {
+                        // the client gave up while the request was queued
+                        CompleteRequest(queued.Request, StatusCodes.BadTimeout);
+                    }
                     else if (m_decoupleHeldPublishRequests &&
                         queued.Request is IParkableIncomingRequest { ParkSink: RequestParkSink parkSink })
                     {
@@ -631,7 +636,16 @@ namespace Opc.Ua
             {
                 try
                 {
-                    request.OperationCompleted(null, statusCode);
+                    // a queue-full rejection tells the client when to retry
+                    if (statusCode == StatusCodes.BadServerTooBusy &&
+                        request is IQueueAwareIncomingRequest queueAware)
+                    {
+                        queueAware.OperationFailed(RequestQueueBudget.CreateQueueFullException());
+                    }
+                    else
+                    {
+                        request.OperationCompleted(null, statusCode);
+                    }
                 }
                 catch (Exception ex)
                 {

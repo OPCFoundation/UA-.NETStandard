@@ -136,6 +136,36 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
+        /// <summary>
+        /// A request the parking policy selects is outside the queue's timeout budget, but its
+        /// positive timeout hint still bounds the handler through the request lifetime.
+        /// </summary>
+        [Test]
+        public async Task SelectedRequestKeepsTimeoutHintDeadlineAsync()
+        {
+            var provider = new TrackingProvider();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var server = new QueueServer(provider, policy: CustomPolicy());
+            var held = new Handler();
+            var peer = new Handler();
+            var endpoint = new TestEndpoint(server, held, peer);
+            try
+            {
+                // without a deadline the handler would wait for its release until the test deadline
+                IServiceResponse response = await endpoint.SendAsync(new CallRequest(), timeoutHint: 200)
+                    .WaitAsync(deadline.Token).ConfigureAwait(false);
+                Assert.That(held.Started.Task.IsCompleted, Is.True);
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
+                await server.StopAsync(deadline.Token).ConfigureAwait(false);
+                provider.AssertAllReleasedOnce();
+            }
+            finally
+            {
+                held.Release();
+                peer.Release();
+            }
+        }
+
         [Test]
         public async Task ParkingDoesNotReturnRetainedCostToAdmitAnotherRequestAsync()
         {
@@ -605,9 +635,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public Task<IServiceResponse> SendAsync(
                 IServiceRequest request,
                 string channel = "held",
+                uint timeoutHint = 0,
                 CancellationToken cancellationToken = default)
             {
-                request.RequestHeader = new RequestHeader();
+                request.RequestHeader = new RequestHeader { TimeoutHint = timeoutHint };
                 return ProcessRequestAsync(
                     new SecureChannelContext(channel, new EndpointDescription(), RequestEncoding.Binary),
                     request,
