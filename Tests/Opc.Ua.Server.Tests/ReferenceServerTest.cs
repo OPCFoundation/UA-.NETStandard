@@ -1112,7 +1112,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 // change a single value, then wait past the 1 s publishing interval
-                await UpdateValuesAsync([testSet[2]]).ConfigureAwait(false);
+                await WriteChangedValuesAsync([testSet[2]]).ConfigureAwait(false);
                 Thread.Sleep(1500);
 
                 await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
@@ -1139,11 +1139,14 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// ResendData must not skip the triggering of linked items: a sampling item that is
-        /// triggered by a changed item is reported in the next Publish response.
+        /// triggered by a changed item is reported in the next Publish response, whether
+        /// the items change before or after the ResendData call.
         /// </summary>
         [Test]
         [NonParallelizable]
-        public async Task ResendDataKeepsTriggeredItemsAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResendDataKeepsTriggeredItemsAsync(bool resendBeforeChange)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -1203,13 +1206,35 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.Good, setTriggeringResponse.AddResults[0]);
 
-                // both items change, ResendData follows before the next publishing cycle
-                await UpdateValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
-                await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
-
+                // a change of the triggering item alone is published at the next publishing
+                // cycle; the next steps then run right after a cycle, well before the next one
+                await WriteChangedValuesAsync([testSet[2]]).ConfigureAwait(false);
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 var acknowledgements = new SubscriptionAcknowledgementCollection();
                 PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+
+                // both items change and ResendData is called before the next publishing cycle
+                if (resendBeforeChange)
+                {
+                    await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+                    await WriteChangedValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
+                }
+                else
+                {
+                    await WriteChangedValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
+                    await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+                }
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                acknowledgements.Add(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = subscriptionIds[0],
+                    SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                });
+                publishResponse = await serverTestServices.PublishAsync(
                     m_requestHeader,
                     acknowledgements).ConfigureAwait(false);
 
@@ -1218,13 +1243,58 @@ namespace Opc.Ua.Server.Tests
                 var dataChanges = (DataChangeNotification)publishResponse.NotificationMessage.NotificationData[0].Body;
                 Assert.That(dataChanges.MonitoredItems.Select(n => n.ClientHandle), Does.Contain(2u),
                     "The triggered sampling item shall be reported with its triggering item");
-                Assert.AreEqual(testSet.Length, dataChanges.MonitoredItems.Count);
+                Assert.That(dataChanges.MonitoredItems.Select(n => n.ClientHandle),
+                    Is.SupersetOf(Enumerable.Range(1, testSet.Length).Select(n => (uint)n)),
+                    "ResendData shall return a value for each monitored item");
             }
             finally
             {
                 m_requestHeader.Timestamp = DateTime.UtcNow;
                 await serverTestServices.DeleteSubscriptionsAsync(m_requestHeader, subscriptionIds).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Writes a value to each Int16 or Int32 node that differs from its current value,
+        /// so every write is a data change.
+        /// </summary>
+        private async Task WriteChangedValuesAsync(NodeId[] nodeIds)
+        {
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            var nodesToRead = new ReadValueIdCollection(
+                nodeIds.Select(n => new ReadValueId { NodeId = n, AttributeId = Attributes.Value }));
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead, CancellationToken.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+
+            var nodesToWrite = new WriteValueCollection();
+            for (int ii = 0; ii < nodeIds.Length; ii++)
+            {
+                object value = readResponse.Results[ii].Value switch
+                {
+                    short s => (object)(short)~s,
+                    int i => (object)~i,
+                    object other => throw new NotSupportedException($"Unexpected type {other.GetType()}.")
+                };
+                nodesToWrite.Add(new WriteValue
+                {
+                    NodeId = nodeIds[ii],
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue { WrappedValue = new Variant(value) }
+                });
+            }
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                nodesToWrite, CancellationToken.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
+            Assert.That(writeResponse.Results.Select(r => r.Code), Is.All.EqualTo(StatusCodes.Good));
         }
 
         private async Task<CallMethodRequestCollection> ResendDataCallAsync(

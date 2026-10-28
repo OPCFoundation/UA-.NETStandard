@@ -521,9 +521,25 @@ namespace Opc.Ua.Server
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void CheckItemsToPublish()
         {
-            // check for monitored items that are ready to publish.
-            LinkedListNode<IMonitoredItem> current = m_itemsToCheck.First;
             bool itemsTriggered = false;
+
+            // items already waiting in m_itemsToPublish (queued by ResendData, or by a
+            // cycle without a waiting Publish request) can get new values that trigger
+            // linked items. Publishing clears the trigger flag, so set them now.
+            LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
+
+            while (current != null)
+            {
+                if (TriggerLinkedItems(current.Value))
+                {
+                    itemsTriggered = true;
+                }
+
+                current = current.Next;
+            }
+
+            // check for monitored items that are ready to publish.
+            current = m_itemsToCheck.First;
 
             while (current != null)
             {
@@ -538,22 +554,9 @@ namespace Opc.Ua.Server
                 }
 
                 // update any triggered items.
-
-                if (monitoredItem.IsReadyToTrigger &&
-                    m_itemsToTrigger.TryGetValue(
-                        current.Value.Id,
-                        out List<ITriggeredMonitoredItem> triggeredItems))
+                if (TriggerLinkedItems(monitoredItem))
                 {
-                    for (int ii = 0; ii < triggeredItems.Count; ii++)
-                    {
-                        if (triggeredItems[ii].SetTriggered())
-                        {
-                            itemsTriggered = true;
-                        }
-                    }
-
-                    // clear ReadyToTrigger flag after trigger
-                    monitoredItem.IsReadyToTrigger = false;
+                    itemsTriggered = true;
                 }
 
                 current = next;
@@ -578,6 +581,35 @@ namespace Opc.Ua.Server
                     current = next;
                 }
             }
+        }
+
+        /// <summary>
+        /// Sets the items linked to a triggering item that is ready to trigger.
+        /// </summary>
+        /// <returns>True if at least one linked item was triggered.</returns>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private bool TriggerLinkedItems(IMonitoredItem monitoredItem)
+        {
+            bool itemsTriggered = false;
+
+            if (monitoredItem.IsReadyToTrigger &&
+                m_itemsToTrigger.TryGetValue(
+                    monitoredItem.Id,
+                    out List<ITriggeredMonitoredItem> triggeredItems))
+            {
+                for (int ii = 0; ii < triggeredItems.Count; ii++)
+                {
+                    if (triggeredItems[ii].SetTriggered())
+                    {
+                        itemsTriggered = true;
+                    }
+                }
+
+                // clear ReadyToTrigger flag after trigger
+                monitoredItem.IsReadyToTrigger = false;
+            }
+
+            return itemsTriggered;
         }
 
         /// <summary>
