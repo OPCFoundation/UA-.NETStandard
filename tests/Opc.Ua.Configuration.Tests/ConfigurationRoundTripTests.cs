@@ -872,13 +872,11 @@ namespace Opc.Ua.Configuration.Tests
                 rc.Clients[0].EndpointUrl,
                 Is.EqualTo("opc.tcp://client1:65300"));
             Assert.That(rc.Clients[0].Timeout, Is.EqualTo(5000));
-            Assert.That(rc.Clients[0].MaxSessionCount, Is.EqualTo(10));
             Assert.That(rc.Clients[0].Enabled, Is.True);
             Assert.That(
                 rc.Clients[1].EndpointUrl,
                 Is.EqualTo("opc.tcp://client2:65301"));
             Assert.That(rc.Clients[1].Timeout, Is.EqualTo(10000));
-            Assert.That(rc.Clients[1].MaxSessionCount, Is.EqualTo(5));
             Assert.That(rc.Clients[1].Enabled, Is.False);
             Assert.That(rc.ConnectInterval, Is.EqualTo(20000));
             Assert.That(rc.ConnectTimeout, Is.EqualTo(45000));

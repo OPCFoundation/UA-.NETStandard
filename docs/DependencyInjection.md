@@ -936,7 +936,6 @@ unchanged. The data binds directly from
           {
             "EndpointUrl": "opc.tcp://client.example.com:4841",
             "Timeout": 30000,
-            "MaxSessionCount": 1,
             "Enabled": true
           }
         ]

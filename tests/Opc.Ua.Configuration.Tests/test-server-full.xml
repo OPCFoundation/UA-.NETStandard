@@ -107,13 +107,11 @@
         <ReverseConnectClient>
           <EndpointUrl>opc.tcp://client1:65300</EndpointUrl>
           <Timeout>5000</Timeout>
-          <MaxSessionCount>10</MaxSessionCount>
           <Enabled>true</Enabled>
         </ReverseConnectClient>
         <ReverseConnectClient>
           <EndpointUrl>opc.tcp://client2:65301</EndpointUrl>
           <Timeout>10000</Timeout>
-          <MaxSessionCount>5</MaxSessionCount>
           <Enabled>false</Enabled>
         </ReverseConnectClient>
       </Clients>
