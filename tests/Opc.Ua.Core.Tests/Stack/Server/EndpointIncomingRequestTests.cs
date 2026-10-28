@@ -60,7 +60,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 field!.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
                 FieldInfo queueField = typeof(ServerBase).GetField(
                     "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
-                ((IDisposable)queueField!.GetValue(this)!).Dispose();
                 m_queue = new RequestQueue(this, 1, 1, 10);
                 queueField.SetValue(this, m_queue);
             }

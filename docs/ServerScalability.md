@@ -223,17 +223,27 @@ A decoded request waits in the server's request queue until a request worker tak
 
 | Setting | Configuration default | Current behaviour |
 |---|---|---|
-| `MinRequestThreadCount` | 10 | Workers started with the server (at least 1). The server also raises the thread pool's minimum worker and I/O threads to this value, so up to this many threads are created without the thread pool's injection delay. |
-| `MaxRequestThreadCount` | 100 | Upper bound of workers (values below 100, or below `MinRequestThreadCount`, are raised). A worker is added only when a request is queued and every worker is busy; workers are not retired. The thread pool's maximum is raised to at least this value. |
+| `MinRequestThreadCount` | 10 | Workers started with the server (at least 1). The thread pool's limits are not changed; up to 2.0.1 the server raised the thread pool's minimum worker and I/O threads to this value. |
+| `MaxRequestThreadCount` | 100 | Upper bound of workers (values below 100, or below `MinRequestThreadCount`, are raised). A worker is added only when a request is queued and every worker is busy; workers are not retired. |
 | `MaxQueuedRequestCount` | 200 | Requests of established sessions that can wait for a worker (values below 100 are raised to 100). A request that finds the queue full is answered with `BadServerTooBusy`. |
 
 Guidance:
 
 - **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage of the same size; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
 - **`MaxRequestThreadCount` bounds concurrent request execution, not threads.** Request handling is asynchronous, so a few busy workers per core are enough for in-memory node managers; the default 100 rarely needs raising. Raise it when node managers block a worker for I/O or locks (synchronous `CustomNodeManager2` code waiting on a device), or when `DecoupleHeldPublishRequests` is off.
-- **Keep `MinRequestThreadCount` moderate.** It pre-warms the pool for connect bursts, but because it also sets the thread pool's minimum, a value far above the processor count lets the pool run many more threads than processors under load. On shared or pinned processors, a preempted thread then delays every GC suspension until it runs again.
+- **The thread pool is the host's to configure.** Up to 2.0.1 the server set the process-wide thread pool minimum to `MinRequestThreadCount`, which let the pool run many more threads than processors under load; on shared or pinned processors a preempted thread then delays every GC suspension until it runs again. A host whose node managers block threads and that relied on that minimum sets it itself, with `ThreadPool.SetMinThreads` or the `System.Threading.ThreadPool.MinThreads` runtime setting.
 - **Increasing the minimum worker count did not help the one-processor workload.** A `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not CPU per request or latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for the measured scheduling change. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.
 - `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that an admission limit, not the CPU, is the limit. With an isolation profile that is not necessarily the queue count: the retained request bytes, the parked-request stage or a per-owner limit reject requests the same way while queue entries are free. Check the `opcua.server.isolation.rejections` metric (its `stage` and `reason` labels) and `opcua.server.isolation.usage` before raising `MaxQueuedRequestCount`; see [transport behavior and overload signals](ResourceIsolation.md#transport-behavior-and-overload-signals).
+
+The request queue publishes these metrics in every isolation profile, on the meter named after the `Opc.Ua.Core` assembly:
+
+| Instrument | Type | Meaning |
+|---|---|---|
+| `opcua.server.request_queue.queued` | gauge | Requests waiting for a worker. |
+| `opcua.server.request_queue.executing` | gauge | Requests executing on a worker. |
+| `opcua.server.request_queue.parked` | gauge | Requests (held `Publish` requests) that parked and released their worker. |
+| `opcua.server.request_queue.time_in_queue` | histogram, s | Time from admission until a worker took the request. |
+| `opcua.server.request_queue.rejections` | counter, `status` | Requests the queue completed without running them, by status code: `BadServerTooBusy` (queue full), `BadServerHalted` (stopping), `BadRequestCancelledByClient` (cancelled while queued) or the status of a failed admission or revalidation. |
 
 ## Scaling out
 
