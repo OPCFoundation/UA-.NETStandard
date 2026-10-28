@@ -152,12 +152,38 @@ return new ValueTask<IAsyncNodeManager>(
 
 Declare that URI in the factory's `NamespacesUris` and use its index in the
 candidate's `server.NamespaceUris` for category NodeIds and browse names.
-Preparation builds the private category tree without accessing the server-wide
-registry. `OnServerReadyAsync` registers the store after publication when
-`RegisterWithServerRegistry` is enabled; retirement unregisters it.
-The application retains ownership of the store.
+Preparation builds the private category tree and checks registration compatibility
+without exposing or changing the server-wide registry. `OnServerReadyAsync`
+acquires a registration after publication when `RegisterWithServerRegistry` is
+enabled. Retirement releases that generation's claim; the application retains
+ownership of the store.
 Custom hosts that construct the manager directly must invoke
 `OnServerReadyAsync` after address-space creation and server initialization.
+
+The default registry implements `IAliasNameStoreRegistrationProvider`.
+`AcquireRegistration(store, ownerId)` returns a disposable claim for a stable
+owner identity. Lifecycle-managed alias managers use their registration slot's
+identifier, which remains unchanged across replacements. A replacement can use
+the same backend or a different backend for the same categories. Disposing the
+old generation's claim cannot remove its replacement, and releasing the current
+claim does not restore an older one. Independent owners can share one backend
+instance, but different backends cannot claim overlapping categories for
+independent owners.
+
+Manual `Register` and `Unregister` calls remain idempotent. Their claim is
+independent of leased claims: unregistering a manual claim leaves active leases
+intact, and releasing the last lease leaves a manual claim intact.
+
+An injected registry can implement `IAliasNameStoreRegistrationProvider` without
+changing `IAliasNameStoreRegistry`. A legacy registry supports an exclusive
+initial registration, including a fresh manager after its predecessor has been
+disposed. Private preparation rejects sharing that backend or replacing a
+registered alias manager when the registry cannot own independent claims.
+The staging server exposes only this compatibility check through
+`IAliasNameStoreRegistrationValidator`; its serving-registry getter remains
+unavailable during preparation. The check reserves no categories. Acquisition
+revalidates ownership atomically, so a concurrent registration can still cause
+the existing registration-conflict warning during readiness.
 
 Options:
 

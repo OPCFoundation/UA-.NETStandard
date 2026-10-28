@@ -959,11 +959,17 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The facade supplied by the owner.</param>
         /// <returns>The canonical resource key.</returns>
-        private static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
+        internal static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
         {
-            return nodeManager is AsyncNodeManagerAdapter adapter
-                ? adapter.SyncNodeManager.ToAsyncNodeManager()
-                : nodeManager;
+            if (nodeManager is not AsyncNodeManagerAdapter adapter)
+            {
+                return nodeManager;
+            }
+            if (adapter.SyncNodeManager is SyncNodeManagerAdapter synchronous)
+            {
+                return GetIdentity(synchronous.AsyncNodeManager);
+            }
+            return adapter.SyncNodeManager.ToAsyncNodeManager();
         }
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>

@@ -82,6 +82,11 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool AllowNodeManagement => m_nodeManager.AllowNodeManagement;
 
+        /// <summary>
+        /// Gets the asynchronous resource wrapped by this synchronous facade.
+        /// </summary>
+        internal IAsyncNodeManager AsyncNodeManager => m_nodeManager;
+
         /// <inheritdoc/>
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,

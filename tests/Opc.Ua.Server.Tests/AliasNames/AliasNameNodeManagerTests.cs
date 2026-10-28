@@ -27,7 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -57,6 +59,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         public void SetUp()
         {
             m_mockServer = new Mock<IServerInternal>();
+            m_mockServer.As<IAliasNameStoreRegistryProvider>();
             m_namespaceTable = new NamespaceTable();
             m_namespaceTable.Append(c_namespaceUri);
 
@@ -70,6 +73,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             m_mockServer.Setup(s => s.TypeTree).Returns(typeTable);
             m_mockServer.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             m_mockServer.Setup(s => s.Telemetry).Returns(telemetry);
+            m_mockServer.Setup(s => s.MessageContext).Returns(new ServiceMessageContext(telemetry));
             m_mockServer.Setup(s => s.DefaultSystemContext)
                 .Returns(new ServerSystemContext(m_mockServer.Object));
 
@@ -114,6 +118,338 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     NamespaceUri = c_namespaceUri,
                     RegisterWithServerRegistry = false
                 });
+        }
+
+        /// <summary>
+        /// Legacy injected registries retain single-owner registration but reject an unsafe shared claim.
+        /// </summary>
+        /// <param name="alreadyRegistered">Whether an independent owner already registered the backend.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyRegistryRequiresExclusiveStoreOwnershipAsync(bool alreadyRegistered)
+        {
+            using var backing = new AliasNameStoreRegistry();
+            if (alreadyRegistered)
+            {
+                backing.Register(m_store);
+            }
+            var legacy = new Mock<IAliasNameStoreRegistry>();
+            legacy.SetupGet(registry => registry.Stores).Returns(() => backing.Stores);
+            legacy.Setup(registry => registry.Register(It.IsAny<IAliasNameStore>()))
+                .Callback<IAliasNameStore>(backing.Register);
+            legacy.Setup(registry => registry.Unregister(It.IsAny<IAliasNameStore>()))
+                .Callback<IAliasNameStore>(backing.Unregister);
+            m_mockServer.As<IAliasNameStoreRegistryProvider>()
+                .SetupGet(provider => provider.AliasNameStoreRegistry).Returns(legacy.Object);
+            var manager = CreateManager(new AliasNameNodeManagerOptions
+            {
+                NamespaceUri = c_namespaceUri,
+                RegisterWithServerRegistry = true,
+                MaterializeAliasNodes = false,
+                RefreshAliasNodesOnChange = false
+            });
+            try
+            {
+                if (alreadyRegistered)
+                {
+                    await Assert.ThatAsync(() => manager.CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>()).AsTask(),
+                        Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
+                    legacy.Verify(registry => registry.Register(It.IsAny<IAliasNameStore>()), Times.Never);
+                }
+                else
+                {
+                    await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false);
+                    await manager.OnServerReadyAsync().ConfigureAwait(false);
+                    await manager.OnServerReadyAsync().ConfigureAwait(false);
+                    legacy.Verify(registry => registry.Register(m_store), Times.Once);
+                }
+                Assert.That(backing.GetStoreForCategory(new NodeId("MyCategory", 1)), Is.SameAs(m_store));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+            Assert.That(backing.Stores.Contains(m_store), Is.EqualTo(alreadyRegistered));
+            legacy.Verify(registry => registry.Unregister(m_store),
+                alreadyRegistered ? Times.Never() : Times.Once());
+            if (!alreadyRegistered)
+            {
+                await using (AliasNameNodeManager restarted = CreateManager(new AliasNameNodeManagerOptions
+                {
+                    NamespaceUri = c_namespaceUri,
+                    MaterializeAliasNodes = false,
+                    RefreshAliasNodesOnChange = false
+                }))
+                {
+                    await restarted.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false);
+                    await restarted.OnServerReadyAsync().ConfigureAwait(false);
+                    Assert.That(backing.GetStoreForCategory(new NodeId("MyCategory", 1)), Is.SameAs(m_store));
+                    legacy.Verify(registry => registry.Register(m_store), Times.Exactly(2));
+                }
+                Assert.That(backing.Stores, Is.Empty);
+                legacy.Verify(registry => registry.Unregister(m_store), Times.Exactly(2));
+            }
+        }
+
+        /// <summary>
+        /// Private preparation rejects replacing a legacy claim but allows a first alias manager in an older slot.
+        /// </summary>
+        /// <param name="replacesAlias">Whether the previous generation owns a registered alias store.</param>
+        /// <param name="adapted">Whether the managers are hosted through an asynchronous/synchronous round trip.</param>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task LegacyRegistryValidatesReplacementDuringPrivatePreparationAsync(
+            bool replacesAlias, bool adapted)
+        {
+            using var backing = new AliasNameStoreRegistry();
+            using var previousStore = new InMemoryAliasNameStore([]);
+            var legacy = new Mock<IAliasNameStoreRegistry>();
+            legacy.SetupGet(registry => registry.Stores).Returns(() => backing.Stores);
+            legacy.Setup(registry => registry.Register(It.IsAny<IAliasNameStore>()))
+                .Callback<IAliasNameStore>(backing.Register);
+            legacy.Setup(registry => registry.Unregister(It.IsAny<IAliasNameStore>()))
+                .Callback<IAliasNameStore>(backing.Unregister);
+            m_mockServer.As<IAliasNameStoreRegistryProvider>()
+                .SetupGet(provider => provider.AliasNameStoreRegistry).Returns(legacy.Object);
+            using var previousAlias = new AliasNameNodeManager(
+                m_mockServer.Object, m_configuration, previousStore,
+                new AliasNameNodeManagerOptions { NamespaceUri = c_namespaceUri, RefreshAliasNodesOnChange = false });
+            IAsyncNodeManager previous = replacesAlias ? previousAlias : Mock.Of<IAsyncNodeManager>();
+            if (replacesAlias && adapted)
+            {
+                previous = new AsyncNodeManagerAdapter(previousAlias.SyncNodeManager);
+            }
+            if (replacesAlias)
+            {
+                await previous.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                await ((INodeManagerReadinessNotification)previous).OnServerReadyAsync().ConfigureAwait(false);
+            }
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(previous);
+            Assert.That(original.Gate.TryEnter(out int stripe), Is.True);
+            var preparation = new ChangePreparer(m_mockServer.Object);
+            using ChangePreparer.StagingServer facade = preparation.CreateServer();
+            await using var candidate = new AliasNameNodeManager(
+                facade, m_configuration, m_store, new AliasNameNodeManagerOptions
+                {
+                    NamespaceUri = c_namespaceUri,
+                    MaterializeAliasNodes = false,
+                    RefreshAliasNodesOnChange = false
+                });
+            IAsyncNodeManager hostedCandidate = adapted
+                ? new AsyncNodeManagerAdapter(candidate.SyncNodeManager)
+                : candidate;
+            NodeManagerGeneration next = NodeManagerGenerationRegistry.CreateReplacement(original, hostedCandidate);
+            facade.Attach(candidate);
+            try
+            {
+                Assert.That(next.Number, Is.EqualTo(2));
+                Assert.That(next.Slot, Is.SameAs(original.Slot));
+                Assert.That(() => ((IAliasNameStoreRegistryProvider)facade).AliasNameStoreRegistry,
+                    Throws.TypeOf<InvalidOperationException>());
+                if (replacesAlias)
+                {
+                    await Assert.ThatAsync(() => hostedCandidate.CreateAddressSpaceAsync(
+                        new Dictionary<NodeId, IList<IReference>>()).AsTask(),
+                        Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
+                    Assert.That(facade.IsStaging, Is.True);
+                    Assert.That(original.Slot.Current, Is.SameAs(original));
+                    Assert.That(backing.Stores, Is.EqualTo(new[] { previousStore }));
+                    legacy.Verify(registry => registry.Register(m_store), Times.Never);
+                }
+                else
+                {
+                    await hostedCandidate.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false);
+                    Assert.That(facade.IsStaging, Is.True);
+                    Assert.That(backing.Stores, Is.Empty);
+                    facade.Bind();
+                    await ((INodeManagerReadinessNotification)hostedCandidate).OnServerReadyAsync()
+                        .ConfigureAwait(false);
+                    Assert.That(backing.Stores, Is.EqualTo(new[] { m_store }));
+                }
+            }
+            finally
+            {
+                original.Gate.Exit(stripe);
+            }
+        }
+
+        /// <summary>
+        /// Readiness serializes claim acquisition with a concurrent readiness or disposal callback.
+        /// </summary>
+        /// <param name="dispose">Whether the competing callback disposes the manager.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadinessSerializesOwnedRegistrationWithCompetingCallbacksAsync(bool dispose)
+        {
+            using var backing = new AliasNameStoreRegistry();
+            using var acquired = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            using var competing = new ManualResetEventSlim();
+            var registry = new Mock<IAliasNameStoreRegistry>();
+            var registrations = registry.As<IAliasNameStoreRegistrationProvider>();
+            int calls = 0;
+            registrations.Setup(provider => provider.AcquireRegistration(
+                It.IsAny<IAliasNameStore>(), It.IsAny<Guid>()))
+                .Returns((IAliasNameStore store, Guid owner) =>
+                {
+                    IDisposable claim = backing.AcquireRegistration(store, owner);
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        acquired.Set();
+                        if (!release.Wait(TimeSpan.FromSeconds(30)))
+                        {
+                            throw new TimeoutException("The first registration was not released.");
+                        }
+                    }
+                    return claim;
+                });
+            m_mockServer.As<IAliasNameStoreRegistryProvider>()
+                .SetupGet(provider => provider.AliasNameStoreRegistry).Returns(registry.Object);
+            var manager = CreateManager(new AliasNameNodeManagerOptions
+            {
+                NamespaceUri = c_namespaceUri,
+                MaterializeAliasNodes = false,
+                RefreshAliasNodesOnChange = false
+            });
+            Task first = Task.Run(async () => await manager.OnServerReadyAsync().ConfigureAwait(false));
+            Task? second = null;
+            try
+            {
+                Assert.That(acquired.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                Thread? competingThread = null;
+                second = Task.Run(async () =>
+                {
+                    competingThread = Thread.CurrentThread;
+                    competing.Set();
+                    if (dispose)
+                    {
+                        manager.Dispose();
+                    }
+                    else
+                    {
+                        await manager.OnServerReadyAsync().ConfigureAwait(false);
+                    }
+                });
+                Assert.That(competing.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                // Thread state coordinates the interleaving; claim count and final inventory prove ownership.
+                Assert.That(SpinWait.SpinUntil(() => second.IsCompleted ||
+                    (competingThread!.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                    TimeSpan.FromSeconds(30)), Is.True,
+                    "The started competing callback must reach a completion or blocking boundary.");
+                release.Set();
+                await Task.WhenAll(first, second).ConfigureAwait(false);
+                Assert.That(calls, Is.EqualTo(1));
+                if (!dispose)
+                {
+                    Assert.That(backing.GetStoreForCategory(new NodeId("MyCategory", 1)), Is.SameAs(m_store));
+                    manager.Dispose();
+                }
+                Assert.That(backing.Stores, Is.Empty);
+                Assert.That(() => manager.OnServerReadyAsync(), Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                release.Set();
+                await first.ConfigureAwait(false);
+                if (second is not null)
+                {
+                    await second.ConfigureAwait(false);
+                }
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A provider that reenters disposal cannot leave a claim acquired after the disposal callback.
+        /// </summary>
+        /// <param name="owned">Whether the provider returns an owned claim instead of a legacy registration.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReentrantProviderDisposalDoesNotRetainRegistrationAsync(bool owned)
+        {
+            using var backing = new AliasNameStoreRegistry();
+            var registry = new Mock<IAliasNameStoreRegistry>();
+            AliasNameNodeManager? manager = null;
+            registry.SetupGet(provider => provider.Stores).Returns(() => backing.Stores);
+            registry.Setup(provider => provider.Register(m_store)).Callback(() =>
+            {
+                backing.Register(m_store);
+                manager!.Dispose();
+            });
+            registry.Setup(provider => provider.Unregister(m_store)).Callback(() => backing.Unregister(m_store));
+            if (owned)
+            {
+                registry.As<IAliasNameStoreRegistrationProvider>()
+                    .Setup(provider => provider.AcquireRegistration(m_store, It.IsAny<Guid>()))
+                    .Returns((IAliasNameStore store, Guid owner) =>
+                    {
+                        IDisposable claim = backing.AcquireRegistration(store, owner);
+                        manager!.Dispose();
+                        return claim;
+                    });
+            }
+            m_mockServer.As<IAliasNameStoreRegistryProvider>()
+                .SetupGet(provider => provider.AliasNameStoreRegistry).Returns(registry.Object);
+            manager = CreateManager(new AliasNameNodeManagerOptions
+            {
+                NamespaceUri = c_namespaceUri,
+                MaterializeAliasNodes = false,
+                RefreshAliasNodesOnChange = false
+            });
+            try
+            {
+                Assert.That(() => manager.OnServerReadyAsync(), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(backing.Stores, Is.Empty);
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Readiness revalidates ownership when another manager claims a category after private validation.
+        /// </summary>
+        [Test]
+        public async Task OwnedRegistrationRevalidatesAfterPrivateCompatibilityCheckAsync()
+        {
+            using var registry = new AliasNameStoreRegistry();
+            m_mockServer.As<IAliasNameStoreRegistryProvider>()
+                .SetupGet(provider => provider.AliasNameStoreRegistry).Returns(registry);
+            using var independent = new InMemoryAliasNameStore(
+            [
+                new AliasNameCategoryDescriptor(new NodeId("MyCategory", 1), new QualifiedName("MyCategory", 1))
+            ]);
+            var manager = CreateManager(new AliasNameNodeManagerOptions
+            {
+                NamespaceUri = c_namespaceUri,
+                MaterializeAliasNodes = false,
+                RefreshAliasNodesOnChange = false
+            });
+            try
+            {
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                Assert.That(registry.Stores, Is.Empty);
+                using IDisposable claim = registry.AcquireRegistration(independent, Guid.NewGuid());
+                await manager.OnServerReadyAsync().ConfigureAwait(false);
+                Assert.That(registry.GetStoreForCategory(new NodeId("MyCategory", 1)), Is.SameAs(independent));
+                await manager.DisposeAsync().ConfigureAwait(false);
+                Assert.That(registry.GetStoreForCategory(new NodeId("MyCategory", 1)), Is.SameAs(independent));
+                Assert.That(registry.Stores, Is.EqualTo(new[] { independent }));
+            }
+            finally
+            {
+                await manager.DisposeAsync().ConfigureAwait(false);
+            }
+            Assert.That(registry.Stores, Is.Empty);
         }
 
         [Test]

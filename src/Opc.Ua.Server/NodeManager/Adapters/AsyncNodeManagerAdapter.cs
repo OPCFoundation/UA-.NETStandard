@@ -951,7 +951,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            if (SyncNodeManager is IAsyncDisposable asynchronous)
+            IAsyncDisposable? asynchronous = SyncNodeManager is SyncNodeManagerAdapter adapter
+                ? adapter.AsyncNodeManager as IAsyncDisposable
+                : SyncNodeManager as IAsyncDisposable;
+            if (asynchronous is not null)
             {
                 await asynchronous.DisposeAsync().ConfigureAwait(false);
             }
@@ -969,7 +972,14 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                (SyncNodeManager as IDisposable)?.Dispose();
+                if (SyncNodeManager is SyncNodeManagerAdapter adapter)
+                {
+                    (adapter.AsyncNodeManager as IDisposable)?.Dispose();
+                }
+                else
+                {
+                    (SyncNodeManager as IDisposable)?.Dispose();
+                }
             }
         }
     }

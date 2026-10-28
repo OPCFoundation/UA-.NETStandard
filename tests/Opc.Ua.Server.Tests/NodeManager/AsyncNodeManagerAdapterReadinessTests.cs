@@ -43,6 +43,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public class AsyncNodeManagerAdapterReadinessTests
     {
+        /// <summary>
+        /// Disposing a round-trip facade reaches its underlying asynchronous manager exactly once.
+        /// </summary>
+        /// <param name="asynchronous">Whether the owner requests asynchronous disposal.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RoundtripDisposalReleasesUnderlyingManagerAsync(bool asynchronous)
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            var disposable = manager.As<IDisposable>();
+            var asyncDisposable = manager.As<IAsyncDisposable>();
+            var adapter = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(manager.Object));
+            if (asynchronous)
+            {
+                await adapter.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                adapter.Dispose();
+            }
+            disposable.Verify(value => value.Dispose(), asynchronous ? Times.Never() : Times.Once());
+            asyncDisposable.Verify(value => value.DisposeAsync(), asynchronous ? Times.Once() : Times.Never());
+        }
+
         [Test]
         public async Task AsyncReadinessIsPreferredOverSyncReadinessAsync()
         {

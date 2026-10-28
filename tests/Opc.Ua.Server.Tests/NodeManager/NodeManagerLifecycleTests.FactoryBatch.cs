@@ -101,6 +101,141 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A replacement retains its alias-store ownership after the prior generation physically retires.
+        /// </summary>
+        /// <param name="sharedStore">Whether both generations use the same backend instance.</param>
+        /// <param name="publish">Whether the replacement is committed or abandoned.</param>
+        /// <param name="adapted">Whether both managers are hosted through their synchronous adapters.</param>
+        [TestCase(true, true, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, false, false)]
+        [TestCase(true, true, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, false, true)]
+        public async Task AliasReplacementOwnsRegistrationAcrossPhysicalRetirementAsync(
+            bool sharedStore, bool publish, bool adapted)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            CancellationToken ct = timeout.Token;
+            string uri = kModelNamespaceUri + ":alias-replacement";
+            ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(uri);
+            var category = new NodeId("ReplacementCategory", namespaceIndex);
+            var descriptor = new AliasNameCategoryDescriptor(
+                category, new QualifiedName("ReplacementCategory", namespaceIndex));
+            using var originalStore = new InMemoryAliasNameStore([descriptor]);
+            using var distinctStore = new InMemoryAliasNameStore([descriptor]);
+            InMemoryAliasNameStore replacementStore = sharedStore ? originalStore : distinctStore;
+            IAliasNameStoreRegistry registry =
+                ((IAliasNameStoreRegistryProvider)m_server.CurrentInstance).AliasNameStoreRegistry;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            IAliasNameStore[] originalStores = registry.Stores.ToArray();
+            var managers = new List<AliasNameNodeManager>();
+            NodeManagerRegistration current = await lifecycle.AddAsync(CreateFactory(originalStore), ct)
+                .ConfigureAwait(false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.NodeManager);
+            Assert.That(generation.Gate.TryEnter(out int stripe), Is.True);
+            NodeManagerBatchResult? publication = null;
+            try
+            {
+                Assert.That(NodeManagerGenerationRegistry.TryGet(managers[0], out NodeManagerGeneration? original),
+                    Is.True);
+                Assert.That(original, Is.SameAs(generation));
+                ChangePreparer.StagingServer? claim = ChangePreparer.GetServer(current.NodeManager);
+                Assert.That(claim, Is.Not.Null);
+                Assert.That(ChangePreparer.GetServer(managers[0]), Is.SameAs(claim));
+                Assert.That(ChangePreparer.GetServer(new AsyncNodeManagerAdapter(managers[0].SyncNodeManager)),
+                    Is.SameAs(claim));
+                Assert.That(registry.GetStoreForCategory(category), Is.SameAs(originalStore));
+                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(current, CreateFactory(replacementStore))], ct)
+                    .ConfigureAwait(false))
+                {
+                    Assert.That(registry.GetStoreForCategory(category), Is.SameAs(originalStore));
+                    if (publish)
+                    {
+                        publication = await replacement.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                        current = replacement.Registrations[0];
+                        Assert.That(NodeManagerGenerationRegistry.GetOrCreate(current.NodeManager).Slot,
+                            Is.SameAs(generation.Slot));
+                        Assert.That(generation.Slot.Id, Is.EqualTo(current.Id));
+                        Assert.That(NodeManagerGenerationRegistry.TryGet(managers[1], out NodeManagerGeneration? next),
+                            Is.True);
+                        Assert.That(next, Is.SameAs(generation.Slot.Current));
+                        Assert.That(publication.CleanupFailure, Is.Null);
+                        Assert.That(publication.Retirement.IsCompleted, Is.False);
+                        Assert.That(registry.GetStoreForCategory(category), Is.SameAs(replacementStore));
+                    }
+                }
+                generation.Gate.Exit(stripe);
+                stripe = -1;
+                if (publication is not null)
+                {
+                    await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    Mock.Get(managers[0]).Verify(manager => manager.DisposeAsync(), Times.Once);
+                }
+                Assert.That(registry.GetStoreForCategory(category),
+                    Is.SameAs(publish ? replacementStore : originalStore));
+                Assert.That(registry.Stores, Is.EquivalentTo(
+                    originalStores.Append(publish ? replacementStore : originalStore)));
+            }
+            finally
+            {
+                if (stripe >= 0)
+                {
+                    generation.Gate.Exit(stripe);
+                }
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                if (publication is not null)
+                {
+                    await publication.Retirement.WaitAsync(cleanup.Token).ConfigureAwait(false);
+                }
+                await RemoveAndRetireAsync(lifecycle, current, cleanup.Token).ConfigureAwait(false);
+            }
+            Assert.That(registry.GetStoreForCategory(category), Is.Null);
+            Assert.That(registry.Stores, Is.EquivalentTo(originalStores));
+            foreach (AliasNameNodeManager manager in managers)
+            {
+                Mock.Get(manager).Verify(owner => owner.DisposeAsync(), Times.Once);
+            }
+
+            IAsyncNodeManagerFactory CreateFactory(InMemoryAliasNameStore store)
+            {
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.Setup(owner => owner.CreateAsync(It.IsAny<IServerInternal>(),
+                        It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .Returns((IServerInternal staged, ApplicationConfiguration configuration, CancellationToken _) =>
+                    {
+                        var manager = new Mock<AliasNameNodeManager>(
+                            staged, configuration, store, new AliasNameNodeManagerOptions
+                            {
+                                NamespaceUri = uri,
+                                MaterializeAliasNodes = false,
+                                RefreshAliasNodesOnChange = false
+                            }) { CallBase = true };
+                        manager.As<INodeManagerReloadParticipant>().Setup(owner => owner.PrepareReloadAsync(
+                            It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                            .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+                        managers.Add(manager.Object);
+                        if (adapted)
+                        {
+                            var adapter = new Mock<AsyncNodeManagerAdapter>(manager.Object.SyncNodeManager)
+                            {
+                                CallBase = true
+                            };
+                            adapter.As<INodeManagerReloadParticipant>().Setup(owner => owner.PrepareReloadAsync(
+                                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+                            return new ValueTask<IAsyncNodeManager>(adapter.Object);
+                        }
+                        return new ValueTask<IAsyncNodeManager>(manager.Object);
+                    });
+                return factory.Object;
+            }
+        }
+
+        /// <summary>
         /// Hosts the alias manager through an initial factory without accessing registries during construction.
         /// </summary>
         /// <param name="register">Whether readiness registers the store with the server.</param>
@@ -350,22 +485,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Concurrent factories returning one manager cannot both claim its staging metadata.
         /// </summary>
-        [Test]
-        public async Task ConcurrentCandidateClaimsHaveExactlyOneOwnerAsync()
+        /// <param name="adapted">Whether each factory call returns a fresh round-trip facade.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcurrentCandidateClaimsHaveExactlyOneOwnerAsync(bool adapted)
         {
             var first = new ChangePreparer(m_server.CurrentInstance);
             var second = new ChangePreparer(m_server.CurrentInstance);
             Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            IAsyncNodeManager resource = manager.Object;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+                .Returns(() => new ValueTask<IAsyncNodeManager>(adapted
+                    ? new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(resource))
+                    : resource));
             using var claims = new Barrier(2);
             bool[] results = await Task.WhenAll(
                 Task.Run(() => ClaimAsync(first)),
                 Task.Run(() => ClaimAsync(second))).ConfigureAwait(false);
             Assert.That(results.Count(success => success), Is.EqualTo(1));
-            ChangePreparer.StagingServer owner = ChangePreparer.GetServer(manager.Object)!;
+            ChangePreparer.StagingServer owner = ChangePreparer.GetServer(resource)!;
             Assert.That(owner, Is.Not.Null);
             owner.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
             Assert.That(first.NamespaceUris.GetIndex(kSecondModelNamespaceUri) >= 0, Is.EqualTo(results[0]));
@@ -384,7 +524,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             }
                             return false;
                         }, CancellationToken.None).ConfigureAwait(false);
-                    Assert.That(claimed, Is.SameAs(manager.Object));
+                    Assert.That(NodeManagerGenerationRegistry.GetIdentity(claimed), Is.SameAs(resource));
+                    Assert.That(ChangePreparer.GetServer(claimed),
+                        Is.SameAs(ChangePreparer.GetServer(resource)));
                     return true;
                 }
                 catch (NodeManagerAlreadyRegisteredException)
@@ -398,9 +540,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// A factory cannot restore a retired owner while an admitted operation still prevents its reclamation.
         /// </summary>
         /// <param name="synchronous">Whether a fresh adapter returns the same synchronous resource identity.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task FactoryCannotRestoreRetiringGenerationBeforeItsAdmissionDrainsAsync(bool synchronous)
+        /// <param name="roundtrip">Whether a fresh adapter wraps the retiring asynchronous resource's sync facade.</param>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task FactoryCannotRestoreRetiringGenerationBeforeItsAdmissionDrainsAsync(
+            bool synchronous, bool roundtrip)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             TrackingLifecycleNodeManager? tracked = null;
@@ -452,7 +597,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
                 NodeManagerRoutingTable.RoutingSnapshot view = host.RoutingRevision;
                 long revision = lifecycle.Revision;
-                IAsyncNodeManager reused = synchronous
+                IAsyncNodeManager reused = synchronous || roundtrip
                     ? new AsyncNodeManagerAdapter(RequireLifecycleValue(original.NodeManager.SyncNodeManager))
                     : original.NodeManager;
                 var reuseFactory = new Mock<IAsyncNodeManagerFactory>();

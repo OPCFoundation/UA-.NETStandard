@@ -150,7 +150,8 @@ namespace Opc.Ua.Server
                     ? "The replacement NodeManager factory returned null."
                     : "The NodeManager factory returned null.");
             if (isRegistered(manager) ||
-                !ReferenceEquals(s_candidates.GetValue(manager, _ => server), server))
+                !ReferenceEquals(s_candidates.GetValue(NodeManagerGenerationRegistry.GetIdentity(manager),
+                    _ => server), server))
             {
                 throw new NodeManagerAlreadyRegisteredException();
             }
@@ -162,13 +163,14 @@ namespace Opc.Ua.Server
         /// </summary>
         internal static StagingServer? GetServer(IAsyncNodeManager manager)
         {
-            if (s_candidates.TryGetValue(manager, out StagingServer? server))
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            if (s_candidates.TryGetValue(identity, out StagingServer? server))
             {
                 return server;
             }
-            return manager is AsyncCustomNodeManager asynchronous
+            return identity is AsyncCustomNodeManager asynchronous
                 ? asynchronous.Server as StagingServer
-                : (manager.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
+                : (identity.SyncNodeManager as CustomNodeManager2)?.Server as StagingServer;
         }
 
         /// <summary>
@@ -196,7 +198,8 @@ namespace Opc.Ua.Server
         internal sealed class StagingServer :
             IServerInternal, INodeIdFactoryProvider, ITimeProviderProvider,
             IHistorianRegistryProvider, IHistorianBuilderRegistry,
-            AliasNames.IAliasNameStoreRegistryProvider, IConformanceUnitsManagerProvider
+            AliasNames.IAliasNameStoreRegistryProvider, AliasNames.IAliasNameStoreRegistrationValidator,
+            IConformanceUnitsManagerProvider
         {
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
@@ -339,6 +342,17 @@ namespace Opc.Ua.Server
                     return m_server is AliasNames.IAliasNameStoreRegistryProvider provider
                         ? provider.AliasNameStoreRegistry
                         : throw new NotSupportedException("The server does not provide an alias-name registry.");
+                }
+            }
+
+            /// <inheritdoc />
+            public void ValidateAliasNameStoreRegistration(
+                AliasNames.IAliasNameStore store, bool replacesRegisteredStore)
+            {
+                if (m_server is AliasNames.IAliasNameStoreRegistryProvider provider)
+                {
+                    AliasNames.AliasNameNodeManager.ValidateRegistryRegistration(
+                        provider.AliasNameStoreRegistry, store, replacesRegisteredStore);
                 }
             }
 
