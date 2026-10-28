@@ -291,7 +291,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         private static readonly string[] s_connectionToolNames =
-            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "ConnectJwt", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif
