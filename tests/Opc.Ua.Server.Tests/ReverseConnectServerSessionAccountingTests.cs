@@ -61,6 +61,9 @@ namespace Opc.Ua.Server.Tests
             {
             }
 
+            /// <summary>
+            /// Number of calls dispatched to the legacy overload.
+            /// </summary>
             public int LegacyAddReverseConnectionCallCount { get; private set; }
 
             [Obsolete]
@@ -87,7 +90,7 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that the new overload still dispatches through the legacy virtual overload.
         /// </summary>
         [Test]
-        public void AddReverseConnection_PreservesLegacyVirtualDispatch()
+        public void AddReverseConnectionPreservesLegacyVirtualDispatch()
         {
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create());
 
@@ -164,7 +167,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(ReverseConnectState.Closed)]
         [TestCase(ReverseConnectState.Errored)]
-        public async Task ReverseConnection_IsAttempted_WhenLegacySessionThresholdIsReachedAsync(
+        public async Task ReverseConnectionIsAttemptedWhenLegacySessionThresholdIsReachedAsync(
             ReverseConnectState initialState)
         {
             var fakeTime = new FakeTimeProvider();
