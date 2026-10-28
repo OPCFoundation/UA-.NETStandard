@@ -124,7 +124,7 @@ namespace Opc.Ua
                     description: "Requests executing and holding a permit or worker.");
                 m_meter.CreateObservableGauge(
                     "opcua.server.request_queue.parked",
-                    () => Math.Max(0, Volatile.Read(ref m_processingCount) - Volatile.Read(ref m_activeThreadCount)),
+                    () => Volatile.Read(ref m_parkedCount),
                     description: "Requests parked (for example held Publish requests) after releasing their permit or worker.");
 
                 m_workers = [];
@@ -330,6 +330,7 @@ namespace Opc.Ua
                         if (!processing.IsCompleted)
                         {
                             await Task.WhenAny(processing, parkSink.ParkedTask).ConfigureAwait(false);
+                            CountWhileParked(processing);
                         }
                     }
                     else
@@ -553,6 +554,7 @@ namespace Opc.Ua
                     if (!processing.IsCompleted)
                     {
                         await Task.WhenAny(processing, parkSink.ParkedTask).ConfigureAwait(false);
+                        CountWhileParked(processing);
                     }
                 }
                 finally
@@ -564,6 +566,26 @@ namespace Opc.Ua
                 // If the request parked it completes independently; the response is
                 // delivered via the request's value-task source. Nothing further is
                 // required here because ProcessRequestSafeAsync observes all faults.
+            }
+
+            /// <summary>
+            /// Counts a request that released its permit or worker at the park point as
+            /// parked until its handler finishes.
+            /// </summary>
+            private void CountWhileParked(Task processing)
+            {
+                if (processing.IsCompleted)
+                {
+                    return;
+                }
+                Interlocked.Increment(ref m_parkedCount);
+                // ProcessRequestSafeAsync never throws, so the continuation only counts.
+                _ = processing.ContinueWith(
+                    static (_, state) => Interlocked.Decrement(ref ((RequestQueue)state!).m_parkedCount),
+                    this,
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
             }
 
             /// <summary>
@@ -792,6 +814,12 @@ namespace Opc.Ua
             /// <see cref="Interlocked"/>.
             /// </summary>
             private int m_processingCount;
+
+            /// <summary>
+            /// Number of handlers that parked and released their permit or worker,
+            /// changed with <see cref="Interlocked"/>.
+            /// </summary>
+            private int m_parkedCount;
 
             /// <summary>
             /// Number of requests executing rather than parked or waiting: the permits in

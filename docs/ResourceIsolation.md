@@ -593,7 +593,9 @@ bootstrap, reconnect, control and trusted floors, so the shared capacity equals
 the configured value. For example, with `MaxQueuedRequestCount = 10000`, ten
 clients can each keep 1,000 requests outstanding. Balanced then sizes the
 RequestQueue stage at 10,003 entries. RequestExecution keeps its floors inside
-the worker limit, so an idle worker remains available for protected requests.
+the worker limit, so an idle worker remains available for protected requests:
+its total is `MaxRequestThreadCount`, and startup fails when that leaves no
+worker for ordinary requests (Balanced needs at least 4).
 An explicit `Stages[].Capacity` is still an absolute total that includes the
 floors, and it cannot exceed the default total.
 

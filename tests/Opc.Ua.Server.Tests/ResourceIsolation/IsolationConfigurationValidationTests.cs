@@ -60,6 +60,39 @@ namespace Opc.Ua.Server.Tests
                     .And.Message.Contains("two minutes"));
         }
 
+        /// <summary>
+        /// The execution stage holds no more requests than the request queue has workers,
+        /// so reserved classes cannot be crowded out of the workers by ordinary requests.
+        /// </summary>
+        [Test]
+        public void RuntimePlanExecutionCapacityIsMaxRequestThreadCount()
+        {
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration.MinRequestThreadCount = 1;
+            configuration.ServerConfiguration.MaxRequestThreadCount = 4;
+
+            ResourceIsolationStagePlan execution = Options()
+                .CreateRuntimePlan(configuration, new ServerRateLimitOptions())
+                .GetStage(ResourceIsolationStage.RequestExecution);
+
+            Assert.That(execution.Capacity, Is.EqualTo(4));
+            Assert.That(execution.SharedCapacity, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Too few workers for the reserved requests are named at startup.
+        /// </summary>
+        [Test]
+        public void RuntimePlanRejectsMaxRequestThreadCountBelowReservations()
+        {
+            ApplicationConfiguration configuration = Configuration();
+            configuration.ServerConfiguration.MinRequestThreadCount = 1;
+            configuration.ServerConfiguration.MaxRequestThreadCount = 3;
+
+            Assert.That(() => Options().CreateRuntimePlan(configuration, new ServerRateLimitOptions()),
+                Throws.ArgumentException.With.Message.Contains("MaxRequestThreadCount (3)"));
+        }
+
         [Test]
         public async Task StartupRejectsInvalidTimeoutWithoutInstallingOrDisposingProvidersAsync(
             [Values] ServerResourceIsolationMode mode,
