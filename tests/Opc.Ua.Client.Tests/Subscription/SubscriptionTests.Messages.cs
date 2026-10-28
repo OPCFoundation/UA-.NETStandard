@@ -173,18 +173,23 @@ namespace Opc.Ua.Client.Subscriptions
                 MaxPublishWorkerCount = 1
             };
             Task? disposing = null;
+            string stage = "starting the subscription manager";
             try
             {
                 manager.Add(m_mockNotificationDataHandler.Object,
                     m_options.Configure(options => options with { DisableUnboundedItemMode = true }));
                 manager.Resume();
+                stage = "waiting for the notification handler";
                 await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                stage = "waiting for ingress saturation";
                 await saturated.Task.WaitAsync(ct).ConfigureAwait(false);
                 Assert.That(Volatile.Read(ref received), Is.EqualTo(kCapacity + 1));
 
+                stage = "waiting for manager shutdown";
                 disposing = manager.DisposeAsync().AsTask();
                 await disposing.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
 
+                stage = "checking shutdown invariants";
                 Assert.That(handlerToken.IsCancellationRequested, Is.True);
                 Assert.That(manager.ShutdownToken.IsCancellationRequested, Is.True);
                 Assert.That(Volatile.Read(ref handlerCalls), Is.EqualTo(1),
@@ -192,10 +197,31 @@ namespace Opc.Ua.Client.Subscriptions
                 Assert.That(Volatile.Read(ref sentAcknowledgements), Is.Zero);
                 Assert.That(confirmations.TrackedAcknowledgements, Is.Zero);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                WriteTimeoutDiagnostics();
+                throw;
+            }
+            catch (TimeoutException)
+            {
+                WriteTimeoutDiagnostics();
+                throw;
+            }
             finally
             {
                 release.TrySetResult(true);
-                await (disposing ?? manager.DisposeAsync().AsTask()).WaitAsync(ct).ConfigureAwait(false);
+                await (disposing ?? manager.DisposeAsync().AsTask())
+                    .WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None).ConfigureAwait(false);
+            }
+
+            void WriteTimeoutDiagnostics()
+            {
+                TestContext.Progress.WriteLine(
+                    $"Test timed out while {stage}. Shutdown requested: " +
+                    $"{manager.ShutdownToken.IsCancellationRequested}; " +
+                    $"handler canceled: {handlerToken.IsCancellationRequested}; " +
+                    $"publish workers: {manager.PublishWorkerCount}; " +
+                    $"responses received: {Volatile.Read(ref received)}.");
             }
         }
 

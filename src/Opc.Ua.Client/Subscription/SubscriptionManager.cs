@@ -259,8 +259,11 @@ namespace Opc.Ua.Client.Subscriptions
             bool quiescenceAcquired = false;
             try
             {
-                await m_cts.CancelAsync().ConfigureAwait(false);
+                Task cancellation = m_cts.CancelAsync();
+                // Cancellation callbacks can wait for work owned by the publish controller.
+                // Signal it before awaiting callback completion so shutdown can make progress.
                 m_publishControl.Set();
+                await cancellation.ConfigureAwait(false);
                 await m_publishController.ConfigureAwait(false);
                 await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
                 quiescenceAcquired = true;
