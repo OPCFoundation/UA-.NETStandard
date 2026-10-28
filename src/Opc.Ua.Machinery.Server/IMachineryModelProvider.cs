@@ -32,25 +32,14 @@ namespace Opc.Ua.Machinery.Server
     /// <summary>
     /// Contributes compiled predefined model nodes to a Machinery node manager.
     /// </summary>
-    public interface IMachineryModelProvider
+    /// <remarks>
+    /// Providers run in ascending <see cref="Opc.Ua.Di.Server.IDiModelProvider.Order"/>
+    /// and the built-in core-model provider runs first. Providers that replace the
+    /// built-in core-model provider must advertise the namespaces of every configured
+    /// <see cref="MachineryParts"/> value through
+    /// <see cref="Opc.Ua.Di.Server.IDiModelProvider.NamespaceUris"/>.
+    /// </remarks>
+    public interface IMachineryModelProvider : Opc.Ua.Di.Server.IDiModelProvider
     {
-        /// <summary>
-        /// Gets the deterministic provider execution order. Providers run in
-        /// ascending order; the built-in core-model provider runs first.
-        /// </summary>
-        int Order { get; }
-
-        /// <summary>
-        /// Gets the model namespace URIs contributed by this provider.
-        /// Providers that replace the built-in core-model provider must
-        /// advertise the namespaces of every configured
-        /// <see cref="MachineryParts"/> value.
-        /// </summary>
-        ArrayOf<string> NamespaceUris { get; }
-
-        /// <summary>
-        /// Adds compiled predefined nodes to <paramref name="nodes"/>.
-        /// </summary>
-        void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context);
     }
 }

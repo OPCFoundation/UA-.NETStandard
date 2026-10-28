@@ -240,6 +240,7 @@ namespace Opc.Ua.Client.Tests
         {
             var clock = new ObservableFakeTimeProvider();
             using var keepAlive = new SemaphoreSlim(0);
+            var completedKeepAlives = System.Threading.Channels.Channel.CreateUnbounded<KeepAliveEventArgs>();
             var originalPublish = new AsyncOperationGate();
             var activation = new AsyncOperationGate();
             var resumedPublish = new AsyncOperationGate();
@@ -364,6 +365,14 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(session.Reconnecting, Is.True);
                 Assert.That(session.GoodPublishRequestCount, Is.Zero,
                     "The old Publish must finish while recovery owns admission, without refilling itself.");
+                session.KeepAlive += (current, args) =>
+                {
+                    if (args.Status == null &&
+                        current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                    {
+                        completedKeepAlives.Writer.TryWrite(args);
+                    }
+                };
                 activation.Release();
                 await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.SessionId, Is.EqualTo(sessionId));
@@ -387,6 +396,11 @@ namespace Opc.Ua.Client.Tests
                         clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
                         Assert.That(await keepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
                             "Reusing a session must restart ongoing keepalive reads.");
+                        // Wait for response processing before advancing past the next keepalive deadline.
+                        KeepAliveEventArgs completed = await completedKeepAlives.Reader.ReadAsync(cancellation.Token)
+                            .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                        Assert.That(completed.Status, Is.Null);
+                        Assert.That(completed.CurrentState, Is.EqualTo(ServerState.Running));
                     }
                 }
             }

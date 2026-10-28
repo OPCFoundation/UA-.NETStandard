@@ -81,7 +81,7 @@ namespace Opc.Ua.AutoID.Server.Builders
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Requires AutoID composed into the Machinery owner (<c>AddAutoIdToMachinery</c>, or a
+        /// Requires AutoID composed into the Machinery owner (<c>AddMachinery().AddAutoIdModel()</c>, or a
         /// Device Integration owner that loads the Machinery model). The machine must be a node
         /// of that owner and publish the <c>Components</c> add-in, for example built with
         /// <c>IMachineBuilder.WithComponents</c>. When the reader is built, it is placed below

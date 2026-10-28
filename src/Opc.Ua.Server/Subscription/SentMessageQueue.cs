@@ -430,7 +430,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return false;
+            return m_retiredSequenceNumbers?.Remove(sequenceNumber) == true;
         }
 
         /// <summary>
@@ -572,9 +572,18 @@ namespace Opc.Ua.Server
         public void InvalidateAuthorization()
         {
             uint[] removedSequenceNumbers = new uint[m_sent.Count];
+            int sentCount = Math.Min(m_lastSentMessage, m_sent.Count);
+            // a later identity change replaces the set, which keeps it bounded by the queue size.
+            m_retiredSequenceNumbers = sentCount > 0 ? [] : null;
             for (int ii = 0; ii < m_sent.Count; ii++)
             {
                 removedSequenceNumbers[ii] = m_sent[ii].Message.SequenceNumber;
+                if (ii < sentCount)
+                {
+                    // Part 4 5.7.3.1 allows the discontinuity, but the client already received
+                    // these, so its acknowledgement of them stays valid.
+                    m_retiredSequenceNumbers!.Add(removedSequenceNumbers[ii]);
+                }
             }
             if (m_retransmissionStore is ISubscriptionRetransmissionDeltaStore deltaStore)
             {
@@ -659,6 +668,12 @@ namespace Opc.Ua.Server
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
         private uint m_mirroredFirstUnsentSequenceNumber;
+
+        /// <summary>
+        /// Sequence numbers of messages the client received before the last authorization epoch
+        /// retired them; they can still be acknowledged but never republished.
+        /// </summary>
+        private HashSet<uint>? m_retiredSequenceNumbers;
     }
 
     /// <summary>
