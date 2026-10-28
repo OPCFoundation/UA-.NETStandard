@@ -1137,6 +1137,96 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// ResendData must not skip the triggering of linked items: a sampling item that is
+        /// triggered by a changed item is reported in the next Publish response.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task ResendDataKeepsTriggeredItemsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic
+                .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
+
+            // creates the subscription and consumes the initial values
+            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                serverTestServices,
+                m_requestHeader,
+                testSet,
+                kQueueSize,
+                0).ConfigureAwait(false);
+
+            try
+            {
+                // the client handles are the 1-based indexes into testSet
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                CallResponse callResponse = await m_server.CallAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = ObjectIds.Server,
+                            MethodId = MethodIds.Server_GetMonitoredItems,
+                            InputArguments = [new Variant(subscriptionIds[0])]
+                        }
+                    ],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, callResponse.Results[0].StatusCode);
+                uint[] serverHandles = (uint[])callResponse.Results[0].OutputArguments[0].Value;
+                uint[] clientHandles = (uint[])callResponse.Results[0].OutputArguments[1].Value;
+                uint triggeringItemId = serverHandles[Array.IndexOf(clientHandles, 3u)];
+                uint triggeredItemId = serverHandles[Array.IndexOf(clientHandles, 2u)];
+
+                // Scalar_Static_Int32 triggers Scalar_Static_Int16, which is only sampled
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                SetMonitoringModeResponse setMonitoringModeResponse = await serverTestServices.SetMonitoringModeAsync(
+                    m_requestHeader,
+                    subscriptionIds[0],
+                    MonitoringMode.Sampling,
+                    [triggeredItemId]).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, setMonitoringModeResponse.Results[0]);
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                SetTriggeringResponse setTriggeringResponse = await m_server.SetTriggeringAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    subscriptionIds[0],
+                    triggeringItemId,
+                    [triggeredItemId],
+                    [],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, setTriggeringResponse.AddResults[0]);
+
+                // both items change, ResendData follows before the next publishing cycle
+                await UpdateValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
+                await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var acknowledgements = new SubscriptionAcknowledgementCollection();
+                PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+                var dataChanges = (DataChangeNotification)publishResponse.NotificationMessage.NotificationData[0].Body;
+                Assert.That(dataChanges.MonitoredItems.Select(n => n.ClientHandle), Does.Contain(2u),
+                    "The triggered sampling item shall be reported with its triggering item");
+                Assert.AreEqual(testSet.Length, dataChanges.MonitoredItems.Count);
+            }
+            finally
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                await serverTestServices.DeleteSubscriptionsAsync(m_requestHeader, subscriptionIds).ConfigureAwait(false);
+            }
+        }
+
         private async Task<CallMethodRequestCollection> ResendDataCallAsync(
             StatusCode expectedStatus,
             UInt32Collection subscriptionIds)
