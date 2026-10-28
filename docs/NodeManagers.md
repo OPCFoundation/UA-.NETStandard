@@ -1074,12 +1074,18 @@ management; continuation points from a retired generation are invalid when its g
 #### MonitoredItems
 
 On a `Migrate` reload a compatible NodeId keeps the same MonitoredItem and Subscription without a
-transient bad status. After publication, each compatible item completes its handoff before the next
-item is released from the old manager. A failed committed handoff does not restore the old generation;
+transient bad status. After publication, compatible items are handed over one at a time.
+A failed committed handoff does not restore the old generation;
 its errors are reported on the committed result. A removed or incompatible NodeId is detached and publishes one
 `BadNodeIdUnknown` data-change notification (Part 4 §5.8.4.1); adding a compatible Node with that
 NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.
+
+Source release failures are reported without skipping independent items. An item whose release
+failed retains its source ownership or pending provider cleanup; it is not adopted or invalidated
+until that release succeeds. Retrying the transition does not repeat completed handoffs.
+Retirement reports unresolved release failures instead of disposing the source as though cleanup succeeded.
+If invalidating another item also fails, the reported aggregate preserves both original failures.
 
 Requests pinned to the old routing view can create items after the committed handoff has captured
 its inventory. Once those requests drain, compatible late items migrate to the current generation

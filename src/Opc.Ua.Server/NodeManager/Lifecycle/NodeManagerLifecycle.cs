@@ -520,10 +520,23 @@ namespace Opc.Ua.Server
                 await PrepareMonitoredItemRemovalAsync(
                     nodeManager,
                     CancellationToken.None).ConfigureAwait(false);
-            await monitoredItemTransition
+            List<Exception> failures = await monitoredItemTransition
                 .AdoptAsync(CancellationToken.None)
                 .ConfigureAwait(false);
-            monitoredItemTransition.MarkDeletedItems();
+            try
+            {
+                monitoredItemTransition.MarkDeletedItems();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(
+                    "Monitored items left on the retired manager could not be finalized.",
+                    failures);
+            }
         }
 
         /// <summary>
@@ -592,7 +605,14 @@ namespace Opc.Ua.Server
             List<Exception> failures =
                 await monitoredItemTransition.AdoptAsync(
                     CancellationToken.None).ConfigureAwait(false);
-            monitoredItemTransition.MarkDeletedItems();
+            try
+            {
+                monitoredItemTransition.MarkDeletedItems();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
             if (failures.Count > 0)
             {
                 throw new AggregateException(
@@ -1204,8 +1224,7 @@ namespace Opc.Ua.Server
             /// Incompatible items are released for invalidation after admitted notifications drain.
             /// </summary>
             /// <param name="ct">The token that aborts handoff work.</param>
-            /// <returns>The non-fatal failures that occurred while attempting adoption.</returns>
-            /// <exception cref="ServiceResultException">The retiring NodeManager rejects a release.</exception>
+            /// <returns>The non-fatal failures that occurred while releasing or adopting individual items.</returns>
             public async ValueTask<List<Exception>> AdoptAsync(
                 CancellationToken ct)
             {
@@ -1285,6 +1304,10 @@ namespace Opc.Ua.Server
                             sourceRevision = adoption.SourceRevision;
                         }
                         m_reconciledItems[monitoredItem] = sourceRevision;
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        failures.Add(ex);
                     }
                     finally
                     {

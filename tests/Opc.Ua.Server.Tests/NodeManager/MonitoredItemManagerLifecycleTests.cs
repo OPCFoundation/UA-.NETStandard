@@ -2347,6 +2347,114 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A failed release retains its source while independent items adopt native replacement registrations.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        public async Task ReleaseFailureContinuesIndependentNativeAdoptionAndRetriesOnlyFailedItemAsync(
+            bool throws, int failedIndex)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner replacement = CreateManager(server.Object, ManagerPath.AsyncMonitoredNode))
+            {
+                var sourceOwner = new Mock<IAsyncNodeManager>().Object;
+                var items = new MonitoredItem[3];
+                var releaseFailure = new InvalidOperationException("Independent source release failed.");
+                bool rejectRelease = true;
+                int attached = 0;
+                replacement.AsyncManager.MonitoredItemAttachedCallback = _ =>
+                {
+                    attached++;
+                    return default;
+                };
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = item => rejectRelease && ReferenceEquals(item, items[failedIndex])
+                        ? throws
+                            ? throw releaseFailure
+                            : new ServiceResult(StatusCodes.BadInvalidState)
+                        : ServiceResult.Good
+                };
+                try
+                {
+                    for (int index = 0; index < items.Length; index++)
+                    {
+                        var node = new BaseDataVariableState(null)
+                        {
+                            NodeId = new NodeId($"IndependentRelease{index}", replacement.NamespaceIndex),
+                            DataType = DataTypeIds.Int32,
+                            Value = index
+                        };
+                        await replacement.AddNodeAsync(node).ConfigureAwait(false);
+                        items[index] = CreateMonitoredItem(
+                            server.Object, sourceOwner, new NodeHandle(node.NodeId, node), node.NodeId,
+                            (uint)(index + 2));
+                    }
+                    MonitoredItem failed = items[failedIndex];
+                    object originalHandle = failed.ManagerHandle!;
+                    var binding = (IMonitoredItemGenerationBinding)failed;
+                    long originalRevision = binding.SourceRevision;
+                    var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                        current, replacement.Lifecycle, items, [], static _ => true);
+
+                    List<Exception> failures = await transition.AdoptAsync(CancellationToken.None)
+                        .ConfigureAwait(false);
+                    transition.MarkDeletedItems();
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(failures, Has.Count.EqualTo(1));
+                        Assert.That(current.DetachCount, Is.EqualTo(3));
+                        Assert.That(attached, Is.EqualTo(2));
+                        Assert.That(replacement.CaptureMonitoredItems(),
+                            Is.EquivalentTo(items.Where(item => !ReferenceEquals(item, failed))));
+                        Assert.That(failed.NodeManager, Is.SameAs(sourceOwner));
+                        Assert.That(failed.ManagerHandle, Is.SameAs(originalHandle));
+                        Assert.That(binding.SourceRevision, Is.EqualTo(originalRevision));
+                        Assert.That(binding.IsDeleted, Is.False);
+                        Assert.That(binding.IsSourceUnavailable, Is.False);
+                    }
+                    if (throws)
+                    {
+                        Assert.That(failures[0], Is.SameAs(releaseFailure));
+                    }
+                    else
+                    {
+                        Assert.That(failures[0], Is.TypeOf<ServiceResultException>());
+                        Assert.That(((ServiceResultException)failures[0]).StatusCode,
+                            Is.EqualTo(StatusCodes.BadInvalidState));
+                    }
+                    foreach (MonitoredItem item in items.Where(item => !ReferenceEquals(item, failed)))
+                    {
+                        Assert.That(replacement.Owns(item.NodeManager), Is.True);
+                        Assert.That(item.ManagerHandle, Is.TypeOf<NodeHandle>());
+                    }
+
+                    rejectRelease = false;
+                    Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+                    Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(current.DetachCount, Is.EqualTo(4));
+                        Assert.That(attached, Is.EqualTo(3));
+                        Assert.That(replacement.CaptureMonitoredItems(), Is.EquivalentTo(items));
+                        Assert.That(replacement.Owns(failed.NodeManager), Is.True);
+                        Assert.That(binding.IsDeleted, Is.False);
+                    }
+                }
+                finally
+                {
+                    foreach (MonitoredItem item in items)
+                    {
+                        item?.Dispose();
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task AdoptionResumesAfterReleaseFailureWithoutRestoringCommittedItemsAsync()
         {
@@ -2368,14 +2476,13 @@ namespace Opc.Ua.Server.Tests
                 deletedItems: [],
                 isOwnedBySubscription: static _ => true);
 
-            ServiceResultException detachException = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transition
-                    .AdoptAsync(CancellationToken.None)
-                    .ConfigureAwait(false));
+            List<Exception> failures = await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(detachException.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(failures, Has.Count.EqualTo(1));
+                Assert.That(failures[0], Is.TypeOf<ServiceResultException>());
+                Assert.That(((ServiceResultException)failures[0]).StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(current.DetachCount, Is.EqualTo(2));
                 Assert.That(current.AttachCount, Is.Zero);
                 Assert.That(replacement.AttachCount, Is.EqualTo(1));
@@ -2396,8 +2503,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Invalidating a failed transition cannot transfer items whose source release never completed.
         /// </summary>
-        [Test]
-        public async Task ReleaseFailureDoesNotInvalidateItemsStillOwnedByTheSourceAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReleaseFailureDoesNotInvalidateItemsStillOwnedByTheSourceAsync(bool throws)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -2408,25 +2516,42 @@ namespace Opc.Ua.Server.Tests
                     server.Object, owner.Object, new object(), new NodeId("Released", 1), 2);
                 using MonitoredItem second = CreateMonitoredItem(
                     server.Object, owner.Object, new object(), new NodeId("StillOwned", 1), 3);
+                using MonitoredItem third = CreateMonitoredItem(
+                    server.Object, owner.Object, new object(), new NodeId("ReleasedAfterFailure", 1), 4);
+                var releaseFailure = new InvalidOperationException("Source invalidation release failed.");
                 var current = new TestNodeManagerLifecycle
                 {
                     DetachCallback = item => ReferenceEquals(item, second)
-                        ? new ServiceResult(StatusCodes.BadInvalidState)
+                        ? throws
+                            ? throw releaseFailure
+                            : new ServiceResult(StatusCodes.BadInvalidState)
                         : ServiceResult.Good
                 };
                 var transition = new NodeManagerLifecycle.MonitoredItemTransition(
-                    current, null, [], [first, second], static _ => true);
+                    current, null, [], [first, second, third], static _ => true);
 
-                await Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false));
+                List<Exception> failures = await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false);
                 transition.MarkDeletedItems();
 
                 Assert.Multiple(() =>
                 {
+                    Assert.That(failures, Has.Count.EqualTo(1));
+                    Assert.That(current.DetachCount, Is.EqualTo(3));
                     Assert.That(((IMonitoredItemGenerationBinding)first).IsDeleted, Is.True);
                     Assert.That(((IMonitoredItemGenerationBinding)second).IsDeleted, Is.False);
+                    Assert.That(((IMonitoredItemGenerationBinding)third).IsDeleted, Is.True);
                     Assert.That(second.NodeManager, Is.SameAs(owner.Object));
                 });
+                if (throws)
+                {
+                    Assert.That(failures[0], Is.SameAs(releaseFailure));
+                }
+                else
+                {
+                    Assert.That(failures[0], Is.TypeOf<ServiceResultException>());
+                    Assert.That(((ServiceResultException)failures[0]).StatusCode,
+                        Is.EqualTo(StatusCodes.BadInvalidState));
+                }
             }
         }
 
@@ -2463,7 +2588,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int attempt = 1; attempt <= 2; attempt++)
             {
-                Exception failure = await Assert.CatchAsync<Exception>(async () =>
+                AggregateException failure = await Assert.ThrowsAsync<AggregateException>(async () =>
                 {
                     if (migrate)
                     {
@@ -2478,7 +2603,8 @@ namespace Opc.Ua.Server.Tests
                 });
                 Assert.Multiple(() =>
                 {
-                    Assert.That(failure, Is.TypeOf(
+                    Assert.That(failure.InnerExceptions, Has.Count.EqualTo(1));
+                    Assert.That(failure.InnerExceptions[0], Is.TypeOf(
                         throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
                     Assert.That(generation.MonitoredItems.ContainsKey(item.Object), Is.True);
                 });
@@ -2488,6 +2614,97 @@ namespace Opc.Ua.Server.Tests
             target.Verify(value => value.AdoptSourceAsync(
                 It.IsAny<IMonitoredItem>(), It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Retirement reports both retained source release and native invalidation failures.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetirementReportsReleaseAndInvalidationFailuresWithoutSkippingHealthyItemsAsync(bool migrate)
+        {
+            bool failClock = false;
+            var clockFailure = new InvalidOperationException("Native invalidation timestamp failed.");
+            var releaseFailure = new InvalidOperationException("Retirement source release failed.");
+            var clock = new Mock<TimeProvider> { CallBase = true };
+            clock.Setup(value => value.GetUtcNow()).Returns(() => failClock
+                ? throw clockFailure
+                : DateTimeOffset.FromUnixTimeSeconds(0));
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            Mock<IServerInternal> clockServer = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory clockQueues, clock.Object);
+            using (queues)
+            using (clockQueues)
+            {
+                var current = new Mock<IAsyncNodeManager>();
+                Mock<INodeManagerMonitoredItemSource> source = current.As<INodeManagerMonitoredItemSource>();
+                var replacement = new Mock<IAsyncNodeManager>();
+                Mock<INodeManagerMonitoredItemSource> target = replacement.As<INodeManagerMonitoredItemSource>();
+                using MonitoredItem retained = CreateMonitoredItem(
+                    server.Object, current.Object, new NodeHandle(), new NodeId("RetainedMixedFailure", 1), 2);
+                using MonitoredItem invalidation = CreateMonitoredItem(
+                    clockServer.Object, current.Object, new NodeHandle(), new NodeId("InvalidationFailure", 1), 3);
+                using MonitoredItem healthy = CreateMonitoredItem(
+                    server.Object, current.Object, new NodeHandle(), new NodeId("HealthyMixedFailure", 1), 4);
+                var subscription = new Mock<ISubscription>();
+                subscription.As<ISubscriptionMonitoredItemLifecycle>()
+                    .Setup(value => value.ContainsMonitoredItem(It.IsAny<IMonitoredItem>())).Returns(true);
+                foreach (MonitoredItem item in new[] { retained, invalidation, healthy })
+                {
+                    item.SubscriptionCallback = subscription.Object;
+                    ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
+                }
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
+                Assert.That(generation.MonitoredItems.Keys, Is.EquivalentTo(
+                    new[] { retained, invalidation, healthy }));
+                source.Setup(value => value.ReleaseSourceAsync(
+                    It.IsAny<IMonitoredItem>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                    .Returns((IMonitoredItem item, long revision, CancellationToken _) =>
+                    {
+                        if (ReferenceEquals(item, retained))
+                        {
+                            throw releaseFailure;
+                        }
+                        Assert.That(((IMonitoredItemGenerationBinding)item).TryClearSource(revision), Is.True);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                target.Setup(value => value.ValidateSourceAsync(
+                    It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new ServiceResult(StatusCodes.BadNodeIdUnknown));
+                failClock = true;
+                AggregateException failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                {
+                    if (migrate)
+                    {
+                        await NodeManagerLifecycle.MigrateLateMonitoredItemsAsync(
+                            server.Object, current.Object, replacement.Object).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await NodeManagerLifecycle.DetachActiveMonitoredItemsAsync(server.Object, current.Object)
+                            .ConfigureAwait(false);
+                    }
+                });
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failure.Flatten().InnerExceptions,
+                        Is.EquivalentTo(new[] { releaseFailure, clockFailure }));
+                    Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+                    Assert.That(failure.InnerExceptions[0], Is.SameAs(releaseFailure));
+                    Assert.That(failure.InnerExceptions[1], Is.TypeOf<AggregateException>());
+                    Assert.That(failure.InnerExceptions[1].Message, Does.Contain("could not be marked deleted"));
+                    Assert.That(retained.NodeManager, Is.SameAs(current.Object));
+                    Assert.That(((IMonitoredItemGenerationBinding)retained).IsDeleted, Is.False);
+                    Assert.That(healthy.NodeManager, Is.Null);
+                    Assert.That(((IMonitoredItemGenerationBinding)healthy).IsDeleted, Is.True);
+                    Assert.That(generation.MonitoredItems.Keys, Is.EquivalentTo(new[] { retained }));
+                }
+                source.Verify(value => value.ReleaseSourceAsync(
+                    It.IsAny<IMonitoredItem>(), It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+                target.Verify(value => value.AdoptSourceAsync(
+                    It.IsAny<IMonitoredItem>(), It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
+                    Times.Never);
+            }
         }
 
         /// <summary>
@@ -2544,11 +2761,11 @@ namespace Opc.Ua.Server.Tests
                             binding.SourceRevision, replacement.Object, new NodeHandle(), out _), Is.True);
                         return new ValueTask<ServiceResult>(ServiceResult.Good);
                     });
-                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
                     async () => await ExecuteAsync().ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
-                    Assert.That(observed, Is.SameAs(failure));
+                    Assert.That(observed!.InnerExceptions, Is.EqualTo(new[] { failure }));
                     Assert.That(generation.MonitoredItems, Is.Empty);
                     Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, current.Object), Is.False);
                     Assert.That(generation.HasPendingSourceReleases, Is.True);
@@ -2838,11 +3055,11 @@ namespace Opc.Ua.Server.Tests
                 var transition = new NodeManagerLifecycle.MonitoredItemTransition(
                     current, replacement, [item], [], static _ => true);
 
-                Exception failure = await Assert.CatchAsync<Exception>(
-                    async () => await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false));
+                List<Exception> failures = await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
-                    Assert.That(failure, Is.TypeOf(
+                    Assert.That(failures, Has.Count.EqualTo(1));
+                    Assert.That(failures[0], Is.TypeOf(
                         throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
                     Assert.That(item.NodeManager, Is.SameAs(originalOwner));
                     Assert.That(item.ManagerHandle, Is.SameAs(originalHandle));
