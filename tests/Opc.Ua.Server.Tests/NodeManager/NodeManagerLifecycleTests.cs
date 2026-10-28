@@ -8199,6 +8199,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Action<OperationContext>? RequestValidatedCallback { get; set; }
 
+            /// <summary>
+            /// Gets or sets an asynchronous barrier after explicit service request admission.
+            /// </summary>
+            public Func<OperationContext, ValueTask>? RequestValidatedAsyncCallback { get; set; }
+
             public ValueTask ShutdownInternalsAsync(
                 CancellationToken cancellationToken = default)
             {
@@ -8206,10 +8211,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             /// <inheritdoc/>
-            protected override ValueTask OnRequestValidatedAsync(OperationContext context)
+            protected override async ValueTask OnRequestValidatedAsync(OperationContext context)
             {
                 RequestValidatedCallback?.Invoke(context);
-                return base.OnRequestValidatedAsync(context);
+                if (RequestValidatedAsyncCallback is { } callback)
+                {
+                    await callback(context).ConfigureAwait(false);
+                }
+                await base.OnRequestValidatedAsync(context).ConfigureAwait(false);
             }
         }
 

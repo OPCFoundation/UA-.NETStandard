@@ -1391,6 +1391,12 @@ Session callbacks are not serialized by a global binding semaphore. Lifecycle ca
 not require an operation context to suspend or resume binding admission. The lifecycle writer is released
 while binding callbacks run; a generation admission keeps their owner alive until reconciliation finishes.
 
+All-events creation registers the item before capturing its current owners, rather than subscribing
+only the owners in the request's pinned view. Direct creation callbacks retain the original
+`OperationContext` and admit the exact live generation. A concurrent publication reconciles the
+registered item through the same binding record without repeating its initial callback. Unsubscribe
+still addresses the recorded generation after replacement.
+
 Retirement seals record admission before enumerating the generation's bindings, so no new binding can
 escape cleanup. Deleting an all-events MonitoredItem during its subscribe callback marks the binding
 for release without waiting for that callback; the subscribing operation releases it when the callback

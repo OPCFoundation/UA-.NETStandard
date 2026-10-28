@@ -40,6 +40,292 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
+        /// An admitted all-events create request binds generations published before its item becomes visible.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task AllEventsItemCreatedAfterPublicationBindsCurrentGenerationAsync(
+            bool replace,
+            bool publishDuringBind)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager source = RequireLifecycleValue(original);
+            IServerInternal server = m_server.CurrentInstance;
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            var entered = new TaskCompletionSource<OperationContext>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var bindEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseBind = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_server.RequestValidatedAsyncCallback = async context =>
+            {
+                if (context.RequestType == RequestType.CreateMonitoredItems)
+                {
+                    entered.TrySetResult(context);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            };
+            Task<(uint SubscriptionId, uint MonitoredItemId)>? creating = null;
+            NodeManagerBatchResult? publication = null;
+            NodeManagerBatchResult? secondPublication = null;
+            uint subscriptionId = 0;
+            try
+            {
+                creating = CreateSubscriptionAndEventMonitoredItemAsync(services, ObjectIds.Server);
+                OperationContext admitted = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(admitted.RoutingPinMatchesSnapshot, Is.True);
+                Assert.That(server.EventManager.GetMonitoredItems(), Is.Empty,
+                    "Publication must reconcile before the admitted request creates its actual event item.");
+                TrackingLifecycleNodeManager? current = null;
+                IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
+                    kGeneration2Value,
+                    manager => current = manager,
+                    replace ? kModelNamespaceUri : kModelNamespaceUri + ":AllEventsAddition");
+                await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [replace
+                        ? NodeManagerBatchChange.Replace(registration, factory)
+                        : NodeManagerBatchChange.Add(factory)],
+                    timeout.Token).ConfigureAwait(false);
+                publication = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration target = prepared.Registrations[0];
+                TrackingLifecycleNodeManager destination = RequireLifecycleValue(current);
+                OperationContext? callbackContext = null;
+                bool targetAdmitted = false;
+                destination.AllEventsContextCallback = (context, unsubscribe, _) =>
+                {
+                    if (!unsubscribe)
+                    {
+                        callbackContext = context;
+                        targetAdmitted = target.Identity.Gate.ActiveCount > 0;
+                    }
+                    return default;
+                };
+                destination.AllEventsCallback = async (_, unsubscribe, token) =>
+                {
+                    if (publishDuringBind && !unsubscribe)
+                    {
+                        bindEntered.TrySetResult(true);
+                        await releaseBind.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                };
+                Assert.That(destination.AllEventsSubscribeCount, Is.Zero);
+                if (replace)
+                {
+                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                }
+                release.SetResult(true);
+                TrackingLifecycleNodeManager intermediate = destination;
+                NodeManagerRegistration intermediateRegistration = target;
+                if (publishDuringBind)
+                {
+                    await bindEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    TrackingLifecycleNodeManager? latest = null;
+                    await using IPreparedNodeManagerBatch second = await m_server.NodeManagerLifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(
+                            target,
+                            CreateTrackingNodeManagementFactory(
+                                kGeneration2Value + 1,
+                                manager => latest = manager,
+                                replace ? kModelNamespaceUri : kModelNamespaceUri + ":AllEventsAddition"))],
+                        timeout.Token).ConfigureAwait(false);
+                    secondPublication = await second.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                    Assert.That(secondPublication.Retirement.IsCompleted, Is.False);
+                    Assert.That(intermediate.DisposeCount, Is.Zero);
+                    target = second.Registrations[0];
+                    destination = RequireLifecycleValue(latest);
+                    releaseBind.SetResult(true);
+                }
+                (subscriptionId, uint itemId) = await creating.WaitAsync(timeout.Token).ConfigureAwait(false);
+                creating = null;
+                await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (secondPublication is not null)
+                {
+                    await secondPublication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(intermediate.AllEventsSubscribeCount, Is.EqualTo(1));
+                    Assert.That(intermediate.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                    Assert.That(intermediate.DisposeCount, Is.EqualTo(1));
+                    Assert.That(intermediateRegistration.Identity.Gate.ActiveCount, Is.Zero);
+                    Assert.That(((MasterNodeManager)server.NodeManager).RetiringEventGenerations,
+                        Has.None.SameAs(intermediateRegistration.Identity));
+                }
+                IEventMonitoredItem item = server.EventManager.GetMonitoredItems()
+                    .Single(candidate => candidate.Id == itemId);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(item.MonitoringAllEvents, Is.True);
+                    Assert.That(callbackContext, Is.SameAs(admitted),
+                        "Changing subscription owners must not replace the request's context or authorization identity.");
+                    Assert.That(targetAdmitted, Is.True);
+                    Assert.That(destination.AllEventsSubscribeCount, Is.EqualTo(1),
+                        "A new live generation must not miss an item created by a request pinned before publication.");
+                    Assert.That(target.Identity.EventBindings.ContainsKey(item), Is.True,
+                        "The subscription must have an exact generation binding, not an unrecorded direct callback.");
+                    Assert.That(source.AllEventsSubscribeCount, Is.EqualTo(replace ? 0 : 1),
+                        "A retired manager must not acquire an unrecorded subscription from the old routing view.");
+                    Assert.That(source.DisposeCount, Is.EqualTo(replace ? 1 : 0));
+                    if (publishDuringBind)
+                    {
+                        Assert.That(intermediateRegistration.Identity.EventBindings[item].State,
+                            Is.EqualTo(GenerationEventBindingState.Removed));
+                    }
+                }
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                subscriptionId = 0;
+                Assert.That(destination.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                Assert.That(source.AllEventsUnsubscribeCount, Is.EqualTo(replace ? 0 : 1));
+                if (publishDuringBind)
+                {
+                    Assert.That(intermediate.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                releaseBind.TrySetResult(true);
+                m_server.RequestValidatedAsyncCallback = null;
+                try
+                {
+                    if (creating is not null && subscriptionId == 0)
+                    {
+                        (subscriptionId, _) = await creating.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (publication is not null)
+                    {
+                        await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (secondPublication is not null)
+                    {
+                        await secondPublication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (subscriptionId != 0)
+                    {
+                        await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Replacement and client deletion preserve the exact binding while a recorded refresh callback is suspended.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AllEventsBindingAdmissionSurvivesReplacementAndDeletionAsync(bool deleteDuringCallback)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager source = RequireLifecycleValue(original);
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            IEventMonitoredItem item = server.EventManager.GetMonitoredItems()
+                .Single(candidate => candidate.Id == itemId);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            source.AllEventsCallback = async (target, unsubscribe, token) =>
+            {
+                if (!unsubscribe && ReferenceEquals(target, item))
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(token).ConfigureAwait(false);
+                }
+            };
+            Task? modifying = null;
+            NodeManagerBatchResult? publication = null;
+            try
+            {
+                modifying = ModifyEventMonitoredItemAsync(services, subscriptionId, itemId);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                TrackingLifecycleNodeManager? replacement = null;
+                await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(
+                        registration,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value, manager => replacement = manager))],
+                    timeout.Token).ConfigureAwait(false);
+                publication = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration target = prepared.Registrations[0];
+                TrackingLifecycleNodeManager destination = RequireLifecycleValue(replacement);
+                Assert.That(publication.Retirement.IsCompleted, Is.False);
+                Assert.That(source.DisposeCount, Is.Zero);
+                Assert.That(destination.SubscribedAllEventIds.ToList().Count(id => id == itemId), Is.EqualTo(1));
+                if (deleteDuringCallback)
+                {
+                    await DeleteMonitoredItemAsync(services, subscriptionId, itemId)
+                        .WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(release.Task.IsCompleted, Is.False);
+                    Assert.That(server.EventManager.GetMonitoredItems().Any(candidate => candidate.Id == itemId),
+                        Is.False);
+                }
+                release.SetResult(true);
+                await modifying.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(source.AllEventsSubscribeCount, Is.EqualTo(2),
+                        "A refresh reaches its existing owner once, independently of the initial subscription.");
+                    Assert.That(source.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                    Assert.That(source.DisposeCount, Is.EqualTo(1));
+                    Assert.That(registration.Identity.Gate.ActiveCount, Is.Zero);
+                    if (registration.Identity.EventBindings.TryGetValue(
+                        item, out GenerationEventBindingRecord? record))
+                    {
+                        Assert.That(record.State, Is.EqualTo(GenerationEventBindingState.Removed),
+                            "A sealed generation may retain only its released tombstone, not an active binding.");
+                    }
+                    Assert.That(master.RetiringEventGenerations, Has.None.SameAs(registration.Identity));
+                    Assert.That(target.Identity.EventBindings.ContainsKey(item), Is.EqualTo(!deleteDuringCallback));
+                    if (!deleteDuringCallback)
+                    {
+                        Assert.That(target.Identity.EventBindings[item].State,
+                            Is.EqualTo(GenerationEventBindingState.Bound));
+                    }
+                    Assert.That(destination.AllEventsUnsubscribeCount, Is.EqualTo(deleteDuringCallback ? 1 : 0));
+                }
+                if (!deleteDuringCallback)
+                {
+                    await DeleteMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
+                    Assert.That(destination.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                }
+                Assert.That(source.AllEventsUnsubscribeCount, Is.EqualTo(1),
+                    "Client deletion must not repeat a retired generation's completed release.");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                source.AllEventsCallback = (_, _, _) => default;
+                try
+                {
+                    if (modifying is not null)
+                    {
+                        await modifying.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (publication is not null)
+                    {
+                        await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// An old-view request creating its item after transition discovery still receives the chosen handoff policy.
         /// </summary>
         [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 0)]
@@ -110,6 +396,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task<(uint SubscriptionId, uint MonitoredItemId)>? creating = null;
             NodeManagerBatchResult? publication = null;
             NodeManagerBatchResult? nextPublication = null;
+            TrackingLifecycleNodeManager? validatingTarget = null;
             uint subscriptionId = 0;
             try
             {
@@ -164,7 +451,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (overlapsAdoption)
                     {
                         int callbacks = 0;
-                        intermediate.ManagerHandleCallback = async (id, token) =>
+                        validatingTarget = intermediate;
+                        intermediate.MonitoringFilterValidationCallback = async (id, token) =>
                         {
                             if (id == nodeId && Interlocked.Increment(ref callbacks) == 1)
                             {
@@ -174,6 +462,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         };
                         release.SetResult(true);
                         await migrationEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(callbacks, Is.EqualTo(1));
+                            Assert.That(target.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                            Assert.That(target.Identity.Gate.ActiveCount, Is.GreaterThan(0),
+                                "Late source validation must run under the selected target's admission.");
+                            Assert.That(registration.Identity.MonitoredItems, Has.Count.EqualTo(1),
+                                "The paused validation must precede release of the original source.");
+                            Assert.That(target.Identity.MonitoredItems, Is.Empty);
+                            Assert.That(intermediate.DisposeCount, Is.Zero);
+                        });
                     }
                     bool removes = subsequentChange is 3 or 6;
                     bool invalidates = subsequentChange is 2 or 5;
@@ -192,9 +491,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         _ => default, timeout.Token).ConfigureAwait(false);
                     if (overlapsAdoption)
                     {
-                        Assert.That(nextPublication.Retirement.IsCompleted, Is.False,
-                            "Target admission must hold physical retirement across late source validation and adoption.");
-                        Assert.That(intermediate.DisposeCount, Is.Zero);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(nextPublication.Retirement.IsCompleted, Is.False,
+                                $"Target admission must hold retirement across late validation and adoption. " +
+                                $"Task={nextPublication.Retirement.Status}; " +
+                                $"Failure={nextPublication.Retirement.Exception}; " +
+                                $"Gate={target.Identity.Gate.State}; Active={target.Identity.Gate.ActiveCount}; " +
+                                $"Disposed={intermediate.DisposeCount}.");
+                            Assert.That(target.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                            Assert.That(target.Identity.Gate.ActiveCount, Is.GreaterThan(0));
+                            Assert.That(registration.Identity.MonitoredItems, Has.Count.EqualTo(1));
+                            Assert.That(target.Identity.MonitoredItems, Is.Empty);
+                            Assert.That(intermediate.DisposeCount, Is.Zero);
+                        });
                         migrationRelease.SetResult(true);
                     }
                     await nextPublication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -237,6 +547,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 migrationRelease.TrySetResult(true);
+                if (validatingTarget is not null)
+                {
+                    validatingTarget.MonitoringFilterValidationCallback = null;
+                }
                 source.BeforeCreateItemsAsync = null;
                 try
                 {
@@ -793,6 +1107,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Func<CancellationToken, ValueTask>? BeforeCreateItemsAsync { get; set; }
 
+            /// <summary>
+            /// Gets or sets a barrier during monitored-item source filter validation.
+            /// </summary>
+            public Func<NodeId, CancellationToken, ValueTask>? MonitoringFilterValidationCallback { get; set; }
+
             /// <inheritdoc/>
             public override async ValueTask CreateMonitoredItemsAsync(
                 OperationContext context,
@@ -815,6 +1134,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     context, subscriptionId, publishingInterval, timestampsToReturn, itemsToCreate,
                     errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory,
                     cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            protected override async ValueTask<ValidateMonitoringFilterResult> ValidateMonitoringFilterAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                uint attributeId,
+                double samplingInterval,
+                uint queueSize,
+                ExtensionObject filter,
+                CancellationToken cancellationToken = default)
+            {
+                if (MonitoringFilterValidationCallback is { } validating)
+                {
+                    await validating(handle.NodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.ValidateMonitoringFilterAsync(
+                    context, handle, attributeId, samplingInterval, queueSize, filter, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
     }

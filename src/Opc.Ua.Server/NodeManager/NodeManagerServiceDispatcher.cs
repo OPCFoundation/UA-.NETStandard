@@ -2500,7 +2500,7 @@ namespace Opc.Ua.Server
                         createDurable);
 
                     ArrayOf<IAsyncNodeManager> eventManagers = monitoredItem.MonitoringAllEvents
-                        ? [.. GetRouting(context).VisibleNodeManagers]
+                        ? [.. m_nodeManagers.Revision.VisibleNodeManagers]
                         : [nodeManager];
                     ServiceResult error = await SubscribeCreatedEventMonitoredItemAsync(
                         context,
@@ -2534,7 +2534,8 @@ namespace Opc.Ua.Server
                 {
                     lastAttempted = ii;
                     error = await SetEventSubscriptionAsync(
-                        eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken)
+                        eventManagers[ii], context, subscriptionId, monitoredItem, false, cancellationToken,
+                        refreshExisting: false)
                         .ConfigureAwait(false) ?? ServiceResult.Good;
                     if (monitoredItem.MonitoringAllEvents &&
                         error.StatusCode == StatusCodes.BadNotSupported)
@@ -2661,7 +2662,8 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             IEventMonitoredItem monitoredItem,
             bool unsubscribe,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool refreshExisting = true)
         {
             if (!monitoredItem.MonitoringAllEvents)
             {
@@ -2675,8 +2677,10 @@ namespace Opc.Ua.Server
             }
             if (!m_owner.TryGetCurrentGeneration(nodeManager, out NodeManagerGeneration? generation))
             {
-                return nodeManager.SubscribeToAllEventsAsync(
-                    context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+                if (!unsubscribe || !NodeManagerGenerationRegistry.TryGet(nodeManager, out generation))
+                {
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                }
             }
 
             // A release targets only the generation's recorded binding: a failed bind already
@@ -2685,12 +2689,57 @@ namespace Opc.Ua.Server
             {
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
-            return m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
+            if (unsubscribe)
+            {
+                return m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
+                    generation!,
+                    monitoredItem,
+                    (remove, ct) => nodeManager.SubscribeToAllEventsAsync(
+                        context, subscriptionId, monitoredItem, remove, ct),
+                    unsubscribe: true,
+                    cancellationToken);
+            }
+            if (!generation!.Gate.TryEnter(out int stripe))
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+            return SubscribeAllEventsWithAdmissionAsync(
                 generation!,
+                stripe,
+                context,
+                subscriptionId,
                 monitoredItem,
-                (remove, ct) => nodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
-                unsubscribe,
+                refreshExisting,
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Keeps the exact live generation admitted while its recorded all-events binding changes.
+        /// </summary>
+        private async ValueTask<ServiceResult> SubscribeAllEventsWithAdmissionAsync(
+            NodeManagerGeneration generation,
+            int stripe,
+            OperationContext context,
+            uint subscriptionId,
+            IEventMonitoredItem monitoredItem,
+            bool refreshExisting,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
+                    generation,
+                    monitoredItem,
+                    (remove, ct) => generation.NodeManager.SubscribeToAllEventsAsync(
+                        context, subscriptionId, monitoredItem, remove, ct),
+                    unsubscribe: false,
+                    cancellationToken,
+                    refreshExisting: refreshExisting).ConfigureAwait(false);
+            }
+            finally
+            {
+                generation.Gate.Exit(stripe);
+            }
         }
 
         /// <summary>
