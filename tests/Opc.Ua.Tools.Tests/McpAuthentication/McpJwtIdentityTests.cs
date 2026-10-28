@@ -191,7 +191,8 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
             ApplicationConfiguration configuration = JwtTestData.Configuration();
             var certificates = new Mock<ICertificateManager>(MockBehavior.Strict);
             certificates.Setup(manager => manager.ValidateAsync(It.IsAny<CertificateCollection>(),
-                null, null, It.IsAny<CancellationToken>()))
+                null, It.IsAny<global::Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CertificateValidationResult(trusted,
                     trusted ? StatusCodes.Good : StatusCodes.BadCertificateUntrusted, [], false));
             configuration.CertificateManager = certificates.Object;
@@ -217,33 +218,72 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
                 Assert.That(error.Message, Does.Not.Contain(JwtTestData.Token));
             }
             certificates.Verify(manager => manager.ValidateAsync(It.IsAny<CertificateCollection>(),
-                null, null, It.IsAny<CancellationToken>()), Times.Once);
+                null, It.IsAny<global::Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                It.IsAny<CancellationToken>()), Times.Once);
             certificates.VerifyNoOtherCalls();
         }
 
         [Test]
-        public async Task JwtTrustContextDoesNotInheritGlobalAutoAcceptance()
+        public async Task JwtTrustValidationOverridesGlobalAutoAcceptanceWithoutReplacingTheManager()
         {
             ApplicationConfiguration configuration = JwtTestData.Configuration();
             configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
             var global = new Mock<ICertificateManager>();
             global.SetupProperty(value => value.AcceptError, (_, _) => true);
             configuration.CertificateManager = global.Object;
-            using OpcUaSessionManager.ConnectionValidationContext isolated =
-                await OpcUaSessionManager.CreateConnectionValidationContextAsync(configuration,
-                    NUnitTelemetryContext.Create(), true, CancellationToken.None, requireTrust: true)
-                    .ConfigureAwait(false);
-            Assert.That(isolated.Configuration, Is.Not.SameAs(configuration));
-            Assert.That(isolated.Configuration.CertificateManager, Is.Not.SameAs(global.Object));
-            Assert.That(isolated.Configuration.CertificateManager.AcceptError, Is.Null);
-            Assert.That(configuration.CertificateManager.AcceptError, Is.Not.Null,
-                "The JWT path must not mutate another connection's acceptance callback.");
+            global::Opc.Ua.Security.Certificates.CertificateValidationOptions? validationOptions = null;
+            global.Setup(manager => manager.ValidateAsync(
+                It.IsAny<CertificateCollection>(),
+                It.IsAny<TrustListIdentifier?>(),
+                It.IsAny<global::Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                It.IsAny<CancellationToken>()))
+                .Callback<CertificateCollection, TrustListIdentifier?,
+                global::Opc.Ua.Security.Certificates.CertificateValidationOptions,
+                CancellationToken>((_, _, options, _) => validationOptions = options)
+                .ReturnsAsync(new CertificateValidationResult(
+                false, StatusCodes.BadCertificateUntrusted, [], false));
             EndpointDescription endpoint = JwtTestData.Endpoint();
             ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await JwtTestData.Provider(isolated.Configuration).GetIdentityAsync(
+                await JwtTestData.Provider(configuration).GetIdentityAsync(
                     endpoint.UserIdentityTokens[0], JwtTestData.Context(endpoint)).ConfigureAwait(false))
                 .ConfigureAwait(false))!;
+
+            Assert.That(configuration.CertificateManager, Is.SameAs(global.Object));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(error.Message, Does.Not.Contain(JwtTestData.Token));
+            Assert.That(validationOptions, Is.Not.Null);
+            Assert.That(validationOptions!.AutoAcceptUntrustedCertificates, Is.False);
+            Assert.That(validationOptions.AcceptError, Is.Not.Null);
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(
+                endpoint.ServerCertificate.Memory, NUnitTelemetryContext.Create());
+            Assert.That(validationOptions.AcceptError!(chain[0], new ServiceResult(
+                StatusCodes.BadCertificateUntrusted)), Is.False);
+            Assert.That(configuration.CertificateManager.AcceptError, Is.Not.Null,
+                "The JWT check must not mutate the host's global acceptance callback.");
+        }
+
+        [Test]
+        public async Task JwtRejectsCertificateHostnameMismatchDespiteGlobalAcceptCallback()
+        {
+            ApplicationConfiguration configuration = JwtTestData.Configuration();
+            var certificates = new Mock<ICertificateManager>();
+            certificates.SetupProperty(value => value.AcceptError, (_, _) => true);
+            certificates.Setup(manager => manager.ValidateAsync(
+                It.IsAny<CertificateCollection>(),
+                It.IsAny<TrustListIdentifier?>(),
+                It.IsAny<global::Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CertificateValidationResult(true, StatusCodes.Good, [], false));
+            configuration.CertificateManager = certificates.Object;
+            EndpointDescription endpoint = JwtTestData.Endpoint();
+            endpoint.EndpointUrl = "opc.tcp://wrong-host.invalid:4840";
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await JwtTestData.Provider(configuration).GetIdentityAsync(
+                    endpoint.UserIdentityTokens[0], JwtTestData.Context(endpoint)).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
             Assert.That(error.Message, Does.Not.Contain(JwtTestData.Token));
         }
     }
@@ -255,7 +295,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
 
         internal static ApplicationConfiguration Configuration()
         {
-            return new ApplicationConfiguration
+            var configuration = new ApplicationConfiguration
             {
                 ApplicationName = "McpJwtTests",
                 ApplicationType = ApplicationType.Client,
@@ -263,6 +303,12 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
                 SecurityConfiguration = new SecurityConfiguration(),
                 ClientConfiguration = new ClientConfiguration()
             };
+            configuration.SecurityConfiguration.ApplicationCertificates =
+                [new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }];
+            return configuration;
         }
 
         internal static McpJwtIdentityProvider Provider(ApplicationConfiguration? configuration = null)

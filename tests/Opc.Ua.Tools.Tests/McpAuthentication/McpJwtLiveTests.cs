@@ -171,6 +171,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
             Assert.That(session.AuthType, Is.EqualTo("Jwt"));
             Assert.That(session.Session.Identity.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
             Assert.That(session.Session.Identity.DisplayName, Does.Not.Contain(jwt));
+            Assert.That(session.Endpoint.EndpointUrl, Does.StartWith("opc.tcp://localhost:"));
             _ = await m_sessions.DisconnectAsync("jwt-live", timeout.Token).ConfigureAwait(false);
         }
 
@@ -227,6 +228,26 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
                 Is.EqualTo("BadCertificateUntrusted"));
             Assert.That(response, Does.Not.Contain(jwt));
             Assert.That(sessions.GetSessionInfo("untrusted"), Is.Null);
+        }
+
+        /// <summary>
+        /// A trusted server certificate for another host cannot receive the JWT.
+        /// </summary>
+        [Test]
+        public async Task LiveJwtRejectsTrustedServerCertificateWithMismatchedHost()
+        {
+            string jwt = CreateToken(m_signer, kAudience, 3600);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            string response = await ConnectionTools.ConnectJwtAsync(
+                m_sessions, $"opc.tcp://127.0.0.2:{m_fixture.Port}", jwt,
+                "SignAndEncrypt", "Basic256Sha256", "jwt-host-mismatch", timeout.Token).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(response);
+
+            Assert.That(document.RootElement.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(document.RootElement.GetProperty("statusCode").GetString(),
+                Is.EqualTo("BadCertificateHostNameInvalid"));
+            Assert.That(response, Does.Not.Contain(jwt));
+            Assert.That(m_sessions.GetSessionInfo("jwt-host-mismatch"), Is.Null);
         }
 
         /// <summary>

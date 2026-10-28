@@ -483,9 +483,8 @@ namespace Opc.Ua.Mcp
                     await CreateConnectionValidationContextAsync(
                         m_configuration!,
                         Telemetry,
-                        autoAcceptCerts,
-                        ct,
-                        requireTrust: jwt != null).ConfigureAwait(false);
+                        autoAcceptCertificates: jwt == null && autoAcceptCerts,
+                        ct).ConfigureAwait(false);
                 try
                 {
                     ApplicationConfiguration configuration = validationContext.Configuration;
@@ -506,10 +505,18 @@ namespace Opc.Ua.Mcp
 
                     var endpointConfiguration = EndpointConfiguration.Create(configuration);
                     var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
+                    if (jwt != null)
+                    {
+                        endpoint.UpdateBeforeConnect = false;
+                    }
                     ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, Telemetry)
                         .UseEndpoint(endpoint)
                         .WithSessionName(name)
                         .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000));
+                    if (jwt != null)
+                    {
+                        builder.WithCheckDomain();
+                    }
                     if (identityProvider != null)
                     {
                         builder.WithIdentityProvider(identityProvider);
@@ -908,10 +915,9 @@ namespace Opc.Ua.Mcp
                 ApplicationConfiguration configuration,
                 ITelemetryContext telemetry,
                 bool autoAcceptCertificates,
-                CancellationToken ct,
-                bool requireTrust = false)
+                CancellationToken ct)
         {
-            if (!autoAcceptCertificates && !requireTrust)
+            if (!autoAcceptCertificates)
             {
                 return new ConnectionValidationContext(configuration, null);
             }
@@ -923,7 +929,7 @@ namespace Opc.Ua.Mcp
                     configuration.SecurityConfiguration,
                     telemetry);
                 certificateManager.AutoAcceptUntrustedCertificates = false;
-                certificateManager.AcceptError = autoAcceptCertificates && !requireTrust ? AutoAcceptError : null;
+                certificateManager.AcceptError = autoAcceptCertificates ? AutoAcceptError : null;
                 await certificateManager.LoadApplicationCertificatesAsync(
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri,
@@ -1123,6 +1129,8 @@ namespace Opc.Ua.Mcp
             var requestUri = new Uri(endpointUrl);
             MessageSecurityMode? mode = securityMode == null ? null : ParseSecurityMode(securityMode);
             ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            ArrayOf<string> supportedSecurityPolicies =
+                configuration.SecurityConfiguration.SupportedSecurityPolicies;
             foreach (EndpointDescription endpoint in (endpoints.ToArray() ?? [])
                 .OrderByDescending(candidate => candidate.SecurityLevel))
             {
@@ -1135,6 +1143,13 @@ namespace Opc.Ua.Mcp
                 {
                     continue;
                 }
+                if (endpoint.SecurityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt &&
+                    (endpoint.SecurityPolicyUri == null ||
+                        !supportedSecurityPolicies.Contains(
+                            policy => policy == endpoint.SecurityPolicyUri)))
+                {
+                    continue;
+                }
 
                 var context = new IdentitySelectionContext(
                     endpoint, endpoint.UserIdentityTokens, messageContext,
@@ -1142,6 +1157,13 @@ namespace Opc.Ua.Mcp
                 try
                 {
                     _ = await provider.SelectUserTokenPolicyAsync(context, ct).ConfigureAwait(false);
+                    var endpointUri = new Uri(endpoint.EndpointUrl);
+                    var normalizedUri = new UriBuilder(endpointUri)
+                    {
+                        Host = requestUri.IdnHost,
+                        Port = requestUri.Port
+                    };
+                    endpoint.EndpointUrl = normalizedUri.ToString();
                     return endpoint;
                 }
                 catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadIdentityTokenRejected)

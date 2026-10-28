@@ -78,10 +78,13 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
         public async Task EndpointSelectorHonorsConfiguredEnabledPolicySnapshot()
         {
             ApplicationConfiguration configuration = JwtTestData.Configuration();
-            configuration.SecurityConfiguration.ApplicationCertificates = [];
-            Assert.That(configuration.SecurityConfiguration.SupportedSecurityPolicies,
-                Is.EqualTo(new[] { SecurityPolicies.None }));
+            configuration.SecurityConfiguration.ApplicationCertificates =
+                [new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }];
             EndpointDescription disabled = JwtTestData.Endpoint(level: 200);
+            disabled.UserIdentityTokens[0].SecurityPolicyUri = SecurityPolicies.ECC_nistP256;
             EndpointDescription allowed = JwtTestData.Endpoint(level: 10);
             allowed.UserIdentityTokens[0].SecurityPolicyUri = SecurityPolicies.None;
             EndpointDescription selected = await OpcUaSessionManager.SelectJwtEndpointAsync(
@@ -89,6 +92,40 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
                 configuration, CancellationToken.None).ConfigureAwait(false);
             Assert.That(selected, Is.SameAs(allowed));
             Assert.That(selected.UserIdentityTokens[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
+        }
+
+        [Test]
+        public async Task EndpointSelectorSkipsUnsupportedSecureChannelPolicies()
+        {
+            ApplicationConfiguration configuration = JwtTestData.Configuration();
+            configuration.SecurityConfiguration.ApplicationCertificates =
+                [new CertificateIdentifier
+                {
+                    CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+                }];
+            EndpointDescription unsupported = JwtTestData.Endpoint(level: 200);
+            unsupported.SecurityPolicyUri = SecurityPolicies.ECC_nistP256;
+            EndpointDescription supported = JwtTestData.Endpoint(level: 10);
+
+            EndpointDescription selected = await OpcUaSessionManager.SelectJwtEndpointAsync(
+                [unsupported, supported], JwtTestData.Url, null, null,
+                JwtTestData.Provider(configuration), configuration, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(selected, Is.SameAs(supported));
+        }
+
+        [Test]
+        public async Task EndpointSelectorUsesRequestedHostAndPortButPreservesAdvertisedPath()
+        {
+            EndpointDescription endpoint = JwtTestData.Endpoint();
+            endpoint.EndpointUrl = "opc.tcp://internal.invalid:4840/ua/primary";
+            ApplicationConfiguration configuration = JwtTestData.Configuration();
+
+            EndpointDescription selected = await OpcUaSessionManager.SelectJwtEndpointAsync(
+                [endpoint], "opc.tcp://forwarded.invalid:50000/gateway", null, null,
+                JwtTestData.Provider(configuration), configuration, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(selected.EndpointUrl, Is.EqualTo("opc.tcp://forwarded.invalid:50000/ua/primary"));
         }
 
         [Test]

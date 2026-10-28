@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
@@ -121,9 +122,21 @@ namespace Opc.Ua.Mcp
                     "The certificate manager is not initialized.");
             using CertificateCollection chain = Utils.ParseCertificateChainBlob(
                 context.EndpointDescription.ServerCertificate.Memory, m_telemetry);
-            CertificateValidationResult validation = await certificates.ValidateAsync(chain, ct: ct)
+            CertificateValidationResult validation = await certificates.ValidateAsync(
+                chain,
+                options: new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    AutoAcceptUntrustedCertificates = false,
+                    AcceptError = static (_, _) => false
+                },
+                ct: ct)
                 .ConfigureAwait(false);
             validation.ThrowIfInvalid();
+            var endpoint = new ConfiguredEndpoint(
+                null,
+                context.EndpointDescription,
+                EndpointConfiguration.Create(m_configuration));
+            new StrictCertificateValidator(certificates).ValidateDomains(chain[0], endpoint);
 
             return await m_provider.GetIdentityAsync(policy, context, ct).ConfigureAwait(false);
         }
@@ -167,5 +180,31 @@ namespace Opc.Ua.Mcp
 
         /// <summary>The telemetry context used by certificate parsing.</summary>
         private readonly ITelemetryContext m_telemetry;
+
+        private sealed class StrictCertificateValidator(ICertificateValidatorEx validator) : ICertificateValidatorEx
+        {
+            Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+                CertificateCollection chain,
+                TrustListIdentifier? trustList,
+                global::Opc.Ua.Security.Certificates.CertificateValidationOptions? options,
+                CancellationToken ct)
+            {
+                return validator.ValidateAsync(chain, trustList, options, ct);
+            }
+
+            Task<CertificateValidationResult> ICertificateValidatorEx.ValidateAsync(
+                Certificate certificate,
+                TrustListIdentifier? trustList,
+                CancellationToken ct)
+            {
+                return validator.ValidateAsync(certificate, trustList, ct);
+            }
+
+            Func<Certificate, ServiceResult, bool>? ICertificateValidatorEx.AcceptError
+            {
+                get => validator.AcceptError;
+                set => validator.AcceptError = value;
+            }
+        }
     }
 }

@@ -43,15 +43,18 @@ namespace Opc.Ua.Client.Tests
     [Category("Security")]
     public sealed class SessionIssuedTokenSecurityTests
     {
-        [TestCase(MessageSecurityMode.None)]
-        [TestCase(MessageSecurityMode.Sign)]
+        [TestCase(MessageSecurityMode.None, SecurityPolicies.None)]
+        [TestCase(MessageSecurityMode.Sign, SecurityPolicies.None)]
+        [TestCase(MessageSecurityMode.None, "None")]
+        [TestCase(MessageSecurityMode.Sign, "None")]
         public void ValidateIssuedTokenPolicyRejectsNonePolicyWithoutSignAndEncrypt(
-            MessageSecurityMode channelSecurityMode)
+            MessageSecurityMode channelSecurityMode,
+            string tokenSecurityPolicy)
         {
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
                 Session.ValidateIssuedTokenPolicy(
                     CreateIdentity(Profiles.JwtUserToken, "issued"),
-                    CreatePolicy(SecurityPolicies.None),
+                    CreatePolicy(tokenSecurityPolicy),
                     SecurityPolicies.None,
                     channelSecurityMode,
                     SecurityPolicies.Default))!;
@@ -90,17 +93,18 @@ namespace Opc.Ua.Client.Tests
             Assert.That(effectivePolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
         }
 
-        [Test]
-        public void ValidateIssuedTokenPolicyAllowsNoneOnSignAndEncryptChannel()
+        [TestCase(SecurityPolicies.None)]
+        [TestCase("None")]
+        public void ValidateIssuedTokenPolicyAllowsNoneOnSignAndEncryptChannel(string tokenSecurityPolicy)
         {
             string effectivePolicyUri = Session.ValidateIssuedTokenPolicy(
                 CreateIdentity(Profiles.JwtUserToken, "issued"),
-                CreatePolicy(SecurityPolicies.None),
+                CreatePolicy(tokenSecurityPolicy),
                 SecurityPolicies.None,
                 MessageSecurityMode.SignAndEncrypt,
                 SecurityPolicies.Default);
 
-            Assert.That(effectivePolicyUri, Is.EqualTo(SecurityPolicies.None));
+            Assert.That(effectivePolicyUri, Is.EqualTo(tokenSecurityPolicy));
         }
 
         [Test]

@@ -5888,7 +5888,8 @@ namespace Opc.Ua.Client
                     tokenPolicy.IssuedTokenType ?? "<unspecified>");
             }
 
-            if (securityPolicies.GetInfo(effectivePolicyUri) == null)
+            SecurityPolicyInfo? tokenSecurityPolicy = securityPolicies.GetInfo(effectivePolicyUri);
+            if (tokenSecurityPolicy == null)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
@@ -5896,7 +5897,7 @@ namespace Opc.Ua.Client
                     effectivePolicyUri);
             }
 
-            if (effectivePolicyUri == SecurityPolicies.None &&
+            if (tokenSecurityPolicy.Uri == SecurityPolicies.None &&
                 channelSecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
                 throw ServiceResultException.Create(
