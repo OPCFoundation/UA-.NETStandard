@@ -122,10 +122,10 @@ namespace Opc.Ua.DataChannels
                     if (isData)
                     {
                         DataChannelResult route = CreateUascDataEnvelopeLocked(
-                            message.ApplicationBody, out envelope);
+                            message.ChannelId, message.ApplicationBody, out envelope, out bool silent);
                         if (route != DataChannelResult.Good)
                         {
-                            RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route);
+                            RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route, silent);
                             return;
                         }
                     }
@@ -242,13 +242,27 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Validates the selected flow against any configured UADP association.
+        /// Selects the flow named by the DATA RequestId and validates it against any configured UADP association.
+        /// A retired or terminal flow sets <paramref name="silent"/> so the DATA is discarded without a STATUS.
         /// </summary>
         private DataChannelResult CreateUascDataEnvelopeLocked(
+            uint channelId,
             ByteString applicationBody,
-            out FlowWireEnvelope envelope)
+            out FlowWireEnvelope envelope,
+            out bool silent)
         {
             envelope = default;
+            silent = false;
+            if (!m_flows.TryGetValue(channelId, out FlowState? target))
+            {
+                silent = IsRetiredChannelIdLocked(channelId);
+                return DataChannelResult.UnknownChannel;
+            }
+            if (target.IsTerminal)
+            {
+                silent = true;
+                return DataChannelResult.UnknownChannel;
+            }
             UadpNetworkMessageHeader networkMessageHeader;
             bool malformedHeader = false;
             try
@@ -273,56 +287,24 @@ namespace Opc.Ua.DataChannels
                 }
             }
 
-            FlowState? target = null;
-            FlowState? rejectedTarget = null;
-            bool ambiguousRejectedTarget = false;
-            foreach (FlowState flow in m_flows.Values)
+            bool messageTypeSupported = malformedHeader
+                ? target.Parameters.Protocol == DataChannelProfiles.UadpPayload
+                : networkMessageHeader.NetworkMessageType switch
+                {
+                    0 or 1 or 2 => target.Parameters.Protocol == DataChannelProfiles.UadpPayload,
+                    3 => target.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
+                        DataChannelProfiles.UadpOpaqueApplicationPayload,
+                    _ => false
+                };
+            if (target.IsDatagram || target.DirectLane != null ||
+                !DataChannelProfiles.IsUadpPayloadProtocol(target.Parameters.Protocol) ||
+                !messageTypeSupported ||
+                (!malformedHeader && typedStreaming &&
+                    !target.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
+                (resourceUri != null && !string.Equals(
+                    target.Parameters.ResourceUri, resourceUri, StringComparison.Ordinal)))
             {
-                if (flow.IsTerminal || flow.IsDatagram || flow.DirectLane != null ||
-                    !DataChannelProfiles.IsUadpPayloadProtocol(flow.Parameters.Protocol) ||
-                    (!malformedHeader && typedStreaming &&
-                        !flow.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
-                    (resourceUri != null && !string.Equals(
-                        flow.Parameters.ResourceUri, resourceUri, StringComparison.Ordinal)))
-                {
-                    continue;
-                }
-                bool messageTypeSupported = malformedHeader
-                    ? flow.Parameters.Protocol == DataChannelProfiles.UadpPayload
-                    : networkMessageHeader.NetworkMessageType switch
-                    {
-                        0 or 1 or 2 => flow.Parameters.Protocol == DataChannelProfiles.UadpPayload,
-                        3 => flow.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
-                            DataChannelProfiles.UadpOpaqueApplicationPayload,
-                        _ => false
-                    };
-                if (!messageTypeSupported)
-                {
-                    continue;
-                }
-                if (!flow.Ready || !flow.MayReceive)
-                {
-                    ambiguousRejectedTarget |= rejectedTarget != null;
-                    rejectedTarget = flow;
-                    continue;
-                }
-                if (target != null)
-                {
-                    return DataChannelResult.InvalidState;
-                }
-                target = flow;
-            }
-            if (target == null)
-            {
-                if (ambiguousRejectedTarget)
-                {
-                    return DataChannelResult.InvalidState;
-                }
-                target = rejectedTarget;
-                if (target == null)
-                {
-                    return DataChannelResult.UnknownChannel;
-                }
+                return DataChannelResult.UnknownChannel;
             }
 
             var record = new FlowRecord(FlowRecordKind.Data, 0, 0, applicationBody);
@@ -583,7 +565,7 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Refuses unmatched DATA without closing a confirmed context or exhausting aggregate credit.
         /// </summary>
-        private DataChannelResult RefuseUnroutableUascDataLocked(int cost, DataChannelResult result)
+        private DataChannelResult RefuseUnroutableUascDataLocked(int cost, DataChannelResult result, bool silent)
         {
             if (m_identity == null)
             {
@@ -591,6 +573,10 @@ namespace Opc.Ua.DataChannels
                 return result;
             }
             ReleaseDiscardedConnectionCreditLocked(cost);
+            if (silent)
+            {
+                return result;
+            }
             long now = m_clock.GetTimestamp();
             if (!m_errorSent || m_clock.GetElapsedTime(m_lastErrorAt, now) >= TimeSpan.FromSeconds(1))
             {

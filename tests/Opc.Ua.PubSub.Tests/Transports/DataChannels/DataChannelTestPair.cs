@@ -324,7 +324,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     if (Kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
                         DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
                     {
-                        Payloads.Enqueue(payload);
+                        // The merged MSG framing prefixes the DATA TypeId 00 FE; the body is the UADP message.
+                        Payloads.Enqueue(payload.Length >= 2 && payload[0] == 0x00 && payload[1] == 0xFE
+                            ? payload[2..].Copy()
+                            : payload);
                     }
                     else
                     {
@@ -431,7 +434,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                             DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
                         {
                             result = await m_peer!.ReceiveUascAsync(
-                                packet.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                                DataChannelUascMessageKind.Msg,
                                 (byte)'F',
                                 packet.RequestId,
                                 packet.Payload,

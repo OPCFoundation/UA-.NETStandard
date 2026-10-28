@@ -71,7 +71,7 @@ namespace Opc.Ua.Bindings
                 requestStream = await owner.AcceptRequestStreamAsync(deadline.Token).ConfigureAwait(false);
                 Http3ExtendedConnectRequest request = await Http3CapsuleSession.ReadConnectRequestAsync(
                     requestStream, MaximumHeaderBytes, deadline.Token).ConfigureAwait(false);
-                Uri httpsEndpoint = WebTransportEndpoint.ToHttps(EndpointUrl);
+                Uri httpsEndpoint = EndpointUrl;
                 if (!string.Equals(request.Authority, httpsEndpoint.Authority, StringComparison.Ordinal) ||
                     !string.Equals(request.Path, httpsEndpoint.PathAndQuery, StringComparison.Ordinal))
                 {
@@ -194,7 +194,7 @@ namespace Opc.Ua.Bindings
             ArgumentNullException.ThrowIfNull(localEndPoint);
             ArgumentNullException.ThrowIfNull(tls);
             ArgumentNullException.ThrowIfNull(connectAuthorizer);
-            WebTransportEndpoint.Address(endpoint, listen: true, numericListener: false);
+            WebTransportEndpoint.HttpsAddress(endpoint);
             if (!Enum.IsDefined(originPolicy) ||
                 (originPolicy == WebTransportOriginPolicy.AbsentOnly && origin != null) ||
                 (originPolicy != WebTransportOriginPolicy.AbsentOnly &&

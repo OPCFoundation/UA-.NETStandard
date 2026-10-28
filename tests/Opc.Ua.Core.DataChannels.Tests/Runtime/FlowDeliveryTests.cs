@@ -1463,9 +1463,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         [TestCase("unmatched", DataChannelResult.UnknownChannel)]
         [TestCase("missing-resource", DataChannelResult.UnknownChannel)]
-        [TestCase("ambiguous-exact", DataChannelResult.InvalidState)]
-        [TestCase("ambiguous-wildcard", DataChannelResult.InvalidState)]
-        [TestCase("unregistered", DataChannelResult.InvalidState)]
+        [TestCase("ambiguous-exact", DataChannelResult.Good)]
+        [TestCase("ambiguous-wildcard", DataChannelResult.Good)]
+        [TestCase("unregistered", DataChannelResult.Good)]
         public async Task UascPublisherRouteSelectionNeverDeliversToAnotherReadyFlow(
             string scenario,
             DataChannelResult expected)
@@ -1488,7 +1488,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await ReceivePublisherFloAsync(pair, payload).ConfigureAwait(false), Is.EqualTo(expected));
             Assert.Multiple(() =>
             {
-                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(first.Remote.GetDiagnostics().MessagesReceived,
+                    Is.EqualTo(expected == DataChannelResult.Good ? 1 : 0));
                 Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
                 Assert.That(first.Remote.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(second.Remote.State, Is.EqualTo(DataChannelState.Open));
@@ -1507,17 +1508,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 .ConfigureAwait(false);
             using IDisposable wildcard = pair.Acceptor.RegisterUascPublisherRoute("urn:publisher:first", Variant.Null);
             Assert.That(await ReceivePublisherFloAsync(pair, new ByteString(header)).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.InvalidState));
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(first.Remote, new ByteString(header), 1).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
                 Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
                 Assert.That(pair.Acceptor.IsReady, Is.True);
             });
             ByteString valid = PublisherRoutePayload(new Variant(42u));
             Assert.That(await ReceivePublisherFloAsync(pair, valid).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            await AssertPublisherMessageAsync(first.Remote, valid, 1).ConfigureAwait(false);
+            await AssertPublisherMessageAsync(first.Remote, valid, 2).ConfigureAwait(false);
             Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
         }
 
@@ -1838,8 +1840,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             FlowCarrier carrier = receiver.CarrierKind == DataChannelCarrierKind.DedicatedUasc
                 ? FlowCarrier.DedicatedUasc
                 : FlowCarrier.SharedUasc;
-            ByteString body = UascFlowMessageCodec.Encode(carrier, channelId, in record, new(), out _);
-            return receiver.ReceiveUascAsync(DataChannelUascMessageKind.Msg, (byte)'F', 0, body);
+            ByteString body = UascFlowMessageCodec.Encode(
+                carrier, channelId, in record, new(), out uint requestId);
+            return receiver.ReceiveUascAsync(DataChannelUascMessageKind.Msg, (byte)'F', requestId, body);
         }
 
         private static async Task AssertPublisherMessageAsync(DataChannel channel, ByteString payload, uint messageId)

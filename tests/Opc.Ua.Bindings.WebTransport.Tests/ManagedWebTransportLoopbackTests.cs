@@ -73,7 +73,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
 
             var server = new ManagedWebTransportUascServer();
             await using ManagedWebTransportUascListener listener = await server.ListenAsync(
-                new Uri("opc.wt://127.0.0.1:0/ua/wt"),
+                new Uri("https://127.0.0.1:0/ua/wt"),
                 new IPEndPoint(IPAddress.Loopback, 0),
                 serverTls,
                 static (_, _) => ValueTask.FromResult(true));

@@ -76,10 +76,10 @@ namespace Opc.Ua.DataChannels
                     }
                     m_lastVerifiedAt = m_clock.GetTimestamp();
                     DataChannelResult route = CreateUascDataEnvelopeLocked(
-                        message.ApplicationBody, out envelope);
+                        message.ChannelId, message.ApplicationBody, out envelope, out bool silent);
                     if (route != DataChannelResult.Good)
                     {
-                        return RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route);
+                        return RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route, silent);
                     }
                     if (!m_flows.TryGetValue(envelope.ChannelId, out FlowState? flow) ||
                         flow.LastRoutedDataId == uint.MaxValue)
@@ -950,7 +950,7 @@ namespace Opc.Ua.DataChannels
                         }
                         return DataChannelResult.Good;
                     }
-                    if (status.Status == FlowWireStatus.WouldBlock ||
+                    if (status.Status is FlowWireStatus.WouldBlock or FlowWireStatus.UnknownChannel ||
                         (status.RelatedOperation != 0 &&
                             status.RelatedOperation != m_directBindingOperationId) ||
                         m_carrier.Kind is not (DataChannelCarrierKind.QuicUasc or

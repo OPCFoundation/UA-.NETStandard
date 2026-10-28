@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 [
                     TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
                 ]));
-                Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0 }));
+                Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0x80000001u }));
                 Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(3));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
             });
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             [
                 TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
             ]));
-            Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0 }));
+            Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0x80000001u }));
             Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
         }
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(firstFlowControl, Is.InRange(1, 9),
                     "At most eight newly selected Services may precede a queued control after the in-flight write.");
                 Assert.That(types.All(type => type == TcpMessageType.Message), Is.True);
-                Assert.That(fixture.Transport.RequestIds[^1], Is.Zero);
+                Assert.That(fixture.Transport.RequestIds[^1], Is.EqualTo(0x80000001u));
                 Assert.That(chunks[^1].AsSpan(bodyOffset, 6).ToArray(),
                     Is.EqualTo(new byte[] { 0, 254, 0, 0, 0, 0 }));
                 Assert.That(fixture.Transport.Sequences, Is.EqualTo(Enumerable.Range(100, 27).Select(value => (uint)value)));
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     [
                         TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
                     ]));
-                    Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 0, 21 }));
+                    Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 0x80000001u, 21 }));
                     Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
                     Assert.That(fixture.Transport.Chunks.All(chunk => chunk[3] == (byte)'F'), Is.True);
                 });
@@ -354,7 +354,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(dataChunks, Is.GreaterThan(1));
                 Assert.That(data.Result, Is.EqualTo(DataChannelResult.Good));
                 Assert.That(fixture.Transport.RequestIds,
-                    Is.EqualTo(Enumerable.Repeat(0u, dataChunks).Append(21u)));
+                    Is.EqualTo(Enumerable.Repeat(0x80000001u, dataChunks).Append(21u)));
                 Assert.That(fixture.Transport.Sequences,
                     Is.EqualTo(Enumerable.Range(100, chunks.Length).Select(value => (uint)value)));
                 Assert.That(fixture.Channel.SequenceBudget.Remaining,

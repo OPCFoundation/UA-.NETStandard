@@ -173,25 +173,29 @@ namespace Opc.Ua.DataChannels.Wire
             FlowCodecLimits limits)
         {
             RequireUasc(carrier);
-            if (chunkType != (byte)'F')
-            {
-                throw new FlowCodecException(FlowCodecError.NonFinalUasc);
-            }
-            if (requestId != 0)
-            {
-                throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
-            }
             if (limits is null)
             {
                 throw new ArgumentNullException(nameof(limits));
+            }
+            if (chunkType != (byte)'F')
+            {
+                throw new FlowCodecException(FlowCodecError.NonFinalUasc);
             }
             if (kind != DataChannelUascMessageKind.Msg)
             {
                 throw new FlowCodecException(FlowCodecError.WrongType);
             }
+            if (requestId != 0 && (requestId & DataRequestIdFlag) == 0)
+            {
+                throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
+            }
             FlowRecordKind recordKind = Classify(plaintextBody.Span);
             if (recordKind == FlowRecordKind.Data)
             {
+                if (!TryGetDataChannelId(requestId, out uint dataChannelId))
+                {
+                    throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
+                }
                 int maximum = Math.Min(limits.MaxDataBytes,
                     limits.MaxRecordBytes - FlowRecordCodec.HeaderSize - TypeIdSize);
                 ByteString applicationBody = plaintextBody[TypeIdSize..];
@@ -200,9 +204,13 @@ namespace Opc.Ua.DataChannels.Wire
                     throw new FlowCodecException(FlowCodecError.TooLarge);
                 }
                 var data = new FlowRecord(FlowRecordKind.Data, 1, 1, applicationBody);
-                return new UascFlowMessage(0, data, null);
+                return new UascFlowMessage(dataChannelId, data, null);
             }
 
+            if (requestId != 0)
+            {
+                throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
+            }
             if (plaintextBody.Length < ControlPrefixSize)
             {
                 throw new FlowCodecException(FlowCodecError.Truncated);
@@ -250,6 +258,7 @@ namespace Opc.Ua.DataChannels.Wire
             if (record.Kind == FlowRecordKind.Data)
             {
                 ValidateDataChannel(channelId, carrier);
+                requestId = DataRequestIdFlag | channelId;
                 if (record.Body.IsNull ||
                     record.Body.Length > limits.MaxDataBytes ||
                     record.Body.Length > limits.MaxRecordBytes - FlowRecordCodec.HeaderSize - TypeIdSize)
@@ -296,11 +305,25 @@ namespace Opc.Ua.DataChannels.Wire
         /// </summary>
         private static void ValidateDataChannel(uint channelId, FlowCarrier carrier)
         {
-            if (channelId == 0)
+            if (channelId == 0 || (channelId & DataRequestIdFlag) != 0)
             {
                 throw new FlowCodecException(FlowCodecError.InvalidFlow);
             }
         }
+
+        /// <summary>
+        /// Extracts the ChannelId from a DATA RequestId, which carries the flag bit plus the 31-bit ChannelId.
+        /// </summary>
+        internal static bool TryGetDataChannelId(uint requestId, out uint channelId)
+        {
+            channelId = requestId & ~DataRequestIdFlag;
+            return (requestId & DataRequestIdFlag) != 0 && channelId != 0;
+        }
+
+        /// <summary>
+        /// Gets the RequestId bit that marks a DATA MSG and keeps its identifiers disjoint from Service RequestIds.
+        /// </summary>
+        internal const uint DataRequestIdFlag = 0x80000000u;
 
         /// <summary>
         /// Requires the protected ChannelId prefix to agree with the CONTROL flow.

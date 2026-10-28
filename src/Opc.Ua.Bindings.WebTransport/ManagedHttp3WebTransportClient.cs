@@ -41,7 +41,11 @@ namespace Opc.Ua.Bindings
         {
             ArgumentNullException.ThrowIfNull(endpoint);
             ArgumentNullException.ThrowIfNull(tls);
-            WebTransportEndpoint.Address(endpoint, listen: false, numericListener: false);
+            WebTransportEndpoint.HttpsAddress(endpoint);
+            if (endpoint.Port == 0)
+            {
+                throw new ArgumentException("An explicit HTTPS port is required.", nameof(endpoint));
+            }
             ValidateTls(endpoint, tls);
             ValidateLimits(
                 maximumHeaderBytes, maximumFramePayloadBytes, maximumCapsulePayloadBytes, establishmentTimeout);
@@ -50,7 +54,7 @@ namespace Opc.Ua.Bindings
                 throw new PlatformNotSupportedException("Managed QUIC is unavailable on this platform.");
             }
 
-            Uri httpsEndpoint = WebTransportEndpoint.ToHttps(endpoint);
+            Uri httpsEndpoint = endpoint;
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(establishmentTimeout);
             QuicConnection connection = await QuicConnection.ConnectAsync(new QuicClientConnectionOptions

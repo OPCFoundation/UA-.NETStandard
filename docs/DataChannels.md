@@ -20,10 +20,17 @@ using public .NET QUIC APIs. They establish HTTP/3 critical streams and
 SETTINGS, exchange a capsule-mode CONNECT, and adapt the CONNECT stream to the
 ordinary UACP/UASC byte-transport factory. A managed QUIC loopback test covers
 CONNECT, stream-zero credit setup and byte-for-byte transfer of UACP HEL/ACK
-chunks. It does not exercise UASC OPN, Services interoperability,
-browser support or Part 32 conformance. The managed classes do not automatically
-advertise or replace an endpoint binding. The separate native implementation
-continues to use its earlier `webtransport-h3` draft-16 path.
+chunks. A second loopback passes through the external UASC listener. With
+data-channel factories on both peers, it completes mutual protected HELLO,
+SignAndEncrypt OPN, a correlated Read, and a configured UADP flow whose DATA
+payload arrives unchanged over secured MSG in both directions. It also verifies
+that a listener requiring an Origin rejects a request without one and that a
+denying CONNECT authorizer refuses the request. A one-sided factory
+configuration times out at client profile confirmation. These tests do not
+establish independent-implementation interoperability, browser support or
+Part 32 conformance. The managed classes do not automatically advertise or
+replace an endpoint binding. The separate native implementation continues to
+use its earlier `webtransport-h3` draft-16 path.
 The separate legacy native WebTransport experiment at
 [`2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels)
 uses server-authenticated TLS and a SignAndEncrypt UASC management stream on
@@ -128,8 +135,9 @@ and supplies its context factory in `TransportChannelSettings.DataChannels`.
 Both peers authenticate through UASC before protected HELLO confirms the
 capability. HELLO uses the ordinary-UASC carrier discriminator `0`. DATA uses
 the namespace-zero Two-Byte TypeId `00 FE`; CONTROL uses `00 FF`. Both are
-standard MSG messages with RequestId zero, and ordinary Services share the
-SecureChannel.
+standard MSG messages. DATA carries `0x80000000` OR the target ChannelId as its
+RequestId and CONTROL carries RequestId zero. Ordinary Services use RequestIds
+below 2^31 and share the SecureChannel.
 
 Given a configured or discovered `selectedEndpoint`, application-certificate
 settings, an authorized `contextFactory` and the host's transport bindings:
@@ -219,7 +227,7 @@ Profile matching is exact; an unavailable profile is not substituted with anothe
 | Legacy dedicated UASC profile | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC, DATA/CONTROL in MSG | Not exposed by the dedicated facade |
 | Legacy shared UASC profile | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC, DATA/CONTROL in MSG | Share the authenticated SecureChannel |
 | Part 31 QUIC baseline | `UascQuic` | `opc.quic`, ALPN `opcua-uasc-draft`; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services and configured MSG DATA/CONTROL |
-| Part 32 WebTransport baseline | `UascWebTransport` | `opc.wt`, capsule-based HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support is a separate optional claim |
+| Part 32 WebTransport baseline | `UascWebTransport` | HTTPS, capsule-based HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support is a separate optional claim |
 | Legacy native QUIC flow | `Quic` | `opc.quic`, ALPN `opcua-flow/1`; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
 | Native WebTransport management | `WebTransport` | `opc.wt`, mapped HTTPS CONNECT; server-authenticated TLS plus SignAndEncrypt UASC management | None on management; no Sessions advertised |
 | Legacy native WebTransport flow | `WebTransport` | `opc.wt`, HTTP/3 and WebTransport draft-16; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
@@ -626,7 +634,7 @@ a Session OPEN has exactly one Guid. There is no JSON CONTROL fallback.
 The control-only AdmissionId retains the model's ChannelId name. It is not
 serialized before UADP and is not a PublisherId. Configured UADP associations
 select the admitted resource from authenticated identity and visible source /
-writer fields. Canonical DATA and CONTROL both use MSG with RequestId zero.
+writer fields. Canonical DATA carries `0x80000000` OR the ChannelId as RequestId and routes by it alone; CONTROL uses RequestId zero.
 Legacy native datagrams carry an external ChannelId and common record.
 Authenticated direct datagrams instead carry a 16-byte UA Binary Guid token,
 UInt32 revision and UInt32 nonwrapping per-direction sequence before unchanged
@@ -683,7 +691,8 @@ still need additional application admission. Native streams also reserve their
 two 13-byte parser staging areas before allocation.
 
 Canonical DATA and CONTROL use contiguous MSG `C*F` chunks, or `A` to abandon
-the partial message. Every chunk uses RequestId zero; the first contains both
+the partial message. Every chunk of a message, including an abort chunk, reuses
+that message's RequestId; the first contains both
 TypeId bytes. Dispatch follows SecureChannel/Token validation, signature
 verification or decryption, and SequenceNumber validation. Capacity calculations
 include the TypeId and security padding. The complete message reserves its
@@ -751,7 +760,7 @@ replaced by this change.
 
 | Earlier experiment | Replacement |
 | --- | --- |
-| JSON CONTROL and UASC common-record DATA/CONTROL envelope | Unchanged UADP in standard MSG with TypeId `00 FE`; typed Revision/OperationId/opcode fields in MSG with TypeId `00 FF`; RequestId zero |
+| JSON CONTROL and UASC common-record DATA/CONTROL envelope | Unchanged UADP in standard MSG with TypeId `00 FE`; typed Revision/OperationId/opcode fields in MSG with TypeId `00 FF` and RequestId zero; DATA RequestId is `0x80000000` OR ChannelId |
 | New Open/Modify/Close Service requests and responses | Generated manager Methods through ordinary Call; configured flows need no Call |
 | `DataChannelManager`, direct registry access and response-sent callbacks | `DataChannelContext`, carrier factories and ready `DataChannel` facades |
 | Frame flags, fragments, GAP and old delivery modes | Complete messages, Ordered/Datagram delivery and transactional revisions |

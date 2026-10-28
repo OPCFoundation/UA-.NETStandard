@@ -184,7 +184,7 @@ namespace Opc.Ua.DataChannels
                     m_budget.Release(FlowResource.Flow, 1);
                     throw new DataChannelException(DataChannelResult.WouldBlock);
                 }
-                if (m_nextChannelId > uint.MaxValue)
+                if (m_nextChannelId >= UascFlowMessageCodec.DataRequestIdFlag)
                 {
                     m_budget.Release(FlowResource.Flow, 1);
                     m_budget.Release(FlowResource.Operation, 1);
@@ -392,7 +392,8 @@ namespace Opc.Ua.DataChannels
         private bool RetirePeerIdLocked(uint id)
         {
             uint peerParity = m_carrier.Identity.IsContextInitiator ? 0u : 1u;
-            if (id == 0 || (id & 1) != peerParity || id <= m_peerChannelHighWater)
+            if (id == 0 || id >= UascFlowMessageCodec.DataRequestIdFlag || (id & 1) != peerParity ||
+                id <= m_peerChannelHighWater)
             {
                 return false;
             }

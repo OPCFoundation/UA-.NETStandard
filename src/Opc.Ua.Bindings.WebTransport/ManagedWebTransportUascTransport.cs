@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings
         public string Implementation => "Managed-WebTransport-UASC";
 
         /// <inheritdoc/>
-        public string UriScheme => "opc.wt";
+        public string UriScheme => "https";
 
         /// <inheritdoc/>
         public string TransportProfileUri => DataChannelProfiles.UascWebTransport;

@@ -233,7 +233,8 @@ namespace Opc.Ua.Bindings
             DataChannelContext? context = m_dataChannels;
             if (context == null)
             {
-                if (requestId == 0 && messageBody.Count >= UascFlowMessageCodec.TypeIdSize &&
+                if ((requestId == 0 || (requestId & UascFlowMessageCodec.DataRequestIdFlag) != 0) &&
+                    messageBody.Count >= UascFlowMessageCodec.TypeIdSize &&
                     messageBody.AsSpan()[0] == 0 && messageBody.AsSpan()[1] is 254 or 255)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError,
@@ -249,7 +250,9 @@ namespace Opc.Ua.Bindings
                     requestId, new ByteString(messageBody.AsMemory()));
                 return true;
             }
-            if (requestId != 0)
+            bool isChannelMessage = requestId == 0 ||
+                (requestId & UascFlowMessageCodec.DataRequestIdFlag) != 0;
+            if (!isChannelMessage)
             {
                 if (m_dataChannelIncomingKind.HasValue ||
                     (!HasPartialMessage && messageBody.Count < UascFlowMessageCodec.TypeIdSize) ||
@@ -273,6 +276,10 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if (m_dataChannelIncomingKind.HasValue && requestId != m_dataChannelIncomingRequestId)
+                {
+                    throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
+                }
                 if (TcpMessageType.IsAbort(messageType))
                 {
                     if (!m_dataChannelIncomingKind.HasValue)
@@ -292,6 +299,7 @@ namespace Opc.Ua.Bindings
                         throw new FlowCodecException(FlowCodecError.WrongType);
                     }
                     m_dataChannelIncomingKind = UascFlowMessageCodec.Classify(messageBody.AsSpan());
+                    m_dataChannelIncomingRequestId = requestId;
                     m_dataChannelIncomingBytes = 0;
                 }
                 if (m_dataChannelIncomingKind == FlowRecordKind.Data && !context.IsReady)
@@ -318,7 +326,8 @@ namespace Opc.Ua.Bindings
                     m_dataChannelIncomingKind = null;
                     m_dataChannelIncomingBytes = 0;
                     context.QueueVerifiedUasc(
-                        DataChannelUascMessageKind.Msg, (byte)'F', 0, new ByteString(messageBody.AsMemory()));
+                        DataChannelUascMessageKind.Msg, (byte)'F', requestId,
+                        new ByteString(messageBody.AsMemory()));
                     return true;
                 }
                 ownsBuffer = true;
@@ -340,7 +349,7 @@ namespace Opc.Ua.Bindings
                         offset += chunk.Count;
                     }
                     context.QueueVerifiedUasc(
-                        DataChannelUascMessageKind.Msg, (byte)'F', 0, new ByteString(assembled));
+                        DataChannelUascMessageKind.Msg, (byte)'F', requestId, new ByteString(assembled));
                 }
                 finally
                 {
@@ -735,6 +744,7 @@ namespace Opc.Ua.Bindings
         /// The remembered body classification while contiguous RequestId-zero chunks are incomplete.
         /// </summary>
         private FlowRecordKind? m_dataChannelIncomingKind;
+        private uint m_dataChannelIncomingRequestId;
 
         /// <summary>
         /// Counts plaintext bytes before accepting any additional chunk into the reassembly budget.

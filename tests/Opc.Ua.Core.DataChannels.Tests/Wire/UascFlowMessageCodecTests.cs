@@ -56,9 +56,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
                 FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded, new());
 
-            Assert.That(requestId, Is.Zero);
+            Assert.That(requestId, Is.EqualTo(0x80000001u));
             Assert.That(encoded.ToHexString().ToLowerInvariant(), Is.EqualTo("00fe01010100072a000000"));
-            Assert.That(decoded.ChannelId, Is.Zero);
+            Assert.That(decoded.ChannelId, Is.EqualTo(1u));
             Assert.That(decoded.ApplicationBody.ToArray(), Is.EqualTo(s_uadp.ToArray()));
         }
 
@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowCodecLimits limits = new(maxDataBytes: 8, maxControlBytes: 4, maxRecordBytes: 21);
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0x80000001u,
                     ByteString.FromHexString("00fe000000000000000000"), limits),
                 FlowCodecError.TooLarge);
             AssertCodecError(
@@ -336,14 +336,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 AssertCodecError(() => UascFlowMessageCodec.Encode(
                     FlowCarrier.SharedUasc, 1, in record, limits, out _), FlowCodecError.TooLarge);
                 AssertCodecError(() => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, literal, limits),
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0x80000001u, literal, limits),
                     FlowCodecError.TooLarge);
                 return;
             }
             Assert.That(UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, 1, in record, limits, out _), Is.EqualTo(literal));
             Assert.That(UascFlowMessageCodec.Decode(
-                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, literal, limits)
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0x80000001u, literal, limits)
                 .ApplicationBody, Is.EqualTo(record.Body));
         }
 
@@ -358,7 +358,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             var data = new FlowRecord(FlowRecordKind.Data, 1, 1, s_uadp);
             ByteString encoded = UascFlowMessageCodec.Encode(carrier, 1, in data, new(), out uint requestId);
             Assert.That(encoded[2..].ToArray(), Is.EqualTo(s_uadp.ToArray()));
-            Assert.That(requestId, Is.Zero);
+            Assert.That(requestId, Is.EqualTo(0x80000001u));
 
             FlowRecord credit = FlowControlCodec.Encode(new FlowCredit(1, 256, 512), 1, 2, new());
             ByteString body = UascFlowMessageCodec.Encode(carrier, 1, in credit, new(), out requestId);

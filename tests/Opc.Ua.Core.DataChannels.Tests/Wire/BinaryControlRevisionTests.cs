@@ -112,7 +112,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Both UASC profiles prefix the unchanged UADP body with the canonical MSG TypeId and use RequestId zero.
+        /// Both UASC profiles prefix the unchanged UADP body with the canonical MSG TypeId and         use the DATA RequestId (high bit plus ChannelId).
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -127,8 +127,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
 
             Assert.Multiple(() =>
             {
-                Assert.That(requestId, Is.Zero);
-                Assert.That(encoded.ToHexString().ToLowerInvariant(),
+                Assert.That(requestId, Is.EqualTo(0x80000001u));
+                Assert.That(encoded.ToHexString().                ToLowerInvariant(),
                     Is.EqualTo("00fe0100"));
             });
         }

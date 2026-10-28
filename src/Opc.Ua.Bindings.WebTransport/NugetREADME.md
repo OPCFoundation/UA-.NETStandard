@@ -23,10 +23,16 @@ selected managed client and listener using public .NET QUIC APIs. They establish
 HTTP/3 critical streams and SETTINGS, exchange a capsule-mode CONNECT, and adapt
 the CONNECT stream to the ordinary UACP/UASC byte-transport factory. A managed
 loopback test covers TLS, SETTINGS, CONNECT, stream-zero credit setup and a
-byte-for-byte UACP HEL/ACK chunk exchange. It does not exercise UASC OPN,
-Services interoperability, browser support or Part 32 conformance. The managed
-classes do not automatically advertise endpoints or replace the separate
-native `webtransport-h3` draft-16 implementation.
+byte-for-byte UACP HEL/ACK chunk exchange. A second loopback completes mutual
+protected data-channel HELLO, SignAndEncrypt OPN, a correlated Read, and a
+configured duplex UADP flow with unchanged DATA payload over secured MSG in
+both directions. The loopback also covers refusal when the listener requires
+an Origin or rejects the CONNECT authorizer, and timeout if only one peer
+configures data channels.
+Independent-implementation interoperability, browser support and Part 32
+conformance remain unverified. The managed classes do not automatically
+advertise endpoints or replace the separate native `webtransport-h3` draft-16
+implementation.
 
 The legacy native flow path uses mutually authenticated native QUIC, HTTP/3 and
 WebTransport draft-ietf-webtrans-http3-16. It is not a WebSocket fallback,
@@ -138,7 +144,7 @@ COMMIT and END occupy the ordered data stream; RESET remains on secured FLC.
 
 `ManagedWebTransportUascTransport` and `ManagedWebTransportUascServer` provide
 an explicit managed path for the capsule-based Part 32 correction. The client
-connects to an exact `opc.wt` endpoint, verifies the server through the supplied
+connects to an exact HTTPS endpoint, verifies the server through the supplied
 TLS policy, negotiates `h3`, and requests the configured CONNECT authority and
 path. It sends no Origin header. The listener defaults to an absent-Origin
 policy; a host can select a stricter exact-origin policy. CONNECT is authorized
@@ -152,7 +158,7 @@ factory; it does not create a SecureChannel or Session on its own:
 ```csharp
 var transport = new ManagedWebTransportUascTransport();
 await using ManagedWebTransportUascConnection baseline = await transport.ConnectAsync(
-    new Uri("opc.wt://device.example:4840/ua/wt"),
+    new Uri("https://device.example:4840/ua/wt"),
     clientTlsAuthenticationOptions,
     cancellationToken);
 
@@ -167,11 +173,20 @@ select `DataChannelProfiles.UascWebTransport`, the exact endpoint URL and
 `MessageSecurityMode.SignAndEncrypt`, with the application's certificate and
 validator.
 
+Ordinary UASC Services do not require a data-channel factory. To exchange
+protected data-channel HELLO messages, configure an `IDataChannelContextFactory`
+in both client `TransportChannelSettings` and server
+`TransportListenerSettings`. HELLO is mutual. With a factory configured on only
+one peer, client profile confirmation times out; the connection does not fall
+back to Services-only operation.
+
 `AddManagedWebTransportUasc` registers the managed client and server services
 with the OPC UA builder. The host still supplies TLS options, authorization,
 endpoint descriptions and listener lifecycle.
 
-The server supplies its TLS certificate and CONNECT authorizer explicitly:
+The server supplies its TLS certificate and CONNECT authorizer explicitly. The
+`endpoint` argument is the canonical HTTPS endpoint advertised to UASC; use port
+zero when the listener should publish its actual bound port.
 
 ```csharp
 var server = new ManagedWebTransportUascServer();
@@ -185,7 +200,7 @@ await using ManagedWebTransportUascConnection accepted =
 _ = uascListener.AcceptTransport(accepted, certificateValidator, maxBufferSize);
 ```
 
-The external UASC listener must be opened for the exact bound `opc.wt` endpoint
+The external UASC listener must be opened for the exact bound HTTPS endpoint
 and advertise the `UascWebTransport` profile. The host supplies the endpoint
 description, application certificate validation and request callback. The host
 must retain the accepted managed connection until its UASC channel has closed;

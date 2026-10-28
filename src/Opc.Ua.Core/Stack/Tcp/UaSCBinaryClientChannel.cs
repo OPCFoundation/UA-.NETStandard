@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.DataChannels;
+using Opc.Ua.DataChannels.Wire;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
@@ -1886,8 +1887,10 @@ namespace Opc.Ua.Bindings
         private WriteOperation BeginOperation(int timeout, AsyncCallback? callback, object? state)
         {
             uint requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
-            if (requestId == 0)
+            if (requestId == 0 || (requestId & UascFlowMessageCodec.DataRequestIdFlag) != 0)
             {
+                // RequestId 0 and the high bit are reserved for control and data messages.
+                Interlocked.Exchange(ref m_lastRequestId, 0);
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
             long deadline = long.MaxValue;
