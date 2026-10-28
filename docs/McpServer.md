@@ -32,6 +32,7 @@ to the owning package's `NugetREADME.md`, linked from each catalogue below.
   - [Option 4: Install from local build](#option-4-install-from-local-build)
 - [Configuration](#configuration)
   - [Certificate user identities](#certificate-user-identities)
+  - [JWT user identities](#jwt-user-identities)
   - [Typed method arguments and structured values](#typed-method-arguments-and-structured-values)
   - [Run on demand without a global installation](#run-on-demand-without-a-global-installation)
   - [Claude Desktop](#claude-desktop)
@@ -65,7 +66,7 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 | Service Set | Tools | Description |
 |---|---|---|
-| **Connection** | `GetEndpoints`, `Connect`, `ConnectCertificate`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
+| **Connection** | `GetEndpoints`, `Connect`, `ConnectCertificate`, `ConnectJwt`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
 | **Attribute** | `Read`, `Write`, `HistoryRead`, `HistoryUpdate` | Read/write node attributes and historical data |
 | **View** | `Browse`, `BrowseNext`, `TranslateBrowsePaths`, `RegisterNodes`, `UnregisterNodes`, `QueryFirst`, `QueryNext` | Navigate and query the address space |
 | **Node Management** | `AddNodes`, `AddReferences`, `DeleteNodes`, `DeleteReferences` | Modify the address space |
@@ -737,6 +738,20 @@ An embedding host can inject `ICertificatePasswordProvider` for protected keys.
 Missing, unknown or ambiguous references fail rather than falling back to another identity.
 Application-certificate trust and server-side user authorization still apply independently;
 `ConnectCertificate` never enables automatic trust. Only expose configured identities to trusted MCP callers.
+
+### JWT user identities
+
+Use `ConnectJwt` with `endpointUrl` and a raw, pre-acquired `jwt` to authenticate
+to an OPC UA server offering the JWT issued-token profile. It accepts optional
+`securityMode`, `securityPolicy`, and `name` selectors, but no automatic-trust switch.
+The server validates the JWT. Token acquisition, refresh, and HTTP authentication
+to the MCP server are separate concerns.
+
+The token requires either an encrypted channel or an independently encrypted
+user-token policy, including when using `Sign` or `None`. Trusted server
+certificates are required. MCP clients may retain the token in tool-call history.
+See [JWT authentication](McpJwtAuthentication.md) for prerequisites, lifetime,
+errors, and the shared client's issued-token confidentiality requirements.
 
 ### Typed method arguments and structured values
 

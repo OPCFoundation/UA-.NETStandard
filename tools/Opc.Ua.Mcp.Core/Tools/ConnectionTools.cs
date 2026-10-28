@@ -75,7 +75,9 @@ namespace Opc.Ua.Mcp.Tools
                             {
                                 ["tokenType"] = t.TokenType.ToString(),
                                 ["policyId"] = t.PolicyId,
-                                ["securityPolicyUri"] = t.SecurityPolicyUri
+                                ["securityPolicyUri"] = t.SecurityPolicyUri,
+                                ["issuedTokenType"] = t.IssuedTokenType,
+                                ["issuerEndpointUrl"] = t.IssuerEndpointUrl
                             }).ToList()
                     })];
 
@@ -109,7 +111,8 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "Connect")]
         [Description("Connect anonymously or with username/password; defaults to the strongest endpoint. " +
-            "For X.509 use ConnectCertificate. Returns a confirmation with session name/ID and security settings, " +
+            "For X.509 use ConnectCertificate; for a pre-acquired JWT use ConnectJwt. " +
+            "Returns a confirmation with session name/ID and security settings, " +
             "or JSON {error:true, statusCode, message}.")]
         public static Task<string> ConnectWithOptionsAsync(
             OpcUaSessionManager sessionManager,
@@ -149,6 +152,49 @@ namespace Opc.Ua.Mcp.Tools
         {
             return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
                 "Certificate", null, null, false, name, certificateIdentity, ct);
+        }
+
+        /// <summary>
+        /// Connects with a pre-acquired JWT without acquiring or refreshing credentials.
+        /// </summary>
+        [McpServerTool(Name = "ConnectJwt")]
+        [Description("Connect using a pre-acquired JWT bearer token, not a 'Bearer ' header. " +
+            "Requires trusted server certificates and an encrypted channel or encrypted user-token policy. " +
+            "The OPC UA server validates the JWT; no acquisition or refresh is performed. " +
+            "Returns session name, ID and security settings, or JSON {error:true, statusCode, message}.")]
+        public static async Task<string> ConnectJwtAsync(
+            OpcUaSessionManager sessionManager,
+            [Description("Server URL, e.g. opc.tcp://localhost:4840.")] string endpointUrl,
+            [Description("Raw pre-acquired JWT. Secret: the MCP client may retain tool arguments.")] string jwt,
+            [Description("None, Sign or SignAndEncrypt; default strongest compatible endpoint.")]
+            string? securityMode = null,
+            [Description("Policy, e.g. Basic256Sha256; default automatic.")] string? securityPolicy = null,
+            [Description("Optional session name; default derived from endpoint.")] string? name = null,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                return await sessionManager.ConnectJwtAsync(
+                    name, endpointUrl, jwt, securityMode, securityPolicy, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                {
+                    ["error"] = true,
+                    ["statusCode"] = ex.StatusCode.ToString(),
+                    ["message"] = "JWT connection failed. Check the server's JWT policy, token validity and certificate trust."
+                });
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                {
+                    ["error"] = true,
+                    ["statusCode"] = "BadUnexpectedError",
+                    ["message"] = "JWT connection failed. Check the connection arguments and server configuration."
+                });
+            }
         }
 
         /// <summary>

@@ -37,10 +37,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redaction;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Mcp
@@ -368,7 +368,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Connects using the selected authentication kind and an optional host-approved X.509 identity reference.
         /// </summary>
-        public async Task<string> ConnectAsync(
+        public Task<string> ConnectAsync(
             string? name,
             string endpointUrl,
             string? securityMode,
@@ -378,6 +378,43 @@ namespace Opc.Ua.Mcp
             string? password,
             bool autoAcceptCerts,
             string? certificateIdentity,
+            CancellationToken ct)
+        {
+            return ConnectCoreAsync(name, endpointUrl, securityMode, securityPolicy, authType,
+                username, password, autoAcceptCerts, certificateIdentity, null, ct);
+        }
+
+        /// <summary>
+        /// Connects using a pre-acquired JWT and strict server-certificate validation.
+        /// </summary>
+        public Task<string> ConnectJwtAsync(
+            string? name,
+            string endpointUrl,
+            string jwt,
+            string? securityMode = null,
+            string? securityPolicy = null,
+            CancellationToken ct = default)
+        {
+            McpJwtIdentityProvider.ValidateToken(jwt,
+                m_configuration?.TransportQuotas ?? m_clientOptions.Configuration?.TransportQuotas);
+            return ConnectCoreAsync(name, endpointUrl, securityMode, securityPolicy, "Jwt",
+                null, null, false, null, jwt, ct);
+        }
+
+        /// <summary>
+        /// Establishes a connection without changing caller ownership or registration provenance.
+        /// </summary>
+        private async Task<string> ConnectCoreAsync(
+            string? name,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            string authType,
+            string? username,
+            string? password,
+            bool autoAcceptCerts,
+            string? certificateIdentity,
+            string? jwt,
             CancellationToken ct)
         {
             ObjectDisposedException.ThrowIf(m_disposed, this);
@@ -408,6 +445,16 @@ namespace Opc.Ua.Mcp
                 if (m_sessions.TryGetValue(name, out SessionInfo? existing))
                 {
                     RequireSessionMutation(existing, owner);
+                }
+
+                if (jwt != null)
+                {
+                    await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                    McpJwtIdentityProvider.ValidateToken(jwt, m_configuration!.TransportQuotas);
+                }
+
+                if (existing != null)
+                {
                     await DisconnectInternalAsync(existing, ct).ConfigureAwait(false);
                     existing.Authority?.Retire();
                     m_sessions.TryRemove(name, out _);
@@ -416,9 +463,12 @@ namespace Opc.Ua.Mcp
                 IMcpSessionConnector? connector = m_serviceProvider.GetService<IMcpSessionConnector>();
                 if (connector is not null)
                 {
-                    ISession connected = await connector.ConnectAsync(
-                        name, endpointUrl, securityMode, securityPolicy, authType, username, password,
-                        autoAcceptCerts, certificateIdentity, ct).ConfigureAwait(false);
+                    ISession connected = jwt == null
+                        ? await connector.ConnectAsync(
+                            name, endpointUrl, securityMode, securityPolicy, authType, username, password,
+                            autoAcceptCerts, certificateIdentity, ct).ConfigureAwait(false)
+                        : await connector.ConnectJwtAsync(
+                            name, endpointUrl, jwt, securityMode, securityPolicy, ct).ConfigureAwait(false);
                     return RegisterConnectedSession(
                         name, connected, authType, owner,
                         autoAcceptCerts, null, endpointUrl);
@@ -434,20 +484,25 @@ namespace Opc.Ua.Mcp
                         m_configuration!,
                         Telemetry,
                         autoAcceptCerts,
-                        ct).ConfigureAwait(false);
+                        ct,
+                        requireTrust: jwt != null).ConfigureAwait(false);
                 try
                 {
                     ApplicationConfiguration configuration = validationContext.Configuration;
+                    if (jwt != null)
+                    {
+                        identityProvider = new McpJwtIdentityProvider(jwt, configuration, Telemetry);
+                    }
 
                     m_logger.Connecting(endpointUrl, name);
 
-                    EndpointDescription selectedEndpoint = await SelectEndpointAsync(
-                        configuration,
-                        endpointUrl,
-                        securityMode,
-                        securityPolicy,
-                        authType,
-                        ct).ConfigureAwait(false);
+                    EndpointDescription selectedEndpoint = jwt != null
+                        ? await SelectJwtEndpointAsync(
+                            configuration, endpointUrl, securityMode, securityPolicy, identityProvider!, ct)
+                            .ConfigureAwait(false)
+                        : await SelectEndpointAsync(
+                            configuration, endpointUrl, securityMode, securityPolicy, authType, ct)
+                            .ConfigureAwait(false);
 
                     var endpointConfiguration = EndpointConfiguration.Create(configuration);
                     var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
@@ -462,6 +517,12 @@ namespace Opc.Ua.Mcp
                     else
                     {
                         builder.WithUserIdentity(BuildUserIdentity(authType, username, password));
+                    }
+
+                    if (jwt != null)
+                    {
+                        builder.WithReconnectPolicy(new McpJwtReconnectPolicy(
+                            m_serviceProvider.GetService<IReconnectPolicy>() ?? new ReconnectPolicy()));
                     }
 
                     if (validationContext.UseSharedChannelManager)
@@ -847,9 +908,10 @@ namespace Opc.Ua.Mcp
                 ApplicationConfiguration configuration,
                 ITelemetryContext telemetry,
                 bool autoAcceptCertificates,
-                CancellationToken ct)
+                CancellationToken ct,
+                bool requireTrust = false)
         {
-            if (!autoAcceptCertificates)
+            if (!autoAcceptCertificates && !requireTrust)
             {
                 return new ConnectionValidationContext(configuration, null);
             }
@@ -860,7 +922,8 @@ namespace Opc.Ua.Mcp
                 certificateManager = CertificateManagerFactory.Create(
                     configuration.SecurityConfiguration,
                     telemetry);
-                certificateManager.AcceptError = AutoAcceptError;
+                certificateManager.AutoAcceptUntrustedCertificates = false;
+                certificateManager.AcceptError = autoAcceptCertificates && !requireTrust ? AutoAcceptError : null;
                 await certificateManager.LoadApplicationCertificatesAsync(
                     configuration.SecurityConfiguration,
                     configuration.ApplicationUri,
@@ -1025,6 +1088,70 @@ namespace Opc.Ua.Mcp
                         securityMode ?? "(any)",
                         securityPolicy ?? "(any)",
                         authType));
+        }
+
+        /// <summary>
+        /// Selects only endpoints with a usable JWT policy, including when no security filter was supplied.
+        /// </summary>
+        private async Task<EndpointDescription> SelectJwtEndpointAsync(
+            ApplicationConfiguration configuration,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            IClientIdentityProvider provider,
+            CancellationToken ct)
+        {
+            ArrayOf<EndpointDescription> endpoints = await DiscoverEndpointsInternalAsync(
+                configuration, endpointUrl, ct).ConfigureAwait(false);
+            return await SelectJwtEndpointAsync(
+                endpoints, endpointUrl, securityMode, securityPolicy, provider, configuration, ct)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Evaluates JWT policy compatibility before ranking discovered endpoints.
+        /// </summary>
+        internal static async Task<EndpointDescription> SelectJwtEndpointAsync(
+            ArrayOf<EndpointDescription> endpoints,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            IClientIdentityProvider provider,
+            ApplicationConfiguration configuration,
+            CancellationToken ct)
+        {
+            var requestUri = new Uri(endpointUrl);
+            MessageSecurityMode? mode = securityMode == null ? null : ParseSecurityMode(securityMode);
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            foreach (EndpointDescription endpoint in (endpoints.ToArray() ?? [])
+                .OrderByDescending(candidate => candidate.SecurityLevel))
+            {
+                ct.ThrowIfCancellationRequested();
+                if (!Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? uri) ||
+                    !string.Equals(uri.Scheme, requestUri.Scheme, StringComparison.OrdinalIgnoreCase) ||
+                    (mode != null && endpoint.SecurityMode != mode) ||
+                    (securityPolicy != null && !(endpoint.SecurityPolicyUri?.EndsWith(
+                        "#" + securityPolicy, StringComparison.OrdinalIgnoreCase) ?? false)))
+                {
+                    continue;
+                }
+
+                var context = new IdentitySelectionContext(
+                    endpoint, endpoint.UserIdentityTokens, messageContext,
+                    configuration.SecurityConfiguration.SupportedSecurityPolicies);
+                try
+                {
+                    _ = await provider.SelectUserTokenPolicyAsync(context, ct).ConfigureAwait(false);
+                    return endpoint;
+                }
+                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadIdentityTokenRejected)
+                {
+                    // A stronger endpoint without a usable JWT policy must not hide a compatible endpoint.
+                }
+            }
+
+            throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                "No endpoint offers a compatible, encrypted JWT user-token policy.");
         }
 
         private static MessageSecurityMode ParseSecurityMode(string securityMode)
