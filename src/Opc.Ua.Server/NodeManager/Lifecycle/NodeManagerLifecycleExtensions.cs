@@ -272,12 +272,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(lifecycle));
             }
 
-            IPreparedNodeManagerBatch prepared =
-                await lifecycle.PrepareAsync([change], ct).ConfigureAwait(false);
-            await using var preparedLifetime = prepared.ConfigureAwait(false);
             NodeManagerBatchResult result =
-                await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
-            ObserveRetirement(result.Retirement);
+                await CommitCompatibilityChangeAsync(lifecycle, change, ct).ConfigureAwait(false);
             NodeManagerRegistration registration = result.Registrations[0];
             if (result.CleanupFailure is { } failure)
             {
@@ -312,16 +308,46 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(lifecycle));
             }
 
-            IPreparedNodeManagerBatch prepared = await lifecycle
-                .PrepareAsync([NodeManagerBatchChange.Remove(RequireRegistration(registration))], ct)
+            NodeManagerBatchResult result = await CommitCompatibilityChangeAsync(
+                lifecycle, NodeManagerBatchChange.Remove(RequireRegistration(registration)), ct)
                 .ConfigureAwait(false);
-            await using var preparedLifetime = prepared.ConfigureAwait(false);
-            NodeManagerBatchResult result =
-                await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
-            ObserveRetirement(result.Retirement);
             if (result.CleanupFailure is { } failure)
             {
                 throw new NodeManagerRemovalCommittedException(registration, result, failure);
+            }
+        }
+
+        /// <summary>
+        /// Rebuilds an aborted compatibility change after an independent routing publication, before any decision.
+        /// </summary>
+        private static async ValueTask<NodeManagerBatchResult> CommitCompatibilityChangeAsync(
+            INodeManagerLifecycle lifecycle,
+            NodeManagerBatchChange change,
+            CancellationToken ct)
+        {
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                IPreparedNodeManagerBatch prepared =
+                    await lifecycle.PrepareAsync([change], ct).ConfigureAwait(false);
+                await using var preparedLifetime = prepared.ConfigureAwait(false);
+                bool decisionStarted = false;
+                try
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(
+                        _ =>
+                        {
+                            decisionStarted = true;
+                            return default;
+                        }, ct).ConfigureAwait(false);
+                    ObserveRetirement(result.Retirement);
+                    return result;
+                }
+                catch (NodeManagerRoutingConflictException failure) when (
+                    ReferenceEquals(failure.Batch, prepared) && !decisionStarted && !prepared.IsCommitted)
+                {
+                    // Disposal aborts this private candidate before preparing against the current routing view.
+                }
             }
         }
 

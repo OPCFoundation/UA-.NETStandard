@@ -109,7 +109,7 @@ namespace Opc.Ua.Server
         {
             if (!view.TryPin(out int stripe))
             {
-                throw new InvalidOperationException("The reference preparation view has retired.");
+                throw new NodeManagerRoutingConflictException("The reference preparation view has retired.", view);
             }
             try
             {
@@ -122,7 +122,8 @@ namespace Opc.Ua.Server
                 {
                     if (!ReferenceEquals(view, m_nodeManagers.Revision))
                     {
-                        throw new InvalidOperationException("The address space changed before reference discovery.");
+                        throw new NodeManagerRoutingConflictException(
+                            "The address space changed before reference discovery.", view);
                     }
                     previous = m_dynamicExternalReferences;
                     previousSnapshot = previous.ToDictionary(entry => entry.Key, entry => entry.Value);

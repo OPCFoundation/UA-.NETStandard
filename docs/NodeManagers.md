@@ -1272,9 +1272,20 @@ Preparation captures its serving view and private metadata under the lifecycle w
 releases the writer before invoking factories, address-space creation, reload participants or
 NodeId policy preparation. A generation admission protects a current participant while these
 callbacks run. Unrelated changes may publish concurrently. Commit rejects a changed serving
-view with `InvalidOperationException` before the durable decision; it does not silently rerun
-factories or rebase private namespace indexes. The obsolete convenience extensions expose the
-same conflict rather than retrying application callbacks.
+view with `InvalidOperationException` before the durable decision; an explicit prepared batch
+does not rerun factories or rebase private namespace indexes.
+
+The compatibility `AddAsync`, `ReloadAsync` and `RemoveAsync` extensions retry a routing-view
+conflict caused by an independent publication. Each attempt disposes its uncommitted batch
+before preparing against the current view, so private namespace indexes are reconstructed
+rather than rebased. An addition or replacement factory may therefore run again; it must
+support aborted candidates and repeated construction. Use an explicit prepared batch when
+application code must control reconstruction. Only conflicts from that batch's own routing
+checks permit retry; a nested explicit batch's failure remains an error of the callback that
+invoked it. Factory failures, registration ownership changes and failed aborts remain errors.
+The extensions never retry after their decision begins or the batch commits. Retries have no
+fixed attempt limit; continuous competing publications can delay completion, so pass a
+cancellation token to bound the operation.
 
 Commit also releases the writer while discovering monitored-item transitions. The current
 generation remains admitted until discovery ends and the writer revalidates the captured view.

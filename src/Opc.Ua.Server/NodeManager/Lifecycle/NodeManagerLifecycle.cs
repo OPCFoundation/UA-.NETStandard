@@ -1744,7 +1744,8 @@ namespace Opc.Ua.Server
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
-                    throw new InvalidOperationException("The address space changed while the batch was prepared.");
+                    throw new NodeManagerRoutingConflictException(
+                        "The address space changed while the batch was prepared.", batch.RoutingRevision);
                 }
                 foreach (BatchEntry entry in batch.Entries)
                 {
@@ -1825,7 +1826,8 @@ namespace Opc.Ua.Server
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
-                    throw new InvalidOperationException("The address space changed while transitions were prepared.");
+                    throw new NodeManagerRoutingConflictException(
+                        "The address space changed while transitions were prepared.", batch.RoutingRevision);
                 }
                 foreach ((NodeManagerGeneration generation, int stripe) in preparationAdmissions)
                 {
@@ -2557,6 +2559,11 @@ namespace Opc.Ua.Server
                         .Activate();
                     return await m_owner.CompleteBatchAsync(
                         this, decideAsync, cancellationToken, publishCommittedState).ConfigureAwait(false);
+                }
+                catch (NodeManagerRoutingConflictException failure) when (
+                    failure.Batch is null && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
+                {
+                    throw new NodeManagerRoutingConflictException(failure, this);
                 }
                 finally
                 {
