@@ -30,6 +30,9 @@ plugs it together.
   - [Support info (§5.15)](#support-info-515)
 - [Hosting integration](#hosting-integration)
   - [Server-side surface](#server-side-surface)
+  - [Composing companion models](#composing-companion-models)
+  - [Companion runtime ownership and placement](#companion-runtime-ownership-and-placement)
+  - [Placement by specification](#placement-by-specification)
   - [Context surface](#context-surface)
   - [Architecture](#architecture)
   - [Runtime conformance advertisement](#runtime-conformance-advertisement)
@@ -498,10 +501,18 @@ Device Integration library to the unified `AddOpcUa()`
 ### Server-side surface
 
 `Microsoft.Extensions.DependencyInjection.OpcUaServerDiBuilderExtensions`
-adds three methods on `IOpcUaServerBuilder`:
+provides model registration and configuration methods on `IOpcUaServerBuilder`:
 
 ```csharp
 IOpcUaServerBuilder AddOpcUaDi();
+
+IOpcUaServerBuilder AddDiModel<TProvider>()
+    where TProvider : class, IDiModelProvider;
+
+IOpcUaServerBuilder AddDiModel<TProvider, TNodeManager>(
+    Func<IDiPostSetupContext, ValueTask> configure)
+    where TProvider : class, IDiModelProvider
+    where TNodeManager : DiNodeManager;
 
 IOpcUaServerBuilder ConfigureDevicesFor<TNodeManager>(
     Action<IDiPostSetupContext> configure)
@@ -557,6 +568,153 @@ exception thrown by a configurator fails hosted-server startup with
 a diagnostic that identifies the failing index and target type. A runtime readiness failure
 retains the committed generation for recovery or removal; it does not roll back publication.
 Configurators that fail after performing side effects must support a subsequent readiness retry.
+
+### Composing companion models
+
+A server has one owner of the Device Integration namespace. Add companion models
+to that owner instead of registering another standalone owner, which would create
+a second, unbrowsable `DeviceSet`.
+
+#### Who owns the address space?
+
+Exactly one node manager serves the DI namespace. `AddOpcUaDi`, `AddMachinery`,
+`AddRobotics`, `AddAutoId`, `AddPumps` and `AddScales` each claim it with
+`ClaimDiAddressSpace`. A second claim, by the same or a different owner, fails
+during service registration with an exception that names the current owner.
+Vision claims DI only when configured with Machine Vision assets. Composition
+methods such as `AddPumpsToMachinery` contribute to an existing owner instead
+of claiming DI again.
+
+#### How does a companion contribute its model?
+
+A companion implements `IDiModelProvider` and registers it with `AddDiModel<T>`.
+The provider declares its namespaces and loads its predefined nodes. A plain
+`DiNodeManager` loads DI first, then registered providers in ascending `Order`,
+then provider type name, with registration order breaking remaining ties.
+A provider must tolerate dependencies that are already loaded. Provider namespaces
+are registered by both the factory and the manager.
+
+The family interfaces `IMachineryModelProvider`, `IRoboticsModelProvider`,
+`IRobotIntentModelProvider` and `IVisionModelProvider` derive from
+`IDiModelProvider`. Machinery, Robotics and Vision with Assets merge neutral
+providers into their DI-owning managers, deduplicating shared instances;
+Machinery and Robotics keep their built-in dependencies first. Register a provider
+through either `AddDiModel` or the family's `Add*Model`, not both.
+
+Vision loads its built-in model first, then `IVisionDependencyModelProvider`
+registrations, then other providers. The Machine Vision Assets dependency provider
+loads DI and Machinery before neutral providers, even when a neutral provider uses
+`Order = int.MinValue`. Priority and type-name ordering apply within each group.
+
+Use `AddDiModel<TProvider, TNodeManager>(configure)` to register the model and
+a configuration callback together. It accepts a synchronous action or an
+awaited `ValueTask` delegate. Repeated calls register the provider once but retain
+each callback. The model is available to every DI owner; the callback targets
+`TNodeManager` and its subclasses, like `ConfigureDevicesFor<TNodeManager>`.
+
+For example, AutoID readers can join a Machinery owner without a registration-only
+integration package:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.AutoID.Server;
+using Opc.Ua.Machinery.Server;
+
+services.AddOpcUa()
+    .AddServer(options => { /* application name, endpoints, PKI */ })
+    .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+    .ConfigureMachinery(async (machines, ct) =>
+    {
+        await machines.AddMachine(new QualifiedName("Press1", machines.InstanceNamespaceIndex))
+            .WithIdentification(id =>
+            {
+                id.Manufacturer = new LocalizedText("Acme");
+                id.SerialNumber = "PR-1";
+                id.ProductInstanceUri = "urn:acme:press:1";
+            })
+            .BuildAsync(ct);
+    })
+    .AddDiModel<AutoIdModelProvider, MachineryNodeManager>(async context =>
+    {
+        AutoIdRuntime readers = context.Manager.CreateAutoIdRuntime();
+        await readers.Reader(
+                new QualifiedName("Infeed", readers.InstanceNamespaceIndex), hardware)
+            .BuildAsync(context.CancellationToken);
+    });
+```
+
+The helper lives in `Opc.Ua.Di.Server` and does not depend on either companion
+server. Use the same call with another provider and DI-derived owner. AutoID also
+offers `AddAutoIdModel(options)` followed by `ConfigureAutoIdFor<TNodeManager>`
+when its typed context or options are needed. Its server package references only
+the Machinery model for component identification.
+
+#### In what order is configuration applied?
+
+`ConfigureDevicesFor<T>`, `ConfigureAutoIdFor<T>` and the combined generic helper
+run in the DI post-setup pipeline after model loading and the owner's initial
+configuration. Matching callbacks run in registration order and asynchronous
+callbacks are awaited. Register `ConfigureMachineryFor<T>` before dependent
+AutoID callbacks so machines exist when readers attach to them. Model `Order`
+controls model loading, not callback execution. Exceptions abort startup.
+
+Robot Intent and Vision without Assets do not own DI and load only their family
+providers; neutral registrations remain with the actual DI owner. Vision and
+Robot Intent retain their own runtime configuration contracts; the shared provider
+interface does not make their managers `DiNodeManager` subclasses.
+
+### Companion runtime ownership and placement
+
+Runtimes use these public `DiNodeManager` members:
+
+- `RegisterResource` transfers an `IAsyncDisposable` to the manager. Disposal
+  releases resources newest first, continues after failures, and throws those
+  failures together as an `AggregateException`. Registering the same instance
+  twice retains it once. `DisposeResourcesAsync` drains the current batch;
+  subsequent disposal does not release that batch again. Overlapping drains
+  await pending cleanup and share its failures. Final shutdown closes registration
+  atomically with its last batch; later registrations throw `ObjectDisposedException`.
+  An ordinary explicit drain leaves registration open for new batches. The Machinery-named
+  registration and disposal extensions forward to these neutral members.
+- `RegisterRootNotifierAsync` registers an event source and attaches existing
+  event subscriptions.
+- `TryOrganizeUnder` adds both directions of an `Organizes` reference and
+  returns `false` when the folder is not owned. Resolve
+  `Machinery.ObjectIds.Machines` through the namespace table; a matching BrowseName
+  alone does not identify that folder.
+- `CompanionInstanceNamespaceIndex` identifies the namespace a companion uses
+  for its instances. A family owner overrides it to select its own namespace.
+
+Runtime registration, including `CreateDeviceAsync`, keeps DI components
+reachable from `DeviceSet`. If no hierarchical path exists, the manager adds an
+`Organizes` reference to the outermost DI component in the hierarchical parent
+chain rather than each nested device. Deleting that component removes its link.
+Initial predefined instances and type declarations are not reorganized automatically.
+
+`IsReachableFrom(root, target)` traverses forward hierarchical references and
+children within the owner. Inverse, non-hierarchical and remote references do not
+establish reachability; cycles terminate. `TryEnsureDeviceSetReachability(device)`
+applies the placement rule explicitly, returns `false` if the owner has no
+DeviceSet, and does not duplicate references on repeated calls.
+
+### Placement by specification
+
+DeviceSet reachability and Machinery placement are separate requirements.
+DI requires every `ComponentType` instance to be reachable, with only the root
+of a composed device directly referenced. Machinery requires machines under
+`Machines`; it does not make every DI device a machine.
+
+| Family | Placement | Basis |
+| --- | --- | --- |
+| DI devices, AutoID readers, Robotics devices | DeviceSet, directly or through a composed root | OPC 10000-100 1.05.0 §4.9; AutoID devices derive from DI DeviceType |
+| Machinery machines, Extrusion machines, GranulateDrying machines, Machine Vision assets | Machines; also reachable from DeviceSet if the instance is a DI ComponentType subtype | OPC 40001-1 1.04.2 §9.2; the domain model determines the machine type |
+| Pumps and Scales | DeviceSet; also Machines when `OrganizeIntoMachinesFolder` is enabled | DI §4.9 and the families' Machinery composition options |
+| AutoID reader attached with `AsComponentOf(machine)` | The machine's Components add-in; DeviceSet reaches the reader independently if necessary | OPC 40001-1 §§8.3, 11.1–11.2 and DI §4.9 |
+
+Readers are not added to Machines. `AsComponentOf` requires the machine's
+Components add-in and supplies the component Identification add-in; see
+[AutoID placement](AutoID.md#placement).
 
 ### Context surface
 

@@ -213,8 +213,8 @@ hardware scheduling appropriate to that sharing.
 
 `ConfigureVisionOnMachinery<TNodeManager>` supports an application-owned DI manager
 that loads the required models through its Machinery model-provider pipeline.
-Such a custom manager follows Machinery's `DisposeMachineryResourcesAsync`
-contract. The stock manager handles disposal itself.
+The DI owner releases registered Machinery resources automatically, including
+when it is an application-owned manager.
 
 Direct construction is also supported: call `MachineVisionSystemHandle.CreateAsync`
 or construct `MachineVisionAssetBuilder` with an `IVisionBuildContext`. A directly

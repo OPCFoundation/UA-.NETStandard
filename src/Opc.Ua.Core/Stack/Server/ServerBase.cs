@@ -92,7 +92,6 @@ namespace Opc.Ua
             IRequestParkingPolicy? requestParkingPolicy)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
-            m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
             m_transportBindings = transportBindings;
@@ -248,7 +247,26 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
+            RequestQueue? queue = m_requestQueue;
+            if (queue != null)
+            {
+                queue.ScheduleIncomingRequest(request, cancellationToken);
+                return;
+            }
+
+            // The queue is created when the server starts; until then nothing can run the request.
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            try
+            {
+                request.OperationCompleted(null, StatusCodes.BadServerHalted);
+            }
+            catch (Exception ex)
+            {
+                m_logger.RequestFaultDeliveryFailed(ex);
+            }
         }
 
         /// <summary>
@@ -2201,7 +2219,7 @@ namespace Opc.Ua
 #pragma warning restore IDE1006 // Naming Styles
 
         private IServiceMessageContext? m_messageContext;
-        private RequestQueue m_requestQueue;
+        private RequestQueue? m_requestQueue;
         private readonly ITelemetryContext m_telemetry;
         private ITransportBindingRegistry? m_transportBindings;
 

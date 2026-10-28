@@ -342,7 +342,8 @@ namespace Pumps
             // them are live.
             await RegisterOpenUsdSignalsAsync(pump, cancellationToken).ConfigureAwait(false);
 
-            TryAddToMachinesFolder(pump);
+            TryOrganizeUnder(
+                ExpandedNodeId.ToNodeId(Opc.Ua.Machinery.ObjectIds.Machines, SystemContext.NamespaceUris), pump);
             m_pumpStates.Add(pump);
 
             m_logger.MaterialisedPump(pumpBrowseName.Name, pump.NodeId);
