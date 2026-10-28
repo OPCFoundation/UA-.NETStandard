@@ -258,6 +258,26 @@ namespace Opc.Ua.Server
             int timeout = 0,
             bool enabled = true)
         {
+#pragma warning disable CS0618
+            AddReverseConnection(url, timeout, maxSessionCount: 0, enabled);
+#pragma warning restore CS0618
+        }
+
+        /// <summary>
+        /// Add a reverse connection url.
+        /// </summary>
+        /// <param name="url">The Url of the reverse connect client.</param>
+        /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
+        /// <param name="maxSessionCount">The maximum number of sessions allowed (deprecated and ignored).</param>
+        /// <param name="enabled">If the connection is enabled.</param>
+        [Obsolete("The maxSessionCount parameter is no longer supported and will be ignored.")]
+        public virtual void AddReverseConnection(
+            Uri url,
+            int timeout = 0,
+            int maxSessionCount = 0,
+            bool enabled = true)
+        {
+            _ = maxSessionCount;
             if (m_connections.ContainsKey(url))
             {
                 throw new ArgumentException(
@@ -277,24 +297,6 @@ namespace Opc.Ua.Server
 
                 StartTimer(false);
             }
-        }
-
-        /// <summary>
-        /// Add a reverse connection url.
-        /// </summary>
-        /// <param name="url">The Url of the reverse connect client.</param>
-        /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
-        /// <param name="maxSessionCount">The maximum number of sessions allowed (deprecated and ignored).</param>
-        /// <param name="enabled">If the connection is enabled.</param>
-        [Obsolete("The maxSessionCount parameter is no longer supported and will be ignored.")]
-        public virtual void AddReverseConnection(
-            Uri url,
-            int timeout = 0,
-            int maxSessionCount = 0,
-            bool enabled = true)
-        {
-            _ = maxSessionCount;
-            AddReverseConnection(url, timeout, enabled);
         }
 
         /// <summary>

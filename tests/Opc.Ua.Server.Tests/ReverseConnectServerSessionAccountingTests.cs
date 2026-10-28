@@ -61,6 +61,19 @@ namespace Opc.Ua.Server.Tests
             {
             }
 
+            public int LegacyAddReverseConnectionCallCount { get; private set; }
+
+            [Obsolete]
+            public override void AddReverseConnection(
+                Uri url,
+                int timeout = 0,
+                int maxSessionCount = 0,
+                bool enabled = true)
+            {
+                LegacyAddReverseConnectionCallCount++;
+                base.AddReverseConnection(url, timeout, maxSessionCount, enabled);
+            }
+
             public void InvokeOnReverseConnect(long version)
             {
                 MethodInfo method = typeof(ReverseConnectServer).GetMethod(
@@ -68,6 +81,20 @@ namespace Opc.Ua.Server.Tests
                     BindingFlags.Instance | BindingFlags.NonPublic)!;
                 method.Invoke(this, [version]);
             }
+        }
+
+        /// <summary>
+        /// Verifies that the new overload still dispatches through the legacy virtual overload.
+        /// </summary>
+        [Test]
+        public void AddReverseConnection_PreservesLegacyVirtualDispatch()
+        {
+            using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create());
+
+            server.AddReverseConnection(s_reverseClientUri);
+
+            Assert.That(server.LegacyAddReverseConnectionCallCount, Is.EqualTo(1));
+            Assert.That(server.GetReverseConnections(), Contains.Key(s_reverseClientUri));
         }
 
         [Test]
@@ -125,6 +152,51 @@ namespace Opc.Ua.Server.Tests
                     property.LastState,
                     Is.EqualTo(ReverseConnectState.Connected),
                     "A reverse connection that is already Connected must not be re-initiated on a started server with 0 sessions.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that reverse connections are attempted with a full legacy session threshold.
+        /// </summary>
+        [TestCase(ReverseConnectState.Closed)]
+        [TestCase(ReverseConnectState.Errored)]
+        public async Task ReverseConnection_IsAttempted_WhenLegacySessionThresholdIsReachedAsync(
+            ReverseConnectState initialState)
+        {
+            var fakeTime = new FakeTimeProvider();
+            var fixture = new ServerFixture<TestableReverseConnectServer>(
+                telemetry => new TestableReverseConnectServer(telemetry, fakeTime));
+            try
+            {
+                await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+                fixture.Config.ServerConfiguration!.ReverseConnect = new ReverseConnectServerConfiguration
+                {
+                    Clients = []
+                };
+                TestableReverseConnectServer server = await fixture.StartAsync().ConfigureAwait(false);
+                await server.CreateAndActivateSessionAsync("reverse-connect-session-1").ConfigureAwait(false);
+                await server.CreateAndActivateSessionAsync("reverse-connect-session-2").ConfigureAwait(false);
+
+                server.AddReverseConnection(s_reverseClientUri, timeout: 5000, enabled: true);
+                ReverseConnectProperty property = server.GetReverseConnections()[s_reverseClientUri];
+#pragma warning disable CS0618
+                property.MaxSessionCount = 2;
+#pragma warning restore CS0618
+                property.LastState = initialState;
+
+                Assert.That(server.CurrentInstance.SessionManager.GetSessions(), Has.Count.EqualTo(2));
+
+                // Fire the current timer after its one-second initial delay.
+                fakeTime.Advance(TimeSpan.FromSeconds(2));
+
+                Assert.That(
+                    property.LastState,
+                    Is.EqualTo(ReverseConnectState.Connecting),
+                    $"A {initialState} connection must be attempted even when the legacy session threshold is reached.");
             }
             finally
             {
