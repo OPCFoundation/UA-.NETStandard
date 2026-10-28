@@ -60,6 +60,32 @@ namespace Opc.Ua.Server.Tests
                     .And.Message.Contains("two minutes"));
         }
 
+        /// <summary>
+        /// The execution stage holds no more requests than the request queue has workers,
+        /// so reserved classes cannot be crowded out of the workers by ordinary requests.
+        /// </summary>
+        [Test]
+        public void RuntimePlanExecutionCapacityIsMaxRequestThreadCount()
+        {
+            ResourceIsolationStagePlan execution = Options()
+                .CreateRuntimePlan(Configuration(maxRequestThreadCount: 4), new ServerRateLimitOptions())
+                .GetStage(ResourceIsolationStage.RequestExecution);
+
+            Assert.That(execution.Capacity, Is.EqualTo(4));
+            Assert.That(execution.SharedCapacity, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Too few workers for the reserved requests are named at startup.
+        /// </summary>
+        [Test]
+        public void RuntimePlanRejectsMaxRequestThreadCountBelowReservations()
+        {
+            Assert.That(
+                () => Options().CreateRuntimePlan(Configuration(maxRequestThreadCount: 3), new ServerRateLimitOptions()),
+                Throws.ArgumentException.With.Message.Contains("MaxRequestThreadCount (3)"));
+        }
+
         [Test]
         public async Task StartupRejectsInvalidTimeoutWithoutInstallingOrDisposingProvidersAsync(
             [Values] ServerResourceIsolationMode mode,
@@ -418,11 +444,17 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Supplies finite totals with room for all protected classes and ordinary reconnect capacity.
         /// </summary>
-        private static ApplicationConfiguration Configuration()
+        private static ApplicationConfiguration Configuration(int maxRequestThreadCount = 100)
         {
             return new ApplicationConfiguration
             {
-                ServerConfiguration = new ServerConfiguration { MaxSessionCount = 2, MaxChannelCount = 100 },
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MaxSessionCount = 2,
+                    MaxChannelCount = 100,
+                    MinRequestThreadCount = 1,
+                    MaxRequestThreadCount = maxRequestThreadCount
+                },
                 TransportQuotas = new TransportQuotas { MaxMessageSize = 10, MaxBufferSize = 8192 }
             };
         }
