@@ -186,6 +186,14 @@ namespace Opc.Ua.Server
         internal virtual bool IndexesRecentEvents => GetType() == typeof(EventMonitoredItemQueue);
 
         /// <summary>
+        /// True when the queued events keep their handles until they leave the queue, so an
+        /// event is classified as a Condition event only when it is discarded. Only queues
+        /// that keep the events they are given in <see cref="m_events"/> may return true; any
+        /// other derived queue may store an event without its handle.
+        /// </summary>
+        internal virtual bool KeepsEventHandles => GetType() == typeof(EventMonitoredItemQueue);
+
+        /// <summary>
         /// Returns true when the queued event was raised for <paramref name="instance"/>, for
         /// the duplicate check of <see cref="IEventMonitoredItemQueue.IsEventContainedInQueue"/>
         /// implementations. A trailing event of a condition that left the filter is queued

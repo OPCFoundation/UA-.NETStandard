@@ -130,6 +130,8 @@ namespace Opc.Ua.Server
             m_discardOldest = false;
             m_discardedEventHandler = discardedEventHandler;
             m_overflowEventHandler = overflowEventHandler;
+            m_classifyWhenQueued = !(m_eventQueue is EventMonitoredItemQueue queue && queue.KeepsEventHandles);
+            m_eventsOfUnknownKind = m_eventQueue.ItemsInQueue;
         }
 
         /// <summary>
@@ -168,6 +170,10 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_discardedEventHandler = discardedEventHandler;
             m_overflowEventHandler = overflowEventHandler;
+            m_classifyWhenQueued = !(m_eventQueue is EventMonitoredItemQueue queue && queue.KeepsEventHandles);
+
+            // the kind of the restored events was not recorded when they were queued.
+            m_eventsOfUnknownKind = m_eventQueue.ItemsInQueue;
         }
 
         /// <summary>
@@ -192,10 +198,22 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
 
             long discarded = m_eventQueue.ItemsInQueue - (long)queueSize;
+
+            // a queue that keeps the handles: the events it is about to discard are
+            // classified from them.
+            EventFieldList[]? removed = null;
+            if (discarded > 0 && !m_classifyWhenQueued && m_eventQueue is EventMonitoredItemQueue queue)
+            {
+                EventFieldList[] queued = queue.CopyQueuedEvents();
+                removed = new EventFieldList[discarded];
+                Array.Copy(queued, discardOldest ? 0 : queued.Length - removed.Length, removed, 0, removed.Length);
+            }
+
             m_eventQueue.SetQueueSize(queueSize, discardOldest);
             if (discarded > 0)
             {
                 RemovePendingTransforms(discarded, discardOldest);
+                RemoveEventKinds(discarded, discardOldest, removed);
             }
 
             // shrinking the queue loses events, which is signalled like any other overflow
@@ -223,6 +241,7 @@ namespace Opc.Ua.Server
         {
             while (m_eventQueue.Dequeue(out _))
             {
+                TakeOldestEventKind();
             }
 
             m_pendingTransforms.Clear();
@@ -252,10 +271,160 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void TrackDiscardedEvent(object? handle)
         {
-            if (handle != null && IsConditionEvent != null && IsConditionEvent(handle))
+            // a loss already recorded needs no further classification.
+            if (!ConditionEventsLost && handle != null && IsConditionEvent != null && IsConditionEvent(handle))
             {
                 ConditionEventsLost = true;
             }
+        }
+
+        /// <summary>
+        /// Records a queued event of the given kind that was discarded because the queue
+        /// overflowed.
+        /// </summary>
+        /// <param name="kind">The kind recorded when the event was queued.</param>
+        /// <param name="fields">The discarded event, or <c>null</c> when the queue removed it.</param>
+        private void TrackDiscardedEvent(QueuedEventKind kind, EventFieldList? fields)
+        {
+            if (ConditionEventsLost || IsConditionEvent == null || kind == QueuedEventKind.Other)
+            {
+                return;
+            }
+
+            if (kind == QueuedEventKind.Condition)
+            {
+                ConditionEventsLost = true;
+                return;
+            }
+
+            if (fields?.Handle is { } handle)
+            {
+                TrackDiscardedEvent(handle);
+                return;
+            }
+
+            // an event of unknown kind that comes back without its handle, or that the
+            // queue removed unseen, may have been a Condition event. A needless
+            // RefreshRequired event costs the client a ConditionRefresh, a missing one
+            // leaves it with stale Conditions. An unclassified event without a handle was
+            // queued without one, so it was not raised by a Condition.
+            if (kind == QueuedEventKind.Unknown)
+            {
+                ConditionEventsLost = true;
+            }
+        }
+
+        /// <summary>
+        /// The number of queued events whose kind is tracked.
+        /// </summary>
+        private long TrackedEventCount => m_eventsOfUnknownKind + (m_nextEventSequence - m_oldestEventSequence);
+
+        /// <summary>
+        /// Records the kind of an event that was added to the queue.
+        /// </summary>
+        private void AddEventKind(EventFieldList fields)
+        {
+            if (m_classifyWhenQueued &&
+                fields.Handle != null &&
+                IsConditionEvent != null &&
+                IsConditionEvent(fields.Handle))
+            {
+                m_conditionEventSequences.Enqueue(m_nextEventSequence);
+            }
+            m_nextEventSequence++;
+        }
+
+        /// <summary>
+        /// Takes the kind of the oldest queued event, which was just dequeued.
+        /// </summary>
+        private QueuedEventKind TakeOldestEventKind()
+        {
+            if (m_eventsOfUnknownKind > 0)
+            {
+                m_eventsOfUnknownKind--;
+                return QueuedEventKind.Unknown;
+            }
+
+            if (m_oldestEventSequence == m_nextEventSequence)
+            {
+                return QueuedEventKind.Unknown;
+            }
+
+            long sequence = m_oldestEventSequence++;
+            if (m_conditionEventSequences.Count > 0 && m_conditionEventSequences.Peek() == sequence)
+            {
+                m_conditionEventSequences.Dequeue();
+                return QueuedEventKind.Condition;
+            }
+            return m_classifyWhenQueued ? QueuedEventKind.Other : QueuedEventKind.Unclassified;
+        }
+
+        /// <summary>
+        /// Accounts for queued events that the queue discarded itself, e.g. when it was
+        /// shrunk, and tracks the Condition events among them.
+        /// </summary>
+        /// <param name="count">The number of events removed from the queue.</param>
+        /// <param name="oldest">True when the oldest events were removed, else the newest.</param>
+        /// <param name="removed">The removed events, oldest first, or <c>null</c> when they were not seen.</param>
+        private void RemoveEventKinds(long count, bool oldest, EventFieldList[]? removed)
+        {
+            if (oldest)
+            {
+                for (long ii = 0; ii < count && TrackedEventCount > 0; ii++)
+                {
+                    TrackDiscardedEvent(TakeOldestEventKind(), GetRemovedEvent(removed, ii));
+                }
+                return;
+            }
+
+            // the newest events are the ones with the highest sequence numbers, then the
+            // events of unknown kind in front of them.
+            long known = Math.Min(count, m_nextEventSequence - m_oldestEventSequence);
+            int unknown = (int)Math.Min(count - known, m_eventsOfUnknownKind);
+            if (known > 0)
+            {
+                m_nextEventSequence -= known;
+                if (m_classifyWhenQueued)
+                {
+                    var kept = new Queue<long>(m_conditionEventSequences.Count);
+                    foreach (long sequence in m_conditionEventSequences)
+                    {
+                        if (sequence < m_nextEventSequence)
+                        {
+                            kept.Enqueue(sequence);
+                        }
+                        else
+                        {
+                            TrackDiscardedEvent(QueuedEventKind.Condition, null);
+                        }
+                    }
+                    m_conditionEventSequences = kept;
+                }
+                else
+                {
+                    for (long ii = count - known; ii < count; ii++)
+                    {
+                        TrackDiscardedEvent(QueuedEventKind.Unclassified, GetRemovedEvent(removed, ii));
+                    }
+                }
+            }
+
+            if (unknown > 0)
+            {
+                m_eventsOfUnknownKind -= unknown;
+                for (long ii = count - known - unknown; ii < count - known; ii++)
+                {
+                    TrackDiscardedEvent(QueuedEventKind.Unknown, GetRemovedEvent(removed, ii));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the removed event at the index, or <c>null</c> when it was not seen.
+        /// </summary>
+        private static EventFieldList? GetRemovedEvent(EventFieldList[]? removed, long index)
+        {
+            return removed != null && index < removed.Length ? removed[index] : null;
         }
 
         /// <summary>
@@ -356,12 +525,22 @@ namespace Opc.Ua.Server
                 if (m_eventQueue.Dequeue(out EventFieldList discarded))
                 {
                     RemovePendingTransforms(1, true);
-                    TrackDiscardedEvent(discarded.Handle);
+                    TrackDiscardedEvent(TakeOldestEventKind(), discarded);
                 }
                 ReportDiscardedEvents(1);
             }
             // queue the event.
             m_eventQueue.Enqueue(fields);
+
+            AddEventKind(fields);
+
+            // a queue that could not hand back its oldest event above discards it itself.
+            long excess = TrackedEventCount - m_eventQueue.ItemsInQueue;
+            if (excess > 0)
+            {
+                RemovePendingTransforms(excess, true);
+                RemoveEventKinds(excess, true, null);
+            }
         }
 
         /// <summary>
@@ -412,13 +591,14 @@ namespace Opc.Ua.Server
                 m_eventQueue.Dequeue(out EventFieldList fields))
             {
                 int position = consumed++;
+                QueuedEventKind kind = TakeOldestEventKind();
                 EventFieldList? transformed = ApplyPendingTransform(fields);
                 if (transformed == null)
                 {
                     // the event cannot be expressed with the current select clauses: it is
                     // lost, which the client learns from an overflow event at its position.
                     m_discardedEventHandler?.Invoke();
-                    TrackDiscardedEvent(fields.Handle);
+                    TrackDiscardedEvent(kind, fields);
                     eventsDropped = true;
                     if (!m_discardOldest)
                     {
@@ -621,6 +801,56 @@ namespace Opc.Ua.Server
             public Func<EventFieldList, EventFieldList?> Transform { get; set; }
         }
 
+        /// <summary>
+        /// Whether a queued event is a Condition event (OPC 10000-9 5.11.4).
+        /// </summary>
+        private enum QueuedEventKind
+        {
+            /// <summary>
+            /// Not a Condition event.
+            /// </summary>
+            Other,
+
+            /// <summary>
+            /// A Condition event.
+            /// </summary>
+            Condition,
+
+            /// <summary>
+            /// Classified from its handle when it is discarded.
+            /// </summary>
+            Unclassified,
+
+            /// <summary>
+            /// Queued before the handler took the queue over, e.g. restored from storage.
+            /// </summary>
+            Unknown
+        }
+
+        /// <summary>
+        /// True when an event is classified when it is queued. A queue that keeps the handles
+        /// of its events (<see cref="EventMonitoredItemQueue.KeepsEventHandles"/>) has them
+        /// classified only when one is discarded; any other queue may store an event without
+        /// its handle, e.g. a durable queue restores a persisted batch without them.
+        /// </summary>
+        private readonly bool m_classifyWhenQueued;
+
+        /// <summary>
+        /// The number of the oldest queued events whose kind is not known.
+        /// </summary>
+        private int m_eventsOfUnknownKind;
+
+        /// <summary>
+        /// The other queued events are numbered in the order they were queued, from the
+        /// oldest to the one before the next.
+        /// </summary>
+        private long m_oldestEventSequence;
+        private long m_nextEventSequence;
+
+        /// <summary>
+        /// The numbers of the queued Condition events, oldest first.
+        /// </summary>
+        private Queue<long> m_conditionEventSequences = new();
         private readonly List<PendingTransform> m_pendingTransforms = [];
         private bool m_discardOldest;
         private bool m_overflowAtStart;
