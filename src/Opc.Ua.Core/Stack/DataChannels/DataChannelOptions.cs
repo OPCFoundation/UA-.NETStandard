@@ -85,7 +85,12 @@ namespace Opc.Ua.DataChannels
         public int MaxStreamHistory { get; init; } = 65536;
 
         /// <summary>
-        /// Gets the HELLO and flow-establishment timeout.
+        /// Gets the protected HELLO confirmation timeout after the carrier security handshake.
+        /// </summary>
+        public TimeSpan HelloTimeout { get; init; } = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// Gets the flow-establishment timeout.
         /// </summary>
         public TimeSpan OpenTimeout { get; init; } = TimeSpan.FromSeconds(10);
 
@@ -120,6 +125,11 @@ namespace Opc.Ua.DataChannels
         public TimeSpan PingTimeout { get; init; } = TimeSpan.FromSeconds(10);
 
         /// <summary>
+        /// Gets the local, non-negotiated idle interval before a context PING is sent.
+        /// </summary>
+        public TimeSpan KeepAliveInterval { get; init; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Gets whether the application explicitly permits integrity-only UASC.
         /// The resource authorizer must independently permit it.
         /// </summary>
@@ -143,6 +153,7 @@ namespace Opc.Ua.DataChannels
             {
                 throw new ArgumentOutOfRangeException(nameof(MaxFlows), "Flow bounds must be positive and finite.");
             }
+            ValidateDuration(HelloTimeout, nameof(HelloTimeout));
             ValidateDuration(OpenTimeout, nameof(OpenTimeout));
             ValidateDuration(UpdateTimeout, nameof(UpdateTimeout));
             ValidateDuration(DrainTimeout, nameof(DrainTimeout));
@@ -150,6 +161,11 @@ namespace Opc.Ua.DataChannels
             ValidateDuration(DatagramRevisionGrace, nameof(DatagramRevisionGrace));
             ValidateDuration(AuthorizationRecheckInterval, nameof(AuthorizationRecheckInterval));
             ValidateDuration(GrantLifetime, nameof(GrantLifetime));
+            ValidateDuration(KeepAliveInterval, nameof(KeepAliveInterval));
+            if (KeepAliveInterval < TimeSpan.FromSeconds(1))
+            {
+                throw new ArgumentOutOfRangeException(nameof(KeepAliveInterval));
+            }
             if (AuthorizationRecheckInterval > TimeSpan.FromMinutes(1) ||
                 GrantLifetime > TimeSpan.FromSeconds(10))
             {

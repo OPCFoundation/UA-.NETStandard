@@ -131,7 +131,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     Assert.That(pending.IsCompleted, Is.False);
                     Assert.That(flow.Local.StateData.LastDataId, Is.EqualTo(1));
                     Assert.That(pair.InitiatorBudget.Usage.Messages, Is.EqualTo(1));
-                    Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(firstPayload.Length));
+                    Assert.That(pair.InitiatorBudget.Usage.BufferedBytes,
+                        Is.EqualTo(firstPayload.Length + UascFlowMessageCodec.TypeIdSize));
                 });
                 // Free the receiver's single slot before testing admission of another sender-owned message.
                 using DataChannelMessage? received = await flow.Remote.ReadAsync().ConfigureAwait(false);
@@ -177,7 +178,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             if (byteLimit)
             {
                 Assert.That(budget.TryReserveCarrier(
-                    4096 - heldPayload.Length - (2 * DataChannelApplicationBudget.ControlHeadroomBytes),
+                    4096 - heldPayload.Length - UascFlowMessageCodec.TypeIdSize -
+                        (2 * DataChannelApplicationBudget.ControlHeadroomBytes),
                     0, 0, out lease), Is.True);
             }
             using (lease)

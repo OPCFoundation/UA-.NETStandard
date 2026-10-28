@@ -89,7 +89,7 @@ namespace Opc.Ua.DataChannels.Wire
                         new FlowProbe(operation, flow, reader.UInt64()),
                     FlowOperation.Reset or FlowOperation.Status =>
                         new FlowOutcome(operation, flow,
-                            (FlowWireStatus)reader.Discriminator((byte)FlowWireStatus.WouldBlock)),
+                            (FlowWireStatus)reader.Discriminator((byte)FlowWireStatus.WouldBlock), reader.UInt32()),
                     _ => new FlowSignal(operation, flow)
                 };
             }
@@ -154,12 +154,11 @@ namespace Opc.Ua.DataChannels.Wire
         private static FlowHello ReadHello(ref FlowBinaryReader reader, FlowCarrier? uascCarrier)
         {
             uint version = reader.UInt32();
-            bool nativeBaseline = uascCarrier is FlowCarrier.Quic or FlowCarrier.WebTransport;
-            byte value = reader.Discriminator(nativeBaseline ? (byte)2 : (byte)FlowCarrier.WebTransport);
-            FlowCarrier carrier = nativeBaseline
+            byte value = reader.Discriminator(uascCarrier.HasValue ? (byte)2 : (byte)FlowCarrier.WebTransport);
+            FlowCarrier carrier = uascCarrier.HasValue
                 ? value switch
                 {
-                    0 => FlowCarrier.DedicatedUasc,
+                    0 => uascCarrier == FlowCarrier.SharedUasc ? FlowCarrier.SharedUasc : FlowCarrier.DedicatedUasc,
                     1 => FlowCarrier.Quic,
                     2 => FlowCarrier.WebTransport,
                     _ => throw new FlowCodecException(FlowCodecError.UnknownDiscriminator)
@@ -228,9 +227,10 @@ namespace Opc.Ua.DataChannels.Wire
             if (control is FlowHello hello)
             {
                 writer.UInt32(hello.Version);
-                byte carrier = uascCarrier is FlowCarrier.Quic or FlowCarrier.WebTransport
+                byte carrier = uascCarrier.HasValue
                     ? hello.Carrier switch
                     {
+                        FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc => (byte)0,
                         FlowCarrier.Quic => (byte)1,
                         FlowCarrier.WebTransport => (byte)2,
                         _ => throw new FlowCodecException(FlowCodecError.CarrierMismatch)
@@ -289,6 +289,7 @@ namespace Opc.Ua.DataChannels.Wire
                     break;
                 case FlowOutcome outcome:
                     writer.Byte((byte)outcome.Status);
+                    writer.UInt32(outcome.RelatedOperation);
                     break;
                 case FlowSignal:
                     break;

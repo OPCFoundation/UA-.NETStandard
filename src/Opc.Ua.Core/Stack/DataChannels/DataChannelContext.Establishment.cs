@@ -159,6 +159,7 @@ namespace Opc.Ua.DataChannels
                 m_localChallenge,
                 m_peerChallenge,
                 m_carrier.Kind);
+            m_lastVerifiedAt = m_clock.GetTimestamp();
             m_ready.TrySetResult(DataChannelResult.Good);
             StartDirectBindingLocked();
             PulseCapacityLocked();
@@ -309,7 +310,7 @@ namespace Opc.Ua.DataChannels
                     RequireReadyLocked();
                     if (m_flows.ContainsKey(open.Flow) || !RetirePeerIdLocked(open.Flow))
                     {
-                        return RefuseLocked(open.Flow, 1, DataChannelResult.InvalidState);
+                        return RefuseLocked(open.Flow, 1, DataChannelResult.InvalidState, messageId);
                     }
                     DataChannelParametersDataType parameters = AdmitParametersLocked(
                         FlowModel.FromWire(open.Parameters), true);
@@ -317,12 +318,12 @@ namespace Opc.Ua.DataChannels
                         m_accepted.Count >= m_options.MaxFlows ||
                         !m_budget.TryReserve(FlowResource.Flow, 1))
                     {
-                        return RefuseLocked(open.Flow, 1, DataChannelResult.WouldBlock);
+                        return RefuseLocked(open.Flow, 1, DataChannelResult.WouldBlock, messageId);
                     }
                     if (!m_budget.TryReserve(FlowResource.Operation, 1))
                     {
                         m_budget.Release(FlowResource.Flow, 1);
-                        return RefuseLocked(open.Flow, 1, DataChannelResult.WouldBlock);
+                        return RefuseLocked(open.Flow, 1, DataChannelResult.WouldBlock, messageId);
                     }
                     flow = CreateFlowLocked(
                         open.Flow,
@@ -339,7 +340,7 @@ namespace Opc.Ua.DataChannels
             {
                 lock (m_gate)
                 {
-                    return RefuseLocked(open.Flow, 1, exception.Result);
+                    return RefuseLocked(open.Flow, 1, exception.Result, messageId);
                 }
             }
             try
@@ -380,7 +381,7 @@ namespace Opc.Ua.DataChannels
                 DataChannelResult result = exception is DataChannelException failure
                     ? failure.Result
                     : DataChannelResult.NotAuthorized;
-                await ResetAsync(flow.Facade!, result, CancellationToken.None).ConfigureAwait(false);
+                await ResetAsync(flow.Facade!, result, CancellationToken.None, messageId).ConfigureAwait(false);
                 return result;
             }
         }
@@ -397,6 +398,19 @@ namespace Opc.Ua.DataChannels
             }
             m_peerChannelHighWater = id;
             return true;
+        }
+
+        /// <summary>
+        /// Recognizes retired identifiers from the monotonic namespaces without retaining per-flow tombstones.
+        /// </summary>
+        private bool IsRetiredChannelIdLocked(uint id)
+        {
+            if (id == 0 || m_flows.ContainsKey(id) || m_reservations.ContainsKey(id))
+            {
+                return false;
+            }
+            uint localParity = m_carrier.Identity.IsContextInitiator ? 1u : 0u;
+            return (id & 1) == localParity ? id < m_nextChannelId : id <= m_peerChannelHighWater;
         }
 
         /// <summary>
@@ -569,7 +583,8 @@ namespace Opc.Ua.DataChannels
                 maxMessage = Math.Min(
                     maxMessage,
                     (uint)Math.Max(0, m_carrier.MaxRecordSize -
-                        (HasSelectedDirectStreams ? overhead : IsNative ? FlowRecordCodec.HeaderSize : 0)));
+                        (HasSelectedDirectStreams ? overhead : IsNative
+                            ? FlowRecordCodec.HeaderSize : UascFlowMessageCodec.TypeIdSize)));
                 uint maxReceive = Math.Min(m_options.MaxReceiveBytes, m_peerMaxReceiveBytes);
                 if (parameters.Delivery == DataChannelDeliveryMode.Datagram)
                 {
@@ -634,20 +649,20 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Confirms ACCEPT before installing receive state and transmitting READY.
         /// </summary>
-        private DataChannelResult ReceiveAcceptLocked(FlowState flow, FlowAccept accept)
+        private DataChannelResult ReceiveAcceptLocked(FlowState flow, FlowAccept accept, uint operationId)
         {
             if (!flow.IsLocalOpener ||
                 flow.State != DataChannelState.Opening ||
                 accept.Stream != flow.StreamId ||
                 flow.Revisions.Count == 0)
             {
-                return RefuseLocked(flow.Id, flow.Revision, DataChannelResult.InvalidState);
+                return RefuseLocked(flow.Id, flow.Revision, DataChannelResult.InvalidState, operationId);
             }
             DataChannelParametersDataType admitted = AdmitParametersLocked(
                 FlowModel.FromWire(accept.Parameters), false);
             if (!FlowModel.IsNarrowing(flow.Parameters, admitted))
             {
-                return ResetLocked(flow, DataChannelResult.InvalidArgument);
+                return ResetLocked(flow, DataChannelResult.InvalidArgument, operationId);
             }
             FlowRevision old = flow.Revisions[1];
             old.SendActive = false;
@@ -655,7 +670,7 @@ namespace Opc.Ua.DataChannels
             RetireRevisionsLocked(flow);
             if (!TryReserveRevisionLocked(flow, 1, admitted, false))
             {
-                return ResetLocked(flow, DataChannelResult.WouldBlock);
+                return ResetLocked(flow, DataChannelResult.WouldBlock, operationId);
             }
             flow.Parameters = admitted;
             if (flow.DirectLane != null)

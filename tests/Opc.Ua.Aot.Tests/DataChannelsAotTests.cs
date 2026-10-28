@@ -150,16 +150,19 @@ namespace Opc.Ua.Aot.Tests
                 if (write.IsData)
                 {
                     await Assert.That(write.ChannelId).IsEqualTo(sender.ChannelId);
-                    await Assert.That(write.Payload).IsEqualTo(dataMessages++ == 0 ? payload : updatedPayload);
+                    await Assert.That(write.Payload.Span[..2].SequenceEqual(new byte[] { 0, 0xFE })).IsTrue();
+                    await Assert.That(write.Payload.Span[2..].SequenceEqual(
+                        (dataMessages++ == 0 ? payload : updatedPayload).Span)).IsTrue();
                 }
                 else
                 {
-                    await Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(write.Payload.Span[4..]))
+                    await Assert.That(write.Payload.Span[..2].SequenceEqual(new byte[] { 0, 0xFF })).IsTrue();
+                    await Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(write.Payload.Span[6..]))
                         .IsNotEqualTo(0u);
-                    operations.Add(write.Payload[8]);
-                    if (write.Payload[8] == 3)
+                    operations.Add(write.Payload[10]);
+                    if (write.Payload[10] == 3)
                     {
-                        await Assert.That(write.Payload.Span[8..].SequenceEqual(new byte[] { 3, 1, 0, 0, 0 }))
+                        await Assert.That(write.Payload.Span[10..].SequenceEqual(new byte[] { 3, 1, 0, 0, 0 }))
                             .IsTrue();
                     }
                 }
@@ -187,7 +190,8 @@ namespace Opc.Ua.Aot.Tests
             await pair.StartAsync(deadline.Token).ConfigureAwait(false);
 
             DataChannelResult result = await pair.Right.ReceiveUascAsync(
-                DataChannelUascMessageKind.Flc, (byte)'F', 0, ByteString.FromHexString(hex), deadline.Token)
+                DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                ByteString.FromHexString($"00FF{hex}"), deadline.Token)
                 .ConfigureAwait(false);
 
             await Assert.That(result).IsEqualTo(DataChannelResult.Unsupported);
@@ -381,11 +385,14 @@ namespace Opc.Ua.Aot.Tests
                     m_records.Enqueue(new RecordedWrite(
                         write.ChannelId, write.RequestId, write.IsData, write.Payload.Copy()));
                     DataChannelResult received = await Peer.ReceiveUascAsync(
-                        write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
-                        (byte)'F', write.RequestId, write.Payload, CancellationToken.None)
+                        DataChannelUascMessageKind.Msg,
+                        (byte)'F',
+                        0,
+                        write.Payload,
+                        CancellationToken.None)
                         .ConfigureAwait(false);
                     if (received == DataChannelResult.UnknownChannel &&
-                        !write.IsData && write.Payload.Length > 8 && write.Payload[8] == 11)
+                        !write.IsData && write.Payload.Length > 10 && write.Payload[10] == 11)
                     {
                         // A scoped peer RESET refusal is not a failure of the already committed transport write.
                         Interlocked.Increment(ref m_unknownResets);

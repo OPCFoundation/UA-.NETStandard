@@ -189,6 +189,18 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Optional byte-level progress reporting for transports that can observe
+    /// partial writes before a complete UASC chunk has been sent.
+    /// </summary>
+    internal interface IUaSCByteTransportSendProgress
+    {
+        /// <summary>
+        /// Sets the callback invoked after positive byte progress.
+        /// </summary>
+        void SetSendProgressCallback(Action<int>? callback);
+    }
+
+    /// <summary>
     /// Factory used by client-side transport channels to create an
     /// unconnected <see cref="IUaSCByteTransport"/> instance configured with
     /// the buffer pool and receive sizing required by the UASC channel.

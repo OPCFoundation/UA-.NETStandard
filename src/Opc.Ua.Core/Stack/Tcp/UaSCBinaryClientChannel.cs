@@ -270,6 +270,7 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Unexpected("Channel is already connected.");
                 }
 
+                Interlocked.Exchange(ref m_dataChannelProtocolClosing, 0);
                 m_url = url;
                 m_via = url;
 
@@ -379,27 +380,9 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Closes a connection with the server.
         /// </summary>
-        public async Task CloseAsync(int timeout, CancellationToken ct = default)
+        public Task CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using Activity? activity = CachedActivitySource.StartActivity();
-            WriteOperation? operation = InternalClose(timeout);
-
-            // wait for the close to succeed.
-            if (operation != null)
-            {
-                try
-                {
-                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
-                    ValidateChannelCloseError(operation.Error);
-                }
-                catch (Exception e)
-                {
-                    m_logger.UaSCClientLog4(e, ChannelId);
-                }
-            }
-
-            // shutdown.
-            Shutdown(StatusCodes.BadConnectionClosed);
+            return CloseCoreAsync(timeout, StatusCodes.BadConnectionClosed, ct);
         }
 
         /// <summary>
@@ -738,7 +721,7 @@ namespace Opc.Ua.Bindings
 
             m_oscRequestSignature = null;
 
-            // Keep numbering and admission together so the writer cannot send an unsealed FLO frame between them.
+            // Keep numbering and admission together so the writer cannot send an unsealed data-channel MSG chunk.
             using (await SendOrder.EnterAsync(ct).ConfigureAwait(false))
             {
                 AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
@@ -1122,12 +1105,14 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
-            if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
-                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl) ||
-                (m_dataChannelKind == DataChannelCarrierKind.WebTransport &&
-                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
+            if ((HasIncompleteDataChannelMessage &&
+                    !TcpMessageType.IsType(messageType, TcpMessageType.Message)) ||
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
             {
-                return ProcessDataChannelMessage(messageType, messageChunk, false);
+                RejectDataChannelMessage(ServiceResult.Create(StatusCodes.BadDecodingError,
+                    "Data Channels require canonical, contiguous MSG framing."));
+                return false;
             }
 
             // OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel
@@ -1154,15 +1139,6 @@ namespace Opc.Ua.Bindings
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message) ||
                 TcpMessageType.IsType(messageType, TcpMessageType.Close))
             {
-                if (TcpMessageType.IsType(messageType, TcpMessageType.Message) &&
-                    FlowModel.SharesServices(m_dataChannelKind) &&
-                    DataChannels?.IsReady != true)
-                {
-                    ForceReconnect(ServiceResult.Create(
-                        StatusCodes.BadTcpMessageTypeInvalid,
-                        "Services arrived before protected flow-profile confirmation."));
-                    return false;
-                }
                 m_logger.UaSCClientLog11(ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
             }
@@ -2122,6 +2098,48 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        /// <summary>
+        /// Sends CLO after a verified channel framing error and owns its bounded shutdown work.
+        /// </summary>
+        private void RejectDataChannelMessage(ServiceResult reason)
+        {
+            using (Gate.Enter())
+            {
+                if (Interlocked.Exchange(ref m_dataChannelProtocolClosing, 1) != 0)
+                {
+                    return;
+                }
+                NotifyChannelClosed();
+            }
+            if (!BackgroundWork.Run(nameof(RejectDataChannelMessage), async shutdown =>
+                await CloseCoreAsync(10000, reason, shutdown).ConfigureAwait(false)))
+            {
+                Shutdown(reason);
+            }
+        }
+
+        /// <summary>
+        /// Completes graceful close with the initiating reason, including cancellation during disposal.
+        /// </summary>
+        private async Task CloseCoreAsync(int timeout, ServiceResult reason, CancellationToken ct)
+        {
+            using Activity? activity = CachedActivitySource.StartActivity();
+            WriteOperation? operation = InternalClose(timeout);
+            if (operation != null)
+            {
+                try
+                {
+                    _ = await operation.EndAsync(timeout, false, ct).ConfigureAwait(false);
+                    ValidateChannelCloseError(operation.Error);
+                }
+                catch (Exception exception)
+                {
+                    m_logger.UaSCClientLog4(exception, ChannelId);
+                }
+            }
+            Shutdown(reason);
+        }
+
         private WriteOperation? InternalClose(int timeout)
         {
             WriteOperation? operation = null;
@@ -2202,11 +2220,12 @@ namespace Opc.Ua.Bindings
             m_waitBetweenReconnects = Timeout.Infinite;
 
             // check for valid token.
-            ChannelToken currentToken =
-                CurrentToken ??
+            if (CurrentToken == null)
+            {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecureChannelClosed,
                     "Channel{0}:Token missing to send close secure channel request on client channel.", Id);
+            }
 
             var request = new CloseSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
@@ -2221,17 +2240,20 @@ namespace Opc.Ua.Bindings
                 true,
                 out _);
 
-            using (SendOrder.Enter())
+            bool queued = false;
+            try
             {
-                BufferCollection? buffers = SealSymmetricMessage(encoded, currentToken);
-                try
+                queued = BeginWriteSymmetricMessage(encoded, operation);
+                if (!queued)
                 {
-                    BeginWriteMessage(buffers, operation);
-                    buffers = null;
+                    operation.Fault(StatusCodes.BadSecureChannelClosed);
                 }
-                finally
+            }
+            finally
+            {
+                if (!queued)
                 {
-                    buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
+                    encoded.Chunks.Release(BufferManager, nameof(SendCloseSecureChannelRequest));
                 }
             }
         }
@@ -2269,18 +2291,33 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            // check if operation is still available.
-            m_requests.TryGetValue(requestId, out WriteOperation? operation);
-
             // check for replay attacks.
             if (!VerifySequenceNumber(sequenceNumber, "ProcessResponseMessage"))
             {
                 m_logger.InvalidResponseSequence(ChannelId, sequenceNumber);
                 var error = new ServiceResult(StatusCodes.BadSequenceNumberInvalid);
-                operation?.Fault(true, error);
+                if (m_requests.TryGetValue(requestId, out WriteOperation? failedOperation))
+                {
+                    failedOperation.Fault(true, error);
+                }
                 ForceReconnect(error);
                 return false;
             }
+            bool channelOwnsBuffer = false;
+            try
+            {
+                if (TryProcessVerifiedDataChannelMessage(
+                    messageType, requestId, messageBody, false, out channelOwnsBuffer))
+                {
+                    return channelOwnsBuffer;
+                }
+            }
+            catch (ServiceResultException exception)
+            {
+                RejectDataChannelMessage(exception.Result);
+                return channelOwnsBuffer;
+            }
+            m_requests.TryGetValue(requestId, out WriteOperation? operation);
             if (operation == null)
             {
                 return false;
@@ -2382,6 +2419,11 @@ namespace Opc.Ua.Bindings
         private readonly string m_implementationString;
         private readonly TimerCallback m_startHandshake;
         private int m_sequenceRenewalRequestedFlag;
+
+        /// <summary>
+        /// Prevents concurrent malformed messages from starting duplicate protocol-error CLO operations.
+        /// </summary>
+        private int m_dataChannelProtocolClosing;
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;

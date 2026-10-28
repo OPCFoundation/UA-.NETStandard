@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings
     /// </summary>
     /// <remarks>
     /// Takes ownership of the supplied flow, but not its context or other flows. Each send is
-    /// exactly one DATA payload; chunk coalescing, nested FLO carriage and queue expiry are unavailable.
+    /// exactly one DATA payload; chunk coalescing, nested legacy FLO/FLC carriage and queue expiry are unavailable.
     /// Use asynchronous disposal to await flow reset and observe any closure failure.
     /// </remarks>
     [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
@@ -348,7 +348,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ServiceResultException(
                     StatusCodes.BadTcpMessageTypeInvalid,
-                    "The native Client/Server lane requires an ordinary UACP message type, never nested FLO.");
+                    "The native Client/Server lane requires an ordinary UACP message type, not a legacy FLO/FLC type.");
             }
             if (BinaryPrimitives.ReadUInt32LittleEndian(chunk[4..]) != chunk.Length)
             {

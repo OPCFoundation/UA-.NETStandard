@@ -70,9 +70,10 @@ Other opaque resources are never interpreted as Services.
 
 The inner lane cannot create another Data Channel carrier or context. Client
 and listener configuration reject flow profiles, reserved `/flow` resources and
-nested context factories. The complete-chunk adapter rejects FLO on both send
-and receive before passing bytes to UASC. This check applies only to the
-reserved Client/Server lane, not to arbitrary opaque or PubSub payload bytes.
+nested context factories. The complete-chunk adapter rejects the superseded
+FLO/FLC UACP message types on both send and receive before passing bytes to UASC.
+This check applies only to the reserved Client/Server lane, not to arbitrary
+opaque or PubSub payload bytes.
 Registering a `ServerDataChannelProvider` for outer flows and optional Session
 control does not inject it into the inner lane's listener settings. The server
 supplies a context factory only to TCP/WSS listeners advertising an explicit

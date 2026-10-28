@@ -55,12 +55,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             foreach (TestFlowCarrier carrier in new[] { pair.InitiatorCarrier, pair.AcceptorCarrier })
             {
                 CapturedFlowWrite hello = carrier.Writes.Single(write =>
-                    !write.IsData && write.Payload.Length > 13 && write.Payload.Span[8] == 0);
+                    !write.IsData && write.Payload.Length > 15 && write.Payload.Span[10] == 0);
                 Assert.Multiple(() =>
                 {
                     Assert.That(hello.RequestId, Is.Zero);
                     Assert.That(hello.ChannelId, Is.Zero);
-                    Assert.That(hello.Payload.Span[13], Is.EqualTo(expectedCarrier));
+                    Assert.That(hello.Payload.Span[15], Is.EqualTo(expectedCarrier));
                     Assert.That(carrier.Kind, Is.EqualTo(kind));
                 });
             }
@@ -77,6 +77,86 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.DisposeAsync().ConfigureAwait(false);
             Assert.That(pair.InitiatorCarrier.CloseCalls, Is.Zero);
             Assert.That(pair.AcceptorCarrier.CloseCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// Context loss faults its flows; resumed traffic requires a fresh context and flow admission.
+        /// </summary>
+        [Test]
+        public async Task ContextLossRequiresFreshContextAndFlowAdmission()
+        {
+            await using var original = new FlowLoopback();
+            await original.StartAsync().ConfigureAwait(false);
+            FlowPair oldFlow = await original.OpenAsync().ConfigureAwait(false);
+            Guid oldContextId = original.Initiator.Identity.ContextId;
+            ulong oldGeneration = original.Initiator.Identity.Generation;
+
+            await original.Initiator.InvalidateAsync(DataChannelResult.SecurityFailure).ConfigureAwait(false);
+            await FlowLoopback.EventuallyAsync(() => !original.Acceptor.IsReady).ConfigureAwait(false);
+            await FlowLoopback.EventuallyAsync(() => original.InitiatorBudget.Usage.Contexts == 0)
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(original.Initiator.IsReady, Is.False);
+                Assert.That(oldFlow.Local.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(oldFlow.Remote.State, Is.EqualTo(DataChannelState.Faulted));
+            });
+
+            await using var resumed = new FlowLoopback(
+                options: original.Options,
+                initiatorBudget: original.InitiatorBudget,
+                clock: original.Clock);
+            await resumed.StartAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(resumed.Initiator.Identity.ContextId, Is.Not.EqualTo(oldContextId));
+                Assert.That(resumed.Initiator.Identity.Generation, Is.Not.EqualTo(oldGeneration));
+                Assert.That(resumed.Initiator.IsReady, Is.True);
+            });
+
+            FlowPair newFlow = await resumed.OpenAsync().ConfigureAwait(false);
+            Assert.That(newFlow.Local.ChannelId, Is.EqualTo(oldFlow.Local.ChannelId),
+                "A flow identifier can be reused only inside the new context.");
+            Assert.That(await newFlow.Local.SendAsync(FlowLoopback.UadpPayload(ByteString.Empty))
+                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage? message = await newFlow.Remote.ReadAsync().ConfigureAwait(false);
+            Assert.That(message, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// An OPEN with a lost ACCEPT cannot be resumed on a different context.
+        /// </summary>
+        [Test]
+        public async Task LostOpenOutcomeRequiresFreshContextAndOpenAsync()
+        {
+            await using var original = new FlowLoopback();
+            await original.StartAsync().ConfigureAwait(false);
+            Guid oldContextId = original.Initiator.Identity.ContextId;
+            original.AcceptorCarrier.Drop = write =>
+                TestFlowCarrier.Operation(write, original.AcceptorCarrier.Kind) == FlowOperation.Accept;
+
+            Task<DataChannel> opening = original.Initiator.OpenAsync(FlowLoopback.Parameters()).AsTask();
+            await FlowLoopback.EventuallyAsync(() => original.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, original.AcceptorCarrier.Kind) == FlowOperation.Accept))
+                .ConfigureAwait(false);
+            Assert.That(opening.IsCompleted, Is.False);
+
+            await original.Acceptor.InvalidateAsync(DataChannelResult.SecurityFailure).ConfigureAwait(false);
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+            Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.SecurityFailure));
+            await FlowLoopback.EventuallyAsync(() => original.InitiatorBudget.Usage.Contexts == 0)
+                .ConfigureAwait(false);
+
+            await using var resumed = new FlowLoopback(
+                options: original.Options,
+                initiatorBudget: original.InitiatorBudget,
+                clock: original.Clock);
+            await resumed.StartAsync().ConfigureAwait(false);
+            Assert.That(resumed.Initiator.Identity.ContextId, Is.Not.EqualTo(oldContextId));
+            FlowPair flow = await resumed.OpenAsync().ConfigureAwait(false);
+            Assert.That(flow.Local.ChannelId, Is.EqualTo(1));
+            Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
         }
 
         [TestCase(false)]

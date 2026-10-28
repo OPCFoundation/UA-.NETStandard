@@ -59,7 +59,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             bool enableDirectBinding = false,
             bool enableDirectStreams = false,
             bool enableDirectDatagrams = false,
-            Action<ILoggingBuilder>? configureLogging = null)
+            Action<ILoggingBuilder>? configureLogging = null,
+            DataChannelOptions? acceptorOptions = null)
         {
             Clock = clock ?? new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
             Options = options ??
@@ -71,6 +72,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     MaxQueueMessages = 16,
                     MaxContextMessages = 128
                 };
+            AcceptorOptions = acceptorOptions ?? Options;
             m_telemetry = DefaultTelemetry.Create(builder =>
             {
                 builder.SetMinimumLevel(LogLevel.None);
@@ -92,7 +94,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Initiator = new DataChannelContext(
                 InitiatorCarrier, InitiatorPolicy, Options, InitiatorBudget, Clock, m_telemetry);
             Acceptor = new DataChannelContext(
-                AcceptorCarrier, AcceptorPolicy, Options, AcceptorBudget, Clock, m_telemetry);
+                AcceptorCarrier, AcceptorPolicy, AcceptorOptions, AcceptorBudget, Clock, m_telemetry);
             InitiatorCarrier.Peer = Acceptor;
             AcceptorCarrier.Peer = Initiator;
             InitiatorCarrier.PeerCarrier = AcceptorCarrier;
@@ -106,6 +108,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         internal FakeTimeProvider Clock { get; }
         internal DataChannelOptions Options { get; }
+        internal DataChannelOptions AcceptorOptions { get; }
         internal DataChannelContext Initiator { get; }
         internal DataChannelContext Acceptor { get; }
         internal TestFlowCarrier InitiatorCarrier { get; }
@@ -517,14 +520,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     if (UseQueuedUascIngress)
                     {
                         Peer!.QueueVerifiedUasc(
-                            write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                            DataChannelUascMessageKind.Msg,
                             (byte)'F',
                             write.RequestId,
                             write.Payload);
                         return DataChannelResult.Good;
                     }
                     return await Peer!.ReceiveUascAsync(
-                        write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                        DataChannelUascMessageKind.Msg,
                         (byte)'F',
                         write.RequestId,
                         write.Payload).ConfigureAwait(false);
@@ -560,7 +563,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             {
                 UascFlowMessage decoded = UascFlowMessageCodec.Decode(
                     FlowModel.ToWire(kind),
-                    write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                    DataChannelUascMessageKind.Msg,
                     (byte)'F',
                     write.RequestId,
                     write.Payload,
@@ -586,7 +589,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             {
                 UascFlowMessage decoded = UascFlowMessageCodec.Decode(
                     FlowModel.ToWire(kind),
-                    write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                    DataChannelUascMessageKind.Msg,
                     (byte)'F',
                     write.RequestId,
                     write.Payload,

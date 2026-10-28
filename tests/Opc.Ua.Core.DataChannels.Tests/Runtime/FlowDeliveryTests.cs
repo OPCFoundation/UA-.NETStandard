@@ -319,7 +319,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await cancellation.CancelAsync().ConfigureAwait(false);
             await Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false))
                 .ConfigureAwait(false);
-            Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(expected.Length));
+            Assert.That(pair.InitiatorBudget.Usage.BufferedBytes,
+                Is.EqualTo(expected.Length + UascFlowMessageCodec.TypeIdSize));
             pair.InitiatorCarrier.AfterRelease.TrySetResult(true);
             await FlowLoopback.EventuallyAsync(() => flow.Local.GetDiagnostics().MessagesSent == 1)
                 .ConfigureAwait(false);
@@ -605,11 +606,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
-        /// Refuses non-UADP bodies even when one ordinary UADP flow needs no routing table.
+        /// Delivers malformed UADP unchanged when exactly one eligible ordinary-UADP flow remains.
         /// </summary>
-        [TestCase("7b7d", TestName = "UascSingleUadpFlowRejectsJsonNetworkMessage")]
-        [TestCase("dead", TestName = "UascSingleUadpFlowRejectsBareOpaqueBytes")]
-        public async Task UascSingleUadpFlowRejectsNonUadpPayload(string payloadHex)
+        [TestCase("7b7d", TestName = "UascSingleUadpFlowDeliversJsonBytesUnchanged")]
+        [TestCase("dead", TestName = "UascSingleUadpFlowDeliversOpaqueBytesUnchanged")]
+        public async Task UascSingleUadpFlowDeliversMalformedPayloadUnchanged(string payloadHex)
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
             await pair.StartAsync().ConfigureAwait(false);
@@ -618,10 +619,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             ByteString invalidPayload = ByteString.FromHexString(payloadHex);
 
             Assert.That(await ReceivePublisherFloAsync(pair, invalidPayload).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.InvalidArgument));
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(flow.Remote, invalidPayload, 1).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
                 Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(pair.Acceptor.IsReady, Is.True);
             });
@@ -629,7 +631,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             ByteString validPayload = ByteString.FromHexString("91022a000000dead");
             Assert.That(await ReceivePublisherFloAsync(pair, validPayload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            await AssertPublisherMessageAsync(flow.Remote, validPayload, 1).ConfigureAwait(false);
+            await AssertPublisherMessageAsync(flow.Remote, validPayload, 2).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1505,7 +1507,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 .ConfigureAwait(false);
             using IDisposable wildcard = pair.Acceptor.RegisterUascPublisherRoute("urn:publisher:first", Variant.Null);
             Assert.That(await ReceivePublisherFloAsync(pair, new ByteString(header)).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.InvalidArgument));
+                Is.EqualTo(DataChannelResult.InvalidState));
             Assert.Multiple(() =>
             {
                 Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
@@ -1837,7 +1839,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 ? FlowCarrier.DedicatedUasc
                 : FlowCarrier.SharedUasc;
             ByteString body = UascFlowMessageCodec.Encode(carrier, channelId, in record, new(), out _);
-            return receiver.ReceiveUascAsync(DataChannelUascMessageKind.Flo, (byte)'F', 0, body);
+            return receiver.ReceiveUascAsync(DataChannelUascMessageKind.Msg, (byte)'F', 0, body);
         }
 
         private static async Task AssertPublisherMessageAsync(DataChannel channel, ByteString payload, uint messageId)

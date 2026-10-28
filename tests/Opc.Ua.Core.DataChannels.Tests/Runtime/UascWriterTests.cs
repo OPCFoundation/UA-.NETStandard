@@ -72,8 +72,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
                 Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
                 [
-                    TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.FlowData
+                    TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
                 ]));
+                Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0 }));
                 Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(3));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
             });
@@ -95,8 +96,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await Task.WhenAll(first, laterService, data).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
             [
-                TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.FlowData
+                TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
             ]));
+            Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 21, 0 }));
             Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
         }
 
@@ -138,20 +140,21 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             int firstFlowControl = Array.FindIndex(chunks, chunk =>
             {
                 return (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) ==
-                    TcpMessageType.FlowControl &&
-                    chunk.Length >= bodyOffset + sizeof(uint) * 2 + 1 &&
-                    BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(bodyOffset)) == 0 &&
-                    chunk[bodyOffset + sizeof(uint) * 2] == (byte)FlowOperation.Ping;
+                    TcpMessageType.Message &&
+                    chunk.Length >= bodyOffset + UascFlowMessageCodec.ControlPrefixSize + 1 &&
+                    chunk[bodyOffset] == 0 && chunk[bodyOffset + 1] == 255 &&
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(bodyOffset + 2)) == 0 &&
+                    chunk[bodyOffset + UascFlowMessageCodec.ControlPrefixSize] == (byte)FlowOperation.Ping;
             });
             Assert.Multiple(() =>
             {
                 Assert.That(types, Has.Length.EqualTo(27));
                 Assert.That(firstFlowControl, Is.InRange(1, 9),
                     "At most eight newly selected Services may precede a queued control after the in-flight write.");
-                Assert.That(types[^1], Is.EqualTo(TcpMessageType.FlowData));
-                Assert.That(chunks[^1][TcpMessageLimits.MessageTypeAndSize +
-                    TcpMessageLimits.SymmetricHeaderSize], Is.Zero,
-                    "FLO must carry the raw application body without a channel prefix.");
+                Assert.That(types.All(type => type == TcpMessageType.Message), Is.True);
+                Assert.That(fixture.Transport.RequestIds[^1], Is.Zero);
+                Assert.That(chunks[^1].AsSpan(bodyOffset, 6).ToArray(),
+                    Is.EqualTo(new byte[] { 0, 254, 0, 0, 0, 0 }));
                 Assert.That(fixture.Transport.Sequences, Is.EqualTo(Enumerable.Range(100, 27).Select(value => (uint)value)));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
             });
@@ -194,8 +197,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
                     Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
                     [
-                        TcpMessageType.Message, TcpMessageType.FlowData, TcpMessageType.Message
+                        TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Message
                     ]));
+                    Assert.That(fixture.Transport.RequestIds, Is.EqualTo(new uint[] { 21, 0, 21 }));
                     Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
                     Assert.That(fixture.Transport.Chunks.All(chunk => chunk[3] == (byte)'F'), Is.True);
                 });
@@ -253,8 +257,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         public async Task OversizeIsRefusedBeforePoolRentOrSequenceConsumption()
         {
             await using var fixture = new WriterFixture();
+            fixture.Channel.SetMessageLimits(4096, 2);
             int maximumRecord = fixture.Channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.SharedUasc);
-            DataChannelWrite oversized = DataWrite(maximumRecord + 1);
+            DataChannelWrite oversized = DataWrite(maximumRecord - 1);
             Assert.That(await fixture.Channel.SendDataChannelWriteAsync(oversized, CancellationToken.None)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.TooLarge));
             Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.Zero);
@@ -315,6 +320,320 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             }
         }
 
+        /// <summary>
+        /// A selected multipart MSG retains the writer until its final chunk before the next Service.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MultipartMsgRemainsContiguousAndNumbersEveryChunk(bool coalesce)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Transport.CanCoalesceChunks = coalesce;
+            fixture.Transport.BlockCall = 1;
+            DataChannelWrite write = DataWrite(200000);
+            Task<DataChannelResult> data = fixture.Channel.SendDataChannelWriteAsync(write, CancellationToken.None)
+                .AsTask();
+            await fixture.Transport.Blocked.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Task service = fixture.Channel.ServiceAsync();
+            fixture.Transport.Release.TrySetResult(true);
+            await Task.WhenAll(data, service).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            byte[][] chunks = fixture.Transport.Chunks;
+            int dataChunks = chunks.Length - 1;
+            int bodyOffset = TcpMessageLimits.MessageTypeAndSize + TcpMessageLimits.SymmetricHeaderSize;
+            int signatureSize = 32;
+            var body = new List<byte>();
+            for (int index = 0; index < dataChunks; index++)
+            {
+                Assert.That(chunks[index][3], Is.EqualTo(index == dataChunks - 1 ? (byte)'F' : (byte)'C'));
+                body.AddRange(chunks[index].AsSpan(bodyOffset,
+                    chunks[index].Length - bodyOffset - signatureSize).ToArray());
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(dataChunks, Is.GreaterThan(1));
+                Assert.That(data.Result, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(fixture.Transport.RequestIds,
+                    Is.EqualTo(Enumerable.Repeat(0u, dataChunks).Append(21u)));
+                Assert.That(fixture.Transport.Sequences,
+                    Is.EqualTo(Enumerable.Range(100, chunks.Length).Select(value => (uint)value)));
+                Assert.That(fixture.Channel.SequenceBudget.Remaining,
+                    Is.EqualTo((long)uint.MaxValue - chunks.Length));
+                Assert.That(body.ToArray(), Is.EqualTo(write.Payload.ToArray()));
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// No prefix of a multipart MSG commits when only part of its sequence space remains.
+        /// </summary>
+        [Test]
+        public async Task MultipartMsgWaitsForEnoughSequenceSpaceBeforeCommit()
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Channel.SequenceBudget.ObserveConsumed(uint.MaxValue - 1L);
+            DataChannelWrite write = DataWrite(200000);
+            Task<DataChannelResult> pending = fixture.Channel.SendDataChannelWriteAsync(write, CancellationToken.None)
+                .AsTask();
+            await FlowLoopback.EventuallyAsync(() =>
+                fixture.Pool.RentedCount > 0 && fixture.Pool.OutstandingCount == 0).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(write.IsCommitted, Is.False);
+                Assert.That(fixture.Transport.Chunks, Is.Empty);
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Channel.SequenceBudget.Remaining, Is.EqualTo(1));
+            });
+            fixture.Channel.Activate(8);
+            Assert.That(await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            Assert.That(fixture.Transport.Chunks.All(
+                chunk => BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(12)) == 8), Is.True);
+        }
+
+        /// <summary>
+        /// A valid abort releases pooled partial chunks and shared capacity without admitting application traffic.
+        /// </summary>
+        [Test]
+        public async Task VerifiedMultipartAbortRestoresCapacityWithoutClosingTheContext()
+        {
+            await using var fixture = new WriterFixture();
+            Assert.That(fixture.Channel.ReceiveVerified([0, 255], (byte)'C'), Is.True);
+            Assert.That(fixture.Channel.ReceiveVerified([0, 0, 0], (byte)'C'), Is.True);
+            Assert.That(fixture.Pool.OutstandingCount, Is.EqualTo(2));
+            Assert.That(fixture.Budget.Usage.BufferedBytes, Is.GreaterThan(0));
+            byte[] abort = new byte[8];
+            BinaryPrimitives.WriteUInt32LittleEndian(abort, StatusCodes.BadRequestCancelledByClient.Code);
+            BinaryPrimitives.WriteInt32LittleEndian(abort.AsSpan(4), -1);
+            Assert.That(fixture.Channel.ReceiveVerified(abort, (byte)'A'), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+                Assert.That(fixture.Transport.Chunks, Is.Empty);
+            });
+            using (IDisposable? reservation = fixture.Context.TryReserveUascReassembly(1, false))
+            {
+                Assert.That(reservation, Is.Not.Null, "The same context still admits a new message after abort.");
+            }
+            fixture.Channel.SignalTransportClosed();
+            Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+        }
+
+        /// <summary>
+        /// The first chunk must contain the complete canonical TypeId, and DATA requires HELLO.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("00")]
+        [TestCase("01fe")]
+        [TestCase("0001")]
+        [TestCase("00fe")]
+        public async Task VerifiedFirstChunkRejectsInvalidOrPrematureClassification(string hex)
+        {
+            await using var fixture = new WriterFixture();
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified(ByteString.FromHexString(hex).ToArray(), (byte)'C'))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Neither a Service nor another RequestId may interrupt an incomplete channel MSG.
+        /// </summary>
+        [TestCase(1u)]
+        [TestCase(uint.MaxValue)]
+        public async Task VerifiedPartialMsgRejectsInterleavedServiceAndCloseReleasesItsBuffers(uint requestId)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Channel.ReceiveVerified([0, 255], (byte)'C');
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified([1, 0, 1, 0], (byte)'F', requestId))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(fixture.Pool.OutstandingCount, Is.EqualTo(1));
+            fixture.Channel.SignalTransportClosed();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Renewal, shutdown and other outer message types cannot be interleaved into channel reassembly.
+        /// </summary>
+        [TestCase(TcpMessageType.Open)]
+        [TestCase(TcpMessageType.Close)]
+        [TestCase(TcpMessageType.Hello)]
+        public async Task VerifiedPartialMsgRejectsAnotherOuterMessageType(uint messageType)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Channel.ReceiveVerified([0, 255], (byte)'C');
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified([0, 0], (byte)'F', messageType: messageType))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            fixture.Channel.SignalTransportClosed();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// MaxControlBytes excludes the ten-byte prefix, while every retained byte remains budgeted.
+        /// </summary>
+        [Test]
+        public async Task VerifiedControlBoundIncludesExactlyItsSeparatePrefix()
+        {
+            await using var fixture = new WriterFixture(new DataChannelOptions
+            {
+                AllowIntegrity = true,
+                MaxControlBytes = 32
+            });
+            byte[] body = new byte[32 + UascFlowMessageCodec.ControlPrefixSize];
+            body[1] = 255;
+            fixture.Channel.ReceiveVerified(body, (byte)'C');
+            Assert.That(fixture.Pool.OutstandingCount, Is.EqualTo(1));
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified([0], (byte)'C'))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            fixture.Channel.SignalTransportClosed();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// The exact single-chunk body bound includes TypeId bytes and the selected policy's padding.
+        /// </summary>
+        [TestCase(MessageSecurityMode.Sign, -1)]
+        [TestCase(MessageSecurityMode.Sign, 0)]
+        [TestCase(MessageSecurityMode.Sign, 1)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, -1)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, 0)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, 1)]
+        public async Task MsgCapacityUsesTheActualSecurityFooter(MessageSecurityMode securityMode, int delta)
+        {
+            await using var fixture = new WriterFixture(securityMode: securityMode);
+            fixture.Channel.SetMessageLimits(1000000, 1);
+            int maximum = fixture.Channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.SharedUasc);
+            DataChannelWrite write = DataWrite(maximum - UascFlowMessageCodec.TypeIdSize + delta);
+            DataChannelResult result = await fixture.Channel.SendDataChannelWriteAsync(write, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (delta > 0)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.EqualTo(DataChannelResult.TooLarge));
+                    Assert.That(write.IsCommitted, Is.False);
+                    Assert.That(fixture.Pool.RentedCount, Is.Zero);
+                    Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.Zero);
+                });
+                return;
+            }
+            byte[] chunk = fixture.Transport.Chunks.Single();
+            ByteString decoded = fixture.Channel.ReadProtectedBody((byte[])chunk.Clone());
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(chunk, Has.Length.LessThanOrEqualTo(TcpMessageLimits.DefaultMaxBufferSize));
+                Assert.That(chunk[3], Is.EqualTo((byte)'F'));
+                Assert.That(decoded, Is.EqualTo(write.Payload));
+                Assert.That(decoded, Has.Length.EqualTo(maximum + delta));
+                Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(1));
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Abort reasons are bounded by UTF-8 bytes and must exactly consume their declared body.
+        /// </summary>
+        [TestCase(0, true)]
+        [TestCase(4095, true)]
+        [TestCase(4096, true)]
+        [TestCase(4097, false)]
+        public async Task VerifiedAbortReasonHonorsItsExactByteBoundary(int length, bool accepted)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Channel.ReceiveVerified([0, 255], (byte)'C');
+            byte[] abort = new byte[8 + length];
+            BinaryPrimitives.WriteUInt32LittleEndian(abort, StatusCodes.BadRequestCancelledByClient.Code);
+            BinaryPrimitives.WriteInt32LittleEndian(abort.AsSpan(4), length);
+            abort.AsSpan(8).Fill((byte)'a');
+            if (accepted)
+            {
+                Assert.That(fixture.Channel.ReceiveVerified(abort, (byte)'A'), Is.True);
+            }
+            else
+            {
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    fixture.Channel.ReceiveVerified(abort, (byte)'A'))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            }
+            fixture.Channel.SignalTransportClosed();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+                Assert.That(fixture.Transport.Chunks, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Invalid abort statuses, lengths, UTF-8 and repeated aborts cannot release another message's resources.
+        /// </summary>
+        [TestCase("0000000000000000")]
+        [TestCase("0000004000000000")]
+        [TestCase("00000080feffffff")]
+        [TestCase("0000008001000000ff")]
+        [TestCase("000000800000000000")]
+        [TestCase("0000008001000000")]
+        [TestCase("00000080")]
+        public async Task VerifiedAbortRejectsMalformedErrorBodies(string hex)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Channel.ReceiveVerified([0, 255], (byte)'C');
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified(ByteString.FromHexString(hex).ToArray(), (byte)'A'))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            fixture.Channel.SignalTransportClosed();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// An abort cannot be used without a partial message or release its previous reservation twice.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task VerifiedAbortRequiresAnActivePartialMessage(bool previousAbort)
+        {
+            await using var fixture = new WriterFixture();
+            byte[] abort = ByteString.FromHexString("00000080ffffffff").ToArray();
+            if (previousAbort)
+            {
+                fixture.Channel.ReceiveVerified([0, 255], (byte)'C');
+                fixture.Channel.ReceiveVerified(abort, (byte)'A');
+            }
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                fixture.Channel.ReceiveVerified(abort, (byte)'A'))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+                Assert.That(fixture.Budget.Usage.BufferedBytes, Is.Zero);
+            });
+        }
+
         private static DataChannelWrite DataWrite(int payloadLength = 4, Func<DataChannelResult>? commit = null)
         {
             var record = new FlowRecord(
@@ -327,12 +646,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         private sealed class WriterFixture : IAsyncDisposable
         {
-            internal WriterFixture()
+            internal WriterFixture(
+                DataChannelOptions? options = null,
+                MessageSecurityMode securityMode = MessageSecurityMode.Sign)
             {
                 m_telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.None));
                 Pool = new TrackingPool();
                 Transport = new RecordingTransport();
-                Channel = new WriterChannel(m_telemetry, Pool, Transport);
+                Channel = new WriterChannel(m_telemetry, Pool, Transport, securityMode);
                 Channel.SeedSequence(100);
                 Channel.Activate(7);
                 ByteString local = new(Enumerable.Repeat((byte)0x31, 32).ToArray());
@@ -340,15 +661,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Context = Channel.AttachDataChannels(
                     DataChannelCarrierKind.SharedUasc,
                     new DataChannelPeerIdentity("urn:writer:local", "urn:writer:peer",
-                        local, remote, DataChannelProtectionMode.Integrity, true),
-                    true, new TestFlowAuthorizer(), new DataChannelOptions { AllowIntegrity = true },
-                    new DataChannelApplicationBudget(), m_telemetry);
+                        local, remote, securityMode == MessageSecurityMode.SignAndEncrypt
+                            ? DataChannelProtectionMode.Confidential : DataChannelProtectionMode.Integrity, true),
+                    true, new TestFlowAuthorizer(), options ?? new DataChannelOptions { AllowIntegrity = true },
+                    Budget, m_telemetry);
             }
 
             internal WriterChannel Channel { get; }
             internal RecordingTransport Transport { get; }
             internal TrackingPool Pool { get; }
             internal DataChannelContext Context { get; }
+            internal DataChannelApplicationBudget Budget { get; } = new();
 
             public async ValueTask DisposeAsync()
             {
@@ -367,12 +690,16 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         private sealed class WriterChannel : UaSCUaBinaryChannel
         {
-            internal WriterChannel(ITelemetryContext telemetry, ArrayPool<byte> pool, IUaSCByteTransport transport)
+            internal WriterChannel(
+                ITelemetryContext telemetry,
+                ArrayPool<byte> pool,
+                IUaSCByteTransport transport,
+                MessageSecurityMode securityMode)
                 : base("flow-writer-test",
                     new BufferManager("flow-writer-test", TcpMessageLimits.DefaultMaxBufferSize, telemetry, pool),
                     new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry)),
                     serverCertificates: null, endpoints: null,
-                    securityMode: MessageSecurityMode.Sign, securityPolicyUri: SecurityPolicies.Basic256Sha256,
+                    securityMode: securityMode, securityPolicyUri: SecurityPolicies.Basic256Sha256,
                     telemetry: telemetry)
             {
                 Transport = transport;
@@ -396,6 +723,45 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 {
                     GetNewSequenceNumber();
                 }
+            }
+
+            internal void SetMessageLimits(int maximumBytes, int maximumChunks)
+            {
+                MaxRequestMessageSize = maximumBytes;
+                MaxRequestChunkCount = maximumChunks;
+            }
+
+            internal bool ReceiveVerified(
+                byte[] body, byte finality, uint requestId = 0, uint messageType = TcpMessageType.Message)
+            {
+                byte[] buffer = BufferManager.TakeBuffer(
+                    Math.Max(body.Length, 1), nameof(ReceiveVerified));
+                body.CopyTo(buffer, 0);
+                bool ownsBuffer = false;
+                try
+                {
+                    return TryProcessVerifiedDataChannelMessage(
+                        messageType | ((uint)finality << 24),
+                        requestId, new ArraySegment<byte>(buffer, 0, body.Length), true, out ownsBuffer);
+                }
+                finally
+                {
+                    if (!ownsBuffer)
+                    {
+                        BufferManager.ReturnBuffer(buffer, nameof(ReceiveVerified));
+                    }
+                }
+            }
+
+            internal ByteString ReadProtectedBody(byte[] chunk)
+            {
+                ArraySegment<byte> body = ReadSymmetricMessage(
+                    new ArraySegment<byte>(chunk), true, out _, out _, out uint sequence);
+                if (!VerifySequenceNumber(sequence, nameof(ReadProtectedBody)))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid);
+                }
+                return ByteString.From(body.AsSpan());
             }
 
             internal void SignalTransportClosed()
@@ -458,9 +824,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
             public override byte[] Rent(int minimumLength)
             {
-                Interlocked.Increment(ref m_rented);
                 byte[] bytes = new byte[minimumLength];
                 m_owned.TryAdd(bytes, 0);
+                Interlocked.Increment(ref m_rented);
                 return bytes;
             }
 
@@ -492,13 +858,16 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             internal TaskCompletionSource<bool> Release { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            internal byte[][] Chunks => [.. m_chunks];
+            internal byte[][] Chunks => m_chunks.ToArray();
 
             internal uint[] Sequences => [.. m_chunks.Select(bytes =>
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(16)))];
 
             internal uint[] MessageTypes => [.. m_chunks.Select(bytes =>
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes) & TcpMessageType.MessageTypeMask)];
+
+            internal uint[] RequestIds => [.. m_chunks.Select(bytes =>
+                BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(20)))];
 
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
@@ -520,11 +889,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 {
                     buffer.AsSpan().CopyTo(copy.AsSpan(offset));
                     offset += buffer.Count;
-                }
-                if (!CanCoalesceChunks)
-                {
-                    m_chunks.Enqueue(copy);
-                    return;
                 }
                 offset = 0;
                 while (offset < copy.Length)

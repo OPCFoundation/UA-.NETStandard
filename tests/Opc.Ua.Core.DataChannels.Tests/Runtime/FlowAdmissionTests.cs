@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 FlowCarrier.DedicatedUasc, flow.Remote.ChannelId, in record, new(), out _);
 
             Task<DataChannelResult> blocked = pair.Acceptor.ReceiveUascAsync(
-                DataChannelUascMessageKind.Flo, (byte)'F', 0, payload).AsTask();
+                DataChannelUascMessageKind.Msg, (byte)'F', 0, payload).AsTask();
             Assert.That(blocked.IsCompleted, Is.True);
 
             Assert.That(await blocked.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
@@ -105,14 +105,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
-        /// Verified UASC ingress preserves burst backpressure but cannot leave following controls blocked indefinitely.
+        /// A full receive queue resets its flow without blocking controls or stealing application-owned storage.
         /// </summary>
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, false)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, true)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, false)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, true)]
-        public async Task UascIngressTransfersOwnedDataOrExpiresItsBoundedCapacityWait(
-            DataChannelCarrierKind carrier, bool consume)
+        [TestCase(DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(DataChannelCarrierKind.SharedUasc)]
+        public async Task UascQueueOverflowResetsWouldBlockWithoutBlockingControls(DataChannelCarrierKind carrier)
         {
             var options = new DataChannelOptions
             {
@@ -134,35 +131,16 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             ByteString payload = UascFlowMessageCodec.Encode(
                 FlowModel.ToWire(carrier), flow.Remote.ChannelId, in second, new FlowCodecLimits(),
                 out uint requestId);
-            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Flo, (byte)'F', requestId, payload);
+            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, payload);
             FlowRecord ping = FlowControlCodec.Encode(new FlowProbe(FlowOperation.Ping, 0, 42), 0, 99, new());
             ByteString probe = UascFlowMessageCodec.Encode(
                 FlowModel.ToWire(carrier), 0, in ping, new FlowCodecLimits(), out requestId);
-            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Flc, (byte)'F', requestId, probe);
-            Assert.That(pair.AcceptorBudget.Usage.Messages, Is.EqualTo(3));
-            Assert.That(pair.AcceptorCarrier.Writes.Any(write =>
-                TestFlowCarrier.Operation(write, carrier) == FlowOperation.Pong), Is.False);
-            await Task.Delay(25).ConfigureAwait(false);
-
-            if (consume)
-            {
-                first!.Dispose();
-                using DataChannelMessage? delivered = await flow.Remote.ReadAsync().AsTask()
-                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                Assert.That(delivered!.MessageId, Is.EqualTo(2));
-                Assert.That(delivered.Payload.ToArray(), Is.EqualTo(secondPayload.ToArray()));
-                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
-            }
-            else
-            {
-                pair.Clock.Advance(options.DrainTimeout - TimeSpan.FromMilliseconds(1));
-                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
-                pair.Clock.Advance(TimeSpan.FromMilliseconds(1));
-                await FlowLoopback.EventuallyAsync(() => flow.Remote.State == DataChannelState.Faulted)
-                    .ConfigureAwait(false);
-                Assert.That(flow.Remote.GetStatus().Result, Is.EqualTo(DataChannelResult.Timeout));
-                Assert.That(first!.Payload.ToArray(), Is.EqualTo(firstPayload.ToArray()));
-            }
+            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, probe);
+            await FlowLoopback.EventuallyAsync(() => flow.Remote.State == DataChannelState.Faulted)
+                .ConfigureAwait(false);
+            Assert.That(flow.Remote.GetStatus().Result, Is.EqualTo(DataChannelResult.WouldBlock));
+            Assert.That(first!.Payload.ToArray(), Is.EqualTo(firstPayload.ToArray()));
+            Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
             await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Any(write =>
                 TestFlowCarrier.Operation(write, carrier) == FlowOperation.Pong)).ConfigureAwait(false);
             Assert.That(pair.Acceptor.IsReady, Is.True);
@@ -189,7 +167,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 out uint requestId);
             byte[] transportBuffer = encoded.ToArray();
             pair.Acceptor.QueueVerifiedUasc(
-                DataChannelUascMessageKind.Flo,
+                DataChannelUascMessageKind.Msg,
                 (byte)'F', requestId, new ByteString(transportBuffer));
             transportBuffer.AsSpan().Fill(0xDD);
             using DataChannelMessage? received = await flow.Remote.ReadAsync().AsTask()
@@ -244,7 +222,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             ByteString encoded = UascFlowMessageCodec.Encode(
                 FlowModel.ToWire(kind), flow.Remote.ChannelId, in record, new FlowCodecLimits(),
                 out uint requestId);
-            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Flo, (byte)'F', requestId, encoded);
+            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
             await FlowLoopback.EventuallyAsync(() => flow.Remote.State == DataChannelState.Faulted)
                 .ConfigureAwait(false);
             Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Faulted));
@@ -265,10 +243,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 1, 100, limits);
             ByteString encoded = UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, invalid.Local.ChannelId, in record, limits, out uint requestId);
-            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Flc, (byte)'F', requestId, encoded);
+            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
             await FlowLoopback.EventuallyAsync(() => invalid.Remote.State == DataChannelState.Faulted)
                 .ConfigureAwait(false);
+            await invalid.Remote.StateData.Released.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Assert.That(invalid.Remote.GetStatus().Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+            Assert.That(invalid.Local.State, Is.EqualTo(DataChannelState.Open));
+            Assert.That(pair.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset), Is.False);
             Assert.That(pair.Acceptor.IsReady, Is.True);
             Assert.That(unaffected.Remote.State, Is.EqualTo(DataChannelState.Open));
             Assert.That(await unaffected.Local.SendAsync(
@@ -276,6 +258,343 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await unaffected.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(message!.MessageId, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A defined post-HELLO control with a recoverable scope is refused without losing admission.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MalformedCorrelatableControlReceivesInvalidArgument(bool trailingBytes)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            var limits = new FlowCodecLimits();
+            FlowRecord record = FlowControlCodec.Encode(
+                new FlowProbe(FlowOperation.Ping, flow.Local.ChannelId, 42), 1, 91, limits);
+            ByteString valid = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, flow.Local.ChannelId, in record, limits, out uint requestId);
+            byte[] malformed = trailingBytes
+                ? valid.ToArray().Concat(new byte[] { 0 }).ToArray()
+                : valid.ToArray().Take(valid.Length - 1).ToArray();
+            pair.Acceptor.QueueVerifiedUasc(
+                DataChannelUascMessageKind.Msg, (byte)'F', requestId, new ByteString(malformed));
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status))
+                .ConfigureAwait(false);
+            CapturedFlowWrite response = pair.AcceptorCarrier.Writes.Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status);
+            FlowRecord reply = TestFlowCarrier.Record(response, pair.AcceptorCarrier.Kind);
+            var status = (FlowOutcome)FlowControlCodec.Decode(in reply, limits);
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.Status, Is.EqualTo(FlowWireStatus.InvalidArgument));
+                Assert.That(status.Flow, Is.EqualTo(flow.Local.ChannelId));
+                Assert.That(status.RelatedOperation, Is.EqualTo(91));
+                Assert.That(reply.MessageId, Is.Not.Zero.And.Not.EqualTo(91));
+                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Malformed terminal outcomes never create outcome-response loops.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MalformedOutcomesWithRecoverableScopesAreDiscardedWithoutReply(bool reset)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            FlowRecord record = FlowControlCodec.Encode(
+                new FlowOutcome(reset ? FlowOperation.Reset : FlowOperation.Status,
+                    flow.Local.ChannelId, FlowWireStatus.Closed), 1, 91, new());
+            ByteString valid = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, flow.Local.ChannelId, in record, new(), out uint requestId);
+            byte[] malformed = valid.ToArray();
+            malformed[15] = 255;
+            pair.Acceptor.QueueVerifiedUasc(
+                DataChannelUascMessageKind.Msg, (byte)'F', requestId, new ByteString(malformed));
+            await pair.FlushAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(pair.AcceptorCarrier.Writes.Any(write =>
+                    TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) is
+                        FlowOperation.Status or FlowOperation.Reset), Is.False);
+                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Credit refusal resets only the affected admission and returns the discarded aggregate charge.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UncreditedDataResetsWouldBlockAndRestoresConnectionCredit(bool queuedIngress)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            FlowPair unaffected = await pair.OpenAsync(
+                FlowLoopback.Parameters(DataChannelDirection.AcceptorToOpener)).ConfigureAwait(false);
+            await pair.FlushAsync().ConfigureAwait(false);
+            flow.Remote.StateData.ReceiveCredit = 0;
+            int before = pair.AcceptorCarrier.Writes.Count;
+            ByteString payload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 1, 2, 3 }));
+            var record = new FlowRecord(FlowRecordKind.Data, 1, 1, payload);
+            ByteString encoded = UascFlowMessageCodec.Encode(FlowCarrier.SharedUasc,
+                flow.Local.ChannelId, in record, new(), out uint requestId);
+            if (queuedIngress)
+            {
+                pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
+            }
+            else
+            {
+                Assert.That(await pair.Acceptor.ReceiveUascAsync(
+                    DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.WouldBlock));
+            }
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Credit))
+                .ConfigureAwait(false);
+            FlowRecord reset = TestFlowCarrier.Record(pair.AcceptorCarrier.Writes.Skip(before).Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset),
+                pair.AcceptorCarrier.Kind);
+            var outcome = (FlowOutcome)FlowControlCodec.Decode(in reset, new());
+            FlowRecord credit = TestFlowCarrier.Record(pair.AcceptorCarrier.Writes.Skip(before).Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Credit),
+                pair.AcceptorCarrier.Kind);
+            var grant = (FlowCredit)FlowControlCodec.Decode(in credit, new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Status, Is.EqualTo(FlowWireStatus.WouldBlock));
+                Assert.That(outcome.RelatedOperation, Is.Zero);
+                Assert.That(grant.Flow, Is.Zero);
+                Assert.That(grant.ChannelCredit, Is.Zero);
+                Assert.That(grant.ConnectionCredit, Is.EqualTo(payload.Length));
+                Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(unaffected.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// A uniquely matched UADP admission retains its exact DATA failure scope in both receive paths.
+        /// </summary>
+        [TestCase("before-ready", false, DataChannelResult.InvalidState)]
+        [TestCase("before-ready", true, DataChannelResult.InvalidState)]
+        [TestCase("wrong-direction", false, DataChannelResult.NotAuthorized)]
+        [TestCase("wrong-direction", true, DataChannelResult.NotAuthorized)]
+        [TestCase("after-end", false, DataChannelResult.Closed)]
+        [TestCase("after-end", true, DataChannelResult.Closed)]
+        public async Task MatchedDataFailureUsesExactFlowReset(
+            string scenario, bool queuedIngress, DataChannelResult expected)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            DataChannel receiver;
+            Task<DataChannel>? opening = null;
+            if (scenario == "before-ready")
+            {
+                pair.InitiatorCarrier.GateBefore = write =>
+                    TestFlowCarrier.Operation(write, pair.InitiatorCarrier.Kind) == FlowOperation.Ready;
+                opening = pair.Initiator.OpenAsync(FlowLoopback.Parameters()).AsTask();
+                await pair.InitiatorCarrier.BeforeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                receiver = pair.Acceptor.Channels[0];
+                Assert.That(receiver.State, Is.EqualTo(DataChannelState.Opening));
+            }
+            else
+            {
+                FlowPair flow = await pair.OpenAsync(FlowLoopback.Parameters(
+                    scenario == "wrong-direction"
+                        ? DataChannelDirection.AcceptorToOpener : DataChannelDirection.Duplex))
+                    .ConfigureAwait(false);
+                receiver = flow.Remote;
+                if (scenario == "after-end")
+                {
+                    Assert.That(await flow.Local.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+                    await FlowLoopback.EventuallyAsync(() => receiver.StateData.RemoteEnded).ConfigureAwait(false);
+                }
+            }
+            int before = pair.AcceptorCarrier.Writes.Count;
+            ByteString payload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 1, 2, 3 }));
+            var record = new FlowRecord(FlowRecordKind.Data, 1, 1, payload);
+            ByteString encoded = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, receiver.ChannelId, in record, new(), out uint requestId);
+            if (queuedIngress)
+            {
+                pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
+            }
+            else
+            {
+                Assert.That(await pair.Acceptor.ReceiveUascAsync(
+                    DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded).ConfigureAwait(false),
+                    Is.EqualTo(expected));
+            }
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset))
+                .ConfigureAwait(false);
+            FlowRecord reset = TestFlowCarrier.Record(pair.AcceptorCarrier.Writes.Skip(before).Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset),
+                pair.AcceptorCarrier.Kind);
+            var outcome = (FlowOutcome)FlowControlCodec.Decode(in reset, new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Status, Is.EqualTo(FlowModel.ToWire(expected)));
+                Assert.That(outcome.Flow, Is.EqualTo(receiver.ChannelId));
+                Assert.That(outcome.RelatedOperation, Is.Zero);
+                Assert.That(receiver.GetStatus().Result, Is.EqualTo(expected));
+                Assert.That(receiver.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+                Assert.That(pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                    TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status), Is.False);
+            });
+            if (opening != null)
+            {
+                pair.InitiatorCarrier.BeforeRelease.TrySetResult(true);
+                DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                    await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(exception!.Result, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// A routable UADP message with a missing or truncated DataSetMessage belongs to the PubSub reader.
+        /// </summary>
+        [TestCase("512A010700", false)]
+        [TestCase("512A010700", true)]
+        [TestCase("512A010700FF", false)]
+        [TestCase("512A010700FF", true)]
+        [TestCase("9000", false)]
+        [TestCase("9000", true)]
+        public async Task MatchedMalformedUadpIsDeliveredUnchanged(string hex, bool queuedIngress)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            using IDisposable route = pair.Acceptor.RegisterUascPublisherRoute(
+                flow.Remote.Parameters.ResourceUri ?? throw new InvalidOperationException(), new Variant((byte)42));
+            int before = pair.AcceptorCarrier.Writes.Count;
+            ByteString payload = ByteString.FromHexString(hex);
+            var record = new FlowRecord(FlowRecordKind.Data, 1, 1, payload);
+            ByteString encoded = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, flow.Local.ChannelId, in record, new(), out uint requestId);
+            if (queuedIngress)
+            {
+                pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
+            }
+            else
+            {
+                Assert.That(await pair.Acceptor.ReceiveUascAsync(
+                    DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.Good));
+            }
+            using DataChannelMessage? message = await flow.Remote.ReadAsync().AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(message!.Payload.ToArray(), Is.EqualTo(payload.ToArray()));
+                Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+                Assert.That(pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                    TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) is
+                        FlowOperation.Status or FlowOperation.Reset), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// A malformed UADP header is not delivered when multiple admissions make its route ambiguous.
+        /// </summary>
+        [Test]
+        public async Task AmbiguousMalformedUadpIsNotDeliveredToEitherAdmission()
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair first = await pair.OpenAsync(FlowLoopback.Parameters()).ConfigureAwait(false);
+            FlowPair second = await pair.OpenAsync(FlowLoopback.Parameters(
+                receiveBytes: 2048)).ConfigureAwait(false);
+            using IDisposable firstRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                first.Remote.Parameters.ResourceUri ?? throw new InvalidOperationException(), new Variant((byte)42));
+            using IDisposable secondRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                second.Remote.Parameters.ResourceUri ?? throw new InvalidOperationException(), new Variant((byte)43));
+            int before = pair.AcceptorCarrier.Writes.Count;
+            ByteString payload = ByteString.FromHexString("9000");
+            var record = new FlowRecord(FlowRecordKind.Data, 1, 1, payload);
+            ByteString encoded = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, first.Local.ChannelId, in record, new(), out uint requestId);
+            Assert.That(await pair.Acceptor.ReceiveUascAsync(
+                DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.InvalidState));
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status))
+                .ConfigureAwait(false);
+            FlowRecord statusRecord = TestFlowCarrier.Record(pair.AcceptorCarrier.Writes.Skip(before).Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status),
+                pair.AcceptorCarrier.Kind);
+            var status = (FlowOutcome)FlowControlCodec.Decode(in statusRecord, new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.Status, Is.EqualTo(FlowWireStatus.UnknownChannel));
+                Assert.That(status.Flow, Is.Zero);
+                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(first.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(second.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// OPEN refusals identify the received operation before and after provisional flow allocation.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task OpenRefusalCorrelatesTheReceivedControlOperation(bool refuseBeforeAllocation)
+        {
+            await using var pair = new FlowLoopback(options: new DataChannelOptions { MaxFlows = 1 });
+            await pair.StartAsync().ConfigureAwait(false);
+            uint channelId = 1;
+            if (refuseBeforeAllocation)
+            {
+                await pair.OpenAsync().ConfigureAwait(false);
+                channelId = 3;
+            }
+            else
+            {
+                pair.AcceptorPolicy.Handler = static (_, _) =>
+                    new ValueTask<DataChannelAuthorization>(
+                        new DataChannelAuthorization(DataChannelResult.NotAuthorized));
+            }
+            var limits = new FlowCodecLimits();
+            var open = new FlowOpen(channelId, 0, FlowModel.ToWire(FlowLoopback.Parameters()),
+                FlowWireAuthorization.Configured, null);
+            FlowRecord record = FlowControlCodec.Encode(open, 1, 91, limits);
+            ByteString encoded = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, channelId, in record, limits, out uint requestId);
+            pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded);
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset))
+                .ConfigureAwait(false);
+            CapturedFlowWrite reset = pair.AcceptorCarrier.Writes.Single(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset);
+            FlowRecord response = TestFlowCarrier.Record(reset, pair.AcceptorCarrier.Kind);
+            var outcome = (FlowOutcome)FlowControlCodec.Decode(in response, limits);
+            Assert.Multiple(() =>
+            {
+                Assert.That(outcome.Flow, Is.EqualTo(channelId));
+                Assert.That(outcome.RelatedOperation, Is.EqualTo(91));
+                Assert.That(outcome.Status, Is.EqualTo(refuseBeforeAllocation
+                    ? FlowWireStatus.WouldBlock : FlowWireStatus.NotAuthorized));
+                Assert.That(response.MessageId, Is.Not.Zero.And.Not.EqualTo(91));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+                Assert.That(pair.InitiatorCarrier.Writes.Any(write =>
+                    TestFlowCarrier.Operation(write, pair.InitiatorCarrier.Kind) == FlowOperation.Reset), Is.False);
+            });
         }
 
         /// <summary>
@@ -375,17 +694,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
-        /// Native RESET is echoed once, then both stream directions finish without closing the context.
+        /// A received native RESET closes the flow without a reply, and both stream directions finish.
         /// </summary>
         [TestCase(DataChannelCarrierKind.Quic)]
         [TestCase(DataChannelCarrierKind.WebTransport)]
-        public async Task NativeResetIsExchangedBeforeBothStreamDirectionsFinish(DataChannelCarrierKind carrier)
+        public async Task NativeResetIsNotEchoedBeforeBothStreamDirectionsFinish(DataChannelCarrierKind carrier)
         {
             await using var pair = new FlowLoopback(carrier);
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
 
             await flow.Local.ResetAsync(DataChannelResult.NotAuthorized).ConfigureAwait(false);
+            await flow.Remote.StateData.Released.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -396,7 +716,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(pair.InitiatorCarrier.Writes.Count(
                     write => TestFlowCarrier.Operation(write, carrier) == FlowOperation.Reset), Is.EqualTo(1));
                 Assert.That(pair.AcceptorCarrier.Writes.Count(
-                    write => TestFlowCarrier.Operation(write, carrier) == FlowOperation.Reset), Is.EqualTo(1));
+                    write => TestFlowCarrier.Operation(write, carrier) == FlowOperation.Reset), Is.Zero);
                 Assert.That(pair.InitiatorCarrier.FinishedFlows, Is.EqualTo(1));
                 Assert.That(pair.AcceptorCarrier.FinishedFlows, Is.EqualTo(1));
                 Assert.That(pair.InitiatorCarrier.ClosedFlows, Is.Zero);
@@ -482,7 +802,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         [TestCase(true)]
         public async Task IncompleteProvisionalStreamIsBoundedAndExpiresAtOpenTimeout(bool delayHelloCompletion)
         {
-            await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
+            await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic,
+                options: new DataChannelOptions { KeepAliveInterval = TimeSpan.FromMinutes(1) });
             if (delayHelloCompletion)
             {
                 pair.AcceptorCarrier.GateAfterDelivery = write =>
@@ -544,8 +865,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(pair.Acceptor.IsReady, Is.True);
         }
 
-        [Test]
-        public async Task UnknownFlowDataHasBoundedErrorsAndNeverImplicitlyAllocatesAFlow()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnknownFlowDataHasBoundedErrorsAndNeverImplicitlyAllocatesAFlow(bool queuedIngress)
         {
             await using var pair = new FlowLoopback();
             await pair.StartAsync().ConfigureAwait(false);
@@ -554,12 +876,82 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 FlowCarrier.SharedUasc, 99, in record, new(), out _);
             for (int i = 0; i < 10; i++)
             {
-                Assert.That(await pair.Acceptor.ReceiveUascAsync(
-                    DataChannelUascMessageKind.Flo, (byte)'F', 0, payload).ConfigureAwait(false),
-                    Is.EqualTo(DataChannelResult.UnknownChannel));
+                if (queuedIngress)
+                {
+                    pair.Acceptor.QueueVerifiedUasc(DataChannelUascMessageKind.Msg, (byte)'F', 0, payload);
+                }
+                else
+                {
+                    Assert.That(await pair.Acceptor.ReceiveUascAsync(
+                        DataChannelUascMessageKind.Msg, (byte)'F', 0, payload).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.UnknownChannel));
+                }
             }
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status))
+                .ConfigureAwait(false);
+            CapturedFlowWrite[] refusals = pair.AcceptorCarrier.Writes.Where(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status).ToArray();
+            Assert.That(refusals, Has.Length.EqualTo(1));
+            FlowRecord refusal = TestFlowCarrier.Record(refusals[0], pair.AcceptorCarrier.Kind);
+            var status = (FlowOutcome)FlowControlCodec.Decode(in refusal, new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.Status, Is.EqualTo(FlowWireStatus.UnknownChannel));
+                Assert.That(status.Flow, Is.Zero);
+                Assert.That(status.RelatedOperation, Is.Zero);
+                Assert.That(pair.AcceptorCarrier.Writes.Any(write =>
+                    TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset), Is.False);
+            });
             Assert.That(pair.Acceptor.Channels.Count, Is.Zero);
             Assert.That(pair.Acceptor.IsReady, Is.True);
+        }
+
+        /// <summary>
+        /// Retired local and peer namespaces discard late controls without retaining per-flow reply state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredFlowControlsAreDiscardedWithoutReply(bool localReceiver)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            await flow.Local.ResetAsync(DataChannelResult.Closed).ConfigureAwait(false);
+            await pair.FlushAsync().ConfigureAwait(false);
+            DataChannelContext receiver = localReceiver ? pair.Initiator : pair.Acceptor;
+            TestFlowCarrier carrier = localReceiver ? pair.InitiatorCarrier : pair.AcceptorCarrier;
+            int before = carrier.Writes.Count;
+            FlowControl[] controls =
+            [
+                new FlowProbe(FlowOperation.Ping, flow.Local.ChannelId, 42),
+                new FlowCredit(flow.Local.ChannelId, 10, 10),
+                new FlowPrepare(flow.Local.ChannelId, FlowModel.Limits(FlowLoopback.Parameters())),
+                new FlowOpen(flow.Local.ChannelId, 0, FlowModel.ToWire(FlowLoopback.Parameters()),
+                    FlowWireAuthorization.Configured, null)
+            ];
+            for (int i = 0; i < controls.Length; i++)
+            {
+                FlowRecord record = FlowControlCodec.Encode(controls[i], i == 2 ? 2u : 1u, (uint)i + 100, new());
+                ByteString encoded = UascFlowMessageCodec.Encode(FlowCarrier.SharedUasc,
+                    flow.Local.ChannelId, in record, new(), out uint requestId);
+                Assert.That(await receiver.ReceiveUascAsync(
+                    DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.Good));
+            }
+            await pair.FlushAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(carrier.Writes, Has.Count.EqualTo(before));
+                Assert.That(receiver.Channels, Is.Empty);
+                Assert.That(receiver.IsReady, Is.True);
+            });
+            FlowPair replacement = await pair.OpenAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(replacement.Local.ChannelId, Is.GreaterThan(flow.Local.ChannelId));
+                Assert.That(replacement.Remote.State, Is.EqualTo(DataChannelState.Open));
+            });
         }
 
         [Test]

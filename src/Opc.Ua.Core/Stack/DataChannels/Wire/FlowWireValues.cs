@@ -51,7 +51,7 @@ namespace Opc.Ua.DataChannels.Wire
         /// <summary>UASC discriminator zero, also used by the legacy dedicated profile.</summary>
         DedicatedUasc,
 
-        /// <summary>Shared UASC FLO bodies.</summary>
+        /// <summary>Shared UASC DATA/CONTROL MSG bodies.</summary>
         SharedUasc,
 
         /// <summary>Native QUIC.</summary>
@@ -655,7 +655,7 @@ namespace Opc.Ua.DataChannels.Wire
         /// <summary>
         /// Creates an outcome value.
         /// </summary>
-        internal FlowOutcome(FlowOperation operation, uint flow, FlowWireStatus status)
+        internal FlowOutcome(FlowOperation operation, uint flow, FlowWireStatus status, uint relatedOperation = 0)
             : base(operation, flow)
         {
             if (operation is not (FlowOperation.Reset or FlowOperation.Status))
@@ -663,12 +663,18 @@ namespace Opc.Ua.DataChannels.Wire
                 throw new ArgumentOutOfRangeException(nameof(operation));
             }
             Status = status;
+            RelatedOperation = relatedOperation;
         }
 
         /// <summary>
         /// Gets the protocol outcome.
         /// </summary>
         internal FlowWireStatus Status { get; }
+
+        /// <summary>
+        /// Gets the causative received OperationId, or zero for data, local limits and timeout.
+        /// </summary>
+        internal uint RelatedOperation { get; }
     }
 
     /// <summary>

@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                         1, 42, "010000000e00000001010000002a000000", "0a01000000");
                 case "control_reset":
                     return SharedControl(new FlowOutcome(FlowOperation.Reset, 1, FlowWireStatus.Closed),
-                        1, 43, "010000000f00000001010000002b000000", "0b0100000008");
+                        1, 43, "010000001300000001010000002b000000", "0b010000000800000000");
                 case "control_ping":
                     return SharedControl(new FlowProbe(FlowOperation.Ping, 0, 9007199254740993),
                         0, 44, "000000001600000001000000002c000000", "0c000000000100000000002000");
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                         0, 45, "000000001600000001000000002d000000", "0d000000000300000000002000");
                 case "control_status":
                     return SharedControl(new FlowOutcome(FlowOperation.Status, 1, FlowWireStatus.WouldBlock),
-                        1, 46, "010000000f00000001010000002e000000", "0e010000000a");
+                        1, 46, "010000001300000001010000002e000000", "0e010000000a00000000");
                 case "control_bind":
                     return new Definition(FlowCarrier.Quic, false, 0, 0, 48,
                         "53000000010000000030000000",

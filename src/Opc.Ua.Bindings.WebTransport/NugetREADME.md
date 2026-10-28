@@ -1,16 +1,32 @@
 # OPC UA WebTransport bindings
 
-**Experimental; full Parts 30–32 acceptance remains open.** The native H3
-binding supports a management-only UASC path for native Data Channels and a
-separate HTTPS/UACP baseline for ordinary Services. The split Parts 30–32
-target is revision
-[`7cc6a2e`](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac);
-it requires binary FLC, not JSON CONTROL. Browser interoperability and native
-minimum-retention qualification remain open. The management-only path follows
-the separate legacy experiment at
+**Experimental; full Parts 30–32 acceptance remains open.** The current
+specification baseline is the merged source at
+[`1703d60`](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad).
+Part 30 carries DATA and compact binary CONTROL in standard UASC MSG messages;
+it does not define FLO/FLC message types or a JSON CONTROL fallback. The legacy
+native flow and UASC paths still use their earlier native HTTP/3 implementation.
+Browser interoperability and native minimum-retention qualification remain open.
+The management-only path follows the separate legacy experiment at
 [`2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels),
 not the Part 32 baseline. The older mTLS flow carrier below does not implement
 that experiment's revised WebTransport authentication mapping.
+
+The Part 32 correction selected as this branch's implementation target is in
+the open specification PR. It selects capsule-based WebTransport over HTTP/3,
+using the `webtransport` Extended
+CONNECT token and the current H2-15 capsule semantics through H3-16 §2.1.2.
+Its protocol references include RFC 9220, RFC 9114 and RFC 9297.
+The correction is an implementation target for this branch; it is not merged
+into the authoritative Part 32 source. This package now includes an explicitly
+selected managed client and listener using public .NET QUIC APIs. They establish
+HTTP/3 critical streams and SETTINGS, exchange a capsule-mode CONNECT, and adapt
+the CONNECT stream to the ordinary UACP/UASC byte-transport factory. A managed
+loopback test covers TLS, SETTINGS, CONNECT, stream-zero credit setup and a
+byte-for-byte UACP HEL/ACK chunk exchange. It does not exercise UASC OPN,
+Services interoperability, browser support or Part 32 conformance. The managed
+classes do not automatically advertise endpoints or replace the separate
+native `webtransport-h3` draft-16 implementation.
 
 The legacy native flow path uses mutually authenticated native QUIC, HTTP/3 and
 WebTransport draft-ietf-webtrans-http3-16. It is not a WebSocket fallback,
@@ -117,6 +133,68 @@ rather than the older experiment's data-stream ordering. These entry points
 therefore do not establish conformance to that experiment's complete wire
 contract. The split Parts 31–32 direct binding uses a different contract:
 COMMIT and END occupy the ordered data stream; RESET remains on secured FLC.
+
+## Managed capsule WebTransport baseline
+
+`ManagedWebTransportUascTransport` and `ManagedWebTransportUascServer` provide
+an explicit managed path for the capsule-based Part 32 correction. The client
+connects to an exact `opc.wt` endpoint, verifies the server through the supplied
+TLS policy, negotiates `h3`, and requests the configured CONNECT authority and
+path. It sends no Origin header. The listener defaults to an absent-Origin
+policy; a host can select a stricter exact-origin policy. CONNECT is authorized
+before the accepted connection is exposed.
+
+The client TLS policy authenticates the HTTPS server only. The existing UASC
+channel must still authenticate the OPC UA applications and use
+`SignAndEncrypt`. The managed connection exposes the usual UASC byte-transport
+factory; it does not create a SecureChannel or Session on its own:
+
+```csharp
+var transport = new ManagedWebTransportUascTransport();
+await using ManagedWebTransportUascConnection baseline = await transport.ConnectAsync(
+    new Uri("opc.wt://device.example:4840/ua/wt"),
+    clientTlsAuthenticationOptions,
+    cancellationToken);
+
+using ITransportChannel channel = baseline.Create(telemetry);
+await ((ISecureChannel)channel).OpenAsync(
+    baseline.EndpointUrl, secureChannelSettings, cancellationToken);
+```
+
+`clientTlsAuthenticationOptions` must select exactly the `h3` ALPN and use a
+`TargetHost` matching the endpoint authority. `secureChannelSettings` must
+select `DataChannelProfiles.UascWebTransport`, the exact endpoint URL and
+`MessageSecurityMode.SignAndEncrypt`, with the application's certificate and
+validator.
+
+`AddManagedWebTransportUasc` registers the managed client and server services
+with the OPC UA builder. The host still supplies TLS options, authorization,
+endpoint descriptions and listener lifecycle.
+
+The server supplies its TLS certificate and CONNECT authorizer explicitly:
+
+```csharp
+var server = new ManagedWebTransportUascServer();
+await using ManagedWebTransportUascListener listener = await server.ListenAsync(
+    endpoint, localUdpEndpoint, serverTlsAuthenticationOptions, authorizeConnect,
+    cancellationToken: cancellationToken);
+
+await using ManagedWebTransportUascConnection accepted =
+    await listener.AcceptAsync(cancellationToken);
+// Keep this scope alive until the accepted UASC channel closes.
+_ = uascListener.AcceptTransport(accepted, certificateValidator, maxBufferSize);
+```
+
+The external UASC listener must be opened for the exact bound `opc.wt` endpoint
+and advertise the `UascWebTransport` profile. The host supplies the endpoint
+description, application certificate validation and request callback. The host
+must retain the accepted managed connection until its UASC channel has closed;
+the accepted-connection wrapper owns the capsule session. One client-created
+bidirectional stream carries the CONNECT request; unsupported additional
+bidirectional streams are rejected. The managed path does not expose TLS
+exporter material, direct streams or datagrams, and it does not claim browser
+interoperability. Close the UASC channel before asynchronously disposing the
+managed connection.
 
 ## Part 32 reliable UASC baseline
 

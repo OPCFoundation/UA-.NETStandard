@@ -9,10 +9,11 @@ are provisional version-one profile and payload identifiers.
 There is one internal record/control implementation, under `Wire`. Generated
 `Opc.Ua.DataChannel*` types are the public model; applications must not introduce
 another serializer or replace payload bytes with custom framing. Native ordered
-and datagram paths use common records. Under the pinned OPC 10000-28 source,
-UASC FLO carries exactly one unchanged UADP NetworkMessage and FLC carries
-Revision, OperationId and typed CONTROL fields. Neither message has a
-ChannelId prefix; RequestId is zero for both. The [public guide](../../../../docs/DataChannels.md)
+and datagram paths use common records. Under the merged OPC 10000-30 source, UASC DATA uses a standard MSG with
+namespace-zero Two-Byte TypeId `00 FE`, followed by exactly one unchanged UADP
+NetworkMessage. CONTROL uses MSG TypeId `00 FF`, followed by Revision,
+OperationId and typed CONTROL fields. Neither message has a ChannelId prefix;
+RequestId is zero for both. The [public guide](../../../../docs/DataChannels.md)
 records the remaining carrier and conformance gates.
 
 ## Direct construction
@@ -122,8 +123,8 @@ Datagram reception retains the prior revision for the configured monotonic grace
 bounded by the sender's old-message barrier. A third live revision is refused
 until the previous network state retires.
 
-Shared UASC DATA credit starts at zero and includes the complete FLO body:
-ChannelId, common-record header and application bytes.
+Shared UASC DATA credit starts at zero and counts exactly the unchanged UADP
+NetworkMessage bytes, excluding the TypeId and UASC security framing.
 Aggregate connection grants use flow/revision zero independently of per-flow
 grants, so an opposite-direction revision barrier cannot strand connection credit.
 Native ordered paths use actual backpressure. Physical UASC ingress transfers

@@ -10,7 +10,7 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Gets the actual direct datagram capacity, independently of baseline FLO support.
+        /// Gets the actual direct datagram capacity, independently of baseline UASC DATA support.
         /// </summary>
         private int DirectDatagramCapacity => m_carrier is IDataChannelDirectDatagramProvider provider
             ? provider.MaxDirectDatagramSize : 0;

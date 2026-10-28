@@ -152,7 +152,7 @@ namespace Opc.Ua.DataChannels
             int cost = checked(payload.Length + DataOverhead(flow));
             int storageCost = checked(payload.Length +
                 (IsNative ? 13 + (flow.IsDatagram ? 4 : 0) :
-                    flow.DirectLane != null ? DataOverhead(flow) : 0));
+                    flow.DirectLane != null ? DataOverhead(flow) : UascFlowMessageCodec.TypeIdSize));
             if (!TryReserveMessageLocked(flow, revision, cost, true, storageCost: storageCost))
             {
                 mayWait = true;
@@ -259,7 +259,8 @@ namespace Opc.Ua.DataChannels
                 }
             }
             int bodyLength = FlowControlCodec.GetEncodedBodyLength(control, revision, id, m_codecLimits);
-            int cost = checked((bodyLength + (IsNative ? 13 : sizeof(uint) * 2)) * (control is FlowCommit ? 4 : 2));
+            int cost = checked((bodyLength + (IsNative ? 13 : UascFlowMessageCodec.ControlPrefixSize)) *
+                (control is FlowCommit ? 4 : 2));
             if (!TryReserveReceiveControlLocked(cost))
             {
                 discard?.Invoke();

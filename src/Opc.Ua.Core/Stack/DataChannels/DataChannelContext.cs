@@ -187,7 +187,7 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Receives one authenticated final FLO/FLC body or native WebTransport management MSG.
+        /// Receives security-verified UASC chunks for DATA/CONTROL MSG or native WebTransport management MSG.
         /// It borrows input until return and retains owned complete-message storage.
         /// </summary>
         public ValueTask<DataChannelResult> ReceiveUascAsync(

@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.DataChannels;
@@ -60,6 +62,11 @@ namespace Opc.Ua.Bindings
         /// Gets whether the owner should renew before exhausting sequence space.
         /// </summary>
         public bool IsSequenceRenewalDue => SequenceBudget.ShouldRenew;
+
+        /// <summary>
+        /// Gets whether only continuation or abort chunks of the current channel MSG may arrive.
+        /// </summary>
+        private protected bool HasIncompleteDataChannelMessage => m_dataChannelIncomingKind.HasValue;
 
         /// <summary>
         /// Gets the explicitly attached data context, or null on ordinary endpoints.
@@ -156,12 +163,16 @@ namespace Opc.Ua.Bindings
             m_dataChannelKind = kind;
             m_dataChannelIsUascInitiator = isUascInitiator;
             m_dataChannels = context;
+            if (Transport is IUaSCByteTransportSendProgress progress)
+            {
+                progress.SetSendProgressCallback(OnTransportSendProgress);
+            }
             return m_dataChannels;
         }
 
         /// <summary>
-        /// Gets the maximum UASC flow body after security headers and footer are excluded.
-        /// UASC security headers and signatures are excluded.
+        /// Gets complete MSG plaintext capacity, including the application TypeId but excluding security overhead.
+        /// Both negotiated message size and chunk count apply; legacy management remains single-chunk.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
@@ -183,54 +194,198 @@ namespace Opc.Ua.Bindings
                 SymmetricSignatureSize -
                 TcpMessageLimits.SequenceHeaderSize -
                 paddingCountSize;
-            return Math.Max(0, available);
+            if (kind == DataChannelCarrierKind.WebTransport)
+            {
+                return Math.Max(0, available);
+            }
+            int messageLimit = m_dataChannelIsUascInitiator ? MaxRequestMessageSize : MaxResponseMessageSize;
+            int chunkLimit = m_dataChannelIsUascInitiator ? MaxRequestChunkCount : MaxResponseChunkCount;
+            long maximum = Math.Max(0, available) * (long)(chunkLimit > 0 ? chunkLimit : int.MaxValue);
+            if (messageLimit > 0)
+            {
+                maximum = Math.Min(maximum, messageLimit);
+            }
+            return (int)Math.Min(maximum, int.MaxValue - FlowRecordCodec.HeaderSize);
         }
 
         /// <summary>
-        /// Verifies UASC security and sequence state before handing bounded owned plaintext to the flow runtime.
-        /// Returns false because the receive-loop buffer is never retained.
+        /// Classifies MSG only after the caller has verified its security and sequence header.
+        /// Reports whether the reassembler took ownership of the receive-loop buffer.
         /// </summary>
-        protected bool ProcessDataChannelMessage(
+        /// <exception cref="ServiceResultException"></exception>
+        protected bool TryProcessVerifiedDataChannelMessage(
             uint messageType,
-            ArraySegment<byte> messageChunk,
-            bool isRequest)
+            uint requestId,
+            ArraySegment<byte> messageBody,
+            bool isRequest,
+            out bool ownsBuffer)
         {
-            DataChannelContext? context = m_dataChannels;
-            uint flowMessageType = messageType & TcpMessageType.MessageTypeMask;
-            bool management = m_dataChannelKind == DataChannelCarrierKind.WebTransport;
-            if (context == null ||
-                (management
-                    ? flowMessageType != TcpMessageType.Message
-                    : flowMessageType is not (TcpMessageType.FlowData or TcpMessageType.FlowControl)) ||
-                SecurityMode == MessageSecurityMode.None)
+            ownsBuffer = false;
+            if (!TcpMessageType.IsType(messageType, TcpMessageType.Message))
             {
-                OnDataChannelProtocolFault(DataChannelResult.Unsupported);
+                if (HasIncompleteDataChannelMessage)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "Another message cannot interrupt incomplete Data Channel MSG chunks.");
+                }
                 return false;
+            }
+            DataChannelContext? context = m_dataChannels;
+            if (context == null)
+            {
+                if (requestId == 0 && messageBody.Count >= UascFlowMessageCodec.TypeIdSize &&
+                    messageBody.AsSpan()[0] == 0 && messageBody.AsSpan()[1] is 254 or 255)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "A channel MSG requires an explicitly selected Data Channel capability.");
+                }
+                return false;
+            }
+            context.RecordVerifiedMessage();
+            if (m_dataChannelKind == DataChannelCarrierKind.WebTransport)
+            {
+                context.QueueVerifiedUasc(
+                    DataChannelUascMessageKind.Msg, (byte)(messageType >> 24),
+                    requestId, new ByteString(messageBody.AsMemory()));
+                return true;
+            }
+            if (requestId != 0)
+            {
+                if (m_dataChannelIncomingKind.HasValue ||
+                    (!HasPartialMessage && messageBody.Count < UascFlowMessageCodec.TypeIdSize) ||
+                    (!HasPartialMessage && messageBody.Count >= 2 &&
+                        messageBody.AsSpan()[0] == 0 && messageBody.AsSpan()[1] is 254 or 255))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "A channel message requires contiguous RequestId-zero chunks.");
+                }
+                if (!context.IsReady)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "Services are not accepted before protected HELLO confirmation.");
+                }
+                return false;
+            }
+            if (SecurityMode == MessageSecurityMode.None)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError,
+                    "RequestId zero requires an explicitly selected Data Channel capability.");
             }
             try
             {
-                ArraySegment<byte> body = ReadSymmetricMessage(
-                    messageChunk, isRequest, out ChannelToken _, out uint requestId, out uint sequence);
-                if (!VerifySequenceNumber(sequence, nameof(ProcessDataChannelMessage)))
+                if (TcpMessageType.IsAbort(messageType))
                 {
-                    OnDataChannelProtocolFault(DataChannelResult.SecurityFailure);
-                    return false;
+                    if (!m_dataChannelIncomingKind.HasValue)
+                    {
+                        throw new FlowCodecException(FlowCodecError.WrongType);
+                    }
+                    ValidateDataChannelAbort(messageBody);
+                    m_dataChannelIncomingKind = null;
+                    m_dataChannelIncomingBytes = 0;
+                    TakeSavedChunks().Release(BufferManager, nameof(TryProcessVerifiedDataChannelMessage));
+                    return true;
                 }
-                context.QueueVerifiedUasc(
-                    management ? DataChannelUascMessageKind.Msg :
-                    flowMessageType == TcpMessageType.FlowData
-                        ? DataChannelUascMessageKind.Flo
-                        : DataChannelUascMessageKind.Flc,
-                    (byte)(messageType >> 24),
-                    requestId,
-                    new ByteString(body.AsMemory()));
+                if (!m_dataChannelIncomingKind.HasValue)
+                {
+                    if (HasPartialMessage)
+                    {
+                        throw new FlowCodecException(FlowCodecError.WrongType);
+                    }
+                    m_dataChannelIncomingKind = UascFlowMessageCodec.Classify(messageBody.AsSpan());
+                    m_dataChannelIncomingBytes = 0;
+                }
+                if (m_dataChannelIncomingKind == FlowRecordKind.Data && !context.IsReady)
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError,
+                        "DATA is not accepted before protected HELLO confirmation.");
+                }
+                m_dataChannelIncomingBytes += messageBody.Count;
+                int bodyLimit = m_dataChannelIncomingKind == FlowRecordKind.Control
+                    ? context.MaxUascControlBodyBytes : context.MaxUascDataBodyBytes;
+                if (m_dataChannelIncomingBytes > bodyLimit)
+                {
+                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                        "The Data Channel message exceeds its configured body limit.");
+                }
+                if (!TcpMessageType.IsFinal(messageType))
+                {
+                    ownsBuffer = true;
+                    SaveChunk(0, messageBody, isRequest, isRequest, isFinal: false, isDataChannel: true);
+                    return true;
+                }
+                if (!HasPartialMessage)
+                {
+                    m_dataChannelIncomingKind = null;
+                    m_dataChannelIncomingBytes = 0;
+                    context.QueueVerifiedUasc(
+                        DataChannelUascMessageKind.Msg, (byte)'F', 0, new ByteString(messageBody.AsMemory()));
+                    return true;
+                }
+                ownsBuffer = true;
+                SaveChunk(0, messageBody, isRequest, isRequest, isFinal: true, isDataChannel: true);
+                m_dataChannelIncomingKind = null;
+                m_dataChannelIncomingBytes = 0;
+                BufferCollection chunks = DetachSavedChunks(out List<IDisposable>? leases);
+                try
+                {
+                    if (chunks.Count == 0)
+                    {
+                        return true;
+                    }
+                    byte[] assembled = new byte[chunks.TotalSize];
+                    int offset = 0;
+                    foreach (ArraySegment<byte> chunk in chunks)
+                    {
+                        chunk.AsSpan().CopyTo(assembled.AsSpan(offset));
+                        offset += chunk.Count;
+                    }
+                    context.QueueVerifiedUasc(
+                        DataChannelUascMessageKind.Msg, (byte)'F', 0, new ByteString(assembled));
+                }
+                finally
+                {
+                    try
+                    {
+                        chunks.Release(BufferManager, nameof(TryProcessVerifiedDataChannelMessage));
+                    }
+                    finally
+                    {
+                        DisposeIsolationLeases(leases);
+                    }
+                }
+                return true;
             }
-            catch (Exception exception) when (
-                exception is ServiceResultException or ArgumentException or CryptographicException)
+            catch (FlowCodecException exception)
             {
-                OnDataChannelProtocolFault(DataChannelResult.SecurityFailure);
+                throw new ServiceResultException(StatusCodes.BadDecodingError, exception.Message, exception);
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Validates the bounded Part 6 abort body independently of the abandoned application body.
+        /// </summary>
+        private static void ValidateDataChannelAbort(ArraySegment<byte> messageBody)
+        {
+            ReadOnlySpan<byte> body = messageBody.AsSpan();
+            if (body.Length < sizeof(uint) * 2 ||
+                !StatusCode.IsBad(BinaryPrimitives.ReadUInt32LittleEndian(body)))
+            {
+                throw new FlowCodecException(FlowCodecError.Truncated);
+            }
+            int length = BinaryPrimitives.ReadInt32LittleEndian(body[sizeof(uint)..]);
+            if (length is < -1 or > 4096 || body.Length != sizeof(uint) * 2 + Math.Max(0, length))
+            {
+                throw new FlowCodecException(FlowCodecError.InvalidLength);
+            }
+            try
+            {
+                s_dataChannelAbortEncoding.GetCharCount(
+                    messageBody.GetArray(), messageBody.Offset + sizeof(uint) * 2, Math.Max(0, length));
+            }
+            catch (DecoderFallbackException)
+            {
+                throw new FlowCodecException(FlowCodecError.InvalidLength);
+            }
         }
 
         /// <summary>
@@ -284,14 +439,13 @@ namespace Opc.Ua.Bindings
                     using (await Gate.EnterAsync(cancellationToken).ConfigureAwait(false))
                     {
                         EncodedSymmetricMessage message = EncodeSymmetricMessage(
-                            management ? TcpMessageType.Message :
-                                write.IsData ? TcpMessageType.FlowData : TcpMessageType.FlowControl,
+                            TcpMessageType.Message,
                             write.RequestId,
                             encoded,
                             m_dataChannelIsUascInitiator,
                             out bool limitsExceeded);
                         chunks = message.Chunks;
-                        if (limitsExceeded || chunks.Count != 1)
+                        if (limitsExceeded)
                         {
                             return DataChannelResult.TooLarge;
                         }
@@ -395,13 +549,32 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void NotifyChannelClosed()
         {
+            if (m_transport is IUaSCByteTransportSendProgress progress)
+            {
+                progress.SetSendProgressCallback(null);
+            }
+            if (m_dataChannelIncomingKind.HasValue)
+            {
+                m_dataChannelIncomingKind = null;
+                m_dataChannelIncomingBytes = 0;
+                TakeSavedChunks().Release(BufferManager, nameof(NotifyChannelClosed));
+            }
             DataChannelContext? context = Interlocked.Exchange(ref m_dataChannels, null);
             if (context != null)
             {
                 context.CarrierClosed(DataChannelResult.Closed);
                 _ = DisposeDataChannelContextAsync(context);
             }
+            m_dataChannelIncomingKind = null;
             m_dataChannelTokenChanged.Complete();
+        }
+
+        /// <summary>
+        /// Forwards positive byte acceptance to the active data context's send-stall watchdog.
+        /// </summary>
+        private void OnTransportSendProgress(int bytesWritten)
+        {
+            m_dataChannels?.NotifyUascSendProgress(bytesWritten);
         }
 
         /// <summary>
@@ -433,6 +606,7 @@ namespace Opc.Ua.Bindings
                     Interlocked.Exchange(ref m_sequenceNumberBaseline, 0);
                     return issued;
                 }
+
                 return issued - baseline;
             }
         }
@@ -556,5 +730,20 @@ namespace Opc.Ua.Bindings
         private DataChannelCarrierKind m_dataChannelKind;
         private bool m_dataChannelIsUascInitiator;
         private long m_sequenceNumberBaseline;
+
+        /// <summary>
+        /// The remembered body classification while contiguous RequestId-zero chunks are incomplete.
+        /// </summary>
+        private FlowRecordKind? m_dataChannelIncomingKind;
+
+        /// <summary>
+        /// Counts plaintext bytes before accepting any additional chunk into the reassembly budget.
+        /// </summary>
+        private long m_dataChannelIncomingBytes;
+
+        /// <summary>
+        /// Strict UTF-8 validation for the bounded Part 6 abort reason.
+        /// </summary>
+        private static readonly UTF8Encoding s_dataChannelAbortEncoding = new(false, true);
     }
 }

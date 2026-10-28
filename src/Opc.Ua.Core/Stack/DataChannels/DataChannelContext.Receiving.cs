@@ -38,7 +38,7 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Receives one UASC FLO or FLC application body after carrier authentication.
+        /// Receives one canonical MSG application body after carrier authentication.
         /// </summary>
         private async ValueTask<DataChannelResult> ReceiveUascCoreAsync(
             DataChannelUascMessageKind kind,
@@ -74,11 +74,12 @@ namespace Opc.Ua.DataChannels
                     {
                         return DataChannelResult.Closed;
                     }
+                    m_lastVerifiedAt = m_clock.GetTimestamp();
                     DataChannelResult route = CreateUascDataEnvelopeLocked(
                         message.ApplicationBody, out envelope);
                     if (route != DataChannelResult.Good)
                     {
-                        return route;
+                        return RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route);
                     }
                     if (!m_flows.TryGetValue(envelope.ChannelId, out FlowState? flow) ||
                         flow.LastRoutedDataId == uint.MaxValue)
@@ -99,6 +100,10 @@ namespace Opc.Ua.DataChannels
             }
             catch (FlowCodecException exception)
             {
+                if (TryRefuseMalformedUascControl(plaintext))
+                {
+                    return DataChannelResult.InvalidArgument;
+                }
                 lock (m_gate)
                 {
                     CloseLocked(FlowModel.FromWire(exception.Status));
@@ -148,6 +153,7 @@ namespace Opc.Ua.DataChannels
             CancellationToken cancellationToken,
             DirectDeliveryFrame? directFrame = null)
         {
+            RecordVerifiedMessage();
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_shutdown.Token);
             long started = m_clock.GetTimestamp();
@@ -181,6 +187,10 @@ namespace Opc.Ua.DataChannels
                         {
                             flow.AdmissionDrops++;
                         }
+                        if (!datagram && UsesUascCredit && !directFrame.HasValue)
+                        {
+                            ReleaseDiscardedConnectionCreditLocked(record.Body.Length);
+                        }
                         return valid;
                     }
                     else
@@ -193,7 +203,8 @@ namespace Opc.Ua.DataChannels
                         }
                         if (UsesFlowCredit(flow) && (flow.ReceiveCredit < cost || m_receiveConnectionCredit < cost))
                         {
-                            return ResetLocked(flow, DataChannelResult.InvalidState);
+                            ReleaseDiscardedConnectionCreditLocked(cost);
+                            return ResetLocked(flow, DataChannelResult.WouldBlock);
                         }
                         wait = m_capacityChanged.Task;
                         applicationWait = m_budget.CapacityChanged;
@@ -206,8 +217,8 @@ namespace Opc.Ua.DataChannels
                                 {
                                     owned.TransferMessageReservation();
                                 }
-                                return DeliverDataLocked(
-                                    flow, record, directFrame.HasValue ? record.Body : record.Body.Copy(), cost, datagram);
+                                ByteString body = directFrame.HasValue ? record.Body : record.Body.Copy();
+                                return DeliverDataLocked(flow, record, body, cost, datagram);
                             }
                             catch
                             {
@@ -222,6 +233,7 @@ namespace Opc.Ua.DataChannels
                         }
                         if (UsesFlowCredit(flow))
                         {
+                            ReleaseDiscardedConnectionCreditLocked(cost);
                             return ResetLocked(flow, DataChannelResult.WouldBlock);
                         }
                     }
@@ -258,9 +270,17 @@ namespace Opc.Ua.DataChannels
             {
                 return ResetLocked(flow, DataChannelResult.NotAuthorized);
             }
-            if (!flow.Ready || flow.IsTerminal || !flow.MayReceive || flow.RemoteEnded || flow.IsDatagram != datagram)
+            if (!flow.Ready || flow.IsTerminal || flow.IsDatagram != datagram)
             {
                 return datagram ? DataChannelResult.InvalidState : ResetLocked(flow, DataChannelResult.InvalidState);
+            }
+            if (!flow.MayReceive)
+            {
+                return datagram ? DataChannelResult.NotAuthorized : ResetLocked(flow, DataChannelResult.NotAuthorized);
+            }
+            if (flow.RemoteEnded)
+            {
+                return datagram ? DataChannelResult.Closed : ResetLocked(flow, DataChannelResult.Closed);
             }
             if (AuthorizationPendingLocked(flow))
             {
@@ -878,6 +898,7 @@ namespace Opc.Ua.DataChannels
             CancellationToken cancellationToken)
         {
             FlowControlCodec.ValidateCarrier(control, m_wireCarrier, uascBaseline: !IsNative);
+            RecordVerifiedMessage();
             lock (m_gate)
             {
                 if (m_closed)
@@ -892,6 +913,51 @@ namespace Opc.Ua.DataChannels
                 {
                     CloseLocked(DataChannelResult.InvalidState);
                     return DataChannelResult.InvalidState;
+                }
+                if (control is FlowProbe { Operation: FlowOperation.Pong } pong &&
+                    (!m_pings.TryGetValue(pong.Flow, out FlowPing? pendingProbe) ||
+                        pendingProbe.Timestamp != pong.Timestamp))
+                {
+                    return DataChannelResult.Good;
+                }
+                if (IsRetiredChannelIdLocked(control.Flow))
+                {
+                    return DataChannelResult.Good;
+                }
+                if (control is FlowOutcome { Operation: FlowOperation.Status } status)
+                {
+                    if (m_pings.TryGetValue(status.Flow, out FlowPing? ping) &&
+                        status.RelatedOperation != 0 &&
+                        status.RelatedOperation == ping.OperationId &&
+                        status.Status == FlowWireStatus.WouldBlock)
+                    {
+                        m_pings.Remove(status.Flow);
+                        m_budget.Release(FlowResource.Probe, 1);
+                        ping.Completion.TrySetResult(DataChannelResult.WouldBlock);
+                        return DataChannelResult.Good;
+                    }
+                    if (status.Flow != 0)
+                    {
+                        if (status.RelatedOperation != 0 &&
+                            m_flows.TryGetValue(status.Flow, out FlowState? target) &&
+                            target.Operations.TryGetValue(status.RelatedOperation, out FlowUpdate? update))
+                        {
+                            DataChannelResult outcome = FlowModel.FromWire(status.Status);
+                            if (!update.Committed && outcome != DataChannelResult.Good)
+                            {
+                                AbortUpdateLocked(target, update, outcome);
+                            }
+                        }
+                        return DataChannelResult.Good;
+                    }
+                    if (status.Status == FlowWireStatus.WouldBlock ||
+                        (status.RelatedOperation != 0 &&
+                            status.RelatedOperation != m_directBindingOperationId) ||
+                        m_carrier.Kind is not (DataChannelCarrierKind.QuicUasc or
+                            DataChannelCarrierKind.WebTransportUasc))
+                    {
+                        return DataChannelResult.Good;
+                    }
                 }
             }
             if (control is FlowBinding ||
@@ -920,33 +986,25 @@ namespace Opc.Ua.DataChannels
                 FlowState? flow = null;
                 if (control.Flow != 0 && !m_flows.TryGetValue(control.Flow, out flow))
                 {
-                    if (control is FlowOutcome { Operation: FlowOperation.Reset } &&
-                        m_releasingFlows.TryGetValue(control.Flow, out FlowState? releasing) &&
-                        releasing.ResetSent &&
-                        !releasing.ResetReceived)
-                    {
-                        flow = releasing;
-                    }
-                    else
-                    {
-                        return control.Operation is FlowOperation.Reset or FlowOperation.Status
-                            ? DataChannelResult.UnknownChannel
-                            : RefuseLocked(control.Flow, record.Revision, DataChannelResult.UnknownChannel);
-                    }
+                    return control.Operation is FlowOperation.Reset or FlowOperation.Status
+                        ? DataChannelResult.UnknownChannel
+                        : QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                            DataChannelResult.UnknownChannel);
                 }
                 if (flow?.RevocationToken.IsCancellationRequested == true &&
                     control.Operation is not (FlowOperation.Reset or FlowOperation.Status))
                 {
-                    return ResetLocked(flow, DataChannelResult.NotAuthorized);
+                    return ResetLocked(flow, DataChannelResult.NotAuthorized, record.MessageId);
                 }
                 if (flow != null &&
                     control.Operation is FlowOperation.AcceptUpdate or FlowOperation.Commit or
-                        FlowOperation.Ack or FlowOperation.AbortUpdate or FlowOperation.Status)
+                        FlowOperation.Ack or FlowOperation.AbortUpdate)
                 {
                     if (flow.DirectLane != null && !flow.IsDatagram &&
                         control is FlowCommit && path != DataChannelPath.Flow)
                     {
-                        return DataChannelResult.InvalidState;
+                        return QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                            DataChannelResult.InvalidState, flow);
                     }
                     if (IsNative &&
                         control.Operation is FlowOperation.Commit or FlowOperation.Ack &&
@@ -959,19 +1017,22 @@ namespace Opc.Ua.DataChannels
                 uint highWater = flow?.PeerControlId ?? m_peerControlId;
                 if (record.MessageId <= highWater)
                 {
-                    return DataChannelResult.InvalidState;
+                    return control.Operation is FlowOperation.Reset or FlowOperation.Pong
+                        ? DataChannelResult.Good
+                        : QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                            DataChannelResult.InvalidState, flow);
                 }
                 if (control is FlowCredit credit)
                 {
                     DataChannelResult credited = ReceiveCreditLocked(flow, credit, record.Revision);
                     if (credited != DataChannelResult.Good)
                     {
-                        return credited;
+                        return QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId, credited, flow);
                     }
                 }
                 else if (control is FlowAccept accept && flow != null && record.Revision == 1)
                 {
-                    DataChannelResult accepted = ReceiveAcceptLocked(flow, accept);
+                    DataChannelResult accepted = ReceiveAcceptLocked(flow, accept, record.MessageId);
                     if (accepted != DataChannelResult.Good)
                     {
                         return accepted;
@@ -985,7 +1046,8 @@ namespace Opc.Ua.DataChannels
                         (flow.DirectLane != null && !m_directAssociations.CanBecomeReady(flow)) ||
                         (IsNative && (path != DataChannelPath.Flow || streamId != flow.StreamId)))
                     {
-                        return DataChannelResult.InvalidState;
+                        return QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                            DataChannelResult.InvalidState, flow);
                     }
                     MarkReadyLocked(flow);
                 }
@@ -993,7 +1055,10 @@ namespace Opc.Ua.DataChannels
                 {
                     if (record.Revision != (flow?.ReceiveRevision ?? 0))
                     {
-                        return DataChannelResult.InvalidState;
+                        return control.Operation == FlowOperation.Reset
+                            ? DataChannelResult.InvalidState
+                            : QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                                DataChannelResult.InvalidState, flow);
                     }
                     switch (control)
                     {
@@ -1003,33 +1068,36 @@ namespace Opc.Ua.DataChannels
                                 (flow.DirectLane != null && !flow.IsDatagram && path != DataChannelPath.Flow) ||
                                 (IsNative && (path != DataChannelPath.Flow || streamId != flow.StreamId)))
                             {
-                                return DataChannelResult.InvalidState;
+                                return QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                                    DataChannelResult.InvalidState, flow);
                             }
                             flow.RemoteEnded = true;
                             flow.ReadChanged.Complete();
                             CheckEndedLocked(flow);
                             break;
                         case FlowOutcome { Operation: FlowOperation.Reset } outcome when flow != null:
-                            if (flow.ResetReceived)
-                            {
-                                return DataChannelResult.InvalidState;
-                            }
-                            flow.ResetReceived = true;
-                            flow.ResetReceivedSignal.TrySetResult(DataChannelResult.Good);
-                            if (!flow.ResetSent)
-                            {
-                                QueueResetLocked(flow, FlowModel.FromWire(outcome.Status));
-                            }
+                            DataChannelResult resetResult = FlowModel.FromWire(outcome.Status);
+                            bool interruptNative = flow.ActiveWrite?.Committed == true;
+                            bool finishNativeStream = !interruptNative &&
+                                flow.Ready &&
+                                IsNative &&
+                                flow.StreamReserved &&
+                                flow.DirectLane == null;
+                            TerminateFlowLocked(flow, resetResult);
+                            QueueFlowReleaseLocked(flow, Task.CompletedTask, resetResult,
+                                interruptNative: interruptNative || !finishNativeStream,
+                                finishNativeStream: finishNativeStream);
                             break;
                         case FlowProbe probe:
-                            DataChannelResult probed = ReceiveProbeLocked(flow, probe);
+                            DataChannelResult probed = ReceiveProbeLocked(flow, probe, record.MessageId);
                             if (probed != DataChannelResult.Good)
                             {
                                 return probed;
                             }
                             break;
                         default:
-                            return DataChannelResult.InvalidState;
+                            return QueueAdvisoryLocked(control.Flow, record.Revision, record.MessageId,
+                                DataChannelResult.InvalidState, flow);
                     }
                 }
                 if (flow == null)
@@ -1071,13 +1139,14 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Echoes a bounded PING timestamp with a fresh sender ID or completes the matching local probe.
         /// </summary>
-        private DataChannelResult ReceiveProbeLocked(FlowState? flow, FlowProbe probe)
+        private DataChannelResult ReceiveProbeLocked(FlowState? flow, FlowProbe probe, uint operationId)
         {
             if (probe.Operation == FlowOperation.Ping)
             {
                 if (m_peerPingReceived && m_clock.GetElapsedTime(m_lastPeerPingAt) < TimeSpan.FromSeconds(1))
                 {
-                    return DataChannelResult.WouldBlock;
+                    return QueueAdvisoryLocked(probe.Flow, flow?.ReceiveRevision ?? 0, operationId,
+                        DataChannelResult.WouldBlock, flow);
                 }
                 m_peerPingReceived = true;
                 m_lastPeerPingAt = m_clock.GetTimestamp();
@@ -1088,11 +1157,11 @@ namespace Opc.Ua.DataChannels
             }
             if (!m_pings.TryGetValue(probe.Flow, out FlowPing? pending) || pending.Timestamp != probe.Timestamp)
             {
-                return DataChannelResult.InvalidArgument;
+                return DataChannelResult.Good;
             }
             m_pings.Remove(probe.Flow);
             m_budget.Release(FlowResource.Probe, 1);
-            flow?.RoundTripTime = m_clock.GetElapsedTime(pending.Started).TotalMilliseconds;
+            flow?.RoundTripTime = m_clock.GetElapsedTime(pending.SentAt ?? pending.Started).TotalMilliseconds;
             pending.Completion.TrySetResult(DataChannelResult.Good);
             return DataChannelResult.Good;
         }

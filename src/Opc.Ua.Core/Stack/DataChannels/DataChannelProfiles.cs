@@ -52,10 +52,10 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         public const string UascQuicAlpn = "opcua-uasc-draft";
 
-        /// <summary>Dedicated FLO/UASC transport profile.</summary>
+        /// <summary>Dedicated UASC data-channel profile.</summary>
         public const string DedicatedUasc = "http://opcfoundation.org/UA-Profile/Transport/flow-uasc-v1";
 
-        /// <summary>Shared FLO/UASC transport profile.</summary>
+        /// <summary>Shared UASC data-channel profile.</summary>
         public const string SharedUasc = "http://opcfoundation.org/UA-Profile/Transport/flow-shared-uasc-v1";
 
         /// <summary>Part 30 PubSub-over-UASC transport profile, also used by the optional UAFX binding.</summary>

@@ -43,20 +43,32 @@ namespace Opc.Ua.Core.DataChannels.Tests
     [Category("DataChannels")]
     public sealed class UascRecordCapacityTests
     {
-        [TestCase(SecurityPolicies.Basic256Sha256)]
-        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
-        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
-        public void AdvertisedBodyCapacityIncludesExactCipherBlockAndCarrierOverhead(string policy)
+        [TestCase(SecurityPolicies.Basic256Sha256, 1, 0, 65463)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, 1, 0, 65463)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, 1, 0, 65463)]
+        [TestCase(SecurityPolicies.Basic256Sha256, 2, 0, 130926)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, 2, 0, 130926)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, 2, 0, 130926)]
+        [TestCase(SecurityPolicies.Basic256Sha256, 2, 100000, 100000)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, 2, 100000, 100000)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, 2, 100000, 100000)]
+        [TestCase(SecurityPolicies.Basic256Sha256, 0, 100000, 100000)]
+        [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep, 0, 100000, 100000)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss, 0, 100000, 100000)]
+        public void AdvertisedBodyCapacityIncludesExactCipherBlockAndCarrierOverhead(
+            string policy, int chunks, int messageBytes, int expected)
         {
-            using var channel = new CapacityChannel(policy);
+            using var channel = new CapacityChannel(policy, chunks, messageBytes);
 
             Assert.Multiple(() =>
             {
                 Assert.That(channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.DedicatedUasc),
-                    Is.EqualTo(65463),
-                    "65535-byte buffer: security overhead only; FLO adds no flow-record envelope.");
+                    Is.EqualTo(expected),
+                    "Each 65535-byte chunk carries at most 65463 plaintext bytes, including the MSG TypeId.");
                 Assert.That(channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.SharedUasc),
-                    Is.EqualTo(65463), "Both FLO profiles carry the complete application body.");
+                    Is.EqualTo(expected), "The complete MSG is bounded by both message size and chunk count.");
+                Assert.That(channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.WebTransport),
+                    Is.EqualTo(65463), "Legacy management remains single-chunk.");
             });
         }
 
@@ -68,7 +80,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             /// <summary>
             /// Creates a deliberately non-block-aligned send capacity.
             /// </summary>
-            public CapacityChannel(string policy)
+            public CapacityChannel(string policy, int chunks, int messageBytes)
                 : base(
                     "record-capacity",
                     new BufferManager("record-capacity", 65536, NUnitTelemetryContext.Create()),
@@ -80,6 +92,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     NUnitTelemetryContext.Create())
             {
                 SendBufferSize = 65535;
+                MaxResponseChunkCount = chunks;
+                MaxResponseMessageSize = messageBytes;
                 CalculateSymmetricKeySizes();
             }
 

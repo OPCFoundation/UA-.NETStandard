@@ -33,7 +33,7 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Core.DataChannels.Tests
 {
     /// <summary>
-    /// Preserves UACP message classification for the distinct FLO and FLC identifiers.
+    /// Keeps canonical MSG fragmentation valid while refusing superseded FLO and FLC identifiers.
     /// </summary>
     [TestFixture]
     [Category("DataChannels")]
@@ -41,17 +41,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
     public sealed class DataChannelMessageTypeTests
     {
         /// <summary>
-        /// Accepts only final FLO and FLC chunks.
+        /// Rejects superseded identifiers independently of their chunk flag.
         /// </summary>
-        [TestCase(TcpMessageType.Final, true)]
-        [TestCase(TcpMessageType.Intermediate, false)]
-        [TestCase(TcpMessageType.Abort, false)]
-        [TestCase(0u, false)]
-        [TestCase(0xFF000000u, false)]
-        public void OnlyTheFinalStreamChunkTypeIsValid(uint chunkType, bool expected)
+        [TestCase(TcpMessageType.Final)]
+        [TestCase(TcpMessageType.Intermediate)]
+        [TestCase(TcpMessageType.Abort)]
+        [TestCase(0u)]
+        [TestCase(0xFF000000u)]
+        public void SupersededFlowTypesAreInvalidForEveryChunkFlag(uint chunkType)
         {
-            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowData | chunkType), Is.EqualTo(expected));
-            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowControl | chunkType), Is.EqualTo(expected));
+            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowData | chunkType), Is.False);
+            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowControl | chunkType), Is.False);
         }
 
         /// <summary>

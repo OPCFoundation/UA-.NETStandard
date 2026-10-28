@@ -41,17 +41,17 @@ namespace Opc.Ua.DataChannels
     public enum DataChannelUascMessageKind
     {
         /// <summary>
-        /// One complete application DATA body.
+        /// Legacy value retained for compatibility; current UASC DATA uses MSG.
         /// </summary>
         Flo,
 
         /// <summary>
-        /// One protected flow-control message.
+        /// Legacy value retained for compatibility; current UASC CONTROL uses MSG.
         /// </summary>
         Flc,
 
         /// <summary>
-        /// One common CONTROL record on the native WebTransport UASC management stream.
+        /// A baseline DATA/CONTROL MSG or a native WebTransport management MSG.
         /// </summary>
         Msg
     }

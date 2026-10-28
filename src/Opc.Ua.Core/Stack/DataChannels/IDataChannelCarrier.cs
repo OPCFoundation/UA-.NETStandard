@@ -78,7 +78,7 @@ namespace Opc.Ua.DataChannels
         DedicatedUasc,
 
         /// <summary>
-        /// FLO on an authenticated UASC association shared with Services.
+        /// A UASC data-channel association shared with Services.
         /// </summary>
         SharedUasc,
 
@@ -93,12 +93,12 @@ namespace Opc.Ua.DataChannels
         WebTransport,
 
         /// <summary>
-        /// Part 31 QUIC carrying protected FLO/FLC on the reliable UASC baseline.
+        /// Part 31 QUIC carrying protected DATA/CONTROL in standard UASC MSG messages.
         /// </summary>
         QuicUasc,
 
         /// <summary>
-        /// Part 32 WebTransport carrying protected FLO/FLC on the reliable UASC baseline.
+        /// Part 32 WebTransport carrying protected DATA/CONTROL in standard UASC MSG messages.
         /// </summary>
         WebTransportUasc
     }
@@ -145,7 +145,7 @@ namespace Opc.Ua.DataChannels
         DataChannelPeerIdentity Identity { get; }
 
         /// <summary>
-        /// Gets the complete native record capacity or the UASC FLO/FLC application-body capacity,
+        /// Gets the complete native record capacity or the UASC DATA/CONTROL application-body capacity,
         /// after carrier headers and security overhead.
         /// </summary>
         int MaxRecordSize { get; }
@@ -365,7 +365,7 @@ namespace Opc.Ua.DataChannels
         public ulong StreamId { get; }
 
         /// <summary>
-        /// Gets the UASC RequestId: zero for FLO/FLC or the common-record MessageId for management MSG.
+        /// Gets the UASC RequestId: zero for baseline DATA/CONTROL MSG or the control identifier for management MSG.
         /// </summary>
         public uint RequestId { get; }
 

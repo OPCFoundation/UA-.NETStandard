@@ -114,7 +114,7 @@ namespace Opc.Ua.DataChannels
         private bool UsesUascCredit => !IsNative;
 
         /// <summary>
-        /// Direct lanes use transport backpressure rather than baseline additive FLO credit.
+        /// Direct lanes use transport backpressure rather than baseline additive UASC DATA credit.
         /// </summary>
         private bool UsesFlowCredit(FlowState flow) => UsesUascCredit && flow.DirectLane == null;
 
@@ -600,6 +600,13 @@ namespace Opc.Ua.DataChannels
             m_closeResult = result;
             m_closedNotification = true;
             m_uascPublisherRoutes.Clear();
+            foreach (FlowPing ping in m_pings.Values)
+            {
+                ping.Completion.TrySetResult(result == DataChannelResult.Timeout
+                    ? DataChannelResult.Timeout : DataChannelResult.Closed);
+                m_budget.Release(FlowResource.Probe, 1);
+            }
+            m_pings.Clear();
             foreach (FlowState flow in m_flows.Values.Concat(m_releasingFlows.Values).Distinct().ToArray())
             {
                 DataChannelResult flowResult = result == DataChannelResult.Good
@@ -626,12 +633,6 @@ namespace Opc.Ua.DataChannels
             {
                 ReleaseUascIngressLocked(m_uascIngress.Dequeue());
             }
-            foreach (FlowPing ping in m_pings.Values)
-            {
-                ping.Completion.TrySetResult(DataChannelResult.Closed);
-                m_budget.Release(FlowResource.Probe, 1);
-            }
-            m_pings.Clear();
             foreach (FlowStreamInput input in m_streams.Values)
             {
                 ReleaseStreamInputLocked(input, result);
@@ -793,6 +794,20 @@ namespace Opc.Ua.DataChannels
             return ReferenceEquals(m_carrier, carrier);
         }
 
+        /// <summary>
+        /// Records verified carrier traffic, including ordinary Services sharing UASC.
+        /// </summary>
+        internal void RecordVerifiedMessage()
+        {
+            lock (m_gate)
+            {
+                if (!m_closed)
+                {
+                    m_lastVerifiedAt = m_clock.GetTimestamp();
+                }
+            }
+        }
+
         private readonly Lock m_gate = new();
         private static readonly ByteString s_zeroChallenge = new(new byte[32]);
         private static readonly FlowCodecLimits s_containerInspectionLimits =
@@ -838,8 +853,22 @@ namespace Opc.Ua.DataChannels
         private long m_reservedReceiveBytes;
         private long m_sendBytes;
         private long m_receiveBytes;
+
+        /// <summary>
+        /// Gets the number of queued writes on the shared UASC channel.
+        /// </summary>
+        private int m_uascPendingSends;
         private DataChannelApplicationBudget.ControlHeadroom? m_controlHeadroom;
         private long m_startedAt;
+
+        /// <summary>
+        /// Gets the monotonic time of the last accepted UASC byte.
+        /// </summary>
+        private long m_lastUascSendProgressAt;
+
+        /// <summary>Monotonic arrival time of the last verified peer message.</summary>
+        private long m_lastVerifiedAt;
+
         private long m_lastPingAt;
         private long m_lastPeerPingAt;
         private long m_lastErrorAt;

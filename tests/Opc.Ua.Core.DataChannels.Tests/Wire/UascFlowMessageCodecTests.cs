@@ -36,7 +36,7 @@ using Opc.Ua.DataChannels.Wire;
 namespace Opc.Ua.Core.DataChannels.Tests.Wire
 {
     /// <summary>
-    /// Checks the separate UASC FLO and FLC application bodies against literal layouts.
+    /// Checks canonical MSG bodies and separately retained experimental management records.
     /// </summary>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
@@ -45,39 +45,39 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         private static readonly ByteString s_uadp = ByteString.FromHexString("01010100072a000000");
 
         /// <summary>
-        /// Encodes one unchanged UADP message directly as the FLO body.
+        /// Prefixes exactly one unchanged UADP message with its canonical MSG TypeId.
         /// </summary>
         [Test]
-        public void FloBodyIsOneUnchangedUadpMessage()
+        public void MsgDataPreservesUadpAfterCanonicalTypeId()
         {
             var record = new FlowRecord(FlowRecordKind.Data, 1, 1, s_uadp);
             ByteString encoded = UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, 1, in record, new(), out uint requestId);
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flo, (byte)'F', requestId, encoded, new());
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded, new());
 
             Assert.That(requestId, Is.Zero);
-            Assert.That(encoded.ToArray(), Is.EqualTo(s_uadp.ToArray()));
+            Assert.That(encoded.ToHexString().ToLowerInvariant(), Is.EqualTo("00fe01010100072a000000"));
             Assert.That(decoded.ChannelId, Is.Zero);
             Assert.That(decoded.ApplicationBody.ToArray(), Is.EqualTo(s_uadp.ToArray()));
         }
 
         /// <summary>
-        /// Encodes Revision and OperationId before typed fields in an FLC body.
+        /// Encodes the TypeId, Revision and OperationId before compact control fields.
         /// </summary>
         [Test]
-        public void FlcBodyContainsRevisionOperationIdAndTypedControl()
+        public void MsgControlContainsCanonicalTypeIdRevisionOperationAndFields()
         {
             FlowRecord record = FlowControlCodec.Encode(
                 new FlowSignal(FlowOperation.End, 1), 1, 11, new());
             ByteString encoded = UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, 1, in record, new(), out uint requestId);
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flc, (byte)'F', requestId, encoded, new());
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded, new());
 
             Assert.That(requestId, Is.Zero);
             Assert.That(encoded.ToHexString().ToLowerInvariant(),
-                Is.EqualTo("010000000b0000000a01000000"));
+                Is.EqualTo("00ff010000000b0000000a01000000"));
             Assert.That(decoded.ChannelId, Is.EqualTo(1));
             Assert.That(decoded.Record.Revision, Is.EqualTo(1));
             Assert.That(decoded.Record.MessageId, Is.EqualTo(11));
@@ -85,10 +85,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Carries protected context confirmation in an FLC body with connection flow zero.
+        /// Carries protected context confirmation in MSG with connection flow zero.
         /// </summary>
         [Test]
-        public void FlcCarriesHelloWithZeroRequestId()
+        public void MsgCarriesHelloWithZeroRequestId()
         {
             var hello = new FlowHello(
                 1,
@@ -106,23 +106,23 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 FlowCarrier.SharedUasc, 0, in record, new(), out uint requestId);
 
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flc, (byte)'F', requestId, encoded, new());
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', requestId, encoded, new());
 
             Assert.That(decoded.Control, Is.TypeOf<FlowHello>());
             Assert.That(decoded.ChannelId, Is.Zero);
-            Assert.That(System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(encoded.Span), Is.Zero);
-            Assert.That(System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(encoded.Span[sizeof(uint)..]),
+            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(encoded.Span[2..]), Is.Zero);
+            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(encoded.Span[6..]),
                 Is.EqualTo(1));
         }
 
         /// <summary>
-        /// Maps literal FLC carrier bytes without changing the logical identity or legacy common record.
+        /// Maps canonical carrier bytes without renumbering logical identities or experimental common records.
         /// </summary>
         [TestCase(DataChannelCarrierKind.DedicatedUasc, 0, 0)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, 1, 1)]
+        [TestCase(DataChannelCarrierKind.SharedUasc, 1, 0)]
         [TestCase(DataChannelCarrierKind.QuicUasc, 2, 1)]
         [TestCase(DataChannelCarrierKind.WebTransportUasc, 3, 2)]
-        public void FlcHelloUsesSelectedCarrierTable(
+        public void MsgHelloUsesSelectedCarrierTable(
             DataChannelCarrierKind kind,
             int logicalCarrier,
             byte wireCarrier)
@@ -134,7 +134,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             ByteString literal = HelloBody(wireCarrier);
             ByteString encoded = UascFlowMessageCodec.Encode(carrier, 0, in record, new(), out uint requestId);
             UascFlowMessage message = UascFlowMessageCodec.Decode(
-                carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, literal, new());
+                carrier, DataChannelUascMessageKind.Msg, (byte)'F', 0, literal, new());
             Assert.That(message.Control, Is.TypeOf<FlowHello>());
             var decoded = (FlowHello)message.Control!;
             Assert.Multiple(() =>
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 }
                 ByteString body = HelloBody((byte)value);
                 AssertCodecError(() => UascFlowMessageCodec.Decode(
-                    carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, body, new()),
+                    carrier, DataChannelUascMessageKind.Msg, (byte)'F', 0, body, new()),
                     value <= 2 ? FlowCodecError.CarrierMismatch : FlowCodecError.UnknownDiscriminator);
             }
         }
@@ -191,10 +191,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             byte wireCarrier)
         {
             byte[] body = HelloBody(wireCarrier).ToArray();
-            body[8 + 93] = 1;
+            body[10 + 93] = 1;
             FlowCarrier carrier = FlowModel.ToWire(kind);
             AssertCodecError(() => UascFlowMessageCodec.Decode(
-                carrier, DataChannelUascMessageKind.Flc, (byte)'F', 0, new ByteString(body), new()),
+                carrier, DataChannelUascMessageKind.Msg, (byte)'F', 0, new ByteString(body), new()),
                 FlowCodecError.CarrierMismatch);
         }
 
@@ -229,10 +229,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         /// <summary>
         /// Rejects non-final chunks and nonzero RequestIds for both message kinds.
         /// </summary>
-        [TestCase(DataChannelUascMessageKind.Flo, (byte)'C', 0u, "NonFinalUasc")]
-        [TestCase(DataChannelUascMessageKind.Flo, (byte)'A', 0u, "NonFinalUasc")]
-        [TestCase(DataChannelUascMessageKind.Flo, (byte)'F', 1u, "RequestIdMismatch")]
-        [TestCase(DataChannelUascMessageKind.Flc, (byte)'F', 1u, "RequestIdMismatch")]
+        [TestCase(DataChannelUascMessageKind.Msg, (byte)'C', 0u, "NonFinalUasc")]
+        [TestCase(DataChannelUascMessageKind.Msg, (byte)'A', 0u, "NonFinalUasc")]
+        [TestCase(DataChannelUascMessageKind.Msg, (byte)'F', 1u, "RequestIdMismatch")]
+        [TestCase(DataChannelUascMessageKind.Flo, (byte)'F', 0u, "WrongType")]
+        [TestCase(DataChannelUascMessageKind.Flc, (byte)'F', 0u, "WrongType")]
         public void UascMessageConstraintsAreChecked(
             DataChannelUascMessageKind kind,
             byte finality,
@@ -254,23 +255,96 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowCodecLimits limits = new(maxDataBytes: 8, maxControlBytes: 4, maxRecordBytes: 21);
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flo, (byte)'F', 0,
-                    new ByteString(new byte[9]), limits),
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                    ByteString.FromHexString("00fe000000000000000000"), limits),
                 FlowCodecError.TooLarge);
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flc, (byte)'F', 0,
-                    ByteString.FromHexString("01000000010000"), limits),
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                    ByteString.FromHexString("00ff01000000010000"), limits),
                 FlowCodecError.Truncated);
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flc, (byte)'F', 0,
-                    ByteString.FromHexString("0100000001000000ff"), limits),
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                    ByteString.FromHexString("00ff0100000001000000ff"), limits),
                 FlowCodecError.UnknownOperation);
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    (FlowCarrier)255, DataChannelUascMessageKind.Flo, (byte)'F', 0, s_uadp, new()),
+                    (FlowCarrier)255, DataChannelUascMessageKind.Msg, (byte)'F', 0, s_uadp, new()),
                 FlowCodecError.CarrierMismatch);
+        }
+
+        /// <summary>
+        /// Rejects alternate encodings of the reserved identifiers and unrelated MSG bodies.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("00")]
+        [TestCase("00fd")]
+        [TestCase("0100fe00")]
+        [TestCase("020000fe000000")]
+        [TestCase("0100ff00")]
+        [TestCase("020000ff000000")]
+        public void MsgRequiresTheCanonicalTwoByteTypeId(string hexadecimal)
+        {
+            ByteString body = ByteString.FromHexString(hexadecimal);
+            AssertCodecError(() => UascFlowMessageCodec.Decode(
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, body, new()),
+                body.Length < 2 ? FlowCodecError.Truncated : FlowCodecError.WrongType);
+        }
+
+        /// <summary>
+        /// STATUS and RESET preserve the causative control identifier without using the UASC RequestId.
+        /// </summary>
+        [TestCase((int)FlowOperation.Status, "00ff010000000b0000000e010000000278563412")]
+        [TestCase((int)FlowOperation.Reset, "00ff010000000b0000000b010000000278563412")]
+        public void MsgOutcomeCarriesRelatedOperationInWireOrder(int operation, string hexadecimal)
+        {
+            var outcome = new FlowOutcome((FlowOperation)operation, 1, FlowWireStatus.InvalidArgument, 0x12345678);
+            FlowRecord record = FlowControlCodec.Encode(outcome, 1, 11, new());
+            ByteString encoded = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, 1, in record, new(), out uint requestId);
+            UascFlowMessage decoded = UascFlowMessageCodec.Decode(
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0,
+                ByteString.FromHexString(hexadecimal), new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded, Is.EqualTo(ByteString.FromHexString(hexadecimal)));
+                Assert.That(requestId, Is.Zero);
+                Assert.That(decoded.Record.MessageId, Is.EqualTo(11u));
+                Assert.That(decoded.Control, Is.TypeOf<FlowOutcome>());
+                Assert.That(((FlowOutcome)decoded.Control!).RelatedOperation, Is.EqualTo(0x12345678u));
+                Assert.That(((FlowOutcome)decoded.Control!).Status, Is.EqualTo(FlowWireStatus.InvalidArgument));
+            });
+        }
+
+        /// <summary>
+        /// Data capacity includes exactly the two TypeId bytes independently of application credit.
+        /// </summary>
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(3, false)]
+        [TestCase(4, true)]
+        [TestCase(5, true)]
+        public void MsgDataLimitIncludesItsTypeId(int availableBytes, bool accepted)
+        {
+            var limits = new FlowCodecLimits(maxDataBytes: 2,
+                maxRecordBytes: FlowRecordCodec.HeaderSize + availableBytes);
+            var record = new FlowRecord(FlowRecordKind.Data, 1, 1, ByteString.FromHexString("0100"));
+            ByteString literal = ByteString.FromHexString("00fe0100");
+            if (!accepted)
+            {
+                AssertCodecError(() => UascFlowMessageCodec.Encode(
+                    FlowCarrier.SharedUasc, 1, in record, limits, out _), FlowCodecError.TooLarge);
+                AssertCodecError(() => UascFlowMessageCodec.Decode(
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, literal, limits),
+                    FlowCodecError.TooLarge);
+                return;
+            }
+            Assert.That(UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, 1, in record, limits, out _), Is.EqualTo(literal));
+            Assert.That(UascFlowMessageCodec.Decode(
+                FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, literal, limits)
+                .ApplicationBody, Is.EqualTo(record.Body));
         }
 
         /// <summary>
@@ -283,13 +357,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowCarrier carrier = FlowModel.ToWire(kind);
             var data = new FlowRecord(FlowRecordKind.Data, 1, 1, s_uadp);
             ByteString encoded = UascFlowMessageCodec.Encode(carrier, 1, in data, new(), out uint requestId);
-            Assert.That(encoded.ToArray(), Is.EqualTo(s_uadp.ToArray()));
+            Assert.That(encoded[2..].ToArray(), Is.EqualTo(s_uadp.ToArray()));
             Assert.That(requestId, Is.Zero);
 
             FlowRecord credit = FlowControlCodec.Encode(new FlowCredit(1, 256, 512), 1, 2, new());
             ByteString body = UascFlowMessageCodec.Encode(carrier, 1, in credit, new(), out requestId);
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                carrier, DataChannelUascMessageKind.Flc, (byte)'F', requestId, body, new());
+                carrier, DataChannelUascMessageKind.Msg, (byte)'F', requestId, body, new());
             var value = (FlowCredit)decoded.Control!;
             Assert.That(value.ChannelCredit, Is.EqualTo(256));
             Assert.That(value.ConnectionCredit, Is.EqualTo(512));
@@ -311,14 +385,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowRecord record = FlowControlCodec.Encode(new FlowBinding(0, digest, proof), 0, 3, new());
             ByteString body = UascFlowMessageCodec.Encode(carrier, 0, in record, new(), out uint requestId);
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                carrier, DataChannelUascMessageKind.Flc, (byte)'F', requestId, body, new());
+                carrier, DataChannelUascMessageKind.Msg, (byte)'F', requestId, body, new());
             var binding = (FlowBinding)decoded.Control!;
             Assert.That(binding.Role, Is.Zero);
             Assert.That(binding.TranscriptDigest, Is.EqualTo(digest));
             Assert.That(binding.Proof, Is.EqualTo(proof));
             AssertCodecError(
                 () => UascFlowMessageCodec.Decode(
-                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Flc, (byte)'F', 0, body, new()),
+                    FlowCarrier.SharedUasc, DataChannelUascMessageKind.Msg, (byte)'F', 0, body, new()),
                 FlowCodecError.CarrierMismatch);
         }
 
@@ -340,7 +414,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowRecord record = FlowControlCodec.Encode(association, 1, 3, new());
             ByteString body = UascFlowMessageCodec.Encode(carrier, 7, in record, new(), out uint requestId);
             UascFlowMessage decoded = UascFlowMessageCodec.Decode(
-                carrier, DataChannelUascMessageKind.Flc, (byte)'F', requestId, body, new());
+                carrier, DataChannelUascMessageKind.Msg, (byte)'F', requestId, body, new());
             var received = (FlowAssociation)decoded.Control!;
 
             Assert.Multiple(() =>
@@ -593,16 +667,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Combines literal fields with the FLC prefix and an independently selected carrier byte.
+        /// Combines literal fields with the canonical MSG prefix and selected carrier byte.
         /// </summary>
         private static ByteString HelloBody(byte carrier)
         {
             var fixture = new FrozenWire("quic_hello");
-            byte[] body = new byte[8 + fixture.ExpectedBody.Length];
-            BinaryPrimitives.WriteUInt32LittleEndian(body, fixture.Revision);
-            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(4), fixture.MessageId);
-            fixture.ExpectedBody.Span.CopyTo(body.AsSpan(8));
-            body[13] = carrier;
+            byte[] body = new byte[10 + fixture.ExpectedBody.Length];
+            body[1] = 255;
+            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(2), fixture.Revision);
+            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(6), fixture.MessageId);
+            fixture.ExpectedBody.Span.CopyTo(body.AsSpan(10));
+            body[15] = carrier;
             return new ByteString(body);
         }
 

@@ -323,7 +323,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         [Test]
         public void ConnectionStatusReportsUnsupportedBinding()
         {
-            byte[] body = [14, 0, 0, 0, 0, (byte)FlowWireStatus.Unsupported];
+            byte[] body = [14, 0, 0, 0, 0, (byte)FlowWireStatus.Unsupported, 0, 0, 0, 0];
             var record = new FlowRecord(FlowRecordKind.Control, 0, 99, new ByteString(body));
 
             FlowControl control = FlowControlCodec.Decode(in record, new());

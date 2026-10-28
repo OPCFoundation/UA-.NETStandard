@@ -94,7 +94,7 @@ namespace Opc.Ua.DataChannels.Wire
         /// <summary>The addressed flow is invalid.</summary>
         InvalidFlow,
 
-        /// <summary>The UASC FLO RequestId is not zero.</summary>
+        /// <summary>The UASC RequestId does not match the selected carrier profile.</summary>
         RequestIdMismatch,
 
         /// <summary>A UASC flow body is not a final chunk.</summary>

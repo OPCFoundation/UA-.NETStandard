@@ -42,8 +42,8 @@ namespace Opc.Ua.Bindings
     /// OPC 10000-6 6.7.2.4 requires that a SequenceNumber is never reused
     /// under one TokenId, and discharges that requirement by assuming the
     /// token lifetime is short enough relative to the chunk rate. Data
-    /// channels invalidate the assumption rather than the rule: FLO
-    /// frames consume SequenceNumbers at the data rate of the channel
+    /// channels invalidate the assumption rather than the rule: DATA MSG
+    /// chunks consume SequenceNumbers at the data rate of the channel
     /// rather than at Service call rate, which is three to six orders of
     /// magnitude higher. On a 10 Gbit/s link, minimum size frames exhaust
     /// the 32 bit space in roughly two and a half minutes, well inside a
@@ -166,15 +166,30 @@ namespace Opc.Ua.Bindings
         /// which case it shall not be transmitted.</returns>
         public bool TryConsume()
         {
-            long consumed = Interlocked.Increment(ref m_consumed);
+            return TryConsume(1);
+        }
 
-            if (consumed <= Capacity)
+        /// <summary>
+        /// Reserves a complete contiguous message before any of its chunks receive security numbers.
+        /// </summary>
+        internal bool TryConsume(int chunkCount)
+        {
+            if (chunkCount <= 0)
             {
-                return true;
+                throw new ArgumentOutOfRangeException(nameof(chunkCount));
             }
-
-            Interlocked.Decrement(ref m_consumed);
-            return false;
+            while (true)
+            {
+                long consumed = Interlocked.Read(ref m_consumed);
+                if (chunkCount > Capacity - consumed)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref m_consumed, consumed + chunkCount, consumed) == consumed)
+                {
+                    return true;
+                }
+            }
         }
 
         /// <summary>

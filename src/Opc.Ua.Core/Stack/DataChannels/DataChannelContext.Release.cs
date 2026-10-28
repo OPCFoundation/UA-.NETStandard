@@ -93,10 +93,6 @@ namespace Opc.Ua.DataChannels
                             throw new InvalidOperationException(
                                 "The native carrier does not support orderly flow FIN completion.");
                         }
-                        if (flow.ResetSent)
-                        {
-                            await flow.ResetReceivedSignal.Task.WaitAsync(linked.Token).ConfigureAwait(false);
-                        }
                         await finisher.FinishFlowAsync(flow.StreamId, linked.Token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) when (

@@ -442,14 +442,6 @@ namespace Opc.Ua.Bindings
         {
             using PendingRequestScope usage = TrackPendingRequest();
 
-            if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
-                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl) ||
-                (SelectedDataChannelKind == DataChannelCarrierKind.WebTransport &&
-                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
-            {
-                return ProcessDataChannelMessage(messageType, messageChunk, true);
-            }
-
             PendingRequestDispatch? pending = null;
             bool ownsBuffer;
 
@@ -463,17 +455,18 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
+                    if ((HasIncompleteDataChannelMessage &&
+                            !TcpMessageType.IsType(messageType, TcpMessageType.Message)) ||
+                        TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
+                        TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
+                    {
+                        ForceChannelFaultCore(StatusCodes.BadDecodingError,
+                            "Data Channels require canonical, contiguous MSG framing.");
+                        return false;
+                    }
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        if (FlowModel.SharesServices(SelectedDataChannelKind) &&
-                            DataChannels?.IsReady != true)
-                        {
-                            ForceChannelFaultCore(
-                                StatusCodes.BadTcpMessageTypeInvalid,
-                                "Services are not accepted before protected flow-profile confirmation.");
-                            return false;
-                        }
                         // trace logger:
                         //     Utils.TraceMasks.ServiceDetail,
                         //     "ChannelId {Id}: ProcessRequestMessage",
@@ -1766,6 +1759,22 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadSecurityChecksFailed,
                     "Could not verify security on incoming request.");
                 return false;
+            }
+
+            bool channelOwnsBuffer = false;
+            try
+            {
+                if (TryProcessVerifiedDataChannelMessage(
+                    messageType, requestId, messageBody, true, out channelOwnsBuffer))
+                {
+                    return channelOwnsBuffer;
+                }
+            }
+            catch (ServiceResultException exception)
+            {
+                ForceChannelFaultCore(exception, exception.StatusCode,
+                    "Invalid Data Channel MSG framing.");
+                return channelOwnsBuffer;
             }
 
             // A full write queue no longer faults the channel: the receive loop stops

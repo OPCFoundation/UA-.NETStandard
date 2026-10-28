@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -39,8 +40,46 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Queues one verified FLO body after UASC security and sequence checks.
-        /// ChannelId selects the flow; configured UADP source/writer routes remain an authorization check.
+        /// Gets the complete canonical control body bound, including its non-control prefix.
+        /// </summary>
+        internal int MaxUascControlBodyBytes => m_codecLimits.MaxControlBytes + UascFlowMessageCodec.ControlPrefixSize;
+
+        /// <summary>
+        /// Gets the complete canonical DATA body bound, including its TypeId.
+        /// </summary>
+        internal int MaxUascDataBodyBytes => m_codecLimits.MaxDataBytes + UascFlowMessageCodec.TypeIdSize;
+
+        /// <summary>
+        /// Reserves pooled partial chunks and their eventual joined copy in the shared application budget.
+        /// </summary>
+        internal IDisposable? TryReserveUascReassembly(int cost, bool isData)
+        {
+            lock (m_gate)
+            {
+                if (m_closed)
+                {
+                    return null;
+                }
+                if (isData)
+                {
+                    if (cost > m_options.MaxContextBytes - m_receiveBytes - m_uascDataBytes - m_uascReassemblyBytes ||
+                        !m_budget.TryReserve(FlowResource.BufferedBytes, cost))
+                    {
+                        return null;
+                    }
+                    m_uascReassemblyBytes += cost;
+                }
+                else if (!TryReserveReceiveControlLocked(cost))
+                {
+                    return null;
+                }
+                return new UascReassemblyReservation(this, cost, isData);
+            }
+        }
+
+        /// <summary>
+        /// Queues a verified MSG after UASC security and sequence checks.
+        /// Configured UADP source/writer routes select DATA admission; controls carry their own flow identifier.
         /// </summary>
         internal void QueueVerifiedUasc(
             DataChannelUascMessageKind kind,
@@ -48,7 +87,10 @@ namespace Opc.Ua.DataChannels
             uint requestId,
             ByteString borrowedPlaintext)
         {
-            bool isData = kind == DataChannelUascMessageKind.Flo;
+            RecordVerifiedMessage();
+            bool isData = kind == DataChannelUascMessageKind.Msg &&
+                borrowedPlaintext.Length >= UascFlowMessageCodec.TypeIdSize &&
+                borrowedPlaintext.Span[0] == 0 && borrowedPlaintext.Span[1] == 254;
             int cost = checked(borrowedPlaintext.Length * (isData ? 1 : 3));
             lock (m_gate)
             {
@@ -83,7 +125,7 @@ namespace Opc.Ua.DataChannels
                             message.ApplicationBody, out envelope);
                         if (route != DataChannelResult.Good)
                         {
-                            CloseLocked(route);
+                            RefuseUnroutableUascDataLocked(message.ApplicationBody.Length, route);
                             return;
                         }
                     }
@@ -111,9 +153,16 @@ namespace Opc.Ua.DataChannels
             }
             catch (FlowCodecException exception)
             {
-                lock (m_gate)
+                if (m_carrier.Kind == DataChannelCarrierKind.WebTransport)
                 {
-                    CloseLocked(FlowModel.FromWire(exception.Status));
+                    lock (m_gate)
+                    {
+                        CloseLocked(FlowModel.FromWire(exception.Status));
+                    }
+                }
+                else if (!TryRefuseMalformedUascControl(borrowedPlaintext))
+                {
+                    throw;
                 }
             }
             finally
@@ -139,6 +188,60 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
+        /// Recovers only a defined control's complete correlation prefix after HELLO.
+        /// </summary>
+        private bool TryRefuseMalformedUascControl(ByteString plaintext)
+        {
+            lock (m_gate)
+            {
+                if (m_identity == null ||
+                    plaintext.Length < UascFlowMessageCodec.ControlPrefixSize + 1 ||
+                    plaintext.Length > MaxUascControlBodyBytes ||
+                    plaintext.Span[0] != 0 ||
+                    plaintext.Span[1] != 255)
+                {
+                    return false;
+                }
+                ReadOnlySpan<byte> body = plaintext.Span;
+                uint revision = BinaryPrimitives.ReadUInt32LittleEndian(body[2..]);
+                uint operationId = BinaryPrimitives.ReadUInt32LittleEndian(body[6..]);
+                byte opcode = body[10];
+                if (operationId == 0 || opcode > (byte)FlowOperation.AssociateAck)
+                {
+                    return false;
+                }
+                var operation = (FlowOperation)opcode;
+                uint flow = 0;
+                if (operation is not (FlowOperation.Hello or FlowOperation.Bind))
+                {
+                    if (body.Length < UascFlowMessageCodec.ControlPrefixSize + 5)
+                    {
+                        return false;
+                    }
+                    flow = BinaryPrimitives.ReadUInt32LittleEndian(body[11..]);
+                }
+                bool contextScope = operation is FlowOperation.Hello or FlowOperation.Bind or
+                    FlowOperation.Credit or FlowOperation.Ping or FlowOperation.Pong or FlowOperation.Status;
+                if ((flow == 0 && (!contextScope || revision != 0)) ||
+                    (flow != 0 && revision == 0) ||
+                    (operation is FlowOperation.Open or FlowOperation.Accept or FlowOperation.Ready && revision != 1) ||
+                    (operation is FlowOperation.Prepare or FlowOperation.AcceptUpdate or FlowOperation.Commit or
+                        FlowOperation.Ack or FlowOperation.AbortUpdate && revision < 2) ||
+                    operation == FlowOperation.Hello)
+                {
+                    return false;
+                }
+                if (!IsRetiredChannelIdLocked(flow) &&
+                    operation is not (FlowOperation.Status or FlowOperation.Reset))
+                {
+                    m_flows.TryGetValue(flow, out FlowState? target);
+                    QueueAdvisoryLocked(flow, revision, operationId, DataChannelResult.InvalidArgument, target);
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Validates the selected flow against any configured UADP association.
         /// </summary>
         private DataChannelResult CreateUascDataEnvelopeLocked(
@@ -147,19 +250,21 @@ namespace Opc.Ua.DataChannels
         {
             envelope = default;
             UadpNetworkMessageHeader networkMessageHeader;
+            bool malformedHeader = false;
             try
             {
                 networkMessageHeader = UadpApplicationPayloadHeaderCodec.DecodePublisherHeader(applicationBody);
             }
             catch (FlowCodecException)
             {
-                return DataChannelResult.InvalidArgument;
+                networkMessageHeader = default;
+                malformedHeader = true;
             }
 
             string? resourceUri = null;
-            bool typedStreaming = networkMessageHeader.NetworkMessageType == 3 &&
+            bool typedStreaming = !malformedHeader && networkMessageHeader.NetworkMessageType == 3 &&
                 FlowModel.SharesServices(m_carrier.Kind);
-            if (!typedStreaming && m_uascPublisherRoutes.Count > 0)
+            if (!malformedHeader && !typedStreaming && m_uascPublisherRoutes.Count > 0)
             {
                 DataChannelResult routeResult = ResolveUascPublisherRoute(networkMessageHeader, out resourceUri);
                 if (routeResult != DataChannelResult.Good)
@@ -169,25 +274,36 @@ namespace Opc.Ua.DataChannels
             }
 
             FlowState? target = null;
+            FlowState? rejectedTarget = null;
+            bool ambiguousRejectedTarget = false;
             foreach (FlowState flow in m_flows.Values)
             {
-                if (!flow.Ready || flow.IsTerminal || !flow.MayReceive || flow.IsDatagram || flow.DirectLane != null ||
+                if (flow.IsTerminal || flow.IsDatagram || flow.DirectLane != null ||
                     !DataChannelProfiles.IsUadpPayloadProtocol(flow.Parameters.Protocol) ||
-                    (typedStreaming && !flow.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
+                    (!malformedHeader && typedStreaming &&
+                        !flow.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
                     (resourceUri != null && !string.Equals(
                         flow.Parameters.ResourceUri, resourceUri, StringComparison.Ordinal)))
                 {
                     continue;
                 }
-                bool messageTypeSupported = networkMessageHeader.NetworkMessageType switch
-                {
-                    0 or 1 or 2 => flow.Parameters.Protocol == DataChannelProfiles.UadpPayload,
-                    3 => flow.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
-                        DataChannelProfiles.UadpOpaqueApplicationPayload,
-                    _ => false
-                };
+                bool messageTypeSupported = malformedHeader
+                    ? flow.Parameters.Protocol == DataChannelProfiles.UadpPayload
+                    : networkMessageHeader.NetworkMessageType switch
+                    {
+                        0 or 1 or 2 => flow.Parameters.Protocol == DataChannelProfiles.UadpPayload,
+                        3 => flow.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
+                            DataChannelProfiles.UadpOpaqueApplicationPayload,
+                        _ => false
+                    };
                 if (!messageTypeSupported)
                 {
+                    continue;
+                }
+                if (!flow.Ready || !flow.MayReceive)
+                {
+                    ambiguousRejectedTarget |= rejectedTarget != null;
+                    rejectedTarget = flow;
                     continue;
                 }
                 if (target != null)
@@ -198,7 +314,15 @@ namespace Opc.Ua.DataChannels
             }
             if (target == null)
             {
-                return DataChannelResult.UnknownChannel;
+                if (ambiguousRejectedTarget)
+                {
+                    return DataChannelResult.InvalidState;
+                }
+                target = rejectedTarget;
+                if (target == null)
+                {
+                    return DataChannelResult.UnknownChannel;
+                }
             }
 
             var record = new FlowRecord(FlowRecordKind.Data, 0, 0, applicationBody);
@@ -394,7 +518,8 @@ namespace Opc.Ua.DataChannels
                         int dataCost = checked(record.Body.Length + DataOverhead(flow));
                         if (UsesUascCredit && (flow.ReceiveCredit < dataCost || m_receiveConnectionCredit < dataCost))
                         {
-                            return ResetLocked(flow, DataChannelResult.InvalidState);
+                            ReleaseDiscardedConnectionCreditLocked(dataCost);
+                            return ResetLocked(flow, DataChannelResult.WouldBlock);
                         }
                         if (TryReserveMessageLocked(
                             flow,
@@ -417,9 +542,15 @@ namespace Opc.Ua.DataChannels
                                 throw;
                             }
                         }
+                        if (UsesFlowCredit(flow))
+                        {
+                            ReleaseDiscardedConnectionCreditLocked(dataCost);
+                            return ResetLocked(flow, DataChannelResult.WouldBlock);
+                        }
                     }
                     else if (valid != DataChannelResult.WouldBlock)
                     {
+                        ReleaseDiscardedConnectionCreditLocked(record.Body.Length);
                         return ResetLocked(flow, valid);
                     }
                     wait = m_capacityChanged.Task;
@@ -434,6 +565,40 @@ namespace Opc.Ua.DataChannels
                         ? ResetLocked(flow, DataChannelResult.Timeout) : DataChannelResult.Closed;
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns the aggregate grant consumed by a discarded DATA message without granting flow credit.
+        /// </summary>
+        private void ReleaseDiscardedConnectionCreditLocked(int cost)
+        {
+            if (UsesUascCredit)
+            {
+                m_receiveConnectionCredit -= Math.Min(m_receiveConnectionCredit, (uint)cost);
+                m_replenishConnectionCredit = true;
+                WakeLocked();
+            }
+        }
+
+        /// <summary>
+        /// Refuses unmatched DATA without closing a confirmed context or exhausting aggregate credit.
+        /// </summary>
+        private DataChannelResult RefuseUnroutableUascDataLocked(int cost, DataChannelResult result)
+        {
+            if (m_identity == null)
+            {
+                CloseLocked(result);
+                return result;
+            }
+            ReleaseDiscardedConnectionCreditLocked(cost);
+            long now = m_clock.GetTimestamp();
+            if (!m_errorSent || m_clock.GetElapsedTime(m_lastErrorAt, now) >= TimeSpan.FromSeconds(1))
+            {
+                m_errorSent = true;
+                m_lastErrorAt = now;
+                QueueAdvisoryLocked(0, 0, 0, DataChannelResult.UnknownChannel);
+            }
+            return result;
         }
 
         /// <summary>
@@ -463,7 +628,7 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private bool TryReserveUascDataLocked(int cost)
         {
-            if (cost > m_options.MaxContextBytes - m_receiveBytes - m_uascDataBytes ||
+            if (cost > m_options.MaxContextBytes - m_receiveBytes - m_uascDataBytes - m_uascReassemblyBytes ||
                 m_receiveMessages + m_uascDataMessages >= m_options.MaxContextMessages ||
                 !m_budget.TryReserveMessage(cost))
             {
@@ -504,6 +669,44 @@ namespace Opc.Ua.DataChannels
             internal bool DataTransferred { get; set; }
         }
 
+        /// <summary>
+        /// Holds assembly capacity until both pooled input and its temporary joined copy have been released.
+        /// </summary>
+        private sealed class UascReassemblyReservation(DataChannelContext context, int cost, bool isData) : IDisposable
+        {
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                DataChannelContext? owner = Interlocked.Exchange(ref m_context, null);
+                if (owner == null)
+                {
+                    return;
+                }
+                lock (owner.m_gate)
+                {
+                    if (isData)
+                    {
+                        owner.m_uascReassemblyBytes -= cost;
+                        owner.m_budget.Release(FlowResource.BufferedBytes, cost);
+                        owner.PulseCapacityLocked();
+                    }
+                    else
+                    {
+                        owner.ReleaseReceiveControlLocked(cost);
+                    }
+                }
+            }
+
+            // This is a borrowed owner; disposing a chunk reservation must not dispose its context.
+            // TODO: Remove this suppression when CA2213 recognizes non-owning references.
+#pragma warning disable CA2213
+            /// <summary>Borrowed context whose assembly capacity this reservation releases exactly once.</summary>
+            private DataChannelContext? m_context = context;
+#pragma warning restore CA2213
+        }
+
+        /// <summary>DATA assembly capacity held in addition to admitted and queued receive messages.</summary>
+        private long m_uascReassemblyBytes;
         private readonly Queue<UascIngress> m_uascIngress = [];
         private Task m_ingressTask = Task.CompletedTask;
         private bool m_ingressRunning;

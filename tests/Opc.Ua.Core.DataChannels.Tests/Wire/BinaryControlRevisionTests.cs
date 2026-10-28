@@ -112,11 +112,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Both UASC profiles carry the unchanged FLO application body with zero RequestId.
+        /// Both UASC profiles prefix the unchanged UADP body with the canonical MSG TypeId and use RequestId zero.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void UascProfilesUseAnIdenticalFloPayload(bool shared)
+        public void UascProfilesUseAnIdenticalMsgPayload(bool shared)
         {
             FlowCarrier carrier = shared ? FlowCarrier.SharedUasc : FlowCarrier.DedicatedUasc;
             var record = new FlowRecord(
@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             {
                 Assert.That(requestId, Is.Zero);
                 Assert.That(encoded.ToHexString().ToLowerInvariant(),
-                    Is.EqualTo("0100"));
+                    Is.EqualTo("00fe0100"));
             });
         }
     }

@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
     public sealed class UascStreamByteTransportTests
     {
         /// <summary>
-        /// Every segmentation retains exact UACP bytes, including Services continuation/abort and FLO/FLC.
+        /// Every segmentation retains exact baseline UACP bytes, including MSG continuation and abort chunks.
         /// </summary>
         [TestCase(1)]
         [TestCase(2)]
@@ -62,10 +62,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
         {
             uint[] types =
             [
-                TcpMessageType.Hello, TcpMessageType.Acknowledge, TcpMessageType.Open | TcpMessageType.Final,
+                TcpMessageType.Hello, TcpMessageType.ReverseHello, TcpMessageType.Acknowledge, TcpMessageType.Error,
+                TcpMessageType.Open | TcpMessageType.Final,
                 TcpMessageType.MessageIntermediate, TcpMessageType.Message | TcpMessageType.Abort,
-                TcpMessageType.MessageFinal, TcpMessageType.FlowData | TcpMessageType.Final,
-                TcpMessageType.FlowControl | TcpMessageType.Final, TcpMessageType.Close | TcpMessageType.Final
+                TcpMessageType.MessageFinal, TcpMessageType.Close | TcpMessageType.Final
             ];
             byte[][] expected = types.Select(type => Chunk(37, type)).ToArray();
             using var fixture = new Fixture([.. expected.SelectMany(bytes => bytes)], segmentSize);
@@ -85,6 +85,25 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
                 }
             }
             Assert.That(fixture.Pool.Outstanding, Is.Zero);
+        }
+
+        /// <summary>
+        /// Superseded FLO/FLC headers are rejected before retaining any advertised application body.
+        /// </summary>
+        [TestCase(TcpMessageType.FlowData)]
+        [TestCase(TcpMessageType.FlowControl)]
+        public async Task SupersededFlowHeaderIsRejectedBeforeRenting(uint type)
+        {
+            using var fixture = new Fixture(Chunk(37, type | TcpMessageType.Final));
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTypeInvalid));
+                Assert.That(fixture.Pool.TotalRented, Is.Zero);
+                Assert.That(fixture.Stream.Position, Is.EqualTo(8));
+            });
         }
 
         /// <summary>

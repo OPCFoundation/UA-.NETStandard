@@ -66,16 +66,47 @@ namespace Opc.Ua.DataChannels.Wire
         internal FlowControl? Control { get; }
 
         /// <summary>
-        /// Gets the unmodified UADP NetworkMessage for FLO.
+        /// Gets the unmodified UADP NetworkMessage after its MSG TypeId.
         /// </summary>
         internal ByteString ApplicationBody => Record.Body;
     }
 
     /// <summary>
-    /// Encodes UASC FLO as an unchanged UADP message and FLC as a typed control body.
+    /// Encodes canonical MSG TypeIds followed by unchanged UADP or compact binary control.
     /// </summary>
     internal static class UascFlowMessageCodec
     {
+        /// <summary>
+        /// The canonical namespace-zero Two-Byte NodeId size.
+        /// </summary>
+        internal const int TypeIdSize = 2;
+
+        /// <summary>
+        /// The TypeId, Revision and OperationId size before the control opcode.
+        /// </summary>
+        internal const int ControlPrefixSize = TypeIdSize + sizeof(uint) * 2;
+
+        /// <summary>
+        /// Classifies only the provisional canonical Two-Byte TypeIds, never alternate NodeId encodings.
+        /// </summary>
+        internal static FlowRecordKind Classify(ReadOnlySpan<byte> plaintextBody)
+        {
+            if (plaintextBody.Length < TypeIdSize)
+            {
+                throw new FlowCodecException(FlowCodecError.Truncated);
+            }
+            if (plaintextBody[0] != 0)
+            {
+                throw new FlowCodecException(FlowCodecError.WrongType);
+            }
+            return plaintextBody[1] switch
+            {
+                254 => FlowRecordKind.Data,
+                255 => FlowRecordKind.Control,
+                _ => throw new FlowCodecException(FlowCodecError.WrongType)
+            };
+        }
+
         /// <summary>
         /// Decodes one final WebTransport management MSG containing exactly one common CONTROL record.
         /// </summary>
@@ -129,7 +160,7 @@ namespace Opc.Ua.DataChannels.Wire
         }
 
         /// <summary>
-        /// Decodes one verified final FLO or FLC body.
+        /// Decodes one completely reassembled, security-verified MSG body.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="FlowCodecException"></exception>
@@ -154,33 +185,36 @@ namespace Opc.Ua.DataChannels.Wire
             {
                 throw new ArgumentNullException(nameof(limits));
             }
-
-            if (kind == DataChannelUascMessageKind.Flo)
-            {
-                int maximum = Math.Min(limits.MaxDataBytes, limits.MaxRecordBytes - FlowRecordCodec.HeaderSize);
-                if (plaintextBody.Length > maximum)
-                {
-                    throw new FlowCodecException(FlowCodecError.TooLarge);
-                }
-                var data = new FlowRecord(FlowRecordKind.Data, 1, 1, plaintextBody);
-                return new UascFlowMessage(0, data, null);
-            }
-
-            if (kind != DataChannelUascMessageKind.Flc)
+            if (kind != DataChannelUascMessageKind.Msg)
             {
                 throw new FlowCodecException(FlowCodecError.WrongType);
             }
-            if (plaintextBody.Length < sizeof(uint) * 2)
+            FlowRecordKind recordKind = Classify(plaintextBody.Span);
+            if (recordKind == FlowRecordKind.Data)
+            {
+                int maximum = Math.Min(limits.MaxDataBytes,
+                    limits.MaxRecordBytes - FlowRecordCodec.HeaderSize - TypeIdSize);
+                ByteString applicationBody = plaintextBody[TypeIdSize..];
+                if (applicationBody.Length > maximum)
+                {
+                    throw new FlowCodecException(FlowCodecError.TooLarge);
+                }
+                var data = new FlowRecord(FlowRecordKind.Data, 1, 1, applicationBody);
+                return new UascFlowMessage(0, data, null);
+            }
+
+            if (plaintextBody.Length < ControlPrefixSize)
             {
                 throw new FlowCodecException(FlowCodecError.Truncated);
             }
-            uint revision = BinaryPrimitives.ReadUInt32LittleEndian(plaintextBody.Span);
-            uint operationId = BinaryPrimitives.ReadUInt32LittleEndian(plaintextBody.Span[sizeof(uint)..]);
+            uint revision = BinaryPrimitives.ReadUInt32LittleEndian(plaintextBody.Span[TypeIdSize..]);
+            uint operationId = BinaryPrimitives.ReadUInt32LittleEndian(
+                plaintextBody.Span[(TypeIdSize + sizeof(uint))..]);
             if (operationId == 0)
             {
                 throw new FlowCodecException(FlowCodecError.InvalidMessageId);
             }
-            ByteString controlBody = plaintextBody[(sizeof(uint) * 2)..];
+            ByteString controlBody = plaintextBody[ControlPrefixSize..];
             if (controlBody.Length > limits.MaxControlBytes)
             {
                 throw new FlowCodecException(FlowCodecError.TooLarge);
@@ -196,7 +230,7 @@ namespace Opc.Ua.DataChannels.Wire
         }
 
         /// <summary>
-        /// Encodes one UASC FLO or FLC application body.
+        /// Encodes one MSG TypeId and complete UADP or control body, with RequestId zero.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="FlowCodecException"></exception>
@@ -218,33 +252,41 @@ namespace Opc.Ua.DataChannels.Wire
                 ValidateDataChannel(channelId, carrier);
                 if (record.Body.IsNull ||
                     record.Body.Length > limits.MaxDataBytes ||
-                    record.Body.Length > limits.MaxRecordBytes - FlowRecordCodec.HeaderSize)
+                    record.Body.Length > limits.MaxRecordBytes - FlowRecordCodec.HeaderSize - TypeIdSize)
                 {
                     throw new FlowCodecException(FlowCodecError.TooLarge);
                 }
-                return record.Body;
+                byte[] data = new byte[checked(TypeIdSize + record.Body.Length)];
+                data[1] = 254;
+                record.Body.Span.CopyTo(data.AsSpan(TypeIdSize));
+                return new ByteString(data);
             }
 
+            if (record.Kind != FlowRecordKind.Control)
+            {
+                throw new FlowCodecException(FlowCodecError.WrongType);
+            }
             FlowControl control = FlowControlCodec.Decode(in record, limits);
             int bodyLength = record.Body.Length;
             FlowControlCodec.ValidateCarrier(control, carrier, uascBaseline: true);
             ValidateControlChannel(channelId, control);
-            int length = checked(sizeof(uint) * 2 + bodyLength);
+            int length = checked(ControlPrefixSize + bodyLength);
             if (length > limits.MaxRecordBytes - FlowRecordCodec.HeaderSize)
             {
                 throw new FlowCodecException(FlowCodecError.TooLarge);
             }
 
             byte[] body = new byte[length];
-            BinaryPrimitives.WriteUInt32LittleEndian(body, record.Revision);
-            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(sizeof(uint)), record.MessageId);
+            body[1] = 255;
+            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(TypeIdSize), record.Revision);
+            BinaryPrimitives.WriteUInt32LittleEndian(body.AsSpan(TypeIdSize + sizeof(uint)), record.MessageId);
             if (control is FlowHello)
             {
-                FlowControlCodec.WriteBody(control, body.AsSpan(sizeof(uint) * 2), carrier);
+                FlowControlCodec.WriteBody(control, body.AsSpan(ControlPrefixSize), carrier);
             }
             else
             {
-                record.Body.Span.CopyTo(body.AsSpan(sizeof(uint) * 2));
+                record.Body.Span.CopyTo(body.AsSpan(ControlPrefixSize));
             }
             return new ByteString(body);
         }

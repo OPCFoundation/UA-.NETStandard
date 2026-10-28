@@ -86,6 +86,7 @@ namespace Opc.Ua.Bindings
         IUaSCByteTransport,
         IUaSCByteTransportLimits,
         IUaSCChunkCoalescing,
+        IUaSCByteTransportSendProgress,
         IDisposable
     {
         /// <summary>
@@ -116,6 +117,19 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public string Implementation => "UA-TCP";
+
+        void IUaSCByteTransportSendProgress.SetSendProgressCallback(Action<int>? callback)
+        {
+            Interlocked.Exchange(ref m_sendProgress, callback);
+        }
+
+        /// <summary>
+        /// Reports bytes accepted by the socket to the optional UASC observer.
+        /// </summary>
+        private void ReportSendProgress(int bytesWritten)
+        {
+            Volatile.Read(ref m_sendProgress)?.Invoke(bytesWritten);
+        }
 
         /// <inheritdoc/>
         public TransportChannelFeatures Features =>
@@ -234,7 +248,7 @@ namespace Opc.Ua.Bindings
                 : null;
             using (await m_sendLock.EnterAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false))
             {
-                await SendMemoryAsync(socket, chunk, ct).ConfigureAwait(false);
+                await SendMemoryAsync(socket, chunk, ReportSendProgress, ct).ConfigureAwait(false);
             }
         }
 
@@ -262,6 +276,7 @@ namespace Opc.Ua.Bindings
                     await SendMemoryAsync(
                         socket,
                         new ReadOnlyMemory<byte>(buffer.Array, buffer.Offset, buffer.Count),
+                        ReportSendProgress,
                         ct).ConfigureAwait(false);
                     return;
                 }
@@ -272,7 +287,8 @@ namespace Opc.Ua.Bindings
                 await SendAllAsync(
                     buffers,
                     socket,
-                    static (s, pending) => s.SendAsync(pending, SocketFlags.None))
+                    static (s, pending) => s.SendAsync(pending, SocketFlags.None),
+                    ReportSendProgress)
                     .ConfigureAwait(false);
             }
         }
@@ -280,9 +296,10 @@ namespace Opc.Ua.Bindings
 #if NET6_0_OR_GREATER
         [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
 #endif
-        private static async ValueTask SendMemoryAsync(
+        private async ValueTask SendMemoryAsync(
             Socket socket,
             ReadOnlyMemory<byte> chunk,
+            Action<int> progress,
             CancellationToken ct)
         {
             int sent = 0;
@@ -312,6 +329,7 @@ namespace Opc.Ua.Bindings
                         "Remote side closed the connection while sending.");
                 }
                 sent += n;
+                progress(n);
             }
         }
 
@@ -547,7 +565,8 @@ namespace Opc.Ua.Bindings
 
         internal static async ValueTask SendAllAsync(
             BufferCollection buffers,
-            Func<IList<ArraySegment<byte>>, Task<int>> sendAsync)
+            Func<IList<ArraySegment<byte>>, Task<int>> sendAsync,
+            Action<int>? progress = null)
         {
             if (buffers == null)
             {
@@ -558,7 +577,11 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(sendAsync));
             }
 
-            await SendAllAsync(buffers, sendAsync, static (send, pending) => send(pending))
+            await SendAllAsync(
+                    buffers,
+                    sendAsync,
+                    static (send, pending) => send(pending),
+                    progress)
                 .ConfigureAwait(false);
         }
 
@@ -570,7 +593,8 @@ namespace Opc.Ua.Bindings
         private static async ValueTask SendAllAsync<TState>(
             BufferCollection buffers,
             TState state,
-            Func<TState, IList<ArraySegment<byte>>, Task<int>> sendAsync)
+            Func<TState, IList<ArraySegment<byte>>, Task<int>> sendAsync,
+            Action<int>? progress = null)
         {
             long totalSize = 0;
             foreach (ArraySegment<byte> buffer in buffers)
@@ -603,6 +627,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 remaining -= sent;
+                progress?.Invoke(sent);
                 if (remaining > 0)
                 {
                     slicedBuffers ??= [.. buffers];
@@ -748,6 +773,7 @@ namespace Opc.Ua.Bindings
 
         private readonly Lock m_socketLock = new();
         private Socket? m_socket;
+        private Action<int>? m_sendProgress;
         private bool m_closed;
     }
 

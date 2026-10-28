@@ -178,7 +178,8 @@ namespace Opc.Ua.DataChannels
         internal async ValueTask ResetAsync(
             DataChannel channel,
             DataChannelResult result,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            uint relatedOperation = 0)
         {
             Task<DataChannelResult>? sent;
             lock (m_gate)
@@ -190,7 +191,7 @@ namespace Opc.Ua.DataChannels
                 }
                 else
                 {
-                    sent = QueueResetLocked(flow, result);
+                    sent = QueueResetLocked(flow, result, relatedOperation);
                 }
             }
             DataChannelResult released = await sent.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -203,11 +204,11 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Emits the scoped reset and retires local state synchronously.
         /// </summary>
-        private DataChannelResult ResetLocked(FlowState flow, DataChannelResult result)
+        private DataChannelResult ResetLocked(FlowState flow, DataChannelResult result, uint relatedOperation = 0)
         {
             if (!flow.IsTerminal)
             {
-                QueueResetLocked(flow, result);
+                QueueResetLocked(flow, result, relatedOperation);
             }
             return result;
         }
@@ -215,7 +216,10 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Places RESET ahead of blocked data and releases only unsecured queue ownership.
         /// </summary>
-        private Task<DataChannelResult> QueueResetLocked(FlowState flow, DataChannelResult result)
+        private Task<DataChannelResult> QueueResetLocked(
+            FlowState flow,
+            DataChannelResult result,
+            uint relatedOperation = 0)
         {
             if (flow.ResetSent)
             {
@@ -229,7 +233,7 @@ namespace Opc.Ua.DataChannels
                 flow.StreamReserved &&
                 flow.DirectLane == null;
             Task<DataChannelResult> sent = QueueControlLocked(
-                new FlowOutcome(FlowOperation.Reset, flow.Id, FlowModel.ToWire(result)),
+                new FlowOutcome(FlowOperation.Reset, flow.Id, FlowModel.ToWire(result), relatedOperation),
                 flow.SendRevision,
                 0,
                 DataChannelPath.Management,
@@ -318,14 +322,19 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Sends a rate-limited error for a well-framed unknown/invalid flow without allocating one.
         /// </summary>
-        private DataChannelResult RefuseLocked(uint channelId, uint revision, DataChannelResult result)
+        private DataChannelResult RefuseLocked(
+            uint channelId,
+            uint revision,
+            DataChannelResult result,
+            uint relatedOperation = 0)
         {
-            if (channelId != 0 && (!m_errorSent || m_clock.GetElapsedTime(m_lastErrorAt) >= TimeSpan.FromSeconds(1)))
+            if (channelId != 0 && (relatedOperation != 0 ||
+                !m_errorSent || m_clock.GetElapsedTime(m_lastErrorAt) >= TimeSpan.FromSeconds(1)))
             {
                 m_errorSent = true;
                 m_lastErrorAt = m_clock.GetTimestamp();
                 QueueControlLocked(
-                    new FlowOutcome(FlowOperation.Reset, channelId, FlowModel.ToWire(result)),
+                    new FlowOutcome(FlowOperation.Reset, channelId, FlowModel.ToWire(result), relatedOperation),
                     Math.Max(1u, revision),
                     0,
                     DataChannelPath.Management,
@@ -335,11 +344,30 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
+        /// Refuses a control without changing admission state or reusing the peer's sender identifier.
+        /// </summary>
+        private DataChannelResult QueueAdvisoryLocked(
+            uint channelId,
+            uint revision,
+            uint relatedOperation,
+            DataChannelResult result,
+            FlowState? flow = null)
+        {
+            QueueControlLocked(
+                new FlowOutcome(FlowOperation.Status, channelId, FlowModel.ToWire(result), relatedOperation),
+                revision,
+                0,
+                DataChannelPath.Management,
+                flow: flow);
+            return result;
+        }
+
+        /// <summary>
         /// Admits one timestamp probe per flow, at most eight per context and one per second.
         /// </summary>
         internal async ValueTask<DataChannelResult> PingAsync(uint channelId, CancellationToken cancellationToken)
         {
-            FlowPing ping;
+            FlowPing? ping;
             lock (m_gate)
             {
                 RequireReadyLocked();
@@ -348,27 +376,58 @@ namespace Opc.Ua.DataChannels
                 {
                     return DataChannelResult.UnknownChannel;
                 }
-                if (m_pings.Count >= 8 ||
-                    m_pings.ContainsKey(channelId) ||
-                    (m_pingSent && m_clock.GetElapsedTime(m_lastPingAt) < TimeSpan.FromSeconds(1)) ||
-                    m_nextPingTimestamp == ulong.MaxValue ||
-                    !m_budget.TryReserve(FlowResource.Probe, 1))
+                ping = QueuePingLocked(channelId, flow);
+                if (ping == null)
                 {
                     return DataChannelResult.WouldBlock;
                 }
-                m_pingSent = true;
-                m_lastPingAt = m_clock.GetTimestamp();
-                ping = new FlowPing(channelId, ++m_nextPingTimestamp, m_lastPingAt);
-                m_pings.Add(channelId, ping);
-                QueueControlLocked(
-                    new FlowProbe(FlowOperation.Ping, channelId, ping.Timestamp),
-                    flow?.SendRevision ?? 0,
-                    0,
-                    DataChannelPath.Management,
-                    flow: flow);
-                ArmTimerLocked();
             }
             return await ping.Completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reserves one bounded probe and starts its timeout only at the transport commitment boundary.
+        /// </summary>
+        private FlowPing? QueuePingLocked(uint channelId, FlowState? flow)
+        {
+            long now = m_clock.GetTimestamp();
+            if (m_closed ||
+                m_pings.Count >= 8 ||
+                m_pings.ContainsKey(channelId) ||
+                (m_pingSent && m_clock.GetElapsedTime(m_lastPingAt, now) < TimeSpan.FromSeconds(1)) ||
+                m_nextPingTimestamp == ulong.MaxValue ||
+                !m_budget.TryReserve(FlowResource.Probe, 1))
+            {
+                return null;
+            }
+            m_pingSent = true;
+            m_lastPingAt = now;
+            var ping = new FlowPing(channelId, ++m_nextPingTimestamp, m_lastPingAt);
+            m_pings.Add(channelId, ping);
+            QueueControlLocked(
+                new FlowProbe(FlowOperation.Ping, channelId, ping.Timestamp),
+                flow?.SendRevision ?? 0,
+                0,
+                DataChannelPath.Management,
+                () =>
+                {
+                    ping.SentAt = m_clock.GetTimestamp();
+                    ArmTimerLocked();
+                    return DataChannelResult.Good;
+                },
+                flow,
+                discard: () =>
+                {
+                    if (m_pings.TryGetValue(channelId, out FlowPing? pending) && ReferenceEquals(pending, ping))
+                    {
+                        m_pings.Remove(channelId);
+                        m_budget.Release(FlowResource.Probe, 1);
+                        ping.Completion.TrySetResult(DataChannelResult.WouldBlock);
+                    }
+                });
+            ping.OperationId = flow?.LastControlId ?? m_localControlId;
+            ArmTimerLocked();
+            return ping;
         }
 
         /// <summary>
@@ -580,9 +639,28 @@ namespace Opc.Ua.DataChannels
                 {
                     return;
                 }
-                if (m_started && m_identity == null && m_clock.GetElapsedTime(m_startedAt) >= m_options.OpenTimeout)
+                if (m_uascPendingSends != 0 &&
+                    m_clock.GetElapsedTime(m_lastUascSendProgressAt) >= m_options.PingTimeout)
                 {
                     CloseLocked(DataChannelResult.Timeout);
+                    return;
+                }
+                if (m_started && m_identity == null && m_clock.GetElapsedTime(m_startedAt) >= m_options.HelloTimeout)
+                {
+                    CloseLocked(DataChannelResult.Timeout);
+                    return;
+                }
+                if (m_pings.Values.Any(ping => ping.SentAt.HasValue &&
+                    m_clock.GetElapsedTime(ping.SentAt.Value) >= m_options.PingTimeout))
+                {
+                    CloseLocked(DataChannelResult.Timeout);
+                    return;
+                }
+                if (m_identity != null &&
+                    !m_pings.ContainsKey(0) &&
+                    m_clock.GetElapsedTime(m_lastVerifiedAt) >= m_options.KeepAliveInterval)
+                {
+                    QueuePingLocked(0, null);
                 }
                 foreach (uint id in m_reservations.Where(
                     item => m_clock.GetElapsedTime(item.Value) >= m_options.OpenTimeout)
@@ -638,21 +716,71 @@ namespace Opc.Ua.DataChannels
                     ReleaseStreamInputLocked(m_streams[stream], DataChannelResult.Timeout);
                     m_streams.Remove(stream);
                 }
-                foreach (uint id in m_pings.Where(
-                    item => m_clock.GetElapsedTime(item.Value.Started) >= m_options.PingTimeout)
-                    .Select(item => item.Key).ToArray())
-                {
-                    FlowPing ping = m_pings[id];
-                    m_pings.Remove(id);
-                    m_budget.Release(FlowResource.Probe, 1);
-                    ping.Completion.TrySetResult(DataChannelResult.Timeout);
-                }
                 WakeLocked();
                 ArmTimerLocked();
             }
             foreach (FlowState flow in recheck)
             {
                 _ = RecheckFlowAsync(flow, CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Starts a UASC send-stall deadline when a channel write is queued.
+        /// </summary>
+        internal void NotifyUascSendQueued()
+        {
+            lock (m_gate)
+            {
+                if (m_closed)
+                {
+                    return;
+                }
+                if (m_uascPendingSends++ == 0)
+                {
+                    m_lastUascSendProgressAt = m_clock.GetTimestamp();
+                }
+                ArmTimerLocked();
+            }
+        }
+
+        /// <summary>
+        /// Resets the UASC send-stall deadline after the transport accepts bytes.
+        /// </summary>
+        internal void NotifyUascSendProgress(int bytesWritten)
+        {
+            if (bytesWritten <= 0)
+            {
+                return;
+            }
+            lock (m_gate)
+            {
+                if (m_closed || m_uascPendingSends == 0)
+                {
+                    return;
+                }
+                m_lastUascSendProgressAt = m_clock.GetTimestamp();
+                ArmTimerLocked();
+            }
+        }
+
+        /// <summary>
+        /// Ends the UASC send-stall deadline when a queued channel write completes.
+        /// </summary>
+        internal void NotifyUascSendCompleted(int bytesWritten)
+        {
+            lock (m_gate)
+            {
+                if (m_uascPendingSends == 0)
+                {
+                    return;
+                }
+                if (bytesWritten > 0)
+                {
+                    m_lastUascSendProgressAt = m_clock.GetTimestamp();
+                }
+                m_uascPendingSends--;
+                ArmTimerLocked();
             }
         }
 
@@ -682,7 +810,26 @@ namespace Opc.Ua.DataChannels
             }
             if (m_started && m_identity == null)
             {
-                Include(m_startedAt, m_options.OpenTimeout);
+                Include(m_startedAt, m_options.HelloTimeout);
+            }
+            else if (m_identity != null && !m_pings.ContainsKey(0))
+            {
+                long idleStart = m_lastVerifiedAt;
+                TimeSpan idleDelay = m_options.KeepAliveInterval;
+                if (m_pingSent &&
+                    m_clock.GetElapsedTime(m_lastPingAt, now) < TimeSpan.FromSeconds(1))
+                {
+                    idleStart = m_lastPingAt;
+                    idleDelay = TimeSpan.FromSeconds(1);
+                }
+                if (m_pings.Count < 8)
+                {
+                    Include(idleStart, idleDelay);
+                }
+            }
+            if (m_uascPendingSends != 0)
+            {
+                Include(m_lastUascSendProgressAt, m_options.PingTimeout);
             }
             foreach (long reservation in m_reservations.Values)
             {
@@ -732,7 +879,10 @@ namespace Opc.Ua.DataChannels
             }
             foreach (FlowPing ping in m_pings.Values)
             {
-                Include(ping.Started, m_options.PingTimeout);
+                if (ping.SentAt.HasValue)
+                {
+                    Include(ping.SentAt.Value, m_options.PingTimeout);
+                }
             }
             foreach (FlowStreamInput input in m_streams.Values)
             {

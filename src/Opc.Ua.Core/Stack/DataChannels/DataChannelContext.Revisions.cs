@@ -232,12 +232,16 @@ namespace Opc.Ua.DataChannels
             {
                 if (!m_flows.TryGetValue(prepare.Flow, out FlowState? found))
                 {
-                    return RefuseLocked(prepare.Flow, record.Revision, DataChannelResult.UnknownChannel);
+                    return IsRetiredChannelIdLocked(prepare.Flow)
+                        ? DataChannelResult.Good
+                        : QueueAdvisoryLocked(prepare.Flow, record.Revision, record.MessageId,
+                            DataChannelResult.UnknownChannel);
                 }
                 flow = found;
                 if (flow.IsLocalOpener || !flow.Ready || flow.Draining || flow.IsTerminal)
                 {
-                    return DataChannelResult.InvalidState;
+                    return QueueAdvisoryLocked(prepare.Flow, record.Revision, record.MessageId,
+                        DataChannelResult.InvalidState, flow);
                 }
                 proposal = FlowModel.WithLimits(flow.Parameters, prepare.Limits);
                 if (flow.Operations.TryGetValue(record.MessageId, out FlowUpdate? recorded))
@@ -313,24 +317,11 @@ namespace Opc.Ua.DataChannels
         {
             if (!flow.Operations.TryGetValue(record.MessageId, out FlowUpdate? update))
             {
-                if (control.Operation != FlowOperation.Status)
-                {
-                    QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
-                }
-                return DataChannelResult.InvalidState;
-            }
-            if (control is FlowOutcome { Operation: FlowOperation.Status } status)
-            {
-                DataChannelResult outcome = FlowModel.FromWire(status.Status);
-                if (!update.Committed && outcome != DataChannelResult.Good)
-                {
-                    AbortUpdateLocked(flow, update, outcome);
-                }
-                return outcome;
+                return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
             }
             if (record.Revision != update.Revision)
             {
-                return DataChannelResult.InvalidArgument;
+                return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidArgument);
             }
             if (control.Operation == FlowOperation.AbortUpdate)
             {
@@ -345,7 +336,7 @@ namespace Opc.Ua.DataChannels
             {
                 if (control is FlowCommit repeated && repeated.LastOldMessageId != update.RemoteLastOld)
                 {
-                    return DataChannelResult.InvalidArgument;
+                    return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidArgument);
                 }
                 if (control is FlowCommit)
                 {
@@ -358,16 +349,19 @@ namespace Opc.Ua.DataChannels
                 case FlowSignal { Operation: FlowOperation.AcceptUpdate }:
                     if (!flow.IsLocalOpener || !update.Authorized)
                     {
-                        return DataChannelResult.InvalidState;
+                        return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
                     }
                     update.Accepted = true;
                     PulseCapacityLocked();
                     return TryQueueCommitLocked(flow, update);
                 case FlowCommit commit:
-                    if (!update.Accepted ||
-                        (update.RemoteBarrier && commit.LastOldMessageId != update.RemoteLastOld))
+                    if (!update.Accepted)
                     {
-                        return DataChannelResult.InvalidArgument;
+                        return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
+                    }
+                    if (update.RemoteBarrier && commit.LastOldMessageId != update.RemoteLastOld)
+                    {
+                        return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidArgument);
                     }
                     if (!update.RemoteBarrier)
                     {
@@ -375,7 +369,7 @@ namespace Opc.Ua.DataChannels
                             ? commit.LastOldMessageId < flow.LastReceivedDataId
                             : commit.LastOldMessageId != 0)
                         {
-                            return DataChannelResult.InvalidArgument;
+                            return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidArgument);
                         }
                         CommitRemoteLocked(flow, update, commit.LastOldMessageId);
                     }
@@ -392,14 +386,14 @@ namespace Opc.Ua.DataChannels
                     if (!update.LocalBarrier &&
                         (flow.DirectLane == null || flow.MaySend || !update.Accepted))
                     {
-                        return DataChannelResult.InvalidState;
+                        return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
                     }
                     update.Acknowledged = true;
                     CompleteUpdateLocked(flow, update);
                     WakeLocked();
                     return DataChannelResult.Good;
                 default:
-                    return DataChannelResult.InvalidState;
+                    return QueueStatusLocked(flow, record.MessageId, DataChannelResult.InvalidState);
             }
         }
 
@@ -664,11 +658,9 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Reports a known outcome with the currently effective revision.
         /// </summary>
-        private void QueueStatusLocked(FlowState flow, uint operationId, DataChannelResult result)
+        private DataChannelResult QueueStatusLocked(FlowState flow, uint operationId, DataChannelResult result)
         {
-            QueueControlLocked(
-                new FlowOutcome(FlowOperation.Status, flow.Id, FlowModel.ToWire(result)),
-                flow.Revision, operationId, DataChannelPath.Management, flow: flow);
+            return QueueAdvisoryLocked(flow.Id, flow.Revision, operationId, result, flow);
         }
 
         /// <summary>

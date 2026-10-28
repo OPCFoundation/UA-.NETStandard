@@ -307,6 +307,68 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ]));
         }
 
+        /// <summary>
+        /// Creation waits for the initial notification without delaying ordinary connected waiters.
+        /// Cancelling that wait does not cancel notification delivery.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WaitForInitialConnectionAsyncWaitsForNotificationAsync(bool cancelWait)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var waiting = new CancellationTokenSource();
+            using var releaseNotification = new ManualResetEventSlim();
+            var notificationEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var notificationExited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using ConnectionStateMachine machine = CreateMachine();
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Connected)
+                {
+                    notificationEntered.TrySetResult(true);
+                    try
+                    {
+                        releaseNotification.Wait(timeout.Token);
+                    }
+                    finally
+                    {
+                        notificationExited.TrySetResult(true);
+                    }
+                }
+            };
+
+            Task initialConnection = machine.WaitForInitialConnectionAsync(waiting.Token).AsTask();
+            machine.Start();
+            machine.RequestConnect();
+            try
+            {
+                await notificationEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(initialConnection.IsCompleted, Is.False,
+                    "Creation must not return while its Connected notification is still being delivered.");
+                if (cancelWait)
+                {
+                    await waiting.CancelAsync().ConfigureAwait(false);
+                    await Assert.ThatAsync(() => initialConnection,
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                releaseNotification.Set();
+                await notificationExited.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+
+            if (!cancelWait)
+            {
+                await initialConnection.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            await machine.WaitForInitialConnectionAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));
+        }
+
         [Test]
         public async Task StartTransitionsToConnecting()
         {
@@ -957,8 +1019,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await sm.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
         }
 
-        [Test]
-        public async Task WaitForConnectedAsyncThrowsOriginalErrorWhenConnectGivesUp()
+        /// <summary>
+        /// Both connection waits preserve the original error when recovery is exhausted.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WaitForConnectedAsyncThrowsOriginalErrorWhenConnectGivesUp(bool initialConnection)
         {
             var policy = new ReconnectPolicy
             {
@@ -988,8 +1054,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 TimeSpan.FromSeconds(10));
 
             ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await sm.WaitForConnectedAsync(cts.Token)
-                    .ConfigureAwait(false));
+                () => initialConnection
+                    ? sm.WaitForInitialConnectionAsync(cts.Token).AsTask()
+                    : sm.WaitForConnectedAsync(cts.Token).AsTask());
 
             Assert.That(
                 exception.StatusCode,
@@ -1000,8 +1067,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(sm.IsConnected, Is.False);
         }
 
-        [Test]
-        public async Task WaitForConnectedAsyncThrowsWhenClosedWhileConnecting()
+        /// <summary>
+        /// Both connection waits fail when the session closes before connecting.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task WaitForConnectedAsyncThrowsWhenClosedWhileConnecting(bool initialConnection)
         {
             await using ConnectionStateMachine sm = CreateMachine();
 
@@ -1016,7 +1087,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             using var cts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(10));
 
-            ValueTask waitTask = sm.WaitForConnectedAsync(cts.Token);
+            Task waitTask = initialConnection
+                ? sm.WaitForInitialConnectionAsync(cts.Token).AsTask()
+                : sm.WaitForConnectedAsync(cts.Token).AsTask();
             Assert.That(waitTask.IsCompleted, Is.False);
 
             sm.RequestClose();

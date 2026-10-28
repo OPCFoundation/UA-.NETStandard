@@ -4,10 +4,26 @@
 carriers and optional Client/Server lane below retain behavior developed against
 the superseded OPC 10000-28 draft `0.2.0` at
 [`OPCF-Members/OPC10000-Core@726c915`](https://github.com/OPCF-Members/OPC10000-Core/tree/726c91572a4e5725e114115cf0f69ab8cc2a6b0f/source/data-channels).
-The current target is the split OPC 10000-30, -31 and -32 drafts `0.3.0` at
-[`OPCF-Members/OPC10000-Core@7cc6a2e`](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac).
-This revision splits out the Part 14 streaming extensions and adds an optional
-normative UAFX binding. Part 30 requires binary FLC and rejects JSON CONTROL.
+The current target is the merged OPC 10000-30, -31 and -32 source at
+[`OPCF-Members/OPC10000-Core@1703d60`](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad).
+Part 30 carries DATA and compact binary CONTROL in standard UASC MSG messages.
+It does not define FLO/FLC message types or a JSON CONTROL fallback.
+The implementation target for Part 32 is the capsule-based WebTransport route
+over HTTP/3 in the open specification PR. It uses the current H2-15 capsule
+semantics through the capsule route in H3-16 §2.1.2, with RFC 9220, RFC 9114
+and RFC 9297. The route uses the `webtransport` Extended CONNECT token, not
+the distinct native `webtransport-h3` binding. This correction is not merged
+into the authoritative Part 32 source yet.
+
+The package now provides an explicitly selected managed client and listener
+using public .NET QUIC APIs. They establish HTTP/3 critical streams and
+SETTINGS, exchange a capsule-mode CONNECT, and adapt the CONNECT stream to the
+ordinary UACP/UASC byte-transport factory. A managed QUIC loopback test covers
+CONNECT, stream-zero credit setup and byte-for-byte transfer of UACP HEL/ACK
+chunks. It does not exercise UASC OPN, Services interoperability,
+browser support or Part 32 conformance. The managed classes do not automatically
+advertise or replace an endpoint binding. The separate native implementation
+continues to use its earlier `webtransport-h3` draft-16 path.
 The separate legacy native WebTransport experiment at
 [`2525043`](https://github.com/OPCF-Members/OPC10000-Core/tree/25250437f7086f173e825a6720476c01abe9e3af/source/data-channels)
 uses server-authenticated TLS and a SignAndEncrypt UASC management stream on
@@ -18,7 +34,8 @@ Part 32 Service baseline. Management CONTROL uses final protected MSG chunks
 with RequestId equal to the common-record MessageId; native flow streams and
 datagrams belong to the same session. No TLS exporter is used by this path.
 The legacy path's CONTROL codec still uses binary fields rather than that
-experiment's JSON representation; this is not a Part 30 binary-FLC defect.
+experiment's JSON representation. This legacy representation is not the canonical
+Part 30 MSG envelope.
 Browser/native interoperability for this path remains unverified.
 Earlier regression evidence targets revision `ff4ff8e` unless its
 source scope is stated explicitly; it does not establish conformance to the new
@@ -108,9 +125,11 @@ The Part 30 endpoint uses `DataChannelProfiles.PubSubUasc` and the exact resourc
 advertises this capability when that resource is configured as a base address.
 The client selects the same profile and resource in its endpoint description
 and supplies its context factory in `TransportChannelSettings.DataChannels`.
-Both peers authenticate through UASC before FLC HELLO confirms the capability.
-HELLO uses the ordinary-UASC carrier discriminator `0`; ordinary Services and
-admitted FLO/FLC share the connection.
+Both peers authenticate through UASC before protected HELLO confirms the
+capability. HELLO uses the ordinary-UASC carrier discriminator `0`. DATA uses
+the namespace-zero Two-Byte TypeId `00 FE`; CONTROL uses `00 FF`. Both are
+standard MSG messages with RequestId zero, and ordinary Services share the
+SecureChannel.
 
 Given a configured or discovered `selectedEndpoint`, application-certificate
 settings, an authorized `contextFactory` and the host's transport bindings:
@@ -136,7 +155,8 @@ to enable this capability.
 This endpoint reuses `DataChannelCarrierKind.SharedUasc`; that runtime kind
 does not identify which endpoint profile was selected. `/flow/v1/shared` and
 its legacy profile remain separately selectable, not aliases for `/pubsub/uasc`.
-The legacy shared profile retains its HELLO carrier discriminator `1`.
+The selected profile determines behavior, but the canonical MSG HELLO carrier
+discriminator for both shared UASC profiles is `0`.
 Client validation, TCP HEL, WSS upgrade and Session endpoint matching reject a
 profile paired with another profile's resource. A reserved `/pubsub` path with
 no supported capability cannot fall back to ordinary Services or HTTP handlers.
@@ -144,9 +164,10 @@ no supported capability cannot fall back to ordinary Services or HTTP handlers.
 The managed QUIC baseline is exposed separately through `QuicUascTransport`,
 `DataChannelProfiles.UascQuic` and ALPN `opcua-uasc-draft`. It feeds ordinary
 UACP/UASC directly and can carry Services alone or explicitly configured
-FLO/FLC, without opening the legacy native Client/Server lane. It requires
-`SignAndEncrypt`, preserves independent application-certificate authentication,
-and does not advertise direct streams, datagrams or exporter binding. See the
+DATA and CONTROL in canonical MSG messages, without opening the legacy native
+Client/Server lane. It requires `SignAndEncrypt`, preserves independent
+application-certificate authentication, and does not advertise direct streams,
+datagrams or exporter binding. See the
 [QUIC baseline API and lifetime contract](../src/Opc.Ua.Bindings.Quic/NugetREADME.md#part-31-reliable-uasc-baseline).
 
 `NativeQuicUascTransport` explicitly selects the native Part 31 backend for the
@@ -194,11 +215,11 @@ Profile matching is exact; an unavailable profile is not substituted with anothe
 
 | Carrier | Profile constant | Endpoint and security | Ordinary Services |
 | --- | --- | --- | --- |
-| Part 30 PubSub/UASC | `PubSubUasc` | `opc.tcp` or binary `opc.wss`, resource `/pubsub/uasc`; protected UASC | Share the authenticated SecureChannel |
-| Legacy dedicated FLO/UASC | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC | Not exposed by the dedicated facade |
-| Legacy shared FLO/UASC | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC | Share the authenticated SecureChannel |
-| Part 31 QUIC baseline | `UascQuic` | `opc.quic`, ALPN `opcua-uasc-draft`; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services and configured FLO/FLC |
-| Part 32 WebTransport baseline | `UascWebTransport` | `https`, HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support unimplemented |
+| Part 30 PubSub/UASC | `PubSubUasc` | `opc.tcp` or binary `opc.wss`, resource `/pubsub/uasc`; protected UASC, DATA/CONTROL in MSG | Share the authenticated SecureChannel |
+| Legacy dedicated UASC profile | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC, DATA/CONTROL in MSG | Not exposed by the dedicated facade |
+| Legacy shared UASC profile | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC, DATA/CONTROL in MSG | Share the authenticated SecureChannel |
+| Part 31 QUIC baseline | `UascQuic` | `opc.quic`, ALPN `opcua-uasc-draft`; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services and configured MSG DATA/CONTROL |
+| Part 32 WebTransport baseline | `UascWebTransport` | `opc.wt`, capsule-based HTTP/3 Extended CONNECT; server-authenticated TLS plus SignAndEncrypt UASC | Ordinary Services; browser support is a separate optional claim |
 | Legacy native QUIC flow | `Quic` | `opc.quic`, ALPN `opcua-flow/1`; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
 | Native WebTransport management | `WebTransport` | `opc.wt`, mapped HTTPS CONNECT; server-authenticated TLS plus SignAndEncrypt UASC management | None on management; no Sessions advertised |
 | Legacy native WebTransport flow | `WebTransport` | `opc.wt`, HTTP/3 and WebTransport draft-16; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
@@ -394,8 +415,8 @@ native carriers. Do not use it to identify a direct lane: direct associations us
 direction-specific tokens and owned stream objects, not exposed stream numbers.
 
 `BytesSent` and `BytesReceived` count successfully transmitted or admitted complete
-messages using the carrier's charged-byte basis. Baseline FLO counts UADP body
-bytes; direct ordered delivery includes its five-byte DATA header and direct
+messages using the carrier's charged-byte basis. Baseline UASC DATA counts UADP
+body bytes; direct ordered delivery includes its five-byte DATA header and direct
 datagrams include their 24-byte prefix. Legacy native records include their
 13-byte ordered or 17-byte datagram framing. These counters exclude transport and
 UASC security overhead, Services, controls and pre-transmission queue-expiry drops.
@@ -568,11 +589,12 @@ on that management path. END and revision barriers remain on their native
 stream. RESET still uses the legacy management exchange before FIN, which
 differs from the older native experiment's data-stream RESET requirement.
 For the split Parts 31–32 direct binding, COMMIT and END occupy the ordered
-data stream; RESET and other controls remain on secured FLC.
-A final UASC FLO body is exactly one unchanged UADP NetworkMessage; its first byte is
-the first byte of that message, with no ChannelId or common-record prefix.
-Final FLC carries Revision, OperationId, then the CONTROL opcode and ordered
-little-endian fields. The binary codec implements opcodes `0..17`, including
+data stream; RESET and other controls remain on secured baseline MSG.
+A canonical DATA body starts with the namespace-zero Two-Byte TypeId `00 FE`,
+followed by exactly one unchanged UADP NetworkMessage, without a ChannelId or
+common-record prefix. CONTROL starts with `00 FF`, followed by Revision UInt32,
+nonzero OperationId UInt32, the CONTROL opcode Byte and ordered typed fields.
+These TypeIds are provisional. The binary codec implements opcodes `0..17`, including
 direct-binding opcode 15 (binding proof), 16 (ASSOCIATE), and 17
 (ASSOCIATE-ACK). The selected direct runtime verifies exporter-derived
 proofs, confirms opaque direction tokens and gates payload admission on
@@ -581,17 +603,18 @@ An exact duplicate binding request replays its recorded proof or STATUS outcome,
 without resolving the exporter again. A request-bound refusal remains final for
 that transaction even if exporter availability changes. Conflicting proofs or
 STATUS outcomes close the affected context; an unchanged Unsupported outcome
-leaves baseline Services and configured FLO available.
+leaves baseline Services and configured DATA available.
 When the context initiator has no exporter provider or cannot produce
 exporter material, it sends a connection-scoped `STATUS(Unsupported)` over the
 protected UASC baseline. The acceptor records that result and may open a
-baseline FLO without waiting for an impossible direct proof.
+baseline DATA admission without waiting for an impossible direct proof.
 Implemented
 controls use OPC UA Binary Guid layout and strict length-prefixed UTF-8 strings;
 HELLO carries an exactly 32-byte challenge.
-FLC HELLO uses carrier `0` for the canonical PubSub/UASC endpoint, `1` for the
+Canonical HELLO uses carrier `0` for the PubSub/UASC endpoint, `1` for the
 QUIC/UASC baseline and `2` for the WebTransport/UASC baseline. Legacy shared
-UASC retains `1`; legacy native common records retain `2` for QUIC and `3` for
+endpoint profiles also use the canonical MSG table. Legacy native common records
+retain `2` for QUIC and `3` for
 WebTransport. The selected profile determines interpretation; a carrier byte
 cannot switch profiles.
 
@@ -603,11 +626,11 @@ a Session OPEN has exactly one Guid. There is no JSON CONTROL fallback.
 The control-only AdmissionId retains the model's ChannelId name. It is not
 serialized before UADP and is not a PublisherId. Configured UADP associations
 select the admitted resource from authenticated identity and visible source /
-writer fields. FLO and FLC use zero RequestId and remain separate
-message types. Legacy native datagrams carry an external ChannelId and common record.
+writer fields. Canonical DATA and CONTROL both use MSG with RequestId zero.
+Legacy native datagrams carry an external ChannelId and common record.
 Authenticated direct datagrams instead carry a 16-byte UA Binary Guid token,
 UInt32 revision and UInt32 nonwrapping per-direction sequence before unchanged
-UADP. Their controls remain on protected baseline FLC, never in a datagram.
+UADP. Their controls remain on protected baseline MSG, never in a datagram.
 A temporary direct datagram receiver registration failure is flow-scoped.
 The failed receive worker retires before returning the failure, so a later flow
 can retry registration on the same context without reusing a stale refusal.
@@ -615,15 +638,18 @@ The runtime rejects malformed framing, noncanonical control values, invalid
 association/stream ownership and premature application data; applications do
 not implement a second parser.
 
-Every baseline UASC FLO admission uses additive DATA credit, including
+Every baseline UASC DATA admission uses additive credit, including
 Dedicated UASC. Credit starts at zero and counts exactly the UADP NetworkMessage
-body bytes, excluding UASC headers and security overhead.
+body bytes, excluding the two TypeId bytes, UASC headers and security overhead.
 Native datagrams have 17 bytes of DATA overhead; native ordered streams have
 13. UASC DATA has no flow-record overhead. Native ordered flows backpressure at the record header before allocating
 the body. Physical UASC ingress reserves a bounded context/application queue
-and waits at most `DrainTimeout` for DATA queue capacity. If the application
-does not drain it, the affected flow fails instead of indefinitely preventing
-later management processing. Native datagrams have finite admission, rate and
+before transferring DATA to the application. DATA beyond the granted flow or
+connection credit, or beyond the receive queue's capacity, is discarded and
+resets only the affected flow with `would_block`; later controls remain
+processable. A discarded charged DATA message returns aggregate connection
+credit through normal replenishment, without granting credit to the reset flow.
+Native datagrams have finite admission, rate and
 replay budgets rather than stream-credit semantics.
 
 Direct datagrams charge their complete 24-byte prefix plus UADP body against
@@ -656,15 +682,40 @@ headroom. Unused headroom is not reported as retained `BufferedBytes` or
 still need additional application admission. Native streams also reserve their
 two 13-byte parser staging areas before allocation.
 
-UASC FLO and FLC chunks are final chunks and use the same per-sender security sequence
-as MSG/OPN/CLO. Numbering and writer admission remain atomic. The unsealed writer
+Canonical DATA and CONTROL use contiguous MSG `C*F` chunks, or `A` to abandon
+the partial message. Every chunk uses RequestId zero; the first contains both
+TypeId bytes. Dispatch follows SecureChannel/Token validation, signature
+verification or decryption, and SequenceNumber validation. Capacity calculations
+include the TypeId and security padding. The complete message reserves its
+security sequence numbers before its first chunk is committed.
+The unsealed writer
 selects a pending control after at most eight consecutive Service messages;
 Services remain ahead of DATA. Already numbered or in-flight writes, including
-coalesced writes, cannot be reordered. FLO CONTROL on opc.wss is binary
+coalesced writes, cannot be reordered. Canonical CONTROL on opc.wss is binary
 application data, not an RFC6455 control frame. These policies imply no
 wall-clock latency or one-frame Service-delay guarantee.
 Benchmark results include their actual load, pacing and loopback setup;
 numbers from the discarded framing are not evidence for this protocol.
+
+`HelloTimeout` bounds the protected HELLO exchange independently of
+`OpenTimeout`. `KeepAliveInterval` defaults to five seconds and cannot be less
+than one second; verified inbound traffic, including shared Services, restarts
+the idle interval. An unanswered PING closes the context after `PingTimeout`,
+measured from carrier handoff rather than enqueue. The send-stall watchdog also
+closes the context when a queued UASC write makes no positive transport progress
+for `PingTimeout`. Positive TCP send progress restarts the deadline; transports
+without partial-send callbacks count successful write completion as progress.
+A flow write waiting for credit has not entered the UASC writer and does not
+start this deadline. Closing a UASC context also closes its SecureChannel, so a
+stall on shared UASC ends Services on that channel. All flows and grants then
+require fresh context admission.
+
+STATUS is advisory and identifies the triggering operation through
+`relatedOperation`; RESET terminates a flow. Neither receives a reply.
+Recoverable malformed post-HELLO controls receive STATUS `invalid_argument`,
+except malformed STATUS/RESET, which are discarded. Unknown opcodes or
+unrecoverable correlation close the UASC context with `Bad_DecodingError`;
+oversized controls use `Bad_EncodingLimitsExceeded`.
 
 ## Native deployment
 
@@ -700,7 +751,7 @@ replaced by this change.
 
 | Earlier experiment | Replacement |
 | --- | --- |
-| JSON CONTROL and UASC common-record DATA/CONTROL envelope | Unchanged UADP in final FLO; typed Revision/OperationId/opcode fields in final FLC; RequestId zero |
+| JSON CONTROL and UASC common-record DATA/CONTROL envelope | Unchanged UADP in standard MSG with TypeId `00 FE`; typed Revision/OperationId/opcode fields in MSG with TypeId `00 FF`; RequestId zero |
 | New Open/Modify/Close Service requests and responses | Generated manager Methods through ordinary Call; configured flows need no Call |
 | `DataChannelManager`, direct registry access and response-sent callbacks | `DataChannelContext`, carrier factories and ready `DataChannel` facades |
 | Frame flags, fragments, GAP and old delivery modes | Complete messages, Ordered/Datagram delivery and transactional revisions |
@@ -757,18 +808,19 @@ or empty test run is not native acceptance.
 ### Current limitations
 
 - **Baseline conformance is incomplete.** The managed QUIC baseline carries
-  Services and configured FLO/FLC. Explicitly selected native QUIC/WebTransport
-  baselines carry Services and authenticated direct flows, using transport-only
-  TLS independently of UASC authentication. Actual browser interoperability,
-  complete QUIC/WebTransport profile coverage and the full normative
-  Parts 30–32 assertion matrix remain open.
-  The Part 32 WebTransport Baseline Facet requires both `WT-UASC` and
-  `WT-Browser`; browser support is not an optional conformance unit.
-  Native interoperability alone cannot establish that facet's conformance.
+  Services and configured MSG DATA/CONTROL. Explicitly selected native
+  QUIC/WebTransport baselines carry Services and authenticated direct flows,
+  using transport-only TLS independently of UASC authentication. Actual browser
+  interoperability, complete QUIC/WebTransport profile coverage and the full
+  normative Parts 30–32 assertion matrix remain open.
+  The merged Part 32 text requires both `WT-UASC` and `WT-Browser` in its
+  WebTransport Baseline Facet. The open correction separates `WT-Browser` as
+  an optional facet; it is not merged yet. Native interoperability alone does
+  not establish browser conformance.
   Direct delivery is an optional unit in both transport baseline facets.
 - **Exporter-unavailable QUIC baseline fallback is implemented.** A managed
   initiator explicitly declines optional direct binding with protected
-  `STATUS(Unsupported)`, allowing a native acceptor to open configured FLO.
+  `STATUS(Unsupported)`, allowing a native acceptor to open configured DATA.
   The native server-opener case passes in the QUIC binding suite; a delayed
   proof still times out rather than being treated as an unsupported exporter.
 - **Legacy native flow endpoints remain separate.** Their `opcua-flow/1` and
@@ -778,11 +830,11 @@ or empty test run is not native acceptance.
   protected binding, exact association replay, direction/token ownership and
   ACK/READY gates for actual ordered streams and direct datagrams. Windows and
   Linux native QUIC/WebTransport exercise both with UASC Services before and after direct
-  DATA, revision and END. Current Windows native QUIC and WebTransport cases also
-  exercise minimal opaque streaming in all directions and both opener roles,
+  DATA, revision and END. Current Windows native QUIC and WebTransport cases
+  also exercise minimal opaque streaming in all directions and both opener roles,
   plus A/V ordered/datagram delivery with unchanged type-3 NetworkMessages.
   Native QUIC exercises both streaming profiles under NativeAOT and managed-client
-  shared-FLO fallback with pre-READY typed receive admission.
+  shared UASC fallback with pre-READY typed receive admission.
   Browser interoperability, final native qualification and
   the full source-specific transport negative matrix remain open.
   The direct ordered-frame codec preserves complete UADP DATA and encodes
@@ -827,7 +879,7 @@ or empty test run is not native acceptance.
   reader's PublisherId, WriterGroupId, and DataSetWriterId against the exact
   resource URI. Visible UADP source and writer fields and NetworkMessageType
   select the configured resource. ChannelId is control-only and is not
-  serialized before UADP in FLO. A multi-writer NetworkMessage is admitted only when every visible
+  serialized in the MSG DATA envelope or UADP. A multi-writer NetworkMessage is admitted only when every visible
   DataSetWriterId resolves to the same resource; unmatched or ambiguous traffic
   is rejected rather than routed by arrival order. Metadata and
   writer-configuration discovery bodies are also
@@ -878,10 +930,10 @@ or empty test run is not native acceptance.
 
 ## References
 
-- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/data-channels)
-- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/quic)
-- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/webtransport)
-- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/7cc6a2ed7f0588ec1f30a85ab2016b43f408baac/source/transport-common/contract.md)
+- [Part 30: PubSub over UASC](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad/source/data-channels)
+- [Part 31: OPC UA over QUIC](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad/source/quic)
+- [Part 32: OPC UA over WebTransport](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad/source/webtransport)
+- [Shared transport contract](https://github.com/OPCF-Members/OPC10000-Core/blob/1703d60261542a4fbeca75bca6571d33cdd6d6ad/source/transport-common/contract.md)
 - [PubSub integration](PubSub.md#data-channels-experimental)
 - [Optional native Client/Server lane](DataChannelClientServer.md)
 - [Certificate manager and secret store](CertificateManager.md)

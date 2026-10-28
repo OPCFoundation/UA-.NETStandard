@@ -35,6 +35,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
+using Opc.Ua.DataChannels.Wire;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
@@ -447,8 +449,8 @@ namespace Opc.Ua.Bindings
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
-            // Every symmetric chunk - MSG, OPN, CLO and FLO alike - draws from
-            // this one sequence space, and reusing a number under one TokenId
+            // Every SecureChannel chunk, including DATA and CONTROL MSG, draws
+            // from this one sequence space, and reusing a number under one TokenId
             // reuses the AEAD nonce derived from it. Service traffic is
             // accounted for by observing this counter rather than by calling
             // into the budget on each send, but observation alone is passive:
@@ -629,7 +631,8 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> chunk,
             bool isServerContext,
             bool gateHeld,
-            bool isFinal)
+            bool isFinal,
+            bool isDataChannel = false)
         {
             bool firstChunk = false;
             bool chunkOrSizeLimitsExceeded = false;
@@ -637,6 +640,7 @@ namespace Opc.Ua.Bindings
             bool hasSession = true;
             IServerResourceIsolationProvider? isolation = isServerContext ? Quotas.ResourceIsolationProvider : null;
             IDisposable? incomingLease = null;
+            IDisposable? channelLease = null;
             List<IDisposable>? releasedLeases = null;
             bool chunkOwned = true;
             try
@@ -661,10 +665,16 @@ namespace Opc.Ua.Bindings
                 DisposeIsolationLeases(releasedLeases);
                 releasedLeases = null;
 
-                if (!isFinal && requestId != 0 && chunk.Array != null)
+                if (isDataChannel && chunk.Array != null)
+                {
+                    channelLease = m_dataChannels?.TryReserveUascReassembly(
+                        checked(chunk.Array.Length * 2), m_dataChannelIncomingKind == FlowRecordKind.Data);
+                    budgetExceeded = channelLease == null;
+                }
+                if (!isFinal && (requestId != 0 || isDataChannel) && chunk.Array != null)
                 {
                     hasSession = ServesActivatedSession;
-                    if (isolation != null)
+                    if (!budgetExceeded && isolation != null)
                     {
                         if (owner == null)
                         {
@@ -697,7 +707,8 @@ namespace Opc.Ua.Bindings
                         MessageLimitsExceeded(
                             isServerContext, savedSize + chunk.Count, savedCount + incomingCount);
 
-                    if (!chunkOrSizeLimitsExceeded && !budgetExceeded && requestId != 0 && chunk.Array != null)
+                    if (!chunkOrSizeLimitsExceeded && !budgetExceeded &&
+                        (requestId != 0 || isDataChannel) && chunk.Array != null)
                     {
                         if (isFinal ||
                             TryReservePartialMessageChunk(
@@ -720,6 +731,11 @@ namespace Opc.Ua.Bindings
                             {
                                 (m_partialIsolationLeases ??= []).Add(incomingLease);
                                 incomingLease = null;
+                            }
+                            if (channelLease != null)
+                            {
+                                (m_partialIsolationLeases ??= []).Add(channelLease);
+                                channelLease = null;
                             }
                         }
                         else
@@ -748,6 +764,7 @@ namespace Opc.Ua.Bindings
                 finally
                 {
                     incomingLease?.Dispose();
+                    channelLease?.Dispose();
                     DisposeIsolationLeases(releasedLeases);
                 }
             }
@@ -892,15 +909,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected BufferCollection TakeSavedChunks()
         {
-            BufferCollection savedChunks;
-            List<IDisposable>? leases;
-            lock (m_partialMessageLock)
-            {
-                savedChunks = m_partialMessageChunks ?? [];
-                m_partialMessageChunks = null;
-                ReleasePartialMessageReservation();
-                leases = DetachIsolationLeases();
-            }
+            BufferCollection savedChunks = DetachSavedChunks(out List<IDisposable>? leases);
             try
             {
                 DisposeIsolationLeases(leases);
@@ -910,6 +919,21 @@ namespace Opc.Ua.Bindings
             {
                 savedChunks.Release(BufferManager, nameof(TakeSavedChunks));
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Transfers saved input and its application leases to a decoder that also owns a joined copy.
+        /// </summary>
+        private BufferCollection DetachSavedChunks(out List<IDisposable>? leases)
+        {
+            lock (m_partialMessageLock)
+            {
+                BufferCollection savedChunks = m_partialMessageChunks ?? [];
+                m_partialMessageChunks = null;
+                ReleasePartialMessageReservation();
+                leases = DetachIsolationLeases();
+                return savedChunks;
             }
         }
 
@@ -1465,6 +1489,7 @@ namespace Opc.Ua.Bindings
                     "The transport was closed by the remote application.");
 
             Interlocked.Increment(ref m_activeWriteRequests);
+            state = TrackQueuedUascSend(state);
             var chunk = new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, buffer.Count);
 
             // Queued rather than started inline. The write completes by calling
@@ -1485,6 +1510,7 @@ namespace Opc.Ua.Bindings
         protected void BeginWriteMessage(BufferCollection buffers, object? state)
         {
             Interlocked.Increment(ref m_activeWriteRequests);
+            state = TrackQueuedUascSend(state);
 
             IUaSCByteTransport? transport = m_transport;
             if (transport == null)
@@ -1568,15 +1594,17 @@ namespace Opc.Ua.Bindings
             }
 
             Interlocked.Increment(ref m_activeWriteRequests);
+            state = TrackQueuedUascSend(state);
             var write = new PendingWrite(transport, in message, state);
 
             lock (m_writeQueueLock)
             {
-                if (state is DataChannelWriteOperation { Write.IsData: true })
+                object? operationState = GetOriginalUascWriteState(state);
+                if (operationState is DataChannelWriteOperation { Write.IsData: true })
                 {
                     m_unsealedFlowWriteQueue.Enqueue(write);
                 }
-                else if (state is DataChannelWriteOperation)
+                else if (operationState is DataChannelWriteOperation)
                 {
                     m_unsealedControlWriteQueue.Enqueue(write);
                 }
@@ -1843,9 +1871,10 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-                    if (write.State is DataChannelWriteOperation flowOperation)
+                    object? operationState = GetOriginalUascWriteState(write.State);
+                    if (operationState is DataChannelWriteOperation flowOperation)
                     {
-                        if (SequenceBudget.MustStall)
+                        if (SequenceBudget.Remaining < message.Chunks.Count)
                         {
                             flowOperation.Refuse(DataChannelResult.WouldBlock);
                             message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
@@ -1861,7 +1890,8 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    if (write.State is DataChannelWriteOperation && !SequenceBudget.TryConsume())
+                    if (operationState is DataChannelWriteOperation &&
+                        !SequenceBudget.TryConsume(message.Chunks.Count))
                     {
                         message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
                         ReportWriteComplete(
@@ -1979,6 +2009,27 @@ namespace Opc.Ua.Bindings
             m_sequenceFailure = null;
             IUaSCByteTransport transport = m_sequenceBrokenTransport!;
             _ = Task.Run(() => OnTransportError(transport, failure, CancellationToken.None));
+        }
+
+        /// <summary>
+        /// Associates an in-flight write with the context whose stall deadline it contributes to.
+        /// </summary>
+        private sealed class TrackedUascWrite
+        {
+            /// <summary>
+            /// Creates a tracked write state.
+            /// </summary>
+            public TrackedUascWrite(DataChannelContext context, object? state)
+            {
+                Context = context;
+                State = state;
+            }
+
+            /// <summary>Gets the data context tracking the write.</summary>
+            public DataChannelContext Context { get; }
+
+            /// <summary>Gets the write state supplied by the original caller.</summary>
+            public object? State { get; }
         }
 
         /// <summary>
@@ -2384,6 +2435,7 @@ namespace Opc.Ua.Bindings
         {
             if (ServiceResult.IsGood(result))
             {
+                state = CompleteTrackedUascSend(state, sent);
                 try
                 {
                     HandleWriteComplete(buffers, state, sent, result);
@@ -2412,7 +2464,11 @@ namespace Opc.Ua.Bindings
             {
                 try
                 {
-                    HandleWriteComplete(buffers, state, sent, result);
+                    HandleWriteComplete(
+                        buffers,
+                        CompleteTrackedUascSend(state, sent),
+                        sent,
+                        result);
                 }
                 catch (Exception ex)
                 {
@@ -2442,6 +2498,41 @@ namespace Opc.Ua.Bindings
             {
                 operation.Complete(result);
             }
+        }
+
+        /// <summary>
+        /// Begins send-stall tracking for writes queued while a data context is attached.
+        /// </summary>
+        private object? TrackQueuedUascSend(object? state)
+        {
+            DataChannelContext? context = m_dataChannels;
+            if (context == null)
+            {
+                return state;
+            }
+            context.NotifyUascSendQueued();
+            return new TrackedUascWrite(context, state);
+        }
+
+        /// <summary>
+        /// Ends tracking while preserving the original state passed to write completion handlers.
+        /// </summary>
+        private static object? CompleteTrackedUascSend(object? state, int bytesWritten)
+        {
+            if (state is not TrackedUascWrite tracked)
+            {
+                return state;
+            }
+            tracked.Context.NotifyUascSendCompleted(bytesWritten);
+            return tracked.State;
+        }
+
+        /// <summary>
+        /// Returns the original write state used for UASC scheduling and security commitment.
+        /// </summary>
+        private static object? GetOriginalUascWriteState(object? state)
+        {
+            return state is TrackedUascWrite tracked ? tracked.State : state;
         }
 
         /// <summary>

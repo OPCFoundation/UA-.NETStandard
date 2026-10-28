@@ -40,6 +40,58 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
     [NonParallelizable]
     public sealed class FlowRevisionTests
     {
+        /// <summary>
+        /// Invalid state or fields of a known update produce correlated advisories without resetting its admission.
+        /// </summary>
+        [TestCase((byte)FlowOperation.Commit, 3u, 0u, DataChannelResult.InvalidArgument)]
+        [TestCase((byte)FlowOperation.Commit, 2u, 1u, DataChannelResult.InvalidArgument)]
+        [TestCase((byte)FlowOperation.Ack, 2u, 0u, DataChannelResult.InvalidState)]
+        [TestCase((byte)FlowOperation.AcceptUpdate, 2u, 0u, DataChannelResult.InvalidState)]
+        public async Task InvalidKnownRevisionControlReceivesCorrelatedStatus(
+            byte opcode, uint revision, uint lastOldMessageId, DataChannelResult expected)
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            pair.AcceptorCarrier.Drop = write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.AcceptUpdate;
+            DataChannelParametersDataType proposal = flow.Local.Parameters;
+            proposal.Priority = 7;
+            Task<DataChannelResult> updating = flow.Local.UpdateAsync(proposal, 91).AsTask();
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.AcceptUpdate))
+                .ConfigureAwait(false);
+            int before = pair.AcceptorCarrier.Writes.Count;
+            var operation = (FlowOperation)opcode;
+            FlowControl control = operation == FlowOperation.Commit
+                ? new FlowCommit(flow.Local.ChannelId, lastOldMessageId)
+                : new FlowSignal(operation, flow.Local.ChannelId);
+            Assert.That(await pair.InitiatorCarrier.InjectControlAsync(
+                control, revision, 91).ConfigureAwait(false), Is.EqualTo(expected));
+            await FlowLoopback.EventuallyAsync(() => pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status))
+                .ConfigureAwait(false);
+            CapturedFlowWrite[] replies = pair.AcceptorCarrier.Writes.Skip(before).Where(write =>
+                TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Status).ToArray();
+            Assert.That(replies, Has.Length.EqualTo(1));
+            FlowRecord record = TestFlowCarrier.Record(replies[0], pair.AcceptorCarrier.Kind);
+            var status = (FlowOutcome)FlowControlCodec.Decode(in record, new());
+            Assert.Multiple(() =>
+            {
+                Assert.That(status.Status, Is.EqualTo(FlowModel.ToWire(expected)));
+                Assert.That(status.RelatedOperation, Is.EqualTo(91));
+                Assert.That(status.Flow, Is.EqualTo(flow.Local.ChannelId));
+                Assert.That(record.MessageId, Is.Not.EqualTo(91));
+                Assert.That(flow.Remote.Revision, Is.EqualTo(1));
+                Assert.That(flow.Remote.Parameters.Priority, Is.Not.EqualTo(7));
+                Assert.That(flow.Remote.State, Is.Not.EqualTo(DataChannelState.Faulted));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+                Assert.That(pair.AcceptorCarrier.Writes.Skip(before).Any(write =>
+                    TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Reset), Is.False);
+            });
+            Assert.That(await updating.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.EqualTo(expected));
+        }
+
         [Test]
         [Repeat(20)]
         public async Task StaleUncommittedCreditCannotStrandConnectionCapacityAcrossRevisionBarrier()
@@ -290,7 +342,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         [Test]
         public async Task CommittedUpdateTimeoutAndAbortNeverRollBackTheRevision()
         {
-            await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
+            await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic,
+                options: new DataChannelOptions { KeepAliveInterval = TimeSpan.FromMinutes(1) });
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
             pair.AcceptorCarrier.Drop = write =>
@@ -409,6 +462,55 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await flow.Local.AbortUpdateAsync(1).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             Assert.That(await pending.ConfigureAwait(false), Is.EqualTo(DataChannelResult.Closed));
+        }
+
+        /// <summary>
+        /// Losing the peer after PREPARE leaves the revision outcome scoped to the lost context.
+        /// </summary>
+        [Test]
+        public async Task ContextLossDuringRevisionNegotiationRequiresFreshFlowAdmission()
+        {
+            await using var original = new FlowLoopback();
+            await original.StartAsync().ConfigureAwait(false);
+            FlowPair oldFlow = await original.OpenAsync().ConfigureAwait(false);
+            Guid oldContextId = original.Initiator.Identity.ContextId;
+            original.AcceptorCarrier.Drop = write =>
+                TestFlowCarrier.Operation(write, original.AcceptorCarrier.Kind) == FlowOperation.AcceptUpdate;
+
+            DataChannelParametersDataType proposal = oldFlow.Local.Parameters;
+            proposal.Priority = 7;
+            Task<DataChannelResult> update = oldFlow.Local.UpdateAsync(proposal, 91).AsTask();
+            await FlowLoopback.EventuallyAsync(() => original.AcceptorCarrier.Writes.Any(write =>
+                TestFlowCarrier.Operation(write, original.AcceptorCarrier.Kind) == FlowOperation.AcceptUpdate))
+                .ConfigureAwait(false);
+            Assert.That(update.IsCompleted, Is.False);
+
+            await original.Acceptor.InvalidateAsync(DataChannelResult.SecurityFailure).ConfigureAwait(false);
+            Assert.That(await update.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.SecurityFailure));
+            Assert.Multiple(() =>
+            {
+                Assert.That(oldFlow.Local.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(oldFlow.Remote.State, Is.EqualTo(DataChannelState.Faulted));
+                Assert.That(oldFlow.Local.Revision, Is.EqualTo(1));
+            });
+            await FlowLoopback.EventuallyAsync(() => original.InitiatorBudget.Usage.Contexts == 0)
+                .ConfigureAwait(false);
+
+            await using var resumed = new FlowLoopback(
+                options: original.Options,
+                initiatorBudget: original.InitiatorBudget,
+                clock: original.Clock);
+            await resumed.StartAsync().ConfigureAwait(false);
+            Assert.That(resumed.Initiator.Identity.ContextId, Is.Not.EqualTo(oldContextId));
+            FlowPair newFlow = await resumed.OpenAsync().ConfigureAwait(false);
+            Assert.That(newFlow.Local.ChannelId, Is.EqualTo(oldFlow.Local.ChannelId));
+            Assert.That(newFlow.Local.Revision, Is.EqualTo(1));
+            proposal = newFlow.Local.Parameters;
+            proposal.Priority = 7;
+            Assert.That(await newFlow.Local.UpdateAsync(proposal, 1).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            Assert.That(newFlow.Local.Revision, Is.EqualTo(2));
         }
     }
 }

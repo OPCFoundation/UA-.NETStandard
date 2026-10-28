@@ -196,8 +196,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             DataChannelCarrierKind carrier)
         {
             var budget = new DataChannelApplicationBudget(new DataChannelApplicationLimits { MaxBufferedBytes = 4096 });
-            await using var first = new FlowLoopback(carrier, initiatorBudget: budget);
-            await using var second = new FlowLoopback(carrier, initiatorBudget: budget);
+            var options = new DataChannelOptions { KeepAliveInterval = TimeSpan.FromMinutes(1) };
+            await using var first = new FlowLoopback(carrier, options: options, initiatorBudget: budget);
+            await using var second = new FlowLoopback(carrier, options: options, initiatorBudget: budget);
             await first.StartAsync().ConfigureAwait(false);
             await second.StartAsync().ConfigureAwait(false);
             await FlowLoopback.EventuallyAsync(() => budget.Usage.Messages == 0).ConfigureAwait(false);
@@ -277,6 +278,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(options.MaxReceiveBytes, Is.EqualTo(33554432));
                 Assert.That(options.MaxQueueMessages, Is.EqualTo(1024));
                 Assert.That(options.OpenTimeout, Is.EqualTo(TimeSpan.FromSeconds(10)));
+                Assert.That(options.HelloTimeout, Is.EqualTo(TimeSpan.FromSeconds(10)));
+                Assert.That(options.KeepAliveInterval, Is.EqualTo(TimeSpan.FromSeconds(5)));
                 Assert.That(options.UpdateTimeout, Is.EqualTo(TimeSpan.FromSeconds(10)));
                 Assert.That(options.DrainTimeout, Is.EqualTo(TimeSpan.FromSeconds(5)));
                 Assert.That(options.PingTimeout, Is.EqualTo(TimeSpan.FromSeconds(10)));
@@ -285,6 +288,26 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(options.DatagramRevisionGrace, Is.EqualTo(TimeSpan.FromSeconds(2)));
                 Assert.That(options.AllowIntegrity, Is.False);
             });
+        }
+
+        /// <summary>
+        /// The local keepalive interval is finite and cannot exceed the PING rate.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(999, false)]
+        [TestCase(1000, true)]
+        [TestCase(5000, true)]
+        public void KeepAliveIntervalEnforcesItsLocalMinimum(int milliseconds, bool valid)
+        {
+            var options = new DataChannelOptions { KeepAliveInterval = TimeSpan.FromMilliseconds(milliseconds) };
+            if (valid)
+            {
+                Assert.DoesNotThrow(options.Validate);
+            }
+            else
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
+            }
         }
 
         [TestCase(100, 1, 1, true)]
@@ -387,7 +410,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Task<DataChannelResult> second = flow.Local.SendAsync(payload).AsTask();
             Assert.That(await flow.Local.SendAsync(payload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.WouldBlock));
-            Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(payload.Length * 2));
+            Assert.That(pair.InitiatorBudget.Usage.BufferedBytes,
+                Is.EqualTo((payload.Length + UascFlowMessageCodec.TypeIdSize) * 2));
             Assert.That(pair.InitiatorBudget.Usage.Messages, Is.EqualTo(2));
             pair.InitiatorCarrier.BeforeRelease.TrySetResult(true);
             await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
