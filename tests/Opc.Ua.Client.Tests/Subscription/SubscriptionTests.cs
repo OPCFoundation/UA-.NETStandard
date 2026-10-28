@@ -989,7 +989,24 @@ namespace Opc.Ua.Client.Subscriptions
                 await sut.DeleteAsync(default).ConfigureAwait(false);
 
                 // Assert
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero,
+                    "Deleting one subscription must not pause publishing for the whole session.");
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+            }
+        }
+
+        [Test]
+        public async Task ResetToRecreateRetiresTheServerIdAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.ResetToRecreateAsync(default).ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.Zero);
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
             }
         }
 
@@ -1134,7 +1151,11 @@ namespace Opc.Ua.Client.Subscriptions
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
                     List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
-                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1));
+                    const int retainedAcknowledgements = 1;
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
+                        "The queue is not scanned; send-time validation discards the retired generation.");
+                    Assert.That(m_completion.QueuedAckGenerations[0], Is.Not.EqualTo(sut.MessageGeneration),
+                        "Deletion and reset both retire the generation that produced the queued acknowledgement.");
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
@@ -1142,19 +1163,26 @@ namespace Opc.Ua.Client.Subscriptions
                     releaseFresh.TrySetResult(true);
                     await freshAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1),
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
                         "A captured acknowledgement snapshot must not change when the worker enqueues another ack.");
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
                     List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
-                    Assert.That(acknowledgements, Has.Count.EqualTo(2));
+                    Assert.That(acknowledgements, Has.Count.EqualTo(retainedAcknowledgements + 1));
+                    Assert.That(
+                        acknowledgements,
+                        Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
+                            acknowledgement => acknowledgement is not null &&
+                                acknowledgement.SubscriptionId == 10 &&
+                                acknowledgement.SequenceNumber == 4999));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 10 &&
-                            acknowledgement.SequenceNumber == 4999));
-                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 22 &&
+                        acknowledgement => acknowledgement is not null &&
+                            acknowledgement.SubscriptionId == 22 &&
                             acknowledgement.SequenceNumber == 1));
                     Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
+                    List<long> generations = m_completion.QueuedAckGenerations;
+                    Assert.That(generations[^1], Is.EqualTo(sut.MessageGeneration),
+                        "The replacement's acknowledgement carries the current generation.");
                 }
                 finally
                 {
@@ -1622,11 +1650,13 @@ namespace Opc.Ua.Client.Subscriptions
                 m_completion, m_options, m_telemetry);
             await using (sut.ConfigureAwait(false))
             {
-                bool success = sut.MonitoredItems.TryAdd("Test", options, out _);
+                bool success = sut.MonitoredItems.TryAdd("Test", options, out IMonitoredItem? monitoredItem);
                 Assert.That(success, Is.True);
+                Assert.That(monitoredItem, Is.Not.Null);
 
                 // Act
-                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(55,
+                success = sut.MonitoredItems.TryGetMonitoredItemByClientHandle(
+                    unchecked(monitoredItem.ClientHandle + 1),
                     out IMonitoredItem? result);
 
                 // Assert
@@ -3316,6 +3346,24 @@ namespace Opc.Ua.Client.Subscriptions
 
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
+
+            /// <summary>
+            /// Observes an actual asynchronous admission wait, not merely receipt of a response.
+            /// </summary>
+            public Action? OnAdmissionBackpressure { get; set; }
+
+            /// <inheritdoc/>
+            public override ValueTask OnPublishReceivedAsync(
+                NotificationMessage message, IReadOnlyList<uint>? availableSequenceNumbers,
+                IReadOnlyList<string> stringTable)
+            {
+                ValueTask admission = base.OnPublishReceivedAsync(message, availableSequenceNumbers, stringTable);
+                if (!admission.IsCompleted)
+                {
+                    OnAdmissionBackpressure?.Invoke();
+                }
+                return admission;
+            }
 
             public void SetMessageStateForTest(uint lastSequenceNumber,
                 uint lastDataSequenceNumber,

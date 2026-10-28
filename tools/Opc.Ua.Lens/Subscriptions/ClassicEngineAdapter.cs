@@ -144,9 +144,11 @@ namespace UaLens.Subscriptions
                     MinLifetimeInterval = 60_000
                 })
                 {
+#pragma warning disable CS0618 // the classic engine adapter intentionally wires the classic fast callbacks
                     FastDataChangeCallback = OnDataChange,
                     FastEventCallback = OnEvent,
                     FastKeepAliveCallback = OnKeepAlive
+#pragma warning restore CS0618
                 };
                 var creation = new ClassicSubscriptionLease(m_session, sub);
                 await using (creation.ConfigureAwait(false))

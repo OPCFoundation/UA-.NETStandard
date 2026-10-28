@@ -57,6 +57,8 @@ using V2SubscriptionState = Opc.Ua.Client.Subscriptions.SubscriptionState;
 // TODO: replace these suppressions with analyzer-recognized ownership helpers when available.
 #pragma warning disable CA2000, CA2016
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Stress.Tests.Channels.Soak
 {
     /// <summary>

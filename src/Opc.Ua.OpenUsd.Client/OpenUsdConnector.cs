@@ -647,6 +647,7 @@ namespace Opc.Ua.OpenUsd.Client
                 }
             }
 
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
             var subscription = new Subscription(m_session.DefaultSubscription)
             {
                 DisplayName = "OpenUsdConnector",
@@ -655,6 +656,7 @@ namespace Opc.Ua.OpenUsd.Client
                 LifetimeCount = 100,
                 PublishingEnabled = true
             };
+#pragma warning restore CS0618
             m_subscription = subscription;
             m_session.AddSubscription(subscription);
             await subscription.CreateAsync(ct).ConfigureAwait(false);
