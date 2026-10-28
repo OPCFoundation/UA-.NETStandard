@@ -106,6 +106,12 @@ namespace Opc.Ua.Server
         internal NodeManagerGeneration? Current => Volatile.Read(ref m_current);
 
         /// <summary>
+        /// Gets or sets the committed migration policy revision, advanced by removal or invalidation.
+        /// The lifecycle writer serializes this revision with target selection and publication.
+        /// </summary>
+        internal long LateMigrationRevision { get; set; }
+
+        /// <summary>
         /// Associates the public registration identifier with the slot once.
         /// </summary>
         /// <param name="id">The identifier assigned to the registration.</param>

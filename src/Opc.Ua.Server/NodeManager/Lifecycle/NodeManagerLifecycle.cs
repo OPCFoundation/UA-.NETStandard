@@ -527,12 +527,51 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Moves monitored items that in-flight requests created on a migrated generation
-        /// after its commit (their routing snapshot still contained it) to the replacement.
+        /// Moves late items to an admitted current generation unless a committed invalidation cut off migration.
+        /// Target admission outlives writer ownership, so retirement discovers items adopted after its inventory.
+        /// </summary>
+        /// <param name="retired">The quiescent source and its committed migration policy.</param>
+        /// <returns>The asynchronous migration.</returns>
+        private async ValueTask MigrateLateMonitoredItemsAsync(RetiredGeneration retired)
+        {
+            if (!HasActiveMonitoredItems(retired.Server, retired.NodeManager) &&
+                !retired.Generation.HasPendingSourceReleases)
+            {
+                return;
+            }
+
+            NodeManagerGeneration target;
+            int stripe;
+            using (await m_writer.BeginMutationAsync(CancellationToken.None).ConfigureAwait(false))
+            {
+                NodeManagerSlot slot = retired.Generation.Slot;
+                if (slot.LateMigrationRevision != retired.LateMigrationRevision || slot.Current is not { } current)
+                {
+                    return;
+                }
+                target = current;
+                if (!target.Gate.TryEnter(out stripe))
+                {
+                    throw new InvalidOperationException("The published late migration target is not admitting work.");
+                }
+            }
+            try
+            {
+                await MigrateLateMonitoredItemsAsync(
+                    retired.Server, retired.NodeManager, target.NodeManager).ConfigureAwait(false);
+            }
+            finally
+            {
+                target.Gate.Exit(stripe);
+            }
+        }
+
+        /// <summary>
+        /// Migrates late items after the caller has admitted the replacement generation.
         /// </summary>
         /// <param name="server">The owning server.</param>
         /// <param name="retired">The retired source.</param>
-        /// <param name="replacement">The migration target.</param>
+        /// <param name="replacement">The admitted replacement.</param>
         /// <returns>The asynchronous migration.</returns>
         internal static async ValueTask MigrateLateMonitoredItemsAsync(
             IServerInternal server,
@@ -1714,13 +1753,20 @@ namespace Opc.Ua.Server
                                 entry.Current.Prepared.NodeManager,
                                 entry.Manager));
                         }
-                        retired.Add(new RetiredGeneration(
+                        var retirement = new RetiredGeneration(
                             batch.Server,
                             batch.Host,
                             entry.Current.Registration.Identity,
                             entry.DroppedReferences,
                             needsDetachment: true,
-                            allowActiveMonitoredItems: false));
+                            allowActiveMonitoredItems: false);
+                        retired.Add(retirement);
+                        if (entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate &&
+                            entry.Manager is not null)
+                        {
+                            retirement.MigrateLateMonitoredItemsAsync =
+                                () => MigrateLateMonitoredItemsAsync(retirement);
+                        }
                         if (decideAsync is not null)
                         {
                             MonitoredItemTransition transition =
@@ -1864,7 +1910,18 @@ namespace Opc.Ua.Server
                                     if (entry.Current is not null)
                                     {
                                         entry.Current.Prepared.Published = false;
+                                        if (entry.Change.TransitionMode !=
+                                            NodeManagerMonitoredItemTransitionMode.Migrate || entry.Manager is null)
+                                        {
+                                            NodeManagerGeneration generation = entry.Current.Registration.Identity;
+                                            generation.Slot.LateMigrationRevision =
+                                                unchecked(generation.Slot.LateMigrationRevision + 1);
+                                        }
                                     }
+                                }
+                                foreach (RetiredGeneration retirement in retired)
+                                {
+                                    retirement.LateMigrationRevision = retirement.Generation.Slot.LateMigrationRevision;
                                 }
                                 publishedRevision =
                                     batch.Host.RoutingRevision.Revision;

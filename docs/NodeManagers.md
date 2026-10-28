@@ -1081,6 +1081,13 @@ its errors are reported on the committed result. A removed or incompatible NodeI
 NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.
 
+Requests pinned to the old routing view can create items after the committed handoff has captured
+its inventory. Once those requests drain, compatible late items migrate to the current generation
+in the same slot. An intervening committed `Invalidate` or removal makes those items terminal,
+even if a later replacement supports their NodeIds. Target admission spans the handoff; if that
+target is replaced during adoption, its retirement applies the next committed policy to the late
+items before disposing the target.
+
 An unresolved item has no bound manager or node handle: `IMonitoredItem.NodeManager` and
 `IMonitoredItem.ManagerHandle` are nullable. Its subscription owns its identity and queues,
 and its original stable slot owns recovery; the Core manager is not a parking owner.

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +39,230 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// An old-view request creating its item after transition discovery still receives the chosen handoff policy.
+        /// </summary>
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 0)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 1)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 2)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 3)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 4)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 5)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 6)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 7)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 8)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 9)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 10)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Migrate, 11)]
+        [TestCase(NodeManagerMonitoredItemTransitionMode.Invalidate, 0)]
+        public async Task ItemCreatedAfterTransitionSnapshotFollowsCommittedPolicyAsync(
+            NodeManagerMonitoredItemTransitionMode mode,
+            int subsequentChange)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                timeout.Token).ConfigureAwait(false);
+            if (subsequentChange >= 10)
+            {
+                NodeManagerSlot previousSlot = registration.Identity.Slot;
+                TrackingLifecycleNodeManager previousSource = RequireLifecycleValue(original);
+                NodeManagerBatchChange previousChange = subsequentChange == 11
+                    ? NodeManagerBatchChange.Remove(registration)
+                    : NodeManagerBatchChange.Replace(
+                        registration,
+                        CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                        NodeManagerMonitoredItemTransitionMode.Invalidate);
+                await using IPreparedNodeManagerBatch previous = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [previousChange], timeout.Token).ConfigureAwait(false);
+                NodeManagerBatchResult previousResult = await previous.CommitAsync(
+                    _ => default, timeout.Token).ConfigureAwait(false);
+                await previousResult.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(previousSource.DisposeCount, Is.EqualTo(1));
+                if (subsequentChange == 11)
+                {
+                    registration = await m_server.NodeManagerLifecycle.AddAsync(
+                        CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                        timeout.Token).ConfigureAwait(false);
+                    Assert.That(registration.Identity.Slot, Is.Not.SameAs(previousSlot));
+                }
+                else
+                {
+                    registration = previous.Registrations[0];
+                    Assert.That(registration.Identity.Slot, Is.SameAs(previousSlot));
+                    Assert.That(previousSlot.LateMigrationRevision, Is.EqualTo(1));
+                }
+            }
+            TrackingLifecycleNodeManager source = RequireLifecycleValue(original);
+            IServerInternal server = m_server.CurrentInstance;
+            var nodeId = new NodeId(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri));
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var migrationEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var migrationRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            source.BeforeCreateItemsAsync = async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            Task<(uint SubscriptionId, uint MonitoredItemId)>? creating = null;
+            NodeManagerBatchResult? publication = null;
+            NodeManagerBatchResult? nextPublication = null;
+            uint subscriptionId = 0;
+            try
+            {
+                creating = CreateSubscriptionAndMonitoredItemAsync(services, nodeId, clientHandle: 37);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(registration.Identity.MonitoredItems, Is.Empty,
+                    "The real request must pause before its item is bound, not after transition discovery.");
+                await using IPreparedNodeManagerBatch replacement = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(
+                        registration, CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), mode)],
+                    timeout.Token).ConfigureAwait(false);
+                publication = await replacement.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration target = replacement.Registrations[0];
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Retirement.IsCompleted, Is.False,
+                    "The paused real request still owns the old routing view.");
+                if (subsequentChange is > 0 and < 10)
+                {
+                    var intermediate = (TrackingLifecycleNodeManager)target.NodeManager;
+                    bool overlapsAdoption = subsequentChange is >= 4 and <= 6;
+                    if (subsequentChange >= 7)
+                    {
+                        long policyRevision = target.Identity.Slot.LateMigrationRevision;
+                        await using (IPreparedNodeManagerBatch abandoned =
+                            await m_server.NodeManagerLifecycle.PrepareAsync(
+                                [NodeManagerBatchChange.Replace(
+                                    target,
+                                    CreateTrackingNodeManagementFactory(kGeneration2Value + 2, _ => { }),
+                                    NodeManagerMonitoredItemTransitionMode.Invalidate)],
+                                timeout.Token).ConfigureAwait(false))
+                        {
+                            if (subsequentChange == 8)
+                            {
+                                using var cancelled = new CancellationTokenSource();
+                                cancelled.Cancel();
+                                await Assert.ThatAsync(async () =>
+                                    await abandoned.CommitAsync(_ => default, cancelled.Token).ConfigureAwait(false),
+                                    Throws.InstanceOf<OperationCanceledException>())
+                                    .ConfigureAwait(false);
+                            }
+                            else if (subsequentChange == 9)
+                            {
+                                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                                    await abandoned.CommitAsync(
+                                        _ => throw new InvalidOperationException("Reject the invalidation decision."),
+                                        timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                            }
+                        }
+                        Assert.That(target.Identity.Slot.LateMigrationRevision, Is.EqualTo(policyRevision),
+                            "An uncommitted invalidation must not change the slot's migration policy.");
+                    }
+                    if (overlapsAdoption)
+                    {
+                        int callbacks = 0;
+                        intermediate.ManagerHandleCallback = async (id, token) =>
+                        {
+                            if (id == nodeId && Interlocked.Increment(ref callbacks) == 1)
+                            {
+                                migrationEntered.TrySetResult(true);
+                                await migrationRelease.Task.WaitAsync(token).ConfigureAwait(false);
+                            }
+                        };
+                        release.SetResult(true);
+                        await migrationEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    bool removes = subsequentChange is 3 or 6;
+                    bool invalidates = subsequentChange is 2 or 5;
+                    NodeManagerBatchChange nextChange = removes
+                        ? NodeManagerBatchChange.Remove(target)
+                        : NodeManagerBatchChange.Replace(
+                            target,
+                            CreateTrackingNodeManagementFactory(kGeneration2Value + 1, _ => { }),
+                            invalidates
+                                ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                                : NodeManagerMonitoredItemTransitionMode.Migrate);
+                    await using IPreparedNodeManagerBatch nextReplacement =
+                        await m_server.NodeManagerLifecycle.PrepareAsync(
+                            [nextChange], timeout.Token).ConfigureAwait(false);
+                    nextPublication = await nextReplacement.CommitAsync(
+                        _ => default, timeout.Token).ConfigureAwait(false);
+                    if (overlapsAdoption)
+                    {
+                        Assert.That(nextPublication.Retirement.IsCompleted, Is.False,
+                            "Target admission must hold physical retirement across late source validation and adoption.");
+                        Assert.That(intermediate.DisposeCount, Is.Zero);
+                        migrationRelease.SetResult(true);
+                    }
+                    await nextPublication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(intermediate.DisposeCount, Is.EqualTo(1));
+                    if (!removes)
+                    {
+                        target = nextReplacement.Registrations[0];
+                    }
+                }
+                release.TrySetResult(true);
+                (subscriptionId, uint itemId) = await creating.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                ISubscription subscription = server.SubscriptionManager.GetSubscriptions()
+                    .Single(candidate => candidate.Id == subscriptionId);
+                var tracker = (ISubscriptionMonitoredItemLifecycle)subscription;
+                Assert.That(tracker.HasMonitoredItems(source), Is.False);
+                bool migrates = mode == NodeManagerMonitoredItemTransitionMode.Migrate &&
+                    subsequentChange is 0 or 1 or 4 or >= 7;
+                Assert.That(tracker.HasMonitoredItems(target.NodeManager),
+                    Is.EqualTo(migrates),
+                    "A compatible late item must migrate rather than becoming terminal during retirement.");
+                Assert.That(source.DisposeCount, Is.EqualTo(1));
+                subscription.GetMonitoredItems(out ArrayOf<uint> ids, out _);
+                Assert.That(ids.ToArray(), Does.Contain(itemId));
+                (DataValue? value, _) = await PublishForDataChangeAsync(
+                    services, subscriptionId, default, clientHandle: 37).ConfigureAwait(false);
+                Assert.That(value.HasValue, Is.True);
+                if (migrates)
+                {
+                    Assert.That(value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(value.GetValueOrDefault().WrappedValue.GetInt32(),
+                        Is.EqualTo(kGeneration2Value + (subsequentChange is 0 or >= 10 ? 0 : 1)));
+                }
+                else
+                {
+                    Assert.That(value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                }
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                migrationRelease.TrySetResult(true);
+                source.BeforeCreateItemsAsync = null;
+                try
+                {
+                    if (creating is not null)
+                    {
+                        (subscriptionId, _) = await creating.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (publication is not null)
+                    {
+                        await publication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (nextPublication is not null)
+                    {
+                        await nextPublication.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (subscriptionId != 0)
+                    {
+                        await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task PublicationRaceBindsSessionOnceWhenActivationObservesCurrentViewAsync()
         {
@@ -558,6 +783,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
                     }
                 }
+            }
+        }
+
+        private sealed partial class TrackingLifecycleNodeManager
+        {
+            /// <summary>
+            /// Gets or sets a barrier before a real service request creates and binds data monitored items.
+            /// </summary>
+            public Func<CancellationToken, ValueTask>? BeforeCreateItemsAsync { get; set; }
+
+            /// <inheritdoc/>
+            public override async ValueTask CreateMonitoredItemsAsync(
+                OperationContext context,
+                uint subscriptionId,
+                double publishingInterval,
+                TimestampsToReturn timestampsToReturn,
+                ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+                IList<ServiceResult> errors,
+                IList<MonitoringFilterResult> filterErrors,
+                IList<IMonitoredItem> monitoredItems,
+                bool createDurable,
+                MonitoredItemIdFactory monitoredItemIdFactory,
+                CancellationToken cancellationToken = default)
+            {
+                if (BeforeCreateItemsAsync is { } beforeCreate)
+                {
+                    await beforeCreate(cancellationToken).ConfigureAwait(false);
+                }
+                await base.CreateMonitoredItemsAsync(
+                    context, subscriptionId, publishingInterval, timestampsToReturn, itemsToCreate,
+                    errors, filterErrors, monitoredItems, createDurable, monitoredItemIdFactory,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
     }

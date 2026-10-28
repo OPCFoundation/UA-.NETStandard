@@ -338,10 +338,9 @@ namespace Opc.Ua.Server
                         retired.TransitionFinalization = null;
                     }
                 }
-                if (retired.LateMigrationTarget is { } target && !retired.LateMonitoredItemsMigrated)
+                if (retired.MigrateLateMonitoredItemsAsync is { } migrate && !retired.LateMonitoredItemsMigrated)
                 {
-                    await NodeManagerLifecycle.MigrateLateMonitoredItemsAsync(
-                        retired.Server, retired.NodeManager, target).ConfigureAwait(false);
+                    await migrate().ConfigureAwait(false);
                     retired.LateMonitoredItemsMigrated = true;
                 }
                 await retired.Generation.CompleteSourceReleasesAsync(
@@ -695,9 +694,14 @@ namespace Opc.Ua.Server
             public Task? TransitionFinalization { get; set; }
 
             /// <summary>
-            /// Gets or sets the target of late monitored-item migration.
+            /// Gets or sets the committed late migration operation, which admits a target after the source drains.
             /// </summary>
-            public IAsyncNodeManager? LateMigrationTarget { get; set; }
+            public Func<ValueTask>? MigrateLateMonitoredItemsAsync { get; set; }
+
+            /// <summary>
+            /// Gets or sets the slot policy revision captured by this committed retirement.
+            /// </summary>
+            internal long LateMigrationRevision { get; set; }
 
             /// <summary>
             /// Gets or sets whether late monitored items have been migrated.
@@ -719,6 +723,7 @@ namespace Opc.Ua.Server
             /// </summary>
             public void CompleteRetirement()
             {
+                MigrateLateMonitoredItemsAsync = null;
                 m_retirementCompletion.TrySetResult(true);
             }
 
