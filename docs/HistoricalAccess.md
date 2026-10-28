@@ -181,13 +181,22 @@ the separate `ExtraData` conditions are defined in
 
 ### Fluent builder (`server.UseHistorian()…`)
 
-For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and asynchronous `HistoricalDataConfigurationType` installation:
+Use `HistorianBuilder` for one server-wide provider or an explicitly scoped
+provider. It configures provider routing and history access, including optional
+`Annotations` properties and asynchronous `HistoricalDataConfigurationType`
+installation.
+
+Register providers and configure historization after publication, in
+`INodeManagerReadinessNotification.OnServerReadyAsync`. Address-space creation
+can run against a private staging server, whose shared historian registry is
+unavailable. Creating nodes during preparation does not make that registry
+available.
 
 ```csharp
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-// inside your NodeManager.CreateAddressSpace:
+// Inside INodeManagerReadinessNotification.OnServerReadyAsync:
 HistorianBuilder historian = Server
     .UseHistorian()
     .UseInMemoryProvider()          // or .UseProvider(yourProvider)
@@ -222,55 +231,76 @@ Resolution precedence is deterministic — see [Provider resolution order](#prov
 
 ### Fluent server API integration (`builder.Variable<T>(...).Historize()`)
 
-The historian surface is also reachable from the standard `Opc.Ua.Server.Fluent` builder used by source-generated node managers — historization fits in the same `Configure(INodeManagerBuilder)` chain as `OnRead` / `OnWrite` / `OnCall` / `Publish<TEvent>`:
+Source-generated node managers use the same historian extensions through
+`Opc.Ua.Server.Fluent`. Bind ordinary read, write and method callbacks during
+`Configure`, but defer historian registration and `.Historize()` until published
+readiness. `DeferPublishedAuthoringUntilReady` supplies a builder attached to the
+published address space; use that builder instead of retaining the preparation
+builder for shared-service configuration.
+
+This example assumes the model contains a `Temperature` variable:
 
 ```csharp
-using Opc.Ua.Server.Fluent;       // exposes UseHistorian/Historize/WithHistorian
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 
 [NodeManager(NamespaceUri = "http://example.com/Plant/")]
-public partial class PlantNodeManager
+public sealed partial class PlantNodeManager : INodeManagerReadinessNotification
 {
     partial void Configure(INodeManagerBuilder builder)
     {
-        // Provision once: in-memory engine, registered as the default.
-        HistorianBuilder hist = builder.UseHistorian();
-        hist.UseInMemory();
-        hist.RegisterAsDefault();
-
-        // Variable-typed Historize() — most common form.
         builder.Variable<double>("Temperature")
-               .OnRead(GetTemperature)
-               .Historize();
+               .OnRead(static () => 20.0);
+
+        DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+        {
+            HistorianBuilder historian = published.UseHistorian();
+            historian.UseInMemory();
+            historian.RegisterAsDefault();
+            published.Variable<double>("Temperature").Historize();
+            return default;
+        });
+    }
+
+    ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+    {
+        return CompletePublishedConfigurationAsync(cancellationToken);
     }
 }
 ```
+
+The readiness implementation completes the deferred steps before the builders'
+final seal. A completed step is not replayed; a step interrupted by failure must
+support retry without duplicating its side effects.
 
 The fluent surface ships three entry points (extension methods on the standard builder interfaces):
 
 | Method | Use case |
 | --- | --- |
-| `builder.UseHistorian()` | Returns a per-manager `HistorianBuilder` cached in a `ConditionalWeakTable` keyed by the `INodeManagerBuilder`. Subsequent `Historize()` calls inherit this default. Calling it more than once on the same manager returns the same instance. |
-| `variable.Historize(...)` | Opts the variable in to historization. Without a prior `UseHistorian()` call (and without a per-call `provider` argument), the call lazily creates an in-memory provider and registers it as the server-wide default — the "just works" path. Returns the same builder so the chain can continue. |
+| `builder.UseHistorian()` | Returns a `HistorianBuilder` cached for that `INodeManagerBuilder`. Calls on the same published builder share the selected default; a separate authoring builder has its own cache entry. |
+| `variable.Historize(...)` | Opts the variable in to historization during published configuration. Without a selected provider or a per-call `provider` argument, it creates an in-memory provider and registers it as the server-wide default. Returns the same variable builder. |
 | `variable.WithHistorian(provider)` | Binds a specific `IHistorianProvider` to the variable's `NodeId`. Per-node bindings take precedence over the default, so this is the right knob for per-signal storage routing. |
 
-Per-call overrides on `Historize(...)`:
+Apply per-call overrides inside the published callback as well:
 
 ```csharp
 // Per-call provider — bypasses the cached default for this one variable.
-builder.Variable<int>("AuditLog")
+published.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
 
 // History is read-only by default (historyAccessLevel = HistoryRead).
 // HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
-builder.Variable<double>("CorrectableSetpoint")
+published.Variable<double>("CorrectableSetpoint")
        .Historize(
            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
 
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
-builder.Variable<double>("ReadOnlySensor")
+published.Variable<double>("ReadOnlySensor")
        .OnRead(GetReading)
        .Historize(capabilities: new HistorianNodeCapabilities
        {
@@ -280,7 +310,7 @@ builder.Variable<double>("ReadOnlySensor")
 
 // The archive owns the live Historizing state. Register history access and
 // provider routing without overwriting the current attribute value.
-builder.Variable<double>("ArchiveControlled")
+published.Variable<double>("ArchiveControlled")
        .Historize(
            historizing: null,
            autoCapture: false);
@@ -299,16 +329,27 @@ Provider registration, requested `HistoryRead` / `HistoryWrite` access bits,
 historical configuration installation, and automatic capture are independent
 from this attribute choice.
 
-Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
+For source-generated typed traversal, construct a typed builder over the
+published builder inside the callback. Keep the readiness implementation shown
+above:
 
 ```csharp
 partial void Configure(IBoilerNodeManagerBuilder builder)
 {
     builder.Boilers.Boiler__1.LCX001.Measurement
-           .OnRead(GenerateLevelControlMeasurement)
-           .Historize();
+           .OnRead(GenerateLevelControlMeasurement);
+
+    DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+    {
+        var typed = new BoilerNodeManagerTypedBuilder(published);
+        typed.Boilers.Boiler__1.LCX001.Measurement.Historize();
+        return default;
+    });
 }
 ```
+
+The [MinimalBoilerServer implementation](../samples/MinimalApi/MinimalBoilerServer/BoilerNodeManager.Configure.cs)
+uses this pattern for historian and event-source registration.
 
 No `GetHistorianProvider(...)` override is required on the manager — the fluent path writes into the server-wide `IHistorianProviderRegistry` so the dispatcher's normal precedence (per-NM override → registry NodeId → namespace → default) picks the provider automatically.
 
