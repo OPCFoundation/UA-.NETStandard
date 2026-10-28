@@ -239,7 +239,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthentication
             string jwt = CreateToken(m_signer, kAudience, 3600);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             string response = await ConnectionTools.ConnectJwtAsync(
-                m_sessions, $"opc.tcp://127.0.0.2:{m_fixture.Port}", jwt,
+                m_sessions, $"opc.tcp://localhost.:{m_fixture.Port}", jwt,
                 "SignAndEncrypt", "Basic256Sha256", "jwt-host-mismatch", timeout.Token).ConfigureAwait(false);
             using var document = JsonDocument.Parse(response);
 
