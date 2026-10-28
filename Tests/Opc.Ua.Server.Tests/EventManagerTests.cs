@@ -88,10 +88,58 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
         }
 
+        /// <summary>
+        /// An item persisted with a literal queue size of 1 (before this revision) is
+        /// restored with the revised size, and so is its persisted queue: otherwise the
+        /// item reports 1000 while the queue still keeps one event.
+        /// </summary>
+        [Test]
+        public void RestoreMonitoredItemResizesPersistedEventQueueSizeOne()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            IEventMonitoredItemQueue persistedQueue = queueFactory.CreateEventQueue(false, 7);
+            persistedQueue.SetQueueSize(1, true);
+            var store = new Mock<ISubscriptionStore>();
+            store.Setup(s => s.RestoreEventMonitoredItemQueue(7)).Returns(persistedQueue);
+            EventManager manager = CreateManager(10000, 10000, out INodeManager nodeManager, store.Object);
+
+            IEventMonitoredItem item = manager.RestoreMonitoredItem(
+                nodeManager,
+                null,
+                new StoredMonitoredItem
+                {
+                    SubscriptionId = 1,
+                    Id = 7,
+                    TypeMask = MonitoredItemTypeMask.Events,
+                    NodeId = ObjectIds.Server,
+                    AttributeId = Attributes.EventNotifier,
+                    TimestampsToReturn = TimestampsToReturn.Both,
+                    ClientHandle = 42,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    OriginalFilter = new EventFilter(),
+                    FilterToUse = new EventFilter(),
+                    SamplingInterval = 1000.0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                });
+
+            Assert.That(((MonitoredItem)item).QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+            Assert.That(persistedQueue.QueueSize, Is.EqualTo(EventManager.DefaultEventQueueSize));
+
+            // a burst, e.g. the audit events of one connect, is kept until the next publish
+            for (int i = 0; i < 3; i++)
+            {
+                ((MonitoredItem)item).QueueEvent(new EventFieldList { ClientHandle = 42 });
+            }
+            Assert.That(((MonitoredItem)item).ItemsInQueue, Is.EqualTo(3));
+        }
+
         private static EventManager CreateManager(
             uint maxQueueSize,
             uint maxDurableQueueSize,
-            out INodeManager nodeManager)
+            out INodeManager nodeManager,
+            ISubscriptionStore subscriptionStore = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var serverMock = new Mock<IServerInternal>();
@@ -100,6 +148,7 @@ namespace Opc.Ua.Server.Tests
             serverMock.Setup(s => s.TypeTree).Returns(new TypeTable(new NamespaceTable()));
             serverMock.Setup(s => s.MonitoredItemQueueFactory)
                 .Returns(new MonitoredItemQueueFactory(telemetry));
+            serverMock.Setup(s => s.SubscriptionStore).Returns(subscriptionStore);
             nodeManager = new Mock<INodeManager>().Object;
             return new EventManager(serverMock.Object, maxQueueSize, maxDurableQueueSize);
         }
