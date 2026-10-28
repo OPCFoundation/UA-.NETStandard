@@ -261,9 +261,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var prepared = new Mock<IPreparedNodeManagerBatch>();
             Exception failure = stage == "Provider"
                 ? new InvalidOperationException("The address space changed while the batch was prepared.")
-                : new NodeManagerRoutingConflictException(
-                    new NodeManagerRoutingConflictException("Routing conflict after an irreversible stage."),
-                    prepared.Object);
+                : new InvalidOperationException(
+                    "Routing conflict after an irreversible stage.",
+                    new NodeManagerRoutingConflictException(
+                        new NodeManagerRoutingConflictException("Routing conflict after an irreversible stage."),
+                        prepared.Object));
             prepared.SetupGet(value => value.IsCommitted).Returns(stage == "Committed");
             prepared.Setup(value => value.CommitAsync(
                 It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
@@ -312,9 +314,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             {
                                 cancellation.Cancel();
                             }
-                            throw new NodeManagerRoutingConflictException(
-                                new NodeManagerRoutingConflictException("Independent routing publication."),
-                                prepared.Object);
+                            throw new InvalidOperationException(
+                                "Independent routing publication.",
+                                new NodeManagerRoutingConflictException(
+                                    new NodeManagerRoutingConflictException("Independent routing publication."),
+                                    prepared.Object));
                         });
                     candidates.Add(prepared);
                     return new ValueTask<IPreparedNodeManagerBatch>(prepared.Object);
@@ -340,8 +344,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var prepared = new Mock<IPreparedNodeManagerBatch>();
             prepared.Setup(value => value.CommitAsync(
                 It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                .Throws(new NodeManagerRoutingConflictException(
-                    new NodeManagerRoutingConflictException("Independent routing publication."), prepared.Object));
+                .Throws(new InvalidOperationException(
+                    "Independent routing publication.",
+                    new NodeManagerRoutingConflictException(
+                        new NodeManagerRoutingConflictException("Independent routing publication."), prepared.Object)));
             prepared.Setup(value => value.DisposeAsync()).Returns(new ValueTask(Task.FromException(failure)));
             var lifecycle = new Mock<INodeManagerLifecycle>();
             lifecycle.Setup(owner => owner.PrepareAsync(
@@ -382,7 +388,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var source = new NodeId(9911, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             int ownerCalls = 0;
             int nestedDecisions = 0;
-            NodeManagerRoutingConflictException? nestedFailure = null;
+            InvalidOperationException? nestedFailure = null;
             owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
                 .Returns((NodeId _, CancellationToken token) => ResolveNestedAsync(token));
             var candidates = new List<IAsyncNodeManager>();
@@ -405,7 +411,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 () => lifecycle.AddAsync(factory.Object, timeout.Token).AsTask()).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(nestedFailure, Is.Not.Null);
+                Assert.That(nestedFailure, Is.TypeOf<InvalidOperationException>());
+                Assert.That(nestedFailure?.InnerException, Is.TypeOf<NodeManagerRoutingConflictException>());
                 Assert.That(observed, Is.SameAs(nestedFailure));
                 Assert.That(ownerCalls, Is.EqualTo(1));
                 Assert.That(nestedDecisions, Is.Zero);
@@ -441,7 +448,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         return default;
                     }, token).ConfigureAwait(false);
                 }
-                catch (NodeManagerRoutingConflictException failure)
+                catch (InvalidOperationException failure)
                 {
                     nestedFailure = failure;
                     throw;
@@ -578,7 +585,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
                     outcome == "Cancel" ? Throws.InstanceOf<OperationCanceledException>() :
                     outcome == "Failure" ? Throws.TypeOf<SentinelException>() :
-                    Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             }
             NodeManagerBatchResult committed = RequireLifecycleValue(independentResult);
             await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -665,7 +672,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 generation.MonitoredItems.TryRemove(monitoredItem.Object, out _);
                 release.TrySetResult(true);
                 await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
-                    Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             }
             using (Assert.EnterMultipleScope())
             {
@@ -709,7 +716,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             await outer.DisposeAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
@@ -855,7 +862,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                }, timeout.Token).AsTask(), Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+                }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
                 Assert.That(stale.IsCommitted, Is.False);
                 Assert.That(decisions, Is.Zero, "A conflicting preparation must fail before any durable decision.");
             }

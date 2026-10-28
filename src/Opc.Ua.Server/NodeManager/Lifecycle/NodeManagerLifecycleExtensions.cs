@@ -343,8 +343,9 @@ namespace Opc.Ua.Server
                     ObserveRetirement(result.Retirement);
                     return result;
                 }
-                catch (NodeManagerRoutingConflictException failure) when (
-                    ReferenceEquals(failure.Batch, prepared) && !decisionStarted && !prepared.IsCommitted)
+                catch (InvalidOperationException failure) when (
+                    failure.InnerException is NodeManagerRoutingConflictException conflict &&
+                    ReferenceEquals(conflict.Batch, prepared) && !decisionStarted && !prepared.IsCommitted)
                 {
                     // Disposal aborts this private candidate before preparing against the current routing view.
                 }

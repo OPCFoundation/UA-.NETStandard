@@ -2563,7 +2563,8 @@ namespace Opc.Ua.Server
                 catch (NodeManagerRoutingConflictException failure) when (
                     failure.Batch is null && ReferenceEquals(failure.RoutingRevision, RoutingRevision))
                 {
-                    throw new NodeManagerRoutingConflictException(failure, this);
+                    throw new InvalidOperationException(
+                        failure.Message, new NodeManagerRoutingConflictException(failure, this));
                 }
                 finally
                 {
