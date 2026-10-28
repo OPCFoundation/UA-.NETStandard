@@ -1588,6 +1588,13 @@ namespace Opc.Ua
         public int Timeout { get; set; }
 
         /// <summary>
+        /// The maximum count of active reverse connect sessions.
+        /// This setting is ignored and is no longer serialized.
+        /// </summary>
+        [Obsolete("MaxSessionCount is no longer supported and is ignored.")]
+        public int MaxSessionCount { get; set; }
+
+        /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
         [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.Emit)]

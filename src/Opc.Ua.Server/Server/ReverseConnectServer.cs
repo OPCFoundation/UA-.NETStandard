@@ -144,7 +144,7 @@ namespace Opc.Ua.Server
         /// The maximum number of sessions allowed to the client.
         /// </summary>
         [Obsolete("MaxSessionCount is no longer supported and has been removed from configuration.")]
-        public int MaxSessionCount { get; set; }
+        public int MaxSessionCount;
 
         /// <summary>
         /// If the connection is enabled.
@@ -252,6 +252,7 @@ namespace Opc.Ua.Server
         /// Add a reverse connection url.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
+        [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
         public virtual void AddReverseConnection(
             Uri url,
             int timeout = 0,
@@ -288,8 +289,8 @@ namespace Opc.Ua.Server
         [Obsolete("The maxSessionCount parameter is no longer supported and will be ignored.")]
         public virtual void AddReverseConnection(
             Uri url,
-            int timeout,
-            int maxSessionCount,
+            int timeout = 0,
+            int maxSessionCount = 0,
             bool enabled = true)
         {
             _ = maxSessionCount;

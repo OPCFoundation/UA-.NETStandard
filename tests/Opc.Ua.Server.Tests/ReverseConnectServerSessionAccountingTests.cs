@@ -100,8 +100,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task ConnectedReverseConnection_IsNotReconnected_WhenStartedServerHasZeroSessionsAsync()
         {
+            var fakeTime = new FakeTimeProvider();
             var fixture = new ServerFixture<TestableReverseConnectServer>(
-                telemetry => new TestableReverseConnectServer(telemetry));
+                telemetry => new TestableReverseConnectServer(telemetry, fakeTime));
             try
             {
                 await fixture.LoadConfigurationAsync().ConfigureAwait(false);
@@ -117,7 +118,8 @@ namespace Opc.Ua.Server.Tests
                 // Connection is already established, but server has 0 active sessions
                 property.LastState = ReverseConnectState.Connected;
 
-                server.InvokeOnReverseConnect(0);
+                // Fire the server's current timer (initial delay is one second)
+                fakeTime.Advance(TimeSpan.FromSeconds(2));
 
                 Assert.That(
                     property.LastState,
