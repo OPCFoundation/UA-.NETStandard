@@ -27,7 +27,7 @@ Machinery node manager instead; the readers then share its `DeviceSet`:
 services.AddOpcUa()
     .AddServer(options => { /* application name, endpoints, PKI */ })
     .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
-    .AddAutoIdToMachinery()
+    .AddAutoIdModel()
     .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
     {
         await context.Runtime
@@ -36,9 +36,17 @@ services.AddOpcUa()
     });
 ```
 
-Every reader stays reachable from the DI `DeviceSet` (OPC 10000-100 4.9):
-`WithParent` places it below another node, and `DeviceSet` organizes it as well
-unless it already reaches that node. In the Machinery composition,
+`AddOpcUaDi().AddAutoIdModel()` hosts readers on the plain DI owner without
+the Machinery server package; use `ConfigureAutoIdFor<DiNodeManager>` there.
+Register Machinery configuration before AutoID callbacks so machines exist when
+readers attach to them. The generic
+`AddDiModel<AutoIdModelProvider, TNodeManager>(configure)` helper combines model
+registration with an owner-targeted callback without an integration package.
+
+Every reader stays reachable from the DI `DeviceSet` (OPC 10000-100 4.9).
+`WithParent` places it below another node; if DeviceSet cannot reach it,
+the owner organizes the outermost DI component in its parent chain.
+In the Machinery composition,
 `AsComponentOf(machine)` makes a reader an identifiable component of a machine
 (OPC 40001-1 11): it is referenced from the machine's `Components` add-in and
 gets a `MachineryComponentIdentificationType` add-in that references its
