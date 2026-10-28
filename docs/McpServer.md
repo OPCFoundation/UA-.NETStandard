@@ -744,14 +744,139 @@ Application-certificate trust and server-side user authorization still apply ind
 Use `ConnectJwt` with `endpointUrl` and a raw, pre-acquired `jwt` to authenticate
 to an OPC UA server offering the JWT issued-token profile. It accepts optional
 `securityMode`, `securityPolicy`, and `name` selectors, but no automatic-trust switch.
-The server validates the JWT. Token acquisition, refresh, and HTTP authentication
-to the MCP server are separate concerns.
+Token acquisition, refresh, and HTTP authentication to the MCP server are
+separate concerns. The target OPC UA server validates the token and assigns
+the user's permissions.
 
-The token requires either an encrypted channel or an independently encrypted
-user-token policy, including when using `Sign` or `None`. Trusted server
-certificates are required. MCP clients may retain the token in tool-call history.
-See [JWT authentication](McpJwtAuthentication.md) for prerequisites, lifetime,
-errors, and the shared client's issued-token confidentiality requirements.
+The endpoint must advertise an `IssuedToken` user-token policy with the
+`http://opcfoundation.org/UA/UserToken#JWT` profile. Call `GetEndpoints` and
+inspect `userIdentityTokens`: `issuedTokenType` identifies the profile and
+`issuerEndpointUrl` describes the server's issuer requirements. This metadata
+does not establish trust in an issuer or authorize token disclosure. Obtain a
+token intended for that server through the identity provider's approved flow;
+the MCP server does not infer a trusted identity or token lifetime from
+unverified claims.
+
+Trust the server's application certificate through the existing
+[certificate stores](CertificateManager.md) before connecting. `ConnectJwt`
+uses an isolated certificate manager with automatic acceptance disabled, even
+when another connection or shared client configuration permits unknown
+certificates.
+
+#### Calling ConnectJwt
+
+Supply the raw compact token without an HTTP `Bearer ` prefix:
+
+```json
+{
+  "endpointUrl": "opc.tcp://server.example:4840",
+  "jwt": "<pre-acquired-jwt>",
+  "securityMode": "SignAndEncrypt",
+  "securityPolicy": "Basic256Sha256",
+  "name": "plant"
+}
+```
+
+Only `endpointUrl` and `jwt` are required. Omitting the security selectors
+chooses the strongest compatible endpoint offering a usable JWT policy, not an
+anonymous endpoint with a higher advertised security level. A missing or
+incompatible JWT policy fails rather than falling back to another authentication
+type.
+
+| Argument | Meaning |
+| --- | --- |
+| `endpointUrl` | OPC UA discovery/server URL. |
+| `jwt` | Raw token acquired externally; treat it as a bearer secret. |
+| `securityMode` | Optional `None`, `Sign`, or `SignAndEncrypt` filter. |
+| `securityPolicy` | Optional channel-policy name, such as `Basic256Sha256`. |
+| `name` | Optional session name; otherwise derived from the endpoint host and port. |
+
+A successful call returns the session name, session ID, and security settings.
+Use that session name for subsequent tools and disconnect it when finished.
+Existing `Connect` and `ConnectCertificate` arguments are unchanged.
+
+#### Confidentiality and token lifetime
+
+The token must be encrypted in transit. A `SignAndEncrypt` channel provides
+confidentiality even when the user-token policy specifies `None`. On a `Sign` or
+`None` channel, the user-token policy must independently encrypt the token using
+a supported policy. An empty user-token policy URI inherits the channel policy;
+it does not establish encryption on a `None` channel.
+
+The existing client policy selector enforces supported algorithms and
+channel/token compatibility. A `None` channel cannot negotiate an ephemeral-key
+token policy requiring a secure-channel handshake. Server certificate trust
+remains required even when only the token is encrypted. Prefer `SignAndEncrypt`
+when application data must also remain confidential.
+
+The shared OPC UA client checks issued-token confidentiality before activation,
+reactivation, and identity update. Previously tolerated issued-token connections
+with neither channel nor token encryption are rejected; configure an encrypted
+channel or an encrypted token policy. Reconnecting does not authorize a policy
+downgrade or a switch from the selected issued-token profile.
+
+The session may retain the supplied token for reactivation. There is no
+automatic acquisition or refresh, and the tool does not keep a token in startup
+configuration or a persistent credential alias. When a new token is needed,
+call `ConnectJwt` again with that token and the same session name. Existing
+ownership checks prevent another caller from replacing or borrowing the
+session. Replacing a connection does not transfer its subscriptions to the new
+session.
+
+#### Errors and secret handling
+
+JWT connection failures use the established JSON error shape:
+
+```json
+{
+  "error": true,
+  "statusCode": "BadIdentityTokenRejected",
+  "message": "JWT connection failed. Check the server's JWT policy, token validity and certificate trust."
+}
+```
+
+Blank tokens and values with whitespace are rejected. Token length is bounded
+by the client's existing string, byte-string, and message quotas. Invalid token
+input is rejected before an existing same-name session is removed. JWT error
+responses do not copy exception messages, inner exceptions, or the token.
+Cancellation still propagates instead of becoming a connection-error response.
+
+Rejected credentials and certificate-validation failures stop the current
+connection retry cycle, so an initial connection returns the server's status
+instead of repeatedly submitting the same token until cancellation. Transient
+transport failures retain the normal reconnect backoff. An embedding host can
+inject `IReconnectPolicy` to configure that backoff; JWT authentication and
+certificate errors still stop the cycle.
+
+An MCP client can retain tool arguments in conversation history, traces, or
+audit storage. Restrict access to those records and to the client itself.
+Server-side output redaction cannot erase those copies or reliably clear an
+immutable .NET string. Do not paste production tokens into shared conversations.
+Protect remote MCP connections independently with authenticated HTTPS; OPC UA
+token encryption protects the MCP-to-OPC-UA hop, not the client-to-MCP hop.
+
+#### Embedding
+
+Register the existing core services and connection tools as described in the
+[Core package reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md). The connection
+catalogue includes `ConnectJwt`; no separate provider registration is required.
+Embedding code can also call its injected `OpcUaSessionManager` directly:
+
+```csharp
+string result = await sessionManager.ConnectJwtAsync(
+    name: "plant",
+    endpointUrl: "opc.tcp://server.example:4840",
+    jwt: externallyAcquiredToken,
+    securityMode: "SignAndEncrypt",
+    securityPolicy: "Basic256Sha256",
+    ct: cancellationToken);
+```
+
+The manager API throws on failure; the MCP tool translates failures to the JSON
+contract above. Both paths use the same caller ownership, certificate trust,
+and issued-token policy checks.
+
+See [OPC 10000-4, UserTokenPolicy](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/7.41).
 
 ### Typed method arguments and structured values
 

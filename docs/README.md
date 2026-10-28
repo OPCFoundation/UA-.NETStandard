@@ -298,8 +298,6 @@ Assumes the client or server path.
   OPC UA servers. [Stack workflow profiles](McpServer.md#stack-workflow-tools)
   add GDS/credential issuance, roles/users, files, alarms, history, schemas,
   policy-controlled PubSub and live WoT execution.
-- [MCP JWT authentication](McpJwtAuthentication.md) - connect with a pre-acquired
-  JWT, trusted server certificates, and encrypted user-token transmission.
 - [WoT / NodeSet conversion](WotNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
   protocol bindings. The conversion guide also covers

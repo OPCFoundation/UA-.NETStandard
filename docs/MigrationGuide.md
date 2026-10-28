@@ -7,7 +7,6 @@ covers cross-cutting changes.
 
 ## Contents
 
-- [Encrypting issued user tokens](#encrypting-issued-user-tokens)
 - [General principles](#general-principles)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
@@ -45,21 +44,6 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
-
-## Encrypting issued user tokens
-
-Client sessions reject issued user tokens when neither the channel nor the
-effective user-token security policy encrypts them. This applies to initial
-activation, reactivation, and identity update, including clients outside MCP.
-An empty user-token policy URI inherits the channel policy.
-
-If an existing application uses an issued token over `None` or `Sign` with an
-unencrypted user-token policy, select a `SignAndEncrypt` endpoint or configure
-a supported encrypted token policy on the server. Keep server-certificate
-validation enabled. The client also rejects reactivation under a different
-issued-token profile rather than reinterpreting the retained credentials.
-See [MCP JWT authentication](McpJwtAuthentication.md#confidentiality-and-token-lifetime)
-for the channel/token combinations used by `ConnectJwt`.
 
 ## General principles
 

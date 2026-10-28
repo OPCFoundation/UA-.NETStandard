@@ -100,7 +100,7 @@ automatic-accept settings. `GetEndpoints` includes `issuedTokenType` and
 The tool does not acquire or refresh tokens. The OPC UA server validates the
 signature and claims. Supply a new token through another `ConnectJwt` call when
 needed. Treat tool-call history as secret-bearing storage. See
-[JWT authentication](../../docs/McpJwtAuthentication.md) for encryption rules,
+[JWT authentication](../../docs/McpServer.md#jwt-user-identities) for encryption rules,
 failure behavior, and the direct `OpcUaSessionManager.ConnectJwtAsync` API.
 
 NodeIds use OPC UA string notation:
