@@ -669,11 +669,6 @@ namespace Opc.Ua
                 maxRequestThreadCount = minRequestThreadCount;
             }
 
-            if (maxRequestThreadCount < 100)
-            {
-                maxRequestThreadCount = 100;
-            }
-
             if (maxQueuedRequestCount < 100)
             {
                 maxQueuedRequestCount = 100;
