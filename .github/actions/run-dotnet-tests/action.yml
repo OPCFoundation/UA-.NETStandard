@@ -268,30 +268,112 @@ runs:
   # SIGABRT or SIGSEGV. Only reports whose base name mentions 'testhost' or
   # 'dotnet' are collected, which excludes unrelated crashes on shared runners.
   - name: Stage macOS crash reports
-    if: ${{ failure() && runner.os == 'macOS' }}
+    # A tolerated testhost exit can leave the preceding step successful.
+    if: ${{ always() && runner.os == 'macOS' }}
     shell: pwsh
     run: |
+      $ErrorActionPreference = 'Stop'
       $src = [System.IO.Path]::Combine($env:HOME, 'Library', 'Logs', 'DiagnosticReports')
       $dst = 'TestResults/mac-diagnostics'
-      if (-not (Test-Path $src)) {
-          Write-Host "No DiagnosticReports directory found at '$src'; skipping."
-          exit 0
+      $null = New-Item -ItemType Directory -Path $dst -Force
+      $status = Join-Path $dst 'collection.txt'
+      function Write-Diagnostic([string] $message) {
+          Add-Content -LiteralPath $status -Value $message
+          Write-Host $message
       }
       $cutoff = (Get-Date).AddHours(-2)
-      $files = @(Get-ChildItem -Path $src -File -ErrorAction SilentlyContinue |
-          Where-Object { ($_.Extension -ieq '.crash' -or $_.Extension -ieq '.ips') -and
-                         ($_.BaseName -ilike '*testhost*' -or $_.BaseName -ilike '*dotnet*') -and
-                         $_.LastWriteTime -ge $cutoff })
-      if ($files.Count -eq 0) {
-          Write-Host 'No recent macOS crash reports found.'
+      $files = @()
+      if (Test-Path -LiteralPath $src) {
+          $files = @(Get-ChildItem -LiteralPath $src -File |
+              Where-Object { ($_.Extension -ieq '.crash' -or $_.Extension -ieq '.ips') -and
+                             ($_.BaseName -ilike '*testhost*' -or $_.BaseName -ilike '*dotnet*') -and
+                             $_.LastWriteTime -ge $cutoff })
+      }
+      else {
+          Write-Diagnostic "No DiagnosticReports directory found at '$src'."
+      }
+      $hasNativeStack = $false
+      foreach ($f in $files) {
+          Copy-Item -LiteralPath $f.FullName -Destination $dst -Force
+          $report = Get-Content -LiteralPath $f.FullName -Raw
+          if ($report -match '(?m)^Thread \d+ Crashed:' -or
+              ($report -match '"threads"\s*:' -and $report -match '"frames"\s*:\s*\[\s*\{')) {
+              $hasNativeStack = $true
+          }
+          Write-Diagnostic "Staged: $($f.Name)"
+      }
+      Write-Diagnostic "Staged $($files.Count) recent macOS crash report(s) to '$dst'."
+      if ($hasNativeStack) {
+          Write-Diagnostic 'A staged report contains native thread frames; LLDB fallback not required.'
           exit 0
       }
-      $null = New-Item -ItemType Directory -Path $dst -Force
-      foreach ($f in $files) {
-          Copy-Item -Path $f.FullName -Destination $dst -Force
-          Write-Host "Staged: $($f.Name)"
+
+      # Blame crash dumps are Mach-O cores on macOS, even with a .dmp suffix.
+      # Keep the newest three backtraces, with at most one minute per core.
+      $dumps = @(Get-ChildItem -LiteralPath 'TestResults' -Recurse -File -Filter '*_crashdump.dmp' |
+          Where-Object { $_.LastWriteTime -ge $cutoff } |
+          Sort-Object LastWriteTime -Descending |
+          Select-Object -First 3)
+      if ($dumps.Count -eq 0) {
+          Write-Diagnostic 'No native thread frames or recent blame crash dumps available.'
+          exit 0
       }
-      Write-Host "Staged $($files.Count) macOS crash report(s) to '$dst'."
+      $lldb = Get-Command lldb -CommandType Application -ErrorAction SilentlyContinue |
+          Select-Object -First 1
+      if ($null -eq $lldb) {
+          Write-Diagnostic '::warning::LLDB is unavailable; native backtraces could not be collected.'
+          exit 0
+      }
+      $dumpIndex = 0
+      foreach ($dump in $dumps) {
+          $name = "$dumpIndex-$($dump.Name)"
+          $dumpIndex++
+          $stdout = Join-Path $dst "$name.backtrace.txt"
+          $stderr = Join-Path $dst "$name.stderr.txt"
+          $process = $null
+          try {
+              $coreArgument = '"' + $dump.FullName.Replace('"', '\"') + '"'
+              $arguments = '--batch --no-lldbinit --core ' + $coreArgument +
+                  ' -o "thread backtrace all" -o "image list"'
+              Write-Diagnostic "Collecting native thread/image backtrace: $($dump.FullName)"
+              $process = Start-Process -FilePath $lldb.Source -ArgumentList $arguments -PassThru `
+                  -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+              if (-not $process.WaitForExit(60000)) {
+                  Write-Diagnostic "::warning::LLDB timed out after 60 seconds for '$name'; partial output retained."
+              }
+              elseif ($process.ExitCode -ne 0) {
+                  Write-Diagnostic "::warning::LLDB failed for '$name' with exit $($process.ExitCode); output retained."
+              }
+              else {
+                  Write-Diagnostic "LLDB completed for '$name'; see '$stdout' and '$stderr'."
+              }
+          }
+          catch {
+              Write-Diagnostic "::warning::Native backtrace collection failed for '$name': $($_.Exception.Message)"
+          }
+          finally {
+              if ($null -ne $process) {
+                  try {
+                      if (-not $process.HasExited) {
+                          $process.Kill($true)
+                          if (-not $process.WaitForExit(5000) -or -not $process.HasExited) {
+                              throw 'LLDB remained alive after bounded process-tree termination.'
+                          }
+                      }
+                  }
+                  catch {
+                      if (-not $process.HasExited) {
+                          Write-Diagnostic "::error::LLDB cleanup failed for '$name': $($_.Exception.Message)"
+                          throw
+                      }
+                      Write-Diagnostic "LLDB exited during process-tree termination for '$name'."
+                  }
+                  finally {
+                      $process.Dispose()
+                  }
+              }
+          }
+      }
 
   - name: Stage Linux core dumps
     # Counterpart of 'Stage macOS crash reports' for the kernel cores enabled by
