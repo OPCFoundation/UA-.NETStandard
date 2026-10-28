@@ -99,12 +99,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return VerifyCommittedResolutionInputAsync(false, sharedInput: true);
         }
 
-        [TestCase(1)]
-        [TestCase(2)]
-        public Task ColdRecoverySharesRetainedInputAfterPredecisionConflict(int predecisionConflicts)
+        /// <summary>
+        /// Preserves captured resolution inputs across bounded retries for both reference-conflict diagnostics.
+        /// </summary>
+        /// <param name="predecisionConflicts">The number of attempts rejected before the decision.</param>
+        /// <param name="referenceReservationConflict">Whether the conflict uses the native reservation diagnostic.</param>
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        public Task ColdRecoverySharesRetainedInputAfterPredecisionConflict(
+            int predecisionConflicts, bool referenceReservationConflict)
         {
             return VerifyCommittedResolutionInputAsync(
-                false, sharedInput: true, predecisionConflicts: predecisionConflicts);
+                false, sharedInput: true, predecisionConflicts: predecisionConflicts,
+                referenceReservationConflict: referenceReservationConflict);
         }
 
         /// <summary>
@@ -136,7 +145,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool nativeOrigin = true,
             bool sharedInput = false,
             bool activeInput = false,
-            int predecisionConflicts = 0)
+            int predecisionConflicts = 0,
+            bool referenceReservationConflict = false)
         {
             var consumed = new List<ByteString>();
             var converter = new Mock<IWotDocumentConverter>(MockBehavior.Strict);
@@ -205,7 +215,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 if (predecisionConflicts > 0)
                 {
                     predecisionConflicts--;
-                    throw new InvalidOperationException("Serving references changed during batch preparation.");
+                    throw new InvalidOperationException(referenceReservationConflict
+                        ? "Serving references changed during preparation."
+                        : "Serving references changed during batch preparation.");
                 }
             };
             WotRefreshResult initial = await m_coordinator.RefreshAsync(new WotRefreshRequest

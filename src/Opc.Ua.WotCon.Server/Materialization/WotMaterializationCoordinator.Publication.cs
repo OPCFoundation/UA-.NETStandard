@@ -159,10 +159,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                         catch (InvalidOperationException failure) when (
                             !decisionStarted && attempt < 2 &&
-                            string.Equals(
-                                failure.Message,
-                                "Serving references changed during batch preparation.",
-                                StringComparison.Ordinal))
+                            failure.Message is
+                                "Serving references changed during batch preparation." or
+                                "Serving references changed during preparation.")
                         {
                             await Task.Yield();
                         }
