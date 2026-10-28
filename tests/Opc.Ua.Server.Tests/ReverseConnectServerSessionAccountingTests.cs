@@ -39,8 +39,7 @@ namespace Opc.Ua.Server.Tests
 {
     /// <summary>
     /// Regression tests for Issue #4863: reverse connect connection admission must not
-    /// initiate redundant connections when already Connected/Connecting and must not be
-    /// blocked by unrelated server sessions.
+    /// be blocked by unrelated server sessions or an existing connection.
     /// </summary>
     [TestFixture]
     [Category("ReverseConnect")]
@@ -101,7 +100,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ConnectedReverseConnection_IsNotReconnected()
+        public void ConnectedReverseConnection_CanBeReconnected()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
@@ -115,20 +114,19 @@ namespace Opc.Ua.Server.Tests
             // Trigger the reverse connect tick
             server.InvokeOnReverseConnect(0);
 
-            // An established connection must not trigger a redundant connection attempt
+            // A new connection is required to recreate a session without outbound discovery.
             Assert.That(
                 property.LastState,
-                Is.EqualTo(ReverseConnectState.Connected),
-                "A reverse connection that is already Connected must not be re-initiated.");
+                Is.EqualTo(ReverseConnectState.Errored),
+                "A Connected reverse connection must allow another connection attempt.");
+            Assert.That(property.ServiceResult?.AdditionalInfo, Does.Contain("No suitable listener found"));
         }
 
         /// <summary>
-        /// Addresses Copilot and maintainer review comments on PR #4889: verifies that on an initialized and started server
-        /// with an active SessionManager that has 0 sessions, an already Connected reverse connection
-        /// is NOT re-initiated.
+        /// Verifies that an established reverse connection can be replaced when the server has no sessions.
         /// </summary>
         [Test]
-        public async Task ConnectedReverseConnection_IsNotReconnected_WhenStartedServerHasZeroSessionsAsync()
+        public async Task ConnectedReverseConnectionCanBeReplacedWhenStartedServerHasZeroSessionsAsync()
         {
             var fakeTime = new FakeTimeProvider();
             var fixture = new ServerFixture<TestableReverseConnectServer>(
@@ -153,8 +151,8 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(
                     property.LastState,
-                    Is.EqualTo(ReverseConnectState.Connected),
-                    "A reverse connection that is already Connected must not be re-initiated on a started server with 0 sessions.");
+                    Is.EqualTo(ReverseConnectState.Connecting),
+                    "A Connected reverse connection must allow a replacement connection attempt.");
             }
             finally
             {
@@ -167,6 +165,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(ReverseConnectState.Closed)]
         [TestCase(ReverseConnectState.Errored)]
+        [TestCase(ReverseConnectState.Connected)]
         public async Task ReverseConnectionIsAttemptedWhenLegacySessionThresholdIsReachedAsync(
             ReverseConnectState initialState)
         {

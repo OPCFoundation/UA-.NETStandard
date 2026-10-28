@@ -368,8 +368,8 @@ namespace Opc.Ua.Server
 
                         // try the reverse connect
                         if (reverseConnection.Enabled &&
-                            (reverseConnection.LastState == ReverseConnectState.Closed ||
-                             reverseConnection.LastState == ReverseConnectState.Errored))
+                            reverseConnection.LastState != ReverseConnectState.Connecting &&
+                            reverseConnection.LastState != ReverseConnectState.Rejected)
                         {
                             try
                             {
