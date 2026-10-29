@@ -204,6 +204,66 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A successful retry retires failures from earlier retries, not only the original outage.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DelayedRetryFailureAfterNewerSuccessDoesNotReportRecoveryAsync(CancellationToken testCt)
+        {
+            await using var harness = new PublishHarness(workerCount: 2);
+            harness.Manager.Resume();
+            PublishAttempt first = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            PublishAttempt second = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            first.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            PublishAttempt delayedRetry = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            second.Fail(StatusCodes.BadConnectionClosed);
+            PublishAttempt successfulRetry = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            successfulRetry.Succeed();
+            PublishAttempt nextOutage = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            delayedRetry.Fail(StatusCodes.BadConnectionClosed);
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(1),
+                "A retry older than the successful retry cannot report the recovered outage again.");
+
+            nextOutage.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(2),
+                "A request begun after the successful retry must report an independent outage.");
+        }
+
+        /// <summary>
+        /// Session reactivation retires old attempts even when no Publish failure has reported an outage.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ExternalReactivationRetiresUnreportedPublishFailureAsync(CancellationToken testCt)
+        {
+            await using var harness = new PublishHarness(workerCount: 2);
+            harness.Manager.Resume();
+            PublishAttempt delayedFailure = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            PublishAttempt delayedSuccess = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            harness.Manager.OnSessionReactivated();
+            delayedFailure.Fail(StatusCodes.BadConnectionClosed);
+            PublishAttempt current = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Is.Empty,
+                "Reactivation must retire old transport failures without relying on a prior recovery report.");
+
+            current.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            PublishAttempt retry = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            delayedSuccess.Succeed();
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            retry.Fail(StatusCodes.BadConnectionClosed);
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(1),
+                "A retired transport success must not rearm the current transport's outage.");
+        }
+
+        /// <summary>
         /// Ordinary retryable service errors and cancellation do not indicate a lost session.
         /// </summary>
         [TestCase("busy")]

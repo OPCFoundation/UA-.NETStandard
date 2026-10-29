@@ -1747,6 +1747,19 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Retires Publish recovery signals from the transport preceding successful session reactivation.
+        /// </summary>
+        internal void OnSessionReactivated()
+        {
+            lock (m_publishStateLock)
+            {
+                m_publishEpoch++;
+                m_publishRecoveryWatermark = m_publishRequestSequence;
+                m_publishRecoveryReported = false;
+            }
+        }
+
+        /// <summary>
         /// Rearms failure reporting only for success from an attempt begun after the reported outage.
         /// An older in-flight response cannot clear a newer failure's notification state.
         /// </summary>
@@ -1756,6 +1769,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 if (epoch == m_publishEpoch && requestSequence > m_publishRecoveryWatermark)
                 {
+                    m_publishRecoveryWatermark = requestSequence;
                     m_publishRecoveryReported = false;
                 }
             }
@@ -3827,7 +3841,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>Attempt sequence, guarded by <see cref="m_publishStateLock"/>.</summary>
         private long m_publishRequestSequence;
 
-        /// <summary>Last attempt begun when recovery was reported, guarded by <see cref="m_publishStateLock"/>.</summary>
+        /// <summary>Recovery or success ordering boundary, guarded by <see cref="m_publishStateLock"/>.</summary>
         private long m_publishRecoveryWatermark;
 
         /// <summary>Whether this outage was reported, guarded by <see cref="m_publishStateLock"/>.</summary>

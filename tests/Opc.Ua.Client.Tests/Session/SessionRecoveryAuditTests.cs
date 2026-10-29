@@ -65,6 +65,92 @@ namespace Opc.Ua.Client.Tests
             Assert.That(second.NewRequestHandle(), Is.Not.EqualTo(first.NewRequestHandle()));
         }
 
+        /// <summary>
+        /// Normal reactivation retires an outstanding Publish failure without replacing or pausing the session.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task ReactivationRetiresLatePublishFailureWithoutPriorRecoveryReportAsync(CancellationToken ct)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var response = new TaskCompletionSource<IServiceResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nextSent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int publishCount = 0;
+            channel.RequestHandler = async (request, requestCt) =>
+            {
+                if (request is CreateSubscriptionRequest create)
+                {
+                    return new CreateSubscriptionResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        RevisedPublishingInterval = create.RequestedPublishingInterval,
+                        RevisedLifetimeCount = create.RequestedLifetimeCount,
+                        RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                    };
+                }
+                if (request is DeleteSubscriptionsRequest delete)
+                {
+                    return new DeleteSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                if (request is PublishRequest)
+                {
+                    if (Interlocked.Increment(ref publishCount) == 1)
+                    {
+                        return await response.Task.WaitAsync(requestCt).ConfigureAwait(false);
+                    }
+                    nextSent.TrySetResult(true);
+                    await Task.Delay(Timeout.Infinite, requestCt).ConfigureAwait(false);
+                    throw new InvalidOperationException("The pending Publish must be cancelled during cleanup.");
+                }
+                return channel.CreateResponse(request);
+            };
+            var engineFactory = new ObservingSubscriptionEngineFactory(TimeProvider.System);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: engineFactory);
+            await session.OpenAsync("late-publish-after-reactivation", new UserIdentity(), ct).ConfigureAwait(false);
+            int recoveryErrors = 0;
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    Interlocked.Increment(ref recoveryErrors);
+                }
+            };
+            await using Subscriptions.ISubscription subscription = engineFactory.Engine.SubscriptionManager.Add(
+                Mock.Of<Subscriptions.ISubscriptionNotificationHandler>(),
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(10)
+                }));
+            ObservingSubscriptionEngineFactory.PublishAttempt attempt = await engineFactory
+                .NextAttemptAsync(ct).ConfigureAwait(false);
+            NodeId sessionId = session.SessionId;
+
+            await session.ReconnectAsync(null, channel.Channel, ct).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.SessionId, Is.EqualTo(sessionId));
+                Assert.That(session.Reconnecting, Is.False);
+                Assert.That(attempt.CancellationToken.IsCancellationRequested, Is.False,
+                    "The test must exercise reactivation without a publishing pause.");
+            });
+
+            response.SetException(new ServiceResultException(StatusCodes.BadConnectionClosed));
+            await nextSent.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref recoveryErrors), Is.Zero,
+                "A failure from the pre-reactivation transport must not trigger recovery on the reactivated session.");
+        }
+
         [Test]
         public async Task PublishAndKeepAliveUseDistinctRequestHandlesAsync()
         {

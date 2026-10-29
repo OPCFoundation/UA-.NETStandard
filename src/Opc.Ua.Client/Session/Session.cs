@@ -4650,6 +4650,12 @@ namespace Opc.Ua.Client
                         m_serverNonce = serverNonce;
                     }
 
+                    if (m_engine is DefaultSubscriptionEngine engine &&
+                        engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+                    {
+                        manager.OnSessionReactivated();
+                    }
+
                     // Never pass the caller token here: if it fired the session would
                     // stay Reconnecting forever and every later reconnect would fail.
                     await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
