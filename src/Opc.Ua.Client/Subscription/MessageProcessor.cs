@@ -152,9 +152,12 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken shutdownToken = AckQueue.ShutdownToken;
             shutdownToken.ThrowIfCancellationRequested();
             long generation = Volatile.Read(ref m_generation);
+            uint[] availableSequenceNumberSnapshot = availableSequenceNumbers is null
+                ? []
+                : [.. availableSequenceNumbers];
             if (availableSequenceNumbers != null)
             {
-                AvailableInRetransmissionQueue = [.. availableSequenceNumbers];
+                AvailableInRetransmissionQueue = availableSequenceNumberSnapshot;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
             if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
@@ -168,7 +171,7 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                    availableSequenceNumbers == null ? [] : [.. availableSequenceNumbers],
+                    availableSequenceNumberSnapshot,
                     TimeProvider.GetUtcNow(),
                     generation))
                     .ConfigureAwait(false);
@@ -648,6 +651,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Dispatch a notification and advance the processed sequence numbers.
+        /// </summary>
         private async ValueTask DispatchDataMessageAsync(
             IncomingMessage incoming,
             CancellationToken ct)
@@ -664,6 +670,9 @@ namespace Opc.Ua.Client.Subscriptions
                 ct).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Dispatch buffered notifications that immediately follow the data gate.
+        /// </summary>
         private async ValueTask DrainPendingMessagesAsync(CancellationToken ct)
         {
             RemoveStalePendingMessages();
@@ -779,6 +788,9 @@ namespace Opc.Ua.Client.Subscriptions
                 : gapEnd - 1;
         }
 
+        /// <summary>
+        /// Get the oldest pending sequence number relative to the data gate.
+        /// </summary>
         private uint GetOldestPendingSequenceNumber()
         {
             uint oldest = 0;
@@ -943,6 +955,9 @@ namespace Opc.Ua.Client.Subscriptions
             return sequenceNumber == uint.MaxValue ? 1 : sequenceNumber + 1;
         }
 
+        /// <summary>
+        /// Queue an acknowledgement for a processed notification.
+        /// </summary>
         private ValueTask QueueAcknowledgementAsync(
             uint sequenceNumber,
             CancellationToken ct)
