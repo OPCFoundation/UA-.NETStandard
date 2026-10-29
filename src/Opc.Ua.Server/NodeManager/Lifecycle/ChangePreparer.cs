@@ -199,7 +199,9 @@ namespace Opc.Ua.Server
             IServerInternal, INodeIdFactoryProvider, ITimeProviderProvider,
             IHistorianRegistryProvider, IHistorianBuilderRegistry,
             AliasNames.IAliasNameStoreRegistryProvider, AliasNames.IAliasNameStoreRegistrationValidator,
-            IConformanceUnitsManagerProvider
+            IConformanceUnitsManagerProvider, IServerEndpointRegistryProvider, ITransportListenerRegistryProvider,
+            ISecurityPolicyRegistryProvider, ICertificateValidatorProvider, IHistoryContinuationPointStoreProvider,
+            IServerServiceLevelControl
         {
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
@@ -263,6 +265,26 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public bool? DetectNodeIdCollisions => (m_server as INodeIdFactoryProvider)?.DetectNodeIdCollisions;
+
+            /// <inheritdoc/>
+            public ArrayOf<EndpointDescription> ServerEndpoints =>
+                m_server is IServerEndpointRegistryProvider provider ? provider.ServerEndpoints : [];
+
+            /// <inheritdoc/>
+            public IReadOnlyList<ITransportListener> TransportListeners =>
+                (m_server as ITransportListenerRegistryProvider)?.TransportListeners ?? [];
+
+            /// <inheritdoc/>
+            public ISecurityPolicyRegistry SecurityPolicyRegistry =>
+                (m_server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry ?? SecurityPolicies.Default;
+
+            /// <inheritdoc/>
+            public ICertificateValidatorEx? CertificateValidator =>
+                (m_server as ICertificateValidatorProvider)?.CertificateValidator;
+
+            /// <inheritdoc/>
+            public IHistoryContinuationPointStore? HistoryContinuationPointStore =>
+                (m_server as IHistoryContinuationPointStoreProvider)?.HistoryContinuationPointStore;
 
             /// <inheritdoc/>
             public IEnumerable<Uri> EndpointAddresses => m_server.EndpointAddresses;
@@ -402,6 +424,22 @@ namespace Opc.Ua.Server
             public void Dispose()
             {
                 // The facade does not own the running server.
+            }
+
+            /// <inheritdoc/>
+            public Action<byte> ClaimServiceLevelControl()
+            {
+                EnsurePublishedRegistryAccess();
+                if (m_server is not IServerServiceLevelControl control)
+                {
+                    throw new NotSupportedException("The server does not provide service-level control.");
+                }
+                Action<byte> publishLevel = control.ClaimServiceLevelControl();
+                return level =>
+                {
+                    EnsurePublishedRegistryAccess();
+                    publishLevel(level);
+                };
             }
 
             /// <inheritdoc/>

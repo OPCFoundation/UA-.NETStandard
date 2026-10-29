@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -3163,17 +3164,33 @@ namespace Opc.Ua.Server
                 m_registrationCts = null;
                 registration = m_registrationTask;
             }
+            var failures = new List<Exception>();
             try
             {
-                cancellation?.Cancel();
+                await RunShutdownStageAsync(failures, () =>
+                {
+                    cancellation?.Cancel();
+                    return default;
+                }).ConfigureAwait(false);
                 if (registration != null)
                 {
-                    await registration.ConfigureAwait(false);
+                    await RunShutdownStageAsync(failures, () => new ValueTask(registration)).ConfigureAwait(false);
                 }
             }
             finally
             {
                 cancellation?.Dispose();
+                lock (m_registrationLock)
+                {
+                    if (ReferenceEquals(m_registrationTask, registration))
+                    {
+                        m_registrationTask = null;
+                    }
+                }
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Discovery registration shutdown failed.", failures);
             }
         }
 
@@ -3251,7 +3268,8 @@ namespace Opc.Ua.Server
             // check server state.
             ServerInternalData? serverInternal = m_serverInternal;
 
-            if (serverInternal == null || !serverInternal.IsRunning)
+            if (serverInternal == null ||
+                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -3363,7 +3381,8 @@ namespace Opc.Ua.Server
             base.ValidateRequest(requestHeader);
 
             ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal == null || !serverInternal.IsRunning)
+            if (serverInternal == null ||
+                (!serverInternal.IsRunning && !NodeManagerReadinessScope.Allows(serverInternal)))
             {
                 throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
@@ -4595,16 +4614,14 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
-            // set the server status as running, or NoConfiguration while the
-            // application is in the application setup state (OPC 10000-12 G.2).
-            SetServerState(StartupServerState);
-
             try
             {
                 if (initialPublication is not null)
                 {
                     await initialPublication.CompleteAsync().ConfigureAwait(false);
                 }
+                // Application setup servers enter NoConfiguration (OPC 10000-12 G.2).
+                SetServerState(StartupServerState);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -4826,118 +4843,240 @@ namespace Opc.Ua.Server
         protected override async ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
             m_logger.ServerStopping();
-
-            // give connected clients time to observe the shutdown state and disconnect
-            // while the server is still serving requests.
-            ShutDownDelay();
-
-            // halt the registration timer.
-            await StopRegistrationAsync().ConfigureAwait(false);
-
-            // StartAsync creates a new watcher and certificate subscription, so release these
-            // to keep a stopped server from reacting and a restart from duplicating handlers.
-            m_configurationWatcher?.Dispose();
-            m_configurationWatcher = null;
-            m_certManagerSubscription?.Dispose();
-            m_certManagerSubscription = null;
-
-            if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
-            {
-                // unregister from Discovery Server if registered before
-                m_registrationInfo!.IsOnline = false;
-                await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
-            }
-
             ServerInternalData? serverInternal = m_serverInternal;
-            if (serverInternal is null)
+            ShutdownProgress progress = serverInternal is null
+                ? new ShutdownProgress()
+                : m_shutdownProgress.GetValue(serverInternal, static _ => new ShutdownProgress());
+            var failures = new List<Exception>();
+            await RunShutdownStageOnceAsync(
+                progress, ShutdownStage.Delay, failures, () => WaitForShutdownDelayAsync(cancellationToken))
+                .ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(
+                progress, ShutdownStage.Registration, failures, StopRegistrationAsync).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.ConfigurationWatcher, failures, () =>
             {
-                return;
+                m_configurationWatcher?.Dispose();
+                m_configurationWatcher = null;
+                return default;
+            }).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.CertificateSubscription, failures, () =>
+            {
+                m_certManagerSubscription?.Dispose();
+                m_certManagerSubscription = null;
+                return default;
+            }).ConfigureAwait(false);
+            if ((progress.CompletedStages & ShutdownStage.Registration) != 0)
+            {
+                await RunShutdownStageOnceAsync(progress, ShutdownStage.Discovery, failures, async () =>
+                {
+                    if (m_maxRegistrationInterval > 0 && m_registeredWithDiscoveryServer)
+                    {
+                        m_registrationInfo!.IsOnline = false;
+                        await RegisterWithDiscoveryServerAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(false);
             }
 
-            await TearDownServerInternalAsync(serverInternal, cancellationToken)
-                .ConfigureAwait(false);
-
-            // clear the reference once the internals are torn down, guarding against a
-            // concurrent restart that may already have published a new instance.
-            await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            try
+            if (serverInternal is not null)
             {
-                if (ReferenceEquals(m_serverInternal, serverInternal))
+                await TearDownServerInternalAsync(serverInternal, progress, failures, cancellationToken)
+                    .ConfigureAwait(false);
+                if ((progress.CompletedStages & ShutdownStage.Internals) != 0)
                 {
-                    m_serverInternal = null;
+                    await m_semaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        if (ReferenceEquals(m_serverInternal, serverInternal))
+                        {
+                            m_serverInternal = null;
+                        }
+                    }
+                    finally
+                    {
+                        m_semaphoreSlim.Release();
+                    }
                 }
             }
-            finally
+            if (failures.Count != 0)
             {
-                m_semaphoreSlim.Release();
+                throw new AggregateException("One or more server shutdown stages failed.", failures);
             }
         }
 
         /// <summary>
-        /// Tears down the server internals in order once request processing has stopped.
+        /// Stops consumers before retiring their address-space dependencies.
         /// </summary>
         /// <remarks>
-        /// The request queue is disposed first so that in-flight requests drain and no request
-        /// is still dispatching to a NodeManager when the subscription, session and node
-        /// managers are stopped and the server internals are disposed. A subsequent
+        /// Request admission stops and executing requests drain before subscription and session shutdown.
+        /// Failed consumer drains retain the address space; independent registration failures do not skip
+        /// application cleanup. Successful stages are retained for a later stop attempt. A subsequent
         /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken, System.Uri[])"/>
         /// re-creates the request queue and server internals.
         /// </remarks>
-        /// <exception cref="AggregateException"></exception>
+        /// <param name="serverInternal">The server instance being stopped.</param>
+        /// <param name="progress">The completed shutdown stages for this server instance.</param>
+        /// <param name="failures">The failures to report after independent stages have been attempted.</param>
+        /// <param name="cancellationToken">The token used to cancel consumer drains.</param>
         private async Task TearDownServerInternalAsync(
             ServerInternalData serverInternal,
+            ShutdownProgress progress,
+            List<Exception> failures,
             CancellationToken cancellationToken)
         {
-            var failures = new List<Exception>();
-
-            // Drain in-flight requests by disposing the request queue before the address space
-            // is torn down.
-            await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
-
-            // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
-            // audits each of them once its close completed (OPC 10000-5 6.4.7).
-            await RunShutdownStageAsync(
-                    failures,
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.RequestQueue, failures,
+                    () => StopRequestQueueAsync(cancellationToken))
+                .ConfigureAwait(false);
+            if ((progress.CompletedStages & ShutdownStage.RequestQueue) == 0)
+            {
+                return;
+            }
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.RoleBinding, failures,
                     serverInternal.DrainRoleStateBindingAsync)
                 .ConfigureAwait(false);
-
-            await RunShutdownStageAsync(
-                    failures,
+            await RunShutdownStageOnceAsync(
+                    progress, ShutdownStage.LifecyclePreparation, failures,
                     () => m_nodeManagerLifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
                 .ConfigureAwait(false);
 
-            if (serverInternal.SubscriptionManager is { } subscriptionManager)
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.Subscriptions, failures, async () =>
             {
-                await RunShutdownStageAsync(
-                        failures,
-                        () => subscriptionManager.ShutdownAsync(CancellationToken.None))
-                    .ConfigureAwait(false);
-            }
-
-            if (serverInternal.SessionManager is { } sessionManager)
-            {
-                sessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
-                await RunShutdownStageAsync(
-                        failures,
-                        () => sessionManager.ShutdownAsync(cancellationToken))
-                    .ConfigureAwait(false);
-            }
-
-            if (failures.Count == 0)
-            {
-                await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
-                if (failures.Count == 0 && !m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                if (serverInternal.SubscriptionManager is { } subscriptionManager)
                 {
-                    serverInternal.Dispose();
+                    await subscriptionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
+            await RunShutdownStageOnceAsync(progress, ShutdownStage.Sessions, failures, async () =>
+            {
+                if (serverInternal.SessionManager is { } sessionManager)
+                {
+                    sessionManager.SessionChannelKeepAlive -= SessionChannelKeepAliveEvent;
+                    await sessionManager.ShutdownAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
+
+            const ShutdownStage consumers = ShutdownStage.RequestQueue | ShutdownStage.RoleBinding |
+                ShutdownStage.LifecyclePreparation | ShutdownStage.Subscriptions | ShutdownStage.Sessions |
+                ShutdownStage.ConfigurationWatcher | ShutdownStage.CertificateSubscription;
+            if ((progress.CompletedStages & consumers) != consumers)
+            {
+                // Application registrations do not depend on session or subscription teardown; system managers,
+                // the core and sessions stay in place until the retry completes the consumer stages.
+                if ((progress.CompletedStages & ShutdownStage.LifecyclePreparation) != 0)
+                {
+                    await RunShutdownStageOnceAsync(
+                        progress, ShutdownStage.ApplicationManagers, failures,
+                        () => m_nodeManagerLifecycle.CompleteShutdownAsync(
+                            serverInternal, retireSystems: false, CancellationToken.None))
+                        .ConfigureAwait(false);
                 }
             }
-
-            if (failures.Count > 0)
+            else
             {
-                throw new AggregateException(
-                    "One or more server shutdown stages failed.",
-                    failures);
+                if ((progress.CompletedStages & ShutdownStage.NodeManagers) == 0)
+                {
+                    int previousFailures = failures.Count;
+                    await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
+                    if (failures.Count == previousFailures && !m_nodeManagerLifecycle.HasPendingShutdownCleanup)
+                    {
+                        progress.CompletedStages |= ShutdownStage.NodeManagers;
+                    }
+                }
+                const ShutdownStage internals = ShutdownStage.NodeManagers | ShutdownStage.Registration |
+                    ShutdownStage.Discovery;
+                if ((progress.CompletedStages & internals) == internals)
+                {
+                    await RunShutdownStageOnceAsync(
+                        progress, ShutdownStage.Internals, failures, serverInternal.DisposeAsync).ConfigureAwait(false);
+                }
             }
+        }
+
+        /// <summary>
+        /// Retries unfinished shutdown stages without replaying successful cleanup.
+        /// </summary>
+        /// <param name="progress">The shutdown stages completed for the current server internals.</param>
+        /// <param name="stage">The stage to run if it has not completed.</param>
+        /// <param name="failures">The failures to report after independent stages have been attempted.</param>
+        /// <param name="shutdown">The cleanup operation.</param>
+        /// <returns>A task completed after the stage succeeds or its failure is recorded.</returns>
+        private static async Task RunShutdownStageOnceAsync(
+            ShutdownProgress progress,
+            ShutdownStage stage,
+            List<Exception> failures,
+            Func<ValueTask> shutdown)
+        {
+            if ((progress.CompletedStages & stage) != 0)
+            {
+                return;
+            }
+            int previousFailures = failures.Count;
+            await RunShutdownStageAsync(failures, shutdown).ConfigureAwait(false);
+            if (failures.Count == previousFailures)
+            {
+                progress.CompletedStages |= stage;
+            }
+        }
+
+        /// <summary>
+        /// Records successful shutdown work for one server instance.
+        /// </summary>
+        private sealed class ShutdownProgress
+        {
+            /// <summary>
+            /// Gets or sets the stages that completed without failure.
+            /// </summary>
+            internal ShutdownStage CompletedStages { get; set; }
+        }
+
+        /// <summary>
+        /// Identifies shutdown stages whose successful completion is retained for retries.
+        /// </summary>
+        [Flags]
+        private enum ShutdownStage
+        {
+            /// <summary>No shutdown stage has completed.</summary>
+            None = 0,
+
+            /// <summary>The connected-client shutdown delay.</summary>
+            Delay = 1,
+
+            /// <summary>The discovery registration worker.</summary>
+            Registration = 2,
+
+            /// <summary>The configuration watcher.</summary>
+            ConfigurationWatcher = 4,
+
+            /// <summary>The certificate change subscription.</summary>
+            CertificateSubscription = 8,
+
+            /// <summary>The discovery-server unregistration.</summary>
+            Discovery = 16,
+
+            /// <summary>The request queue drain.</summary>
+            RequestQueue = 32,
+
+            /// <summary>The role-state binding drain.</summary>
+            RoleBinding = 64,
+
+            /// <summary>The accepted NodeManager work drain and shutdown preparation.</summary>
+            LifecyclePreparation = 128,
+
+            /// <summary>The subscription workers and subscription cleanup.</summary>
+            Subscriptions = 256,
+
+            /// <summary>The session worker and remaining session cleanup.</summary>
+            Sessions = 512,
+
+            /// <summary>The application and system NodeManager cleanup.</summary>
+            NodeManagers = 1024,
+
+            /// <summary>The server internals disposal.</summary>
+            Internals = 2048,
+
+            /// <summary>The application-only NodeManager cleanup performed while consumers are still failing.</summary>
+            ApplicationManagers = 4096
         }
 
         /// <summary>
@@ -5006,62 +5145,93 @@ namespace Opc.Ua.Server
         {
             try
             {
-                // check for connected clients.
-                IList<ISession> currentessions = ServerInternal.SessionManager.GetSessions();
-
-                if (currentessions.Count > 0)
+                IServerInternal server = ServerInternal;
+                if (!BeginShutdownCountdown(server))
                 {
-                    // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.UpdateServerStatus(
-                        (status) =>
-                        {
-                            // set the shutdown reason and state.
-                            status.Value.ShutdownReason = new LocalizedText(
-                                "en-US",
-                                "Application is shutting down.");
-                            ServerStatusState statusVariable = status!.Variable!;
-                            statusVariable.ShutdownReason!.Value = new LocalizedText(
-                                "en-US",
-                                "Application is shutting down.");
-                            status.Value.State = ServerState.Shutdown;
-                            statusVariable.State!.Value = ServerState.Shutdown;
-                            statusVariable
-                                .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                        });
-
-                    // The "Session/Terminated" audit is reported when the sessions that are
-                    // still open after the delay are actually terminated, not here: a client
-                    // that closes its session during the delay audits its own close.
-                    for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
-                        timeTillShutdown > 0;
-                        timeTillShutdown--)
+                    return;
+                }
+                for (int timeTillShutdown = Configuration!.ServerConfiguration!.ShutdownDelay;
+                    timeTillShutdown > 0;
+                    timeTillShutdown--)
+                {
+                    if (!UpdateShutdownCountdown(server, timeTillShutdown))
                     {
-                        ServerInternal.UpdateServerStatus(
-                            (status) =>
-                            {
-                                status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                                status!.Variable!.SecondsTillShutdown!.Value = (uint)timeTillShutdown;
-                                status.Variable
-                                    .ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                            });
-
-                        // exit if all client connections are closed.
-                        int sessionCount = ServerInternal.SessionManager.GetSessions().Count;
-                        if (sessionCount == 0)
-                        {
-                            break;
-                        }
-
-                        m_logger.SessionCountActiveSessionsSecondsUntilShutdown(sessionCount, timeTillShutdown);
-
-                        Thread.Sleep(1000);
+                        break;
                     }
+                    Thread.Sleep(1000);
                 }
             }
             catch
             {
                 // ignore error during shutdown procedure.
             }
+        }
+
+        /// <summary>
+        /// Lets connected clients observe shutdown without blocking the server's asynchronous stop operation.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the countdown.</param>
+        /// <returns>A task completed when the countdown expires or all clients disconnect.</returns>
+        private async ValueTask WaitForShutdownDelayAsync(CancellationToken cancellationToken)
+        {
+            if (m_serverInternal is not { } server || !BeginShutdownCountdown(server))
+            {
+                return;
+            }
+            for (int remaining = Configuration!.ServerConfiguration!.ShutdownDelay; remaining > 0; remaining--)
+            {
+                if (!UpdateShutdownCountdown(server, remaining))
+                {
+                    break;
+                }
+                await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Announces shutdown to connected clients before their sessions are terminated.
+        /// </summary>
+        /// <param name="server">The server whose connected clients should observe shutdown.</param>
+        /// <returns>True when connected clients need the configured countdown.</returns>
+        private static bool BeginShutdownCountdown(IServerInternal server)
+        {
+            if (server.SessionManager.GetSessions().Count == 0)
+            {
+                return false;
+            }
+            server.UpdateServerStatus(status =>
+            {
+                status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
+                ServerStatusState variable = status!.Variable!;
+                variable.ShutdownReason!.Value = new LocalizedText("en-US", "Application is shutting down.");
+                status.Value.State = ServerState.Shutdown;
+                variable.State!.Value = ServerState.Shutdown;
+                variable.ClearChangeMasks(server.DefaultSystemContext, true);
+            });
+            return true;
+        }
+
+        /// <summary>
+        /// Publishes the countdown while clients remain connected.
+        /// </summary>
+        /// <param name="server">The server being stopped.</param>
+        /// <param name="remaining">The seconds remaining before session termination.</param>
+        /// <returns>True when at least one session is still connected.</returns>
+        private bool UpdateShutdownCountdown(IServerInternal server, int remaining)
+        {
+            server.UpdateServerStatus(status =>
+            {
+                status.Value.SecondsTillShutdown = (uint)remaining;
+                status!.Variable!.SecondsTillShutdown!.Value = (uint)remaining;
+                status.Variable.ClearChangeMasks(server.DefaultSystemContext, true);
+            });
+            int sessionCount = server.SessionManager.GetSessions().Count;
+            if (sessionCount == 0)
+            {
+                return false;
+            }
+            m_logger.SessionCountActiveSessionsSecondsUntilShutdown(sessionCount, remaining);
+            return true;
         }
 
         /// <summary>
@@ -5831,6 +6001,9 @@ namespace Opc.Ua.Server
             "CA2213:Disposable fields should be disposed",
             Justification = "Disposed by OnServerStoppingAsync while the server is stopped.")]
         private ServerInternalData? m_serverInternal;
+
+        /// <summary>Retains successful shutdown stages without extending a stopped server's lifetime.</summary>
+        private readonly ConditionalWeakTable<ServerInternalData, ShutdownProgress> m_shutdownProgress = new();
 
         /// <summary>The canonical lifecycle owned by this server and exposed through its public provider.</summary>
         private readonly NodeManagerLifecycle m_nodeManagerLifecycle;

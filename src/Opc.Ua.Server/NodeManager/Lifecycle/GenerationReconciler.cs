@@ -370,7 +370,8 @@ namespace Opc.Ua.Server
             NodeManagerGeneration generation,
             NodeId sessionId,
             CancellationToken cancellationToken,
-            bool deleteSubscriptions = false)
+            bool deleteSubscriptions = false,
+            Func<OperationContext, CancellationToken, ValueTask>? dispatchAsync = null)
         {
             if (!generation.SessionBindings.TryGetValue(sessionId, out GenerationSessionBindingRecord? bindingRecord))
             {
@@ -387,11 +388,18 @@ namespace Opc.Ua.Server
                 }
 
                 using var sessionContext = new OperationContext(binding.Session, DiagnosticsMasks.None);
-                await generation.NodeManager.SessionClosingAsync(
-                    sessionContext,
-                    sessionId,
-                    deleteSubscriptions,
-                    cancellationToken).ConfigureAwait(false);
+                if (dispatchAsync is null)
+                {
+                    await generation.NodeManager.SessionClosingAsync(
+                        sessionContext,
+                        sessionId,
+                        deleteSubscriptions,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await dispatchAsync(sessionContext, cancellationToken).ConfigureAwait(false);
+                }
                 bindingRecord.Binding = null;
                 RemoveSessionBindingRecord(generation, sessionId, bindingRecord);
                 return true;

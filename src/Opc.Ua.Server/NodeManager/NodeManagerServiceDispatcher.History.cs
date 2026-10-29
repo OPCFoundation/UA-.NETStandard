@@ -215,6 +215,10 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
+                    if (node.Processed && results[0] is { ContinuationPoint.IsEmpty: false } page)
+                    {
+                        holder.BindHistoryGeneration(page.ContinuationPoint, generation);
+                    }
                     return (results[0] ?? result, node.Processed ? errors[0] : StatusCodes.BadNodeIdUnknown);
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)

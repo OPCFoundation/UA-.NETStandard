@@ -238,17 +238,36 @@ namespace Opc.Ua.Server
 
             // Cancel so the monitor's inter-cycle delay is abandoned immediately
             // instead of running to the end of its sleep cycle.
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? monitorWorkerTask = m_monitorWorkerTask;
             if (monitorWorkerTask is not null)
             {
-                await monitorWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await monitorWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_monitorWorkerTask = null;
             }
 
             m_workerCts?.Dispose();
             m_workerCts = null;
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("The session-monitor worker failed during shutdown.", failures);
+            }
 
             // Sessions still open at shutdown are closed like any other session: the Closing
             // event is raised, the SessionDiagnostics node is removed and the session count

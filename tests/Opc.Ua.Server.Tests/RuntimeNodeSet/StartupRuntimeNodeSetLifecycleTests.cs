@@ -149,7 +149,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Assert.That(m_server.Probe.WasPublishedDuringPreparation, Is.False);
                 Assert.That(m_server.Probe.CreateAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(m_server.Probe.ReadinessCount, Is.EqualTo(1));
-                Assert.That(m_server.Probe.WasRunningAtReadiness, Is.True);
+                // Readiness runs while the server is still in the Startup state; requests are
+                // admitted only after every initial generation is ready.
+                Assert.That(m_server.Probe.WasRunningAtReadiness, Is.False);
             });
         }
 

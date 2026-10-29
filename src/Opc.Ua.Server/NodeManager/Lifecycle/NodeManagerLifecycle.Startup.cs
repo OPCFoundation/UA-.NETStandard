@@ -148,7 +148,11 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken)
             {
                 IPreparedNodeManagerBatch batch = await m_owner.PrepareBatchAsync(
-                    changes, null, cancellationToken, initial: this).ConfigureAwait(false);
+                    changes,
+                    null,
+                    m_owner.CaptureLifecycleCallbackPermit(),
+                    cancellationToken,
+                    initial: this).ConfigureAwait(false);
                 m_completion = CommitAsync(batch, cancellationToken);
                 try
                 {

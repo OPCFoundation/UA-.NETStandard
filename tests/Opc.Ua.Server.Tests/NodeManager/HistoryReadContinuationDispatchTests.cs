@@ -173,6 +173,82 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
         }
 
+        /// <summary>
+        /// Verifies that each fresh opaque point returned by a resumed read retains its issuing generation.
+        /// </summary>
+        [Test]
+        public async Task ResumedHistoryReadBindsEachFreshOpaqueContinuationAsync()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+
+            (ArrayOf<HistoryReadResult> first, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first[0].ContinuationPoint.IsEmpty, Is.False);
+
+            (ArrayOf<HistoryReadResult> second, _) = await harness
+                .ReadAsync(1, first[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(second[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(second[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[0].Disposed, Is.True);
+            Assert.That(created[1].Disposed, Is.False);
+
+            (ArrayOf<HistoryReadResult> third, _) = await harness
+                .ReadAsync(1, second[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(third[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(third[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(third[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(third[0].ContinuationPoint, Is.Not.EqualTo(second[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(3));
+            Assert.That(created[1].Disposed, Is.True);
+            Assert.That(created[2].Disposed, Is.False);
+
+            (ArrayOf<HistoryReadResult> released, _) = await harness
+                .ReadAsync(1, third[0].ContinuationPoint, release: true).ConfigureAwait(false);
+            Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(created[2].Disposed, Is.True);
+
+            (ArrayOf<HistoryReadResult> repeated, _) = await harness
+                .ReadAsync(1, third[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(repeated[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(created, Has.Count.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Verifies that a fresh point from a resumed read cannot reopen its retired issuing generation.
+        /// </summary>
+        [Test]
+        public async Task RetiredIssuerRejectsFreshOpaqueHistoryContinuationAsync()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+
+            (ArrayOf<HistoryReadResult> first, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            (ArrayOf<HistoryReadResult> second, _) = await harness
+                .ReadAsync(1, first[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(second[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second[0].ContinuationPoint.IsEmpty, Is.False);
+            Assert.That(second[0].ContinuationPoint, Is.Not.EqualTo(first[0].ContinuationPoint));
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[1].Disposed, Is.False);
+
+            NodeManagerGenerationRegistry.GetOrCreate(harness.Manager.Object).Gate.Retire();
+
+            (ArrayOf<HistoryReadResult> rejected, _) = await harness
+                .ReadAsync(1, second[0].ContinuationPoint).ConfigureAwait(false);
+            Assert.That(rejected[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(rejected[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(created, Has.Count.EqualTo(2));
+            Assert.That(created[1].Disposed, Is.True);
+            Assert.That(harness.Points.RestoreHistory(second[0].ContinuationPoint), Is.Null);
+        }
+
         private static ByteString ToByteString(Guid id)
         {
             return new ByteString(id.ToByteArray());
@@ -391,7 +467,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public ValueTask<(ArrayOf<HistoryReadResult> values, ArrayOf<DiagnosticInfo> diagnosticInfos)> ReadAsync(
                 int count,
-                ByteString continuationPoint = default)
+                ByteString continuationPoint = default,
+                bool release = false)
             {
                 var nodesToRead = new HistoryReadValueId[count];
                 for (int ii = 0; ii < count; ii++)
@@ -406,7 +483,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Context,
                     new ExtensionObject(new ReadRawModifiedDetails()),
                     TimestampsToReturn.Neither,
-                    false,
+                    release,
                     nodesToRead.ToArrayOf());
             }
 

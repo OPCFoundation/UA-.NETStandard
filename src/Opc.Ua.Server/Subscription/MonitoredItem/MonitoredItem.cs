@@ -346,7 +346,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                m_slot = new NodeManagerSlot();
+                m_slot = NodeManagerGenerationRegistry.GetOwnerlessSlot(server);
             }
             ManagerHandle = Generation is null ? null : managerHandle;
             SubscriptionId = storedMonitoredItem.SubscriptionId;
@@ -574,7 +574,8 @@ namespace Opc.Ua.Server
             get
             {
                 if (MonitoringMode == MonitoringMode.Disabled ||
-                    (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
+                    (MonitoringMode != MonitoringMode.Reporting && !m_triggered) ||
+                    IsReadinessPending())
                 {
                     return false;
                 }
@@ -622,7 +623,7 @@ namespace Opc.Ua.Server
             get
             {
                 // only allow to trigger if sampling or reporting.
-                if (MonitoringMode == MonitoringMode.Disabled)
+                if (MonitoringMode == MonitoringMode.Disabled || IsReadinessPending())
                 {
                     return false;
                 }
@@ -639,7 +640,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool IsResendData => Volatile.Read(ref m_resendData);
+        public bool IsResendData => !IsReadinessPending() && Volatile.Read(ref m_resendData);
 
         /// <inheritdoc/>
         public void SetupResendDataTrigger()
@@ -669,11 +670,28 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         bool IReadySignalingMonitoredItem.HasPendingNotifications =>
-            Volatile.Read(ref m_readyToPublish) ||
+            !IsReadinessPending() &&
+            (Volatile.Read(ref m_readyToPublish) ||
             Volatile.Read(ref m_readyToTrigger) ||
             Volatile.Read(ref m_resendData) ||
             // an aggregate becomes ready when its processing interval ends, without a new value.
-            AggregateFilter != null;
+            AggregateFilter != null);
+
+        /// <summary>
+        /// Re-signals retained samples after this exact bound generation finishes initialization.
+        /// </summary>
+        /// <param name="generation">The generation whose readiness policy was released.</param>
+        internal void CompleteReadiness(NodeManagerGeneration generation)
+        {
+            lock (m_lock)
+            {
+                if (!m_isDisposed && IsBoundToGeneration(generation) &&
+                    (m_readyToPublish || m_readyToTrigger || m_resendData || AggregateFilter is not null))
+                {
+                    SignalReady();
+                }
+            }
+        }
 
         /// <inheritdoc/>
         bool IReadySignalingMonitoredItem.TryAcquireReadySignal()
@@ -696,7 +714,7 @@ namespace Opc.Ua.Server
         {
             // the compare-exchange is a full fence: the flags set before it are visible to a
             // subscription that releases the signal and then checks the flags again.
-            if (m_subscription is IMonitoredItemReadySink sink &&
+            if (!IsReadinessPending() && m_subscription is IMonitoredItemReadySink sink &&
                 Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
             {
                 sink.OnMonitoredItemReady(this);
@@ -2726,6 +2744,10 @@ namespace Opc.Ua.Server
                 }
 
                 // a disabled item reports nothing, not even a pending resend.
+                if (IsReadinessPending())
+                {
+                    return false;
+                }
                 if (MonitoringMode == MonitoringMode.Disabled)
                 {
                     m_resendData = false;
@@ -3049,6 +3071,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Keeps queued samples and events private until their bound generation finishes initialization.
+        /// </summary>
+        private bool IsReadinessPending()
+        {
+            return Generation is { } reference &&
+                reference.TryGetGeneration(out NodeManagerGeneration? generation) &&
+                generation is { ReadinessPending: true };
+        }
+
         private bool CanQueueSourceEmission()
         {
             return Generation is not null && !m_isTerminal &&
@@ -3059,7 +3091,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Compares the bound generation without consulting the public slot identifier or taking its lock.
         /// </summary>
-        private bool IsBoundToGeneration(NodeManagerGeneration generation)
+        internal bool IsBoundToGeneration(NodeManagerGeneration generation)
         {
             return Generation is { } reference &&
                 reference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) &&
@@ -3071,8 +3103,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private bool CanUseEventSource(NodeManagerGeneration? generation)
         {
-            return generation is null ||
-                MonitoringAllEvents ||
+            if (generation is null)
+            {
+                return true;
+            }
+
+            return MonitoringAllEvents ||
                 IsBoundToGeneration(generation) ||
                 (Generation is null && ReferenceEquals(m_slot, generation.Slot));
         }

@@ -35,6 +35,102 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Identifies lifecycle operations that a callback may re-enter without reacquiring its current admission.
+    /// </summary>
+    [Flags]
+    internal enum NodeManagerAdmissionCapability
+    {
+        /// <summary>
+        /// No re-entry capability is granted.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// The callback may publish address-space changes.
+        /// </summary>
+        AddressSpaceMutation = 1,
+
+        /// <summary>
+        /// The callback may publish server lifecycle changes.
+        /// </summary>
+        ServerLifecycle = 2
+    }
+
+    /// <summary>
+    /// Carries semantic host admission for one lifecycle batch commit.
+    /// </summary>
+    internal interface INodeManagerBatchAdmission : IDisposable
+    {
+        /// <summary>
+        /// Determines whether the host granted the specified lifecycle capability.
+        /// </summary>
+        /// <param name="capability">The capability to check.</param>
+        /// <returns>True when the capability is currently available.</returns>
+        bool Includes(NodeManagerAdmissionCapability capability);
+
+        /// <summary>
+        /// Releases the specified lifecycle capability before an external durable decision.
+        /// </summary>
+        /// <param name="capability">The capability to release.</param>
+        void Release(NodeManagerAdmissionCapability capability);
+    }
+
+    /// <summary>
+    /// Carries semantic capabilities for lifecycle re-entry from a manager callback.
+    /// </summary>
+    internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
+    {
+        /// <summary>
+        /// Establishes a scoped permit in the current asynchronous execution context.
+        /// </summary>
+        /// <param name="current">The execution-context slot for callback permits.</param>
+        /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        internal NodeManagerCallbackPermit(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Previous = current.Value;
+            Capabilities = capabilities;
+            current.Value = this;
+        }
+
+        /// <summary>
+        /// Gets the preceding callback permit.
+        /// </summary>
+        internal NodeManagerCallbackPermit? Previous { get; }
+
+        /// <summary>
+        /// Gets the lifecycle capabilities granted to this callback.
+        /// </summary>
+        internal NodeManagerAdmissionCapability Capabilities { get; }
+
+        /// <summary>
+        /// Gets whether this permit remains active.
+        /// </summary>
+        internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            Volatile.Write(ref m_active, 0);
+            RestoreContext();
+            return default;
+        }
+
+        private void RestoreContext()
+        {
+            if (ReferenceEquals(m_current.Value, this))
+            {
+                m_current.Value = Previous;
+            }
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+        private int m_active = 1;
+    }
+
+    /// <summary>
     /// Carries the candidate routing image and callbacks for a batch publication.
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
@@ -58,6 +154,8 @@ namespace Opc.Ua.Server
     /// <param name="Preparation">The explicit private metadata staging context.</param>
     /// <param name="Reconciliation">The server-owned post-commit checkpoints.</param>
     /// <param name="References">Reference edits discovered before publication serialization.</param>
+    /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
+    /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
@@ -77,7 +175,9 @@ namespace Opc.Ua.Server
         ChangePreparer Preparation,
         GenerationReconciler.ReconciliationWork Reconciliation,
         CancellationToken CancellationToken,
-        PreparedAddressSpaceReferences? References = null);
+        PreparedAddressSpaceReferences? References = null,
+        NodeManagerCallbackPermit? CallbackPermit = null,
+        INodeManagerBatchAdmission? Admission = null);
 
     /// <summary>
     /// Publication responsibilities of the unified dynamic NodeManager host.
@@ -88,6 +188,12 @@ namespace Opc.Ua.Server
         /// Gets the current live routing image whose identity is the preparation revision.
         /// </summary>
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
+
+        /// <summary>
+        /// Captures the callback permit associated with the current asynchronous execution context.
+        /// </summary>
+        /// <returns>The current callback permit, if present.</returns>
+        NodeManagerCallbackPermit? CaptureLifecycleCallbackPermit();
 
         /// <summary>
         /// Stops routing item deletions to a retired generation after its all-events bindings were released.
@@ -101,12 +207,24 @@ namespace Opc.Ua.Server
         /// <param name="candidates">Private additions and replacements.</param>
         /// <param name="removed">Explicit removals.</param>
         /// <param name="view">The serving view captured by the transaction.</param>
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
         /// <param name="cancellationToken">Cancels reference discovery.</param>
         /// <returns>The versioned reference edits to reserve before deciding.</returns>
         ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
             NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken,
+            NodeManagerCallbackPermit? callbackPermit = null);
+
+        /// <summary>
+        /// Acquires all required host admission capabilities without retaining a partial set while waiting.
+        /// </summary>
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
+        /// <param name="cancellationToken">The token used to cancel admission.</param>
+        /// <returns>The semantic admission granted by the host.</returns>
+        ValueTask<INodeManagerBatchAdmission> AcquireCommitAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken);
 
         /// <summary>

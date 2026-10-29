@@ -321,20 +321,46 @@ namespace Opc.Ua.Server
             // Expiration claims performed by a publish sweep take the same
             // semaphore synchronously.
             SignalConditionRefreshWorkerShutdown();
-            m_workerCts?.Cancel();
+            var failures = new List<Exception>();
+            try
+            {
+                m_workerCts?.Cancel();
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                failures.Add(failure);
+            }
 
             Task? publishWorkerTask = m_publishWorkerTask;
             if (publishWorkerTask is not null)
             {
-                await publishWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await publishWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_publishWorkerTask = null;
             }
 
             Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
             if (conditionRefreshWorkerTask is not null)
             {
-                await conditionRefreshWorkerTask.ConfigureAwait(false);
+                try
+                {
+                    await conditionRefreshWorkerTask.ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    failures.Add(failure);
+                }
                 m_conditionRefreshWorkerTask = null;
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Subscription workers failed during shutdown.", failures);
             }
 
             // Expired-subscription cleanups scheduled by the publish sweep still

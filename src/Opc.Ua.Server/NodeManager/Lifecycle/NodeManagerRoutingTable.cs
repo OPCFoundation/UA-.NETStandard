@@ -101,7 +101,6 @@ namespace Opc.Ua.Server
         private void PublishSnapshot(RoutingSnapshot next)
         {
             RoutingSnapshot previous = m_snapshot;
-            previous.Epoch.Close();
             foreach (NodeManagerGeneration generation in previous.Generations)
             {
                 if (!next.Generations.Contains(generation))
@@ -127,6 +126,7 @@ namespace Opc.Ua.Server
             }
             next.SetRevision(Interlocked.Increment(ref m_revision));
             Volatile.Write(ref m_snapshot, next);
+            previous.Epoch.Close();
         }
 
         /// <summary>
@@ -1172,6 +1172,7 @@ namespace Opc.Ua.Server
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
                         .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
                 Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
+                m_pendingReadiness = [.. Generations.Where(generation => generation.ReadinessPending)];
                 Epoch = new AddressSpaceEpoch();
                 foreach (NodeManagerGeneration generation in Generations)
                 {
@@ -1221,6 +1222,23 @@ namespace Opc.Ua.Server
             /// Gets the striped request epoch owned by this immutable view.
             /// </summary>
             public AddressSpaceEpoch Epoch { get; }
+
+            /// <summary>
+            /// Checks readiness policy without changing the owner selected by this routing view.
+            /// </summary>
+            /// <param name="nodeManager">The owner selected by these namespace routes.</param>
+            /// <returns>Whether this request may dispatch to the selected owner.</returns>
+            internal bool CanDispatchTo(IAsyncNodeManager nodeManager)
+            {
+                foreach (NodeManagerGeneration generation in m_pendingReadiness)
+                {
+                    if (ReferenceEquals(generation.NodeManager, nodeManager) && generation.ReadinessPending)
+                    {
+                        return NodeManagerReadinessScope.Allows(generation);
+                    }
+                }
+                return true;
+            }
 
             /// <summary>
             /// Resolves a manager to the exact generation carried by this view.
@@ -1351,6 +1369,9 @@ namespace Opc.Ua.Server
                 }
                 return visibleRoutes;
             }
+
+            /// <summary>The generations whose readiness was pending when this view was built.</summary>
+            private readonly NodeManagerGeneration[] m_pendingReadiness;
         }
 
         /// <summary>

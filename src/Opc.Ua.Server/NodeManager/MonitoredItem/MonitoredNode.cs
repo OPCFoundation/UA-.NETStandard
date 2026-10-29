@@ -930,6 +930,7 @@ namespace Opc.Ua.Server
                 eventTypeId,
                 sourceNodeId,
                 snapshot.SourceEmission?.Generation,
+                snapshot.SourceEmission?.ReadinessPending ?? false,
                 offset);
         }
 
@@ -1161,6 +1162,7 @@ namespace Opc.Ua.Server
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
                 delivery.SourceGeneration,
+                delivery.SourceReadinessPending,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
@@ -1177,12 +1179,14 @@ namespace Opc.Ua.Server
                 NodeId eventTypeId,
                 NodeId sourceNodeId,
                 NodeManagerGeneration? sourceGeneration,
+                bool sourceReadinessPending,
                 int offset)
             {
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
                 SourceGeneration = sourceGeneration;
+                SourceReadinessPending = sourceReadinessPending;
                 Offset = offset;
             }
 
@@ -1193,6 +1197,8 @@ namespace Opc.Ua.Server
             public NodeId SourceNodeId { get; }
 
             public NodeManagerGeneration? SourceGeneration { get; }
+
+            public bool SourceReadinessPending { get; }
 
             public int Offset { get; }
         }
@@ -1262,10 +1268,22 @@ namespace Opc.Ua.Server
             NodeId eventTypeId,
             NodeId sourceNodeId,
             NodeManagerGeneration? sourceGeneration,
+            bool sourceReadinessPending,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
         {
+            // Events of a generation that was still initializing reach items bound to it at once and every other
+            // item when its readiness completes. The retention is bounded; the oldest events are dropped first.
+            if (sourceReadinessPending && sourceGeneration is not null &&
+                monitoredItem is MonitoredItem boundItem && !boundItem.IsBoundToGeneration(sourceGeneration) &&
+                sourceGeneration.TryDeferEvent(() => ProcessEventForItemAsync(
+                    monitoredItem, target, eventTypeId, sourceNodeId, sourceGeneration, false,
+                    key, evaluation, CancellationToken.None)))
+            {
+                return;
+            }
+
             if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
             {
                 EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);

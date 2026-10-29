@@ -381,6 +381,7 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Release();
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
+                m_namespaceRegistrationSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -515,51 +516,59 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            m_dynamicMutationSemaphore.Release();
-
-            await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using INodeManagerBatchAdmission admission =
+                await ((IDynamicNodeManagerBatchHost)this).AcquireCommitAdmissionAsync(
+                    CaptureLifecycleCallbackPermit(), cancellationToken).ConfigureAwait(false);
+            IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+            NotificationDispatchLease[] dispatches =
+                GetSessionNotificationDispatches(activeNodeManagers);
             try
             {
-                IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
-                NotificationDispatchLease[] dispatches =
-                    GetSessionNotificationDispatches(activeNodeManagers);
-                try
+                foreach (NotificationDispatchLease dispatch in dispatches)
                 {
-                    foreach (NotificationDispatchLease dispatch in dispatches)
+                    try
                     {
-                        try
-                        {
-                            bool closed = await GenerationReconciler.CloseSessionAsync(
-                                dispatch.Generation,
-                                sessionId,
-                                cancellationToken,
-                                deleteSubscriptions).ConfigureAwait(false);
-                            if (!closed)
+                        bool closed = await GenerationReconciler.CloseSessionAsync(
+                            dispatch.Generation,
+                            sessionId,
+                            cancellationToken,
+                            deleteSubscriptions,
+                            async (sessionContext, callbackToken) =>
                             {
+                                await using var callbackPermit = new NodeManagerCallbackPermit(
+                                    m_lifecycleCallbackPermit,
+                                    NodeManagerAdmissionCapability.ServerLifecycle |
+                                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
                                 await dispatch.NodeManager.SessionClosingAsync(
-                                    context,
+                                    sessionContext,
                                     sessionId,
                                     deleteSubscriptions,
-                                    cancellationToken).ConfigureAwait(false);
-                            }
-                        }
-                        catch (Exception e)
+                                    callbackToken).ConfigureAwait(false);
+                            }).ConfigureAwait(false);
+                        if (!closed)
                         {
-                            m_logger.UnexpectedErrorClosingSessionForNodeManagerNodeManager(
-                                e,
-                                dispatch.NodeManager.GetType().Name);
+                            await using var callbackPermit = new NodeManagerCallbackPermit(
+                                m_lifecycleCallbackPermit,
+                                NodeManagerAdmissionCapability.ServerLifecycle |
+                                NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
+                            await dispatch.NodeManager.SessionClosingAsync(
+                                context,
+                                sessionId,
+                                deleteSubscriptions,
+                                cancellationToken).ConfigureAwait(false);
                         }
                     }
-                }
-                finally
-                {
-                    DisposeNotificationDispatches(dispatches);
+                    catch (Exception e)
+                    {
+                        m_logger.UnexpectedErrorClosingSessionForNodeManagerNodeManager(
+                            e,
+                            dispatch.NodeManager.GetType().Name);
+                    }
                 }
             }
             finally
             {
-                m_startupShutdownSemaphoreSlim.Release();
+                DisposeNotificationDispatches(dispatches);
             }
         }
 
@@ -691,9 +700,10 @@ namespace Opc.Ua.Server
         {
             foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
             {
-                if (nodeManager is INodeManagerShutdown shutdown)
+                if (nodeManager is INodeManagerShutdown)
                 {
-                    await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+                    await NodeManagerGenerationRegistry.GetOrCreate(nodeManager).PrepareForShutdownAsync()
+                        .ConfigureAwait(false);
                 }
             }
         }
@@ -780,9 +790,10 @@ namespace Opc.Ua.Server
 
             await FinalizeRetiredGenerationNotificationsAsync(nodeManager, ct)
                 .ConfigureAwait(false);
-            if (nodeManager is INodeManagerShutdown shutdown)
+            if (nodeManager is INodeManagerShutdown)
             {
-                await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+                await NodeManagerGenerationRegistry.GetOrCreate(nodeManager).PrepareForShutdownAsync()
+                    .ConfigureAwait(false);
             }
             // The lifecycle owns this detached generation. Its deletion may remove
             // dependent NodeManagers, so it must not serialize against their preparation.
@@ -1037,33 +1048,42 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(visibleNodeManager).Slot;
             await ResolveMonitoredItemSourcesAsync(
                 visibleNodeManager,
-                GetUnresolvedMonitoredItems(visibleNodeManager, nodeIds),
+                GetUnresolvedMonitoredItems(slot, nodeIds),
                 cancellationToken).ConfigureAwait(false);
+            if (NodeManagerGenerationRegistry.TryGetOwnerlessSlot(Server, out NodeManagerSlot? ownerless))
+            {
+                await ResolveMonitoredItemSourcesAsync(
+                    visibleNodeManager,
+                    GetUnresolvedMonitoredItems(ownerless, nodeIds),
+                    unresolvedOnly: true,
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
-        /// Selects only unresolved items owned by the target's stable slot.
+        /// Selects unresolved items owned by the specified stable slot.
         /// </summary>
-        /// <param name="nodeManager">The manager whose slot owns the unresolved items.</param>
+        /// <param name="slot">The stable slot that owns the unresolved items.</param>
         /// <param name="nodeIds">The nodes being added, or null to check every unresolved item.</param>
-        /// <returns>A stable item snapshot, without inspecting unrelated subscriptions.</returns>
+        /// <returns>A stable item snapshot, without inspecting unrelated subscriptions or other servers.</returns>
         private static IMonitoredItem[] GetUnresolvedMonitoredItems(
-            IAsyncNodeManager nodeManager,
+            NodeManagerSlot slot,
             IReadOnlyCollection<NodeId>? nodeIds)
         {
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
             if (slot.UnresolvedItems.IsEmpty || nodeIds is { Count: 0 })
             {
                 return [];
             }
+            KeyValuePair<IMonitoredItem, ISubscription>[] items = slot.UnresolvedItems.ToArray();
             if (nodeIds is null)
             {
-                return [.. slot.UnresolvedItems.Keys];
+                return [.. items.Select(entry => entry.Key)];
             }
             var requestedNodes = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
-            return [.. slot.UnresolvedItems.Keys.Where(item => requestedNodes.Contains(item.NodeId))];
+            return [.. items.Where(entry => requestedNodes.Contains(entry.Key.NodeId)).Select(entry => entry.Key)];
         }
 
         /// <summary>
@@ -1072,10 +1092,27 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager associated with the operation.</param>
         /// <param name="monitoredItems">The monitored items included in the operation.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        internal async ValueTask ResolveMonitoredItemSourcesAsync(
+        internal ValueTask ResolveMonitoredItemSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyList<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
+        {
+            return ResolveMonitoredItemSourcesAsync(
+                nodeManager, monitoredItems, unresolvedOnly: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves sources without detaching items that were rebound after an ownerless snapshot.
+        /// </summary>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
+        /// <param name="monitoredItems">The monitored items included in the operation.</param>
+        /// <param name="unresolvedOnly">Whether to skip items rebound since the recovery snapshot was taken.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
+        private async ValueTask ResolveMonitoredItemSourcesAsync(
+            IAsyncNodeManager nodeManager,
+            IReadOnlyList<IMonitoredItem> monitoredItems,
+            bool unresolvedOnly,
+            CancellationToken cancellationToken)
         {
             IAsyncNodeManager? visibleNodeManager = GetVisibleNodeManager(nodeManager);
             if (visibleNodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
@@ -1088,7 +1125,13 @@ namespace Opc.Ua.Server
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var itemLifecycle = (IMonitoredItemGenerationBinding)monitoredItem;
-                if (!itemLifecycle.IsSourceUnavailable)
+                long sourceRevision = itemLifecycle.SourceRevision;
+                if (unresolvedOnly && (!itemLifecycle.IsSourceUnavailable ||
+                    itemLifecycle.IsDisposed || itemLifecycle.IsRemoved || itemLifecycle.IsTerminal))
+                {
+                    continue;
+                }
+                if (!unresolvedOnly && !itemLifecycle.IsSourceUnavailable)
                 {
                     if (monitoredItem.NodeManager is not
                         INodeManagerMonitoredItemSource currentLifecycle)
@@ -1109,7 +1152,7 @@ namespace Opc.Ua.Server
                 }
 
                 var binding = (IMonitoredItemGenerationBinding)monitoredItem;
-                var adoption = new MonitoredItemAdoption(binding.SourceRevision);
+                var adoption = new MonitoredItemAdoption(unresolvedOnly ? sourceRevision : binding.SourceRevision);
                 ServiceResult attachResult;
                 try
                 {
@@ -1196,23 +1239,27 @@ namespace Opc.Ua.Server
             IAsyncNodeManager? preparingNodeManager =
                 GetPreparingNodeManager(nodeManager);
             ChangePreparer.StagingServer? staging = ChangePreparer.GetServer(preparingNodeManager ?? nodeManager);
-            NamespaceTable namespaceTable = staging?.NamespaceUris ?? Server.NamespaceUris;
-            int index = namespaceTable.GetIndex(namespaceUri);
-
-            if (index < 0)
-            {
-                index = namespaceTable.Append(namespaceUri);
-            }
             if (staging is { IsStaging: true })
             {
+                staging.NamespaceUris.GetIndexOrAppend(namespaceUri);
                 staging.StageNamespaceRegistration(namespaceUri);
                 return;
             }
 
-            m_nodeManagers.RegisterNamespace(
-                index,
-                preparingNodeManager ?? nodeManager,
-                visible: preparingNodeManager is null && staging?.IsStaging != true);
+            ThrowIfNamespaceRegistrationFromDecision();
+            m_namespaceRegistrationSemaphore.Wait();
+            try
+            {
+                int index = Server.NamespaceUris.GetIndexOrAppend(namespaceUri);
+                m_nodeManagers.RegisterNamespace(
+                    index,
+                    preparingNodeManager ?? nodeManager,
+                    visible: preparingNodeManager is null);
+            }
+            finally
+            {
+                m_namespaceRegistrationSemaphore.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -1247,17 +1294,20 @@ namespace Opc.Ua.Server
                 return staging.UnstageNamespaceRegistration(namespaceUri);
             }
 
-            // look up the namespace uri.
-            int namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
-            if (namespaceIndex < 0)
+            ThrowIfNamespaceRegistrationFromDecision();
+            m_namespaceRegistrationSemaphore.Wait();
+            try
             {
-                return false;
+                int namespaceIndex = Server.NamespaceUris.GetIndex(namespaceUri);
+                return namespaceIndex >= 0 && m_nodeManagers.UnregisterNamespace(
+                    namespaceIndex,
+                    asyncNodeManager,
+                    nodeManager);
             }
-
-            return m_nodeManagers.UnregisterNamespace(
-                namespaceIndex,
-                asyncNodeManager,
-                nodeManager);
+            finally
+            {
+                m_namespaceRegistrationSemaphore.Release();
+            }
         }
 
         private static void ValidatePreparedNodeManager(PreparedNodeManager prepared)
@@ -1534,10 +1584,108 @@ namespace Opc.Ua.Server
             Func<CancellationToken, ValueTask> Shutdown,
             Func<bool> CanDispose);
 
+        /// <summary>
+        /// Waits for the durable lifecycle decision window to publish or abandon its prepared changes.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
+        /// <returns>A task that completes when the decision window closes.</returns>
+        private ValueTask WaitForLifecycleDecisionAsync(CancellationToken cancellationToken)
+        {
+            Task? pending = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+            return pending is null
+                ? default
+                : new ValueTask(pending.WaitAsync(cancellationToken));
+        }
+
+        /// <summary>
+        /// Opens the mutation-admission window before releasing lifecycle semaphores for a durable decision.
+        /// </summary>
+        private void BeginLifecycleDecisionWindow()
+        {
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (Interlocked.CompareExchange(ref m_lifecycleDecisionCompletion, completion, null) is not null)
+            {
+                throw new InvalidOperationException("A lifecycle decision window is already active.");
+            }
+            m_currentLifecycleDecision.Value = completion.Task;
+        }
+
+        /// <summary>
+        /// Closes the mutation-admission window after prepared routes and references are released.
+        /// </summary>
+        private void EndLifecycleDecisionWindow()
+        {
+            TaskCompletionSource<bool>? completion = Interlocked.Exchange(
+                ref m_lifecycleDecisionCompletion,
+                null);
+            if (completion is null)
+            {
+                throw new InvalidOperationException("No lifecycle decision window is active.");
+            }
+            m_currentLifecycleDecision.Value = null;
+            completion.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Rejects serving namespace changes from callbacks inside their own publication reservation.
+        /// </summary>
+        private void ThrowIfNamespaceRegistrationFromDecision()
+        {
+            Task? current = m_currentLifecycleDecision.Value;
+            if (current is not null &&
+                ReferenceEquals(current, Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task))
+            {
+                throw new InvalidOperationException(
+                    "Namespace registration cannot change serving routes from the durable decision callback.");
+            }
+            if (m_currentNamespacePublication.Value is { IsCompleted: false })
+            {
+                throw new InvalidOperationException(
+                    "Namespace registration cannot change serving routes from a lifecycle publication callback.");
+            }
+        }
+
+        /// <summary>
+        /// Checks whether an active callback permit grants the requested lifecycle capability.
+        /// </summary>
+        /// <param name="permit">The callback permit captured by the prepared batch.</param>
+        /// <param name="capability">The lifecycle capability to check.</param>
+        /// <returns>True when the current callback may re-enter lifecycle publication.</returns>
+        private static bool HasActiveCallbackPermit(
+            NodeManagerCallbackPermit? permit,
+            NodeManagerAdmissionCapability capability)
+        {
+            for (; permit is not null; permit = permit.Previous)
+            {
+                if (permit.IsActive &&
+                    (permit.Capabilities & capability) == capability)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Captures the active callback permit for a lifecycle preparation started from a manager callback.
+        /// </summary>
+        /// <returns>The current callback permit, if present.</returns>
+        internal NodeManagerCallbackPermit? CaptureLifecycleCallbackPermit()
+        {
+            return m_lifecycleCallbackPermit.Value;
+        }
+
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_namespaceRegistrationSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_lifecycleCallbackPermit = new();
+        private TaskCompletionSource<bool>? m_lifecycleDecisionCompletion;
+        private readonly AsyncLocal<Task?> m_currentLifecycleDecision = new();
+
+        /// <summary>Marks this execution context's namespace reservation until it is released.</summary>
+        private readonly AsyncLocal<Task?> m_currentNamespacePublication = new();
 
         /// <summary>
         /// Identifies the system configuration and diagnostics role across view changes.

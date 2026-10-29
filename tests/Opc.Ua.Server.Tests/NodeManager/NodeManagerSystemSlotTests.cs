@@ -358,7 +358,67 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A failed session shutdown retains its serving dependencies and retries before physical disposal.
+        /// A failed session shutdown still retires application managers once and keeps system dependencies.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task FailedSessionShutdownRetiresApplicationManagersButRetainsSystemsUntilRetryAsync()
+        {
+            const string appUri = "urn:opcfoundation:tests:shutdown:application";
+            string pki = Path.Combine(Path.GetTempPath(),
+                nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
+            var fixture = new ServerFixture<SystemLifetimeServer>(telemetry => new SystemLifetimeServer(telemetry))
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            try
+            {
+                SystemLifetimeServer server = await fixture.StartAsync(pki).ConfigureAwait(false);
+                int deleteCount = 0;
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns([appUri]);
+                manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        deleteCount++;
+                        return default;
+                    });
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.SetupGet(value => value.NamespacesUris).Returns([appUri]);
+                factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                        It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+                await server.NodeManagerLifecycle.AddAsync(factory.Object, null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                SystemLifetimeCore core = server.Core!;
+                SystemLifetimeSessions sessions = server.Sessions!;
+                sessions.ShutdownFailuresRemaining = 1;
+                _ = await Assert.ThrowsAsync<AggregateException>(
+                    () => server.StopAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+                Assert.That(deleteCount, Is.EqualTo(1), "The application manager is retired despite the failure.");
+                Assert.That(core.DeleteCount, Is.Zero);
+                Assert.That(core.DisposeCount, Is.Zero);
+                Assert.That(sessions.DisposeCount, Is.Zero);
+                await server.StopAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(deleteCount, Is.EqualTo(1), "The retry does not replay application cleanup.");
+                Assert.That(core.DeleteCount, Is.EqualTo(1));
+                Assert.That(core.DisposeCount, Is.EqualTo(1));
+                Assert.That(sessions.DisposeCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(pki))
+                {
+                    Directory.Delete(pki, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A failed session stage keeps the core, sessions and system managers until the stop is retried.
         /// </summary>
         [Test]
         [NonParallelizable]
@@ -443,7 +503,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(lifecycle.Slots.Count, Is.Zero);
                 Assert.That(core.ReadyCount, Is.EqualTo(1),
                     "An empty application change set must still reconcile protected roles.");
-                Assert.That(core.ReadyWhileRunning, Is.True);
+                Assert.That(core.ReadyWhileRunning, Is.False,
+                    "Startup must not advertise Running before system readiness completes.");
                 Assert.That(master.CoreNodeManager, Is.SameAs(core));
                 Assert.That(master.Dispose, Throws.InvalidOperationException.With.Message.Contains("owned"));
                 await Assert.ThatAsync(
@@ -531,6 +592,94 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Startup exposes services only to the active initializer and retains the configured final server state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [NonParallelizable]
+        public async Task InitialReadinessKeepsExternalStartupClosedWhileAllowingNestedAddAsync(bool unconfigured)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            string pki = Path.Combine(Path.GetTempPath(), nameof(NodeManagerSystemSlotTests),
+                Guid.NewGuid().ToString("N"));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            SystemLifetimeServer? server = null;
+            NodeManagerRegistration? child = null;
+            var fixture = new ServerFixture<SystemLifetimeServer>(telemetry =>
+            {
+                server = new SystemLifetimeServer(telemetry) { StartsUnconfigured = unconfigured };
+                server.ReadinessCallback = async ct =>
+                {
+                    Assert.That(server.CurrentInstance.IsRunning, Is.False);
+                    server.ValidateInitializerRequest();
+                    using var context = new OperationContext(
+                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                    (ArrayOf<DataValue> values, _) = await server.CurrentInstance.NodeManager.ReadAsync(
+                        context, 0, TimestampsToReturn.Both,
+                        [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
+                        ct).ConfigureAwait(false);
+                    Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    var manager = new Mock<IAsyncNodeManager>();
+                    manager.Setup(value => value.NamespaceUris).Returns(["urn:Tests:InitialReadiness:Child"]);
+                    manager.Setup(value => value.SyncNodeManager).Returns(new Mock<INodeManager>().Object);
+                    var factory = new Mock<IAsyncNodeManagerFactory>();
+                    factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                        It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(manager.Object);
+                    child = await server.NodeManagerLifecycle.AddAsync(factory.Object, null, ct).ConfigureAwait(false);
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    server.ValidateInitializerRequest();
+                };
+                return server;
+            })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            Task<SystemLifetimeServer>? start = null;
+            try
+            {
+                start = fixture.StartAsync(pki);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(server, Is.Not.Null);
+                Assert.That(child, Is.Not.Null);
+                Assert.That(server!.CurrentInstance.IsRunning, Is.False);
+                ServiceResultException? failure = Assert.Throws<ServiceResultException>(
+                    server.ValidateInitializerRequest);
+                Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+                Assert.That(start.IsCompleted, Is.False);
+                release.TrySetResult(true);
+                await start.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(server.CurrentInstance.IsRunning, Is.True);
+                server.ValidateInitializerRequest();
+                Assert.That(server.CurrentState, Is.EqualTo(
+                    unconfigured ? ServerState.NoConfiguration : ServerState.Running));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    if (start is not null)
+                    {
+                        await start.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                    if (Directory.Exists(pki))
+                    {
+                        Directory.Delete(pki, recursive: true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// System access follows the exact slot's current generation, including withdrawal.
         /// </summary>
         [TestCase(false)]
@@ -610,6 +759,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal Func<ValueTask>? BeforeStopping { get; set; }
 
             /// <summary>
+            /// Gets or sets the initial core initializer used by startup admission controls.
+            /// </summary>
+            internal Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether application setup keeps the started server in NoConfiguration.
+            /// </summary>
+            internal bool StartsUnconfigured { get; set; }
+
+            /// <inheritdoc/>
+            protected override ServerState StartupServerState =>
+                StartsUnconfigured ? ServerState.NoConfiguration : ServerState.Running;
+
+            /// <summary>
+            /// Applies the real service-entry startup check without requiring an authenticated session.
+            /// </summary>
+            internal void ValidateInitializerRequest()
+            {
+                ValidateRequest(new RequestHeader());
+            }
+
+            /// <summary>
             /// Gets the number of owner shutdown attempts.
             /// </summary>
             internal int StopCount => Volatile.Read(ref m_stopCount);
@@ -648,7 +819,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateConfigurationNodeManager())
                     .Returns(ordinary.CreateConfigurationNodeManager);
                 factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
-                    .Returns((ushort index) => Core = new SystemLifetimeCore(server, configuration, index));
+                    .Returns((ushort index) => Core = new SystemLifetimeCore(server, configuration, index)
+                    {
+                        ReadinessCallback = ReadinessCallback
+                    });
                 return factory.Object;
             }
 
@@ -724,9 +898,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             internal int ReadyCount { get; private set; }
 
             /// <summary>
-            /// Gets whether runtime initialization preceded readiness.
+            /// Gets whether the server advertised Running before readiness completed.
             /// </summary>
             internal bool ReadyWhileRunning { get; private set; }
+
+            /// <summary>
+            /// Gets or sets the initializer used by startup admission controls.
+            /// </summary>
+            internal Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
             /// <summary>
             /// Gets or sets the remaining injected destruction failures.
@@ -748,7 +927,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 ReadyCount++;
                 ReadyWhileRunning = Server.IsRunning;
-                return default;
+                return ReadinessCallback?.Invoke(cancellationToken) ?? default;
             }
 
             /// <inheritdoc/>

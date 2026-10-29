@@ -239,6 +239,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// An unrelated publication can proceed after address-space reservations release, before application callbacks finish.
+        /// </summary>
+        [Test]
+        public async Task ApplicationStateCallbackDoesNotBlockNextLifecyclePublicationAsync()
+        {
+            const string firstNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ApplicationCallbackFirst";
+            const string secondNamespaceUri =
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:ApplicationCallbackSecond";
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var callbackEntered = new ManualResetEventSlim();
+            using var releaseCallback = new ManualResetEventSlim();
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch first = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, _ => { }, firstNamespaceUri))], null, timeout.Token)
+                .ConfigureAwait(false);
+            Task<NodeManagerBatchResult> firstCommit = Task.Run(() => first.CommitAsync(
+                static _ => default,
+                () =>
+                {
+                    callbackEntered.Set();
+                    if (!releaseCallback.Wait(TimeSpan.FromSeconds(30)))
+                    {
+                        throw new TimeoutException("The application-state callback was not released.");
+                    }
+                },
+                timeout.Token).AsTask());
+
+            try
+            {
+                Assert.That(callbackEntered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                await using IPreparedNodeManagerBatch second = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                        kSecondRegistrationValue, _ => { }, secondNamespaceUri))], null, timeout.Token)
+                    .ConfigureAwait(false);
+                int secondPublications = 0;
+                NodeManagerBatchResult secondResult = await second.CommitAsync(
+                    static _ => default,
+                    () => secondPublications++,
+                    timeout.Token).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(secondResult.CleanupFailure, Is.Null);
+                Assert.That(secondPublications, Is.EqualTo(1));
+                Assert.That(firstCommit.IsCompleted, Is.False);
+            }
+            finally
+            {
+                releaseCallback.Set();
+                await firstCommit.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A stale application callback cannot overwrite a newer durable unit even when its manager remains live.
         /// </summary>
         [Test]

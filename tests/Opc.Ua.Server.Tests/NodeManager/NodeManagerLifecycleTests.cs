@@ -1066,28 +1066,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task ConcurrentCallbackAddsRejectStalePreparationWithoutRequestExclusionAsync()
+        public async Task ConcurrentCallbackAddsRetryStalePreparationWithoutRequestExclusionAsync()
         {
             const string NamespaceUriA =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackAddA";
             const string NamespaceUriB =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackAddB";
             IServerInternal server = m_server.CurrentInstance;
-            Mock<IAsyncNodeManager> managerA = CreateLifecycleNodeManager(NamespaceUriA);
+            Mock<IAsyncNodeManager> staleManagerA = CreateLifecycleNodeManager(NamespaceUriA);
+            Mock<IAsyncNodeManager> publishedManagerA = CreateLifecycleNodeManager(NamespaceUriA);
             Mock<IAsyncNodeManager> managerB = CreateLifecycleNodeManager(NamespaceUriB);
+            int staleManagerDisposals = 0;
+            int publishedManagerDisposals = 0;
+            staleManagerA.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref staleManagerDisposals));
+            publishedManagerA.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref publishedManagerDisposals));
             var firstFactoryEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirstFactory = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var secondRequestEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            int factoryInvocations = 0;
             var factoryA = new CountingNodeManagerFactory(
                 [NamespaceUriA],
                 async (_, _, ct) =>
                 {
-                    firstFactoryEntered.TrySetResult(true);
-                    await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
-                    return managerA.Object;
+                    if (Interlocked.Increment(ref factoryInvocations) == 1)
+                    {
+                        firstFactoryEntered.TrySetResult(true);
+                        await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
+                        return staleManagerA.Object;
+                    }
+                    return publishedManagerA.Object;
                 });
             var factoryB = new CountingNodeManagerFactory(
                 [NamespaceUriB],
@@ -1107,11 +1121,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
-            NodeManagerRegistration registration;
+            NodeManagerRegistration registrationB;
             try
             {
                 Assert.That(server.RequestManager.TrackedRequestCount, Is.GreaterThanOrEqualTo(1));
-                registration = await addB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                registrationB = await addB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(releaseFirstFactory.Task.IsCompleted, Is.False);
                 Assert.That(server.RequestManager.TrackedRequestCount, Is.EqualTo(1),
                     "The first request is still executing its factory; writer suspension must not exclude it.");
@@ -1121,20 +1135,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 releaseFirstFactory.TrySetResult(true);
             }
 
-            await Assert.ThatAsync(
-                () => addA.WaitAsync(TimeSpan.FromSeconds(10)),
-                Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+            NodeManagerRegistration registrationA = await addA.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
             Assert.That(server.RequestManager.TrackedRequestCount, Is.Zero);
-            Assert.That(factoryA.CreateCount, Is.EqualTo(1));
+            Assert.That(factoryA.CreateCount, Is.EqualTo(2));
             Assert.That(factoryB.CreateCount, Is.EqualTo(1));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(registration));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList()
-                .Any(value => ReferenceEquals(value.NodeManager, managerA.Object)), Is.False);
-            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
+            List<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations.ToList();
+            Assert.That(registrations, Does.Contain(registrationA));
+            Assert.That(registrations, Does.Contain(registrationB));
+            Assert.That(registrations.Any(value => ReferenceEquals(value.NodeManager, staleManagerA.Object)), Is.False);
+            Assert.That(registrationA.NodeManager, Is.SameAs(publishedManagerA.Object));
+            Assert.That(registrations.Any(value => ReferenceEquals(value.NodeManager, managerB.Object)), Is.True);
+            await WaitForConditionAsync(() => Volatile.Read(ref staleManagerDisposals) == 1)
+                .ConfigureAwait(false);
+            Assert.That(staleManagerDisposals, Is.EqualTo(1));
+            Assert.That(publishedManagerDisposals, Is.Zero);
+            await m_server.NodeManagerLifecycle.RemoveAsync(registrationA, null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.RemoveAsync(registrationB, null).ConfigureAwait(false);
         }
 
         [Test]
-        public async Task ConcurrentCallbackReloadsRejectStalePreparationWithoutRequestExclusionAsync()
+        public async Task ConcurrentCallbackReloadsRetryStalePreparationWithoutRequestExclusionAsync()
         {
             const string NamespaceUriA =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackReloadA";
@@ -1145,6 +1166,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateLifecycleNodeManager(NamespaceUriA);
             Mock<IAsyncNodeManager> originalManagerB =
                 CreateLifecycleNodeManager(NamespaceUriB);
+            int originalManagerADisposals = 0;
+            int originalManagerBDisposals = 0;
+            originalManagerA.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref originalManagerADisposals));
+            originalManagerB.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref originalManagerBDisposals));
             originalManagerA
                 .As<INodeManagerReloadParticipant>()
                 .Setup(participant => participant.PrepareReloadAsync(
@@ -1172,23 +1201,38 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             originalManagerB.Object)), null)
                 .ConfigureAwait(false);
 
-            Mock<IAsyncNodeManager> replacementManagerA =
+            Mock<IAsyncNodeManager> staleReplacementManagerA =
+                CreateLifecycleNodeManager(NamespaceUriA);
+            Mock<IAsyncNodeManager> publishedReplacementManagerA =
                 CreateLifecycleNodeManager(NamespaceUriA);
             Mock<IAsyncNodeManager> replacementManagerB =
                 CreateLifecycleNodeManager(NamespaceUriB);
+            int staleReplacementDisposals = 0;
+            int publishedReplacementDisposals = 0;
+            staleReplacementManagerA.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref staleReplacementDisposals));
+            publishedReplacementManagerA.As<IDisposable>()
+                .Setup(disposable => disposable.Dispose())
+                .Callback(() => Interlocked.Increment(ref publishedReplacementDisposals));
             var firstFactoryEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseFirstFactory = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var secondRequestEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            int factoryInvocations = 0;
             var replacementFactoryA = new CountingNodeManagerFactory(
                 [NamespaceUriA],
                 async (_, _, ct) =>
                 {
-                    firstFactoryEntered.TrySetResult(true);
-                    await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
-                    return replacementManagerA.Object;
+                    if (Interlocked.Increment(ref factoryInvocations) == 1)
+                    {
+                        firstFactoryEntered.TrySetResult(true);
+                        await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
+                        return staleReplacementManagerA.Object;
+                    }
+                    return publishedReplacementManagerA.Object;
                 });
             var replacementFactoryB = new CountingNodeManagerFactory(
                 [NamespaceUriB],
@@ -1213,11 +1257,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
-            NodeManagerRegistration replacement;
+            NodeManagerRegistration replacementB;
             try
             {
                 Assert.That(server.RequestManager.TrackedRequestCount, Is.GreaterThanOrEqualTo(1));
-                replacement = await reloadB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                replacementB = await reloadB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(releaseFirstFactory.Task.IsCompleted, Is.False);
                 Assert.That(server.RequestManager.TrackedRequestCount, Is.EqualTo(1),
                     "The first request is still executing its factory; writer suspension must not exclude it.");
@@ -1227,20 +1271,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 releaseFirstFactory.TrySetResult(true);
             }
 
-            await Assert.ThatAsync(
-                () => reloadA.WaitAsync(TimeSpan.FromSeconds(10)),
-                Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
+            NodeManagerRegistration replacementA = await reloadA.WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
             Assert.That(server.RequestManager.TrackedRequestCount, Is.Zero);
-            Assert.That(replacementFactoryA.CreateCount, Is.EqualTo(1));
+            Assert.That(replacementFactoryA.CreateCount, Is.EqualTo(2));
             Assert.That(replacementFactoryB.CreateCount, Is.EqualTo(1));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(originalA));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(replacement));
-            Assert.That(replacement.Id, Is.EqualTo(originalB.Id));
-            Assert.That(replacement.Generation, Is.EqualTo(originalB.Generation + 1));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList()
-                .Any(value => ReferenceEquals(value.NodeManager, replacementManagerA.Object)), Is.False);
-            await m_server.NodeManagerLifecycle.RemoveAsync(replacement, null).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.RemoveAsync(originalA, null).ConfigureAwait(false);
+            List<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations.ToList();
+            Assert.That(registrations, Does.Contain(replacementA));
+            Assert.That(registrations, Does.Contain(replacementB));
+            Assert.That(registrations, Does.Not.Contain(originalA));
+            Assert.That(registrations, Does.Not.Contain(originalB));
+            Assert.That(replacementA.NodeManager, Is.SameAs(publishedReplacementManagerA.Object));
+            Assert.That(replacementA.Id, Is.EqualTo(originalA.Id));
+            Assert.That(replacementA.Generation, Is.EqualTo(originalA.Generation + 1));
+            Assert.That(replacementB.Id, Is.EqualTo(originalB.Id));
+            Assert.That(replacementB.Generation, Is.EqualTo(originalB.Generation + 1));
+            Assert.That(registrations.Any(
+                value => ReferenceEquals(value.NodeManager, staleReplacementManagerA.Object)), Is.False);
+            await WaitForConditionAsync(() => Volatile.Read(ref staleReplacementDisposals) == 1 &&
+                Volatile.Read(ref originalManagerADisposals) == 1 &&
+                Volatile.Read(ref originalManagerBDisposals) == 1).ConfigureAwait(false);
+            Assert.That(staleReplacementDisposals, Is.EqualTo(1));
+            Assert.That(originalManagerADisposals, Is.EqualTo(1));
+            Assert.That(originalManagerBDisposals, Is.EqualTo(1));
+            Assert.That(publishedReplacementDisposals, Is.Zero);
+            await m_server.NodeManagerLifecycle.RemoveAsync(replacementA, null).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.RemoveAsync(replacementB, null).ConfigureAwait(false);
         }
 
         [Test]
@@ -6345,6 +6401,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var batchHost = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
             var preparation = new ChangePreparer(m_server.CurrentInstance);
+            using INodeManagerBatchAdmission admission = await batchHost.AcquireCommitAdmissionAsync(
+                null, CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
             var context = new NodeManagerBatchContext(
                 Candidates: [prepared],
@@ -6372,7 +6430,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReportCleanupFailure: _ => Assert.Fail("An unprepared candidate must fail before commit."),
                 Preparation: preparation,
                 CancellationToken: CancellationToken.None,
-                Reconciliation: null!);
+                Reconciliation: null!,
+                Admission: admission);
             await Assert.ThatAsync(async () => await batchHost.CommitBatchAsync(context).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("no prepared generation")).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
@@ -6965,7 +7024,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IMasterNodeManager master,
             Func<bool> shouldFail,
             bool notifyBeforeFailure,
-            Exception failure)
+            Exception failure,
+            Action? onAdmissionAttempt = null,
+            Action? onReferencePreparationAttempt = null)
         {
             var host = (IDynamicNodeManagerHost)master;
             var batchHost = (IDynamicNodeManagerBatchHost)master;
@@ -6995,18 +7056,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Returns<IAsyncNodeManager, CancellationToken>(
                     (manager, ct) => host.FinalizeRetiredGenerationNotificationsAsync(manager, ct));
             batchProxy.SetupGet(value => value.RoutingRevision).Returns(() => batchHost.RoutingRevision);
+            batchProxy.Setup(value => value.CaptureLifecycleCallbackPermit())
+                .Returns(() => batchHost.CaptureLifecycleCallbackPermit());
             batchProxy.Setup(value => value.PrepareReferencesAsync(
                 It.IsAny<ArrayOf<PreparedNodeManager>>(), It.IsAny<ArrayOf<IAsyncNodeManager>>(),
-                It.IsAny<NodeManagerRoutingTable.RoutingSnapshot>(), It.IsAny<CancellationToken>()))
+                It.IsAny<NodeManagerRoutingTable.RoutingSnapshot>(), It.IsAny<CancellationToken>(),
+                It.IsAny<NodeManagerCallbackPermit?>()))
                 .Returns<ArrayOf<PreparedNodeManager>, ArrayOf<IAsyncNodeManager>,
-                    NodeManagerRoutingTable.RoutingSnapshot, CancellationToken>(
-                    (candidates, removed, view, token) =>
-                        batchHost.PrepareReferencesAsync(candidates, removed, view, token));
+                    NodeManagerRoutingTable.RoutingSnapshot, CancellationToken, NodeManagerCallbackPermit?>(
+                    (candidates, removed, view, token, callbackPermit) =>
+                    {
+                        ValueTask<PreparedAddressSpaceReferences> preparation =
+                            batchHost.PrepareReferencesAsync(candidates, removed, view, token, callbackPermit);
+                        onReferencePreparationAttempt?.Invoke();
+                        return preparation;
+                    });
+            batchProxy.Setup(value => value.AcquireCommitAdmissionAsync(
+                It.IsAny<NodeManagerCallbackPermit?>(), It.IsAny<CancellationToken>()))
+                .Returns<NodeManagerCallbackPermit?, CancellationToken>((callbackPermit, token) =>
+                {
+                    ValueTask<INodeManagerBatchAdmission> admission =
+                        batchHost.AcquireCommitAdmissionAsync(callbackPermit, token);
+                    onAdmissionAttempt?.Invoke();
+                    return admission;
+                });
             batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
                 .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
             batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerBatchContext>()))
-                .Returns<NodeManagerBatchContext>(context => batchHost.CommitBatchAsync(shouldFail()
-                    ? context with
+                .Returns<NodeManagerBatchContext>(context =>
+                {
+                    return batchHost.CommitBatchAsync(shouldFail()
+                        ? context with
                     {
                         Published = async () =>
                         {
@@ -7017,7 +7097,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             throw failure;
                         }
                     }
-                    : context));
+                        : context);
+                });
             return proxy;
         }
 

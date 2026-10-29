@@ -877,6 +877,17 @@ their materialization before accepting clients, so discovery by browsing sees th
 
 #### Concurrent operations, cancellation and failure
 
+- A generation is unreadable to external clients until its readiness completes. Read, Browse,
+  CreateMonitoredItems, HistoryUpdate and event delivery for a pending generation return a Bad status or
+  skip it, and `Server.IsRunning` stays false during initial startup readiness. The initializer's own
+  reads and nested Add calls run under a revocable readiness scope that does not depend on the request
+  context. An all-events subscription receives events from a pending source only on items bound to that
+  source's generation.
+- Events a pending source reports during readiness are retained and delivered once readiness
+  completes. The retained queue holds at most 1024 events per generation and drops the oldest first, so
+  an initializer that emits more than that loses the earliest events. Retained events can also reach
+  subscribers after events the source emits later. If a retained delivery fails, the remaining events are
+  still delivered and the failure surfaces to the caller.
 - Unrelated registrations, including dependent addition transactions, stay available while readiness
   runs. Removing or reloading the initializing registration throws `InvalidOperationException`;
   retry afterwards, and never do it from inside its own readiness callback.
@@ -911,9 +922,11 @@ system roles. This dependency ordering is not a single atomic remove-all swap: a
 cleanup keeps the live system services it needs. No new lifecycle mutation is admitted between
 the two transactions.
 
-A failed producer, subscription, or session shutdown stage leaves its serving
-generations and server internals intact for retry; physical retirement cannot
-run ahead of an unfinished consumer shutdown.
+A failed producer, subscription, or session shutdown stage leaves the system roles, core
+and sessions intact for retry; physical retirement cannot run ahead of an unfinished consumer
+shutdown. Application registrations do not wait for that retry. Once lifecycle preparation has
+completed, the failed stop still withdraws them in a separate application-only stage, and the
+retry does not replay it.
 A failed retirement retains unfinished cleanup and the server internals for retry. `StopAsync`
 and `DisposeAsync` report the failure; retry the failed operation to finish remaining stages.
 Successful deletion and disposal callbacks are not repeated. An explicit call to hosted
@@ -1047,6 +1060,14 @@ transaction members and ordinary factories; no callback opt-in or request exclus
 No explicit `OperationContext` is passed to lifecycle preparation or publication admission.
 Nested lifecycle mutations from the durable decision callback are rejected.
 
+Node-management and session-closing callbacks retain their host mutation admission while they
+execute. Session closing acquires address-space and server-lifecycle admission together before
+dispatch, so it cannot hold one admission while an unrelated node-management callback holds
+the other. A callback can await nested lifecycle publication using its inherited capabilities;
+the host does not lend admission from another callback based on a waiting task.
+Child tasks started by a callback must finish before the callback returns. Captured capabilities
+expire when the callback exits; a later operation must acquire ordinary host admission.
+
 A lifecycle operation validates the replacement address space before its client-visible commit and
 rolls back on preparation failure. Failures after publication, including readiness, can leave a live
 registration, so do not treat them as pre-commit rollback.
@@ -1102,6 +1123,12 @@ locally rather than manufacturing a source binding.
 Unresolved modification uses the server configuration's sampling and queue limits and the
 item's retained type/range metadata. Source-specific validation hooks resume only after adoption;
 Core-manager overrides do not supply policy for an item without a source.
+
+An item restored before its source manager exists belongs to a server-local unresolved slot.
+Adding a matching manager or notifying the host of matching nodes can adopt that item without
+replacing its subscription, durable settings, or queued values. Recovery checks the target
+manager's stable slot and that server's ownerless slot, not other subscriptions or servers.
+An ownerless snapshot cannot detach an item that another recovery has already bound.
 
 Client deletion disposes an item's queues immediately, without waiting for an in-flight handoff.
 Removing the item from its subscription permanently forbids adoption even before queue disposal;
@@ -1321,9 +1348,13 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
   stable application slots in that view. `INodeManagerLifecycle.Revision` and `Slots` expose the
   corresponding information for the current view. A nested lifecycle change during reconciliation
   or readiness can advance the current view without changing the original result's revision or slot set.
-- Before the durable decision callback runs, the batch reserves the serving routing revision. All
-  routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
-  Retry after it releases. A noncommit or cancellation releases only that batch's reservation.
+- Before the durable decision callback runs, the batch reserves the serving routing revision.
+  Public namespace registration and unregistration wait until the reservation is released;
+  private staged registrations do not enter the serving image. Namespace changes initiated by
+  the decision callback itself are rejected instead of waiting on their own reservation.
+  Other routing writers fail with `InvalidOperationException` while it is held; readers are
+  unaffected. Retry those writers after it releases. A noncommit or cancellation releases only
+  that batch's reservation.
 - Prepared batches need the default `EncodeableFactory`. Because startup uses the same transaction,
   `StandardServer` rejects an unsupported custom factory before creating its NodeManagers.
 

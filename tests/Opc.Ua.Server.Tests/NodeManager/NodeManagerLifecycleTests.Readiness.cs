@@ -734,7 +734,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(independentManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independentManager.DisposeCount, Is.EqualTo(1));
                 await AssertReadinessNodeUnknownAsync(kSecondModelNamespaceUri).ConfigureAwait(false);
-                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
                 Assert.That(operation.IsCompleted, Is.False);
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
                 Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
@@ -752,6 +752,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(completed, Is.SameAs(observed));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
             await RemoveReadinessRegistrationAsync(completed).ConfigureAwait(false);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
@@ -1175,7 +1176,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int DisposeCount => Volatile.Read(ref m_disposeCount);
 
+            public int HistoryUpdateCount => Volatile.Read(ref m_historyUpdateCount);
+
             public Task DisposalCompleted => m_disposed.Task;
+
+            public ValueTask ReportRootEventAsync(string message, CancellationToken cancellationToken)
+            {
+                NodeState root = RequireLifecycleValue(Find(new NodeId(kRootNodeId, NamespaceIndexes[0])));
+                var occurrence = new BaseEventState(null);
+                occurrence.Initialize(SystemContext, root, EventSeverity.Medium, new LocalizedText(message));
+                return OnReportEventAsync(SystemContext, root, occurrence, cancellationToken);
+            }
+
+            public override ValueTask HistoryUpdateAsync(
+                OperationContext context,
+                Type detailsType,
+                ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+                IList<HistoryUpdateResult> results,
+                IList<ServiceResult> errors,
+                CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_historyUpdateCount);
+                return base.HistoryUpdateAsync(
+                    context, detailsType, nodesToUpdate, results, errors, cancellationToken);
+            }
 
             public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
             {
@@ -1224,6 +1248,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_readinessCompletedCount;
             private int m_deleteAddressSpaceCount;
             private int m_disposeCount;
+            private int m_historyUpdateCount;
         }
 
         /// <summary>

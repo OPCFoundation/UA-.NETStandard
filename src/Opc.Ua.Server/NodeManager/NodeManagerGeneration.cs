@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -284,6 +285,143 @@ namespace Opc.Ua.Server
         /// generation accepts no new bindings and keeps released records so a release happens once.
         /// </summary>
         internal bool EventBindingsSealed => Volatile.Read(ref m_eventBindingsSealed) != 0;
+
+        /// <summary>
+        /// Gets or sets whether external consumers must wait for post-publication initialization.
+        /// </summary>
+        internal bool ReadinessPending
+        {
+            get => Volatile.Read(ref m_readinessPending) != 0;
+            set => Volatile.Write(ref m_readinessPending, value ? 1 : 0);
+        }
+
+        /// <summary>
+        /// Gets the number of retained events dropped because the bounded retention was full.
+        /// </summary>
+        internal long DroppedDeferredEvents => Interlocked.Read(ref m_droppedDeferredEvents);
+
+        /// <summary>
+        /// Retains an event for items not bound to this generation until its readiness completes.
+        /// </summary>
+        /// <param name="delivery">The delivery to run once readiness completed.</param>
+        /// <returns><c>false</c> when readiness already completed and the caller must deliver now.</returns>
+        internal bool TryDeferEvent(Func<Task> delivery)
+        {
+            lock (m_deferredEventsLock)
+            {
+                if (!ReadinessPending)
+                {
+                    return false;
+                }
+                m_deferredEvents ??= new Queue<Func<Task>>();
+                if (m_deferredEvents.Count >= MaxDeferredEvents)
+                {
+                    m_deferredEvents.Dequeue();
+                    Interlocked.Increment(ref m_droppedDeferredEvents);
+                }
+                m_deferredEvents.Enqueue(delivery);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Delivers the events retained while the readiness was pending, in emission order.
+        /// </summary>
+        /// <returns>The completion of the retained deliveries.</returns>
+        /// <exception cref="AggregateException">
+        /// One or more deliveries failed. The remaining retained events were still delivered.
+        /// </exception>
+        internal async Task FlushDeferredEventsAsync()
+        {
+            Func<Task>[] pending;
+            lock (m_deferredEventsLock)
+            {
+                if (m_deferredEvents is not { Count: > 0 })
+                {
+                    return;
+                }
+                pending = [.. m_deferredEvents];
+                m_deferredEvents.Clear();
+            }
+            List<Exception>? failures = null;
+            foreach (Func<Task> delivery in pending)
+            {
+                try
+                {
+                    await delivery().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= []).Add(ex);
+                }
+            }
+            if (failures is not null)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Shares producer shutdown across preparation, retirement, and cleanup retries for this generation.
+        /// </summary>
+        /// <returns>The current attempt, retaining success and retrying only failed or canceled attempts.</returns>
+        internal Task PrepareForShutdownAsync()
+        {
+            if (NodeManager is not INodeManagerShutdown shutdown)
+            {
+                return Task.CompletedTask;
+            }
+            TaskCompletionSource<bool> owner;
+            lock (m_retirementResourcesLock)
+            {
+                if (m_shutdownPreparation is not null and not { IsFaulted: true } and not { IsCanceled: true })
+                {
+                    return m_shutdownPreparation;
+                }
+                owner = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_shutdownPreparation = owner.Task;
+            }
+            // Runs outside the state lock, and synchronously up to the provider's first await so
+            // the provider stops admitting work before the caller continues.
+            _ = RunProducerPreparationAsync(shutdown, owner);
+            return owner.Task;
+        }
+
+        private static async Task RunProducerPreparationAsync(
+            INodeManagerShutdown shutdown,
+            TaskCompletionSource<bool> owner)
+        {
+            try
+            {
+                await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+                owner.TrySetResult(true);
+            }
+            catch (OperationCanceledException ex)
+            {
+                owner.TrySetCanceled(ex.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                owner.TrySetException(ex);
+            }
+        }
+
+        /// <summary>
+        /// Restores an unpublished retirement only before any producer-shutdown attempt has started.
+        /// </summary>
+        /// <returns>Whether the generation can still be restored without reviving stopped producers.</returns>
+        internal bool TryRestoreBeforeShutdown()
+        {
+            lock (m_retirementResourcesLock)
+            {
+                if (m_shutdownPreparation is not null)
+                {
+                    return false;
+                }
+                Gate.Restore();
+                return true;
+            }
+        }
 
         /// <summary>
         /// Seals the all-events bindings.
@@ -546,6 +684,13 @@ namespace Opc.Ua.Server
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;
 
+        /// <summary>Nonzero until the committed generation's readiness callback has finished.</summary>
+        private int m_readinessPending;
+        private const int MaxDeferredEvents = 1024;
+        private readonly Lock m_deferredEventsLock = new();
+        private Queue<Func<Task>>? m_deferredEvents;
+        private long m_droppedDeferredEvents;
+
         /// <summary>Serializes cold-path disposal transfer with the reclamation handoff.</summary>
         private readonly Lock m_retirementResourcesLock = new();
 
@@ -554,6 +699,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether reclamation has assumed exclusive responsibility for pending disposals.</summary>
         private bool m_retirementResourcesSealed;
+
+        /// <summary>The shared producer-shutdown attempt, retaining successful completion.</summary>
+        private Task? m_shutdownPreparation;
 
         /// <summary>Protects exceptional source-cleanup ownership, never provider callbacks.</summary>
         private readonly Lock m_sourceReleasesLock = new();
@@ -817,6 +965,29 @@ namespace Opc.Ua.Server
     internal static class NodeManagerGenerationRegistry
     {
         /// <summary>
+        /// Gets the server-scoped unresolved slot for restored items without a source manager.
+        /// </summary>
+        /// <param name="server">The server that owns the restored subscription.</param>
+        /// <returns>The unresolved slot shared only by this server's ownerless items.</returns>
+        internal static NodeManagerSlot GetOwnerlessSlot(IServerInternal server)
+        {
+            return s_ownerlessSlots.GetValue(server, static _ => new NodeManagerSlot());
+        }
+
+        /// <summary>
+        /// Finds the server's ownerless slot without allocating one for ordinary recovery requests.
+        /// </summary>
+        /// <param name="server">The server whose ownerless items are being recovered.</param>
+        /// <param name="slot">The existing unresolved slot, when present.</param>
+        /// <returns>True when the server has restored an item without a source manager.</returns>
+        internal static bool TryGetOwnerlessSlot(
+            IServerInternal server,
+            [NotNullWhen(true)] out NodeManagerSlot? slot)
+        {
+            return s_ownerlessSlots.TryGetValue(server, out slot);
+        }
+
+        /// <summary>
         /// Gets the live generation associated with a manager, creating its initial slot if needed.
         /// </summary>
         /// <param name="nodeManager">The manager to resolve.</param>
@@ -894,8 +1065,12 @@ namespace Opc.Ua.Server
                     if (existing.Gate.State == NodeManagerGenerationState.Retiring &&
                         ReferenceEquals(existing.Slot, current.Slot))
                     {
-                        existing.Gate.Restore();
-                        return existing;
+                        if (existing.TryRestoreBeforeShutdown())
+                        {
+                            return existing;
+                        }
+                        throw new InvalidOperationException(
+                            "A retired NodeManager instance cannot be reused as a replacement.");
                     }
                     if (existing.Gate.State == NodeManagerGenerationState.Disposed ||
                         (existing.Gate.State == NodeManagerGenerationState.Retiring &&
@@ -983,6 +1158,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Associates each manager instance with its current generation identity.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, NodeManagerGeneration> s_generations = new();
+
+        /// <summary>Scopes restored ownerless items to the lifetime and identity of their server.</summary>
+        private static readonly ConditionalWeakTable<IServerInternal, NodeManagerSlot> s_ownerlessSlots = new();
     }
 
     /// <summary>
@@ -1297,7 +1475,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void Close()
         {
-            Volatile.Write(ref m_closed, 1);
+            Interlocked.Exchange(ref m_closed, 1);
             CompleteDrainIfReady();
         }
 

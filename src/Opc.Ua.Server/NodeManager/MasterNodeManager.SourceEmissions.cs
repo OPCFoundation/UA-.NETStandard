@@ -214,6 +214,7 @@ namespace Opc.Ua.Server
             {
                 m_owner = owner;
                 Generation = generation;
+                ReadinessPending = generation.ReadinessPending;
                 m_slot = slot;
             }
 
@@ -221,6 +222,12 @@ namespace Opc.Ua.Server
             /// Gets the exact generation admitted by the source emission.
             /// </summary>
             internal NodeManagerGeneration Generation { get; }
+
+            /// <summary>
+            /// Gets whether the generation was still initializing when the emission was admitted.
+            /// Delivery happens later, so the state is captured here and not re-read.
+            /// </summary>
+            internal bool ReadinessPending { get; }
 
             /// <summary>
             /// Transfers this single-owned admission to an explicitly propagated event origin.

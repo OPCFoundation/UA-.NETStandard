@@ -198,33 +198,24 @@ namespace Opc.Ua.Server
             try
             {
                 await activeOperations.WaitAsync(ct).ConfigureAwait(false);
-                IAsyncNodeManager[] managers;
+                RegistrationState[] registrations;
                 lock (m_registrationLock)
                 {
-                    managers = m_registrations.Values.Select(state => state.Prepared.NodeManager).ToArray();
+                    registrations = m_registrations.Values.ToArray();
                 }
                 var failures = new List<Exception>();
-                foreach (IAsyncNodeManager manager in managers)
+                foreach (RegistrationState registration in registrations)
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (manager is INodeManagerShutdown shutdown)
+                    if (registration.Prepared.NodeManager is INodeManagerShutdown)
                     {
-                        NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
-                        if (!generation.Gate.TryEnter(out int stripe))
-                        {
-                            continue;
-                        }
                         try
                         {
-                            await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
+                            await PrepareShutdownRegistrationAsync(registration).ConfigureAwait(false);
                         }
                         catch (Exception failure) when (failure is not OutOfMemoryException)
                         {
                             failures.Add(failure);
-                        }
-                        finally
-                        {
-                            generation.Gate.Exit(stripe);
                         }
                     }
                 }
@@ -237,6 +228,48 @@ namespace Opc.Ua.Server
             finally
             {
                 m_writer.EndShutdown(shutdownPrepared);
+            }
+        }
+
+        /// <summary>
+        /// Shares active preparation and retains success for this exact registration's shutdown retries.
+        /// </summary>
+        /// <param name="registration">The registration whose producers must stop.</param>
+        /// <returns>The shared preparation task, replaced only after a failed attempt.</returns>
+        private Task PrepareShutdownRegistrationAsync(
+            RegistrationState registration)
+        {
+            lock (m_registrationLock)
+            {
+                if (registration.ShutdownPreparation is null or { IsFaulted: true } or { IsCanceled: true })
+                {
+                    registration.ShutdownPreparation = PrepareShutdownGenerationAsync(
+                        registration.Registration.Identity);
+                }
+                return registration.ShutdownPreparation;
+            }
+        }
+
+        /// <summary>
+        /// Stops one generation's producers while retaining source admission for their final callbacks.
+        /// </summary>
+        /// <param name="generation">The generation retained until producer preparation completes.</param>
+        /// <returns>A task completed after producer preparation and generation-admission release.</returns>
+        private static async Task PrepareShutdownGenerationAsync(
+            NodeManagerGeneration generation)
+        {
+            await Task.Yield();
+            if (!generation.Gate.TryEnter(out int stripe))
+            {
+                return;
+            }
+            try
+            {
+                await generation.PrepareForShutdownAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                generation.Gate.Exit(stripe);
             }
         }
 
@@ -292,7 +325,11 @@ namespace Opc.Ua.Server
                     {
                         var shutdown = new ShutdownPublication(this, server, cleanupOwnership);
                         IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
-                            changes, null, ct, shutdown: shutdown).ConfigureAwait(false);
+                            changes,
+                            null,
+                            CaptureLifecycleCallbackPermit(),
+                            ct,
+                            shutdown: shutdown).ConfigureAwait(false);
                         await using var lifetime = batch.ConfigureAwait(false);
                         NodeManagerBatchResult result = await batch.CommitAsync(
                             static _ => default, ct).ConfigureAwait(false);
@@ -351,6 +388,7 @@ namespace Opc.Ua.Server
             }
 
             ct.ThrowIfCancellationRequested();
+            using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
             await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
@@ -366,7 +404,7 @@ namespace Opc.Ua.Server
         /// Clears the pending readiness flag of a registration.
         /// </summary>
         /// <param name="state">The registration state, or null.</param>
-        private void ReleaseReadinessClaim(RegistrationState? state)
+        private async Task ReleaseReadinessClaimAsync(RegistrationState? state)
         {
             if (state is not null)
             {
@@ -374,6 +412,15 @@ namespace Opc.Ua.Server
                 {
                     state.ReadinessPending = false;
                 }
+                NodeManagerGeneration generation = state.Registration.Identity;
+                foreach (KeyValuePair<IMonitoredItem, ISubscription> entry in generation.MonitoredItems.ToArray())
+                {
+                    if (entry.Key is MonitoredItem native)
+                    {
+                        native.CompleteReadiness(generation);
+                    }
+                }
+                await generation.FlushDeferredEventsAsync().ConfigureAwait(false);
             }
         }
 
@@ -382,7 +429,7 @@ namespace Opc.Ua.Server
             m_writer.EnsureRunning();
 
             IServerInternal server = m_server.CurrentInstance;
-            if (!server.IsRunning)
+            if (!server.IsRunning && !NodeManagerReadinessScope.Allows(server))
             {
                 throw new InvalidOperationException(
                     "NodeManagers can only be changed while the server is running.");
@@ -403,6 +450,13 @@ namespace Opc.Ua.Server
         private OperationLifetime EnterLifecycleOperation()
         {
             return m_writer.EnterOperation();
+        }
+
+        private NodeManagerCallbackPermit? CaptureLifecycleCallbackPermit()
+        {
+            return m_server.CurrentInstance.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                ? batchHost.CaptureLifecycleCallbackPermit()
+                : null;
         }
 
         private void EnsureSameRunningServer(
@@ -1460,7 +1514,16 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets or sets whether the readiness callback of the registration has not yet completed.
             /// </summary>
-            public bool ReadinessPending { get; set; }
+            public bool ReadinessPending
+            {
+                get => Registration.Identity.ReadinessPending;
+                set => Registration.Identity.ReadinessPending = value;
+            }
+
+            /// <summary>
+            /// Gets or sets the shared producer-stop attempt for this registration.
+            /// </summary>
+            public Task? ShutdownPreparation { get; set; }
 
             /// <summary>
             /// Gets whether this registration supplies a protected system role.
@@ -1478,7 +1541,7 @@ namespace Opc.Ua.Server
                 m_writer.EnsureRunning();
                 return owner.PrepareAsync(changes, cancellationToken);
             }
-            return PrepareBatchAsync(changes, null, cancellationToken);
+            return PrepareBatchAsync(changes, null, CaptureLifecycleCallbackPermit(), cancellationToken);
         }
 
         /// <summary>
@@ -1487,6 +1550,7 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements and retirements of the unit.</param>
         /// <param name="publication">The invocation that owns publication admission, or null for a standalone
         /// batch.</param>
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <param name="readImages">Read images to publish together with the changes.</param>
         /// <param name="validationOnly">Whether the batch is a validation candidate that can never be
@@ -1497,6 +1561,7 @@ namespace Opc.Ua.Server
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
+            NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken,
             ArrayOf<INodeManagerReadImage> readImages = default,
             bool validationOnly = false,
@@ -1666,7 +1731,7 @@ namespace Opc.Ua.Server
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session,
-                        initial, shutdown);
+                        initial, shutdown, callbackPermit);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -1819,8 +1884,15 @@ namespace Opc.Ua.Server
                     .ToArrayOf();
                 using PreparedAddressSpaceReferences references =
                     await batch.Host.PrepareReferencesAsync(
-                        candidates, removed, batch.RoutingRevision, cancellationToken).ConfigureAwait(false);
+                        candidates,
+                        removed,
+                        batch.RoutingRevision,
+                        cancellationToken,
+                        batch.CallbackPermit).ConfigureAwait(false);
 
+                using INodeManagerBatchAdmission admission =
+                    await batch.Host.AcquireCommitAdmissionAsync(
+                        batch.CallbackPermit, cancellationToken).ConfigureAwait(false);
                 mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
                 EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
                 if (!ReferenceEquals(
@@ -2014,7 +2086,9 @@ namespace Opc.Ua.Server
                         CancellationToken: cancellationToken,
                         Preparation: batch.Preparation,
                         Reconciliation: reconciliation,
-                        References: references);
+                        References: references,
+                        CallbackPermit: batch.CallbackPermit,
+                        Admission: admission);
                     await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
@@ -2047,6 +2121,7 @@ namespace Opc.Ua.Server
                 foreach ((RegistrationState state, bool recoverSources) in readinessStates)
                 {
                     NodeManagerGeneration generation = state.Registration.Identity;
+                    bool readinessFailed = true;
                     try
                     {
                         if (recoverSources)
@@ -2066,10 +2141,18 @@ namespace Opc.Ua.Server
                                 batch.Initial is not null ? cancellationToken : CancellationToken.None,
                                 batch.Initial))
                             .ConfigureAwait(false);
+                        readinessFailed = false;
                     }
                     finally
                     {
-                        ReleaseReadinessClaim(state);
+                        // A retained-event delivery failure surfaces unless a readiness failure is already in flight.
+                        try
+                        {
+                            await ReleaseReadinessClaimAsync(state).ConfigureAwait(false);
+                        }
+                        catch (AggregateException) when (readinessFailed)
+                        {
+                        }
                     }
                 }
                 // Publication and readiness are complete. Reclamation owns its records and callbacks independently;
@@ -2138,7 +2221,15 @@ namespace Opc.Ua.Server
                 {
                     foreach (BatchEntry entry in batch.Entries)
                     {
-                        ReleaseReadinessClaim(entry.Next);
+                        try
+                        {
+                            await ReleaseReadinessClaimAsync(entry.Next).ConfigureAwait(false);
+                        }
+                        catch (AggregateException)
+                        {
+                            // Registrations that completed readiness already surfaced their delivery failures;
+                            // this cleanup only runs for the rest while the operation failure is in flight.
+                        }
                     }
                     m_reclaimer.Activate(retired);
                     ScheduleRetiredGenerationDrainCleanup();
@@ -2270,6 +2361,7 @@ namespace Opc.Ua.Server
             /// <param name="publication">The optimistic publication session, or null for a standalone batch.</param>
             /// <param name="initial">The explicit initial-publication capability, or null for runtime changes.</param>
             /// <param name="shutdown">The explicit shutdown publication capability, or null.</param>
+            /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
@@ -2289,7 +2381,8 @@ namespace Opc.Ua.Server
                 ChangePreparer preparation,
                 LifecycleWriter.PublicationSession? publication,
                 InitialPublication? initial,
-                ShutdownPublication? shutdown)
+                ShutdownPublication? shutdown,
+                NodeManagerCallbackPermit? callbackPermit)
             {
                 m_owner = owner;
                 Preparation = preparation;
@@ -2310,6 +2403,7 @@ namespace Opc.Ua.Server
                 Publication = publication;
                 Initial = initial;
                 Shutdown = shutdown;
+                CallbackPermit = callbackPermit;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
@@ -2333,6 +2427,11 @@ namespace Opc.Ua.Server
             /// Gets removal-only writer admission retained by this shutdown invocation.
             /// </summary>
             public ShutdownPublication? Shutdown { get; }
+
+            /// <summary>
+            /// Gets the callback permit captured when this batch was prepared.
+            /// </summary>
+            public NodeManagerCallbackPermit? CallbackPermit { get; }
 
             /// <summary>
             /// Gets the registrations the batch publishes.
@@ -2710,8 +2809,9 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken,
                 bool validationOnly = false)
             {
+                NodeManagerCallbackPermit? callbackPermit = owner.CaptureLifecycleCallbackPermit();
                 return Session.PrepareAsync(() => owner.PrepareBatchAsync(
-                    changes, this, cancellationToken, images, validationOnly));
+                    changes, this, callbackPermit, cancellationToken, images, validationOnly));
             }
 
             /// <inheritdoc/>

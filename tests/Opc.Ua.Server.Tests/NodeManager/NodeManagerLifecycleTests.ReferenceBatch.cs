@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -554,6 +555,819 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
+        public async Task PreparedBatchDecisionWaitsForValidParentAddNodesMutationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            TrackingLifecycleNodeManager? targetManager = null;
+            NodeManagerRegistration targetRegistration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue,
+                    manager => targetManager = manager,
+                    kSecondModelNamespaceUri),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            Assert.That(targetManager, Is.Not.Null);
+            ushort targetNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                targetRegistration.NamespaceUris[0]);
+            NodeId addedNodeId = new(8402, targetNamespaceIndex);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))],
+                null,
+                timeout.Token).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            }, timeout.Token).AsTask();
+
+            AddNodesResponse? response = null;
+            bool requestCompletedBeforeDecision = false;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                RequestHeader requestHeader = m_requestHeader;
+                requestHeader.Timestamp = DateTimeUtc.Now;
+                Task<AddNodesResponse> request = m_server.AddNodesAsync(
+                    m_secureChannelContext,
+                    requestHeader,
+                    [
+                        new AddNodesItem
+                        {
+                            ParentNodeId = ObjectIds.ObjectsFolder,
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            RequestedNewNodeId = addedNodeId,
+                            BrowseName = new QualifiedName("DuringDecision", targetNamespaceIndex),
+                            NodeClass = NodeClass.Object,
+                            TypeDefinition = ObjectTypeIds.BaseObjectType
+                        }
+                    ],
+                    RequestLifetime.None).AsTask();
+                requestCompletedBeforeDecision = request.IsCompleted;
+                release.TrySetResult(true);
+                NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                response = await request.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+
+            Assert.That(response!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results[0].AddedNodeId, Is.EqualTo(addedNodeId));
+            Assert.That(requestCompletedBeforeDecision, Is.False,
+                "A valid-parent client AddNodes operation must wait for the in-flight durable decision.");
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task AddNodesCallbackCanCommitNestedLifecycleMutationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var rescue = new CancellationTokenSource();
+            using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                timeout.Token, rescue.Token);
+            var lifecycle = m_server.NodeManagerLifecycle;
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedCreated = new TaskCompletionSource<TrackingLifecycleNodeManager>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue,
+                manager => nestedCreated.TrySetResult(manager),
+                kSecondModelNamespaceUri);
+            const string targetNamespaceUri = kModelNamespaceUri + ":AddNodesReentry";
+            IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
+                targetNamespaceUri,
+                async cancellationToken =>
+                {
+                    callbackEntered.TrySetResult(true);
+                    await lifecycle.AddAsync(nestedFactory, null, cancellationToken).ConfigureAwait(false);
+                },
+                sessionClosing: null);
+            await lifecycle.AddAsync(targetFactory, null, timeout.Token).ConfigureAwait(false);
+            ushort targetNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                targetNamespaceUri);
+            var addedNodeId = new NodeId(8403, targetNamespaceIndex);
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            using var requestLifetime = new RequestLifetime(requestCancellation.Token);
+            Task<AddNodesResponse>? request = null;
+            AddNodesResponse? response = null;
+            TrackingLifecycleNodeManager? nestedManager = null;
+            bool completedBeforeRescue = false;
+
+            try
+            {
+                request = m_server.AddNodesAsync(
+                    m_secureChannelContext,
+                    requestHeader,
+                    [
+                        new AddNodesItem
+                        {
+                            ParentNodeId = ObjectIds.ObjectsFolder,
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            RequestedNewNodeId = addedNodeId,
+                            BrowseName = new QualifiedName("AddNodesReentry", targetNamespaceIndex),
+                            NodeClass = NodeClass.Object,
+                            TypeDefinition = ObjectTypeIds.BaseObjectType
+                        }
+                    ],
+                    requestLifetime).AsTask();
+                await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                completedBeforeRescue = await Task.WhenAny(
+                    request,
+                    Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false) == request;
+                if (!completedBeforeRescue)
+                {
+                    rescue.Cancel();
+                }
+                try
+                {
+                    response = await request.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                {
+                }
+            }
+            finally
+            {
+                rescue.Cancel();
+                if (request is not null)
+                {
+                    try
+                    {
+                        await request.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                    {
+                    }
+                }
+            }
+
+            Assert.That(completedBeforeRescue, Is.True,
+                "A lifecycle mutation from AddNodeAsync must not wait on the AddNodes callback's own semaphore.");
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(nestedCreated.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            nestedManager = await nestedCreated.Task.ConfigureAwait(false);
+            Assert.That(nestedManager, Is.Not.Null);
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task SessionClosingCallbackCanCommitNestedLifecycleMutationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var rescue = new CancellationTokenSource();
+            CancellationToken rescueToken = rescue.Token;
+            var lifecycle = m_server.NodeManagerLifecycle;
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedCreated = new TaskCompletionSource<TrackingLifecycleNodeManager>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int sessionClosingCallbackCount = 0;
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue,
+                manager => nestedCreated.TrySetResult(manager),
+                kSecondModelNamespaceUri);
+            IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
+                kModelNamespaceUri + ":SessionClosingReentry",
+                addNode: null,
+                async cancellationToken =>
+                {
+                    if (Interlocked.Increment(ref sessionClosingCallbackCount) == 1)
+                    {
+                        callbackEntered.TrySetResult(true);
+                        using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken,
+                            rescueToken);
+                        try
+                        {
+                            await lifecycle.AddAsync(
+                                nestedFactory,
+                                null,
+                                callbackCancellation.Token).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (rescueToken.IsCancellationRequested)
+                        {
+                        }
+                    }
+                });
+            await lifecycle.AddAsync(targetFactory, null, timeout.Token).ConfigureAwait(false);
+            Task<CloseSessionResponse>? close = null;
+            CloseSessionResponse? response = null;
+            TrackingLifecycleNodeManager? nestedManager = null;
+            bool completedBeforeRescue = false;
+
+            try
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                close = m_server.CloseSessionAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    true,
+                    RequestLifetime.None).AsTask();
+                await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                completedBeforeRescue = await Task.WhenAny(
+                    close,
+                    Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false) == close;
+                if (!completedBeforeRescue)
+                {
+                    rescue.Cancel();
+                }
+                try
+                {
+                    response = await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                {
+                }
+            }
+            finally
+            {
+                rescue.Cancel();
+                if (close is not null)
+                {
+                    try
+                    {
+                        await close.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                    {
+                    }
+                }
+            }
+
+            m_requestHeader = null!;
+            if (nestedCreated.Task.Status == TaskStatus.RanToCompletion)
+            {
+                nestedManager = await nestedCreated.Task.ConfigureAwait(false);
+            }
+            Assert.That(completedBeforeRescue, Is.True,
+                "A lifecycle mutation from SessionClosingAsync must not wait on the callback's own semaphore.");
+            Assert.That(response, Is.Not.Null);
+            Assert.That(response!.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(nestedManager, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// A callback revoked during admission must reacquire both capabilities.
+        /// </summary>
+        [Category("Integration")]
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RevokedCallbackAdmissionReacquiresBothCapabilitiesAsync(
+            bool inheritMutation)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            using INodeManagerBatchAdmission opposing =
+                await host.AcquireCommitAdmissionAsync(null, timeout.Token).ConfigureAwait(false);
+            var current = new AsyncLocal<NodeManagerCallbackPermit?>();
+            NodeManagerCallbackPermit callbackPermit = new(
+                current,
+                inheritMutation
+                    ? NodeManagerAdmissionCapability.AddressSpaceMutation
+                    : NodeManagerAdmissionCapability.ServerLifecycle);
+            Task<INodeManagerBatchAdmission> pending =
+                host.AcquireCommitAdmissionAsync(callbackPermit, timeout.Token).AsTask();
+            try
+            {
+                Assert.That(pending.IsCompleted, Is.False);
+                ValueTask disposal = callbackPermit.DisposeAsync();
+                Assert.That(current.Value, Is.Null, "Disposal must restore the caller's context before returning.");
+                await disposal.ConfigureAwait(false);
+            }
+            finally
+            {
+                await callbackPermit.DisposeAsync().ConfigureAwait(false);
+                opposing.Dispose();
+            }
+            using INodeManagerBatchAdmission acquired = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(acquired.Includes(NodeManagerAdmissionCapability.AddressSpaceMutation), Is.True);
+            Assert.That(acquired.Includes(NodeManagerAdmissionCapability.ServerLifecycle), Is.True);
+        }
+
+        /// <summary>
+        /// Concurrent service requests serialize callbacks while preserving nested lifecycle publication.
+        /// </summary>
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ConcurrentAddNodeAndSessionClosingCallbacksCanBothReenterLifecycleAsync(
+            bool forkNestedPublication,
+            bool cancelSessionClosing)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var rescue = new CancellationTokenSource();
+            CancellationToken rescueToken = rescue.Token;
+            var lifecycle = m_server.NodeManagerLifecycle;
+            int callbacksEnabled = 1;
+            var addNodeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAddNode = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var addNested = new TaskCompletionSource<NodeManagerRegistration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sessionClosingNested = new TaskCompletionSource<NodeManagerRegistration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var addNestedStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sessionClosingNestedStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            IAsyncNodeManagerFactory addNestedFactory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue,
+                _ => { },
+                kSecondModelNamespaceUri + ":AddNodeConcurrentReentry");
+            IAsyncNodeManagerFactory sessionClosingNestedFactory = CreateTrackingNodeManagementFactory(
+                kFirstRegistrationValue,
+                _ => { },
+                kSecondModelNamespaceUri + ":SessionClosingConcurrentReentry");
+            const string targetNamespaceUri = kModelNamespaceUri + ":ConcurrentCallbackReentry";
+            int sessionClosingCount = 0;
+            int addNodeBodyActive = 0;
+            bool callbacksOverlapped = false;
+            bool sessionCallbackOwnsBothCapabilities = false;
+            IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
+                targetNamespaceUri,
+                async cancellationToken =>
+                {
+                    if (Volatile.Read(ref callbacksEnabled) == 0)
+                    {
+                        return;
+                    }
+                    Volatile.Write(ref addNodeBodyActive, 1);
+                    addNodeEntered.TrySetResult(true);
+                    using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        rescueToken);
+                    try
+                    {
+                        await releaseAddNode.Task.WaitAsync(callbackCancellation.Token).ConfigureAwait(false);
+                        Task<NodeManagerRegistration> publication = forkNestedPublication
+                            ? Task.Run(async () => await lifecycle.AddAsync(
+                                addNestedFactory, null, callbackCancellation.Token).ConfigureAwait(false))
+                            : lifecycle.AddAsync(addNestedFactory, null, callbackCancellation.Token).AsTask();
+                        addNestedStarted.TrySetResult(true);
+                        NodeManagerRegistration registration = await publication.ConfigureAwait(false);
+                        addNested.TrySetResult(registration);
+                    }
+                    catch (OperationCanceledException) when (rescueToken.IsCancellationRequested)
+                    {
+                    }
+                    finally
+                    {
+                        Volatile.Write(ref addNodeBodyActive, 0);
+                    }
+                },
+                async cancellationToken =>
+                {
+                    if (Volatile.Read(ref callbacksEnabled) == 0)
+                    {
+                        return;
+                    }
+                    callbacksOverlapped |= Volatile.Read(ref addNodeBodyActive) != 0;
+                    NodeManagerCallbackPermit? permit =
+                        ((MasterNodeManager)m_server.CurrentInstance.NodeManager).CaptureLifecycleCallbackPermit();
+                    sessionCallbackOwnsBothCapabilities = permit is { IsActive: true } &&
+                        permit.Capabilities == (NodeManagerAdmissionCapability.ServerLifecycle |
+                            NodeManagerAdmissionCapability.AddressSpaceMutation);
+                    int callbackCount = Interlocked.Increment(ref sessionClosingCount);
+                    using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        rescueToken);
+                    try
+                    {
+                        if (callbackCount == 1)
+                        {
+                            ValueTask<NodeManagerRegistration> publication = lifecycle.AddAsync(
+                                sessionClosingNestedFactory, null, callbackCancellation.Token);
+                            sessionClosingNestedStarted.TrySetResult(true);
+                            NodeManagerRegistration registration = await publication.ConfigureAwait(false);
+                            sessionClosingNested.TrySetResult(registration);
+                        }
+                    }
+                    catch (OperationCanceledException) when (rescueToken.IsCancellationRequested)
+                    {
+                    }
+                });
+            NodeManagerRegistration targetRegistration = await lifecycle.AddAsync(
+                targetFactory, null, timeout.Token).ConfigureAwait(false);
+            ushort targetNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                targetNamespaceUri);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession clientSession = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),
+                SecurityPolicies.None).ConfigureAwait(false);
+            Task<AddNodesResponse>? addNodes = null;
+            Task? firstSessionClosing = null;
+            AddNodesResponse? addNodesResponse = null;
+            var cleanupFailures = new List<Exception>();
+            bool bothReentriesCompletedBeforeRescue = false;
+            bool addNodeReentryCompletedBeforeRescue = false;
+            bool sessionClosingReentryCompletedBeforeRescue = false;
+            using var firstContext = new OperationContext(
+                new RequestHeader(), null, RequestType.CloseSession, RequestLifetime.None);
+            var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+            using var closeCancellation = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+
+            try
+            {
+                addNodes = clientSession.AddNodesAsync(
+                    null,
+                    [
+                        new AddNodesItem
+                        {
+                            ParentNodeId = ObjectIds.ObjectsFolder,
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            RequestedNewNodeId = new NodeId(8406, targetNamespaceIndex),
+                            BrowseName = new QualifiedName("ConcurrentCallbackReentry", targetNamespaceIndex),
+                            NodeClass = NodeClass.Object,
+                            TypeDefinition = ObjectTypeIds.BaseObjectType
+                        }
+                    ],
+                    timeout.Token).AsTask();
+                await addNodeEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                firstSessionClosing = master.SessionClosingAsync(
+                    firstContext, new NodeId(8407), true, closeCancellation.Token).AsTask();
+                if (cancelSessionClosing)
+                {
+                    closeCancellation.Cancel();
+                    try
+                    {
+                        await firstSessionClosing.ConfigureAwait(false);
+                        Assert.Fail("Session close admission must observe cancellation.");
+                    }
+                    catch (OperationCanceledException) when (closeCancellation.IsCancellationRequested)
+                    {
+                    }
+                    firstSessionClosing = null;
+                }
+                releaseAddNode.TrySetResult(true);
+                if (cancelSessionClosing)
+                {
+                    firstSessionClosing = master.SessionClosingAsync(
+                        firstContext, new NodeId(8407), true, timeout.Token).AsTask();
+                }
+                await Task.WhenAll(addNestedStarted.Task, sessionClosingNestedStarted.Task)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Task bothNestedPublications = Task.WhenAll(addNested.Task, sessionClosingNested.Task);
+                bothReentriesCompletedBeforeRescue = await Task.WhenAny(
+                    bothNestedPublications,
+                    Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false) ==
+                    bothNestedPublications;
+                addNodeReentryCompletedBeforeRescue = addNested.Task.Status == TaskStatus.RanToCompletion;
+                sessionClosingReentryCompletedBeforeRescue =
+                    sessionClosingNested.Task.Status == TaskStatus.RanToCompletion;
+            }
+            finally
+            {
+                rescue.Cancel();
+                releaseAddNode.TrySetResult(true);
+                if (addNodes is not null)
+                {
+                    try
+                    {
+                        addNodesResponse = await addNodes.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+                if (firstSessionClosing is not null)
+                {
+                    try
+                    {
+                        await firstSessionClosing.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        cleanupFailures.Add(failure);
+                    }
+                }
+                Volatile.Write(ref callbacksEnabled, 0);
+            }
+
+            if (addNested.Task.Status == TaskStatus.RanToCompletion)
+            {
+                await lifecycle.RemoveAsync(await addNested.Task.ConfigureAwait(false), null, timeout.Token)
+                    .ConfigureAwait(false);
+            }
+            if (sessionClosingNested.Task.Status == TaskStatus.RanToCompletion)
+            {
+                await lifecycle.RemoveAsync(await sessionClosingNested.Task.ConfigureAwait(false), null, timeout.Token)
+                    .ConfigureAwait(false);
+            }
+            await lifecycle.RemoveAsync(targetRegistration, null, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(bothReentriesCompletedBeforeRescue, Is.True,
+                $"Both callbacks must complete nested lifecycle publication without an admission cycle. " +
+                $"AddNode={addNodeReentryCompletedBeforeRescue}, " +
+                $"SessionClosing={sessionClosingReentryCompletedBeforeRescue}.");
+            Assert.That(cleanupFailures, Is.Empty);
+            Assert.That(callbacksOverlapped, Is.False);
+            Assert.That(sessionCallbackOwnsBothCapabilities, Is.True);
+            Assert.That(addNodesResponse!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(addNested.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(sessionClosingNested.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+        }
+
+        /// <summary>
+        /// Concurrent publication admission cannot hold the writer while a session callback re-enters lifecycle.
+        /// </summary>
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task ConcurrentPublicationDoesNotDeadlockSessionClosingReentryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var rescue = new CancellationTokenSource();
+            CancellationToken rescueToken = rescue.Token;
+            int callbacksEnabled = 1;
+            var lifecycle = m_server.NodeManagerLifecycle;
+            var callbackEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowNested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedAdded = new TaskCompletionSource<NodeManagerRegistration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var concurrentAdmissionEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue,
+                _ => { },
+                kSecondModelNamespaceUri + ":SessionClosingConcurrentNested");
+            IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
+                kModelNamespaceUri + ":SessionClosingConcurrentPublication",
+                addNode: null,
+                async cancellationToken =>
+                {
+                    if (Volatile.Read(ref callbacksEnabled) == 0)
+                    {
+                        return;
+                    }
+                    callbackEntered.TrySetResult(true);
+                    using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        rescueToken);
+                    try
+                    {
+                        await allowNested.Task.WaitAsync(callbackCancellation.Token).ConfigureAwait(false);
+                        NodeManagerRegistration registration = await lifecycle.AddAsync(
+                            nestedFactory, null, callbackCancellation.Token).ConfigureAwait(false);
+                        nestedAdded.TrySetResult(registration);
+                    }
+                    catch (OperationCanceledException) when (rescueToken.IsCancellationRequested)
+                    {
+                    }
+                });
+            NodeManagerRegistration targetRegistration = await lifecycle.AddAsync(
+                targetFactory, null, timeout.Token).ConfigureAwait(false);
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
+                nameof(ServerInternalData.NodeManager)) ??
+                throw new AssertionException("The bound master NodeManager property was not found.");
+            Mock<IMasterNodeManager>? proxy = null;
+            Task<CloseSessionResponse>? close = null;
+            Task<NodeManagerRegistration>? concurrentAdd = null;
+            NodeManagerRegistration? nestedRegistration = null;
+            NodeManagerRegistration? concurrentRegistration = null;
+            bool nestedCompletedBeforeRescue = false;
+
+            try
+            {
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                close = m_server.CloseSessionAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    true,
+                    RequestLifetime.None).AsTask();
+                await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                proxy = CreatePostSwapPublicationFailureHost(
+                    master, () => false, notifyBeforeFailure: false,
+                    new InvalidOperationException("Unused publication failure."),
+                    onReferencePreparationAttempt: () => concurrentAdmissionEntered.TrySetResult(true));
+                nodeManagerProperty.SetValue(server, proxy.Object);
+                concurrentAdd = lifecycle.AddAsync(
+                    CreateTrackingNodeManagementFactory(
+                        kFirstRegistrationValue,
+                        _ => { },
+                        kSecondModelNamespaceUri + ":SessionClosingConcurrentOther"),
+                    null,
+                    timeout.Token).AsTask();
+                await concurrentAdmissionEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                allowNested.TrySetResult(true);
+                nestedCompletedBeforeRescue = await Task.WhenAny(
+                    nestedAdded.Task,
+                    Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false) == nestedAdded.Task;
+            }
+            finally
+            {
+                allowNested.TrySetResult(true);
+                rescue.Cancel();
+                try
+                {
+                    if (close is not null)
+                    {
+                        await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    if (concurrentAdd is not null)
+                    {
+                        concurrentRegistration = await concurrentAdd.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    Volatile.Write(ref callbacksEnabled, 0);
+                    nodeManagerProperty.SetValue(server, master);
+                }
+            }
+
+            m_requestHeader = null!;
+            if (nestedAdded.Task.Status == TaskStatus.RanToCompletion)
+            {
+                nestedRegistration = await nestedAdded.Task.ConfigureAwait(false);
+            }
+            Assert.That(nestedCompletedBeforeRescue, Is.True,
+                "The callback-owned startup semaphore must not deadlock an unrelated writer-held publication.");
+            Assert.That(nestedRegistration, Is.Not.Null);
+            Assert.That(concurrentRegistration, Is.Not.Null);
+            Assert.That(close!.Result.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            await lifecycle.RemoveAsync(nestedRegistration!, null, timeout.Token).ConfigureAwait(false);
+            await lifecycle.RemoveAsync(concurrentRegistration!, null, timeout.Token).ConfigureAwait(false);
+            await lifecycle.RemoveAsync(targetRegistration, null, timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A SessionClosing callback may enter during a durable decision, but nested publication waits for its writer.
+        /// </summary>
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task SessionClosingReentryDuringDurableDecisionWaitsForWriterReleaseAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var rescue = new CancellationTokenSource();
+            var lifecycle = m_server.NodeManagerLifecycle;
+            var decisionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sessionClosingEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedPublicationStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedPublicationCompleted = new TaskCompletionSource<NodeManagerRegistration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            const string targetNamespaceUri = kModelNamespaceUri + ":SessionClosingDuringDecision";
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue,
+                _ => { },
+                kSecondModelNamespaceUri + ":SessionClosingDecisionNested");
+            int sessionClosingCount = 0;
+            IAsyncNodeManagerFactory targetFactory = CreateLifecycleCallbackNodeManagerFactory(
+                targetNamespaceUri,
+                addNode: null,
+                async cancellationToken =>
+                {
+                    if (Interlocked.Increment(ref sessionClosingCount) != 1)
+                    {
+                        return;
+                    }
+                    sessionClosingEntered.TrySetResult(true);
+                    using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        cancellationToken,
+                        rescue.Token);
+                    try
+                    {
+                        ValueTask<NodeManagerRegistration> publication = lifecycle.AddAsync(
+                            nestedFactory, null, callbackCancellation.Token);
+                        nestedPublicationStarted.TrySetResult(true);
+                        NodeManagerRegistration registration = await publication.ConfigureAwait(false);
+                        nestedPublicationCompleted.TrySetResult(registration);
+                    }
+                    catch (OperationCanceledException) when (rescue.IsCancellationRequested)
+                    {
+                    }
+                });
+            NodeManagerRegistration targetRegistration = await lifecycle.AddAsync(
+                targetFactory, null, timeout.Token).ConfigureAwait(false);
+            ushort targetNamespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                targetNamespaceUri);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession clientSession = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),
+                SecurityPolicies.None).ConfigureAwait(false);
+            NodeId addedNodeId = new(8405, targetNamespaceIndex);
+            var batchLifecycle = (INodeManagerBatchLifecycle)lifecycle;
+            await using IPreparedNodeManagerBatch prepared = await batchLifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                        kFirstRegistrationValue,
+                        _ => { },
+                        kModelNamespaceUri + ":DecisionWindowOther"))
+                ],
+                null,
+                timeout.Token).ConfigureAwait(false);
+
+            Task<NodeManagerBatchResult>? commit = null;
+            Task<AddNodesResponse>? addNodes = null;
+            Task<CloseSessionResponse>? close = null;
+            NodeManagerBatchResult? commitResult = null;
+            AddNodesResponse? addNodesResponse = null;
+            CloseSessionResponse? closeResponse = null;
+            NodeManagerRegistration? nestedRegistration = null;
+            bool validAddNodesWaitedForDecision = false;
+            bool nestedPublicationWaitedForWriter = false;
+
+            try
+            {
+                commit = prepared.CommitAsync(async token =>
+                {
+                    decisionEntered.TrySetResult(true);
+                    await releaseDecision.Task.WaitAsync(token).ConfigureAwait(false);
+                }, timeout.Token).AsTask();
+                await decisionEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                addNodes = clientSession.AddNodesAsync(
+                    null,
+                    [
+                        new AddNodesItem
+                        {
+                            ParentNodeId = ObjectIds.ObjectsFolder,
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            RequestedNewNodeId = addedNodeId,
+                            BrowseName = new QualifiedName("DuringDurableDecision", targetNamespaceIndex),
+                            NodeClass = NodeClass.Object,
+                            TypeDefinition = ObjectTypeIds.BaseObjectType
+                        }
+                    ],
+                    timeout.Token).AsTask();
+                validAddNodesWaitedForDecision = !addNodes.IsCompleted;
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                close = m_server.CloseSessionAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    true,
+                    RequestLifetime.None).AsTask();
+                await sessionClosingEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await nestedPublicationStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                nestedPublicationWaitedForWriter = !nestedPublicationCompleted.Task.IsCompleted;
+
+                releaseDecision.TrySetResult(true);
+                commitResult = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                addNodesResponse = await addNodes.WaitAsync(timeout.Token).ConfigureAwait(false);
+                closeResponse = await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                nestedRegistration = await nestedPublicationCompleted.Task.WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseDecision.TrySetResult(true);
+                rescue.Cancel();
+                if (commit is not null)
+                {
+                    commitResult ??= await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (addNodes is not null)
+                {
+                    addNodesResponse ??= await addNodes.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (close is not null)
+                {
+                    closeResponse = await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (nestedPublicationCompleted.Task.Status == TaskStatus.RanToCompletion)
+                {
+                    nestedRegistration ??= await nestedPublicationCompleted.Task.ConfigureAwait(false);
+                }
+            }
+
+            m_requestHeader = null!;
+            Assert.That(validAddNodesWaitedForDecision, Is.True,
+                "A valid AddNodes request must wait until the durable decision is complete.");
+            Assert.That(nestedPublicationWaitedForWriter, Is.True,
+                "A callback that enters during the decision cannot publish until the current writer is released.");
+            Assert.That(commitResult!.CleanupFailure, Is.Null);
+            Assert.That(addNodesResponse!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(closeResponse!.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(nestedRegistration, Is.Not.Null);
+            await lifecycle.RemoveAsync(nestedRegistration!, null, timeout.Token).ConfigureAwait(false);
+            await lifecycle.RemoveAsync(commitResult.Registrations[0], null, timeout.Token).ConfigureAwait(false);
+            await lifecycle.RemoveAsync(targetRegistration, null, timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
         public async Task PreparedBatchNodeOwnedReferencesBecomeVisibleToAnInflightNativeRequestAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -1054,6 +1868,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return factory.Object;
         }
 
+        private IAsyncNodeManagerFactory CreateLifecycleCallbackNodeManagerFactory(
+            string namespaceUri,
+            Func<CancellationToken, ValueTask>? addNode,
+            Func<CancellationToken, ValueTask>? sessionClosing)
+        {
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
+                    new ValueTask<IAsyncNodeManager>(
+                        new ReentrantLifecycleNodeManager(
+                            server,
+                            configuration,
+                            m_logger,
+                            namespaceUri,
+                            addNode,
+                            sessionClosing)));
+            return factory.Object;
+        }
+
         private static async Task AssertNativeReferenceAsync(
             Opc.Ua.Client.ISession session,
             NodeId source,
@@ -1229,6 +2065,66 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             /// <summary>Counts source metadata validations.</summary>
             private int m_validationCount;
+        }
+
+        /// <summary>
+        /// Adds controllable service callbacks to exercise lifecycle re-entry from host callbacks.
+        /// </summary>
+        private sealed class ReentrantLifecycleNodeManager : NodeManagementLifecycleNodeManager
+        {
+            /// <summary>
+            /// Creates a node manager with optional AddNode and SessionClosing callbacks.
+            /// </summary>
+            public ReentrantLifecycleNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ILogger logger,
+                string namespaceUri,
+                Func<CancellationToken, ValueTask>? addNode,
+                Func<CancellationToken, ValueTask>? sessionClosing)
+                : base(server, configuration, logger, namespaceUri)
+            {
+                m_addNode = addNode;
+                m_sessionClosing = sessionClosing;
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
+                OperationContext context,
+                AddNodesItem item,
+                CancellationToken cancellationToken = default)
+            {
+                if (m_addNode is { } addNode)
+                {
+                    await addNode(cancellationToken).ConfigureAwait(false);
+                }
+                return await base.AddNodeAsync(context, item, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public override async ValueTask SessionClosingAsync(
+                OperationContext context,
+                NodeId sessionId,
+                bool deleteSubscriptions,
+                CancellationToken cancellationToken = default)
+            {
+                if (m_sessionClosing is { } sessionClosing)
+                {
+                    await sessionClosing(cancellationToken).ConfigureAwait(false);
+                }
+                await base.SessionClosingAsync(
+                    context, sessionId, deleteSubscriptions, cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Nested lifecycle operation invoked from AddNodeAsync.
+            /// </summary>
+            private readonly Func<CancellationToken, ValueTask>? m_addNode;
+
+            /// <summary>
+            /// Nested lifecycle operation invoked from SessionClosingAsync.
+            /// </summary>
+            private readonly Func<CancellationToken, ValueTask>? m_sessionClosing;
         }
 
         private sealed class ReferenceContributorNodeManager : NodeManagementLifecycleNodeManager

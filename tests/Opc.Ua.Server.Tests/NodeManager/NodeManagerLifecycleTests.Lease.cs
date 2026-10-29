@@ -444,7 +444,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await prepared.DisposeAsync().ConfigureAwait(false);
                 }
                 Task shutdown = lifecycle.BeginShutdownAsync(server, timeout.Token).AsTask();
-                drainedWithoutDisposal = shutdown.IsCompleted;
+                drainedWithoutDisposal = await Task.WhenAny(shutdown, Task.Delay(TimeSpan.FromSeconds(20), timeout.Token))
+                    .ConfigureAwait(false) == shutdown;
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);

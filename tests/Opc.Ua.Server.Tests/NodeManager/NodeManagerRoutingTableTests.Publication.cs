@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -35,6 +37,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerRoutingTableTests
     {
+        /// <summary>
+        /// A retired provider cannot be revived after producer shutdown has started, even before destruction.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReplacementRejectsGenerationWhoseProducerShutdownStartedAsync(bool completed)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var original = new Mock<IAsyncNodeManager>();
+            original.As<INodeManagerShutdown>().Setup(value => value.PrepareForShutdownAsync()).Returns(async () =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+            });
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            table.Add(original.Object, BatchNamespaceIndexes);
+            NodeManagerGeneration generation = table.GetGeneration(original.Object);
+            IAsyncNodeManager replacement = CreateManager();
+            table.Replace(original.Object, replacement, BatchNamespaceIndexes);
+            Task stopping = generation.PrepareForShutdownAsync();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (completed)
+                {
+                    release.TrySetResult(true);
+                    await stopping.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                Assert.That(() => table.Replace(replacement, original.Object, BatchNamespaceIndexes),
+                    Throws.InvalidOperationException.With.Message.Contains("retired"));
+                Assert.That(table.Revision.VisibleNodeManagers, Does.Contain(replacement));
+                Assert.That(table.Revision.VisibleNodeManagers, Does.Not.Contain(original.Object));
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                original.As<INodeManagerShutdown>().Verify(value => value.PrepareForShutdownAsync(), Times.Once);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await stopping.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Publishing reveals only its candidate and never invokes a hidden manager's custom equality.
         /// </summary>
