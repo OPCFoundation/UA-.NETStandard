@@ -1636,7 +1636,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task KeepAliveGapExpiresAndRecoversAdvertisedMessagesAsync()
+        public async Task KeepAliveOnlyGapRetainsAvailabilityAfterOlderResponseAsync()
         {
             SetupRepublish();
             var timeProvider = new FakeTimeProvider();
@@ -1661,6 +1661,12 @@ namespace Opc.Ua.Client.Subscriptions
                     .WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
                 Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
+
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(2).ConfigureAwait(false);
+                Assert.That(sut.AvailableInRetransmissionQueue, Is.EqualTo(new uint[] { 1 }));
 
                 await AdvanceUntilAsync(timeProvider,
                     () => sut.LastDataSequenceNumberProcessed == 4).ConfigureAwait(false);
