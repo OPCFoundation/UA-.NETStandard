@@ -881,10 +881,10 @@ their materialization before accepting clients, so discovery by browsing sees th
   CreateMonitoredItems, HistoryUpdate and event delivery for a pending generation return a Bad status or
   skip it, and `Server.IsRunning` stays false during initial startup readiness. The initializer's own
   reads and nested Add calls run under a revocable readiness scope that does not depend on the request
-  context. An all-events subscription receives events from a pending source only on items bound to that
-  source's generation.
-- Events a pending source reports during readiness are retained and delivered once readiness
-  completes. The retained queue holds at most 1024 events per generation and drops the oldest first, so
+  context. During readiness, an all-events subscription receives events from a pending source
+  immediately only on items bound to that source's generation.
+- Delivery to other items is retained until the source's readiness completes.
+  The retained queue holds at most 1024 events per generation and drops the oldest first, so
   an initializer that emits more than that loses the earliest events. Retained events can also reach
   subscribers after events the source emits later. If a retained delivery fails, the remaining events are
   still delivered and the failure surfaces to the caller.

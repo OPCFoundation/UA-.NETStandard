@@ -137,10 +137,13 @@ publication callbacks must be idempotent because a throwing attempt may have par
 Candidate factories, address-space preparation, and monitored-item transition discovery no
 longer hold the lifecycle writer.
 Concurrent changes can therefore complete while a candidate is preparing. A serving-view
-or metadata change makes that candidate stale; commit fails with `InvalidOperationException`
-before invoking the durable decision. This also applies to the obsolete convenience
-extensions. Handle the conflict explicitly and prepare a new transaction if appropriate:
-the lifecycle never silently reruns a factory or rebases its private namespace indexes.
+or metadata change makes that candidate stale; an explicit prepared transaction's commit fails
+with `InvalidOperationException` before invoking the durable decision. Handle that conflict
+explicitly and prepare a new transaction if appropriate; explicit prepared transactions do not
+automatically rerun factories or rebase private namespace indexes.
+The obsolete compatibility convenience operations retry stale preparation with a fresh transaction.
+For Add and Reload, each retry invokes the factory to create a fresh candidate rather than rebasing
+the previous candidate's private namespace indexes.
 
 Startup factories now run after the system address space is initialized, against private staged
 metadata, and enter the same Add transaction as runtime factories. Overrides of
