@@ -174,6 +174,36 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A failure from an attempt begun before the reported outage cannot report it again,
+        /// even after a newer success has rearmed reporting in the same epoch.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DelayedFailureAfterRearmDoesNotReportRecoveredOutageAsync(CancellationToken testCt)
+        {
+            await using var harness = new PublishHarness(workerCount: 2);
+            harness.Manager.Resume();
+            PublishAttempt first = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            PublishAttempt delayed = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            first.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            PublishAttempt retry = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            retry.Succeed();
+            PublishAttempt healthy = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            delayed.Fail(StatusCodes.BadConnectionClosed);
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(1),
+                "A delayed failure from the recovered outage must not report it again.");
+
+            healthy.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(2),
+                "A failure from an attempt begun after the rearming success must still be reported.");
+        }
+
+        /// <summary>
         /// Ordinary retryable service errors and cancellation do not indicate a lost session.
         /// </summary>
         [TestCase("busy")]

@@ -597,6 +597,8 @@ Concurrent failures from one outage share a recovery notification. Pausing and r
 publishing retires the previous attempts for recovery reporting, even when the session
 identifier is unchanged. A successful attempt begun after a reported outage also
 rearms notification for a subsequent failure; an older in-flight response does not.
+A failure from an attempt begun before the reported outage belongs to that outage and
+never reports it again, even when it arrives after a newer success.
 Cancelled attempts and errors from closing, disposed, disconnected, or replaced
 sessions do not initiate recovery. When a channel manager is already recovering the
 session, the managed session leaves recovery with that owner instead of starting a

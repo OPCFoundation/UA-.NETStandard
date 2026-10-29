@@ -1763,15 +1763,19 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Coalesces current Publish failures before notifying the session outside the state lock.
+        /// A failure from an attempt begun before the last reported outage belongs to that outage
+        /// and is ignored, even after a newer success has rearmed reporting in the same epoch.
         /// </summary>
-        private void ReportPublishRecoveryError(long epoch, NodeId sessionId, ServiceResult error)
+        private void ReportPublishRecoveryError(
+            long epoch, long requestSequence, NodeId sessionId, ServiceResult error)
         {
             lock (m_publishStateLock)
             {
                 if (epoch != m_publishEpoch ||
                     !m_running.IsSet ||
                     Volatile.Read(ref m_disposed) != 0 ||
-                    m_publishRecoveryReported)
+                    m_publishRecoveryReported ||
+                    requestSequence <= m_publishRecoveryWatermark)
                 {
                     return;
                 }
@@ -3434,7 +3438,8 @@ namespace Opc.Ua.Client.Subscriptions
                             moreNotifications = false; // throttle
                             if (requestFailed && !attemptToken.IsCancellationRequested)
                             {
-                                m_outer.ReportPublishRecoveryError(epoch, publishSessionId, error);
+                                m_outer.ReportPublishRecoveryError(
+                                    epoch, requestSequence, publishSessionId, error);
                             }
                             // Log the transport-down transition once per status
                             // rather than a full stack trace every iteration.
