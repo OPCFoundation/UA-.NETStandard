@@ -1552,6 +1552,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                         PolicyId = "username", TokenType = UserTokenType.UserName, SecurityPolicyUri = SecurityPolicies.None
                     }
                 ]).ConfigureAwait(false);
+            // This scripted peer tests identity invalidation, not token encryption.
+            peer.Channels.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
             ReadResponse result = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             peer.BeforeRespondAsync = (request, _) =>

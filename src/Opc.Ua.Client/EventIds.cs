@@ -73,14 +73,20 @@ namespace Opc.Ua
         public const int HistoryClient = 580;
 
         /// <summary>
+        /// Additional <c>SubscriptionManagerLog</c> messages; the
+        /// <see cref="SubscriptionManager"/> block is fully used.
+        /// </summary>
+        public const int SubscriptionManagerContinued = 590;
+
+        /// <summary>
         /// Event identifier offset for experimental recoverable Service acceptance.
         /// </summary>
-        public const int AsyncServiceOperation = 590;
+        public const int AsyncServiceOperation = 600;
 
         /// <summary>
         /// Event identifier offset for transparent recoverable session execution.
         /// </summary>
-        public const int RecoverableSessionExecution = 600;
+        public const int RecoverableSessionExecution = 610;
 
         /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that

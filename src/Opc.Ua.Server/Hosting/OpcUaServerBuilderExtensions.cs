@@ -1931,8 +1931,6 @@ namespace Microsoft.Extensions.DependencyInjection
                 BindString(child, nameof(ServerReverseConnectClientOptions.EndpointUrl),
                     value => client.EndpointUrl = value);
                 BindInt32(child, nameof(ServerReverseConnectClientOptions.Timeout), value => client.Timeout = value);
-                BindInt32(child, nameof(ServerReverseConnectClientOptions.MaxSessionCount),
-                    value => client.MaxSessionCount = value);
                 BindBoolean(child, nameof(ServerReverseConnectClientOptions.Enabled), value => client.Enabled = value);
                 reverseConnect.Clients.Add(client);
             }

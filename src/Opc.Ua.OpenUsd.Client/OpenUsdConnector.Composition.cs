@@ -311,6 +311,7 @@ namespace Opc.Ua.OpenUsd.Client
 
         private async Task SubscribeModelChangesAsync(NodeId eventSource, CancellationToken ct)
         {
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
             var subscription = new Subscription(m_session.DefaultSubscription)
             {
                 DisplayName = "OpenUsdConnector.ModelChange",
@@ -319,6 +320,7 @@ namespace Opc.Ua.OpenUsd.Client
                 LifetimeCount = 100,
                 PublishingEnabled = true
             };
+#pragma warning restore CS0618
             m_eventSubscription = subscription;
             m_session.AddSubscription(subscription);
             await subscription.CreateAsync(ct).ConfigureAwait(false);

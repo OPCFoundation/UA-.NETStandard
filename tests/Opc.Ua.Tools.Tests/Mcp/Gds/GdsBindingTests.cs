@@ -54,7 +54,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [TestCase(McpToolProfile.Certificates, "certificate_", 23)]
         [TestCase(McpToolProfile.Credentials, "credential_", 10)]
         [TestCase(McpToolProfile.Onboarding, "onboarding_", 4)]
-        public async Task ProfilesRemainIndividuallyBoundedWithFiveDeduplicatedConnectionsAsync(
+        public async Task ProfilesRemainIndividuallyBoundedWithSixDeduplicatedConnectionsAsync(
             McpToolProfile profile, string prefix, int expectedCount)
         {
             var services = new ServiceCollection();
@@ -66,7 +66,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(names, Is.Unique);
             Assert.That(names.Count(name => name.StartsWith(prefix, StringComparison.Ordinal)),
                 Is.EqualTo(expectedCount));
-            Assert.That(names, Has.Length.EqualTo(expectedCount + 5));
+            Assert.That(names, Has.Length.EqualTo(expectedCount + 6));
             Assert.That(names.Where(name => !name.StartsWith(prefix, StringComparison.Ordinal)),
                 Is.EquivalentTo(s_connections));
         }
@@ -81,7 +81,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
 
             Assert.That(names, Is.Unique);
-            Assert.That(names, Has.Length.EqualTo(51));
+            Assert.That(names, Has.Length.EqualTo(52));
             Assert.That(names.Any(name => name.Contains("RequestAccessToken", StringComparison.OrdinalIgnoreCase)),
                 Is.False);
         }
@@ -263,7 +263,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         private static readonly string[] s_connections =
-            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "ConnectJwt", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
 
         private static readonly string[] s_discoveryUrls = ["opc.tcp://plant.invalid:4840"];
         private static readonly string[] s_capabilities = ["DA", "HD"];

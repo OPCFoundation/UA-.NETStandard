@@ -59,6 +59,17 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <inheritdoc/>
+        public long MessageGeneration => Volatile.Read(ref m_generation);
+
+        /// <inheritdoc/>
+        public AcknowledgementScope GetAcknowledgementScope(long generation)
+        {
+            return generation == MessageGeneration
+                ? AcknowledgementScope.GetOrCreate(ref m_acknowledgementScope, this, generation, Id)
+                : new AcknowledgementScope(this, generation, Id);
+        }
+
         /// <summary>
         /// Number of notification messages detected as missing during
         /// gap-walking of the SequenceNumber on this subscription.
@@ -138,13 +149,22 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<uint>? availableSequenceNumbers,
             IReadOnlyList<string> stringTable)
         {
+            CancellationToken shutdownToken = AckQueue.ShutdownToken;
+            shutdownToken.ThrowIfCancellationRequested();
             long generation = Volatile.Read(ref m_generation);
             if (availableSequenceNumbers != null)
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
             LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            await m_messageCapacity.WaitAsync(m_cts.Token).ConfigureAwait(false);
+            if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
+            {
+                // Link shutdown only while backpressured, not on the normal admission path.
+                using CancellationTokenSource? admission = shutdownToken.CanBeCanceled
+                    ? CancellationTokenSource.CreateLinkedTokenSource(m_cts.Token, shutdownToken)
+                    : null;
+                await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
+            }
             try
             {
                 await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
@@ -245,6 +265,21 @@ namespace Opc.Ua.Client.Subscriptions
             IReadOnlyList<string> stringTable);
 
         /// <summary>
+        /// Whether the processor has opted into complete-message delivery.
+        /// </summary>
+        protected virtual bool HandlesNotificationMessages => false;
+
+        /// <summary>
+        /// Delivers a complete message when <see cref="HandlesNotificationMessages"/> is true.
+        /// </summary>
+        protected virtual ValueTask OnNotificationMessageAsync(
+            NotificationMessage message, PublishState publishStateMask,
+            IReadOnlyList<string> stringTable, CancellationToken ct)
+        {
+            throw new NotSupportedException("Complete-message delivery is not enabled.");
+        }
+
+        /// <summary>
         /// On publish state changed
         /// </summary>
         /// <param name="stateMask"></param>
@@ -316,8 +351,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// server). The manager uses this signal to re-evaluate the
         /// publish worker pool.
         /// </summary>
-        protected void NotifyManagerOfCreation()
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown.</param>
+        protected void NotifyManagerOfCreation(DateTimeUtc createdAt = default)
         {
+            AckQueue.OnSubscriptionCreated(this, Id, createdAt);
             AckQueue.Update();
         }
 
@@ -343,7 +381,8 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                if (incoming.Generation != Volatile.Read(ref m_generation))
+                if (AckQueue.ShutdownToken.IsCancellationRequested ||
+                    incoming.Generation != Volatile.Read(ref m_generation))
                 {
                     return;
                 }
@@ -693,7 +732,7 @@ namespace Opc.Ua.Client.Subscriptions
                         // can drop it from its retransmission queue.
                         // Messages whose republish failed earlier were
                         // never dispatched and are recovered below.
-                        await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                        await AckQueue.QueueAsync(this, MessageGeneration, new SubscriptionAcknowledgement
                         {
                             SequenceNumber = sequenceNumber,
                             SubscriptionId = Id
@@ -904,13 +943,22 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 else
                 {
-                    for (int i = 0; i < message.NotificationData.Count; i++)
+                    AckQueue.TrackAcknowledgement(this, MessageGeneration, message.SequenceNumber);
+                    if (HandlesNotificationMessages)
                     {
-                        await DispatchAsync(
-                            message,
-                            publishStateMask,
-                            message.NotificationData[i],
-                            stringTable).ConfigureAwait(false);
+                        await DispatchCallbackAsync(() => OnNotificationMessageAsync(
+                            message, publishStateMask, stringTable, ct)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < message.NotificationData.Count; i++)
+                        {
+                            await DispatchAsync(
+                                message,
+                                publishStateMask,
+                                message.NotificationData[i],
+                                stringTable).ConfigureAwait(false);
+                        }
                     }
                 }
             }
@@ -932,7 +980,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    await AckQueue.QueueAsync(this, MessageGeneration, new SubscriptionAcknowledgement
                     {
                         SequenceNumber = message.SequenceNumber,
                         SubscriptionId = Id
@@ -1104,6 +1152,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
         private long m_generation;
+        private AcknowledgementScope? m_acknowledgementScope;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;

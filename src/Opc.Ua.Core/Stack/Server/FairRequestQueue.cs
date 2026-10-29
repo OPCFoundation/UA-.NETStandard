@@ -72,6 +72,7 @@ namespace Opc.Ua
             long requestCost,
             bool decoupleHeldPublishRequests,
             Action<IEndpointIncomingRequest, StatusCode> complete,
+            Func<long>? enqueueTimestamp = null,
             Func<IServiceRequest, bool>? isControlRequest = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
@@ -93,6 +94,7 @@ namespace Opc.Ua
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
             m_complete = complete ?? throw new ArgumentNullException(nameof(complete));
             m_isControlRequest = isControlRequest;
+            m_enqueueTimestamp = enqueueTimestamp;
             m_hot.SpinScore = kMaxSpinScore;
             m_provider.CapacityAvailable += OnCapacityAvailable;
         }
@@ -194,6 +196,7 @@ namespace Opc.Ua
                     error = StatusCodes.BadRequestCancelledByClient;
                     return false;
                 }
+                entry.EnqueueTimestamp = m_enqueueTimestamp?.Invoke() ?? 0;
                 // Reserve the queue slot before linking: the count never exceeds the bound,
                 // also while admissions of different owners run concurrently.
                 if (Interlocked.Increment(ref m_hot.Count) > m_maxQueuedRequests)
@@ -253,6 +256,11 @@ namespace Opc.Ua
                     if (candidate.CancellationToken.IsCancellationRequested)
                     {
                         error = StatusCodes.BadRequestCancelledByClient;
+                    }
+                    else if (RequestQueueBudget.HasExpired(candidate.Request))
+                    {
+                        // the client gave up while the request was queued
+                        error = StatusCodes.BadTimeout;
                     }
                     else
                     {
@@ -1118,6 +1126,12 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Gets or sets the <see cref="Stopwatch"/> time the request was admitted, or 0
+            /// when it was not measured. Set before the entry is linked.
+            /// </summary>
+            internal long EnqueueTimestamp { get; set; }
+
+            /// <summary>
             /// Retained queue slot.
             /// </summary>
             internal StageHold QueueHold;
@@ -1663,6 +1677,12 @@ namespace Opc.Ua
         /// </summary>
         private readonly Action<IEndpointIncomingRequest, StatusCode> m_complete;
         private readonly Func<IServiceRequest, bool>? m_isControlRequest;
+
+        /// <summary>
+        /// Takes the admission timestamp of an entry, or returns 0 when time in queue
+        /// is not measured; null when the owner does not measure it.
+        /// </summary>
+        private readonly Func<long>? m_enqueueTimestamp;
 
         /// <summary>
         /// Scheduling FIFOs retained while nonempty, keyed by owner in weighted mode

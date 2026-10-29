@@ -895,8 +895,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Certificate server = CertificateBuilder.Create("CN=Synthetic RSE Server")
                     .AddExtension(new X509SubjectAltNameExtension(
                         "urn:synthetic:rse-server", ["server.example.test"])).CreateForRSA();
-                const string tokenProfile = Namespaces.OpcUa + "UserToken#GenericWSS";
-                var user = new UserIdentity(Guid.NewGuid().ToByteArray(), tokenProfile);
+                var user = new UserIdentity("synthetic-owner", Guid.NewGuid().ToByteArray());
                 var identity = new MappedIdentity(application.RawData, server.RawData, user);
                 var options = new RecoverableSessionOptions
                 {
@@ -918,8 +917,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                                 new UserTokenPolicy
                                 {
                                     PolicyId = "synthetic-user",
-                                    TokenType = UserTokenType.IssuedToken,
-                                    IssuedTokenType = tokenProfile,
+                                    TokenType = UserTokenType.UserName,
                                     SecurityPolicyUri = SecurityPolicies.None
                                 }
                             ];
@@ -929,6 +927,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                             channel.Mock.Setup(value => value.ClientChannelCertificate).Returns(application.RawData);
                             channel.Mock.Setup(value => value.ServerChannelCertificate).Returns(server.RawData);
                         }).ConfigureAwait(false);
+                    // This scripted peer tests owner continuity, not token encryption.
+                    peer.Channels.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
                     await peer.Owner.UpdateSessionAsync(user, [], peer.Timeout).ConfigureAwait(false);
                     peer.SupportedRecoveryModes =
                     [

@@ -406,6 +406,39 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A changed user keeps an active subscription: acknowledging a message the client already
+        /// received succeeds and later values are delivered (CTT Session Change User 001).
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR37ChangedUserAcknowledgesDeliveredMessageAndKeepsPublishingAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            Subscription subscription = await harness.CreateValueSubscriptionAsync().ConfigureAwait(false);
+            harness.Clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
+            uint sequence;
+            using (OperationContext context = await harness.AdmitAsync(RequestType.Publish).ConfigureAwait(false))
+            {
+                NotificationMessage original = subscription.Publish(context, out _, out _)!;
+                sequence = original.SequenceNumber;
+                AssertValue(original, 42);
+            }
+            harness.SetObserver(true, "mallory");
+            await harness.ActivateAsync("mallory").ConfigureAwait(false);
+            await harness.QueueValueAsync(43).ConfigureAwait(false);
+            harness.Clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
+            using OperationContext next = await harness.AdmitAsync(RequestType.Publish).ConfigureAwait(false);
+            ServiceResult? acknowledged = subscription.Acknowledge(next, sequence);
+            NotificationMessage? message = subscription.Publish(next, out _, out _);
+            Assert.That(message, Is.Not.Null);
+            AssertValue(message!, 43);
+            Assert.That(acknowledged, Is.Null);
+        }
+
+        /// <summary>
         /// Reactivation of the same principal retains sequence, payload and acknowledgement semantics.
         /// </summary>
         [Test]
@@ -633,11 +666,11 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Changes the sole observer mapping using the real role manager.
             /// </summary>
-            public void SetObserver(bool granted)
+            public void SetObserver(bool granted, string userName = "alice")
             {
                 var rule = new IdentityMappingRuleType
                 {
-                    CriteriaType = IdentityCriteriaType.UserName, Criteria = "alice"
+                    CriteriaType = IdentityCriteriaType.UserName, Criteria = userName
                 };
                 ServiceResult result = granted
                     ? m_roles.AddIdentity(ObjectIds.WellKnownRole_Observer, rule)

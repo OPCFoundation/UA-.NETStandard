@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Robotics.Server;
@@ -60,7 +61,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(nameof(AddRobotics));
             builder.Services.AddOptions<RoboticsServerOptions>();
             if (configure != null)
             {
@@ -76,9 +77,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 RoboticsServerOptions options = services
                     .GetRequiredService<IOptions<RoboticsServerOptions>>()
                     .Value;
-                IRoboticsModelProvider[] providers = services
-                    .GetServices<IRoboticsModelProvider>()
-                    .ToArray();
+                ArrayOf<IRoboticsModelProvider> providers = services
+                    .GetDiModelProviders<IRoboticsModelProvider>(
+                        static plain => new DiModelProviderAdapter(plain));
                 IDiPostSetupRunner? runner = services.GetService<IDiPostSetupRunner>();
                 return new RoboticsNodeManagerFactory(providers, options, runner);
             });
@@ -312,31 +313,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 .ConfigureAwait(false);
         }
 
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by " +
-                        $"'{ownerName}'. AddRobotics cannot register a second DI-owning manager.");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddRobotics)));
-        }
-
+        /// <summary>
+        /// Associates Robotics configuration with its exact DI owner type.
+        /// </summary>
         private interface IRoboticsConfigurationRegistration
         {
+            /// <summary>
+            /// Gets the exact DI owner type for this registration.
+            /// </summary>
             Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Applies the registration to the owner's Robotics build context.
+            /// </summary>
             ValueTask ConfigureAsync(IRoboticsBuildContext context);
         }
 
+        /// <summary>
+        /// Invokes a delegate in the Robotics configuration pipeline.
+        /// </summary>
         private sealed class DelegateRoboticsConfigurationRegistration
             : IRoboticsConfigurationRegistration
         {
@@ -345,6 +340,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken,
                 ValueTask> m_configure;
 
+            /// <summary>
+            /// Creates a callback registration for the specified DI owner type.
+            /// </summary>
             public DelegateRoboticsConfigurationRegistration(
                 Type targetManagerType,
                 Func<IRoboticsBuildContext, CancellationToken, ValueTask> configure)
@@ -353,25 +351,44 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this callback.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask ConfigureAsync(IRoboticsBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);
             }
         }
 
+        /// <summary>
+        /// Resolves a service-based Robotics configurator for the specified owner type.
+        /// </summary>
+        /// <typeparam name="TConfigurator">The registered configurator service type.</typeparam>
         private sealed class ClassRoboticsConfigurationRegistration<TConfigurator>
             : IRoboticsConfigurationRegistration
             where TConfigurator : class, IRoboticsConfigurator
         {
+            /// <summary>
+            /// Creates a configurator registration for the specified DI owner type.
+            /// </summary>
             public ClassRoboticsConfigurationRegistration(Type targetManagerType)
             {
                 TargetManagerType = targetManagerType;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this configurator.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Resolves and invokes the configurator with the owner's build context.
+            /// </summary>
             public ValueTask ConfigureAsync(IRoboticsBuildContext context)
             {
                 return context.GetRequiredService<TConfigurator>().ConfigureAsync(
@@ -380,6 +397,10 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Records that the Robotics pipeline is registered once for this DI owner type.
+        /// </summary>
+        /// <typeparam name="TNodeManager">The DI owner type.</typeparam>
         private sealed class RoboticsPipelineMarker<TNodeManager>
             where TNodeManager : DiNodeManager;
 

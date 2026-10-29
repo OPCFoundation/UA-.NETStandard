@@ -399,6 +399,44 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Acknowledge notifications only after the application confirmed them through
+        /// <see cref="ISessionAcknowledgements.Confirm"/> (at-least-once delivery).
+        /// </summary>
+        public ManagedSessionBuilder AcknowledgeAfterConfirmation()
+        {
+            m_options = m_options with { AcknowledgementMode = AcknowledgementMode.AfterConfirmation };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the provider that decides which acknowledgements are sent and which are deferred.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementProvider(ISubscriptionAcknowledgementProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            m_options = m_options with { AcknowledgementProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the observer that is told how every acknowledgement ended.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="observer"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementObserver(ISubscriptionAcknowledgementObserver observer)
+        {
+            if (observer == null)
+            {
+                throw new ArgumentNullException(nameof(observer));
+            }
+            m_options = m_options with { AcknowledgementObserver = observer };
+            return this;
+        }
+
+        /// <summary>
         /// Set the time provider used by proactive identity refresh.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>

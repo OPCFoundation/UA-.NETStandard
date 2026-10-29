@@ -330,6 +330,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await using var channels = new SessionChannelHarness();
+            // This scripted peer tests identity invalidation, not token encryption.
+            channels.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
             ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
             endpoint.Description.UserIdentityTokens =
             [

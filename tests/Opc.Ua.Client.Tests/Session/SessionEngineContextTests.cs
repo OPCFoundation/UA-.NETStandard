@@ -36,6 +36,8 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 #pragma warning disable CA2000, CA2007
 
 namespace Opc.Ua.Client.Tests
@@ -131,6 +133,26 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The context reports whether a deferral handler is registered, so that the V2
+        /// engine only applies the policy when there is one.
+        /// </summary>
+        [Test]
+        public void AcknowledgementPolicyIsReportedWhileAHandlerIsRegistered()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var capability = (IAcknowledgementPolicyCapability)scope.Context;
+            static void handler(ISession _1, PublishSequenceNumbersToAcknowledgeEventArgs _2)
+            {
+            }
+
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+            scope.Session.PublishSequenceNumbersToAcknowledge += handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.True);
+            scope.Session.PublishSequenceNumbersToAcknowledge -= handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+        }
+
         [Test]
         public void PrepareAcknowledgementsWithoutCallbackSendsAllAcknowledgements()
         {
@@ -207,6 +229,36 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(toSend, Is.SameAs(acknowledgements));
+                Assert.That(updatedPending, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A handler that moves an acknowledgement to the deferred list and then
+        /// throws must not lose it: every presented acknowledgement is sent.
+        /// </summary>
+        [Test]
+        public void PrepareAcknowledgementsCallbackFailureAfterDeferringRestoresAllAcknowledgements()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var first = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
+            var second = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 };
+            var acknowledgements = new List<SubscriptionAcknowledgement> { first, second };
+
+            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+            {
+                e.AcknowledgementsToSend.Remove(first);
+                e.DeferredAcknowledgementsToSend.Add(first);
+                throw new InvalidOperationException();
+            };
+
+            (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
+                scope.Context.PrepareAcknowledgementsToSend(acknowledgements);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(toSend, Is.EqualTo([first, second]).Using<SubscriptionAcknowledgement>(
+                    (x, y) => ReferenceEquals(x, y)));
                 Assert.That(updatedPending, Is.Empty);
             });
         }

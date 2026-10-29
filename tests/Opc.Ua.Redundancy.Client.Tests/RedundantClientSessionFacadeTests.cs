@@ -51,6 +51,8 @@ using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Client;
 using Opc.Ua.Tests;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.Redundancy.Tests
 {
     /// <summary>
@@ -295,13 +297,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 Times.Once());
             session.Verify(s => s.StartPublishing(1000, true), Times.Once());
 
-#pragma warning disable CS0618 // AttachChannel/DetachChannel are obsolete but still delegated.
             ITransportChannel channel = Mock.Of<ITransportChannel>();
             facade.AttachChannel(channel);
             facade.DetachChannel();
             session.Verify(s => s.AttachChannel(channel), Times.Once());
             session.Verify(s => s.DetachChannel(), Times.Once());
-#pragma warning restore CS0618
         }
 
         [Test]
