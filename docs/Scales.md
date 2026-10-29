@@ -349,8 +349,8 @@ The stock Machinery manager owns the composed runtime's lifetime. Shutdown
 cancels queued publications, drains active constructions, closes recipe/report file
 handles and content buffers, and detaches the product lock service from session
 notifications. Repeated asynchronous disposal is safe. An application-owned
-Machinery-compatible DI manager uses `DisposeMachineryResourcesAsync()` during
-its own asynchronous disposal.
+DI manager also releases the registered runtime automatically; it does not need
+a Machinery-specific disposal override.
 
 ### Options
 

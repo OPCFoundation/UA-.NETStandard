@@ -13,7 +13,8 @@ short abstract and the Mantis link there.
 **In CI.** `.github/workflows/ctt.yml` ("CTT regression") runs the full CTT weekly on master and on pull
 requests a maintainer labels `ctt`. The CTT is member-only software, so the run itself happens in a private
 OPC Foundation repository; this repository only receives the result counts and the test cases that changed
-against the baseline (commit status `CTT`, PR comment, README badge).
+against the baseline (commit status `CTT`, PR comment, README badge). The 1.5.378 line (`master378`) has its
+own copy of the workflow (manual and labelled PRs, no weekly run) and its own baseline.
 
 ## Setup
 

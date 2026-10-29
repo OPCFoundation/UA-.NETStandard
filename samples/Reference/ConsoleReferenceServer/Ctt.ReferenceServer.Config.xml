@@ -228,7 +228,6 @@
       <Clients>
         <ReverseConnectClient>
           <EndpointUrl>opc.tcp://localhost:65300</EndpointUrl>
-          <MaxSessionCount>0</MaxSessionCount>
           <Enabled>true</Enabled>
         </ReverseConnectClient>
       </Clients>

@@ -244,7 +244,8 @@ namespace Opc.Ua.Pumps.Server
                     throw;
                 }
 
-                if (m_options.OrganizeIntoMachinesFolder && !Manager.TryAddToMachinesFolder(pump))
+                if (m_options.OrganizeIntoMachinesFolder && !Manager.TryOrganizeUnder(
+                    ExpandedNodeId.ToNodeId(Machinery.ObjectIds.Machines, SystemContext.NamespaceUris), pump))
                 {
                     m_logger.MachinesFolderUnavailable(browseName.Name);
                 }

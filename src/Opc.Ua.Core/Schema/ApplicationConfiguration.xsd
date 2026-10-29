@@ -67,6 +67,7 @@
                 <xs:element name="TrustedHttpsCertificates" type="CertificateTrustList" />
             </xs:sequence>
             <xs:element name="SuppressNonceValidationErrors" type="xs:boolean" minOccurs="0" />
+            <xs:element name="AllowUnencryptedUserNameTokens" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
     </xs:complexType>
 
@@ -205,7 +206,6 @@
         <xs:sequence>
             <xs:element name="EndpointUrl" type="xs:string" minOccurs="0" nillable="true" />
             <xs:element name="Timeout" type="xs:int" minOccurs="0" />
-            <xs:element name="MaxSessionCount" type="xs:int" minOccurs="0" />
             <xs:element name="Enabled" type="xs:boolean" minOccurs="0" />
         </xs:sequence>
     </xs:complexType>

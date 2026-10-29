@@ -277,6 +277,7 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 channelReconnectTimeout: null,
                 rediscoveredEndpointValidator: null,
+                acknowledgements: null,
                 ct);
         }
 
@@ -384,6 +385,7 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 options.ChannelReconnectTimeout,
                 options.ValidateRediscoveredEndpoint,
+                CreateAcknowledgements(options),
                 ct).ConfigureAwait(false);
             try
             {
@@ -434,6 +436,7 @@ namespace Opc.Ua.Client
             bool? updateBeforeConnect,
             TimeSpan? channelReconnectTimeout,
             RediscoveredEndpointValidator? rediscoveredEndpointValidator,
+            SessionAcknowledgements? acknowledgements,
             CancellationToken ct)
         {
             if (sessionFactory == null)
@@ -491,7 +494,8 @@ namespace Opc.Ua.Client
                     connection != null,
                 m_updateBeforeConnect = updateBeforeConnect,
                 m_channelReconnectTimeout = channelReconnectTimeout,
-                ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
+                ValidateRediscoveredEndpoint = rediscoveredEndpointValidator,
+                m_acknowledgements = acknowledgements
             };
 
             managed.StateMachine.Start();
@@ -700,6 +704,9 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         public Subscription DefaultSubscription
         {
             get => InnerSession.DefaultSubscription;
@@ -879,11 +886,27 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         public event PublishSequenceNumbersToAcknowledgeEventHandler
             PublishSequenceNumbersToAcknowledge
         {
-            add => m_publishSequenceNumbersToAcknowledge += value;
-            remove => m_publishSequenceNumbersToAcknowledge -= value;
+            add
+            {
+                lock (m_acknowledgementEventLock)
+                {
+                    m_publishSequenceNumbersToAcknowledge += value;
+                    UpdateAcknowledgementForwardingLocked();
+                }
+            }
+            remove
+            {
+                lock (m_acknowledgementEventLock)
+                {
+                    m_publishSequenceNumbersToAcknowledge -= value;
+                    UpdateAcknowledgementForwardingLocked();
+                }
+            }
         }
 
         /// <inheritdoc/>
@@ -3005,8 +3028,11 @@ namespace Opc.Ua.Client
             session.KeepAlive += OnInnerKeepAlive;
             session.Notification += OnInnerNotification;
             session.PublishError += OnInnerPublishError;
-            session.PublishSequenceNumbersToAcknowledge +=
-                OnInnerPublishSequenceNumbers;
+            lock (m_acknowledgementEventLock)
+            {
+                m_acknowledgementEventSession = session;
+                UpdateAcknowledgementForwardingLocked();
+            }
             session.SubscriptionsChanged +=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing += OnInnerSessionClosing;
@@ -3024,8 +3050,18 @@ namespace Opc.Ua.Client
             session.KeepAlive -= OnInnerKeepAlive;
             session.Notification -= OnInnerNotification;
             session.PublishError -= OnInnerPublishError;
-            session.PublishSequenceNumbersToAcknowledge -=
-                OnInnerPublishSequenceNumbers;
+            lock (m_acknowledgementEventLock)
+            {
+                if (ReferenceEquals(m_acknowledgementEventSession, session))
+                {
+                    m_acknowledgementEventSession = null;
+                }
+                if (ReferenceEquals(m_acknowledgementForwardingTarget, session))
+                {
+                    DetachAcknowledgementForwardingLocked();
+                }
+                UpdateAcknowledgementForwardingLocked();
+            }
             session.SubscriptionsChanged -=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing -= OnInnerSessionClosing;
@@ -3201,6 +3237,45 @@ namespace Opc.Ua.Client
             PublishSequenceNumbersToAcknowledgeEventArgs e)
         {
             m_publishSequenceNumbersToAcknowledge?.Invoke(this, e);
+        }
+
+        /// <summary>
+        /// Forwards the obsolete acknowledgement event from the bound session only while the
+        /// application handles it, so that the session reports no deferral policy otherwise
+        /// and the Publish path keeps its validation-only fast path.
+        /// </summary>
+        private void UpdateAcknowledgementForwardingLocked()
+        {
+            Session? desired = m_publishSequenceNumbersToAcknowledge != null
+                ? m_acknowledgementEventSession
+                : null;
+            if (ReferenceEquals(desired, m_acknowledgementForwardingTarget))
+            {
+                return;
+            }
+            DetachAcknowledgementForwardingLocked();
+            if (desired != null)
+            {
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
+                desired.PublishSequenceNumbersToAcknowledge += OnInnerPublishSequenceNumbers;
+#pragma warning restore CS0618
+                m_acknowledgementForwardingTarget = desired;
+            }
+        }
+
+        /// <summary>
+        /// Stops forwarding the obsolete acknowledgement event.
+        /// </summary>
+        private void DetachAcknowledgementForwardingLocked()
+        {
+            if (m_acknowledgementForwardingTarget != null)
+            {
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
+                m_acknowledgementForwardingTarget.PublishSequenceNumbersToAcknowledge -=
+                    OnInnerPublishSequenceNumbers;
+#pragma warning restore CS0618
+                m_acknowledgementForwardingTarget = null;
+            }
         }
 
         private void OnInnerSubscriptionsChanged(object? sender, EventArgs e)
@@ -3634,6 +3709,23 @@ namespace Opc.Ua.Client
         private NotificationEventHandler? m_notification;
         private PublishErrorEventHandler? m_publishError;
         private PublishSequenceNumbersToAcknowledgeEventHandler? m_publishSequenceNumbersToAcknowledge;
+
+        /// <summary>
+        /// Guards the forwarding of the obsolete acknowledgement event.
+        /// </summary>
+        private readonly Lock m_acknowledgementEventLock = new();
+
+        /// <summary>
+        /// The bound session whose acknowledgement event is forwarded while the application
+        /// handles it. Guarded by <see cref="m_acknowledgementEventLock"/>.
+        /// </summary>
+        private Session? m_acknowledgementEventSession;
+
+        /// <summary>
+        /// The session the forwarder is attached to. Guarded by
+        /// <see cref="m_acknowledgementEventLock"/>.
+        /// </summary>
+        private Session? m_acknowledgementForwardingTarget;
         private EventHandler? m_subscriptionsChanged;
         private EventHandler? m_sessionClosing;
         private EventHandler? m_sessionConfigurationChanged;

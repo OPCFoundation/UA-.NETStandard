@@ -127,7 +127,7 @@ owns the DI namespace. Readers are therefore hosted in one of two ways:
 - `AddAutoId` registers a node manager of its own that loads the DI and AutoID
   models and creates one device per reader below `DeviceSet`. Use it when AutoID
   is the only DI-based companion of the server.
-- `AddAutoIdToMachinery` loads the AutoID model into the Machinery node manager
+- `AddAutoIdModel` loads the AutoID model into the Machinery node manager
   of `AddMachinery`, which then owns DI for every companion of the server; the
   readers are created in that manager, below the same `DeviceSet` as the
   machines, pumps or scales. See
@@ -188,7 +188,7 @@ owners would each load their own copy of `DeviceSet`, the server would route
 `DeviceSet` to the first one, and readers created in the second one would not
 be browsable.
 
-To host readers next to machines, call `AddAutoIdToMachinery` after
+To host readers next to machines, call `AddAutoIdModel` after
 `AddMachinery` and create the readers with `ConfigureAutoIdFor<TNodeManager>`.
 Other Machinery-based companions compose into the same owner:
 
@@ -206,7 +206,7 @@ services.AddOpcUa()
         options.InstanceNamespaceUri = "urn:acme:plant:instances";
     })
     .AddPumpsToMachinery()                       // optional, any *ToMachinery companion
-    .AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.FromSeconds(10))
+    .AddAutoIdModel(options => options.MaximumScanDuration = TimeSpan.FromSeconds(10))
     .ConfigureMachinery(async (machinery, ct) =>
     {
         await machinery.AddMachine(new QualifiedName("Press1", machinery.InstanceNamespaceIndex))
@@ -231,7 +231,7 @@ services.AddOpcUa()
 | --- | --- |
 | Node managers | The `MachineryNodeManager` alone; no `AutoIdNodeManager` is created |
 | Device Integration model, `DeviceSet` | Loaded once by the Machinery owner's core model provider |
-| AutoID model | Added to the owner by `AutoIdMachineryModelProvider`, with `AdditionalNamespaceUris` |
+| AutoID model | Added to the owner by `AutoIdModelProvider`, with `AdditionalNamespaceUris` |
 | Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` and `AsComponentOf` place a reader elsewhere and keep it reachable from `DeviceSet`, see [Placement](#placement) |
 | `Machines` folder | Readers are devices, not machines, and are not added to it; `AsComponentOf` makes one a component of a machine |
 | Methods, events, providers | As in the stand-alone server; the readers are event notifiers of the owner |
@@ -239,12 +239,25 @@ services.AddOpcUa()
 | Lifetime | The owner disposes the runtime on shutdown: scans stop, providers detach, owned providers are disposed |
 
 Successive `ConfigureAutoIdFor<MachineryNodeManager>` delegates run in
-registration order in the Machinery configuration pipeline, before its builder
-is sealed, and share one `AutoIdRuntime`; `context.Manager` is the Machinery
+registration order in the DI post-setup pipeline. Register Machinery configuration first;
+then the reader callbacks run after it and share one `AutoIdRuntime`.
+`context.Manager` is the Machinery
 owner. `ConfigureAutoIdFor<AutoIdNodeManager>` works with `AddAutoId` and
 receives the stand-alone runtime, so configuration code can be shared by both
-hosting paths. `Opc.Ua.AutoID.Server` references `Opc.Ua.Machinery.Server` for
-this; a stand-alone server still loads only the DI and AutoID models.
+hosting paths. `Opc.Ua.AutoID.Server` references only the Machinery model for component
+identification. A stand-alone server loads only the DI and AutoID models.
+
+`AddAutoIdToMachinery` remains available as an obsolete alias of `AddAutoIdModel`
+in the same server package. It forwards options and model registration without
+claiming an owner or depending on the Machinery server package. Use `AddAutoIdModel`
+in new code and register owner configuration before dependent reader callbacks.
+
+For a plain DI owner, use `AddOpcUaDi().AddAutoIdModel()` and
+`ConfigureAutoIdFor<DiNodeManager>`. The
+[DI hosting guide](DeviceIntegration.md#composing-companion-models) describes
+`AddDiModel<AutoIdModelProvider, TNodeManager>(configure)`, which combines model
+registration with an owner-targeted callback. The same helper accepts other companion
+providers and DI-derived owners without another integration package.
 
 ### Placement
 
@@ -264,7 +277,7 @@ The SDK applies them as follows:
 | --- | --- | --- |
 | none (default) | Below `DeviceSet` | `Organizes` |
 | `WithParent(parent)`, `DeviceSet` reaches `parent` (for example another reader) | Below `parent` (`HasComponent`) | None: the reader is a component of a composed device whose root `DeviceSet` references |
-| `WithParent(parent)`, `DeviceSet` does not reach `parent` | Below `parent` (`HasComponent`) | `Organizes`, added by the runtime |
+| `WithParent(parent)`, `DeviceSet` does not reach `parent` | Below `parent` (`HasComponent`) | `Organizes` to the outermost DI component in the parent chain, added by the owner |
 | `AsComponentOf(machine)` | Below the machine's `Components` (`HasComponent`), with an `Identification` add-in | As for `WithParent` with the `Components` object as parent: usually `Organizes`, because a machine in `Machines` is not necessarily reachable from `DeviceSet` |
 
 Whether `DeviceSet` reaches the parent is decided when the reader is built, by
@@ -278,7 +291,7 @@ machine (OPC 40001-1 11.1 leaves that to the domain specifications), and a
 reader is a component of a machine only when the application asks for it.
 
 `AsComponentOf` needs AutoID composed into the Machinery owner
-(`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
+(`AddMachinery().AddAutoIdModel()` or a DI owner that loads the Machinery model) and a
 machine of that owner that publishes the `Components` add-in, here built with
 `WithComponents`. The runtime finds the add-in through the `HasAddIn` reference
 from the machine's `MachineryBuildingBlocks` folder (OPC 40001-1 7.1).
@@ -333,10 +346,10 @@ created.
 
 ### Direct composition and lifetime
 
-Without dependency injection, pass `new AutoIdMachineryModelProvider()` together
-with `new MachineryModelProvider(MachineryParts.BuildingBlocks)` to the
-`MachineryNodeManager` constructor; providers are dependency-ordered even if
-supplied in another order. Once the address space is created:
+Without dependency injection, pass `new AutoIdModelProvider()` in the provider
+collection of the four-argument `DiNodeManager` constructor, or load AutoID from
+a custom owner's `LoadPredefinedNodesAsync` with
+`nodes.AddAutoIdTypeSystem(context)`. Once the address space is created:
 
 ```csharp
 AutoIdRuntime autoId = owner.CreateAutoIdRuntime();
@@ -347,16 +360,11 @@ AutoIdReader reader = await autoId.CreateReaderAsync(
 The first `CreateAutoIdRuntime(options)` call selects the options; later calls
 return the same runtime, and on an `AutoIdNodeManager` it returns its `Runtime`.
 The stand-alone `AutoIdNodeManager` is built from the same pieces: a Device
-Integration owner that loads DI and then `AutoIdMachineryModelProvider`.
-Any other Device Integration owner composes AutoID the same way, as with
-Pumps or Scales: an application-owned `DiNodeManager` subclass loads the model in
-its `LoadPredefinedNodesAsync` with `nodes.AddAutoIdTypeSystem(context)`, which
-keeps DI nodes that are already present, calls `CreateAutoIdRuntime()` (or is
-configured through `ConfigureAutoIdFor<TOwner>`), and disposes the runtime
-through `DisposeMachineryResourcesAsync()` from its asynchronous disposal.
-`AddAutoIdToMachinery` is the registration shortcut for the stock owner's
-model-provider pipeline; the plain `AddOpcUaDi` owner loads only DI and has no
-such pipeline, so a server built on it uses the subclass route.
+Integration owner that loads DI and then `AutoIdModelProvider`.
+Any DI owner can call `CreateAutoIdRuntime()` or use
+`ConfigureAutoIdFor<TOwner>`. The runtime registers its lifetime with
+`DiNodeManager.RegisterResource`, so the owner disposes it automatically.
+Custom owners no longer need a Machinery-specific disposal override.
 
 ## Providers
 
