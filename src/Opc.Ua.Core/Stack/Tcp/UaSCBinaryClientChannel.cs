@@ -354,6 +354,11 @@ namespace Opc.Ua.Bindings
             TimeSpan dueTime = TimeProvider.GetElapsedTime(
                 TimeProvider.GetTimestamp(),
                 operation.TimeoutDeadline);
+            // rounded up like the timeout scan: a timer that fires early would
+            // report a timeout before the deadline.
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
             using ITimer timer = TimeProvider.CreateTimer(
                 static state =>
                 {
@@ -367,7 +372,7 @@ namespace Opc.Ua.Bindings
                     }
                 },
                 deadline,
-                dueTime > TimeSpan.Zero ? dueTime : TimeSpan.Zero,
+                dueTime,
                 Timeout.InfiniteTimeSpan);
             try
             {
