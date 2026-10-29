@@ -721,20 +721,23 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public override ValueTask OnPublishReceivedAsync(NotificationMessage message,
-            IReadOnlyList<uint>? availableSequenceNumbers,
-            IReadOnlyList<string> stringTable)
+        protected override void OnPublishReceived()
         {
-            // send notification that publishing received a keep alive
-            // or has to republish.
-            if (PublishingStopped)
+            bool publishingStopped;
+            lock (m_keepAliveTimerLock)
+            {
+                publishingStopped = PublishingStopped;
+                base.OnPublishReceived();
+                if (m_keepAliveTimerActive)
+                {
+                    ScheduleKeepAliveTimerLocked();
+                }
+            }
+
+            if (publishingStopped)
             {
                 OnPublishStateChanged(PublishState.Recovered);
             }
-            ValueTask publishReceived = base.OnPublishReceivedAsync(
-                message, availableSequenceNumbers, stringTable);
-            ScheduleKeepAliveTimer();
-            return publishReceived;
         }
 
         /// <inheritdoc/>
@@ -1735,17 +1738,6 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Schedules the next watchdog check for the remaining threshold time.
         /// </summary>
-        private void ScheduleKeepAliveTimer()
-        {
-            lock (m_keepAliveTimerLock)
-            {
-                if (m_keepAliveTimerActive)
-                {
-                    ScheduleKeepAliveTimerLocked();
-                }
-            }
-        }
-
         private void ScheduleKeepAliveTimerLocked()
         {
             long lastNotificationTimestamp = LastNotificationTimestamp;
@@ -1756,7 +1748,7 @@ namespace Opc.Ua.Client.Subscriptions
             TimeSpan threshold = m_keepAliveInterval + s_keepAliveTimerMargin;
             TimeSpan elapsed = TimeProvider.GetElapsedTime(lastNotificationTimestamp);
             TimeSpan dueTime = threshold - elapsed;
-            if (dueTime <= TimeSpan.Zero)
+            if (dueTime < s_minTimerRecheckInterval)
             {
                 dueTime = s_minTimerRecheckInterval;
             }

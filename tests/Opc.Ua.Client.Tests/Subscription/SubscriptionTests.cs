@@ -626,6 +626,95 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Verifies recovery refreshes the watchdog before invoking a synchronous state-change handler.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldRearmBeforeRecoveredStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                var states = new List<PublishState>();
+                bool recoveryHandlerCompleted = false;
+                var messageDispatched = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    states.Add(state);
+                    if (state == PublishState.Recovered)
+                    {
+                        clock.Advance(TimeSpan.FromMilliseconds(100));
+                        recoveryHandlerCompleted = true;
+                    }
+                };
+                sut.OnKeepAliveAsync = () =>
+                {
+                    messageDispatched.TrySetResult(recoveryHandlerCompleted);
+                    return default;
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                clock.Advance(TimeSpan.FromMilliseconds(5499));
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(await messageDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+                Assert.That(states, Is.EqualTo(new[] { PublishState.Stopped, PublishState.Recovered }));
+                Assert.That(sut.PublishingStopped, Is.False);
+
+                clock.Advance(TimeSpan.FromMilliseconds(6400));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies early callbacks never schedule a sub-millisecond timer delay.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(5000)]
+        [TestCase(9999)]
+        public async Task KeepAliveTimerShouldClampFractionalMillisecondRechecksAsync(long remainingTicks)
+        {
+            var clock = new Mock<FakeTimeProvider> { CallBase = true };
+            var timer = new Mock<ITimer>();
+            TimerCallback? watchdogCallback = null;
+            clock.Setup(provider => provider.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object>(),
+                    It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Callback<TimerCallback, object?, TimeSpan, TimeSpan>((callback, _, _, _) =>
+                    watchdogCallback = callback)
+                .Returns(timer.Object);
+            clock.Object.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock.Object);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                timer.Invocations.Clear();
+
+                clock.Object.Advance(TimeSpan.FromMilliseconds(6500) - TimeSpan.FromTicks(remainingTicks));
+                Assert.That(watchdogCallback, Is.Not.Null);
+                watchdogCallback!(null);
+
+                timer.Verify(value => value.Change(
+                    TimeSpan.FromMilliseconds(1), Timeout.InfiniteTimeSpan), Times.Once);
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+            }
+        }
+
+        /// <summary>
         /// Verifies a callback cannot restart the watchdog after transfer pauses it.
         /// </summary>
         [Test]

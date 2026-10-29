@@ -156,7 +156,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 AvailableInRetransmissionQueue = availableSequenceNumbers;
             }
-            LastNotificationTimestamp = TimeProvider.GetTimestamp();
+            OnPublishReceived();
             if (!await m_messageCapacity.WaitAsync(0, m_cts.Token).ConfigureAwait(false))
             {
                 // Link shutdown only while backpressured, not on the normal admission path.
@@ -177,6 +177,14 @@ namespace Opc.Ua.Client.Subscriptions
                 m_messageCapacity.Release();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Records a publish receipt before admitting the message for dispatch.
+        /// </summary>
+        protected virtual void OnPublishReceived()
+        {
+            LastNotificationTimestamp = TimeProvider.GetTimestamp();
         }
 
         /// <summary>
