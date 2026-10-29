@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -75,6 +76,32 @@ namespace Opc.Ua.Client.Subscriptions
             IMessageAckQueue queue,
             SubscriptionLoadState? loadState = null,
             Action<IManagedSubscription>? initialize = null);
+
+        /// <summary>
+        /// Gets the acknowledgement provider of the session, or <c>null</c> to apply the
+        /// legacy deferral policy.
+        /// </summary>
+        ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; }
+
+        /// <summary>
+        /// Gets the acknowledgement observer of the session, or <c>null</c>.
+        /// </summary>
+        ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the session has an acknowledgement-deferral
+        /// policy. Without one, <see cref="PrepareAcknowledgementsToSend"/> returns every
+        /// acknowledgement unchanged and does not need to be called.
+        /// </summary>
+        bool HasAcknowledgementPolicy { get; }
+
+        /// <summary>
+        /// Applies the session's existing mutable acknowledgement-deferral callback.
+        /// </summary>
+        /// <param name="acknowledgements">Acknowledgements eligible for the next request.</param>
+        /// <returns>The acknowledgements to send and those to retain for a later request.</returns>
+        AcknowledgementSelection PrepareAcknowledgementsToSend(
+            List<SubscriptionAcknowledgement> acknowledgements);
 
         /// <summary>
         /// Publish service

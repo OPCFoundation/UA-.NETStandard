@@ -71,6 +71,91 @@ namespace Opc.Ua.Client.Tests.ModelChange
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// The managed tracker owns a dedicated whole-message subscription and confirms
+        /// only after every event in the message was processed.
+        /// </summary>
+        [TestCase("none")]
+        [TestCase("cache")]
+        [TestCase("subscriber")]
+        [TestCase("namespace")]
+        [CancelAfter(10_000)]
+        public async Task DedicatedTrackerConfirmsAfterAllMessageEventsAsync(
+            string processingFailure, CancellationToken ct)
+        {
+            var manager = new Mock<ISubscriptionManager>();
+            var subscription = new Mock<ISubscription>();
+            var items = new Mock<IMonitoredItemCollection>();
+            IMonitoredItem? item = new FakeMonitoredItem(true);
+            items.Setup(value => value.TryAdd(
+                    "ModelChange",
+                    It.IsAny<Microsoft.Extensions.Options.IOptionsMonitor<MonitoringOptions>>(),
+                    out item))
+                .Returns(true);
+            subscription.SetupGet(value => value.MonitoredItems).Returns(items.Object);
+            ISubscriptionNotificationMessageHandler? receiver = null;
+            manager.Setup(value => value.Add(
+                    It.IsAny<ISubscriptionNotificationHandler>(),
+                    It.IsAny<Microsoft.Extensions.Options.IOptionsMonitor<Subscriptions.SubscriptionOptions>>()))
+                .Callback((ISubscriptionNotificationHandler handler,
+                    Microsoft.Extensions.Options.IOptionsMonitor<Subscriptions.SubscriptionOptions> _) =>
+                    receiver = (ISubscriptionNotificationMessageHandler)handler)
+                .Returns(subscription.Object);
+            var confirmed = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var acknowledgements = new Mock<ISessionAcknowledgements>();
+            var handle = new AcknowledgementHandle(new AcknowledgementScope(new object(), 1, 7), 3);
+            var control = new AcknowledgementHandle(handle.Scope!, 4);
+            int processed = 0;
+            acknowledgements.Setup(value => value.Confirm(control))
+                .Callback(() => confirmed.TrySetResult(Volatile.Read(ref processed)));
+            var cache = new Mock<INodeCache>();
+            if (processingFailure == "cache")
+            {
+                cache.Setup(value => value.Clear()).Throws(new InvalidOperationException("Cache failure."));
+            }
+            var namespaces = new FakeNamespaceTableRefresher();
+            if (processingFailure == "namespace")
+            {
+                namespaces.OnRefresh = _ => throw new InvalidOperationException("Namespace refresh failure.");
+            }
+            await using var tracker = new ModelChangeTracker(
+                manager.Object, acknowledgements.Object, cache.Object, namespaceTables: namespaces);
+            tracker.ModelChanged += (_, _) =>
+            {
+                Interlocked.Increment(ref processed);
+                if (processingFailure == "subscriber")
+                {
+                    throw new InvalidOperationException("Subscriber failure.");
+                }
+            };
+            await tracker.StartTrackingAsync(ct).ConfigureAwait(false);
+            var notification = new EventNotification(
+                null, ArrayOf.Wrapped(default, default, Variant.From("model changed")))
+            {
+                Acknowledgement = handle
+            };
+            var message = new SubscriptionNotificationMessage(
+                handle, DateTime.UtcNow,
+                [new SubscriptionNotificationPayload(
+                    SubscriptionNotificationKind.Event, [], [notification, notification], default, null)], []);
+
+            await receiver!.OnNotificationMessageAsync(message, ct).ConfigureAwait(false);
+            await receiver.OnNotificationMessageAsync(message with
+            {
+                Acknowledgement = control,
+                Notifications =
+                [
+                    new SubscriptionNotificationPayload(
+                        SubscriptionNotificationKind.StatusChange, [], [], StatusCodes.Good, null)
+                ]
+            }, ct).ConfigureAwait(false);
+            Assert.That(await confirmed.Task.WaitAsync(ct).ConfigureAwait(false), Is.EqualTo(2));
+            acknowledgements.Verify(value => value.Confirm(handle),
+                processingFailure == "none" ? Times.Once() : Times.Never());
+            await tracker.StopTrackingAsync(ct).ConfigureAwait(false);
+            subscription.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
         [Test]
         public async Task IsTrackingIsFalseBeforeStartAsync()
         {

@@ -29,13 +29,13 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Server;
 using Opc.Ua.Server.FileSystem;
-using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Server;
@@ -80,16 +80,10 @@ namespace Microsoft.Extensions.DependencyInjection
             selected.Validate();
             if ((selected.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0)
             {
-                foreach (ServiceDescriptor service in builder.Services)
-                {
-                    if (service.ServiceType == typeof(DiAddressSpaceOwnership))
-                    {
-                        throw new InvalidOperationException(
-                            "Another manager already owns Device Integration. Use AddVisionToMachinery and " +
-                            "ConfigureVisionFor<MachineryNodeManager> to compose Vision into that manager.");
-                    }
-                }
-                builder.Services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddVision)));
+                builder.Services.ClaimDiAddressSpace(
+                    nameof(AddVision),
+                    "Use AddVisionToMachinery and ConfigureVisionFor<MachineryNodeManager> " +
+                    "to compose Vision into that manager.");
             }
             builder.Services.AddOptions<VisionServerOptions>();
             builder.Services.Configure<VisionServerOptions>(options =>
@@ -108,7 +102,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                IVisionModelProvider[] providers = [.. services.GetServices<IVisionModelProvider>()];
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionNodeManagerFactory(
                     providers,
                     options,
@@ -119,7 +117,11 @@ namespace Microsoft.Extensions.DependencyInjection
                 VisionServerOptions options = services
                     .GetRequiredService<IOptions<VisionServerOptions>>()
                     .Value;
-                IVisionModelProvider[] providers = [.. services.GetServices<IVisionModelProvider>()];
+                Opc.Ua.ArrayOf<IVisionModelProvider> providers =
+                    (options.MachineVisionParts & Opc.Ua.Vision.MachineVisionParts.Assets) != 0
+                        ? services.GetDiModelProviders<IVisionModelProvider>(
+                            static plain => new VisionDiModelProviderAdapter(plain))
+                        : services.GetServices<IVisionModelProvider>().ToArray();
                 return new VisionHostedNodeManagerFactory(
                     providers,
                     options,
@@ -377,8 +379,14 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder;
         }
 
+        /// <summary>
+        /// Adapts a callback to the Vision post-setup contract.
+        /// </summary>
         private sealed class DelegateVisionConfigurator : IVisionPostSetupConfigurator
         {
+            /// <summary>
+            /// Creates a callback registration for the specified manager type.
+            /// </summary>
             public DelegateVisionConfigurator(
                 Type targetManagerType,
                 Func<IVisionBuildContext, CancellationToken, ValueTask> configure)
@@ -387,8 +395,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the manager type matched by the post-setup runner.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask RunAsync(IVisionBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);

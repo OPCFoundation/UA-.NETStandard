@@ -277,6 +277,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
+        /// <summary>
+        /// V2 projection uses indexed wire diagnostics, not stale client-side cache annotations.
+        /// An empty diagnostics array must remain empty in the projection.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DataChangeProjectionUsesWireDiagnosticsAsync(bool includeDiagnostics)
+        {
+            await using var manager = new MonitoredItemManager(m_context, m_telemetry);
+            var first = new DiagnosticInfo { AdditionalInfo = "first wire diagnostic" };
+            var second = new DiagnosticInfo { AdditionalInfo = "second wire diagnostic" };
+            var stale = new DiagnosticInfo { AdditionalInfo = "client-side annotation" };
+            var notification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification { ClientHandle = 1, DiagnosticInfo = stale },
+                    new MonitoredItemNotification { ClientHandle = 2, DiagnosticInfo = stale }
+                ],
+                DiagnosticInfos = includeDiagnostics ? [first, second] : []
+            };
+
+            ReadOnlyMemory<DataValueChange> result = manager.CreateNotification(notification);
+
+            Assert.That(result.Span[0].DiagnosticInfo, Is.SameAs(includeDiagnostics ? first : null));
+            Assert.That(result.Span[1].DiagnosticInfo, Is.SameAs(includeDiagnostics ? second : null));
+        }
+
         [Test]
         public async Task CreateNotificationDataChangeNotificationCreatesCorrectNotificationsInOrderAsync()
         {

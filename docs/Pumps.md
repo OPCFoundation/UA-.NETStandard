@@ -355,8 +355,8 @@ cancelling queued creations and awaiting the active creation. Keep builders only
 for the owner's lifetime.
 
 An application-owned Machinery-compatible DI manager may instead load the same
-models itself, call `CreatePumpsRuntime`, and release registered resources through
-`DisposeMachineryResourcesAsync()` from its asynchronous disposal path.
+models itself and call `CreatePumpsRuntime`. The DI owner releases registered
+resources automatically; explicit `DisposeMachineryResourcesAsync()` calls remain safe.
 No inheritance change to the sealed stock managers is required.
 
 The [PumpDeviceIntegrationServer sample](../samples/Di/PumpDeviceIntegrationServer)

@@ -40,6 +40,8 @@ using UaLens.Plugins.EventView;
 using UaLens.Tests.Desktop;
 using UaLens.Tests.Subscriptions;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace UaLens.Tests.Observe;
 
 [TestFixture]

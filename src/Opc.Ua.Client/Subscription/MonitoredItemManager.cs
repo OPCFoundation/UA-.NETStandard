@@ -407,9 +407,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Create notifications for monitored items
         /// </summary>
         /// <param name="notification"></param>
+        /// <param name="acknowledgement">The acknowledgement of the message.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<DataValueChange> CreateNotification(
-            DataChangeNotification notification)
+            DataChangeNotification notification,
+            AcknowledgementHandle acknowledgement = default)
         {
             var memory = new DataValueChange[notification.MonitoredItems.Count];
             uint partitionId = m_context.Id;
@@ -420,9 +422,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     MonitoredItemNotification item = notification.MonitoredItems[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, item.DiagnosticInfo)
+                        item.Value, i < notification.DiagnosticInfos.Count ? notification.DiagnosticInfos[i] : null)
                     {
-                        PartitionServerId = partitionId
+                        ClientHandle = item.ClientHandle,
+                        PartitionServerId = partitionId,
+                        Acknowledgement = acknowledgement
                     };
                 }
             }
@@ -436,9 +440,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Create notifications for monitored items
         /// </summary>
         /// <param name="notification"></param>
+        /// <param name="acknowledgement">The acknowledgement of the message.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<EventNotification> CreateNotification(
-            EventNotificationList notification)
+            EventNotificationList notification,
+            AcknowledgementHandle acknowledgement = default)
         {
             var memory = new EventNotification[notification.Events.Count];
             uint partitionId = m_context.Id;
@@ -450,7 +456,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new EventNotification(monitored, item.EventFields)
                     {
-                        PartitionServerId = partitionId
+                        ClientHandle = item.ClientHandle,
+                        PartitionServerId = partitionId,
+                        Acknowledgement = acknowledgement
                     };
                 }
             }

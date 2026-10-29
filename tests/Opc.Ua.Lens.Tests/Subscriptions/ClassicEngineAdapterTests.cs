@@ -40,6 +40,8 @@ using UaLens.Diagnostics;
 using UaLens.Subscriptions;
 using UaLens.Telemetry;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace UaLens.Tests.Subscriptions;
 
 [TestFixture]
