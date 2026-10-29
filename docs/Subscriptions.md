@@ -584,6 +584,24 @@ once until the backlog drains.
 
 ## Publishing during session recovery
 
+The V2 Publish pipeline reports `BadSessionIdInvalid`, `BadSecureChannelIdInvalid`,
+`BadSecureChannelClosed`, `BadNotConnected`, and `BadConnectionClosed` through the
+session's keep-alive error callback. A managed session can therefore initiate recovery
+from a failed Publish without waiting for the next keep-alive Read. The worker rolls
+back its acknowledgements and releases its active request count before reporting the
+error; it does not await the recovery operation that may need to drain other workers.
+Transport-down throttling remains in effect. Publish is not retried as an idempotent
+transport request.
+
+Concurrent failures from one outage share a recovery notification. Pausing and resuming
+publishing retires the previous attempts for recovery reporting, even when the session
+identifier is unchanged. A successful attempt begun after a reported outage also
+rearms notification for a subsequent failure; an older in-flight response does not.
+Cancelled attempts and errors from closing, disposed, disconnected, or replaced
+sessions do not initiate recovery. When a channel manager is already recovering the
+session, the managed session leaves recovery with that owner instead of starting a
+competing outer reconnect.
+
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
 attempt parked at the shared channel's ready gate, without terminating its

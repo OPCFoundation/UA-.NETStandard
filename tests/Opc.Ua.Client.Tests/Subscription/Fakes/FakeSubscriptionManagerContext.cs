@@ -43,6 +43,20 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// </summary>
     internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
     {
+        /// <inheritdoc/>
+        public NodeId SessionId { get; set; } = new(1);
+
+        /// <summary>
+        /// Optional observer of recovery notifications from Publish workers.
+        /// </summary>
+        public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }
+
+        /// <inheritdoc/>
+        public void OnPublishRecoveryError(NodeId sessionId, ServiceResult error)
+        {
+            OnRecoveryError?.Invoke(sessionId, error);
+        }
+
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);

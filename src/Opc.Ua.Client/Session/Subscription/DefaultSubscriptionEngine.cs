@@ -228,6 +228,9 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
+            public NodeId SessionId => m_context.SessionId;
+
+            /// <inheritdoc/>
             public int SessionSubscriptionCount
             {
                 get
@@ -283,6 +286,21 @@ namespace Opc.Ua.Client
                 (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
                     m_context.PrepareAcknowledgementsToSend(acknowledgements);
                 return new AcknowledgementSelection(toSend, deferred);
+            }
+
+            /// <inheritdoc/>
+            public void OnPublishRecoveryError(NodeId sessionId, ServiceResult error)
+            {
+                if (m_context.Disposed ||
+                    m_context.Closing ||
+                    m_context.Reconnecting ||
+                    !m_context.Connected ||
+                    sessionId != m_context.SessionId)
+                {
+                    return;
+                }
+
+                m_context.OnKeepAliveError(error);
             }
 
             /// <inheritdoc/>

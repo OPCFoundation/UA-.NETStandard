@@ -41,6 +41,17 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface ISubscriptionManagerContext
     {
         /// <summary>
+        /// Gets the session identity associated with a Publish attempt.
+        /// </summary>
+        NodeId SessionId { get; }
+
+        /// <summary>
+        /// Reports a definitive failure of a Publish request from the specified session.
+        /// The failed attempt has already rolled back acknowledgements and released its active count.
+        /// </summary>
+        void OnPublishRecoveryError(NodeId sessionId, ServiceResult error);
+
+        /// <summary>
         /// Gets the number of created subscriptions the session owns outside this
         /// manager's registry, for example through the classic
         /// <c>Session.AddSubscription</c> API.
