@@ -353,7 +353,7 @@ namespace Opc.Ua.Client.Subscriptions
                     }
 
                     waitForMessage ??= m_messages.Reader.WaitToReadAsync(ct).AsTask();
-                    if (m_pendingMessages.Count == 0)
+                    if (!HasUnresolvedGap)
                     {
                         bool readable = await waitForMessage.ConfigureAwait(false);
                         waitForMessage = null;
@@ -642,7 +642,7 @@ namespace Opc.Ua.Client.Subscriptions
                     sequenceNumber);
                 return;
             }
-            if (m_pendingMessages.Count == 1)
+            if (m_pendingMessages.Count == 1 && m_keepAliveGapEnd == 0)
             {
                 m_gapStartedTimestamp = TimeProvider.GetTimestamp();
             }
@@ -676,14 +676,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
                 advanced = true;
             }
-            if (m_pendingMessages.Count == 0)
-            {
-                m_gapStartedTimestamp = 0;
-            }
-            else if (advanced)
-            {
-                m_gapStartedTimestamp = TimeProvider.GetTimestamp();
-            }
+            UpdateGapTimer(advanced);
         }
 
         private async Task SkipExpiredGapAsync(CancellationToken ct)
@@ -692,20 +685,33 @@ namespace Opc.Ua.Client.Subscriptions
             try
             {
                 RemoveStalePendingMessages();
-                if (m_pendingMessages.Count == 0)
+                if (!HasUnresolvedGap)
                 {
-                    m_gapStartedTimestamp = 0;
                     return;
                 }
 
-                uint firstPending = GetOldestPendingSequenceNumber();
+                // Skip up to the newer of the oldest buffered message and the
+                // keep-alive that proved a gap. Everything before it was sent.
+                uint gapEnd = m_keepAliveGapEnd;
+                if (m_pendingMessages.Count != 0)
+                {
+                    uint firstPending = GetOldestPendingSequenceNumber();
+                    if (gapEnd == 0 || IsNewerSequenceNumber(firstPending, gapEnd))
+                    {
+                        gapEnd = firstPending;
+                    }
+                }
                 uint firstMissing = GetNextSequenceNumber(LastDataSequenceNumberProcessed);
                 Logger.SubscriptionGapRecoveryTimedOut(
                     Id,
                     firstMissing,
-                    firstPending);
-                await RecoverAvailableBeforeAsync(firstPending, ct).ConfigureAwait(false);
+                    gapEnd);
+                await RecoverAvailableBeforeAsync(gapEnd, ct).ConfigureAwait(false);
                 await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
+
+                // A hole left behind the skipped range is a new gap and gets
+                // its own recovery window.
+                UpdateGapTimer(advanced: true);
             }
             finally
             {
@@ -715,19 +721,19 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Move the data gate up to the message before
-        /// <paramref name="firstPending"/>. Messages the server still lists
-        /// as available are republished in order; the holes between them
-        /// are skipped and remembered so a late original is still
-        /// acknowledged.
+        /// <paramref name="gapEnd"/>. Buffered originals are delivered and
+        /// messages the server still lists as available are republished in
+        /// order; the holes between them are skipped and remembered so a
+        /// late original is still acknowledged.
         /// </summary>
         private async ValueTask RecoverAvailableBeforeAsync(
-            uint firstPending,
+            uint gapEnd,
             CancellationToken ct)
         {
             uint lastData = LastDataSequenceNumberProcessed;
-            uint span = unchecked(firstPending - lastData);
+            uint span = unchecked(gapEnd - lastData);
             IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
-            var candidates = new List<uint>();
+            var candidates = new HashSet<uint>();
             for (int i = 0; i < available.Count; i++)
             {
                 uint offset = unchecked(available[i] - lastData);
@@ -736,14 +742,27 @@ namespace Opc.Ua.Client.Subscriptions
                     candidates.Add(available[i]);
                 }
             }
-            foreach (uint seq in SortAscendingWrapAware(candidates))
+            foreach (uint seq in m_pendingMessages.Keys)
+            {
+                uint offset = unchecked(seq - lastData);
+                if (offset != 0 && offset < span)
+                {
+                    candidates.Add(seq);
+                }
+            }
+            foreach (uint seq in SortAscendingWrapAware(candidates.ToArray()))
             {
                 uint next = GetNextSequenceNumber(LastDataSequenceNumberProcessed);
                 if (seq != next)
                 {
                     RecordSkippedSequenceNumbers(next, seq);
                 }
-                if (!await TryRepublishAsync(seq, firstPending, available, ct)
+                if (m_pendingMessages.Remove(seq, out IncomingMessage pending))
+                {
+                    await DispatchDataMessageAsync(pending, ct).ConfigureAwait(false);
+                    continue;
+                }
+                if (!await TryRepublishAsync(seq, gapEnd, available, ct)
                     .ConfigureAwait(false))
                 {
                     RecordSkippedSequenceNumbers(seq, GetNextSequenceNumber(seq));
@@ -751,13 +770,13 @@ namespace Opc.Ua.Client.Subscriptions
                 LastDataSequenceNumberProcessed = seq;
             }
             uint firstSkipped = GetNextSequenceNumber(LastDataSequenceNumberProcessed);
-            if (firstSkipped != firstPending)
+            if (firstSkipped != gapEnd)
             {
-                RecordSkippedSequenceNumbers(firstSkipped, firstPending);
+                RecordSkippedSequenceNumbers(firstSkipped, gapEnd);
             }
-            LastDataSequenceNumberProcessed = firstPending == 1
+            LastDataSequenceNumberProcessed = gapEnd == 1
                 ? uint.MaxValue
-                : firstPending - 1;
+                : gapEnd - 1;
         }
 
         private uint GetOldestPendingSequenceNumber()
@@ -778,8 +797,40 @@ namespace Opc.Ua.Client.Subscriptions
 
         private bool IsGapRecoveryExpired()
         {
-            return m_pendingMessages.Count != 0 &&
+            return HasUnresolvedGap &&
                 TimeProvider.GetElapsedTime(m_gapStartedTimestamp) >= kGapRecoveryTimeout;
+        }
+
+        /// <summary>
+        /// A gap is open while data is buffered behind it or a keep-alive
+        /// proved messages missing that the server can still republish.
+        /// </summary>
+        private bool HasUnresolvedGap => m_pendingMessages.Count != 0 || m_keepAliveGapEnd != 0;
+
+        /// <summary>
+        /// Close a keep-alive gap the data gate has reached and keep the gap
+        /// timer running only while a gap is open. A gap that just started,
+        /// or that moved because the gate <paramref name="advanced"/>, gets
+        /// a fresh recovery window.
+        /// </summary>
+        private void UpdateGapTimer(bool advanced)
+        {
+            if (m_keepAliveGapEnd != 0 &&
+                (LastDataSequenceNumberProcessed == 0 ||
+                !IsNewerSequenceNumber(
+                    m_keepAliveGapEnd,
+                    GetNextSequenceNumber(LastDataSequenceNumberProcessed))))
+            {
+                m_keepAliveGapEnd = 0;
+            }
+            if (!HasUnresolvedGap)
+            {
+                m_gapStartedTimestamp = 0;
+            }
+            else if (advanced || m_gapStartedTimestamp == 0)
+            {
+                m_gapStartedTimestamp = TimeProvider.GetTimestamp();
+            }
         }
 
         /// <summary>
@@ -811,10 +862,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_pendingMessages.Remove(sequenceNumber);
             }
-            if (m_pendingMessages.Count == 0)
-            {
-                m_gapStartedTimestamp = 0;
-            }
+            UpdateGapTimer(advanced: false);
         }
 
         /// <summary>
@@ -822,7 +870,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <paramref name="next"/> exactly once, even when buffering or a
         /// keep-alive already counted part of the range.
         /// </summary>
-        private void AccountMissingMessages(uint previous, uint next)
+        /// <param name="previous">The last data message processed.</param>
+        /// <param name="next">The upper bound of the range.</param>
+        /// <param name="nextReceived"><c>true</c> if <paramref name="next"/>
+        /// is a received data message. A keep-alive only names the next
+        /// sequence number; it does not consume it, so that message can
+        /// still go missing and must be counted later.</param>
+        private void AccountMissingMessages(uint previous, uint next, bool nextReceived = true)
         {
             uint start = previous;
             if (m_missingAccountedThrough != 0 &&
@@ -844,7 +898,9 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 Interlocked.Add(ref m_missingCount, gap);
             }
-            m_missingAccountedThrough = next;
+            m_missingAccountedThrough = nextReceived
+                ? next
+                : next == 1 ? uint.MaxValue : next - 1;
         }
 
         /// <summary>
@@ -970,13 +1026,14 @@ namespace Opc.Ua.Client.Subscriptions
                 await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
                 return;
             }
-            AccountMissingMessages(prevDataSeq, keepAliveSeqNum);
+            AccountMissingMessages(prevDataSeq, keepAliveSeqNum, nextReceived: false);
 
             // Recover strictly in sequence order and advance the data gate
             // only over what was actually delivered. Stop at the first hole:
             // a missing message may still arrive on another publish worker,
             // and the gap timeout skips it if it never does.
-            foreach (uint seq in SortAscendingWrapAware(candidates.ToArray()))
+            uint[] ordered = SortAscendingWrapAware(candidates.ToArray());
+            foreach (uint seq in ordered)
             {
                 if (seq != GetNextSequenceNumber(LastDataSequenceNumberProcessed))
                 {
@@ -997,6 +1054,16 @@ namespace Opc.Ua.Client.Subscriptions
                     break;
                 }
                 LastDataSequenceNumberProcessed = seq;
+            }
+
+            // The walk stopped in front of messages the server can still
+            // republish. Without buffered data nothing else would expire
+            // this gap, so track it until the gap timeout skips the hole.
+            if (IsNewerSequenceNumber(ordered[ordered.Length - 1], LastDataSequenceNumberProcessed) &&
+                (m_keepAliveGapEnd == 0 ||
+                IsNewerSequenceNumber(keepAliveSeqNum, m_keepAliveGapEnd)))
+            {
+                m_keepAliveGapEnd = keepAliveSeqNum;
             }
 
             await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
@@ -1046,6 +1113,7 @@ namespace Opc.Ua.Client.Subscriptions
                 AvailableInRetransmissionQueue = [];
                 m_pendingMessages.Clear();
                 m_gapStartedTimestamp = 0;
+                m_keepAliveGapEnd = 0;
                 m_missingAccountedThrough = 0;
                 Array.Clear(m_skippedSequenceNumbers, 0, m_skippedSequenceNumbers.Length);
                 m_skippedSequenceNumberIndex = 0;
@@ -1115,7 +1183,24 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                uint[] ordered = SortAscendingWrapAware(availableSequenceNumbers);
+                // Buffered originals older than the newest advertised
+                // message are delivered in sequence with it; otherwise the
+                // gate would pass them and the drain would drop them, even
+                // when the server no longer holds a copy.
+                RemoveStalePendingMessages();
+                uint[] advertised = SortAscendingWrapAware(availableSequenceNumbers);
+                uint newestAdvertised = advertised[advertised.Length - 1];
+                var sequenceNumbers = new HashSet<uint>(advertised);
+                foreach (uint sequenceNumber in m_pendingMessages.Keys)
+                {
+                    if (!IsNewerSequenceNumber(sequenceNumber, newestAdvertised))
+                    {
+                        sequenceNumbers.Add(sequenceNumber);
+                    }
+                }
+                uint[] ordered = sequenceNumbers.Count == advertised.Length
+                    ? advertised
+                    : SortAscendingWrapAware(sequenceNumbers.ToArray());
                 Logger.SubscriptionRecoveringTransferredMessages(Id, ordered.Length);
 
                 // Advance the dedup gate after each completed attempt so
@@ -1294,6 +1379,10 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_notDispatched.Remove(missing);
                     m_pendingMessages.Remove(missing);
+
+                    // Delivery opens the acknowledgement lifetime. A late
+                    // original must not open a second one.
+                    _ = TryConsumeSkippedSequenceNumber(missing);
                     await OnNotificationReceivedAsync(
                         republish.NotificationMessage,
                         PublishState.Republish,
@@ -1597,6 +1686,12 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly Dictionary<uint, IncomingMessage> m_pendingMessages = [];
         private long m_gapStartedTimestamp;
 
+        /// <summary>
+        /// The sequence number of a keep-alive that proved messages missing
+        /// which the server can still republish; zero if there is none. The
+        /// gap timeout skips the hole up to this message.
+        /// </summary>
+        private uint m_keepAliveGapEnd;
         /// <summary>
         /// The newest sequence number already counted as the end of a gap,
         /// so the same missing messages are not counted twice.
