@@ -17,4 +17,16 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" GeneratePathProperty="true" />
   </ItemGroup>
 
+  <!--
+    Every NUnit test assembly gets TestThreadPoolSetup.cs, an assembly-wide SetUpFixture that raises
+    the test host's thread pool minimum, which the server no longer changes for the process.
+  -->
+  <Target Name="_AddTestThreadPoolSetup"
+          BeforeTargets="CoreCompile"
+          Condition="'$(RestrictForLegacyTfm)' != 'true'">
+    <ItemGroup Condition="'@(PackageReference->WithMetadataValue('Identity', 'NUnit'))' != ''">
+      <Compile Include="$(MSBuildThisFileDirectory)TestThreadPoolSetup.cs" />
+    </ItemGroup>
+  </Target>
+
 </Project>

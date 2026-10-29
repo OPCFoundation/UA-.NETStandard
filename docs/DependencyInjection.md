@@ -319,6 +319,7 @@ Prefer the first-class properties for their common settings and use
 | `SetRejectUnknownRevocationStatus(...)` | Rejects chains when CA revocation status cannot be determined; default `true`. |
 | `SetUseValidatedCertificates(...)` | Reuses previously validated certificates without repeating the full validation path; default `false`. Leave disabled unless the reduced revalidation is explicitly acceptable for the deployment. |
 | `SetSuppressNonceValidationErrors(...)` | Suppresses zero/weak nonce errors; default `false`. Enabling it weakens user-token protection and is only for unavoidable legacy interoperability. |
+| `SetAllowUnencryptedUserNameTokens(...)` | Lets a client send a `UserName` token whose password is not encrypted over a channel that is not `SignAndEncrypt`; default `false`. The password then travels in plain text, so enable it only for interoperability with legacy devices that offer no encrypted user token policy, and only where the network traffic is encrypted in some other manner, such as a VPN (see OPC 10000-4 v1.05.07 §7.40.4). |
 | `SetSendCertificateChain(...)` | Sends the chain with a CA-signed application certificate; default `true`. |
 | `SetMinimumCertificateKeySize(...)` | Sets the minimum accepted RSA key size; default `2048`. Prefer `MinimumCertificateKeySize`. |
 | `AddCertificatePasswordProvider(...)` | Supplies an `ICertificatePasswordProvider` for protected private keys; no provider is registered by default. |
@@ -935,7 +936,6 @@ unchanged. The data binds directly from
           {
             "EndpointUrl": "opc.tcp://client.example.com:4841",
             "Timeout": 30000,
-            "MaxSessionCount": 1,
             "Enabled": true
           }
         ]

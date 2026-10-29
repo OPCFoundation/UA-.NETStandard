@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -74,14 +75,15 @@ namespace Opc.Ua.Client.Subscriptions
             m_session = session;
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
+            m_outcomeDispatcher = new AcknowledgementOutcomeDispatcher(m_logger);
+            ShutdownToken = m_cts.Token;
             ReturnDiagnostics = returnDiagnostics;
             m_disposeToken = m_cts.Token;
             m_publishController = PublishControllerAsync(m_disposeToken);
             m_acks = Channel.CreateUnboundedPrioritized(
-                new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
+                new UnboundedPrioritizedChannelOptions<PendingAcknowledgement>
                 {
-                    Comparer = Comparer<SubscriptionAcknowledgement>
-                        .Create((x, y) => x.SequenceNumber.CompareTo(y.SequenceNumber))
+                    Comparer = SequenceNumberComparer.Instance
                 });
         }
 
@@ -98,6 +100,9 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <inheritdoc/>
         public bool PoolNotifications { get; set; }
+
+        /// <inheritdoc/>
+        public CancellationToken ShutdownToken { get; }
 
         /// <inheritdoc/>
         public DiagnosticsMasks ReturnDiagnostics { get; set; }
@@ -254,8 +259,11 @@ namespace Opc.Ua.Client.Subscriptions
             bool quiescenceAcquired = false;
             try
             {
-                await m_cts.CancelAsync().ConfigureAwait(false);
+                Task cancellation = m_cts.CancelAsync();
+                // Cancellation callbacks can wait for work owned by the publish controller.
+                // Signal it before awaiting callback completion so shutdown can make progress.
                 m_publishControl.Set();
+                await cancellation.ConfigureAwait(false);
                 await m_publishController.ConfigureAwait(false);
                 await m_publishQuiescenceGate.WaitAsync().ConfigureAwait(false);
                 quiescenceAcquired = true;
@@ -321,7 +329,35 @@ namespace Opc.Ua.Client.Subscriptions
                 m_publishQuiescenceGate.Release();
                 m_publishQuiescenceGate.Dispose();
                 m_cts.Dispose();
+                List<AcknowledgementOutcome>? abandoned = null;
+                while (m_acks.Reader.TryRead(out PendingAcknowledgement queued))
+                {
+                    AddOutcome(ref abandoned, queued, AcknowledgementDisposition.Abandoned,
+                        StatusCodes.BadShutdown);
+                }
                 (m_acks as IDisposable)?.Dispose();
+                lock (m_acknowledgementPolicyLock)
+                {
+                    foreach (PendingAcknowledgement deferred in m_deferredAcknowledgements)
+                    {
+                        AddOutcome(ref abandoned, deferred, AcknowledgementDisposition.Abandoned,
+                            StatusCodes.BadShutdown);
+                    }
+                    m_deferredAcknowledgements.Clear();
+                }
+                foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
+                {
+                    (abandoned ??= []).Add(new AcknowledgementOutcome(
+                        handle, AcknowledgementDisposition.Abandoned, StatusCodes.BadShutdown));
+                }
+                ReportOutcomes(abandoned);
+                await CompleteOutcomeDeliveryAsync().ConfigureAwait(false);
+                lock (m_subscriptionLock)
+                {
+                    m_claims.Clear();
+                    m_superseded.Clear();
+                    m_windows.Clear();
+                }
                 GC.SuppressFinalize(this);
             }
         }
@@ -334,11 +370,93 @@ namespace Opc.Ua.Client.Subscriptions
             m_publishControl.Set();
         }
 
+        /// <summary>
+        /// Number of acknowledgements waiting in the queue, excluding deferred and in-flight ones.
+        /// </summary>
+        internal int QueuedAcknowledgementCount => m_acks.Reader.Count;
+
+        /// <summary>
+        /// Whether terminal state is required by confirmations or an application observer.
+        /// </summary>
+        private bool RequiresAcknowledgementTracking =>
+            m_session.AcknowledgementObserver != null || m_session.AcknowledgementProvider is IAcknowledgementTracker;
+
         /// <inheritdoc/>
-        public ValueTask QueueAsync(
+        public ValueTask QueueAsync(IMessageProcessor owner, long generation,
             SubscriptionAcknowledgement ack, CancellationToken ct)
         {
-            return m_acks.Writer.WriteAsync(ack, ct);
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            var pending = new PendingAcknowledgement(ack, owner.GetAcknowledgementScope(generation));
+            if (!RequiresAcknowledgementTracking)
+            {
+                return m_acks.Writer.WriteAsync(pending, ct);
+            }
+            if (!m_outstandingAcknowledgements.TryUpdate(pending.Handle, 1, 0))
+            {
+                // Only receipt admits a lifetime. A duplicate or a retry after its terminal
+                // outcome must not create another lifetime with the same handle.
+                return default;
+            }
+            ValueTask write = m_acks.Writer.WriteAsync(pending, ct);
+            return write.IsCompletedSuccessfully ? default : AwaitQueuedAsync(write, pending);
+        }
+
+        /// <inheritdoc/>
+        public void TrackAcknowledgement(IMessageProcessor owner, long generation, uint sequenceNumber)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (RequiresAcknowledgementTracking)
+            {
+                var handle = new AcknowledgementHandle(owner.GetAcknowledgementScope(generation), sequenceNumber);
+                lock (m_subscriptionLock)
+                {
+                    if (m_outstandingAcknowledgements.TryAdd(handle, 0))
+                    {
+                        (m_session.AcknowledgementProvider as IAcknowledgementTracker)?.Track(handle);
+                    }
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (subscriptionId == 0)
+            {
+                return;
+            }
+            lock (m_subscriptionLock)
+            {
+                if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim previous) &&
+                    !ReferenceEquals(previous.Owner, owner) &&
+                    IsLiveOwnerLocked(previous.Owner, subscriptionId))
+                {
+                    m_superseded.Add(previous.Owner);
+                }
+                foreach (IManagedSubscription registered in m_subscriptions)
+                {
+                    // An owner registered without a claim (for example, transferred) is superseded too.
+                    if (registered.Id == subscriptionId && !ReferenceEquals(registered, owner))
+                    {
+                        m_superseded.Add(registered);
+                    }
+                }
+                m_superseded.Remove(owner);
+                m_claims[subscriptionId] = new SubscriptionClaim(
+                    owner, Interlocked.Increment(ref m_claimSequence), createdAt);
+                m_windows.Remove(owner);
+            }
         }
 
         /// <inheritdoc/>
@@ -461,31 +579,51 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public int DropPendingForSubscription(uint subscriptionId)
+        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId)
         {
-            // Drain the prioritised channel into a local buffer,
-            // keeping only the acks that do not target the dead
-            // subscription id, then re-publish the kept items.
-            // Recreate callers invoke this while publish ingress is
-            // quiesced, so no worker can remove or requeue an old
-            // acknowledgement while the generation changes.
-            var keep = new List<SubscriptionAcknowledgement>();
-            int dropped = 0;
-            while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
+            if (owner == null)
             {
-                if (ack.SubscriptionId == subscriptionId)
+                throw new ArgumentNullException(nameof(owner));
+            }
+            List<AcknowledgementOutcome>? retired = null;
+            lock (m_subscriptionLock)
+            {
+                ForgetOwnerLocked(owner, subscriptionId);
+                if (RequiresAcknowledgementTracking && !m_outstandingAcknowledgements.IsEmpty)
                 {
-                    dropped++;
-                }
-                else
-                {
-                    keep.Add(ack);
+                    // Queued and in-flight acknowledgements end now as well: with no
+                    // subscription left, no publish worker may run to discard them.
+                    foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
+                    {
+                        if (handle.Scope is { } scope &&
+                            ReferenceEquals(scope.Owner, owner) &&
+                            IsRetiredScopeLocked(scope))
+                        {
+                            (retired ??= []).Add(new AcknowledgementOutcome(handle,
+                                AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid));
+                        }
+                    }
                 }
             }
-            foreach (SubscriptionAcknowledgement ack in keep)
+            int dropped;
+            lock (m_acknowledgementPolicyLock)
             {
-                m_acks.Writer.TryWrite(ack);
+                if (RequiresAcknowledgementTracking)
+                {
+                    foreach (PendingAcknowledgement pending in m_deferredAcknowledgements)
+                    {
+                        if (ReferenceEquals(pending.Owner, owner))
+                        {
+                            AddOutcome(ref retired, pending, AcknowledgementDisposition.OwnerRetired,
+                                StatusCodes.BadSubscriptionIdInvalid);
+                        }
+                    }
+                }
+                dropped = m_deferredAcknowledgements.RemoveAll(
+                    pending => ReferenceEquals(pending.Owner, owner));
+                UpdateDeferredWarning();
             }
+            ReportOutcomes(retired);
             return dropped;
         }
 
@@ -500,26 +638,33 @@ namespace Opc.Ua.Client.Subscriptions
 
             LogicalSubscription? logical = null;
             LogicalSubscription[] wrappers;
+            bool registered;
             lock (m_subscriptionLock)
             {
                 // Drop the partition from the dispatch registry by
                 // reference — never by identifier, because every
                 // subscription that is not created (yet) shares id 0.
-                if (!m_subscriptions.Remove(partition))
+                registered = m_subscriptions.Remove(partition);
+                if (registered)
                 {
-                    return default;
-                }
-                m_establishedSubscriptions.Remove(partition);
+                    m_establishedSubscriptions.Remove(partition);
 
-                // Record the retired identifier while the registry lock
-                // is still held. A publish worker resolves incoming
-                // responses under the same lock, so it can never observe
-                // the partition as removed before the identifier is
-                // known to be retired and mistake a late response for an
-                // orphaned server side subscription.
-                RetireSubscriptionId(subscriptionId);
+                    // Record the retired identifier while the registry lock
+                    // is still held. A publish worker resolves incoming
+                    // responses under the same lock, so it can never observe
+                    // the partition as removed before the identifier is
+                    // known to be retired and mistake a late response for an
+                    // orphaned server side subscription.
+                    RetireSubscriptionId(subscriptionId);
+                }
 
                 wrappers = [.. m_logicals];
+            }
+            if (!registered)
+            {
+                // A rollback path removed the partition already; still retire what it owned.
+                RetireOwner(completing, subscriptionId);
+                return default;
             }
 
             // If the removed partition was the primary of any logical
@@ -551,7 +696,27 @@ namespace Opc.Ua.Client.Subscriptions
             }
             m_logger.SubscriptionRemoved(subscriptionId);
             m_publishControl.Set();
+
+            // No publishing quiescence: acknowledgements of the removed partition that a
+            // worker holds in flight fail send-time validation if they are requeued.
+            RetireOwner(completing, subscriptionId);
             return default;
+        }
+
+        /// <summary>
+        /// Retires the acknowledgement state a removed subscription owned.
+        /// </summary>
+        private void RetireOwner(IMessageProcessor owner, uint subscriptionId)
+        {
+            if (subscriptionId != 0 && Volatile.Read(ref m_disposed) == 0)
+            {
+                DropPendingForSubscription(owner, subscriptionId);
+                return;
+            }
+            lock (m_subscriptionLock)
+            {
+                ForgetOwnerLocked(owner, subscriptionId);
+            }
         }
 
         /// <inheritdoc/>
@@ -723,10 +888,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // before the identifier is known to be retired.
                 RetireSubscriptionId(partitionId);
             }
-            if (partitionId != 0)
-            {
-                DropPendingForSubscription(partitionId);
-            }
+            RetireOwner(partition, partitionId);
             try
             {
                 await partition.DisposeAsync().ConfigureAwait(false);
@@ -1724,10 +1886,18 @@ namespace Opc.Ua.Client.Subscriptions
         {
             lock (m_subscriptionLock)
             {
+                // The most recently created owner wins when a server reused the id
+                // before the client noticed that the previous owner expired.
+                if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                    IsLiveOwnerLocked(claim.Owner, subscriptionId))
+                {
+                    return (IManagedSubscription)claim.Owner;
+                }
+
                 // find the subscription.
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription.Id == subscriptionId)
+                    if (subscription.Id == subscriptionId && !m_superseded.Contains(subscription))
                     {
                         return subscription;
                     }
@@ -1915,6 +2085,891 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Removes stale entries and applies the session's deferral policy to the
+        /// acknowledgements selected for the next Publish request together with the
+        /// previously deferred ones. The policy callback is serialized, matching the
+        /// classic engine, so handlers never observe concurrent invocations.
+        /// </summary>
+        /// <param name="acknowledgements">The worker's batch; it may be reused for the result.</param>
+        private List<PendingAcknowledgement> PrepareAcknowledgementsToSend(
+            List<PendingAcknowledgement> acknowledgements)
+        {
+            lock (m_acknowledgementPolicyLock)
+            {
+                int deferredCount = m_deferredAcknowledgements.Count;
+                if (acknowledgements.Count == 0 && deferredCount == 0)
+                {
+                    return acknowledgements;
+                }
+                if (deferredCount == 0 && !m_session.HasAcknowledgementPolicy)
+                {
+                    // Without a deferral policy the batch is only validated: nothing is copied
+                    // or presented, and no callback can change ownership before it is sent.
+                    RemoveStaleAcknowledgements(acknowledgements);
+                    return acknowledgements;
+                }
+
+                List<PendingAcknowledgement> candidates = acknowledgements;
+                List<PendingAcknowledgement>? previouslyDeferred = null;
+                if (deferredCount != 0)
+                {
+                    candidates = new List<PendingAcknowledgement>(acknowledgements.Count + deferredCount);
+                    candidates.AddRange(acknowledgements);
+                    candidates.AddRange(m_deferredAcknowledgements);
+                    previouslyDeferred = [.. m_deferredAcknowledgements];
+                    m_deferredAcknowledgements.Clear();
+                }
+                RemoveStaleAcknowledgements(candidates);
+                if (candidates.Count == 0)
+                {
+                    UpdateDeferredWarning();
+                    return candidates;
+                }
+
+                // Reused under the policy lock; the callback must not keep the list.
+                List<SubscriptionAcknowledgement> presented = m_presentedAcknowledgements;
+                presented.Clear();
+                foreach (PendingAcknowledgement candidate in candidates)
+                {
+                    presented.Add(candidate.Acknowledgement);
+                }
+                Dictionary<SubscriptionAcknowledgement, PendingAcknowledgement>? byIdentity = null;
+
+                List<SubscriptionAcknowledgement> toSend;
+                List<SubscriptionAcknowledgement> retained;
+                try
+                {
+                    (toSend, retained) = m_session.PrepareAcknowledgementsToSend(presented);
+                }
+                catch
+                {
+                    // The worker requeues its own batch; restore only the older deferred entries.
+                    if (previouslyDeferred != null)
+                    {
+                        m_deferredAcknowledgements.AddRange(previouslyDeferred);
+                    }
+                    throw;
+                }
+
+                // Without a deferral policy, or when it changed nothing, the candidates are sent
+                // as is. They are validated again, since a subscription can retire during the callback.
+                if (retained.Count == 0 && IsUnchanged(toSend, candidates))
+                {
+                    UpdateDeferredWarning();
+                    RemoveStaleAcknowledgements(candidates);
+                    return candidates;
+                }
+                int unresolved = 0;
+                int deferredStart = m_deferredAcknowledgements.Count;
+                foreach (SubscriptionAcknowledgement acknowledgement in retained)
+                {
+                    if (TryResolve(acknowledgement, out PendingAcknowledgement pending))
+                    {
+                        m_deferredAcknowledgements.Add(pending);
+                    }
+                    else
+                    {
+                        unresolved++;
+                    }
+                }
+                UpdateDeferredWarning();
+                var result = new List<PendingAcknowledgement>(toSend.Count);
+                foreach (SubscriptionAcknowledgement acknowledgement in toSend)
+                {
+                    if (TryResolve(acknowledgement, out PendingAcknowledgement pending))
+                    {
+                        result.Add(pending);
+                    }
+                    else
+                    {
+                        unresolved++;
+                    }
+                }
+                if (unresolved != 0)
+                {
+                    m_logger.StaleAcknowledgementsDiscarded(unresolved);
+                }
+                if (RequiresAcknowledgementTracking)
+                {
+                    ReportDroppedAcknowledgements(candidates, result, deferredStart);
+                }
+                // Entries the handler created are validated like queued ones before sending.
+                RemoveStaleAcknowledgements(result);
+                return result;
+
+                // A handler may add acknowledgements it created itself. They are attributed to
+                // the current owner of their id, so they are validated like any other entry.
+                bool TryResolve(SubscriptionAcknowledgement acknowledgement, out PendingAcknowledgement pending)
+                {
+                    if (TryLookup(acknowledgement, out pending))
+                    {
+                        return true;
+                    }
+                    IManagedSubscription? owner = GetById(acknowledgement.SubscriptionId);
+                    if (owner == null)
+                    {
+                        return false;
+                    }
+                    long generation = owner.MessageGeneration;
+                    pending = new PendingAcknowledgement(
+                        acknowledgement, owner.GetAcknowledgementScope(generation));
+                    return true;
+                }
+
+                // The identity map is only built when a handler changed the lists.
+                bool TryLookup(SubscriptionAcknowledgement acknowledgement, out PendingAcknowledgement pending)
+                {
+                    if (byIdentity == null)
+                    {
+                        byIdentity = new Dictionary<SubscriptionAcknowledgement, PendingAcknowledgement>(
+                            candidates.Count, IdentityComparer<SubscriptionAcknowledgement>.Instance);
+                        foreach (PendingAcknowledgement candidate in candidates)
+                        {
+                            byIdentity[candidate.Acknowledgement] = candidate;
+                        }
+                    }
+                    return byIdentity.TryGetValue(acknowledgement, out pending);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Prepares the acknowledgements of the next Publish request. With an
+        /// <see cref="ISubscriptionAcknowledgementProvider"/>, the provider decides which
+        /// acknowledgements are sent and which are deferred, without holding any lock; the
+        /// legacy deferral event is then not raised. Otherwise the legacy policy applies.
+        /// </summary>
+        /// <param name="acknowledgements">The worker's batch; it may be reused for the result.</param>
+        /// <param name="ct">The Publish attempt's cancellation token.</param>
+        private async ValueTask<List<PendingAcknowledgement>> PrepareAcknowledgementsToSendAsync(
+            List<PendingAcknowledgement> acknowledgements,
+            CancellationToken ct)
+        {
+            ISubscriptionAcknowledgementProvider? provider = m_session.AcknowledgementProvider;
+            if (provider == null)
+            {
+                return PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            List<PendingAcknowledgement> candidates = acknowledgements;
+            lock (m_acknowledgementPolicyLock)
+            {
+                if (m_deferredAcknowledgements.Count != 0)
+                {
+                    // Merged into the worker's batch, so an abandoned attempt requeues them as well.
+                    candidates.AddRange(m_deferredAcknowledgements);
+                    m_deferredAcknowledgements.Clear();
+                }
+            }
+            RemoveStaleAcknowledgements(candidates);
+            if (candidates.Count == 0)
+            {
+                lock (m_acknowledgementPolicyLock)
+                {
+                    UpdateDeferredWarning();
+                }
+                return candidates;
+            }
+
+            var handles = new AcknowledgementHandle[candidates.Count];
+            for (int i = 0; i < handles.Length; i++)
+            {
+                handles[i] = candidates[i].Handle;
+            }
+            AcknowledgementDecision decision;
+            try
+            {
+                decision = await provider.DecideAsync(handles, ct).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The worker requeues the batch of an abandoned attempt.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Fail closed: nothing is acknowledged that the provider did not approve.
+                m_logger.AcknowledgementProviderFailed(ex, candidates.Count);
+                DeferAcknowledgements(candidates);
+                return [];
+            }
+
+            ArrayOf<int> deferredIndices = decision.Deferred;
+            if (deferredIndices.Count == 0)
+            {
+                // Validated again: a subscription can retire while the provider decides.
+                RemoveStaleAcknowledgements(candidates);
+                return candidates;
+            }
+            bool[] deferred = new bool[candidates.Count];
+            for (int i = 0; i < deferredIndices.Count; i++)
+            {
+                int index = deferredIndices[i];
+                if ((uint)index < (uint)deferred.Length)
+                {
+                    deferred[index] = true;
+                }
+            }
+            var toSend = new List<PendingAcknowledgement>(candidates.Count);
+            var toDefer = new List<PendingAcknowledgement>(deferredIndices.Count);
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                (deferred[i] ? toDefer : toSend).Add(candidates[i]);
+            }
+            DeferAcknowledgements(toDefer);
+            RemoveStaleAcknowledgements(toSend);
+            return toSend;
+        }
+
+        /// <summary>
+        /// Keeps acknowledgements for a later Publish request.
+        /// </summary>
+        private void DeferAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            lock (m_acknowledgementPolicyLock)
+            {
+                m_deferredAcknowledgements.AddRange(acknowledgements);
+                UpdateDeferredWarning();
+            }
+        }
+
+        /// <summary>
+        /// Ends the presented acknowledgements the legacy deferral handler neither sent nor
+        /// retained. Called under the policy lock.
+        /// </summary>
+        /// <param name="candidates">The presented acknowledgements.</param>
+        /// <param name="sent">The acknowledgements the handler sends.</param>
+        /// <param name="deferredStart">The first deferred entry the handler retained.</param>
+        private void ReportDroppedAcknowledgements(
+            List<PendingAcknowledgement> candidates,
+            List<PendingAcknowledgement> sent,
+            int deferredStart)
+        {
+            var kept = new HashSet<AcknowledgementHandle>();
+            foreach (PendingAcknowledgement pending in sent)
+            {
+                kept.Add(pending.Handle);
+            }
+            for (int i = deferredStart; i < m_deferredAcknowledgements.Count; i++)
+            {
+                kept.Add(m_deferredAcknowledgements[i].Handle);
+            }
+            List<AcknowledgementOutcome>? dropped = null;
+            foreach (PendingAcknowledgement candidate in candidates)
+            {
+                if (!kept.Contains(candidate.Handle))
+                {
+                    AddOutcome(ref dropped, candidate, AcknowledgementDisposition.Abandoned,
+                        StatusCodes.BadRequestCancelledByClient);
+                }
+            }
+            ReportOutcomes(dropped);
+        }
+
+        /// <summary>
+        /// Reports how the acknowledgements of a successful Publish request ended.
+        /// </summary>
+        /// <param name="sent">The acknowledgements of the request, in request order.</param>
+        /// <param name="results">The server's result per acknowledgement.</param>
+        private void ReportAcknowledgementResults(
+            List<PendingAcknowledgement> sent,
+            ArrayOf<StatusCode> results)
+        {
+            if (sent.Count == 0 || !RequiresAcknowledgementTracking)
+            {
+                return;
+            }
+            var outcomes = new List<AcknowledgementOutcome>(sent.Count);
+            for (int i = 0; i < sent.Count; i++)
+            {
+                StatusCode status = i < results.Count ? results[i] : StatusCodes.BadUnexpectedError;
+                outcomes.Add(new AcknowledgementOutcome(
+                    sent[i].Handle,
+                    StatusCode.IsGood(status)
+                        ? AcknowledgementDisposition.Acknowledged
+                        : AcknowledgementDisposition.NotRetained,
+                    status));
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Adds an outcome to a lazily created list.
+        /// </summary>
+        private static void AddOutcome(
+            ref List<AcknowledgementOutcome>? outcomes,
+            in PendingAcknowledgement pending,
+            AcknowledgementDisposition disposition,
+            StatusCode status)
+        {
+            (outcomes ??= []).Add(new AcknowledgementOutcome(pending.Handle, disposition, status));
+        }
+
+        /// <summary>
+        /// Hands outcomes to the observer, outside any lock and without blocking a worker.
+        /// Only the first outcome of an outstanding acknowledgement is reported.
+        /// </summary>
+        private void ReportOutcomes(List<AcknowledgementOutcome>? outcomes)
+        {
+            if (outcomes == null || outcomes.Count == 0)
+            {
+                return;
+            }
+            lock (m_subscriptionLock)
+            {
+                outcomes.RemoveAll(outcome => !m_outstandingAcknowledgements.TryRemove(outcome.Handle, out _));
+                if (m_session.AcknowledgementProvider is IAcknowledgementTracker tracker)
+                {
+                    foreach (AcknowledgementOutcome outcome in outcomes)
+                    {
+                        tracker.Complete(outcome.Handle);
+                    }
+                }
+            }
+            m_outcomeDispatcher.Report(m_session.AcknowledgementObserver, outcomes);
+        }
+
+        /// <summary>
+        /// Completes a queue write. An acknowledgement that could not be queued ends as
+        /// abandoned, exactly once.
+        /// </summary>
+        private async ValueTask AwaitQueuedAsync(ValueTask write, PendingAcknowledgement pending)
+        {
+            try
+            {
+                await write.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                if (ex is OperationCanceledException && m_acks.Writer.TryWrite(pending))
+                {
+                    // Cancellation of a queue attempt does not end a live message. Keep
+                    // the original lifetime queued so transfer/retry cannot revive it later.
+                    throw;
+                }
+                List<AcknowledgementOutcome>? abandoned = null;
+                AddOutcome(ref abandoned, pending, AcknowledgementDisposition.Abandoned,
+                    ex is OperationCanceledException
+                        ? StatusCodes.BadRequestCancelledByClient
+                        : StatusCodes.BadShutdown);
+                ReportOutcomes(abandoned);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Delivers the outcomes that are still pending and stops the delivery loop.
+        /// </summary>
+        private ValueTask CompleteOutcomeDeliveryAsync()
+        {
+            return m_outcomeDispatcher.CompleteAsync();
+        }
+
+        /// <summary>
+        /// Whether the policy returned exactly the presented acknowledgements in order.
+        /// </summary>
+        private static bool IsUnchanged(
+            List<SubscriptionAcknowledgement> toSend,
+            List<PendingAcknowledgement> candidates)
+        {
+            if (toSend.Count != candidates.Count)
+            {
+                return false;
+            }
+            for (int i = 0; i < toSend.Count; i++)
+            {
+                if (!ReferenceEquals(toSend[i], candidates[i].Acknowledgement))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Puts acknowledgements of an abandoned or failed Publish attempt back into
+        /// the queue, except those that must not be sent anymore.
+        /// </summary>
+        private void RequeueAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            if (acknowledgements.Count == 0)
+            {
+                return;
+            }
+            RemoveStaleAcknowledgements(acknowledgements);
+            List<AcknowledgementOutcome>? abandoned = null;
+            foreach (PendingAcknowledgement pending in acknowledgements)
+            {
+                if (!m_acks.Writer.TryWrite(pending))
+                {
+                    AddOutcome(ref abandoned, pending, AcknowledgementDisposition.Abandoned,
+                        StatusCodes.BadShutdown);
+                }
+            }
+            ReportOutcomes(abandoned);
+        }
+
+        /// <summary>
+        /// Removes acknowledgements that must not be sent anymore. Each entry is
+        /// validated in constant time under a single registry lock acquisition.
+        /// </summary>
+        private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            int kept = 0;
+            bool observed = RequiresAcknowledgementTracking;
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_subscriptionLock)
+            {
+                for (int i = 0; i < acknowledgements.Count; i++)
+                {
+                    PendingAcknowledgement pending = acknowledgements[i];
+                    AcknowledgementState state = ValidateLocked(pending);
+                    if (state == AcknowledgementState.Valid)
+                    {
+                        acknowledgements[kept++] = pending;
+                    }
+                    else if (observed)
+                    {
+                        if (state == AcknowledgementState.NotHeld)
+                        {
+                            AddOutcome(ref outcomes, pending, AcknowledgementDisposition.NotRetained,
+                                StatusCodes.BadSequenceNumberUnknown);
+                        }
+                        else
+                        {
+                            AddOutcome(ref outcomes, pending, AcknowledgementDisposition.OwnerRetired,
+                                StatusCodes.BadSubscriptionIdInvalid);
+                        }
+                    }
+                }
+            }
+            int removed = acknowledgements.Count - kept;
+            if (removed != 0)
+            {
+                acknowledgements.RemoveRange(kept, removed);
+                m_logger.StaleAcknowledgementsDiscarded(removed);
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Classifies an owned acknowledgement. It is <see cref="AcknowledgementState.Stale"/>
+        /// when its owner was removed, recreated or deleted, changed its server id, or a more
+        /// recently created subscription holds the id (the server reused it): sending it could
+        /// confirm a message of another subscription the client never processed. It is
+        /// <see cref="AcknowledgementState.NotHeld"/> when the server reported that it no longer
+        /// holds the message, or that it has no retransmission queue (Part 4, 5.14.5.2: the
+        /// client should then not acknowledge).
+        /// </summary>
+        private AcknowledgementState ValidateLocked(in PendingAcknowledgement pending)
+        {
+            IMessageProcessor owner = pending.Owner;
+            SubscriptionAcknowledgement acknowledgement = pending.Acknowledgement;
+            uint subscriptionId = acknowledgement.SubscriptionId;
+            if (owner.Id != subscriptionId ||
+                owner.MessageGeneration != pending.Generation ||
+                !IsRegisteredLocked(owner) ||
+                m_superseded.Contains(owner))
+            {
+                return AcknowledgementState.Stale;
+            }
+            if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                !ReferenceEquals(claim.Owner, owner) &&
+                IsLiveOwnerLocked(claim.Owner, subscriptionId))
+            {
+                return AcknowledgementState.Stale;
+            }
+            if (m_windows.TryGetValue(owner, out AvailabilityWindow? window) &&
+                window.MessageGeneration == pending.Generation)
+            {
+                if (window.RetransmissionQueueUnsupported)
+                {
+                    return AcknowledgementState.NotHeld;
+                }
+                uint sequenceNumber = acknowledgement.SequenceNumber;
+                if (IsOlder(sequenceNumber, window.Horizon) && !window.Contains(sequenceNumber))
+                {
+                    return AcknowledgementState.NotHeld;
+                }
+            }
+            return AcknowledgementState.Valid;
+        }
+
+        /// <summary>
+        /// Whether a subscription lifetime no longer owns its acknowledgements: its owner was
+        /// removed, recreated or deleted, changed its server id, or was superseded by a more
+        /// recently created owner of the id.
+        /// </summary>
+        private bool IsRetiredScopeLocked(AcknowledgementScope scope)
+        {
+            if (scope.Owner is not IMessageProcessor owner)
+            {
+                return true;
+            }
+            uint subscriptionId = scope.SubscriptionId;
+            if (owner.Id != subscriptionId ||
+                owner.MessageGeneration != scope.Generation ||
+                !IsRegisteredLocked(owner) ||
+                m_superseded.Contains(owner))
+            {
+                return true;
+            }
+            return m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                !ReferenceEquals(claim.Owner, owner) &&
+                IsLiveOwnerLocked(claim.Owner, subscriptionId);
+        }
+
+        /// <summary>
+        /// Whether a Publish response was produced for the subscription that held the
+        /// owner's id before the server reused it. Only a response to a request sent before
+        /// the id was claimed can be one, and its message was published before the owner was
+        /// created; both times come from the server's clock. A message that is wrongly
+        /// discarded stays in the server's retransmission queue and is republished once the
+        /// owner receives its next message.
+        /// </summary>
+        /// <param name="owner">The subscription the response resolves to.</param>
+        /// <param name="message">The response's notification message.</param>
+        /// <param name="claimMark">The claim sequence when the request was sent.</param>
+        private bool IsMessageOfPreviousSubscription(
+            IManagedSubscription owner,
+            NotificationMessage message,
+            long claimMark)
+        {
+            if (message.PublishTime.IsNull)
+            {
+                return false;
+            }
+            lock (m_subscriptionLock)
+            {
+                return m_claims.TryGetValue(owner.Id, out SubscriptionClaim claim) &&
+                    ReferenceEquals(claim.Owner, owner) &&
+                    claim.Sequence > claimMark &&
+                    !claim.CreatedAt.IsNull &&
+                    message.PublishTime < claim.CreatedAt;
+            }
+        }
+
+        /// <summary>
+        /// Records the retransmission queue a Publish response reported for its subscription.
+        /// The list is prepared after the request's acknowledgements were processed, and a
+        /// message older than the response that is not listed is no longer held by the server.
+        /// </summary>
+        /// <param name="owner">The subscription the response was dispatched to.</param>
+        /// <param name="message">The response's notification message.</param>
+        /// <param name="availableSequenceNumbers">The response's available sequence numbers.</param>
+        /// <param name="claimMark">The claim sequence when the request was sent. A response
+        /// whose id was claimed afterwards may come from the id's previous server
+        /// subscription and must not describe the current owner's queue.</param>
+        private void RecordAvailability(
+            IManagedSubscription owner,
+            NotificationMessage message,
+            ArrayOf<uint> availableSequenceNumbers,
+            long claimMark)
+        {
+            // A keep-alive carries the sequence number of the next message, a data message its own.
+            uint horizon = message.SequenceNumber;
+            if (horizon == 0)
+            {
+                return;
+            }
+            bool data = message.NotificationData.Count != 0;
+            long generation = owner.MessageGeneration;
+            lock (m_subscriptionLock)
+            {
+                if (!IsRegisteredLocked(owner) ||
+                    (m_claims.TryGetValue(owner.Id, out SubscriptionClaim claim) && claim.Sequence > claimMark))
+                {
+                    return;
+                }
+                // A data response must list its own message unless the server has no queue.
+                bool unsupported = data && availableSequenceNumbers.Count == 0;
+                if (m_windows.TryGetValue(owner, out AvailabilityWindow? current) &&
+                    current.MessageGeneration == generation)
+                {
+                    if (IsOlder(horizon, current.Horizon))
+                    {
+                        // Responses can be processed out of order; keep the newer view.
+                        return;
+                    }
+                    if (!data)
+                    {
+                        unsupported = current.RetransmissionQueueUnsupported;
+                    }
+                }
+                if (current == null)
+                {
+                    current = new AvailabilityWindow();
+                    m_windows[owner] = current;
+                }
+                current.Update(generation, horizon, availableSequenceNumbers, unsupported);
+            }
+        }
+
+        /// <summary>
+        /// Forgets the retransmission view of a retiring owner, and its claim on
+        /// <paramref name="subscriptionId"/> unless a live subscription created later holds it.
+        /// Requires the registry lock.
+        /// </summary>
+        private void ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId)
+        {
+            m_windows.Remove(owner);
+            m_superseded.Remove(owner);
+            if (subscriptionId != 0 &&
+                m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                (ReferenceEquals(claim.Owner, owner) || !IsLiveOwnerLocked(claim.Owner, subscriptionId)))
+            {
+                m_claims.Remove(subscriptionId);
+            }
+        }
+
+        /// <summary>
+        /// Whether the processor is still registered. Requires the registry lock.
+        /// </summary>
+        private bool IsRegisteredLocked(IMessageProcessor owner)
+        {
+            return owner is IManagedSubscription subscription && m_subscriptions.Contains(subscription);
+        }
+
+        /// <summary>
+        /// Whether the processor is registered and still uses the id. Requires the registry lock.
+        /// </summary>
+        private bool IsLiveOwnerLocked(IMessageProcessor owner, uint subscriptionId)
+        {
+            return owner.Id == subscriptionId && IsRegisteredLocked(owner);
+        }
+
+        /// <summary>
+        /// Whether a sequence number precedes another, allowing for wrap-around.
+        /// </summary>
+        private static bool IsOlder(uint sequenceNumber, uint reference)
+        {
+            return unchecked((int)(reference - sequenceNumber)) > 0;
+        }
+
+        /// <summary>
+        /// Warns once when deferred acknowledgements accumulate, and re-arms when the
+        /// backlog has drained. Must be called with the policy lock held.
+        /// </summary>
+        private void UpdateDeferredWarning()
+        {
+            int count = m_deferredAcknowledgements.Count;
+            if (!m_deferredWarningRaised && count >= kDeferredAcknowledgementWarningThreshold)
+            {
+                m_deferredWarningRaised = true;
+                m_logger.DeferredAcknowledgementsAccumulating(count);
+            }
+            else if (m_deferredWarningRaised && count < kDeferredAcknowledgementWarningThreshold / 2)
+            {
+                m_deferredWarningRaised = false;
+            }
+        }
+
+        /// <summary>
+        /// Logs acknowledgements the server rejected. <c>Bad_SequenceNumberUnknown</c> is
+        /// expected after a retried request; an invalid subscription id means the
+        /// subscription no longer exists on the server.
+        /// </summary>
+        private void LogAcknowledgementResults(ArrayOf<StatusCode> results)
+        {
+            int unknown = 0;
+            int invalid = 0;
+            int other = 0;
+            for (int i = 0; i < results.Count; i++)
+            {
+                StatusCode code = results[i];
+                if (StatusCode.IsGood(code))
+                {
+                    continue;
+                }
+                if (code == StatusCodes.BadSequenceNumberUnknown)
+                {
+                    unknown++;
+                }
+                else if (code == StatusCodes.BadSubscriptionIdInvalid)
+                {
+                    invalid++;
+                }
+                else
+                {
+                    other++;
+                }
+            }
+            if (unknown != 0 || invalid != 0 || other != 0)
+            {
+                // Unknown sequence numbers alone are expected after a retried request.
+                m_logger.AcknowledgementsRejected(
+                    invalid != 0 || other != 0 ? LogLevel.Information : LogLevel.Debug,
+                    results.Count, unknown, invalid, other);
+            }
+        }
+
+        /// <summary>
+        /// A queued acknowledgement stamped with the processor that produced it and
+        /// that processor's message generation at the time.
+        /// </summary>
+        /// <param name="Acknowledgement">The acknowledgement to send.</param>
+        /// <param name="Scope">The owner's acknowledgement scope of that generation.</param>
+        private readonly record struct PendingAcknowledgement(
+            SubscriptionAcknowledgement Acknowledgement,
+            AcknowledgementScope Scope)
+        {
+            /// <summary>
+            /// Gets the producing processor captured by the scope.
+            /// </summary>
+            public IMessageProcessor Owner => (IMessageProcessor)Scope.Owner;
+
+            /// <summary>
+            /// Gets the message generation captured by the scope.
+            /// </summary>
+            public long Generation => Scope.Generation;
+
+            /// <summary>
+            /// Gets the handle applications use for this acknowledgement.
+            /// </summary>
+            public AcknowledgementHandle Handle => new(Scope, Acknowledgement.SequenceNumber);
+        }
+
+        /// <summary>
+        /// Orders queued acknowledgements by sequence number, so that older messages are
+        /// acknowledged first. <see cref="PendingAcknowledgement"/> does not implement
+        /// <see cref="IComparable{T}"/>: this order ignores the subscription and the owner, so
+        /// it is not consistent with the record's equality.
+        /// </summary>
+        private sealed class SequenceNumberComparer : IComparer<PendingAcknowledgement>
+        {
+            /// <summary>
+            /// The shared instance.
+            /// </summary>
+            public static SequenceNumberComparer Instance { get; } = new();
+
+            /// <inheritdoc/>
+            public int Compare(PendingAcknowledgement x, PendingAcknowledgement y)
+            {
+                return x.Acknowledgement.SequenceNumber.CompareTo(y.Acknowledgement.SequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// Whether an owned acknowledgement may be sent.
+        /// </summary>
+        private enum AcknowledgementState
+        {
+            /// <summary>It may be sent.</summary>
+            Valid,
+
+            /// <summary>Its owner retired it, or another subscription now owns its id.</summary>
+            Stale,
+
+            /// <summary>The server no longer holds the message, but the owner is alive.</summary>
+            NotHeld
+        }
+
+        /// <summary>
+        /// The most recently created owner of a server id.
+        /// </summary>
+        /// <param name="Owner">The owner.</param>
+        /// <param name="Sequence">Orders claims, so a response to a request sent before the
+        /// claim can be told apart from one the current owner's server subscription sent.</param>
+        /// <param name="CreatedAt">The server time when the owner was created, from the
+        /// CreateSubscription response header, or null if unknown.</param>
+        private readonly record struct SubscriptionClaim(
+            IMessageProcessor Owner,
+            long Sequence,
+            DateTimeUtc CreatedAt);
+
+        /// <summary>
+        /// The retransmission queue the server last reported for an owner. Reused across
+        /// responses and guarded by the manager's registry lock, so recording a response does
+        /// not allocate.
+        /// </summary>
+        private sealed class AvailabilityWindow
+        {
+            /// <summary>
+            /// The owner's message generation when recorded.
+            /// </summary>
+            public long MessageGeneration { get; private set; }
+
+            /// <summary>
+            /// Messages older than this are only held if listed.
+            /// </summary>
+            public uint Horizon { get; private set; }
+
+            /// <summary>
+            /// Whether a data response listed nothing, i.e. the server has no retransmission queue.
+            /// </summary>
+            public bool RetransmissionQueueUnsupported { get; private set; }
+
+            /// <summary>
+            /// Replaces the recorded view.
+            /// </summary>
+            public void Update(long messageGeneration, uint horizon, ArrayOf<uint> available, bool unsupported)
+            {
+                MessageGeneration = messageGeneration;
+                Horizon = horizon;
+                RetransmissionQueueUnsupported = unsupported;
+                m_available = available;
+                if (available.Count > kLinearSearchLimit)
+                {
+                    m_lookup ??= [];
+                    m_lookup.Clear();
+                    foreach (uint sequenceNumber in available)
+                    {
+                        m_lookup.Add(sequenceNumber);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Whether the server listed the sequence number as available.
+            /// </summary>
+            public bool Contains(uint sequenceNumber)
+            {
+                if (m_available.Count > kLinearSearchLimit)
+                {
+                    return m_lookup!.Contains(sequenceNumber);
+                }
+                ReadOnlySpan<uint> available = m_available.Span;
+                for (int i = 0; i < available.Length; i++)
+                {
+                    if (available[i] == sequenceNumber)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private const int kLinearSearchLimit = 16;
+            private ArrayOf<uint> m_available;
+            private HashSet<uint>? m_lookup;
+        }
+
+        /// <summary>
+        /// Compares instances by object identity.
+        /// </summary>
+        /// <typeparam name="T">The compared reference type.</typeparam>
+        private sealed class IdentityComparer<T> : IEqualityComparer<T>
+            where T : class
+        {
+            /// <summary>
+            /// The shared instance.
+            /// </summary>
+            public static IdentityComparer<T> Instance { get; } = new();
+
+            /// <inheritdoc/>
+            public bool Equals(T? x, T? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            /// <inheritdoc/>
+            public int GetHashCode(T obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
+            }
+        }
+
+        /// <summary>
         /// Worker object that manages the publish worker tasks inside
         /// the controller.
         /// </summary>
@@ -2034,6 +3089,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         continue;
                     }
+                    List<PendingAcknowledgement> batch = [];
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
@@ -2043,18 +3099,30 @@ namespace Opc.Ua.Client.Subscriptions
                     m_outer.RegisterPublishAttempt(attempt);
                     try
                     {
-                        acks = GetAcksReadyToSend();
+                        batch = GetAcksReadyToSend();
                         handle = ClientBase.NewSharedRequestHandle();
-                        if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
+                        if (batch.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
-                            acks = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
+                            batch = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
                         }
                         if (!m_outer.m_running.IsSet)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                             continue;
                         }
+                        batch = await m_outer.PrepareAcknowledgementsToSendAsync(batch, attemptToken)
+                            .ConfigureAwait(false);
+                        if (batch.Count != 0)
+                        {
+                            var wireAcknowledgements = new SubscriptionAcknowledgement[batch.Count];
+                            for (int i = 0; i < wireAcknowledgements.Length; i++)
+                            {
+                                wireAcknowledgements[i] = batch[i].Acknowledgement;
+                            }
+                            acks = wireAcknowledgements;
+                        }
+                        long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
                         PublishResponse response = await m_outer.m_session.PublishAsync(
@@ -2076,6 +3144,8 @@ namespace Opc.Ua.Client.Subscriptions
                             response.DiagnosticInfos;
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
+                        m_outer.LogAcknowledgementResults(acknowledgeResults);
+                        m_outer.ReportAcknowledgementResults(batch, acknowledgeResults);
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -2100,8 +3170,26 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatency = m_outer.m_timeProvider.GetElapsedTime(
                             publishLatencyStart);
                         publishLatencyRunning = false;
-                        if (subscription != null)
+                        if (subscription != null &&
+                            m_outer.IsMessageOfPreviousSubscription(subscription, notificationMessage, claimMark))
                         {
+                            //
+                            // The server reused the id and produced this message for the
+                            // subscription that held it before. Delivering it would move the
+                            // new owner's sequence cursor past its own first messages. It is
+                            // not acknowledged either: that subscription no longer exists.
+                            // The id still belongs to the new owner, so it is not deleted.
+                            //
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                            m_logger.PublishWorkerDiscardedMessageOfPreviousSubscription(
+                                Index, handle, subscriptionId, notificationMessage.SequenceNumber);
+                        }
+                        else if (subscription != null)
+                        {
+                            m_outer.RecordAvailability(
+                                subscription, notificationMessage, availableSequenceNumbers, claimMark);
+
                             // Capture the delivery generation before draining can retire it.
                             ValueTask delivery = subscription.OnPublishReceivedAsync(
                                 notificationMessage,
@@ -2218,7 +3306,7 @@ namespace Opc.Ua.Client.Subscriptions
                         // messages until its retransmission queue overflows.
                         if (publishActive)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                         }
                         if (!ct.IsCancellationRequested)
                         {
@@ -2241,7 +3329,7 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             if (publishActive)
                             {
-                                acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                                m_outer.RequeueAcknowledgements(batch);
                             }
                             break;
                         }
@@ -2250,7 +3338,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (publishActive)
                         {
                             // Only a failed service request needs acknowledgement rollback.
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                             m_outer.EndPublishRequest();
                             publishActive = false;
                         }
@@ -2396,7 +3484,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <param name="maxWaitTime"></param>
             /// <param name="ct"></param>
             /// <returns></returns>
-            private async Task<ArrayOf<SubscriptionAcknowledgement>> WaitForAcksAsync(
+            private async Task<List<PendingAcknowledgement>> WaitForAcksAsync(
                 int maxWaitTime,
                 CancellationToken ct)
             {
@@ -2432,12 +3520,12 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     using var pauseCts =
                         CancellationTokenSource.CreateLinkedTokenSource(waitToken);
-                    Task<SubscriptionAcknowledgement> readTask = m_outer.m_acks.Reader
+                    Task<PendingAcknowledgement> readTask = m_outer.m_acks.Reader
                         .ReadAsync(pauseCts.Token).AsTask();
                     Task pausedTask = m_outer.m_publishingPaused
                         .WaitAsync(pauseCts.Token);
                     bool readConsumed = false;
-                    SubscriptionAcknowledgement firstAck;
+                    PendingAcknowledgement firstAck;
                     try
                     {
                         Task completed = await Task.WhenAny(readTask, pausedTask)
@@ -2464,7 +3552,7 @@ namespace Opc.Ua.Client.Subscriptions
                             await pauseCts.CancelAsync().ConfigureAwait(false);
                             try
                             {
-                                SubscriptionAcknowledgement acknowledgement =
+                                PendingAcknowledgement acknowledgement =
                                     await readTask.ConfigureAwait(false);
                                 m_outer.m_acks.Writer.TryWrite(acknowledgement);
                             }
@@ -2481,10 +3569,8 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (OperationCanceledException)
                     {
                     }
-                    ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
-                    var ackList = restAcks.ToList();
-                    ackList.Insert(0, firstAck);
-                    ArrayOf<SubscriptionAcknowledgement> acks = ackList;
+                    List<PendingAcknowledgement> acks = GetAcksReadyToSend();
+                    acks.Insert(0, firstAck);
                     if (m_logger.IsEnabled(LogLevel.Debug))
                     {
                         m_logger.PublishWorkerPublishAcksAfterPausing(
@@ -2515,15 +3601,17 @@ namespace Opc.Ua.Client.Subscriptions
             /// Get acks that are ready to send
             /// </summary>
             /// <returns></returns>
-            private ArrayOf<SubscriptionAcknowledgement> GetAcksReadyToSend()
+            private List<PendingAcknowledgement> GetAcksReadyToSend()
             {
-                var acks = new List<SubscriptionAcknowledgement>();
+                var acks = new List<PendingAcknowledgement>();
 
                 // TODO: Is this something that we can get from ops limit?
                 int available = m_outer.m_acks.Reader.Count;
-                int maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
+                int maxAcks = available == 0
+                    ? 0
+                    : Math.Max(1, available / Math.Max(m_outer.PublishWorkerCount, 1));
                 for (int i = 0; i < maxAcks &&
-                    m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
+                    m_outer.m_acks.Reader.TryRead(out PendingAcknowledgement ack); i++)
                 {
                     acks.Add(ack);
                 }
@@ -2617,11 +3705,51 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
+        private const int kDeferredAcknowledgementWarningThreshold = 1000;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
 #pragma warning restore IDE0032 // Use auto property
-        private readonly Channel<SubscriptionAcknowledgement> m_acks;
+        private readonly Channel<PendingAcknowledgement> m_acks;
+        /// <summary>
+        /// Serializes the session's acknowledgement-deferral callback and guards
+        /// <see cref="m_deferredAcknowledgements"/> and <see cref="m_deferredWarningRaised"/>.
+        /// </summary>
+        private readonly Lock m_acknowledgementPolicyLock = new();
+        /// <summary>
+        /// Application-deferred acknowledgements, reconsidered on subsequent Publish attempts.
+        /// </summary>
+        private readonly List<PendingAcknowledgement> m_deferredAcknowledgements = [];
+        /// <summary>
+        /// Acknowledgements presented to the deferral callback. Guarded by
+        /// <see cref="m_acknowledgementPolicyLock"/>.
+        /// </summary>
+        private readonly List<SubscriptionAcknowledgement> m_presentedAcknowledgements = [];
+        private bool m_deferredWarningRaised;
+        private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;
+        /// <summary>
+        /// Acknowledgements that are queued, deferred or in flight and have not ended yet.
+        /// Only maintained while an observer receives outcomes.
+        /// </summary>
+        private readonly ConcurrentDictionary<AcknowledgementHandle, byte> m_outstandingAcknowledgements = new();
+        /// <summary>
+        /// Most recently created owner of each server id. Guarded by <see cref="m_subscriptionLock"/>.
+        /// </summary>
+        private readonly Dictionary<uint, SubscriptionClaim> m_claims = [];
+        private long m_claimSequence;
+        /// <summary>
+        /// Registered subscriptions whose server id a more recently created subscription claimed
+        /// (the server reused it). They stay superseded until they are recreated or retire, even
+        /// when the newer owner completes first. Guarded by <see cref="m_subscriptionLock"/>.
+        /// </summary>
+        private readonly HashSet<IMessageProcessor> m_superseded =
+            new(IdentityComparer<IMessageProcessor>.Instance);
+        /// <summary>
+        /// Latest retransmission-queue view the server reported per owner.
+        /// Guarded by <see cref="m_subscriptionLock"/>.
+        /// </summary>
+        private readonly Dictionary<IMessageProcessor, AvailabilityWindow> m_windows =
+            new(IdentityComparer<IMessageProcessor>.Instance);
         private readonly AsyncManualResetEvent m_running = new();
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
@@ -2870,6 +3998,24 @@ namespace Opc.Ua.Client.Subscriptions
             int count,
             int total);
 
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 1, Level = LogLevel.Error,
+            Message = "The acknowledgement provider failed; {Count} acknowledgements are deferred.")]
+        public static partial void AcknowledgementProviderFailed(
+            this ILogger logger,
+            Exception exception,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 0, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Discarded message #{SequenceNumber} of " +
+                "SubscriptionId={SubscriptionId}: it was published before the subscription that " +
+                "now holds the reused id was created.")]
+        public static partial void PublishWorkerDiscardedMessageOfPreviousSubscription(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId,
+            uint sequenceNumber);
+
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 35, Level = LogLevel.Information,
             Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +
                 "SubscriptionId={SubscriptionId} while subscriptions are still being created. " +
@@ -2879,5 +4025,29 @@ namespace Opc.Ua.Client.Subscriptions
             int handle,
             uint id,
             uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 37, Level = LogLevel.Debug,
+            Message = "Discarded {Count} acknowledgements of retired or reused subscription ids.")]
+        public static partial void StaleAcknowledgementsDiscarded(
+            this ILogger logger,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 38, Level = LogLevel.Warning,
+            Message = "{Count} acknowledgements are deferred by the acknowledgement policy. " +
+                "The server keeps the corresponding messages until they are acknowledged.")]
+        public static partial void DeferredAcknowledgementsAccumulating(
+            this ILogger logger,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 39,
+            Message = "The server rejected acknowledgements ({Count} sent): {Unknown} unknown sequence " +
+                "numbers, {Invalid} invalid subscription ids, {Other} other errors.")]
+        public static partial void AcknowledgementsRejected(
+            this ILogger logger,
+            LogLevel level,
+            int count,
+            int unknown,
+            int invalid,
+            int other);
     }
 }

@@ -94,9 +94,9 @@ namespace Opc.Ua.Server.Hosting
 
         /// <summary>
         /// Maximum simultaneous reverse-connect sessions for this client.
-        /// Zero means unlimited; <c>1</c> permits a single connection at a
-        /// time.
+        /// This setting is ignored.
         /// </summary>
+        [System.Obsolete("MaxSessionCount is no longer supported and is ignored.")]
         public int MaxSessionCount { get; set; }
 
         /// <summary>

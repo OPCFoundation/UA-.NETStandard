@@ -41,6 +41,8 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Security.Certificates;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Client.Tests
 {
     /// <summary>
@@ -238,6 +240,7 @@ namespace Opc.Ua.Client.Tests
         {
             var clock = new ObservableFakeTimeProvider();
             using var keepAlive = new SemaphoreSlim(0);
+            var completedKeepAlives = System.Threading.Channels.Channel.CreateUnbounded<KeepAliveEventArgs>();
             var originalPublish = new AsyncOperationGate();
             var activation = new AsyncOperationGate();
             var resumedPublish = new AsyncOperationGate();
@@ -362,6 +365,14 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(session.Reconnecting, Is.True);
                 Assert.That(session.GoodPublishRequestCount, Is.Zero,
                     "The old Publish must finish while recovery owns admission, without refilling itself.");
+                session.KeepAlive += (current, args) =>
+                {
+                    if (args.Status == null &&
+                        current.TransportChannel.EndpointDescription.EndpointUrl == alternate.Description.EndpointUrl)
+                    {
+                        completedKeepAlives.Writer.TryWrite(args);
+                    }
+                };
                 activation.Release();
                 await recovering.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.SessionId, Is.EqualTo(sessionId));
@@ -385,6 +396,11 @@ namespace Opc.Ua.Client.Tests
                         clock.Advance(TimeSpan.FromMilliseconds(session.KeepAliveInterval));
                         Assert.That(await keepAlive.WaitAsync(s_timeout).ConfigureAwait(false), Is.True,
                             "Reusing a session must restart ongoing keepalive reads.");
+                        // Wait for response processing before advancing past the next keepalive deadline.
+                        KeepAliveEventArgs completed = await completedKeepAlives.Reader.ReadAsync(cancellation.Token)
+                            .AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
+                        Assert.That(completed.Status, Is.Null);
+                        Assert.That(completed.CurrentState, Is.EqualTo(ServerState.Running));
                     }
                 }
             }
@@ -426,6 +442,8 @@ namespace Opc.Ua.Client.Tests
         public async Task RestoredUserNameCredentialsAreResuppliedWithoutSerializationAsync(bool renewal)
         {
             await using var harness = new SessionChannelHarness();
+            // The harness endpoint is unsecured; this test covers credential re-supply, not token encryption.
+            harness.Configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
             ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
             endpoint.Description.UserIdentityTokens =
             [
@@ -470,6 +488,58 @@ namespace Opc.Ua.Client.Tests
             Assert.That(token!.UserName, Is.EqualTo("snapshot-user"));
             Assert.That(token.Password.ToArray(), Is.EqualTo(secret));
             Assert.That(target.SessionId, Is.EqualTo(source.SessionId));
+        }
+
+        /// <summary>
+        /// A restored session activates for the first time on its reconnect,
+        /// so that is where a plain text password is gated. With the default
+        /// configuration the reconnect is rejected before the credentials
+        /// reach the channel, whether the snapshot carries the identity or a
+        /// renewal callback supplies it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RestoredUserNameRejectsPlaintextPasswordOnReconnectByDefaultAsync(bool renewal)
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            endpoint.Description.UserIdentityTokens =
+            [
+                new UserTokenPolicy
+                {
+                    PolicyId = "user", TokenType = UserTokenType.UserName, SecurityPolicyUri = SecurityPolicies.None
+                }
+            ];
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            await using var session = new Session(channel.Channel, harness.Configuration, endpoint);
+            var supplied = new UserIdentity("snapshot-user", Guid.NewGuid().ToByteArray());
+            var saved = new SessionConfiguration
+            {
+                SessionName = "snapshot",
+                SessionId = new NodeId("restored", 1),
+                AuthenticationToken = new NodeId("token", 1),
+                UserIdentityTokenPolicy = SecurityPolicies.None
+            };
+            if (renewal)
+            {
+                saved.IdentityToken = new UserNameIdentityToken { UserName = "snapshot-user", PolicyId = "user" };
+                session.RenewUserIdentity += (_, _) => supplied;
+            }
+            else
+            {
+                saved.Identity = supplied;
+            }
+            session.Restore(saved);
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(error.Message,
+                Does.Contain(nameof(SecurityConfiguration.AllowUnencryptedUserNameTokens)));
+            channel.Mock.Verify(value => value.SendRequestAsync(
+                It.Is<IServiceRequest>(request => request is ActivateSessionRequest),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         [Test]

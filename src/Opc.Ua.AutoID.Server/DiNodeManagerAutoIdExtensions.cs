@@ -30,7 +30,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Opc.Ua.Di.Server;
-using Opc.Ua.Machinery.Server;
 
 namespace Opc.Ua.AutoID.Server
 {
@@ -45,11 +44,9 @@ namespace Opc.Ua.AutoID.Server
         /// <remarks>
         /// The first call selects the runtime options; later calls return the same runtime. A
         /// stand-alone <see cref="AutoIdNodeManager"/> returns its own <see cref="AutoIdNodeManager.Runtime"/>.
-        /// The stock <see cref="MachineryNodeManager"/> disposes a composed runtime on shutdown; a custom
-        /// Device Integration owner calls
-        /// <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/> from its
-        /// asynchronous disposal. No additional node manager is created: the readers are registered
-        /// in the owner, below its <c>DeviceSet</c>.
+        /// The runtime registers itself with <see cref="DiNodeManager.RegisterResource"/>, so the
+        /// owner disposes it on shutdown. No additional node manager is created: the readers are
+        /// registered in the owner, below its <c>DeviceSet</c>.
         /// </remarks>
         /// <param name="manager">The owner that loaded the Device Integration and AutoID models.</param>
         /// <param name="options">Runtime options, or defaults for a new runtime.</param>
@@ -75,7 +72,8 @@ namespace Opc.Ua.AutoID.Server
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
-                    "Load the AutoID model on the owner with AddAutoIdToMachinery before creating readers.");
+                    "Load the AutoID model on the owner with AddAutoIdModel or AddDiModel<AutoIdModelProvider> " +
+                    "before creating readers.");
             }
             AutoIdRuntime runtime = s_runtimes.GetValue(
                 manager,

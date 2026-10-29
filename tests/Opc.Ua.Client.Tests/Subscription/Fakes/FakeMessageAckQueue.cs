@@ -78,14 +78,84 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public Func<uint, CancellationToken, ValueTask>? OnCompleteAsync { get; set; }
 
+        /// <summary>
+        /// Records an acknowledgement as if a processor had queued it.
+        /// </summary>
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
+        {
+            return QueueAsync(null, 0, ack, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask QueueAsync(IMessageProcessor? owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct = default)
         {
             lock (m_lock)
             {
                 m_queuedAcks.Add(ack);
+                m_queuedGenerations.Add(generation);
             }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
+        }
+
+        /// <summary>
+        /// The sequence numbers whose acknowledgement was tracked before delivery.
+        /// </summary>
+        public List<uint> TrackedSequenceNumbers
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_tracked];
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public void TrackAcknowledgement(IMessageProcessor owner, long generation, uint sequenceNumber)
+        {
+            lock (m_lock)
+            {
+                m_tracked.Add(sequenceNumber);
+            }
+        }
+
+        /// <summary>
+        /// The owner generation each entry of <see cref="QueuedAcks"/> was stamped with.
+        /// </summary>
+        public List<long> QueuedAckGenerations
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_queuedGenerations];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes every queued acknowledgement for <paramref name="subscriptionId"/>.
+        /// </summary>
+        /// <returns>The number of removed acknowledgements.</returns>
+        public int ClearQueuedAcks(uint subscriptionId)
+        {
+            lock (m_lock)
+            {
+                int removed = 0;
+                for (int i = m_queuedAcks.Count - 1; i >= 0; i--)
+                {
+                    if (m_queuedAcks[i].SubscriptionId == subscriptionId)
+                    {
+                        m_queuedAcks.RemoveAt(i);
+                        m_queuedGenerations.RemoveAt(i);
+                        removed++;
+                    }
+                }
+                return removed;
+            }
         }
 
         /// <summary>
@@ -177,14 +247,30 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public List<uint> DroppedSubscriptions { get; } = [];
 
-        public int DropPendingForSubscription(uint subscriptionId)
+        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId)
         {
+            // Like the manager, queued entries are not scanned: they fail send-time
+            // validation because their owner's generation advanced.
             DroppedSubscriptions.Add(subscriptionId);
-            lock (m_lock)
-            {
-                return m_queuedAcks.RemoveAll(
-                    ack => ack.SubscriptionId == subscriptionId);
-            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Ids reported through <see cref="OnSubscriptionCreated"/>.
+        /// </summary>
+        public List<uint> CreatedSubscriptions { get; } = [];
+
+        /// <summary>
+        /// Creation times reported through <see cref="OnSubscriptionCreated"/>.
+        /// </summary>
+        public List<DateTimeUtc> CreatedAt { get; } = [];
+
+        /// <inheritdoc/>
+        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default)
+        {
+            CreatedSubscriptions.Add(subscriptionId);
+            CreatedAt.Add(createdAt);
         }
 
         /// <summary>
@@ -218,9 +304,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public bool PoolNotifications { get; set; }
 
+        /// <inheritdoc/>
+        public CancellationToken ShutdownToken { get; set; }
+
         private readonly Lock m_lock = new();
 
         /// <summary>The queue's mutable storage, accessed only under <see cref="m_lock"/>.</summary>
         private readonly List<SubscriptionAcknowledgement> m_queuedAcks = [];
+        private readonly List<long> m_queuedGenerations = [];
+        private readonly List<uint> m_tracked = [];
     }
 }

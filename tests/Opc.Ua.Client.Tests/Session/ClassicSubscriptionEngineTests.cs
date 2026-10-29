@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -943,6 +944,738 @@ namespace Opc.Ua.Client.Tests
             pending.TrySetCanceled();
 
             Assert.That(afterRecovery, Is.EqualTo(afterNudges + 1));
+        }
+
+        /// <summary>
+        /// An acknowledgement approved by an asynchronous decision is not sent when its
+        /// subscription was recreated with the same id while the provider decided: it is
+        /// retired instead.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AnApprovedAcknowledgementOfARecreatedSubscriptionIsRetiredAsync(CancellationToken ct)
+        {
+            var decision = new TaskCompletionSource<AcknowledgementDecision>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new PendingDecisionProvider(decision.Task);
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, provider, observer);
+
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription original = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            using Subscription replacement = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            List<Subscription> subscriptions = [original];
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => [.. subscriptions]);
+            var sent = new System.Collections.Concurrent.ConcurrentQueue<uint>();
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>(
+                    (_, acknowledgements, _) =>
+                    {
+                        foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                        {
+                            sent.Enqueue(acknowledgement.SequenceNumber);
+                        }
+                    })
+                .Returns(new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task));
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            var handle = new AcknowledgementHandle(original.GetAcknowledgementScope(), 3);
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(provider.Calls, Is.EqualTo(1), "The decision is pending.");
+            subscriptions[0] = replacement;
+            decision.SetResult(AcknowledgementDecision.SendAll);
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, ct).ConfigureAwait(false);
+            Assert.That(sent, Is.Empty, "The acknowledgement would confirm a message of the replacement.");
+            Assert.That(observer.Outcomes.Single().Handle, Is.EqualTo(handle));
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+        }
+
+        /// <summary>
+        /// Disposing the engine ends in-flight acknowledgements as well as pending ones.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposeEndsInFlightAcknowledgementsAsync(CancellationToken ct)
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements =>
+                    ([.. acknowledgements], []));
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task));
+            var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.AddPendingAcknowledgement(7, 4);
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            engine.AddPendingAcknowledgement(7, 5);
+            engine.Dispose();
+
+            await WaitForAsync(() => observer.Outcomes.Count == 3, ct).ConfigureAwait(false);
+            uint[] ended = [.. observer.Outcomes.Select(outcome => outcome.Handle.SequenceNumber)];
+            Array.Sort(ended);
+            Assert.That(ended,
+                Is.EqualTo(s_inFlightAndPending));
+            Assert.That(observer.Outcomes.All(outcome => outcome.Disposition == AcknowledgementDisposition.Abandoned),
+                Is.True);
+        }
+
+        /// <summary>
+        /// With an acknowledgement configuration, an acknowledgement that is still pending is
+        /// queued once and tracked for confirmation; without one, duplicates are kept as before.
+        /// </summary>
+        [Test]
+        public async Task TrackedAcknowledgementsAreQueuedOnceAsync()
+        {
+            var acknowledgements = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var confirmations = (ConfirmedAcknowledgementProvider)acknowledgements.Provider!;
+            SessionAcknowledgements? configured = null;
+            var context = new AcknowledgingContext(m_mockContext.Object, () => configured);
+
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using (var untracked = new ClassicSubscriptionEngine(context))
+            {
+                untracked.AddPendingAcknowledgement(7, 3);
+                untracked.AddPendingAcknowledgement(7, 3);
+                Assert.That(untracked.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(2));
+            }
+            configured = acknowledgements;
+            using var engine = new ClassicSubscriptionEngine(context);
+
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.AddPendingAcknowledgement(7, 3);
+
+            Assert.That(confirmations.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Deleting a classic subscription ends its pending acknowledgements right away, without
+        /// waiting for another Publish request.
+        /// </summary>
+        [Test]
+        public async Task DeletingASubscriptionRetiresItsPendingAcknowledgementsAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            AcknowledgementScope before = subscription.GetAcknowledgementScope();
+
+            subscription.SupersedeIdClaim();
+            engine.RetireAcknowledgementsOf(subscription);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observer.Outcomes.Single().Handle, Is.EqualTo(new AcknowledgementHandle(before, 3)));
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero, "Nothing is left to send.");
+            engine.RetireAcknowledgementsOf(subscription);
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1), "Retiring again reports nothing new.");
+        }
+
+        /// <summary>
+        /// Removing a classic subscription from its session ends its current lifetime too, so its
+        /// pending acknowledgements end without another Publish request.
+        /// </summary>
+        [Test]
+        public async Task RemovingASubscriptionRetiresItsCurrentLifetimeAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 4);
+
+            engine.RetireAcknowledgementsOf(subscription);
+            Assert.That(observer.Outcomes, Is.Empty, "The current lifetime is kept when only older ones ended.");
+            engine.RetireAcknowledgementsOf(subscription, includeCurrentLifetime: true);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+        }
+
+        /// <summary>
+        /// An acknowledgement retired while its Publish request is in flight is not requeued when
+        /// the request then fails, so it cannot be sent later under a reused id.
+        /// </summary>
+        [Test]
+        public async Task AnAcknowledgementRetiredInFlightIsNotRequeuedWhenThePublishFailsAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            var response = new TaskCompletionSource<PublishResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int publishCalls = 0;
+            var resent = new System.Collections.Concurrent.ConcurrentQueue<uint>();
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>((_, acknowledgements, _) =>
+                {
+                    if (Interlocked.Increment(ref publishCalls) == 1)
+                    {
+                        return new ValueTask<PublishResponse>(response.Task);
+                    }
+                    foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                    {
+                        resent.Enqueue(acknowledgement.SequenceNumber);
+                    }
+                    return new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task);
+                });
+            var failed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockContext.Setup(c => c.OnPublishError(It.IsAny<ServiceResult>(), It.IsAny<uint>(), It.IsAny<uint>()))
+                .Callback(() => failed.TrySetResult(true));
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            subscription.SupersedeIdClaim();
+            engine.RetireAcknowledgementsOf(subscription);
+            response.SetException(new ServiceResultException(StatusCodes.BadTimeout));
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await Task.Delay(500).ConfigureAwait(false);
+            engine.BeginPublish(timeout: 5000);
+
+            Assert.That(resent, Is.Empty, "The retired entry is neither requeued nor sent again.");
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// When the session is recreated in place while a Publish request is in flight, its tracked
+        /// acknowledgements are not retired but sent again on the new session, so a subscription
+        /// transferred to it keeps its handles and each acknowledgement ends once.
+        /// </summary>
+        [Test]
+        public async Task InFlightAcknowledgementsSurviveAnInPlaceSessionRecreateAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            List<SubscriptionAcknowledgement>? inFlight = null;
+            var sent = new System.Collections.Concurrent.ConcurrentQueue<uint>();
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>((_, acknowledgements, _) =>
+                {
+                    if (inFlight == null)
+                    {
+                        inFlight = [.. acknowledgements];
+                    }
+                    else
+                    {
+                        foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                        {
+                            sent.Enqueue(acknowledgement.SequenceNumber);
+                        }
+                    }
+                    return new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task);
+                });
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(inFlight, Has.Count.EqualTo(1));
+
+            // The request fails for the previous session after the session was recreated in place.
+            InvokeOnPublishComplete(
+                engine,
+                Task.FromException<PublishResponse>(new ServiceResultException(StatusCodes.BadSessionIdInvalid)),
+                new NodeId(9),
+                inFlight);
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.BeginPublish(timeout: 5000);
+
+            Assert.That(observer.Outcomes, Is.Empty, "Nothing ended: the subscription lives on.");
+            Assert.That(sent, Is.EqualTo(s_resentOnce), "Sent once on the new session; the transfer adds no duplicate.");
+        }
+        private static readonly uint[] s_resentOnce = [3u];
+
+        private static readonly uint[] s_inFlightAndPending = [3u, 4u, 5u];
+
+        /// <summary>
+        /// With an observer but no provider, an acknowledgement whose subscription was recreated
+        /// with the same id is retired instead of being sent, whether the subscription changes
+        /// before or while the legacy handler runs.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyPathRetiresAcknowledgementsOfARecreatedSubscriptionAsync(bool duringHandler)
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription original = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            using Subscription replacement = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            List<Subscription> subscriptions = [original];
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => [.. subscriptions]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements =>
+                {
+                    subscriptions[0] = replacement;
+                    return ([.. acknowledgements], []);
+                });
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            if (!duringHandler)
+            {
+                subscriptions[0] = replacement;
+            }
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(sent, Is.Empty);
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+        }
+
+        /// <summary>
+        /// With an observer but no provider, an acknowledgement the legacy handler drops from both
+        /// lists ends as abandoned right away.
+        /// </summary>
+        [Test]
+        public async Task LegacyPathAbandonsAcknowledgementsTheHandlerDropsAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements =>
+                    ([], [.. acknowledgements.Where(acknowledgement => acknowledgement.SequenceNumber != 3)]));
+            CapturePublishedAcknowledgements();
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.AddPendingAcknowledgement(7, 4);
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observer.Outcomes.Single().Handle.SequenceNumber, Is.EqualTo(3u));
+            Assert.That(observer.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.Abandoned));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(1), "The retained one is kept.");
+        }
+
+        /// <summary>
+        /// An older subscription still registered under an id the server gave to a newer one is
+        /// superseded: its acknowledgements are retired and new acknowledgements of the id belong
+        /// to the newer one, and it stays superseded after the newer one is gone.
+        /// </summary>
+        [Test]
+        public async Task AnOlderOwnerOfAReusedIdIsSupersededAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, null, observer);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription older = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            using Subscription newer = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            List<Subscription> subscriptions = [older];
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => [.. subscriptions]);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            subscriptions = [older, newer];
+            engine.AddPendingAcknowledgement(7, 5);
+            Assert.That(older.IsIdClaimSuperseded, Is.True);
+            Assert.That(newer.IsIdClaimSuperseded, Is.False);
+            subscriptions = [older];
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+
+            await WaitForAsync(() => observer.Outcomes.Count == 2, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(sent, Is.Empty, "Neither the superseded owner nor the retired newer one may acknowledge.");
+            Assert.That(observer.Outcomes.All(outcome => outcome.Disposition == AcknowledgementDisposition.OwnerRetired),
+                Is.True);
+            Assert.That(observer.Outcomes.Single(outcome => outcome.Handle.SequenceNumber == 5).Handle.Scope!.Owner,
+                Is.SameAs(newer), "The acknowledgement of the reused id belongs to the newer subscription.");
+        }
+
+        /// <summary>
+        /// The classic engine passes its shutdown token to the provider, so a pending decision is
+        /// cancelled when the engine is disposed.
+        /// </summary>
+        [Test]
+        public async Task ProviderDecisionsAreCancelledWhenTheEngineIsDisposedAsync()
+        {
+            var decision = new TaskCompletionSource<AcknowledgementDecision>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new PendingDecisionProvider(decision.Task);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.Immediate, provider, null);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            CapturePublishedAcknowledgements();
+            var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(provider.LastToken.CanBeCanceled, Is.True);
+            Assert.That(provider.LastToken.IsCancellationRequested, Is.False);
+            engine.Dispose();
+
+            Assert.That(provider.LastToken.IsCancellationRequested, Is.True);
+        }
+
+        /// <summary>
+        /// Concurrent Publish calls cannot invoke the provider twice while the first call
+        /// has not yet returned its asynchronous decision.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ProviderDecisionIsReservedBeforeInvokingApplicationCodeAsync(CancellationToken ct)
+        {
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var decision = new TaskCompletionSource<AcknowledgementDecision>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            var provider = new Mock<ISubscriptionAcknowledgementProvider>();
+            provider.Setup(value => value.DecideAsync(
+                    It.IsAny<ArrayOf<AcknowledgementHandle>>(), It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<AcknowledgementHandle> _, CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        if (!release.Wait(TimeSpan.FromSeconds(5), token))
+                        {
+                            throw new TimeoutException("The test did not release the provider invocation.");
+                        }
+                    }
+                    return new ValueTask<AcknowledgementDecision>(decision.Task);
+                });
+            var configuration = new SessionAcknowledgements(
+                AcknowledgementMode.Immediate, provider.Object, null);
+            m_mockContext.Setup(value => value.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(value => value.Subscriptions).Returns([subscription]);
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+
+            engine.MinPublishRequestCount = 2;
+            Task<bool> first = Task.Run(() => engine.BeginPublish(5000), ct);
+            try
+            {
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(engine.BeginPublish(5000), Is.True);
+                Assert.That(Volatile.Read(ref calls), Is.EqualTo(1));
+                Assert.That(sent, Is.Empty);
+            }
+            finally
+            {
+                release.Set();
+                await first.ConfigureAwait(false);
+                decision.TrySetResult(AcknowledgementDecision.SendAll);
+            }
+            engine.BeginPublish(5000);
+            await WaitForAsync(() => sent.Contains(3u), ct).ConfigureAwait(false);
+        }
+
+        private System.Collections.Concurrent.ConcurrentQueue<uint> CapturePublishedAcknowledgements()
+        {
+            var sent = new System.Collections.Concurrent.ConcurrentQueue<uint>();
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>(
+                    (_, acknowledgements, _) =>
+                    {
+                        foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                        {
+                            sent.Enqueue(acknowledgement.SequenceNumber);
+                        }
+                    })
+                .Returns(new ValueTask<PublishResponse>(new TaskCompletionSource<PublishResponse>().Task));
+            return sent;
+        }
+
+        private async Task<Subscription> CreateSubscriptionAsync(uint subscriptionId)
+        {
+            Mock<ISession> session = CreateSubscriptionSession(subscriptionId);
+            var subscription = new Subscription(
+                m_telemetry,
+                new SubscriptionOptions
+                {
+                    PublishingEnabled = false
+                })
+            {
+                Session = session.Object
+            };
+            await subscription.CreateAsync().ConfigureAwait(false);
+            return subscription;
+        }
+
+        private static async Task WaitForAsync(Func<bool> condition, CancellationToken ct)
+        {
+            while (!condition())
+            {
+                await Task.Delay(10, ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Forwards the engine context to a mock and adds the acknowledgement configuration,
+        /// which the mock cannot provide because its type is internal.
+        /// </summary>
+        /// <param name="context">The mocked context.</param>
+        /// <param name="configuration">Returns the acknowledgement configuration.</param>
+        private sealed class AcknowledgingContext(
+            ISubscriptionEngineContext context,
+            Func<SessionAcknowledgements?> configuration) :
+            ISubscriptionEngineContext,
+            IAcknowledgementPolicyCapability
+        {
+            /// <inheritdoc/>
+            public NodeId SessionId => context.SessionId;
+
+            /// <inheritdoc/>
+            public bool Reconnecting => context.Reconnecting;
+
+            /// <inheritdoc/>
+            public bool Connected => context.Connected;
+
+            /// <inheritdoc/>
+            public bool Closing => context.Closing;
+
+            /// <inheritdoc/>
+            public bool KeepAliveStopped => context.KeepAliveStopped;
+
+            /// <inheritdoc/>
+            public DateTime LastKeepAliveTime => context.LastKeepAliveTime;
+
+            /// <inheritdoc/>
+            public bool Disposed => context.Disposed;
+
+            /// <inheritdoc/>
+            public bool DeleteSubscriptionsOnClose => context.DeleteSubscriptionsOnClose;
+
+            /// <inheritdoc/>
+            public int OperationTimeout => context.OperationTimeout;
+
+            /// <inheritdoc/>
+            public double SessionTimeout => context.SessionTimeout;
+
+            /// <inheritdoc/>
+            public ServerState ServerState => context.ServerState;
+
+            /// <inheritdoc/>
+            public DiagnosticsMasks ReturnDiagnostics => context.ReturnDiagnostics;
+
+            /// <inheritdoc/>
+            public ITelemetryContext Telemetry => context.Telemetry;
+
+            /// <inheritdoc/>
+            public IReadOnlyList<Subscription> Subscriptions => context.Subscriptions;
+
+            /// <inheritdoc/>
+            public SemaphoreSlim ReconnectLock => context.ReconnectLock;
+
+            /// <inheritdoc/>
+            public int GoodPublishRequestCount => context.GoodPublishRequestCount;
+
+            /// <inheritdoc/>
+            public ISubscriptionServiceSetClientMethods SubscriptionServiceSet => context.SubscriptionServiceSet;
+
+            /// <inheritdoc/>
+            public IMonitoredItemServiceSetClientMethods MonitoredItemServiceSet => context.MonitoredItemServiceSet;
+
+            /// <inheritdoc/>
+            public IMethodServiceSetClientMethods MethodServiceSet => context.MethodServiceSet;
+
+            /// <inheritdoc/>
+            public bool HasAcknowledgementPolicy => false;
+
+            /// <inheritdoc/>
+            public SessionAcknowledgements? Acknowledgements => configuration();
+
+            /// <inheritdoc/>
+            public ValueTask<PublishResponse> PublishAsync(
+                RequestHeader requestHeader,
+                ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+                CancellationToken ct = default)
+            {
+                return context.PublishAsync(requestHeader, acknowledgements, ct);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<uint> subscriptionIds,
+                bool sendInitialValues,
+                CancellationToken ct = default)
+            {
+                return context.TransferSubscriptionsAsync(requestHeader, subscriptionIds, sendInitialValues, ct);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<DeleteSubscriptionsResponse> DeleteSubscriptionsAsync(
+                RequestHeader? requestHeader,
+                ArrayOf<uint> subscriptionIds,
+                CancellationToken ct = default)
+            {
+                return context.DeleteSubscriptionsAsync(requestHeader, subscriptionIds, ct);
+            }
+
+            /// <inheritdoc/>
+            public void OnKeepAlive(ServerState serverState, DateTime timestamp)
+            {
+                context.OnKeepAlive(serverState, timestamp);
+            }
+
+            /// <inheritdoc/>
+            public void OnPublishError(ServiceResult error, uint subscriptionId, uint sequenceNumber)
+            {
+                context.OnPublishError(error, subscriptionId, sequenceNumber);
+            }
+
+            /// <inheritdoc/>
+            public void OnPublishNotification(Subscription subscription, NotificationEventArgs notification)
+            {
+                context.OnPublishNotification(subscription, notification);
+            }
+
+            /// <inheritdoc/>
+            public void OnKeepAliveError(ServiceResult error)
+            {
+                context.OnKeepAliveError(error);
+            }
+
+            /// <inheritdoc/>
+            public void AsyncRequestStarted(Task task, Activity? activity, uint requestHandle, uint requestTypeId)
+            {
+                context.AsyncRequestStarted(task, activity, requestHandle, requestTypeId);
+            }
+
+            /// <inheritdoc/>
+            public void AsyncRequestCompleted(Task task, uint requestHandle, uint requestTypeId)
+            {
+                context.AsyncRequestCompleted(task, requestHandle, requestTypeId);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending)
+                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> currentAcknowledgements)
+            {
+                return context.PrepareAcknowledgementsToSend(currentAcknowledgements);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask DeleteOrphanedSubscriptionAsync(uint subscriptionId)
+            {
+                return context.DeleteOrphanedSubscriptionAsync(subscriptionId);
+            }
+
+            /// <inheritdoc/>
+            public bool TryDispatchToSessionSubscription(
+                uint subscriptionId,
+                NotificationMessage message,
+                ArrayOf<uint> availableSequenceNumbers,
+                ArrayOf<string> stringTable,
+                bool moreNotifications)
+            {
+                return context.TryDispatchToSessionSubscription(
+                    subscriptionId, message, availableSequenceNumbers, stringTable, moreNotifications);
+            }
+        }
+
+        /// <summary>
+        /// Returns a decision that completes when the test says so.
+        /// </summary>
+        private sealed class PendingDecisionProvider(Task<AcknowledgementDecision> decision) :
+            ISubscriptionAcknowledgementProvider
+        {
+            public int Calls => Volatile.Read(ref m_calls);
+
+            public CancellationToken LastToken { get; private set; }
+
+            public ValueTask<AcknowledgementDecision> DecideAsync(
+                ArrayOf<AcknowledgementHandle> acknowledgements,
+                CancellationToken ct = default)
+            {
+                Interlocked.Increment(ref m_calls);
+                LastToken = ct;
+                return new ValueTask<AcknowledgementDecision>(decision);
+            }
+
+            private int m_calls;
+        }
+
+        /// <summary>
+        /// Collects the reported outcomes.
+        /// </summary>
+        private sealed class CollectingObserver : ISubscriptionAcknowledgementObserver
+        {
+            public IReadOnlyList<AcknowledgementOutcome> Outcomes => [.. m_outcomes];
+
+            public ValueTask OnCompletedAsync(
+                ArrayOf<AcknowledgementOutcome> outcomes,
+                CancellationToken ct = default)
+            {
+                foreach (AcknowledgementOutcome outcome in outcomes)
+                {
+                    m_outcomes.Enqueue(outcome);
+                }
+                return default;
+            }
+
+            private readonly System.Collections.Concurrent.ConcurrentQueue<AcknowledgementOutcome> m_outcomes = new();
         }
 
         private static void InvokeOnPublishComplete(
