@@ -64,10 +64,6 @@ namespace Opc.Ua.Redundancy.Server
         internal override bool IndexesRecentEvents => true;
 
         /// <inheritdoc/>
-        /// <remarks>The mirrored snapshot is a copy: the queued events keep their handles.</remarks>
-        internal override bool KeepsEventHandles => true;
-
-        /// <inheritdoc/>
         public override void Enqueue(EventFieldList value)
         {
             base.Enqueue(value);

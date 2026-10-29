@@ -2098,8 +2098,6 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // a queue that may lose the handles has every queued event classified, so the
-            // cached filter context is used.
             if (handle is IFilterTarget target && m_server.TypeTree != null)
             {
                 return target.IsTypeOf(GetEventFilterContext(out _), ObjectTypeIds.ConditionType);
