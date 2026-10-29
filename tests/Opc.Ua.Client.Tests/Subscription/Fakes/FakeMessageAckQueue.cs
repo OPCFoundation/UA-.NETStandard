@@ -87,12 +87,24 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return QueueAsync(null, 0, ack, ct);
         }
 
+        /// <summary>
+        /// Mirror the subscription manager with acknowledgement tracking
+        /// enabled: an acknowledgement is admitted only once, and only for a
+        /// sequence number whose lifetime was tracked first. Others are
+        /// silently dropped.
+        /// </summary>
+        public bool RequireTracking { get; init; }
+
         /// <inheritdoc/>
         public ValueTask QueueAsync(IMessageProcessor? owner, long generation,
             SubscriptionAcknowledgement ack, CancellationToken ct = default)
         {
             lock (m_lock)
             {
+                if (RequireTracking && !m_admittable.Remove(ack.SequenceNumber))
+                {
+                    return default;
+                }
                 m_queuedAcks.Add(ack);
                 m_queuedGenerations.Add(generation);
             }
@@ -119,6 +131,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             lock (m_lock)
             {
                 m_tracked.Add(sequenceNumber);
+                m_admittable.Add(sequenceNumber);
             }
         }
 
@@ -313,5 +326,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         private readonly List<SubscriptionAcknowledgement> m_queuedAcks = [];
         private readonly List<long> m_queuedGenerations = [];
         private readonly List<uint> m_tracked = [];
+        private readonly HashSet<uint> m_admittable = [];
     }
 }

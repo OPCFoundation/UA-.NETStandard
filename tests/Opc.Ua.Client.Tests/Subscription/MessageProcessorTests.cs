@@ -1250,6 +1250,392 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task NewerCopyOfBufferedMessageIsNotDeliveredAgainAtGapTimeoutAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 40
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await WaitForMissingCountAsync(sut, 2).ConfigureAwait(false);
+
+                // A second copy of 4 arrives in a response that advertises
+                // the missing messages. Recovery delivers 2, 3 and this copy.
+                SetupRepublish();
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [2, 3, 4], [])
+                    .ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 4).ConfigureAwait(false);
+
+                timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [],
+                    []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 5).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3, 4 }));
+                Assert.That(sut.ReceivedSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 2, 3, 4, 5 }));
+            }
+        }
+
+        [Test]
+        public async Task TransferRecoveryDeliversBufferedMessageOnlyOnceAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 41
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                    .ConfigureAwait(false);
+                await WaitForMissingCountAsync(sut, 1).ConfigureAwait(false);
+
+                SetupRepublish();
+                await sut.RecoverTransferredMessagesAsync([2, 3], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(3));
+                m_mockServices.Verify(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    3,
+                    It.IsAny<CancellationToken>()), Times.Never);
+
+                timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 4 },
+                    [],
+                    []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 4).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+            }
+        }
+
+        [Test]
+        public async Task KeepAliveDoesNotDispatchBufferedMessageAheadOfMissingOneAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 42
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                    .ConfigureAwait(false);
+
+                // The keep-alive advertises only the buffered message. Data 2
+                // is still in flight and must not be skipped.
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 4 },
+                    [3],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(1));
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 3).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+            }
+        }
+
+        [Test]
+        public async Task DelayedKeepAliveDoesNotRewindDataGateAfterDrainAsync()
+        {
+            SetupRepublish();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 43
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                    .ConfigureAwait(false);
+
+                // A delayed keep-alive for 3 recovers 2, which drains the
+                // buffered 3. The gate must stay at 3.
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 3 },
+                    [2],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(3));
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await WaitForDataSeqNumberAsync(sut, 4).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3, 4 }));
+            }
+        }
+
+        [Test]
+        public async Task GapTimeoutDoesNotLoseWakeUpForNextMessageAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 44
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                // Each cycle lets the gap timer win the race against the
+                // pending channel read. The next message must still wake
+                // the worker.
+                uint next = 1;
+                for (int cycle = 0; cycle < 3; cycle++)
+                {
+                    uint buffered = next + 2;
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(buffered), [], [])
+                        .ConfigureAwait(false);
+                    await AdvanceUntilAsync(timeProvider,
+                        () => sut.LastDataSequenceNumberProcessed == buffered)
+                        .ConfigureAwait(false);
+
+                    next = buffered + 1;
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(next), [], [])
+                        .ConfigureAwait(false);
+                    await WaitForDataSeqNumberAsync(sut, next).ConfigureAwait(false);
+                }
+
+                Assert.That(sut.DataSequenceNumbers,
+                    Is.EqualTo(new uint[] { 1, 3, 4, 6, 7, 9, 10 }));
+            }
+        }
+
+        [Test]
+        public async Task GapTimeoutFiresWhileKeepAliveBacklogIsProcessedAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry, timeProvider)
+            {
+                Id = 45
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                await sut.Block.WaitAsync().ConfigureAwait(false);
+                bool blockHeld = true;
+                try
+                {
+                    await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                        .ConfigureAwait(false);
+                    await WaitForMissingCountAsync(sut, 1).ConfigureAwait(false);
+
+                    // Park the worker in a keep-alive callback, then queue a
+                    // backlog so the channel never runs empty.
+                    await sut.OnPublishReceivedAsync(
+                        new NotificationMessage { SequenceNumber = 4 },
+                        [],
+                        []).ConfigureAwait(false);
+                    await sut.KeepAliveNotificationReceived.WaitAsync()
+                        .WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        await sut.OnPublishReceivedAsync(
+                            new NotificationMessage { SequenceNumber = 4 },
+                            [],
+                            []).ConfigureAwait(false);
+                    }
+
+                    timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
+                    sut.Block.Release();
+                    blockHeld = false;
+
+                    await WaitForReceivedCountAsync(sut, 8).ConfigureAwait(false);
+
+                    Assert.That(sut.ReceivedSequenceNumbers,
+                        Is.EqualTo(new uint[] { 1, 4, 3, 4, 4, 4, 4, 4 }));
+                }
+                finally
+                {
+                    if (blockHeld)
+                    {
+                        sut.Block.Release();
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public async Task LateOriginalSkippedByGapTimeoutIsTrackedBeforeAcknowledgementAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var ackQueue = new FakeMessageAckQueue { RequireTracking = true };
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                ackQueue, m_telemetry, timeProvider)
+            {
+                Id = 46
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await AdvanceUntilAsync(timeProvider,
+                    () => sut.LastDataSequenceNumberProcessed == 4).ConfigureAwait(false);
+
+                // The original 2 arrives after the timeout skipped it, then a
+                // duplicate of the delivered 4.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 6 },
+                    [],
+                    []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 4).ConfigureAwait(false);
+                await ackQueue.WaitForQueuedAckAsync(3).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 4 }));
+                Assert.That(ackQueue.QueuedAcks.Select(a => a.SequenceNumber),
+                    Is.EquivalentTo(new uint[] { 1, 4, 2 }));
+                Assert.That(ackQueue.TrackedSequenceNumbers,
+                    Is.EquivalentTo(new uint[] { 1, 4, 2 }));
+            }
+        }
+
+        [Test]
+        public async Task GapTimeoutRepublishesAvailableMessageBehindHoleAsync()
+        {
+            SetupRepublish();
+            var timeProvider = new FakeTimeProvider();
+            var ackQueue = new FakeMessageAckQueue { RequireTracking = true };
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                ackQueue, m_telemetry, timeProvider)
+            {
+                Id = 47
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                // 3 is available, but 2 is a hole in front of it, so the walk
+                // waits. The timeout skips 2 and still recovers 3.
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [3], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [3],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
+
+                await AdvanceUntilAsync(timeProvider,
+                    () => sut.LastDataSequenceNumberProcessed == 4).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 3, 4 }));
+                m_mockServices.Verify(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    3,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                m_mockServices.Verify(c => c.RepublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<uint>(),
+                    2,
+                    It.IsAny<CancellationToken>()), Times.Never);
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 6 },
+                    [],
+                    []).ConfigureAwait(false);
+                await WaitForReceivedCountAsync(sut, 5).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 3, 4 }));
+                Assert.That(ackQueue.QueuedAcks.Select(a => a.SequenceNumber),
+                    Does.Contain(2u));
+            }
+        }
+
+        [Test]
+        public async Task KeepAliveDoesNotCountBufferedGapTwiceAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object,
+                m_completion, m_telemetry)
+            {
+                Id = 48
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.MissingMessageCount, Is.EqualTo(2));
+            }
+        }
+
+        [Test]
         public async Task SequenceNumberWraparoundAdvancesLastProcessedAsync()
         {
             // Per OPC UA Part 4 §7.30.5, sequence numbers wrap from
@@ -1772,10 +2158,12 @@ namespace Opc.Ua.Client.Subscriptions
         [Test]
         public async Task RecoverTransferredMessagesRepublishesMessageWhoseGapRepublishFailedAsync()
         {
-            SetupRepublishFailingFirst(11, 1);
+            // Fail both the gap republish and the retry when the gap times out.
+            SetupRepublishFailingFirst(11, 2);
+            var timeProvider = new FakeTimeProvider();
 
             var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_completion, m_telemetry)
+                m_completion, m_telemetry, timeProvider)
             {
                 Id = 29
             };
@@ -1783,10 +2171,12 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(10),
                     [], []).ConfigureAwait(false);
-                // Data 11 is lost and its republish fails.
+                // Data 11 is lost and its republish fails. Data 12 waits
+                // behind the hole until the gap timeout skips it.
                 await sut.OnPublishReceivedAsync(BuildDataChangeMessage(12),
                     [11, 12], []).ConfigureAwait(false);
-                await WaitForReceivedCountAsync(sut, 2).ConfigureAwait(false);
+                await AdvanceUntilAsync(timeProvider,
+                    () => sut.ReceivedSequenceNumbers.Count >= 2).ConfigureAwait(false);
                 Assert.That(sut.ReceivedSequenceNumbers,
                     Is.EqualTo(new uint[] { 10, 12 }));
 
@@ -1801,7 +2191,7 @@ namespace Opc.Ua.Client.Subscriptions
                         It.IsAny<uint>(),
                         It.Is<uint>(s => s == 11),
                         It.IsAny<CancellationToken>()),
-                    Times.Exactly(2));
+                    Times.Exactly(3));
                 m_mockServices.Verify(
                     c => c.RepublishAsync(
                         It.IsAny<RequestHeader>(),
@@ -2035,6 +2425,46 @@ namespace Opc.Ua.Client.Subscriptions
                         $"Timeout: LastSequenceNumberProcessed = {sut.LastSequenceNumberProcessed}, " +
                         $"expected = {expected}, received = " +
                         $"[{string.Join(",", sut.ReceivedSequenceNumbers)}]");
+                }
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Advance the fake clock past the gap recovery timeout until the
+        /// condition holds, so the test does not depend on when the worker
+        /// arms its timer.
+        /// </summary>
+        private static async Task AdvanceUntilAsync(
+            FakeTimeProvider timeProvider,
+            Func<bool> condition,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (!condition())
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail("Timeout: the gap recovery timeout had no effect.");
+                }
+                timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task WaitForMissingCountAsync(
+            TestMessageProcessor sut,
+            long expected,
+            int timeoutSeconds = 5)
+        {
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(timeoutSeconds);
+            while (sut.MissingMessageCount < expected)
+            {
+                if (DateTimeOffset.UtcNow > deadline)
+                {
+                    Assert.Fail(
+                        $"Timeout: MissingMessageCount = {sut.MissingMessageCount}, " +
+                        $"expected = {expected}");
                 }
                 await Task.Delay(10).ConfigureAwait(false);
             }
