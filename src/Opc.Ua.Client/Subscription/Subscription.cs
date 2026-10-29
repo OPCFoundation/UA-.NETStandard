@@ -786,6 +786,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
+                    StopKeepAliveTimer();
                     m_publishTimer.Dispose();
                     m_changeTracking?.Dispose();
                     m_cts.Dispose();
@@ -1693,7 +1694,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void StopKeepAliveTimer()
         {
-            m_publishTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            lock (m_keepAliveTimerLock)
+            {
+                m_keepAliveTimerActive = false;
+                m_publishTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            }
         }
 
         /// <summary>
@@ -1702,25 +1707,29 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void StartKeepAliveTimer()
         {
-            SubscriptionOptions options = Options;
-            LastNotificationTimestamp = TimeProvider.GetTimestamp();
-            m_keepAliveInterval = SaturatingTimeSpan.Multiply(
-                CurrentPublishingInterval, (double)CurrentKeepAliveCount + 1);
-            if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
+            lock (m_keepAliveTimerLock)
             {
-                AdjustCounts(options, out uint adjustedKeepAliveCount, out _);
+                SubscriptionOptions options = Options;
+                LastNotificationTimestamp = TimeProvider.GetTimestamp();
                 m_keepAliveInterval = SaturatingTimeSpan.Multiply(
-                    options.PublishingInterval, (double)adjustedKeepAliveCount + 1);
+                    CurrentPublishingInterval, (double)CurrentKeepAliveCount + 1);
+                if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
+                {
+                    AdjustCounts(options, out uint adjustedKeepAliveCount, out _);
+                    m_keepAliveInterval = SaturatingTimeSpan.Multiply(
+                        options.PublishingInterval, (double)adjustedKeepAliveCount + 1);
+                }
+                if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
+                {
+                    m_keepAliveInterval = s_maxKeepAliveTimerInterval;
+                }
+                if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
+                {
+                    m_keepAliveInterval = s_minKeepAliveTimerInterval;
+                }
+                m_keepAliveTimerActive = true;
+                ScheduleKeepAliveTimerLocked();
             }
-            if (m_keepAliveInterval > s_maxKeepAliveTimerInterval)
-            {
-                m_keepAliveInterval = s_maxKeepAliveTimerInterval;
-            }
-            if (m_keepAliveInterval < s_minKeepAliveTimerInterval)
-            {
-                m_keepAliveInterval = s_minKeepAliveTimerInterval;
-            }
-            ScheduleKeepAliveTimer();
         }
 
         /// <summary>
@@ -1728,12 +1737,22 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void ScheduleKeepAliveTimer()
         {
+            lock (m_keepAliveTimerLock)
+            {
+                if (m_keepAliveTimerActive)
+                {
+                    ScheduleKeepAliveTimerLocked();
+                }
+            }
+        }
+
+        private void ScheduleKeepAliveTimerLocked()
+        {
             long lastNotificationTimestamp = LastNotificationTimestamp;
             if (lastNotificationTimestamp == 0)
             {
                 return;
             }
-
             TimeSpan threshold = m_keepAliveInterval + s_keepAliveTimerMargin;
             TimeSpan elapsed = TimeProvider.GetElapsedTime(lastNotificationTimestamp);
             TimeSpan dueTime = threshold - elapsed;
@@ -1754,15 +1773,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="state"></param>
         private void OnKeepAlive(object? state)
         {
-            if (PublishingStopped)
+            bool publishingStopped;
+            lock (m_keepAliveTimerLock)
             {
-                Interlocked.Increment(ref m_publishLateCount);
-                OnPublishStateChanged(PublishState.Stopped);
-                m_publishTimer.Change(m_keepAliveInterval, Timeout.InfiniteTimeSpan);
-                return;
+                if (!m_keepAliveTimerActive)
+                {
+                    return;
+                }
+
+                publishingStopped = PublishingStopped;
+                if (publishingStopped)
+                {
+                    Interlocked.Increment(ref m_publishLateCount);
+                    m_publishTimer.Change(m_keepAliveInterval, Timeout.InfiniteTimeSpan);
+                }
+                else
+                {
+                    ScheduleKeepAliveTimerLocked();
+                }
             }
 
-            ScheduleKeepAliveTimer();
+            if (publishingStopped)
+            {
+                OnPublishStateChanged(PublishState.Stopped);
+            }
         }
 
         /// <summary>
@@ -1906,6 +1940,7 @@ namespace Opc.Ua.Client.Subscriptions
         private const int kBaseApplyRetryBackoffMs = 250;
         private const int kMaxApplyRetryBackoffMs = 5000;
         private TimeSpan m_keepAliveInterval;
+        private readonly Lock m_keepAliveTimerLock = new();
         private int m_publishLateCount;
         private int m_recreateRequested;
         private int m_recreateAfterTimeoutInProgress;
@@ -1926,6 +1961,7 @@ namespace Opc.Ua.Client.Subscriptions
         private int m_disposeStarted;
         private readonly List<uint> m_deletedItems = [];
         private readonly ITimer m_publishTimer;
+        private bool m_keepAliveTimerActive;
         private readonly IDisposable? m_changeTracking;
         private readonly ISubscriptionNotificationHandler m_handler;
         private readonly ISubscriptionContext m_context;

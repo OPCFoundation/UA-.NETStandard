@@ -594,6 +594,114 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Verifies a slow stopped-state handler does not delay the next watchdog notification.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldScheduleBeforeStoppedStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                int handlerCalls = 0;
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped && Interlocked.Increment(ref handlerCalls) == 1)
+                    {
+                        clock.Advance(TimeSpan.FromSeconds(2));
+                    }
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+
+                clock.Advance(TimeSpan.FromMilliseconds(3500));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a callback cannot restart the watchdog after transfer pauses it.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldNotRestartWhileTransferPausesItAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            using var handlerEntered = new ManualResetEventSlim();
+            using var releaseHandler = new ManualResetEventSlim();
+            var transferCallEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var transferResponse = new TaskCompletionSource<CallResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? transferTask = null;
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped)
+                    {
+                        handlerEntered.Set();
+                        releaseHandler.Wait();
+                    }
+                };
+                m_mockMethodServices
+                    .Setup(service => service.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(requests =>
+                            requests.Count == 1 &&
+                            requests[0].MethodId == MethodIds.Server_GetMonitoredItems),
+                        It.IsAny<CancellationToken>()))
+                    .Callback(() => transferCallEntered.TrySetResult(true))
+                    .Returns(() => new ValueTask<CallResponse>(transferResponse.Task));
+
+                Task timerCallback = Task.Run(() =>
+                    clock.Advance(TimeSpan.FromMilliseconds(6501)));
+                try
+                {
+                    Assert.That(handlerEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+                    transferTask = sut.TryCompleteTransferAsync([], CancellationToken.None).AsTask();
+                    await transferCallEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    releaseHandler.Set();
+                    await timerCallback.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    clock.Advance(TimeSpan.FromMilliseconds(5500));
+                    Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+                }
+                finally
+                {
+                    releaseHandler.Set();
+                    transferResponse.TrySetResult(new CallResponse
+                    {
+                        Results =
+                        [
+                            new CallMethodResult
+                            {
+                                StatusCode = StatusCodes.BadMethodInvalid,
+                                OutputArguments = []
+                            }
+                        ]
+                    });
+                }
+
+                Assert.That(await transferTask!.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies an initial publishing silence is detected at the minimum watchdog interval.
         /// </summary>
         [Test]
@@ -3447,6 +3555,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
+            public Action<PublishState>? OnPublishStateChangedAction { get; set; }
 
             /// <summary>
             /// Observes an actual asynchronous admission wait, not merely receipt of a response.
@@ -3511,6 +3620,7 @@ namespace Opc.Ua.Client.Subscriptions
                 LastPublishState = stateMask;
                 PublishStateChangedCount++;
                 PublishStateChanged.Set();
+                OnPublishStateChangedAction?.Invoke(stateMask);
                 base.OnPublishStateChanged(stateMask);
             }
 
