@@ -398,7 +398,7 @@ namespace Opc.Ua.Client.Subscriptions
                     waitForMessage = null;
                     if (!hasMessages)
                     {
-                        await SkipExpiredGapAsync(ct).ConfigureAwait(false);
+                        await SkipExpiredGapAsync(ct, force: true).ConfigureAwait(false);
                     }
                 }
             }
@@ -677,10 +677,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Dispatch buffered notifications that immediately follow the data gate.
         /// </summary>
-        private async ValueTask DrainPendingMessagesAsync(CancellationToken ct)
+        private async ValueTask DrainPendingMessagesAsync(CancellationToken ct, bool advanced = false)
         {
             RemoveStalePendingMessages();
-            bool advanced = false;
             while (LastDataSequenceNumberProcessed != 0 &&
                 m_pendingMessages.Remove(
                     GetNextSequenceNumber(LastDataSequenceNumberProcessed),
@@ -692,7 +691,7 @@ namespace Opc.Ua.Client.Subscriptions
             UpdateGapTimer(advanced);
         }
 
-        private async Task SkipExpiredGapAsync(CancellationToken ct)
+        private async Task SkipExpiredGapAsync(CancellationToken ct, bool force = false)
         {
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -708,7 +707,8 @@ namespace Opc.Ua.Client.Subscriptions
                 }
 
                 RemoveStalePendingMessages();
-                if (!HasUnresolvedGap)
+                if (!HasUnresolvedGap ||
+                    (!force && m_pendingMessages.Count < kMaxPendingMessages && !IsGapRecoveryExpired()))
                 {
                     return;
                 }
@@ -847,6 +847,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private void UpdateGapTimer(bool advanced)
         {
+            if (m_gapAvailableSequenceNumbers.Count != 0)
+            {
+                m_gapAvailableSequenceNumbers.RemoveWhere(
+                    sequenceNumber => !IsNewerSequenceNumber(sequenceNumber, LastDataSequenceNumberProcessed));
+            }
             if (m_keepAliveGapEnd != 0 &&
                 (LastDataSequenceNumberProcessed == 0 ||
                 !IsNewerSequenceNumber(
@@ -1264,6 +1269,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                uint previousDataSequenceNumber = LastDataSequenceNumberProcessed;
                 // Buffered originals older than the newest advertised
                 // message are delivered in sequence with it; otherwise the
                 // gate would pass them and the drain would drop them, even
@@ -1343,7 +1349,8 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     ct.ThrowIfCancellationRequested();
                 }
-                await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
+                await DrainPendingMessagesAsync(
+                    ct, advanced: LastDataSequenceNumberProcessed != previousDataSequenceNumber).ConfigureAwait(false);
             }
             finally
             {
