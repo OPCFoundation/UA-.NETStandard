@@ -600,10 +600,17 @@ rearms notification for a subsequent failure; an older in-flight response does n
 A failure from an attempt older than the successful retry cannot report that outage
 again. Successful session reactivation retires recovery signals from all previous
 Publish attempts, including when recovery started before any Publish failure was reported.
+Recovery callbacks revalidate the attempt after acquiring session recovery admission,
+so a callback delayed across reactivation cannot start another reconnect. Recovery
+ordering is assigned after acknowledgement preparation, immediately before dispatch.
 Cancelled attempts and errors from closing, disposed, disconnected, or replaced
 sessions do not initiate recovery. When a channel manager is already recovering the
 session, the managed session leaves recovery with that owner instead of starting a
 competing outer reconnect.
+
+After a reported error, successful service responses do not defer the keep-alive Read
+that clears the latched error. Publishing can therefore recover without leaving a plain
+session marked as stopped while notifications continue.
 
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an

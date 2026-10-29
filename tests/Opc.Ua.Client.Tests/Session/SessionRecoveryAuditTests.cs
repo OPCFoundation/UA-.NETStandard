@@ -151,6 +151,116 @@ namespace Opc.Ua.Client.Tests
                 "A failure from the pre-reactivation transport must not trigger recovery on the reactivated session.");
         }
 
+        /// <summary>
+        /// Successful publishing after a reported error must not indefinitely defer the liveness recovery Read.
+        /// </summary>
+        [Test]
+        [CancelAfter(20_000)]
+        public async Task PublishSuccessAfterFailureAllowsKeepAliveStatusRecoveryAsync(CancellationToken ct)
+        {
+            var clock = new ObservableFakeTimeProvider();
+            await using var harness = new SessionChannelHarness(timeProvider: clock);
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel channel = harness.CreateOpenedStandaloneChannel(endpoint);
+            using var publishReplies = new SemaphoreSlim(0);
+            using var publishSent = new SemaphoreSlim(0);
+            int publishCount = 0;
+            channel.RequestHandler = async (request, requestCt) =>
+            {
+                if (request is CreateSubscriptionRequest create)
+                {
+                    return new CreateSubscriptionResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        RevisedPublishingInterval = create.RequestedPublishingInterval,
+                        RevisedLifetimeCount = create.RequestedLifetimeCount,
+                        RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                    };
+                }
+                if (request is DeleteSubscriptionsRequest delete)
+                {
+                    return new DeleteSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = delete.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                if (request is PublishRequest publish)
+                {
+                    if (Interlocked.Increment(ref publishCount) == 1)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                    }
+                    publishSent.Release();
+                    await publishReplies.WaitAsync(requestCt).ConfigureAwait(false);
+                    return new PublishResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        SubscriptionId = 1,
+                        MoreNotifications = true,
+                        NotificationMessage = new NotificationMessage(),
+                        Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good)
+                    };
+                }
+                return channel.CreateResponse(request);
+            };
+            var engineFactory = new ObservingSubscriptionEngineFactory(TimeProvider.System);
+            await using var session = new Session(
+                channel.Channel, harness.Configuration, endpoint, engineFactory: engineFactory, timeProvider: clock)
+            {
+                KeepAliveInterval = 500
+            };
+            var initialKeepAlive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var reported = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var recovered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.KeepAlive += (_, args) =>
+            {
+                if (ServiceResult.IsBad(args.Status))
+                {
+                    reported.TrySetResult(true);
+                }
+                else if (reported.Task.IsCompleted)
+                {
+                    recovered.TrySetResult(true);
+                }
+                else
+                {
+                    initialKeepAlive.TrySetResult(true);
+                }
+            };
+            await session.OpenAsync("publish-liveness-recovery", new UserIdentity(), ct).ConfigureAwait(false);
+            clock.Advance(TimeSpan.Zero);
+            await initialKeepAlive.Task.WaitAsync(ct).ConfigureAwait(false);
+            await using Subscriptions.ISubscription subscription = engineFactory.Engine.SubscriptionManager.Add(
+                Mock.Of<Subscriptions.ISubscriptionNotificationHandler>(),
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    DisableUnboundedItemMode = true,
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(10)
+                }));
+
+            await reported.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.That(session.KeepAliveStopped, Is.True);
+            await publishSent.WaitAsync(ct).ConfigureAwait(false);
+            for (int index = 0; index < 4; index++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(100));
+                publishReplies.Release();
+                await publishSent.WaitAsync(ct).ConfigureAwait(false);
+            }
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            await recovered.Task.WaitAsync(ct).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(session.KeepAliveStopped, Is.False);
+                Assert.That(Volatile.Read(ref publishCount), Is.GreaterThan(2),
+                    "Publishing must have resumed while the latched error awaited a keep-alive Read.");
+                Assert.That(channel.ReconnectCount, Is.Zero);
+            });
+        }
+
         [Test]
         public async Task PublishAndKeepAliveUseDistinctRequestHandlesAsync()
         {

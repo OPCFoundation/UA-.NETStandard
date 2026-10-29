@@ -289,18 +289,37 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public void OnPublishRecoveryError(NodeId sessionId, ServiceResult error)
+            public async ValueTask OnPublishRecoveryErrorAsync(
+                NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
             {
-                if (m_context.Disposed ||
-                    m_context.Closing ||
-                    m_context.Reconnecting ||
-                    !m_context.Connected ||
-                    sessionId != m_context.SessionId)
+                SemaphoreSlim reconnect = m_context.ReconnectLock;
+                try
+                {
+                    await reconnect.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     return;
                 }
+                try
+                {
+                    if (ct.IsCancellationRequested ||
+                        m_context.Disposed ||
+                        m_context.Closing ||
+                        m_context.Reconnecting ||
+                        !m_context.Connected ||
+                        sessionId != m_context.SessionId ||
+                        !isCurrent())
+                    {
+                        return;
+                    }
 
-                m_context.OnKeepAliveError(error);
+                    m_context.OnKeepAliveError(error);
+                }
+                finally
+                {
+                    reconnect.Release();
+                }
             }
 
             /// <inheritdoc/>

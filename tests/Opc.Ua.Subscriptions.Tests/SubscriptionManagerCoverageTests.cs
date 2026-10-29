@@ -585,7 +585,8 @@ namespace Opc.Ua.Subscriptions.Tests
             public NodeId SessionId => new(1);
 
             /// <inheritdoc/>
-            public void OnPublishRecoveryError(NodeId sessionId, ServiceResult error)
+            public ValueTask OnPublishRecoveryErrorAsync(
+                NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
             {
                 throw new InvalidOperationException("The quiescent manager must not request recovery.");
             }

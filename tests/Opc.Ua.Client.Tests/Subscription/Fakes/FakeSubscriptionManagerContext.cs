@@ -52,9 +52,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }
 
         /// <inheritdoc/>
-        public void OnPublishRecoveryError(NodeId sessionId, ServiceResult error)
+        public ValueTask OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
         {
-            OnRecoveryError?.Invoke(sessionId, error);
+            if (isCurrent())
+            {
+                OnRecoveryError?.Invoke(sessionId, error);
+            }
+            return default;
         }
 
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>

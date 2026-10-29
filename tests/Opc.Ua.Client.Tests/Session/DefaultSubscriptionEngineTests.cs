@@ -199,6 +199,52 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Retirement while dispatch awaits recovery admission prevents a callback against the recovered session.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task PublishRecoveryRetirementBeforeCallbackIsIgnoredAsync(CancellationToken testCt)
+        {
+            ConfigureRecoverySubscription();
+            using var reconnect = new SemaphoreSlim(0, 1);
+            var admission = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nextSent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var response = new TaskCompletionSource<PublishResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockContext.SetupGet(value => value.ReconnectLock).Returns(() =>
+            {
+                admission.TrySetResult(true);
+                return reconnect;
+            });
+            int calls = 0;
+            m_mockContext.Setup(value => value.PublishAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, ArrayOf<SubscriptionAcknowledgement> _, CancellationToken ct) =>
+                {
+                    if (Interlocked.Increment(ref calls) == 1)
+                    {
+                        sent.TrySetResult(true);
+                        return await response.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    nextSent.TrySetResult(true);
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                    throw new InvalidOperationException("The pending Publish must be cancelled during cleanup.");
+                });
+            await using var engine = new DefaultSubscriptionEngine(m_mockContext.Object);
+            AddRecoverySubscription(engine);
+            await sent.Task.WaitAsync(testCt).ConfigureAwait(false);
+            response.SetException(new ServiceResultException(StatusCodes.BadConnectionClosed));
+            await admission.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            ((SubscriptionManager)engine.SubscriptionManager).OnSessionReactivated();
+            reconnect.Release();
+            await nextSent.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            m_mockContext.Verify(value => value.OnKeepAliveError(It.IsAny<ServiceResult>()), Times.Never);
+        }
+
+        /// <summary>
         /// The V2 engine forwards acknowledgement preparation through the session
         /// context and reconsiders deferred entries without another notification.
         /// </summary>

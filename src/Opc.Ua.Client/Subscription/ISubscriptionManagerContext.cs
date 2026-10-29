@@ -48,8 +48,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Reports a definitive failure of a Publish request from the specified session.
         /// The failed attempt has already rolled back acknowledgements and released its active count.
+        /// Revalidate <paramref name="isCurrent"/> under session recovery admission before invoking callbacks.
         /// </summary>
-        void OnPublishRecoveryError(NodeId sessionId, ServiceResult error);
+        ValueTask OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct);
 
         /// <summary>
         /// Gets the number of created subscriptions the session owns outside this

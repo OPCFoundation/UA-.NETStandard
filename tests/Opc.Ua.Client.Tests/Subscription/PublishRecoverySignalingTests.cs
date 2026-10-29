@@ -264,6 +264,48 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Recovery ordering follows dispatch even when an older reservation waits for acknowledgement policy.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DelayedAcknowledgementPreparationDoesNotRetireNewDispatchFailureAsync(CancellationToken testCt)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var decision = new TaskCompletionSource<AcknowledgementDecision>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var provider = new Mock<ISubscriptionAcknowledgementProvider>();
+            provider.Setup(value => value.DecideAsync(
+                It.IsAny<ArrayOf<AcknowledgementHandle>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<AcknowledgementHandle> _, CancellationToken ct) =>
+                {
+                    entered.TrySetResult(true);
+                    return await decision.Task.WaitAsync(ct).ConfigureAwait(false);
+                });
+            await using var harness = new PublishHarness(acknowledgementProvider: provider.Object);
+            await harness.Manager.QueueAsync(
+                harness.Subscription, harness.Subscription.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 7, SequenceNumber = 42 },
+                testCt).ConfigureAwait(false);
+            harness.Manager.Resume();
+            await entered.Task.WaitAsync(testCt).ConfigureAwait(false);
+            harness.Manager.MinPublishWorkerCount = 2;
+            harness.Manager.MaxPublishWorkerCount = 2;
+            harness.Manager.Update();
+            PublishAttempt overtaking = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            overtaking.Succeed();
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            decision.SetResult(default);
+            PublishAttempt delayedDispatch = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            Assert.That(delayedDispatch.Acknowledgements, Has.Count.EqualTo(1));
+            delayedDispatch.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(1),
+                "A request sent after a successful response must report its failure despite an older reservation.");
+        }
+
+        /// <summary>
         /// Ordinary retryable service errors and cancellation do not indicate a lost session.
         /// </summary>
         [TestCase("busy")]
@@ -314,12 +356,14 @@ namespace Opc.Ua.Client.Subscriptions
             /// <summary>
             /// Creates a paused manager with the specified number of workers.
             /// </summary>
-            public PublishHarness(int workerCount = 1)
+            public PublishHarness(
+                int workerCount = 1, ISubscriptionAcknowledgementProvider? acknowledgementProvider = null)
             {
                 var context = new FakeSubscriptionManagerContext
                 {
                     CreateSubscriptionFactory = (_, _, _) => Subscription,
                     OnPublishAsync = PublishAsync,
+                    AcknowledgementProvider = acknowledgementProvider,
                     OnRecoveryError = (_, error) =>
                     {
                         OnRecovery?.Invoke();

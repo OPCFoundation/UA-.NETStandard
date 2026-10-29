@@ -1725,9 +1725,28 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Reserves an active request and captures its publishing epoch and ordering.
+        /// Reserves an active request before acknowledgement preparation so recovery can drain it.
         /// </summary>
-        private bool TryBeginPublishRequest(out long epoch, out long requestSequence)
+        private bool TryBeginPublishRequest()
+        {
+            lock (m_publishStateLock)
+            {
+                if (!m_running.IsSet || Volatile.Read(ref m_disposed) != 0)
+                {
+                    return false;
+                }
+                if (++m_activePublishRequests == 1)
+                {
+                    m_drainSignal.Reset();
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Captures recovery ordering after preparation, immediately before sending Publish.
+        /// </summary>
+        private bool TryCapturePublishDispatch(out long epoch, out long requestSequence)
         {
             lock (m_publishStateLock)
             {
@@ -1738,10 +1757,6 @@ namespace Opc.Ua.Client.Subscriptions
                     return false;
                 }
                 requestSequence = ++m_publishRequestSequence;
-                if (++m_activePublishRequests == 1)
-                {
-                    m_drainSignal.Reset();
-                }
                 return true;
             }
         }
@@ -1780,9 +1795,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// A failure from an attempt begun before the last reported outage belongs to that outage
         /// and is ignored, even after a newer success has rearmed reporting in the same epoch.
         /// </summary>
-        private void ReportPublishRecoveryError(
-            long epoch, long requestSequence, NodeId sessionId, ServiceResult error)
+        private ValueTask ReportPublishRecoveryErrorAsync(
+            long epoch, long requestSequence, NodeId sessionId, ServiceResult error, CancellationToken ct)
         {
+            long recoveryWatermark;
             lock (m_publishStateLock)
             {
                 if (epoch != m_publishEpoch ||
@@ -1791,13 +1807,26 @@ namespace Opc.Ua.Client.Subscriptions
                     m_publishRecoveryReported ||
                     requestSequence <= m_publishRecoveryWatermark)
                 {
-                    return;
+                    return default;
                 }
                 m_publishRecoveryReported = true;
                 m_publishRecoveryWatermark = m_publishRequestSequence;
+                recoveryWatermark = m_publishRecoveryWatermark;
             }
 
-            m_session.OnPublishRecoveryError(sessionId, error);
+            return m_session.OnPublishRecoveryErrorAsync(sessionId, error, IsCurrent, ct);
+
+            bool IsCurrent()
+            {
+                lock (m_publishStateLock)
+                {
+                    return epoch == m_publishEpoch &&
+                        m_running.IsSet &&
+                        Volatile.Read(ref m_disposed) == 0 &&
+                        m_publishRecoveryReported &&
+                        m_publishRecoveryWatermark == recoveryWatermark;
+                }
+            }
         }
 
         private void EndPublishRequest()
@@ -3150,7 +3179,7 @@ namespace Opc.Ua.Client.Subscriptions
                         : (long)publishLatency.TotalMilliseconds;
                     int ackWaitTimeout = CalculateTimeouts(
                         currentLatencyMs, ref timeoutHint);
-                    if (!m_outer.TryBeginPublishRequest(out long epoch, out long requestSequence))
+                    if (!m_outer.TryBeginPublishRequest())
                     {
                         continue;
                     }
@@ -3159,6 +3188,8 @@ namespace Opc.Ua.Client.Subscriptions
                     uint handle = 0;
                     bool publishActive = true;
                     bool publishPending = false;
+                    long epoch = 0;
+                    long requestSequence = 0;
                     NodeId publishSessionId = NodeId.Null;
                     // A quiesce can abort this attempt without stopping the worker.
                     var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -3193,6 +3224,11 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
                         publishSessionId = m_outer.m_session.SessionId;
+                        if (!m_outer.TryCapturePublishDispatch(out epoch, out requestSequence))
+                        {
+                            m_outer.RequeueAcknowledgements(batch);
+                            continue;
+                        }
                         publishPending = true;
                         PublishResponse response = await m_outer.m_session.PublishAsync(
                             new RequestHeader
@@ -3452,8 +3488,9 @@ namespace Opc.Ua.Client.Subscriptions
                             moreNotifications = false; // throttle
                             if (requestFailed && !attemptToken.IsCancellationRequested)
                             {
-                                m_outer.ReportPublishRecoveryError(
-                                    epoch, requestSequence, publishSessionId, error);
+                                await m_outer.ReportPublishRecoveryErrorAsync(
+                                    epoch, requestSequence, publishSessionId, error, attemptToken)
+                                    .ConfigureAwait(false);
                             }
                             // Log the transport-down transition once per status
                             // rather than a full stack trace every iteration.
