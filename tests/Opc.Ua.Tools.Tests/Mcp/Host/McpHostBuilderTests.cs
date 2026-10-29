@@ -377,21 +377,21 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
         /// <summary>
         /// Pins complete registration counts without hiding duplicate names or excluding companion tools.
-        /// Session-scoped profiles include the shared certificate connection tool.
+        /// Session-scoped profiles include the shared connection tools.
         /// </summary>
-        [TestCase("core", 16)]
-        [TestCase("services", 48)]
-        [TestCase("administration", 15)]
+        [TestCase("core", 17)]
+        [TestCase("services", 49)]
+        [TestCase("administration", 16)]
         [TestCase("pubsub", 18)]
-        [TestCase("diagnostics", 11)]
-        [TestCase("robotics", 43)]
-        [TestCase("vision", 44)]
-        [TestCase("machinetool", 26)]
-        [TestCase("gms", 11)]
-        [TestCase("craneshoists", 11)]
-        [TestCase("autoid", 14)]
-        [TestCase("machinetool,gms,craneshoists", 38)]
-        [TestCase("full", 535)]
+        [TestCase("diagnostics", 12)]
+        [TestCase("robotics", 44)]
+        [TestCase("vision", 45)]
+        [TestCase("machinetool", 27)]
+        [TestCase("gms", 12)]
+        [TestCase("craneshoists", 12)]
+        [TestCase("autoid", 15)]
+        [TestCase("machinetool,gms,craneshoists", 39)]
+        [TestCase("full", 536)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);
@@ -409,6 +409,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(tools, Has.Length.EqualTo(expectedCount),
                 $"Profile '{profile}' must publish exactly {expectedCount} tools.");
             Assert.That(tools.Count(name => name == "ConnectCertificate"),
+                Is.EqualTo(profile == "pubsub" ? 0 : 1));
+            Assert.That(tools.Count(name => name == "ConnectJwt"),
                 Is.EqualTo(profile == "pubsub" ? 0 : 1));
         }
 

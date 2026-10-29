@@ -563,11 +563,16 @@ namespace Opc.Ua.Client.Subscriptions
             m_completion.ShutdownToken = admission.Token;
             using var callbackStop = new CancellationTokenSource();
             using var permits = new SemaphoreSlim(0);
+            var firstEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var secondEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
             {
                 NotificationCallback = sequenceNumber =>
                 {
+                    if (sequenceNumber == 1)
+                    {
+                        firstEntered.TrySetResult(true);
+                    }
                     if (sequenceNumber == 2)
                     {
                         secondEntered.TrySetResult(true);
@@ -582,6 +587,7 @@ namespace Opc.Ua.Client.Subscriptions
                     await sut.OnPublishReceivedAsync(BuildDataChangeMessage(sequenceNumber), null, [])
                         .ConfigureAwait(false);
                 }
+                await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
                 if (cancelledBeforeAdmission)
                 {
                     await admission.CancelAsync().ConfigureAwait(false);

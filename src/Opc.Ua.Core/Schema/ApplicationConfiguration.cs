@@ -1623,18 +1623,15 @@ namespace Opc.Ua
 
         /// <summary>
         /// The maximum count of active reverse connect sessions.
-        ///  0 or undefined means unlimited number of sessions.
-        ///  1 means a single connection is created at a time.
-        ///  n disables reverse hello once the total number of sessions
-        ///  in the server reaches n.
+        /// This setting is ignored and is no longer serialized.
         /// </summary>
-        [DataTypeField(Order = 2)]
+        [Obsolete("MaxSessionCount is no longer supported and is ignored.")]
         public int MaxSessionCount { get; set; }
 
         /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
-        [DataTypeField(Order = 3, DefaultValueHandling = DefaultValueHandling.Emit)]
+        [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.Emit)]
         public bool Enabled { get; set; } = true;
     }
 

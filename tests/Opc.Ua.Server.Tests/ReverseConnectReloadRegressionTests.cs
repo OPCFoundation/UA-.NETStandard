@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests
                     CreateConfiguration("configured").ServerConfiguration!.ReverseConnect;
                 ReloadableReverseConnectServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var dynamicUrl = new Uri("opc.tcp://localhost:4840/dynamic");
-                server.AddReverseConnection(dynamicUrl, timeout: 1234, maxSessionCount: 2, enabled: false);
+                server.AddReverseConnection(dynamicUrl, timeout: 1234, enabled: false);
                 ReverseConnectProperty retained = server.GetReverseConnections()[dynamicUrl];
                 Assert.That(server.GetReverseConnections(), Has.Count.EqualTo(2));
 
@@ -70,7 +70,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(server.GetReverseConnections()[dynamicUrl], Is.SameAs(retained));
                 Assert.That(retained.ConfigEntry, Is.False);
                 Assert.That(retained.Timeout, Is.EqualTo(1234));
-                Assert.That(retained.MaxSessionCount, Is.EqualTo(2));
                 Assert.That(retained.Enabled, Is.False);
             }
             finally
@@ -88,7 +87,7 @@ namespace Opc.Ua.Server.Tests
             {
                 ReloadableReverseConnectServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var dynamicUrl = new Uri("opc.tcp://localhost:4840/dynamic");
-                server.AddReverseConnection(dynamicUrl, timeout: 1234, maxSessionCount: 2, enabled: false);
+                server.AddReverseConnection(dynamicUrl, timeout: 1234, enabled: false);
                 ReverseConnectProperty retained = server.GetReverseConnections()[dynamicUrl];
                 fixture.Config.ServerConfiguration!.ReverseConnect = new ReverseConnectServerConfiguration
                 {
@@ -98,7 +97,6 @@ namespace Opc.Ua.Server.Tests
                         {
                             EndpointUrl = dynamicUrl.AbsoluteUri,
                             Timeout = 9000,
-                            MaxSessionCount = 8,
                             Enabled = true
                         }
                     ]
@@ -111,7 +109,6 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(server.GetReverseConnections()[dynamicUrl], Is.SameAs(retained));
                 Assert.That(retained.ConfigEntry, Is.False);
                 Assert.That(retained.Timeout, Is.EqualTo(1234));
-                Assert.That(retained.MaxSessionCount, Is.EqualTo(2));
                 Assert.That(retained.Enabled, Is.False);
             }
             finally
@@ -128,7 +125,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var server = new ReverseConnectServer(NUnitTelemetryContext.Create(), new FakeTimeProvider());
             var dynamicUrl = new Uri("opc.tcp://localhost:4840/dynamic");
-            server.AddReverseConnection(dynamicUrl, timeout: 1234, maxSessionCount: 2, enabled: false);
+            server.AddReverseConnection(dynamicUrl, timeout: 1234, enabled: false);
             MethodInfo method = typeof(ReverseConnectServer).GetMethod(
                 "UpdateConfiguration", BindingFlags.Instance | BindingFlags.NonPublic)!;
 #if NET5_0_OR_GREATER
@@ -148,7 +145,6 @@ namespace Opc.Ua.Server.Tests
             ReverseConnectProperty retained = server.GetReverseConnections()[dynamicUrl];
             Assert.That(retained.ConfigEntry, Is.False);
             Assert.That(retained.Timeout, Is.EqualTo(1234));
-            Assert.That(retained.MaxSessionCount, Is.EqualTo(2));
             Assert.That(retained.Enabled, Is.False);
         }
 
