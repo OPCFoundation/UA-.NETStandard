@@ -638,6 +638,10 @@ namespace Opc.Ua.Client.Subscriptions
         private void BufferDataMessage(IncomingMessage incoming)
         {
             uint sequenceNumber = incoming.Message.SequenceNumber;
+            RememberGapAvailability(
+                incoming.AvailableSequenceNumbers,
+                LastDataSequenceNumberProcessed,
+                sequenceNumber);
             if (!m_pendingMessages.TryAdd(sequenceNumber, incoming))
             {
                 Logger.SubscriptionReceivedDuplicateMessageSequenceNumber(
@@ -693,6 +697,16 @@ namespace Opc.Ua.Client.Subscriptions
             await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                CancellationToken shutdownToken = AckQueue.ShutdownToken;
+                if (shutdownToken.IsCancellationRequested)
+                {
+                    m_pendingMessages.Clear();
+                    m_gapAvailableSequenceNumbers.Clear();
+                    m_gapStartedTimestamp = 0;
+                    m_keepAliveGapEnd = 0;
+                    shutdownToken.ThrowIfCancellationRequested();
+                }
+
                 RemoveStalePendingMessages();
                 if (!HasUnresolvedGap)
                 {
@@ -741,9 +755,15 @@ namespace Opc.Ua.Client.Subscriptions
         {
             uint lastData = LastDataSequenceNumberProcessed;
             uint span = unchecked(gapEnd - lastData);
-            IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+            var availableSequenceNumbers = new HashSet<uint>(m_gapAvailableSequenceNumbers);
+            IReadOnlyList<uint> latestAvailable = AvailableInRetransmissionQueue;
+            for (int i = 0; i < latestAvailable.Count; i++)
+            {
+                availableSequenceNumbers.Add(latestAvailable[i]);
+            }
+            uint[] available = [.. availableSequenceNumbers];
             var candidates = new HashSet<uint>();
-            for (int i = 0; i < available.Count; i++)
+            for (int i = 0; i < available.Length; i++)
             {
                 uint offset = unchecked(available[i] - lastData);
                 if (offset != 0 && offset < span)
@@ -838,6 +858,7 @@ namespace Opc.Ua.Client.Subscriptions
             if (!HasUnresolvedGap)
             {
                 m_gapStartedTimestamp = 0;
+                m_gapAvailableSequenceNumbers.Clear();
             }
             else if (advanced || m_gapStartedTimestamp == 0)
             {
@@ -875,6 +896,26 @@ namespace Opc.Ua.Client.Subscriptions
                 m_pendingMessages.Remove(sequenceNumber);
             }
             UpdateGapTimer(advanced: false);
+        }
+
+        /// <summary>
+        /// Retain available sequence numbers in the range of an open gap.
+        /// </summary>
+        private void RememberGapAvailability(
+            IReadOnlyList<uint> availableSequenceNumbers,
+            uint previousSequenceNumber,
+            uint endSequenceNumber)
+        {
+            uint span = unchecked(endSequenceNumber - previousSequenceNumber);
+            for (int i = 0; i < availableSequenceNumbers.Count; i++)
+            {
+                uint sequenceNumber = availableSequenceNumbers[i];
+                uint offset = unchecked(sequenceNumber - previousSequenceNumber);
+                if (offset != 0 && offset < span)
+                {
+                    m_gapAvailableSequenceNumbers.Add(sequenceNumber);
+                }
+            }
         }
 
         /// <summary>
@@ -944,6 +985,25 @@ namespace Opc.Ua.Client.Subscriptions
                 if (m_skippedSequenceNumbers[i] == sequenceNumber)
                 {
                     m_skippedSequenceNumbers[i] = 0;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Check whether the gap timeout previously skipped a sequence number.
+        /// </summary>
+        private bool IsSkippedSequenceNumber(uint sequenceNumber)
+        {
+            if (sequenceNumber == 0)
+            {
+                return false;
+            }
+            for (int i = 0; i < m_skippedSequenceNumbers.Length; i++)
+            {
+                if (m_skippedSequenceNumbers[i] == sequenceNumber)
+                {
                     return true;
                 }
             }
@@ -1031,6 +1091,10 @@ namespace Opc.Ua.Client.Subscriptions
                     candidates.Add(seq);
                 }
             }
+            RememberGapAvailability(
+                availableSequenceNumbers,
+                prevDataSeq,
+                keepAliveSeqNum);
             if (candidates.Count == 0)
             {
                 // Nothing the server holds can be recovered now. Leave the
@@ -1081,6 +1145,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_keepAliveGapEnd = keepAliveSeqNum;
             }
 
+            UpdateGapTimer(advanced: LastDataSequenceNumberProcessed != prevDataSeq);
             await DrainPendingMessagesAsync(ct).ConfigureAwait(false);
         }
 
@@ -1129,6 +1194,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_pendingMessages.Clear();
                 m_gapStartedTimestamp = 0;
                 m_keepAliveGapEnd = 0;
+                m_gapAvailableSequenceNumbers.Clear();
                 m_missingAccountedThrough = 0;
                 Array.Clear(m_skippedSequenceNumbers, 0, m_skippedSequenceNumbers.Length);
                 m_skippedSequenceNumberIndex = 0;
@@ -1227,7 +1293,8 @@ namespace Opc.Ua.Client.Subscriptions
                         !IsNewerSequenceNumber(
                             sequenceNumber,
                             LastDataSequenceNumberProcessed) &&
-                        !m_notDispatched.Contains(sequenceNumber))
+                        !m_notDispatched.Contains(sequenceNumber) &&
+                        !IsSkippedSequenceNumber(sequenceNumber))
                     {
                         // The subscription survived the transfer with its
                         // dedup gate intact (reconnect onto the same
@@ -1699,6 +1766,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private readonly HashSet<uint> m_notDispatched = [];
         private readonly Dictionary<uint, IncomingMessage> m_pendingMessages = [];
+        /// <summary>
+        /// Sequence numbers advertised as available while a gap was open.
+        /// </summary>
+        private readonly HashSet<uint> m_gapAvailableSequenceNumbers = [];
         private long m_gapStartedTimestamp;
 
         /// <summary>
