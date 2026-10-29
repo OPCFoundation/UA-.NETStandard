@@ -51,15 +51,26 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }
 
+        /// <summary>
+        /// Optional gate controlling whether a recovery notification is accepted.
+        /// </summary>
+        public Func<CancellationToken, ValueTask<bool>>? RecoveryAdmissionAsync { get; set; }
+
         /// <inheritdoc/>
-        public ValueTask OnPublishRecoveryErrorAsync(
+        public async ValueTask<bool> OnPublishRecoveryErrorAsync(
             NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
         {
+            if (RecoveryAdmissionAsync != null &&
+                !await RecoveryAdmissionAsync(ct).ConfigureAwait(false))
+            {
+                return false;
+            }
             if (isCurrent())
             {
                 OnRecoveryError?.Invoke(sessionId, error);
+                return true;
             }
-            return default;
+            return false;
         }
 
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>

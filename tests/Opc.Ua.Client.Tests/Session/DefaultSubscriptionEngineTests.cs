@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -242,6 +243,62 @@ namespace Opc.Ua.Client.Tests
             await nextSent.Task.WaitAsync(testCt).ConfigureAwait(false);
 
             m_mockContext.Verify(value => value.OnKeepAliveError(It.IsAny<ServiceResult>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Removing a worker before recovery admission leaves surviving workers able to report the outage.
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ResizingAwayRecoveryReporterRearmsSurvivingWorkerAsync(CancellationToken testCt)
+        {
+            ConfigureRecoverySubscription();
+            using var reconnect = new SemaphoreSlim(0, 1);
+            var admission = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var recovery = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var attempts = Channel.CreateUnbounded<TaskCompletionSource<PublishResponse>>();
+            m_mockContext.SetupGet(value => value.ReconnectLock).Returns(() =>
+            {
+                admission.TrySetResult(true);
+                return reconnect;
+            });
+            m_mockContext.Setup(value => value.OnKeepAliveError(It.IsAny<ServiceResult>()))
+                .Callback<ServiceResult>(error => recovery.TrySetResult(error));
+            m_mockContext.Setup(value => value.PublishAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, ArrayOf<SubscriptionAcknowledgement> _, CancellationToken ct) =>
+                {
+                    var response = new TaskCompletionSource<PublishResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    attempts.Writer.TryWrite(response);
+                    return await response.Task.WaitAsync(ct).ConfigureAwait(false);
+                });
+            await using var engine = new DefaultSubscriptionEngine(m_mockContext.Object);
+            AddRecoverySubscription(engine);
+            TaskCompletionSource<PublishResponse> survivor =
+                await attempts.Reader.ReadAsync(testCt).ConfigureAwait(false);
+            engine.MaxPublishRequestCount = 2;
+            engine.MinPublishRequestCount = 2;
+            TaskCompletionSource<PublishResponse> reporter =
+                await attempts.Reader.ReadAsync(testCt).ConfigureAwait(false);
+            reporter.SetException(new ServiceResultException(StatusCodes.BadConnectionClosed));
+            await admission.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            engine.MinPublishRequestCount = 1;
+            engine.MaxPublishRequestCount = 1;
+            var manager = (SubscriptionManager)engine.SubscriptionManager;
+            while (manager.PublishWorkerCount != 1)
+            {
+                await Task.Delay(10, testCt).ConfigureAwait(false);
+            }
+            m_mockContext.Verify(value => value.OnKeepAliveError(It.IsAny<ServiceResult>()), Times.Never);
+            reconnect.Release();
+            survivor.SetException(new ServiceResultException(StatusCodes.BadSecureChannelClosed));
+            ServiceResult error = await recovery.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+            m_mockContext.Verify(value => value.OnKeepAliveError(It.IsAny<ServiceResult>()), Times.Once);
         }
 
         /// <summary>

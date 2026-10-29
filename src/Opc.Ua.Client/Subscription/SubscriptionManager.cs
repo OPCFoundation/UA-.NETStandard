@@ -1795,10 +1795,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// A failure from an attempt begun before the last reported outage belongs to that outage
         /// and is ignored, even after a newer success has rearmed reporting in the same epoch.
         /// </summary>
-        private ValueTask ReportPublishRecoveryErrorAsync(
+        private async ValueTask ReportPublishRecoveryErrorAsync(
             long epoch, long requestSequence, NodeId sessionId, ServiceResult error, CancellationToken ct)
         {
             long recoveryWatermark;
+            long previousWatermark;
             lock (m_publishStateLock)
             {
                 if (epoch != m_publishEpoch ||
@@ -1807,14 +1808,36 @@ namespace Opc.Ua.Client.Subscriptions
                     m_publishRecoveryReported ||
                     requestSequence <= m_publishRecoveryWatermark)
                 {
-                    return default;
+                    return;
                 }
                 m_publishRecoveryReported = true;
+                previousWatermark = m_publishRecoveryWatermark;
                 m_publishRecoveryWatermark = m_publishRequestSequence;
                 recoveryWatermark = m_publishRecoveryWatermark;
             }
 
-            return m_session.OnPublishRecoveryErrorAsync(sessionId, error, IsCurrent, ct);
+            bool accepted = false;
+            try
+            {
+                accepted = await m_session.OnPublishRecoveryErrorAsync(sessionId, error, IsCurrent, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!accepted)
+                {
+                    lock (m_publishStateLock)
+                    {
+                        if (epoch == m_publishEpoch &&
+                            m_publishRecoveryReported &&
+                            m_publishRecoveryWatermark == recoveryWatermark)
+                        {
+                            m_publishRecoveryReported = false;
+                            m_publishRecoveryWatermark = previousWatermark;
+                        }
+                    }
+                }
+            }
 
             bool IsCurrent()
             {

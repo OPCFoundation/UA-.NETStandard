@@ -50,7 +50,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// The failed attempt has already rolled back acknowledgements and released its active count.
         /// Revalidate <paramref name="isCurrent"/> under session recovery admission before invoking callbacks.
         /// </summary>
-        ValueTask OnPublishRecoveryErrorAsync(
+        /// <returns>Whether the session accepted the recovery notification.</returns>
+        ValueTask<bool> OnPublishRecoveryErrorAsync(
             NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct);
 
         /// <summary>

@@ -289,7 +289,7 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public async ValueTask OnPublishRecoveryErrorAsync(
+            public async ValueTask<bool> OnPublishRecoveryErrorAsync(
                 NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
             {
                 SemaphoreSlim reconnect = m_context.ReconnectLock;
@@ -299,7 +299,7 @@ namespace Opc.Ua.Client
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    return;
+                    return false;
                 }
                 try
                 {
@@ -311,10 +311,11 @@ namespace Opc.Ua.Client
                         sessionId != m_context.SessionId ||
                         !isCurrent())
                     {
-                        return;
+                        return false;
                     }
 
                     m_context.OnKeepAliveError(error);
+                    return true;
                 }
                 finally
                 {

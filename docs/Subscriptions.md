@@ -603,6 +603,9 @@ Publish attempts, including when recovery started before any Publish failure was
 Recovery callbacks revalidate the attempt after acquiring session recovery admission,
 so a callback delayed across reactivation cannot start another reconnect. Recovery
 ordering is assigned after acknowledgement preparation, immediately before dispatch.
+If a pool resize cancels the reporting worker before the session accepts its notification,
+the manager releases that notification reservation so a surviving worker can report the
+outage. Releasing a reservation does not overwrite a newer success or reactivation.
 Cancelled attempts and errors from closing, disposed, disconnected, or replaced
 sessions do not initiate recovery. When a channel manager is already recovering the
 session, the managed session leaves recovery with that owner instead of starting a

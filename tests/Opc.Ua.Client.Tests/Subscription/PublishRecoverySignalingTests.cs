@@ -306,6 +306,61 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Releasing a rejected notification cannot clear a newer outage after success or reactivation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task RejectedRecoveryPreservesNewerOutageAsync(bool reactivate, CancellationToken testCt)
+        {
+            await using var harness = new PublishHarness(workerCount: 2);
+            var admission = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var rejected = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            harness.RecoveryAdmissionAsync = async ct =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    admission.TrySetResult(true);
+                    return await rejected.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+                return true;
+            };
+            harness.Manager.Resume();
+            PublishAttempt reporter = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            PublishAttempt survivor = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            reporter.Fail(StatusCodes.BadConnectionClosed);
+            await admission.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            if (reactivate)
+            {
+                harness.Manager.OnSessionReactivated();
+                survivor.Fail(StatusCodes.BadConnectionClosed);
+            }
+            else
+            {
+                survivor.Succeed();
+            }
+            PublishAttempt nextOutage = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            if (!reactivate)
+            {
+                nextOutage.Succeed();
+                nextOutage = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            }
+            nextOutage.Fail(StatusCodes.BadSecureChannelClosed);
+            await harness.NextRecoveryAsync(testCt).ConfigureAwait(false);
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            rejected.SetResult(false);
+            PublishAttempt retry = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+            retry.Fail(StatusCodes.BadConnectionClosed);
+            _ = await harness.NextAttemptAsync(testCt).ConfigureAwait(false);
+
+            Assert.That(harness.Recoveries, Has.Count.EqualTo(1),
+                "A rejected callback must not rearm reporting after a newer outage was accepted.");
+        }
+
+        /// <summary>
         /// Ordinary retryable service errors and cancellation do not indicate a lost session.
         /// </summary>
         [TestCase("busy")]
@@ -364,6 +419,7 @@ namespace Opc.Ua.Client.Subscriptions
                     CreateSubscriptionFactory = (_, _, _) => Subscription,
                     OnPublishAsync = PublishAsync,
                     AcknowledgementProvider = acknowledgementProvider,
+                    RecoveryAdmissionAsync = ct => RecoveryAdmissionAsync?.Invoke(ct) ?? new ValueTask<bool>(true),
                     OnRecoveryError = (_, error) =>
                     {
                         OnRecovery?.Invoke();
@@ -406,6 +462,11 @@ namespace Opc.Ua.Client.Subscriptions
             /// Gets or sets an action executed before a recovery notification is recorded.
             /// </summary>
             public Action? OnRecovery { get; set; }
+
+            /// <summary>
+            /// Gets or sets the gate controlling recovery notification acceptance.
+            /// </summary>
+            public Func<CancellationToken, ValueTask<bool>>? RecoveryAdmissionAsync { get; set; }
 
             /// <summary>
             /// Waits until a worker sends another request.
