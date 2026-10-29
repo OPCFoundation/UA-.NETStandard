@@ -1663,11 +1663,12 @@ namespace Opc.Ua.Client
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                    ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                    : identityPolicy.SecurityPolicyUri!;
+                string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                    identity,
+                    identityPolicy,
+                    m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None,
+                    m_endpoint.Description.SecurityMode,
+                    m_securityPolicies);
 
                 // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1913,6 +1914,30 @@ namespace Opc.Ua.Client
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, operationCt)
                     .ConfigureAwait(false);
+
+                if (identity.TokenType == UserTokenType.IssuedToken)
+                {
+                    string channelPolicyUri =
+                        m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                    UserTokenPolicy? selectedPolicy =
+                        m_endpoint.Description.FindUserTokenPolicy(
+                            identity.TokenHandler.Token.PolicyId!,
+                            channelPolicyUri) ??
+                        m_endpoint.Description.FindUserTokenPolicy(
+                            identity.TokenType,
+                            identity.IssuedTokenType,
+                            channelPolicyUri) ??
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "Endpoint does not support the user identity type provided.");
+
+                    ValidateIssuedTokenPolicy(
+                        identity,
+                        selectedPolicy,
+                        channelPolicyUri,
+                        m_endpoint.Description.SecurityMode,
+                        m_securityPolicies);
+                }
 
                 // The selector lets a policy with an empty SecurityPolicyUri
                 // through, as it inherits the channel policy. When the
@@ -2409,11 +2434,12 @@ namespace Opc.Ua.Client
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                ? securityPolicyUri
-                // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                : identityPolicy.SecurityPolicyUri!;
+            string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                identity,
+                identityPolicy,
+                securityPolicyUri,
+                m_endpoint.Description.SecurityMode,
+                m_securityPolicies);
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
 
@@ -4387,19 +4413,21 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                    ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
-                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                    : identityPolicy.SecurityPolicyUri!;
+                string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                    m_identity,
+                    identityPolicy,
+                    endpoint.SecurityPolicyUri ?? SecurityPolicies.None,
+                    endpoint.SecurityMode,
+                    m_securityPolicies);
 
-                if (m_userTokenSecurityPolicyUri == null)
+                if (m_identity.TokenType != UserTokenType.IssuedToken &&
+                    m_userTokenSecurityPolicyUri != null)
                 {
-                    m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+                    tokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
                 }
                 else
                 {
-                    tokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
+                    m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
                 }
 
                 EnsureUnencryptedUserNameTokenAllowed(m_identity, tokenSecurityPolicyUri);
@@ -4414,6 +4442,27 @@ namespace Opc.Ua.Client
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
                 IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
                 identityToken.UpdatePolicy(identityPolicy);
+
+                if (m_identity.TokenType == UserTokenType.IssuedToken &&
+                    tokenSecurityPolicyUri != SecurityPolicies.None &&
+                    endpoint.SecurityMode == MessageSecurityMode.None)
+                {
+                    if (m_serverCertificate == null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "A trusted server certificate is required to encrypt an issued token.");
+                    }
+
+                    ICertificateValidatorEx validator = m_configuration.CertificateManager;
+                    CertificateValidationResult result = await validator
+                        .ValidateAsync(m_serverCertificate, ct: ct)
+                        .ConfigureAwait(false);
+                    if (!result.IsValid)
+                    {
+                        throw new ServiceResultException(result.StatusCode);
+                    }
+                }
 
                 m_logger.SessionREPLACINGChannelSessionId(SessionId);
 
@@ -5809,6 +5858,70 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resolves the token policy and rejects issued tokens that would be sent without token
+        /// encryption over a channel that does not provide equivalent protection.
+        /// </summary>
+        /// <param name="identity">The identity being activated.</param>
+        /// <param name="tokenPolicy">The endpoint policy selected for the identity.</param>
+        /// <param name="channelSecurityPolicyUri">The channel security policy URI.</param>
+        /// <param name="channelSecurityMode">The negotiated channel security mode.</param>
+        /// <param name="securityPolicies">The security policy registry used by this session.</param>
+        /// <returns>The effective user-token security policy URI.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The issued-token profile changed, the effective token policy is unsupported, or the token
+        /// would not be encrypted over a sufficiently protected channel.
+        /// </exception>
+        internal static string ValidateIssuedTokenPolicy(
+            IUserIdentity identity,
+            UserTokenPolicy tokenPolicy,
+            string channelSecurityPolicyUri,
+            MessageSecurityMode channelSecurityMode,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            string effectivePolicyUri = string.IsNullOrEmpty(tokenPolicy.SecurityPolicyUri)
+                ? channelSecurityPolicyUri
+                : tokenPolicy.SecurityPolicyUri!;
+
+            if (identity.TokenType != UserTokenType.IssuedToken)
+            {
+                return effectivePolicyUri;
+            }
+
+            string? identityProfileUri = identity.IssuedTokenType?.Namespace;
+            if (!string.IsNullOrEmpty(identityProfileUri) &&
+                !string.Equals(
+                    identityProfileUri,
+                    tokenPolicy.IssuedTokenType,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "The issued-token profile changed from '{0}' to '{1}'.",
+                    identityProfileUri,
+                    tokenPolicy.IssuedTokenType ?? "<unspecified>");
+            }
+
+            SecurityPolicyInfo? tokenSecurityPolicy = securityPolicies.GetInfo(effectivePolicyUri);
+            if (tokenSecurityPolicy == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The issued-token security policy '{0}' is not supported.",
+                    effectivePolicyUri);
+            }
+
+            if (tokenSecurityPolicy.Uri == SecurityPolicies.None &&
+                channelSecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "An IssuedToken without token encryption requires a SignAndEncrypt channel.");
+            }
+
+            return effectivePolicyUri;
+        }
+
+        /// <summary>
         /// Validates the identity for an open call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -5847,23 +5960,27 @@ namespace Opc.Ua.Client
                 identity.TokenHandler.Token.PolicyId!,
                 securityPolicyUri!)!;
 
-            if (identityPolicy == null)
-            {
-                // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
-                    identity.TokenType,
-                    identity.IssuedTokenType,
-                    securityPolicyUri) ??
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
+            bool updateIdentityPolicy = identityPolicy == null;
+            // try looking up by TokenType if the policy id was not found.
+            identityPolicy ??= m_endpoint.Description.FindUserTokenPolicy(
+                identity.TokenType,
+                identity.IssuedTokenType,
+                securityPolicyUri) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
+            string effectiveTokenPolicyUri = ValidateIssuedTokenPolicy(
+                identity,
+                identityPolicy,
+                securityPolicyUri,
+                m_endpoint.Description.SecurityMode,
+                m_securityPolicies);
+            if (updateIdentityPolicy)
+            {
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
-            string effectiveTokenPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                ? securityPolicyUri
-                : identityPolicy.SecurityPolicyUri!;
             EnsureUnencryptedUserNameTokenAllowed(identity, effectiveTokenPolicyUri);
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
