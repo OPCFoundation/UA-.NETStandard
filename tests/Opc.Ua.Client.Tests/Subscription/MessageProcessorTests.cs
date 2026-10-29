@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions.Fakes;
@@ -951,25 +952,21 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task RepublishFailureLogsButContinuesProcessingAsync()
+        public async Task RepublishFailureDefersLaterMessageUntilGapTimeoutAsync()
         {
-            var availableSequenceNumbers = new List<uint> { 1, 2, 3 };
-            var stringTable = new List<string> { "test" };
+            var timeProvider = new FakeTimeProvider();
 
             var sut = new TestMessageProcessor(m_mockServices.Object,
-                m_completion, m_telemetry)
+                m_completion, m_telemetry, timeProvider)
             {
                 Id = 11
             };
             await using (sut.ConfigureAwait(false))
             {
-                // First message at sequence 1.
-                await sut.OnPublishReceivedAsync(new NotificationMessage
-                {
-                    SequenceNumber = 1
-                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
 
-                // Republish for the gap (sequence 2) returns an error.
                 m_mockServices
                     .Setup(c => c.RepublishAsync(
                         It.IsAny<RequestHeader>(),
@@ -980,7 +977,6 @@ namespace Opc.Ua.Client.Subscriptions
                         StatusCodes.BadMessageNotAvailable))
                     .Verifiable(Times.AtLeastOnce);
 
-                // Skip to sequence 3 to force the gap.
                 await sut.OnPublishReceivedAsync(new NotificationMessage
                 {
                     SequenceNumber = 3,
@@ -991,15 +987,265 @@ namespace Opc.Ua.Client.Subscriptions
                             Events = [new EventFieldList()]
                         })
                     ]
-                }, availableSequenceNumbers, stringTable).ConfigureAwait(false);
+                }, [1, 2, 3], []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 4 },
+                    [1, 2, 3],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.ReceivedSequenceNumbers, Is.EqualTo(new uint[] { 1, 4 }));
+                m_mockServices.Verify();
+
+                timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
                 await sut.EventNotificationReceived.WaitAsync()
                     .WaitAsync(TimeSpan.FromSeconds(5))
                     .ConfigureAwait(false);
 
-                // Even though republish failed, the next message must still
-                // be dispatched.
-                Assert.That(sut.EventNotificationReceived.IsSet, Is.True);
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 3 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public async Task GapRecoveryUsesAvailabilitySnapshotFromTheIncomingMessageAsync()
+        {
+            var republishEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRepublish = new TaskCompletionSource<RepublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 11
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockServices
+                    .Setup(c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(sequenceNumber => sequenceNumber == 2 || sequenceNumber == 3),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((RequestHeader _, uint _, uint sequenceNumber, CancellationToken _) =>
+                    {
+                        if (sequenceNumber == 2)
+                        {
+                            republishEntered.TrySetResult(true);
+                            return new ValueTask<RepublishResponse>(releaseRepublish.Task);
+                        }
+                        return new ValueTask<RepublishResponse>(new RepublishResponse
+                        {
+                            NotificationMessage = BuildDataChangeMessage(sequenceNumber)
+                        });
+                    });
+
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(1),
+                    [1],
+                    []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(4),
+                    [1, 2, 3, 4],
+                    []).ConfigureAwait(false);
+                await republishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(3),
+                    [1, 2, 3],
+                    []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(2),
+                    [1, 2],
+                    []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [1, 2, 3, 4, 5],
+                    []).ConfigureAwait(false);
+
+                releaseRepublish.TrySetResult(new RepublishResponse
+                {
+                    NotificationMessage = BuildDataChangeMessage(2)
+                });
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3, 4 }));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(sequenceNumber => sequenceNumber == 3),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+        }
+
+        [Test]
+        public async Task KeepAliveRecoveryDispatchesBufferedDataInSequenceAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 14
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                m_mockServices
+                    .Setup(c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(sequenceNumber => sequenceNumber == 2),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new RepublishResponse
+                    {
+                        NotificationMessage = BuildDataChangeMessage(2)
+                    })
+                    .Verifiable(Times.Once);
+
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(1),
+                    [1],
+                    []).ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    BuildDataChangeMessage(3),
+                    [1],
+                    []).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 4 },
+                    [1, 2],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(3));
+                m_mockServices.Verify(
+                    c => c.RepublishAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<uint>(id => id == sut.Id),
+                        It.Is<uint>(sequenceNumber => sequenceNumber == 3),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
                 m_mockServices.Verify();
+            }
+        }
+
+        [Test]
+        public async Task LateOriginalMessagesAreDispatchedInSequenceBeforeGapTimeoutAsync()
+        {
+            var sequenceFourDispatched = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry)
+            {
+                Id = 12,
+                NotificationCallback = sequenceNumber =>
+                {
+                    if (sequenceNumber == 4)
+                    {
+                        sequenceFourDispatched.TrySetResult(true);
+                    }
+                    return default;
+                }
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(1));
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(3), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await sequenceFourDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 2, 3, 4 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(4));
+            }
+        }
+
+        [Test]
+        public async Task UnrecoverableGapIsSkippedAfterTimeoutAndLateOriginalIsAcknowledgedAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var sequenceFourDispatched = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sut = new TestMessageProcessor(
+                m_mockServices.Object,
+                m_completion,
+                m_telemetry,
+                timeProvider)
+            {
+                Id = 13,
+                NotificationCallback = sequenceNumber =>
+                {
+                    if (sequenceNumber == 4)
+                    {
+                        sequenceFourDispatched.TrySetResult(true);
+                    }
+                    return default;
+                }
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(1), [1], [])
+                    .ConfigureAwait(false);
+                await WaitForLastSeqNumberAsync(sut, 1).ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(4), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 5 },
+                    [],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                timeProvider.Advance(TimeSpan.FromMilliseconds(2500));
+                await sequenceFourDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 4 }));
+                Assert.That(sut.LastDataSequenceNumberProcessed, Is.EqualTo(4));
+
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), [], [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(
+                    new NotificationMessage { SequenceNumber = 6 },
+                    [],
+                    []).ConfigureAwait(false);
+                await sut.KeepAliveNotificationReceived.WaitAsync()
+                    .WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(3).ConfigureAwait(false);
+
+                Assert.That(sut.DataSequenceNumbers, Is.EqualTo(new uint[] { 1, 4 }));
+                Assert.That(m_completion.QueuedAcks,
+                    Does.Contain(new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = sut.Id,
+                        SequenceNumber = 2
+                    }));
             }
         }
 
@@ -1833,8 +2079,10 @@ namespace Opc.Ua.Client.Subscriptions
         private sealed class TestMessageProcessor : MessageProcessor
         {
             public TestMessageProcessor(ISubscriptionServiceSetClientMethods session,
-                IMessageAckQueue completion, ITelemetryContext telemetry)
-                : base(session, completion, telemetry)
+                IMessageAckQueue completion,
+                ITelemetryContext telemetry,
+                TimeProvider? timeProvider = null)
+                : base(session, completion, telemetry, timeProvider)
             {
             }
 
@@ -1860,6 +2108,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             public PublishState PublishState { get; set; }
             public List<uint> ReceivedSequenceNumbers { get; } = [];
+            public List<uint> DataSequenceNumbers { get; } = [];
             public AsyncManualResetEvent StatusChangeNotificationReceived { get; } = new();
             public DeferredCallbackMode DeferredCallbackMode { get; init; }
 
@@ -1909,6 +2158,7 @@ namespace Opc.Ua.Client.Subscriptions
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
             {
                 ReceivedSequenceNumbers.Add(sequenceNumber);
+                DataSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
@@ -1926,6 +2176,7 @@ namespace Opc.Ua.Client.Subscriptions
                 PublishState publishStateMask, IReadOnlyList<string> stringTable)
             {
                 ReceivedSequenceNumbers.Add(sequenceNumber);
+                DataSequenceNumbers.Add(sequenceNumber);
                 if (publishStateMask != PublishState.None)
                 {
                     PublishState = publishStateMask;
