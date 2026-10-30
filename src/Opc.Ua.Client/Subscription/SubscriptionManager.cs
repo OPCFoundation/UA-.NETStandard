@@ -2387,6 +2387,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             List<PendingAcknowledgement> candidates = acknowledgements;
+            bool movedDeferred = false;
             if (Volatile.Read(ref m_deferredCount) != 0)
             {
                 lock (m_acknowledgementPolicyLock)
@@ -2396,13 +2397,21 @@ namespace Opc.Ua.Client.Subscriptions
                         // Merged into the worker's batch, so an abandoned attempt requeues them as well.
                         candidates.AddRange(m_deferredAcknowledgements);
                         m_deferredAcknowledgements.Clear();
-                        UpdateDeferredWarning();
+                        Volatile.Write(ref m_deferredCount, 0);
+                        movedDeferred = true;
                     }
                 }
             }
             long version = RemoveStaleAcknowledgements(candidates);
             if (candidates.Count == 0)
             {
+                if (movedDeferred)
+                {
+                    lock (m_acknowledgementPolicyLock)
+                    {
+                        UpdateDeferredWarning();
+                    }
+                }
                 return candidates;
             }
 
@@ -2434,6 +2443,13 @@ namespace Opc.Ua.Client.Subscriptions
             if (deferredIndices.Count != 0)
             {
                 DeferSelected(candidates, deferredIndices);
+            }
+            else if (movedDeferred)
+            {
+                lock (m_acknowledgementPolicyLock)
+                {
+                    UpdateDeferredWarning();
+                }
             }
             // Validated again, since a subscription can retire while the provider decides.
             RevalidateAcknowledgements(candidates, version);

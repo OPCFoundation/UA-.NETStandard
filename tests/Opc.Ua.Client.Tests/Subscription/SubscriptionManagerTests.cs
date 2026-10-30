@@ -688,21 +688,31 @@ namespace Opc.Ua.Client.Subscriptions
         /// A growing deferred backlog is reported once, not on every Publish.
         /// </summary>
         /// <param name="testCt">Test cancellation token.</param>
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [CancelAfter(10_000)]
-        public async Task DeferredBacklogWarningIsLoggedOnceAsync(CancellationToken testCt)
+        public async Task DeferredBacklogWarningIsLoggedOnceAsync(
+            bool useAcknowledgementProvider,
+            CancellationToken testCt)
         {
             var provider = new CapturingLoggerProvider();
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(provider));
             var context = new FakeSubscriptionManagerContext();
             List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            if (useAcknowledgementProvider)
+            {
+                context.AcknowledgementProvider = new TestAcknowledgementProvider { Defer = _ => true };
+            }
+            else
+            {
+                context.OnPrepareAcknowledgements = acknowledgements => ([], acknowledgements);
+            }
             await using var manager = new SubscriptionManager(context, loggerFactory, DiagnosticsMasks.None)
             {
                 MinPublishWorkerCount = 1,
                 MaxPublishWorkerCount = 1
             };
             int publishes = 0;
-            context.OnPrepareAcknowledgements = acknowledgements => ([], acknowledgements);
             context.OnPublishAsync = async (_, acknowledgements, ct) =>
             {
                 Interlocked.Increment(ref publishes);
@@ -1516,13 +1526,15 @@ namespace Opc.Ua.Client.Subscriptions
                 MinPublishWorkerCount = 1,
                 MaxPublishWorkerCount = 1
             };
-            var sent = new ConcurrentQueue<uint>();
+            var publishBatches = new ConcurrentQueue<uint[]>();
             context.OnPublishAsync = async (_, acknowledgements, ct) =>
             {
+                var batch = new List<uint>(acknowledgements.Count);
                 foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
                 {
-                    sent.Enqueue(acknowledgement.SequenceNumber);
+                    batch.Add(acknowledgement.SequenceNumber);
                 }
+                publishBatches.Enqueue(batch.ToArray());
                 await Task.Delay(5, ct).ConfigureAwait(false);
                 return CreatePublishResponse(1, acknowledgements);
             };
@@ -1537,14 +1549,27 @@ namespace Opc.Ua.Client.Subscriptions
             }
             manager.Resume();
 
-            await WaitUntilAsync(() => sent.Contains(1u) && sent.Contains(2u) && sent.Contains(3u), testCt)
+            await WaitUntilAsync(
+                () => publishBatches.Any(batch => batch.Contains(2u)),
+                testCt)
                 .ConfigureAwait(false);
             await manager.RunWithPublishingQuiescedAsync(_ => default, testCt).ConfigureAwait(false);
+            uint[][] batches = publishBatches.ToArray();
+            int firstNonEmptyBatch = Array.FindIndex(batches, batch => batch.Length != 0);
+            int deferredBatch = Array.FindIndex(batches, batch => batch.Contains(2u));
+
+            Assert.That(firstNonEmptyBatch, Is.GreaterThanOrEqualTo(0));
+            Assert.That(batches[firstNonEmptyBatch], Does.Contain(1u));
+            Assert.That(batches[firstNonEmptyBatch], Does.Contain(3u));
+            Assert.That(batches[firstNonEmptyBatch], Does.Not.Contain(2u),
+                "The initial Publish request must send the non-deferred acknowledgements only.");
+            Assert.That(deferredBatch, Is.GreaterThan(firstNonEmptyBatch),
+                "The deferred acknowledgement must appear in a later Publish request.");
             Assert.That(Volatile.Read(ref deferrals), Is.EqualTo(1));
-            Assert.That(sent.Count(sequenceNumber => sequenceNumber == 1u), Is.EqualTo(1));
-            Assert.That(sent.Count(sequenceNumber => sequenceNumber == 2u), Is.EqualTo(1),
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 1u)), Is.EqualTo(1));
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 2u)), Is.EqualTo(1),
                 "A repeated index defers the acknowledgement once.");
-            Assert.That(sent.Count(sequenceNumber => sequenceNumber == 3u), Is.EqualTo(1));
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 3u)), Is.EqualTo(1));
         }
 
         /// <summary>
