@@ -39,35 +39,74 @@ namespace Opc.Ua.XRegistry.Server
 {
     /// <summary>
     /// Projects immutable xRegistry snapshots into a stable browseable group/resource tree.
+    /// Document-backed Groups of the implicit <c>groups</c> collection and collection-qualified,
+    /// metadata-only Groups and Resources are projected from the same committed generation.
     /// </summary>
     public sealed partial class XRegistryProjectionEngine : IDisposable
     {
         /// <summary>
-        /// Initializes a new projection engine.
+        /// Initializes a new projection engine. When <paramref name="strategy"/> also implements
+        /// <see cref="IXRegistryCollectionProjectionStrategy"/>, collection-qualified entities of
+        /// the same generations are projected below the same registry Object.
         /// </summary>
         public XRegistryProjectionEngine(
             XRegistryProjectionContext context,
             IXRegistryProjectionStrategy strategy,
             string registryNodeIdPath)
+            : this(
+                context ?? throw new ArgumentNullException(nameof(context)),
+                strategy ?? throw new ArgumentNullException(nameof(strategy)),
+                strategy as IXRegistryCollectionProjectionStrategy,
+                registryNodeIdPath)
         {
-            m_context = context ?? throw new ArgumentNullException(nameof(context));
-            m_strategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
+            ValidateEventGenerationProvider(nameof(strategy));
+        }
+
+        /// <summary>
+        /// Initializes a projection engine for a registry that publishes only collection-qualified
+        /// Groups and metadata-only Resources. The registry-level document Methods
+        /// <c>CreateGroup</c> and <c>GetOrCreateGroup</c> and the registry label Methods are not
+        /// bound by this engine.
+        /// </summary>
+        /// <remarks>
+        /// To project document-backed Groups as well, pass a strategy that implements both
+        /// interfaces as <see cref="IXRegistryProjectionStrategy"/>.
+        /// </remarks>
+        public XRegistryProjectionEngine(
+            XRegistryProjectionContext context,
+            IXRegistryCollectionProjectionStrategy strategy,
+            string registryNodeIdPath)
+            : this(
+                context ?? throw new ArgumentNullException(nameof(context)),
+                null,
+                strategy ?? throw new ArgumentNullException(nameof(strategy)),
+                registryNodeIdPath)
+        {
+            ValidateEventGenerationProvider(nameof(strategy));
+        }
+
+        private XRegistryProjectionEngine(
+            XRegistryProjectionContext context,
+            IXRegistryProjectionStrategy? documentStrategy,
+            IXRegistryCollectionProjectionStrategy? collectionStrategy,
+            string registryNodeIdPath)
+        {
+            m_context = context;
+            m_strategy = documentStrategy;
+            m_collectionStrategy = collectionStrategy;
             m_registryNodeIdPath = string.IsNullOrEmpty(registryNodeIdPath)
                 ? throw new ArgumentException("The registry NodeId path is required.", nameof(registryNodeIdPath))
                 : registryNodeIdPath;
             m_eventOptions = context.EventOptions;
-            m_versionedStrategy = strategy as IXRegistryVersionedProjectionStrategy;
-            m_contextualDelete = strategy as IXRegistryProjectionContextualDelete;
-            m_generationProvider = strategy as IXRegistryProjectionGenerationProvider;
-            if (m_eventOptions?.EventsEnabled == true)
-            {
-                _ = m_generationProvider ??
-                    throw new ArgumentException(
-                        "A generation-bound projection provider is required when xRegistry events " +
-                        "are enabled.",
-                        nameof(strategy));
-            }
+            m_versionedStrategy = documentStrategy as IXRegistryVersionedProjectionStrategy;
+            m_contextualDelete = documentStrategy as IXRegistryProjectionContextualDelete;
+            m_generationProvider =
+                documentStrategy as IXRegistryProjectionGenerationProvider ?? collectionStrategy;
         }
+
+        private IXRegistryProjectionStrategy DocumentStrategy =>
+            m_strategy ?? throw new InvalidOperationException(
+                "The registry projection has no document-backed projection strategy.");
 
         /// <summary>
         /// Binds the engine to the registry object and performs the first reconciliation.
@@ -88,34 +127,48 @@ namespace Opc.Ua.XRegistry.Server
                     SetValue(eventRegistry.EventSourceUrl, m_eventOptions.EventSourceUrl);
                 }
             }
-            WireMethod(registryNode, BrowseNames.CreateGroup, OnCreateGroupAsync);
-            WireMethod(registryNode, BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
+            if (m_strategy is not null)
+            {
+                WireMethod(registryNode, BrowseNames.CreateGroup, OnCreateGroupAsync);
+                WireMethod(registryNode, BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
+            }
             if (registryNode is RegistryState registryTyped)
             {
                 if (m_generationProvider is not null && registryTyped.Epoch is null)
                 {
                     registryTyped.AddEpoch(m_context.SystemContext);
-                    await m_context.AddNodeAsync(registryTyped.Epoch!, ct).ConfigureAwait(false);
+                    m_ownedRegistryEpoch = registryTyped.Epoch!;
+                    await m_context.AddNodeAsync(m_ownedRegistryEpoch, ct).ConfigureAwait(false);
                 }
                 registryTyped.AddLabels(m_context.SystemContext);
-                WireLabelsContainer(
-                    registryTyped.Labels,
-                    OnAddRegistryLabelAsync,
-                    OnRemoveRegistryLabelAsync);
+                if (m_strategy is not null)
+                {
+                    WireLabelsContainer(
+                        registryTyped.Labels,
+                        OnAddRegistryLabelAsync,
+                        OnRemoveRegistryLabelAsync);
+                }
                 LinkMethodArguments(registryTyped.Labels, m_context.SystemContext);
             }
             await ReconcileAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Finds a projected resource node by xid.
+        /// Finds a projected resource node, or a collection-qualified Group or metadata-only
+        /// Resource node, by xid. Returns the registry Object when no projected node matches.
         /// </summary>
         public NodeState EventSourceFor(string? xid)
         {
-            if (!string.IsNullOrEmpty(xid) &&
-                m_resourcesByXid.TryGetValue(xid!, out ResourceState? node))
+            if (!string.IsNullOrEmpty(xid))
             {
-                return node;
+                if (m_resourcesByXid.TryGetValue(xid!, out ResourceState? node))
+                {
+                    return node;
+                }
+                if (m_entitiesByXid.TryGetValue(xid!, out BaseObjectState? entity))
+                {
+                    return entity;
+                }
             }
             return m_registryNode!;
         }
@@ -308,7 +361,7 @@ namespace Opc.Ua.XRegistry.Server
         private XRegistryProjectionGeneration CaptureProjectionGeneration()
         {
             return m_generationProvider is null
-                ? new XRegistryProjectionGeneration(m_strategy.Current, null)
+                ? new XRegistryProjectionGeneration(DocumentStrategy.Current, null)
                 : m_generationProvider.CaptureProjectionGeneration();
         }
 
@@ -336,6 +389,11 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                if (Volatile.Read(ref m_registryNode) is null)
+                {
+                    // DetachAsync released the registry Object while this call waited.
+                    return;
+                }
                 XRegistryProjectionGeneration generation = suppliedGeneration ?? CaptureProjectionGeneration();
                 IXRegistryProjectionSnapshot snapshot = generation.Projection;
                 XRegistryProjectionEventSnapshot? eventSnapshot = generation.Events;
@@ -351,6 +409,16 @@ namespace Opc.Ua.XRegistry.Server
                     projectionSequence.Value >= m_latestProjectionSequence;
                 if (applyProjection)
                 {
+                    // Collection-qualified entities are validated and their new nodes are built
+                    // before the first address-space change. Removals run before any addition so
+                    // a replaced or reused NodeId is never registered twice.
+                    CollectionProjectionPlan? collectionPlan = PrepareCollectionProjection(snapshot);
+                    if (collectionPlan is not null)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        await RemoveStaleCollectionEntitiesAsync(collectionPlan).ConfigureAwait(false);
+                    }
+
                     if (m_registryNode is RegistryState registryTyped &&
                         registryTyped.Labels is not null)
                     {
@@ -373,7 +441,7 @@ namespace Opc.Ua.XRegistry.Server
                         else
                         {
                             ApplyGroupProperties(entry.Node, group);
-                            m_strategy.ConfigureGroupNode(entry.Node, group);
+                            DocumentStrategy.ConfigureGroupNode(entry.Node, group);
                             if (entry.Node.Labels is not null)
                             {
                                 await SyncLabelPropertiesAsync(
@@ -396,6 +464,10 @@ namespace Opc.Ua.XRegistry.Server
                         .ToList())
                     {
                         await RemoveGroupNodeAsync(groupId, ct).ConfigureAwait(false);
+                    }
+                    if (collectionPlan is not null)
+                    {
+                        await PublishCollectionProjectionAsync(collectionPlan).ConfigureAwait(false);
                     }
                     if (projectionSequence is not null)
                     {
@@ -436,6 +508,17 @@ namespace Opc.Ua.XRegistry.Server
             finally
             {
                 m_gate.Release();
+            }
+        }
+
+        private void ValidateEventGenerationProvider(string parameterName)
+        {
+            if (m_eventOptions?.EventsEnabled == true && m_generationProvider is null)
+            {
+                throw new ArgumentException(
+                    "A generation-bound projection provider is required when xRegistry events " +
+                    "are enabled.",
+                    parameterName);
             }
         }
 
@@ -483,6 +566,7 @@ namespace Opc.Ua.XRegistry.Server
             }
             m_groups.Clear();
             m_resourcesByXid.Clear();
+            DetachCollectionEntries();
             m_gate.Dispose();
         }
 
@@ -569,7 +653,7 @@ namespace Opc.Ua.XRegistry.Server
                 else
                 {
                     ApplyResourceProperties(res, resource, eventSnapshot);
-                    m_strategy.ConfigureResourceNode(res.Node, resource);
+                    DocumentStrategy.ConfigureResourceNode(res.Node, resource);
                     if (res.Node.Labels is not null)
                     {
                         await SyncLabelPropertiesAsync(
@@ -652,7 +736,7 @@ namespace Opc.Ua.XRegistry.Server
                 else
                 {
                     ApplyLogicalResourceProperties(logical, defaultVersion, eventSnapshot);
-                    m_strategy.ConfigureResourceNode(logical.LogicalNode, defaultVersion);
+                    DocumentStrategy.ConfigureResourceNode(logical.LogicalNode, defaultVersion);
                     if (logical.LogicalNode.MetaLabels is not null &&
                         defaultVersion is IXRegistryProjectionResourceMeta meta)
                     {
@@ -688,7 +772,7 @@ namespace Opc.Ua.XRegistry.Server
                     else
                     {
                         ApplyVersionProperties(versionEntry, version, eventSnapshot);
-                        m_strategy.ConfigureResourceNode(versionEntry.Node, version);
+                        DocumentStrategy.ConfigureResourceNode(versionEntry.Node, version);
                         if (versionEntry.Node.Labels is not null)
                         {
                             await SyncLabelPropertiesAsync(
@@ -752,7 +836,7 @@ namespace Opc.Ua.XRegistry.Server
             IXRegistryProjectionGroup group,
             CancellationToken ct)
         {
-            GroupState node = m_strategy.CreateGroupNode(m_registryNode!, group);
+            GroupState node = DocumentStrategy.CreateGroupNode(m_registryNode!, group);
             NodeId nodeId = GroupNodeId(group.GroupId);
             node.Create(
                 m_context.SystemContext,
@@ -787,7 +871,7 @@ namespace Opc.Ua.XRegistry.Server
             DateTime createdAt = DateTime.UtcNow;
             SetValue(node.CreatedAt, (DateTimeUtc)createdAt);
             SetValue(node.ModifiedAt, (DateTimeUtc)createdAt);
-            m_strategy.ConfigureGroupNode(node, group);
+            DocumentStrategy.ConfigureGroupNode(node, group);
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
@@ -841,7 +925,7 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventSnapshot? eventSnapshot,
             CancellationToken ct)
         {
-            ResourceState node = m_strategy.CreateResourceNode(group.Node, resource);
+            ResourceState node = DocumentStrategy.CreateResourceNode(group.Node, resource);
             NodeId nodeId = ResourceNodeId(
                 resource.GroupId,
                 resource.ResourceId,
@@ -904,10 +988,10 @@ namespace Opc.Ua.XRegistry.Server
                 (c, i, t) => OnAddResourceMetaLabelAsync(groupId, resourceId, c, i, t),
                 (c, i, t) => OnRemoveResourceMetaLabelAsync(groupId, resourceId, c, i, t));
 
-            IXRegistryProjectedResourceFile? file = m_strategy.CreateResourceFile(node, resource);
+            IXRegistryProjectedResourceFile? file = DocumentStrategy.CreateResourceFile(node, resource);
             var entry = new ResourceEntry(node, file, groupId, resourceId, versionId, resource.Xid);
             ApplyResourceProperties(entry, resource, eventSnapshot);
-            m_strategy.ConfigureResourceNode(node, resource);
+            DocumentStrategy.ConfigureResourceNode(node, resource);
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
@@ -1050,7 +1134,7 @@ namespace Opc.Ua.XRegistry.Server
             string resourceId = defaultVersion.ResourceId;
 
             // Create the logical Resource node — child of the Group.
-            ResourceState node = m_strategy.CreateResourceNode(group.Node, defaultVersion);
+            ResourceState node = DocumentStrategy.CreateResourceNode(group.Node, defaultVersion);
             NodeId logicalNodeId = LogicalResourceNodeId(groupId, resourceId);
             node.Create(
                 m_context.SystemContext,
@@ -1123,7 +1207,7 @@ namespace Opc.Ua.XRegistry.Server
 
             var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
             ApplyLogicalResourceProperties(logical, defaultVersion, eventSnapshot);
-            m_strategy.ConfigureResourceNode(node, defaultVersion);
+            DocumentStrategy.ConfigureResourceNode(node, defaultVersion);
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
@@ -1580,7 +1664,7 @@ namespace Opc.Ua.XRegistry.Server
                 : CreateVersionEntry(groupNode, version, eventSnapshot);
             ResourceState node = entry.Node;
             ApplyVersionProperties(entry, version, eventSnapshot);
-            m_strategy.ConfigureResourceNode(node, version);
+            DocumentStrategy.ConfigureResourceNode(node, version);
 
             logical.VersionsFolder.AddChild(node);
             logical.LogicalNode.AddReference(ReferenceTypeIds.HasNotifier, false, versionNodeId);
@@ -1605,7 +1689,7 @@ namespace Opc.Ua.XRegistry.Server
             string groupId = version.GroupId;
             string resourceId = version.ResourceId;
             string versionId = version.VersionId;
-            ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
+            ResourceState node = DocumentStrategy.CreateResourceNode(groupNode, version);
             NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
             node.Create(
                 m_context.SystemContext,
@@ -1643,10 +1727,10 @@ namespace Opc.Ua.XRegistry.Server
                 (c, i, t) => OnAddResourceLabelAsync(groupId, resourceId, versionId, c, i, t),
                 (c, i, t) => OnRemoveResourceLabelAsync(groupId, resourceId, versionId, c, i, t));
 
-            IXRegistryProjectedResourceFile? file = m_strategy.CreateResourceFile(node, version);
+            IXRegistryProjectedResourceFile? file = DocumentStrategy.CreateResourceFile(node, version);
             var entry = new ResourceEntry(node, file, groupId, resourceId, versionId, version.Xid);
             ApplyVersionProperties(entry, version, eventSnapshot);
-            m_strategy.ConfigureResourceNode(node, version);
+            DocumentStrategy.ConfigureResourceNode(node, version);
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
@@ -1865,7 +1949,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return StatusCodes.BadInvalidArgument;
             }
-            IXRegistryProjectionGroup? group = await m_strategy
+            IXRegistryProjectionGroup? group = await DocumentStrategy
                 .CreateGroupAsync(groupId!, ct).ConfigureAwait(false);
             if (group is null)
             {
@@ -1897,7 +1981,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return StatusCodes.BadInvalidArgument;
             }
-            (IXRegistryProjectionGroup group, bool created) = await m_strategy
+            (IXRegistryProjectionGroup group, bool created) = await DocumentStrategy
                 .GetOrCreateGroupAsync(groupId!, ct).ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
@@ -1926,7 +2010,7 @@ namespace Opc.Ua.XRegistry.Server
                 return StatusCodes.BadInvalidArgument;
             }
             IXRegistryProjectionResource? resource = m_versionedStrategy is null
-                ? await m_strategy.CreateResourceAsync(groupId, resourceId!, ct)
+                ? await DocumentStrategy.CreateResourceAsync(groupId, resourceId!, ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.CreateResourceAsync(
                     groupId,
@@ -2082,7 +2166,7 @@ namespace Opc.Ua.XRegistry.Server
                 return StatusCodes.BadInvalidArgument;
             }
             (IXRegistryProjectionResource resource, bool created) = m_versionedStrategy is null
-                ? await m_strategy.GetOrCreateResourceAsync(groupId, resourceId!, ct)
+                ? await DocumentStrategy.GetOrCreateResourceAsync(groupId, resourceId!, ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.GetOrCreateResourceAsync(
                     groupId,
@@ -2217,7 +2301,7 @@ namespace Opc.Ua.XRegistry.Server
             ServiceResult result = m_contextualDelete is not null
                 ? await m_contextualDelete.DeleteGroupAsync(groupId, expectedEpoch, context, ct)
                     .ConfigureAwait(false)
-                : await m_strategy.DeleteGroupAsync(groupId, expectedEpoch, ct).ConfigureAwait(false);
+                : await DocumentStrategy.DeleteGroupAsync(groupId, expectedEpoch, ct).ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
         }
@@ -2259,11 +2343,11 @@ namespace Opc.Ua.XRegistry.Server
                     out ResourceState? logicalResource) &&
                 ReferenceEquals(logicalResource, node);
             ServiceResult result = m_versionedStrategy is null
-                ? await m_strategy.DeleteResourceAsync(
-                    groupId,
-                    resourceId,
-                    expectedEpoch,
-                    ct)
+                ? await DocumentStrategy.DeleteResourceAsync(
+                        groupId,
+                        resourceId,
+                        expectedEpoch,
+                        ct)
                     .ConfigureAwait(false)
                 : await DeleteProjectedEntityAsync(
                         groupId,
@@ -2353,12 +2437,9 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await m_strategy
-                .AddRegistryLabelAsync(
-                    GetString(input, 0) ?? string.Empty,
-                    GetString(input, 1) ?? string.Empty,
-                    OptionalEpoch(input, 2),
-                    ct)
+            ServiceResult result = await DocumentStrategy
+                .AddRegistryLabelAsync(GetString(input, 0) ?? string.Empty, GetString(input, 1) ?? string.Empty,
+                    OptionalEpoch(input, 2), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2374,7 +2455,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await m_strategy
+            ServiceResult result = await DocumentStrategy
                 .RemoveRegistryLabelAsync(GetString(input, 0) ?? string.Empty, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
@@ -2392,13 +2473,9 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await m_strategy
-                .AddGroupLabelAsync(
-                    groupId,
-                    GetString(input, 0) ?? string.Empty,
-                    GetString(input, 1) ?? string.Empty,
-                    OptionalEpoch(input, 2),
-                    ct)
+            ServiceResult result = await DocumentStrategy
+                .AddGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
+                    GetString(input, 1) ?? string.Empty, OptionalEpoch(input, 2), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2415,12 +2492,9 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await m_strategy
-                .RemoveGroupLabelAsync(
-                    groupId,
-                    GetString(input, 0) ?? string.Empty,
-                    OptionalEpoch(input, 1),
-                    ct)
+            ServiceResult result = await DocumentStrategy
+                .RemoveGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
+                    OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2440,13 +2514,13 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             ServiceResult result = m_versionedStrategy is null
-                ? await m_strategy.AddResourceLabelAsync(
-                    groupId,
-                    resourceId,
-                    GetString(input, 0) ?? string.Empty,
-                    GetString(input, 1) ?? string.Empty,
-                    OptionalEpoch(input, 2),
-                    ct)
+                ? await DocumentStrategy.AddResourceLabelAsync(
+                        groupId,
+                        resourceId,
+                        GetString(input, 0) ?? string.Empty,
+                        GetString(input, 1) ?? string.Empty,
+                        OptionalEpoch(input, 2),
+                        ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.AddVersionLabelAsync(
                     groupId,
@@ -2475,12 +2549,12 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             ServiceResult result = m_versionedStrategy is null
-                ? await m_strategy.RemoveResourceLabelAsync(
-                    groupId,
-                    resourceId,
-                    GetString(input, 0) ?? string.Empty,
-                    OptionalEpoch(input, 1),
-                    ct)
+                ? await DocumentStrategy.RemoveResourceLabelAsync(
+                        groupId,
+                        resourceId,
+                        GetString(input, 0) ?? string.Empty,
+                        OptionalEpoch(input, 1),
+                        ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.RemoveVersionLabelAsync(
                     groupId,
@@ -2700,12 +2774,12 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             var oldGroups =
-                previous.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+                previous.Groups.ToDictionary(group => group.Xid, StringComparer.Ordinal);
             var newGroups =
-                current.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+                current.Groups.ToDictionary(group => group.Xid, StringComparer.Ordinal);
 
             foreach (XRegistryProjectionEventGroup oldGroup in previous.Groups
-                .Where(group => !newGroups.ContainsKey(group.GroupId)))
+                .Where(group => !newGroups.ContainsKey(group.Xid)))
             {
                 foreach (XRegistryProjectionEventResource resource in oldGroup.Resources)
                 {
@@ -2733,7 +2807,7 @@ namespace Opc.Ua.XRegistry.Server
 
             foreach (XRegistryProjectionEventGroup newGroup in current.Groups)
             {
-                if (!oldGroups.TryGetValue(newGroup.GroupId, out XRegistryProjectionEventGroup? oldGroup))
+                if (!oldGroups.TryGetValue(newGroup.Xid, out XRegistryProjectionEventGroup? oldGroup))
                 {
                     changes.Add(
                         new XRegistryEventChange(
@@ -3049,6 +3123,15 @@ namespace Opc.Ua.XRegistry.Server
             }
             if (change.Kind == XRegistryEventKind.ResourceDeleted)
             {
+                int collectionParent = change.Subject.AsSpan().LastIndexOf('/');
+                int resourceCollection = collectionParent < 0 ? -1 :
+                    change.Subject.LastIndexOf('/', collectionParent - 1);
+                if (resourceCollection > 0 &&
+                    m_entitiesByXid.TryGetValue(change.Subject.Substring(0, resourceCollection),
+                        out BaseObjectState? parentEntity))
+                {
+                    return parentEntity;
+                }
                 XRegistryProjectionEventResource? oldResource =
                     FindResourceBySubject(previous, change.Subject);
                 if (oldResource is not null &&
@@ -3098,7 +3181,8 @@ namespace Opc.Ua.XRegistry.Server
                 return m_registryNode!;
             }
 
-            NodeState? live = FindLiveNode(change.SourceNodeId);
+            NodeState? live = m_entitiesByXid.TryGetValue(change.Subject, out BaseObjectState? collectionEntity)
+                ? collectionEntity : FindLiveNode(change.SourceNodeId);
             if (live is not null)
             {
                 return live;
@@ -3516,7 +3600,7 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         private readonly XRegistryProjectionContext m_context;
-        private readonly IXRegistryProjectionStrategy m_strategy;
+        private readonly IXRegistryProjectionStrategy? m_strategy;
         private readonly IXRegistryVersionedProjectionStrategy? m_versionedStrategy;
         private readonly IXRegistryProjectionContextualDelete? m_contextualDelete;
         private readonly IXRegistryProjectionGenerationProvider? m_generationProvider;
@@ -3533,5 +3617,8 @@ namespace Opc.Ua.XRegistry.Server
         private XRegistryProjectionEventSnapshot? m_previousEventSnapshot;
         private long m_latestProjectionSequence = -1;
         private bool m_disposed;
+
+        /// <summary>The registry Epoch Property published by this engine, when absent on the host.</summary>
+        private PropertyState<uint>? m_ownedRegistryEpoch;
     }
 }

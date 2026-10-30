@@ -1,0 +1,43 @@
+{
+  "format": "EndpointRegistryRuleSchemas/1.0",
+  "repository": "OPCF-Members/OPC30450-CloudInitiative",
+  "commit": "17f28faaf072fe6a61c0de775fdb6db683bf56ec",
+  "uncommittedSource": false,
+  "files": {
+    "composed-media-model.json": "7d1eb80d28767ec1415e6a5e4a190145d019b916b45daec18a998082f7d11efd",
+    "endpoint.schema.json": "19104495105ab48087a0b52a50f81971a9ef78ba094feef807ff56e6e976194a",
+    "media-endpoint.schema.json": "04d966005b7d2c41dbbf145e0e8ae86c4f05c94d1b6c90b96cddf45fa0e61777",
+    "media-extension.json": "75a8ff66fd2e98bfc7412a72591dcc3d7199587740188f5c9a625f12d2b372bf",
+    "media-registry.schema.json": "825f70349fd84d7eab2996c10eb028b4283b2936d887a5503e1178008f97f192",
+    "message-registry.schema.json": "562ab3990658ce6fae69587c59c73c8b627d01728f69e7d49429c446520af667",
+    "message.schema.json": "93eed39afadbdfbf04253d4af2dcd847d8656634292e8cf1fce4e11840f8e5f1",
+    "messagegroup.schema.json": "88b880ec36bd19d2b0505ea0e818fe6960a869fc34b22dc2a95a120a885582c2",
+    "registry.schema.json": "81a0c548542a1516bd46856bb911c229bc3fa6bfafb24cdcadd4b6d5e4a6cdaf",
+    "resolved-endpoint-model.json": "053a527c1a85557b5e2661606d9e32526bfc6a45706dba1c18dc82f46fc657dd",
+    "resolved-message-model.json": "d0f3d0404e8a99ec92ff625676b22511b5edad3fd7fe72e8508af0d882b23bf8"
+  },
+  "jsonSchemaKeywords": [
+    "$id",
+    "$ref",
+    "$schema",
+    "additionalProperties",
+    "allOf",
+    "anyOf",
+    "const",
+    "default",
+    "enum",
+    "if",
+    "items",
+    "maxProperties",
+    "maximum",
+    "minItems",
+    "minLength",
+    "minimum",
+    "pattern",
+    "properties",
+    "required",
+    "then",
+    "type",
+    "uniqueItems"
+  ]
+}

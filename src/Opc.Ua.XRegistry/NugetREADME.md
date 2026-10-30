@@ -21,6 +21,10 @@ This package contains:
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
   replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+- The additive native value/document and snapshot contracts. `RegistryValues` converts
+  JSON compatibility documents to exact native values and compares committed value forms
+  without aliasing `1`, `1.0`, or signed zero. Importing these declarations does not claim
+  that a running registry implements the corresponding new facets.
 - `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
   Resource binding and optional verification seam, independent of content lookup. The binding
   pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not

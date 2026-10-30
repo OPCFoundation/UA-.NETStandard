@@ -5,6 +5,22 @@ fluent `PubSubApplicationBuilder` + dependency injection + .NET Generic Host sur
 One executable exposes three command-line-selectable **modes**, and publishes as a
 NativeAOT-ready single-file executable.
 
+An independent, opt-in **native registry client** can be invoked without starting
+PubSub:
+
+```powershell
+ConsoleReferencePubSubClient --registry-client --endpoint opc.tcp://localhost:62555/Registry `
+  --user registry-admin --auto-accept --once
+```
+
+The prefix must be first and the endpoint must be explicit. Credentials are read
+from `REGISTRY_PASSWORD` (or `--password-env <name>`). `--registry-client --help`
+lists the bounded native workflow's options. Auto-accept is development-only.
+See [the registry samples](..\..\Registry\README.md) for durable hosting, trusted
+certificate setup, schema access, and restart verification. This path uses only
+registry clients, not the EndpointRegistry.PubSub binding, and leaves all modes
+and defaults below unchanged.
+
 ## Modes
 
 ```

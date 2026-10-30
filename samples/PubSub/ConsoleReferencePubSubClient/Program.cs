@@ -72,11 +72,24 @@ namespace Quickstarts.ConsoleReferencePubSubClient
 
         public static async Task<int> Main(string[] args)
         {
+            if (args.Length > 0 && args[0] == "--registry-client")
+            {
+                var registryArgs = new string[args.Length - 1];
+                Array.Copy(args, 1, registryArgs, 0, registryArgs.Length);
+                if (Array.IndexOf(registryArgs, "--endpoint") < 0 &&
+                    Array.IndexOf(registryArgs, "--help") < 0)
+                {
+                    Console.Error.WriteLine("--registry-client requires an explicit --endpoint <opc.tcp URL>.");
+                    return 1;
+                }
+                return await Opc.Ua.Registry.Samples.RegistryClientProgram.Main(registryArgs).ConfigureAwait(false);
+            }
             int exitCode = 0;
 
             var rootCommand = new RootCommand(
                 "OPC UA Part 14 PubSub Reference sample. " +
-                "Select a mode: publisher | subscriber | external.");
+                "Select a mode: publisher | subscriber | external. " +
+                "For a native registry-only demo use --registry-client --endpoint <URL> (no PubSub runtime).");
 
             rootCommand.Subcommands.Add(BuildPublisherCommand(code => exitCode = code));
             rootCommand.Subcommands.Add(BuildSubscriberCommand(code => exitCode = code));

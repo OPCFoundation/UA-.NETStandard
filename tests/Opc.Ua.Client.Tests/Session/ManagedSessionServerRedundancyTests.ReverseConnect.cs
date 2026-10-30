@@ -500,6 +500,14 @@ namespace Opc.Ua.Client.Tests
                         set.Backup.DialClient(clientUrl, ReverseConnectTimeoutMs);
                     }
                     set.m_primaryEndpoint = await set.GetPrimaryEndpointAsync(ct).ConfigureAwait(false);
+                    if (backupDials)
+                    {
+                        // Initial discovery snapshots availability rather than waiting for an unseen member.
+                        await WaitUntilAsync(
+                            () => (set.MemberSource ?? set.Source)
+                                .GetAvailableEndpointUrls(set.Backup.ApplicationUri).Count > 0,
+                            ct).ConfigureAwait(false);
+                    }
                     return set;
                 }
                 catch

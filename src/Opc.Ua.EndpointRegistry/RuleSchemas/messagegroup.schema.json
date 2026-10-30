@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:opcfoundation:EndpointRegistry:0.2.0:messagegroup",
+  "type": "object",
+  "properties": {
+    "envelope": {
+      "type": "string"
+    },
+    "protocol": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "documentation": {
+      "type": "string"
+    },
+    "self": {
+      "type": "string"
+    },
+    "xid": {
+      "type": "string"
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdat": {
+      "type": "string"
+    },
+    "modifiedat": {
+      "type": "string"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "messagegroupid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "messages": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "urn:opcfoundation:EndpointRegistry:0.2.0:message"
+      }
+    },
+    "messagescount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "messagesurl": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": {}
+}

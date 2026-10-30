@@ -281,7 +281,7 @@ namespace Opc.Ua.XRegistry.Tests
         /// Verifies that unsupported provider publishes no proxy or companion nodes.
         /// </summary>
         [Test]
-        public void UnsupportedProviderPublishesNoProxyOrCompanionNodes()
+        public async Task UnsupportedProviderPublishesNoProxyOrCompanionNodes()
         {
             XRegistryServerOptions options = CreateFederationOptions();
             var provider = new Mock<IXRegistryFederationProvider>(MockBehavior.Strict);
@@ -292,9 +292,11 @@ namespace Opc.Ua.XRegistry.Tests
             using XRegistryFederationNodeManager nm = CreateNodeManager(options);
             var references = new Dictionary<NodeId, IList<IReference>>();
 
-            Assert.That(async () => await nm.CreateAddressSpaceAsync(references).ConfigureAwait(false),
+            await Assert.ThatAsync(
+                async () => await nm.CreateAddressSpaceAsync(references).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNotSupported));
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNotSupported))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(nm.Find(ProxyNodeId(nm)), Is.Null);
@@ -546,7 +548,8 @@ namespace Opc.Ua.XRegistry.Tests
                     options.FederationTarget!, "opc.tcp://untrusted.example.org:4840", It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(statusCode));
 
-            await Assert.ThatAsync(async () => await nm.UpdateEndpointAsync(
+            await Assert.ThatAsync(
+                async () => await nm.UpdateEndpointAsync(
                     "opc.tcp://untrusted.example.org:4840", rejected.Object).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(statusCode))
@@ -593,12 +596,16 @@ namespace Opc.Ua.XRegistry.Tests
                 "opc.tcp://queued.example.org:4840", queued.Object, queuedCancellation.Token).AsTask();
             Assert.That(queuedUpdate.IsCompleted, Is.False, "Only one provider may verify an update at a time.");
             await queuedCancellation.CancelAsync().ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await queuedUpdate.ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await queuedUpdate.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
             queued.VerifyNoOtherCalls();
             await blockedCancellation.CancelAsync().ConfigureAwait(false);
-            await Assert.ThatAsync(async () => await blockedUpdate.ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await blockedUpdate.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -640,8 +647,10 @@ namespace Opc.Ua.XRegistry.Tests
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            await Assert.ThatAsync(async () => await startup.ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await startup.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(nm.Find(ProxyNodeId(nm)), Is.Null);
@@ -679,9 +688,11 @@ namespace Opc.Ua.XRegistry.Tests
                 await cancellation.CancelAsync().ConfigureAwait(false);
             }
 
-            await Assert.ThatAsync(async () => await nm.CreateAddressSpaceAsync(references, cancellation.Token)
+            await Assert.ThatAsync(
+                async () => await nm.CreateAddressSpaceAsync(references, cancellation.Token)
                     .ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -722,9 +733,11 @@ namespace Opc.Ua.XRegistry.Tests
                 await cancellation.CancelAsync().ConfigureAwait(false);
             }
 
-            await Assert.ThatAsync(async () => await nm.UpdateEndpointAsync(
+            await Assert.ThatAsync(
+                async () => await nm.UpdateEndpointAsync(
                     "opc.tcp://cancelled.example.org:4840", provider.Object, cancellation.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                Throws.InstanceOf<OperationCanceledException>())
+                .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

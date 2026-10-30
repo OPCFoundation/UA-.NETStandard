@@ -121,18 +121,16 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.7.0"));
+                Assert.That(model.Attribute("Version")?.Value, Is.EqualTo("0.10.0"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-12T00:00:00Z"));
+                    Is.EqualTo("2026-09-29T00:00:00Z"));
             });
         }
 
         /// <summary>
-        /// The connectivity model requires the registry model, so the two have
-        /// to be synced together: a connectivity NodeSet that requires a
-        /// registry version this repository does not carry describes a model
-        /// no Server here can load.
+        /// The existing connectivity model keeps its compatible minimum dependency.
+        /// A newer additive xRegistry model does not require changing the WoT contract.
         /// </summary>
         [Test]
         public void TheConnectivityModelRequiresTheRegistryVersionThatIsCarried()
@@ -148,10 +146,13 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     required.Attribute("Version")?.Value,
-                    Is.EqualTo(registry.Attribute("Version")?.Value));
+                    Is.EqualTo("0.7.0"));
                 Assert.That(
                     required.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo(registry.Attribute("PublicationDate")?.Value));
+                    Is.EqualTo("2026-09-12T00:00:00Z"));
+                Assert.That(
+                    Version.Parse(registry.Attribute("Version")!.Value),
+                    Is.GreaterThanOrEqualTo(Version.Parse(required.Attribute("Version")!.Value)));
             });
         }
 
@@ -206,7 +207,9 @@ namespace Opc.Ua.WotCon.Tests
                         Is.EqualTo(browseName),
                         $"'{nodeId}' now names a different Node.");
                 }
-                Assert.That(nodes, Has.Count.EqualTo(131));
+                Assert.That(nodes, Has.Count.EqualTo(320));
+                Assert.That(nodes["ns=1;i=67004"], Is.EqualTo("1:RegistryNumberValueDataType"));
+                Assert.That(nodes["ns=1;i=67304"], Is.EqualTo("1:RegistrySnapshotReadResultDataType"));
             });
         }
 
@@ -243,8 +246,8 @@ namespace Opc.Ua.WotCon.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(Property("NamespaceUri"), Is.EqualTo(RegistryNamespace));
-                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.7.0"));
-                Assert.That(Property("NamespacePublicationDate"), Is.EqualTo("2026-09-12T00:00:00Z"));
+                Assert.That(Property("NamespaceVersion"), Is.EqualTo("0.10.0"));
+                Assert.That(Property("NamespacePublicationDate"), Is.EqualTo("2026-09-29T00:00:00Z"));
                 Assert.That(Property("IsNamespaceSubset"), Is.EqualTo("false"));
             });
         }

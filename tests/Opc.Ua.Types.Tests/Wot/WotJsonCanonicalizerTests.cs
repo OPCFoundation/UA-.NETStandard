@@ -52,6 +52,17 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotJsonCanonicalizerTests
     {
         [Test]
+        public void SharedCanonicalizerMatchesTheExistingWotCanonicalForm()
+        {
+            JsonElement value = Parse("{\"z\":-0.0,\"a\":1.00}");
+            Assert.That(JsonCanonicalizer.TryGetUtf8(value, out ByteString utf8, out string error),
+                Is.True, error);
+            Assert.That(Encoding.UTF8.GetString(utf8.ToArray()), Is.EqualTo("{\"a\":1,\"z\":0}"));
+            Assert.That(WotJsonCanonicalizer.TryGetUtf8(value, out byte[] legacy, out error), Is.True, error);
+            Assert.That(utf8.ToArray(), Is.EqualTo(legacy));
+        }
+
+        [Test]
         public void ObjectMembersAreSortedByTheirUtf16CodeUnits()
         {
             Assert.That(

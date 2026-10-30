@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>urn:test:registry:BaseModel</Uri>
+    <Uri>urn:test:registry:DerivedModel</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="urn:test:registry:DerivedModel" Version="1.0.0" PublicationDate="2026-01-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.03" PublicationDate="2024-01-01T00:00:00Z" />
+      <RequiredModel ModelUri="urn:test:registry:BaseModel" Version="1.0.0" PublicationDate="2026-01-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <UAObjectType NodeId="ns=2;i=2000" BrowseName="2:DerivedCollectionType">
+    <DisplayName>DerivedCollectionType</DisplayName>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=35">ns=2;i=2001</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=2;i=2001" BrowseName="2:&lt;Entry&gt;" ParentNodeId="ns=2;i=2000">
+    <DisplayName>&lt;Entry&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="i=40">i=11575</Reference>
+      <Reference ReferenceType="i=37">i=11508</Reference>
+      <Reference ReferenceType="i=35" IsForward="false">ns=2;i=2000</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>
