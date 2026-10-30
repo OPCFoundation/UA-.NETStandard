@@ -2617,6 +2617,42 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Terminal release fallback requires the exact source generation to be retired and quiescent.
+        /// </summary>
+        [Test]
+        public void TerminalSourceInvalidationRequiresQuiescentRetiredGeneration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (MonitoredItem item = CreateMonitoredItem(
+                server.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new NodeHandle(),
+                new NodeId("QuiescentRetirement", 1)))
+            {
+                var binding = (IMonitoredItemGenerationBinding)item;
+                MonitoredItemSourceSnapshot source = binding.CaptureSource();
+                Assert.That(source.Generation, Is.Not.Null);
+                Assert.That(source.Generation!.TryGetGeneration(out NodeManagerGeneration? generation), Is.True);
+
+                Assert.That(
+                    binding.TryInvalidateRetiredSource(source.Revision, source.Generation),
+                    Is.False);
+                Assert.That(item.NodeManager, Is.Not.Null);
+                Assert.That(binding.IsDeleted, Is.False);
+
+                generation!.Gate.Retire();
+
+                Assert.That(
+                    binding.TryInvalidateRetiredSource(source.Revision, source.Generation),
+                    Is.True);
+                Assert.That(item.NodeManager, Is.Null);
+                Assert.That(binding.IsDeleted, Is.True);
+                Assert.That(binding.IsTerminal, Is.True);
+            }
+        }
+
+        /// <summary>
         /// Retirement reports both retained source release and native invalidation failures.
         /// </summary>
         [TestCase(false)]
@@ -2657,6 +2693,10 @@ namespace Opc.Ua.Server.Tests
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
                 Assert.That(generation.MonitoredItems.Keys, Is.EquivalentTo(
                     new[] { retained, invalidation, healthy }));
+                if (!migrate)
+                {
+                    generation.Gate.Retire();
+                }
                 source.Setup(value => value.ReleaseSourceAsync(
                     It.IsAny<IMonitoredItem>(), It.IsAny<long>(), It.IsAny<CancellationToken>()))
                     .Returns((IMonitoredItem item, long revision, CancellationToken _) =>
@@ -2693,11 +2733,22 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(failure.InnerExceptions[0], Is.SameAs(releaseFailure));
                     Assert.That(failure.InnerExceptions[1], Is.TypeOf<AggregateException>());
                     Assert.That(failure.InnerExceptions[1].Message, Does.Contain("could not be marked deleted"));
-                    Assert.That(retained.NodeManager, Is.SameAs(current.Object));
-                    Assert.That(((IMonitoredItemGenerationBinding)retained).IsDeleted, Is.False);
+                    Assert.That(
+                        retained.NodeManager,
+                        Is.EqualTo(migrate ? current.Object : null));
+                    Assert.That(
+                        ((IMonitoredItemGenerationBinding)retained).IsDeleted,
+                        Is.EqualTo(!migrate));
+                    Assert.That(
+                        ((IMonitoredItemGenerationBinding)retained).IsTerminal,
+                        Is.EqualTo(!migrate));
                     Assert.That(healthy.NodeManager, Is.Null);
                     Assert.That(((IMonitoredItemGenerationBinding)healthy).IsDeleted, Is.True);
-                    Assert.That(generation.MonitoredItems.Keys, Is.EquivalentTo(new[] { retained }));
+                    Assert.That(
+                        generation.MonitoredItems.Keys,
+                        Is.EquivalentTo(migrate
+                            ? new IMonitoredItem[] { retained }
+                            : Array.Empty<IMonitoredItem>()));
                 }
                 source.Verify(value => value.ReleaseSourceAsync(
                     It.IsAny<IMonitoredItem>(), It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Exactly(3));

@@ -844,6 +844,28 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.TryInvalidateRetiredSource(
+            long sourceRevision,
+            NodeManagerGenerationReference generation)
+        {
+            lock (m_lock)
+            {
+                if (sourceRevision != m_sourceRevision ||
+                    !ReferenceEquals(Generation, generation) ||
+                    !generation.TryGetGeneration(out NodeManagerGeneration? retiredGeneration) ||
+                    retiredGeneration is null ||
+                    retiredGeneration.Gate.State != NodeManagerGenerationState.Retiring ||
+                    !retiredGeneration.IsQuiescent)
+                {
+                    return false;
+                }
+                ClearSource(sourceRevision);
+                Invalidate(terminal: true);
+                return true;
+            }
+        }
+
         /// <summary>
         /// Clears native ownership while preserving the binding's revision and lost-node state.
         /// </summary>

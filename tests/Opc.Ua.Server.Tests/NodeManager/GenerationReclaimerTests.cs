@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 
@@ -95,19 +96,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Exception cleanupFailure = await Assert.CatchAsync<Exception>(
                     async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false));
-                Exception retirementFailure = await Assert.CatchAsync<Exception>(
-                    async () => await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false));
                 Assert.That(cleanupFailure, Is.SameAs(failure));
-                Assert.That(retirementFailure, Is.SameAs(failure));
+                Assert.That(retired.Retirement.IsCompleted, Is.False);
                 Assert.That(reclaimer.Contains(retired), Is.True);
             }
             await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
-            if (!failFirst)
-            {
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-            }
-            Assert.That(retired.Retirement.IsFaulted, Is.EqualTo(failFirst),
-                "The original retirement task retains its first failure even after successful cleanup retry.");
+            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.False);
             completedResource.Verify(value => value.Dispose(), Times.Once);
             resource.Verify(value => value.Dispose(), Times.Exactly(failFirst ? 2 : 1));
@@ -232,7 +227,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A failed post-destruction stage is logged and faults retirement, while retry skips every successful stage.
+        /// A failed post-destruction stage is logged while retry skips every successful stage.
         /// </summary>
         [TestCase("Notifications")]
         [TestCase("References")]
@@ -287,9 +282,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await Assert.ThatAsync(
                 async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
-            await Assert.ThatAsync(
-                async () => await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
+            Assert.That(retired.Retirement.IsCompleted, Is.False);
             Assert.That(reclaimer.Count, Is.EqualTo(1));
             disposal.Verify(value => value.DisposeAsync(), Times.Exactly(stage == "Disposal" ? 1 : 0));
             context.Logger.Verify(value => value.Log(
@@ -297,8 +290,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 failure, It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
 
             await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
+            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(reclaimer.Count, Is.Zero);
-            Assert.That(retired.Retirement.IsFaulted, Is.True, "Retry must not erase an observable failure.");
+            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(retired.PendingReferences, Is.Empty);
             Assert.That(calls, Is.EqualTo(2));
             context.Host.Verify(value => value.FinalizeRetiredGenerationNotificationsAsync(
@@ -314,6 +308,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 retired.NodeManager, It.IsAny<CancellationToken>()),
                 Times.Exactly(stage == "DestroyedReferences" ? 2 : 1));
             disposal.Verify(value => value.DisposeAsync(), Times.Exactly(stage == "Disposal" ? 2 : 1));
+        }
+
+        /// <summary>
+        /// A transient cleanup failure is retried after backoff and eventually completes retirement.
+        /// </summary>
+        [Test]
+        public async Task CleanupFailureSchedulesDelayedRetryAndCompletesRetirementAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var clock = new FakeTimeProvider();
+            using var reclaimer = new GenerationReclaimer(clock);
+            var context = new ReclamationContext();
+            var retired = context.CreateRetirement();
+            int attempts = 0;
+            var failure = new InvalidOperationException("Transient destruction failure.");
+            context.Host.Setup(value => value.DestroyAddressSpaceAsync(
+                retired.NodeManager, It.IsAny<CancellationToken>()))
+                .Returns(() => ++attempts == 1
+                    ? new ValueTask(Task.FromException(failure))
+                    : default);
+            retired.Generation.Gate.Retire();
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(observed, Is.SameAs(failure));
+            Assert.That(retired.Retirement.IsCompleted, Is.False);
+            clock.Advance(TimeSpan.FromSeconds(1));
+            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(attempts, Is.EqualTo(2));
+            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(reclaimer.Count, Is.Zero);
         }
 
         /// <summary>
@@ -468,19 +497,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(drains, Is.EqualTo(1));
             Assert.That(marks, Is.Zero);
+            Task<Exception?> worker = retired.Worker!;
             release.TrySetResult(true);
             if (failFirst)
             {
-                Exception? failure = await retired.Worker!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Exception? failure = await worker.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(failure, Is.TypeOf<AggregateException>());
-                await Assert.ThatAsync(
-                    async () => await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false),
-                    Throws.TypeOf<AggregateException>()).ConfigureAwait(false);
+                Assert.That(retired.Retirement.IsCompleted, Is.False);
                 Assert.That(marks, Is.EqualTo(1));
                 await Task.WhenAll(Enumerable.Range(0, 8)
                     .Select(_ => Task.Run(() => reclaimer.Activate([retired]))))
                     .WaitAsync(timeout.Token).ConfigureAwait(false);
                 await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             }
             else
             {

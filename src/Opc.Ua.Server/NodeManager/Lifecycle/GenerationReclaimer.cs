@@ -42,6 +42,15 @@ namespace Opc.Ua.Server
     internal sealed class GenerationReclaimer : IDisposable
     {
         /// <summary>
+        /// Creates a reclaimer with an optional clock for delayed cleanup retries.
+        /// </summary>
+        /// <param name="timeProvider">The clock used for retry delays.</param>
+        internal GenerationReclaimer(TimeProvider? timeProvider = null)
+        {
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+        }
+
+        /// <summary>
         /// Gets the number of generations still owned by the reclaimer.
         /// </summary>
         internal int Count
@@ -153,6 +162,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException("Retired generations still await cleanup.");
                 }
                 m_stopping = false;
+                m_scheduleEpoch++;
             }
         }
 
@@ -170,6 +180,7 @@ namespace Opc.Ua.Server
             lock (m_sync)
             {
                 m_stopping = true;
+                m_scheduleEpoch++;
             }
         }
 
@@ -235,6 +246,7 @@ namespace Opc.Ua.Server
             lock (m_sync)
             {
                 m_stopping = true;
+                m_scheduleEpoch++;
                 workers = new Task<Exception?>[m_pending.Count];
                 for (int ii = 0; ii < m_pending.Count; ii++)
                 {
@@ -320,7 +332,7 @@ namespace Opc.Ua.Server
         /// Drains and cleans one exact generation, retaining completed stages and observable failures for retries.
         /// </summary>
         /// <param name="retired">The exclusively claimed generation.</param>
-        /// <returns>The failure, if any, already published to the retirement task and diagnostic log.</returns>
+        /// <returns>The failure, if any, reported to the current cleanup caller and diagnostic log.</returns>
         private async Task<Exception?> ReclaimAsync(RetiredGeneration retired)
         {
             try
@@ -368,12 +380,56 @@ namespace Opc.Ua.Server
                     {
                         retired.TransitionFinalization = null;
                     }
-                    // All callbacks have finished. Release the retry claim before exposing their failure,
-                    // so a preparation triggered by Retirement can immediately schedule the next attempt.
+                    // All callbacks have finished. Release the retry claim before scheduling another attempt.
                     retired.Worker = null;
-                    retired.FailRetirement(failure);
                 }
+                ScheduleRetry(retired);
                 return failure;
+            }
+        }
+
+        /// <summary>
+        /// Schedules a delayed retry for a failed generation while normal cleanup is active.
+        /// </summary>
+        /// <param name="retired">The generation whose cleanup failed.</param>
+        private void ScheduleRetry(RetiredGeneration retired)
+        {
+            lock (m_sync)
+            {
+                if (m_stopping || !m_pending.Contains(retired) || retired.RetryScheduled)
+                {
+                    return;
+                }
+                retired.RetryScheduled = true;
+                int exponent = Math.Min(retired.RetryAttempt++, 5);
+                TimeSpan delay = TimeSpan.FromSeconds(Math.Min(1 << exponent, 30));
+                _ = RetryAfterDelayAsync(retired, m_scheduleEpoch, delay);
+            }
+        }
+
+        /// <summary>
+        /// Admits the retry only if shutdown or a newer scheduling epoch did not supersede it.
+        /// </summary>
+        /// <param name="retired">The generation whose cleanup failed.</param>
+        /// <param name="scheduleEpoch">The scheduler epoch captured by the failure.</param>
+        /// <param name="delay">The backoff before retrying.</param>
+        private async Task RetryAfterDelayAsync(
+            RetiredGeneration retired,
+            long scheduleEpoch,
+            TimeSpan delay)
+        {
+            await Task.Delay(delay, m_timeProvider, CancellationToken.None).ConfigureAwait(false);
+            lock (m_sync)
+            {
+                retired.RetryScheduled = false;
+                if (m_stopping || scheduleEpoch != m_scheduleEpoch ||
+                    !retired.Ready || !m_pending.Contains(retired) ||
+                    retired.Worker is { IsCompleted: false })
+                {
+                    return;
+                }
+                retired.LastAttemptFailed = false;
+                retired.Worker = StartWorker(retired);
             }
         }
 
@@ -642,6 +698,16 @@ namespace Opc.Ua.Server
             internal bool LastAttemptFailed { get; set; }
 
             /// <summary>
+            /// Gets or sets whether a delayed retry has been scheduled.
+            /// </summary>
+            internal bool RetryScheduled { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of failed attempts used to calculate retry backoff.
+            /// </summary>
+            internal int RetryAttempt { get; set; }
+
+            /// <summary>
             /// Gets the retired manager.
             /// </summary>
             public IAsyncNodeManager NodeManager { get; }
@@ -714,7 +780,7 @@ namespace Opc.Ua.Server
             public RetirementCleanupState Cleanup { get; } = new();
 
             /// <summary>
-            /// Gets the observable result of retirement, including the first cleanup failure.
+            /// Gets the eventual result of retirement; individual failed attempts are reported by cleanup callers.
             /// </summary>
             public Task Retirement => m_retirementCompletion.Task;
 
@@ -725,15 +791,6 @@ namespace Opc.Ua.Server
             {
                 MigrateLateMonitoredItemsAsync = null;
                 m_retirementCompletion.TrySetResult(true);
-            }
-
-            /// <summary>
-            /// Publishes a cleanup failure without discarding retry state.
-            /// </summary>
-            /// <param name="failure">The cleanup failure.</param>
-            public void FailRetirement(Exception failure)
-            {
-                m_retirementCompletion.TrySetException(failure);
             }
 
             /// <summary>The durable retirement outcome.</summary>
@@ -780,8 +837,14 @@ namespace Opc.Ua.Server
         /// <summary>Protects retirement ownership and worker admission, never cleanup callbacks.</summary>
         private readonly Lock m_sync = new();
 
+        /// <summary>The clock used to schedule bounded cleanup retry delays.</summary>
+        private readonly TimeProvider m_timeProvider;
+
         /// <summary>The retirement records exclusively owned by this reclaimer.</summary>
         private readonly List<RetiredGeneration> m_pending = [];
+
+        /// <summary>Invalidates delayed retries when shutdown or a restart changes scheduling ownership.</summary>
+        private long m_scheduleEpoch;
 
         /// <summary>The monotonic count of successful cleanup stages.</summary>
         private long m_shutdownCleanupProgress;

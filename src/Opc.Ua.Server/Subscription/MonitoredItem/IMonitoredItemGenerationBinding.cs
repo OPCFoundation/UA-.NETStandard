@@ -100,6 +100,14 @@ namespace Opc.Ua.Server
         bool TryInvalidateSource(long sourceRevision, bool terminal);
 
         /// <summary>
+        /// Clears a failed native release from the exact retired generation and invalidates the item terminally.
+        /// </summary>
+        /// <param name="sourceRevision">The source revision whose release failed.</param>
+        /// <param name="generation">The exact drained generation being retired.</param>
+        /// <returns>Whether this still owned source binding was invalidated.</returns>
+        bool TryInvalidateRetiredSource(long sourceRevision, NodeManagerGenerationReference generation);
+
+        /// <summary>
         /// Reports the lost node once and optionally forbids future adoption.
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>

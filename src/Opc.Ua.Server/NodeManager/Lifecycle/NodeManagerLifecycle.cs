@@ -1301,7 +1301,8 @@ namespace Opc.Ua.Server
                     }
 
                     bool attached = false;
-                    long sourceRevision = binding?.SourceRevision ?? 0;
+                    MonitoredItemSourceSnapshot source = binding?.CaptureSource() ?? default;
+                    long sourceRevision = source.Revision;
                     try
                     {
                         ServiceResult result = await m_current.ReleaseSourceAsync(
@@ -1361,6 +1362,12 @@ namespace Opc.Ua.Server
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
+                        if (m_terminal &&
+                            source.Generation is { } generation &&
+                            binding?.TryInvalidateRetiredSource(sourceRevision, generation) == true)
+                        {
+                            m_reconciledItems[monitoredItem] = sourceRevision;
+                        }
                         failures.Add(ex);
                     }
                     finally

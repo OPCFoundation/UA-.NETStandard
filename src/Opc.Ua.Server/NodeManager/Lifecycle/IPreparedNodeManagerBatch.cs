@@ -394,7 +394,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets a post-commit reconciliation failure, if any. It never denotes an aborted publication.
-        /// Physical cleanup failures are reported separately by <see cref="Retirement"/>.
+        /// Physical cleanup attempt failures are returned here when they occur before this result is created.
         /// </summary>
         public Exception? CleanupFailure { get; }
 
@@ -410,7 +410,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Gets a task that completes when every generation retired by this batch has been fully cleaned up,
-        /// or faults if asynchronous cleanup fails.
+        /// including after a failed cleanup attempt has been logged and retried.
         /// </summary>
         public Task Retirement { get; }
 
