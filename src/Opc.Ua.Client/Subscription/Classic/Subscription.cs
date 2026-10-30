@@ -2813,25 +2813,38 @@ namespace Opc.Ua.Client
                     for (int i = 0; i < availableNumbers; i++)
                     {
                         bool found = false;
+                        bool republishRequested = false;
                         foreach (uint sequenceNumber in availableSequenceNumberList)
                         {
                             if (lastSequenceNumberToRepublish == sequenceNumber)
                             {
-                                IncomingMessage entry = FindOrCreateEntry(now, backdatedTimestamp, sequenceNumber);
-                                entry.Republished = false;
-                                entry.RepublishStatus = default;
-                                entry.RepublishImmediately = true;
                                 found = true;
+                                IncomingMessage? existing = FindEntry(sequenceNumber);
+                                if (existing == null || (!existing.Processed && existing.Message == null))
+                                {
+                                    IncomingMessage entry = FindOrCreateEntry(
+                                        now,
+                                        backdatedTimestamp,
+                                        sequenceNumber);
+                                    entry.Republished = false;
+                                    entry.RepublishStatus = default;
+                                    entry.RepublishImmediately = true;
+                                    republishRequested = true;
+                                }
                                 break;
                             }
                         }
 
                         if (found)
                         {
-                            // remove sequence number handled for republish
-                            availableSequenceNumberList.Remove(lastSequenceNumberToRepublish);
+                            // Keep already-received messages in the acknowledgement list;
+                            // only messages requiring replay are removed from it.
+                            if (republishRequested)
+                            {
+                                availableSequenceNumberList.Remove(lastSequenceNumberToRepublish);
+                                republishMessages++;
+                            }
                             lastSequenceNumberToRepublish--;
-                            republishMessages++;
                         }
                         else
                         {

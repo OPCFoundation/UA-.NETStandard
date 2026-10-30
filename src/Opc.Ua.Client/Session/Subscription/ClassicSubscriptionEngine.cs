@@ -1358,9 +1358,18 @@ namespace Opc.Ua.Client
             AcknowledgementDisposition disposition,
             StatusCode status)
         {
-            if (m_acknowledgementScopes.Remove(acknowledgement, out AcknowledgementScope? scope) && scope != null)
+            if (m_acknowledgementScopes.TryGetValue(acknowledgement, out AcknowledgementScope? scope) &&
+                scope != null)
             {
                 var handle = new AcknowledgementHandle(scope, acknowledgement.SequenceNumber);
+                if (scope.Owner is Subscription owner &&
+                    m_acknowledgementTransferReservations.ContainsKey(owner) &&
+                    scope.Equals(owner.GetAcknowledgementScope()))
+                {
+                    m_deferredTransferOutcomes.TryAdd(acknowledgement, (disposition, status));
+                    return;
+                }
+                m_acknowledgementScopes.Remove(acknowledgement);
                 m_outstandingHandles.Remove(handle);
                 if (m_republishReservedAcknowledgements.ContainsKey(handle))
                 {
@@ -1372,6 +1381,59 @@ namespace Opc.Ua.Client
                 (Acknowledgements?.Provider as IAcknowledgementTracker)?.Complete(handle);
                 (outcomes ??= []).Add(new AcknowledgementOutcome(handle, disposition, status));
             }
+        }
+
+        /// <summary>
+        /// Protects the current acknowledgements of a subscription while its transfer request
+        /// is in flight, deferring terminal Publish outcomes until transfer success is known.
+        /// </summary>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            lock (m_acknowledgementsToSendLock)
+            {
+                m_acknowledgementTransferReservations.TryGetValue(subscription, out int reservations);
+                m_acknowledgementTransferReservations[subscription] = reservations + 1;
+            }
+        }
+
+        /// <summary>
+        /// Ends a failed transfer reservation and applies any terminal outcomes deferred while
+        /// the server's transfer result was unknown.
+        /// </summary>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (!m_acknowledgementTransferReservations.TryGetValue(subscription, out int reservations))
+                {
+                    return;
+                }
+                if (reservations > 1)
+                {
+                    m_acknowledgementTransferReservations[subscription] = reservations - 1;
+                    return;
+                }
+                m_acknowledgementTransferReservations.Remove(subscription);
+                foreach (KeyValuePair<SubscriptionAcknowledgement, (AcknowledgementDisposition Disposition, StatusCode Status)>
+                    deferred in m_deferredTransferOutcomes.ToList())
+                {
+                    if (m_acknowledgementScopes.TryGetValue(
+                            deferred.Key,
+                            out AcknowledgementScope? scope) &&
+                        scope != null &&
+                        ReferenceEquals(scope.Owner, subscription))
+                    {
+                        m_deferredTransferOutcomes.Remove(deferred.Key);
+                        EndAcknowledgementLocked(
+                            ref outcomes,
+                            deferred.Key,
+                            deferred.Value.Disposition,
+                            deferred.Value.Status);
+                    }
+                }
+            }
+            ReportOutcomes(outcomes);
         }
 
         /// <summary>
@@ -1556,6 +1618,7 @@ namespace Opc.Ua.Client
         private List<AcknowledgementHandover> ReleaseAcknowledgementsOfLocked(Subscription subscription)
         {
             var released = new List<AcknowledgementHandover>();
+            m_acknowledgementTransferReservations.Remove(subscription);
             if (m_acknowledgementScopes.Count == 0)
             {
                 return released;
@@ -1572,6 +1635,7 @@ namespace Opc.Ua.Client
                 }
                 var handle = new AcknowledgementHandle(entry.Value, entry.Key.SequenceNumber);
                 m_acknowledgementScopes.Remove(entry.Key);
+                m_deferredTransferOutcomes.Remove(entry.Key);
                 m_outstandingHandles.Remove(handle);
                 handedOver.Add(entry.Key);
                 released.Add(new AcknowledgementHandover(
@@ -1624,6 +1688,10 @@ namespace Opc.Ua.Client
                 EndAcknowledgementLocked(ref retired, acknowledgement,
                     AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
             }
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null &&
+                ReferenceEquals(handle.Scope.Owner, subscription) &&
+                (includeCurrentLifetime || !handle.Scope.Equals(current)));
             m_acknowledgementsToSend.RemoveAll(removed.Contains);
         }
 
@@ -1821,6 +1889,10 @@ namespace Opc.Ua.Client
                 if (scope != null)
                 {
                     var handle = new AcknowledgementHandle(scope, sequenceNumber);
+                    if (m_endedRepublishHandles.Contains(handle))
+                    {
+                        return scope;
+                    }
                     if (!m_outstandingHandles.Add(handle))
                     {
                         // Already pending or in flight: a second entry would end twice.
@@ -2073,6 +2145,19 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly Dictionary<AcknowledgementHandle, SubscriptionAcknowledgement>
             m_republishReservedAcknowledgements = [];
+
+        /// <summary>
+        /// Active transfer reservations by subscription. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<Subscription, int> m_acknowledgementTransferReservations =
+            new(IdentityComparer<Subscription>.Instance);
+
+        /// <summary>
+        /// Publish outcomes waiting for the corresponding transfer result. Guarded by
+        /// <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<SubscriptionAcknowledgement, (AcknowledgementDisposition Disposition, StatusCode Status)>
+            m_deferredTransferOutcomes = new(IdentityComparer<SubscriptionAcknowledgement>.Instance);
 
         /// <summary>
         /// Republish reservations that ended before their late replay response arrived.

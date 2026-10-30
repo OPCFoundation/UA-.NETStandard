@@ -2301,6 +2301,80 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public async Task LateRepublishEncodingErrorDoesNotReopenAnEndedAcknowledgementAsync()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            var observer = new SignalingObserver(expectedOutcomeCount: 1);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var handle = new AcknowledgementHandle(scope, 3);
+
+            engine.AdoptAcknowledgements(
+                subscription,
+                [new AcknowledgementHandover(handle, Confirmed: true)],
+                [3u],
+                []);
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                7,
+                [],
+                false,
+                new NotificationMessage());
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            (bool handled, ServiceResult error) = engine.ProcessRepublishResponseError(
+                new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded),
+                7,
+                3);
+
+            Assert.That(handled, Is.True);
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).PendingConfirmations, Is.Zero);
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
+            Assert.That(observer.Outcomes[0].Handle, Is.EqualTo(handle));
+            Assert.That(observer.Outcomes[0].Disposition, Is.EqualTo(AcknowledgementDisposition.NotRetained));
+        }
+
+        [Test]
+        public async Task RetiringSubscriptionClearsEndedRepublishHandlesAsync()
+        {
+            var observer = new SignalingObserver(expectedOutcomeCount: 2);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+
+            engine.AdoptAcknowledgements(
+                subscription,
+                [new AcknowledgementHandover(new AcknowledgementHandle(scope, 3), Confirmed: true)],
+                [3u],
+                []);
+            engine.AddPendingAcknowledgement(7, 4);
+
+            engine.RetireAcknowledgementsOf(subscription, includeCurrentLifetime: true);
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            var endedRepublishHandles =
+                (HashSet<AcknowledgementHandle>)typeof(ClassicSubscriptionEngine)
+                    .GetField("m_endedRepublishHandles", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(engine)!;
+            Assert.That(endedRepublishHandles, Is.Empty,
+                "Ended handles must not retain a retired subscription lifetime.");
+        }
+
+        [Test]
         public async Task RetireReleasedAcknowledgementsDoesNothingForEmptyListAsync()
         {
             var observer = new CollectingObserver();

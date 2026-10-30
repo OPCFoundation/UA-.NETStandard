@@ -2768,6 +2768,30 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Defers source acknowledgement outcomes until the subscription transfer is resolved.
+        /// </summary>
+        /// <param name="subscription">The subscription being transferred.</param>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.BeginAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
+        /// Applies source acknowledgement outcomes deferred by an unsuccessful transfer.
+        /// </summary>
+        /// <param name="subscription">The subscription whose transfer was unsuccessful.</param>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.CancelAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
         /// Transfers the subscriptions to this session.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -2814,10 +2838,20 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
+                var acknowledgementTransferSources = new Dictionary<Subscription, Session>();
                 try
                 {
                     reconnecting = Reconnecting;
                     Reconnecting = true;
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        if (subscription.Session is Session source &&
+                            !ReferenceEquals(source, this) &&
+                            acknowledgementTransferSources.TryAdd(subscription, source))
+                        {
+                            source.BeginAcknowledgementTransfer(subscription);
+                        }
+                    }
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(
                             null,
@@ -2919,6 +2953,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    foreach (KeyValuePair<Subscription, Session> transfer in acknowledgementTransferSources)
+                    {
+                        transfer.Value.CancelAcknowledgementTransfer(transfer.Key);
+                    }
                     ExitReconnectLockHolder(lockHolder);
                     foreach (Subscription subscription in subscriptions)
                     {

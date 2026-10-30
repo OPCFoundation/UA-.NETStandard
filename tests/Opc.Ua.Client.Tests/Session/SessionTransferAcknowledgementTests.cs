@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -804,6 +805,158 @@ namespace Opc.Ua.Client.Tests
             AssertSourceStateUnchanged(fixture, 1, 1);
             Assert.That(fixture.TargetObserver.Outcomes, Is.Empty);
             Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
+        }
+
+        [Test]
+        public async Task TransferAfterReceivingNotificationKeepsItsAcknowledgementSendableAsync()
+        {
+            const uint sequenceNumber = 73;
+            await using var fixture = await TransferFixture.CreateAsync(
+                (channel, request, _, _) => Task.FromResult<IServiceResponse>(
+                    new TransferSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = request.SubscriptionIds.ConvertAll(_ => new TransferResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            AvailableSequenceNumbers = [sequenceNumber]
+                        })
+                    })).ConfigureAwait(false);
+            fixture.Subscription.RepublishAfterTransfer = true;
+            AddTrackedAcknowledgement(fixture.Origin, fixture.Subscription, sequenceNumber, confirmed: false);
+            var sourceEngine = (ClassicSubscriptionEngine)fixture.Origin.SubscriptionEngine;
+            sourceEngine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                fixture.Subscription.Id,
+                [sequenceNumber],
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = sequenceNumber,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+            fixture.SourceAcknowledgements.Confirm(
+                new AcknowledgementHandle(
+                    fixture.Subscription.GetAcknowledgementScope(),
+                    sequenceNumber));
+            Assert.That(
+                ((ConfirmedAcknowledgementProvider)fixture.SourceAcknowledgements.Provider!).TrackedAcknowledgements,
+                Is.EqualTo(1));
+
+            Assert.That(
+                await fixture.Target.TransferSubscriptionsAsync(
+                    [fixture.Subscription],
+                    false,
+                    CancellationToken.None).ConfigureAwait(false),
+                Is.True);
+
+            var targetProvider =
+                (ConfirmedAcknowledgementProvider)fixture.TargetAcknowledgements!.Provider!;
+            var targetEngine = (ClassicSubscriptionEngine)fixture.Target.SubscriptionEngine;
+            Assert.That(targetProvider.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(targetProvider.PendingConfirmations, Is.EqualTo(1));
+            var republishReservations =
+                (Dictionary<AcknowledgementHandle, SubscriptionAcknowledgement>)typeof(ClassicSubscriptionEngine)
+                    .GetField("m_republishReservedAcknowledgements", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .GetValue(targetEngine)!;
+            Assert.That(republishReservations, Is.Empty,
+                "A notification already received before transfer does not remain reserved for Republish.");
+            Assert.That(targetEngine.RemoveAcknowledgementsForSubscription(fixture.Subscription.Id), Is.EqualTo(1),
+                "A message received before transfer is already available for acknowledgement.");
+            Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task TransferDefersSourcePublishOutcomeUntilTransferResultAsync(bool transferSucceeds)
+        {
+            const uint acknowledgementSequenceNumber = 1;
+            const uint latestSequenceNumber = 100;
+            var transferRequestEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var allowTransferResponse = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var fixture = await TransferFixture.CreateAsync(
+                async (channel, request, _, ct) =>
+                {
+                    transferRequestEntered.TrySetResult(true);
+                    await allowTransferResponse.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return new TransferSubscriptionsResponse
+                    {
+                        ResponseHeader = channel.CreateGoodHeader(),
+                        Results = request.SubscriptionIds.ConvertAll(_ => new TransferResult
+                        {
+                            StatusCode = transferSucceeds
+                                ? StatusCodes.Good
+                                : StatusCodes.BadSubscriptionIdInvalid,
+                            AvailableSequenceNumbers = [acknowledgementSequenceNumber, latestSequenceNumber]
+                        })
+                    };
+                }).ConfigureAwait(false);
+            AddTrackedAcknowledgement(
+                fixture.Origin,
+                fixture.Subscription,
+                acknowledgementSequenceNumber,
+                confirmed: true);
+
+            Task<bool> transferTask = fixture.Target.TransferSubscriptionsAsync(
+                [fixture.Subscription],
+                false,
+                CancellationToken.None);
+            try
+            {
+                await transferRequestEntered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                ((ClassicSubscriptionEngine)fixture.Origin.SubscriptionEngine).ProcessPublishResponse(
+                    new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                    fixture.Subscription.Id,
+                    [latestSequenceNumber],
+                    false,
+                    new NotificationMessage
+                    {
+                        SequenceNumber = latestSequenceNumber,
+                        PublishTime = DateTimeUtc.Now,
+                        NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                    });
+
+                var sourceProvider =
+                    (ConfirmedAcknowledgementProvider)fixture.SourceAcknowledgements.Provider!;
+                Assert.That(sourceProvider.TrackedAcknowledgements, Is.EqualTo(2),
+                    "The pending source outcome must not end its acknowledgement before transfer completes.");
+                Assert.That(sourceProvider.PendingConfirmations, Is.EqualTo(1));
+                Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
+            }
+            finally
+            {
+                allowTransferResponse.TrySetResult(true);
+            }
+
+            Assert.That(await transferTask.ConfigureAwait(false), Is.EqualTo(transferSucceeds));
+            var finalSourceProvider =
+                (ConfirmedAcknowledgementProvider)fixture.SourceAcknowledgements.Provider!;
+            if (transferSucceeds)
+            {
+                var targetProvider =
+                    (ConfirmedAcknowledgementProvider)fixture.TargetAcknowledgements!.Provider!;
+                Assert.That(finalSourceProvider.TrackedAcknowledgements, Is.Zero);
+                Assert.That(finalSourceProvider.PendingConfirmations, Is.Zero);
+                Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
+                Assert.That(targetProvider.TrackedAcknowledgements, Is.EqualTo(2));
+                Assert.That(targetProvider.PendingConfirmations, Is.EqualTo(1));
+            }
+            else
+            {
+                Assert.That(fixture.Origin.Subscriptions.Contains(fixture.Subscription), Is.True);
+                Assert.That(finalSourceProvider.TrackedAcknowledgements, Is.EqualTo(1));
+                Assert.That(finalSourceProvider.PendingConfirmations, Is.Zero);
+                Assert.That(fixture.SourceObserver.Outcomes, Has.Length.EqualTo(1));
+                Assert.That(
+                    fixture.SourceObserver.Outcomes[0].Disposition,
+                    Is.EqualTo(AcknowledgementDisposition.NotRetained));
+                Assert.That(
+                    fixture.SourceObserver.Outcomes[0].Handle.SequenceNumber,
+                    Is.EqualTo(acknowledgementSequenceNumber));
+            }
         }
 
         [TestCase(TransferFailure.ServiceResult, TestName = "FailedTransferReleasesReconnectLockAndPreservesSourceState_ServiceResult")]
