@@ -1431,6 +1431,94 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Releases the tracked acknowledgements of a subscription that moves to another
+        /// session, pending or in flight, without reporting an outcome. Those of an earlier
+        /// lifetime of the subscription end as retired.
+        /// </summary>
+        /// <param name="subscription">The subscription that moved.</param>
+        /// <returns>The released acknowledgements and whether the application confirmed
+        /// each of them.</returns>
+        internal List<(uint SequenceNumber, bool Confirmed)> ReleaseAcknowledgementsOf(Subscription subscription)
+        {
+            RetireAcknowledgementsOf(subscription);
+            var released = new List<(uint, bool)>();
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (m_acknowledgementScopes.Count == 0)
+                {
+                    return released;
+                }
+                var tracker = Acknowledgements?.Provider as IAcknowledgementTracker;
+                var handedOver = new HashSet<SubscriptionAcknowledgement>(
+                    IdentityComparer<SubscriptionAcknowledgement>.Instance);
+                foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
+                    m_acknowledgementScopes.ToList())
+                {
+                    if (entry.Value == null || !ReferenceEquals(entry.Value.Owner, subscription))
+                    {
+                        continue;
+                    }
+                    var handle = new AcknowledgementHandle(entry.Value, entry.Key.SequenceNumber);
+                    m_acknowledgementScopes.Remove(entry.Key);
+                    m_outstandingHandles.Remove(handle);
+                    handedOver.Add(entry.Key);
+                    released.Add((entry.Key.SequenceNumber, tracker?.Release(handle) ?? false));
+                }
+                if (handedOver.Count != 0)
+                {
+                    m_acknowledgementsToSend.RemoveAll(handedOver.Contains);
+                }
+            }
+            return released;
+        }
+
+        /// <summary>
+        /// Takes over the acknowledgements a subscription tracked in the session it came from.
+        /// Those whose message the server still holds are tracked again, keeping the
+        /// application's confirmation, and the others end as not retained, so every
+        /// acknowledgement ends exactly once. Outcomes go to this session's observer.
+        /// </summary>
+        /// <param name="subscription">The subscription that moved to this session.</param>
+        /// <param name="released">The acknowledgements released by the previous session.</param>
+        /// <param name="availableSequenceNumbers">The sequence numbers the server still holds.</param>
+        internal void AdoptAcknowledgements(
+            Subscription subscription,
+            List<(uint SequenceNumber, bool Confirmed)> released,
+            ArrayOf<uint> availableSequenceNumbers)
+        {
+            SessionAcknowledgements? acknowledgements = Acknowledgements;
+            if (acknowledgements == null || released.Count == 0)
+            {
+                return;
+            }
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                uint id = subscription.Id;
+                foreach ((uint sequenceNumber, bool confirmed) in released)
+                {
+                    if (availableSequenceNumbers.Contains(sequenceNumber))
+                    {
+                        AcknowledgementScope? scope = AddAcknowledgementToSend(
+                            m_acknowledgementsToSend, id, sequenceNumber);
+                        if (confirmed && scope != null)
+                        {
+                            acknowledgements.Confirm(new AcknowledgementHandle(scope, sequenceNumber));
+                        }
+                    }
+                    else
+                    {
+                        (outcomes ??= []).Add(new AcknowledgementOutcome(
+                            new AcknowledgementHandle(subscription.GetAcknowledgementScope(), sequenceNumber),
+                            AcknowledgementDisposition.NotRetained,
+                            StatusCodes.BadMessageNotAvailable));
+                    }
+                }
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
         /// Puts the acknowledgements of a failed Publish request back into the pending ones.
         /// When acknowledgements are tracked, those that ended while the request was in
         /// flight (for example because their subscription was deleted) are not requeued: they

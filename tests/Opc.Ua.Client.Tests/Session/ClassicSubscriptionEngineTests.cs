@@ -1121,6 +1121,48 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A subscription transferred to another session hands its tracked acknowledgements over:
+        /// the previous engine reports nothing, the new one tracks those the server still holds
+        /// and ends the others as not retained, so each acknowledgement ends exactly once.
+        /// </summary>
+        [Test]
+        public async Task TransferredAcknowledgementsEndExactlyOnceAsync()
+        {
+            var oldObserver = new CollectingObserver();
+            var newObserver = new CollectingObserver();
+            var oldConfiguration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, oldObserver);
+            var newConfiguration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, newObserver);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            var oldEngine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => oldConfiguration));
+            using var newEngine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => newConfiguration));
+            oldEngine.AddPendingAcknowledgement(7, 3);
+            oldEngine.AddPendingAcknowledgement(7, 4);
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            oldConfiguration.Confirm(new AcknowledgementHandle(scope, 3));
+
+            var released = oldEngine.ReleaseAcknowledgementsOf(subscription);
+            newEngine.AdoptAcknowledgements(subscription, released, ArrayOf.Create<uint>([3u]));
+            oldEngine.Dispose();
+
+            Assert.That(released, Has.Count.EqualTo(2));
+            Assert.That(oldObserver.Outcomes, Is.Empty, "The previous session reports nothing.");
+            Assert.That(oldEngine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+            await WaitForAsync(() => newObserver.Outcomes.Count == 1, CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(newObserver.Outcomes.Single().Handle, Is.EqualTo(new AcknowledgementHandle(scope, 4)));
+            Assert.That(newObserver.Outcomes.Single().Disposition, Is.EqualTo(AcknowledgementDisposition.NotRetained));
+            Assert.That(
+                ((ConfirmedAcknowledgementProvider)newConfiguration.Provider!).TrackedAcknowledgements,
+                Is.EqualTo(1),
+                "Only the retained acknowledgement stays tracked.");
+            Assert.That(newEngine.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(1),
+                "The retained acknowledgement is queued in the new engine.");
+        }
+
+        /// <summary>
         /// An acknowledgement retired while its Publish request is in flight is not requeued when
         /// the request then fails, so it cannot be sent later under a reused id.
         /// </summary>

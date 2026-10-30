@@ -2726,6 +2726,36 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Moves the tracked acknowledgements of a subscription from the session it left to
+        /// this session. When this session tracks no acknowledgements the previous session
+        /// ends them itself, so they still end exactly once.
+        /// </summary>
+        private void HandOverAcknowledgements(
+            Session? previous,
+            Subscription subscription,
+            ArrayOf<uint> availableSequenceNumbers)
+        {
+            if (previous == null ||
+                ReferenceEquals(previous, this) ||
+                previous.m_engine is not ClassicSubscriptionEngine previousEngine)
+            {
+                return;
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine && Acknowledgements != null)
+            {
+                engine.AdoptAcknowledgements(
+                    subscription,
+                    previousEngine.ReleaseAcknowledgementsOf(subscription),
+                    availableSequenceNumbers);
+            }
+            else
+            {
+                previousEngine.RetireAcknowledgementsOf(subscription, includeCurrentLifetime: true);
+            }
+        }
+
+        /// <summary>
         /// Transfers the subscriptions to this session.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -2772,6 +2802,11 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
+                var previousSessions = new Session?[subscriptions.Count];
+                for (int ii = 0; ii < previousSessions.Length; ii++)
+                {
+                    previousSessions[ii] = subscriptions[ii].Session as Session;
+                }
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2814,6 +2849,10 @@ namespace Opc.Ua.Client
                             if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
+                                HandOverAcknowledgements(
+                                    previousSessions[ii],
+                                    subscriptions[ii],
+                                    results[ii].AvailableSequenceNumbers);
 
                                 // Messages claimed for republish are acknowledged only after receipt.
                                 foreach (uint sequenceNumber in acknowledgements)
