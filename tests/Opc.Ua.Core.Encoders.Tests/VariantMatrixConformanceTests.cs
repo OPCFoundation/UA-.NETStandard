@@ -39,6 +39,9 @@ using System.Xml.Linq;
 using NUnit.Framework;
 using Opc.Ua.Core.TestFramework;
 
+#pragma warning disable UA_NETStandard_Avro // experimental encoder surface under test
+#pragma warning disable UA_NETStandard_Arrow // experimental encoder surface under test
+
 namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
@@ -199,6 +202,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                 EncodingType.Binary => ReplaceBinaryDimensions(payload, dimensions),
                 EncodingType.Json => ReplaceJsonDimensions(payload, dimensions),
                 EncodingType.Xml => ReplaceXmlDimensions(payload, dimensions),
+                EncodingType.Avro => ReplaceAvroDimensions(payload, dimensions),
+                EncodingType.Arrow => ReplaceArrowDimensions(payload, dimensions),
                 _ => throw new ArgumentOutOfRangeException(nameof(encodingType), encodingType, null)
             };
         }
@@ -287,6 +292,152 @@ namespace Opc.Ua.Core.Encoders.Tests
             }
             dimensionsElement.ReplaceNodes(elements);
             return Encoding.UTF8.GetBytes(document.ToString(SaveOptions.DisableFormatting));
+        }
+
+        // The value under test is a 2x3 Int32 matrix {1,2,3,4,5,6}. On the Avro wire the
+        // Variant matrix body is a MatrixBody record { dimensions: plain int array, values:
+        // plain int array }. The dimensions plain array is located by the unique byte
+        // signature formed by the original dimensions immediately followed by the values
+        // plain array, and only that dimensions prefix is rewritten.
+        private static byte[] ReplaceAvroDimensions(byte[] payload, int[] dimensions)
+        {
+            byte[] originalDimensions = EncodeAvroIntArray([2, 3]);
+            byte[] values = EncodeAvroIntArray([1, 2, 3, 4, 5, 6]);
+            byte[] signature = new byte[originalDimensions.Length + values.Length];
+            originalDimensions.CopyTo(signature, 0);
+            values.CopyTo(signature, originalDimensions.Length);
+
+            int at = IndexOf(payload, signature);
+            Assert.That(
+                at,
+                Is.GreaterThanOrEqualTo(0),
+                "The encoded Avro payload does not contain the expected matrix body.");
+
+            byte[] newDimensions = EncodeAvroIntArray(dimensions);
+            int remainderStart = at + originalDimensions.Length;
+            byte[] result = new byte[payload.Length - originalDimensions.Length + newDimensions.Length];
+            Array.Copy(payload, 0, result, 0, at);
+            newDimensions.CopyTo(result, at);
+            Array.Copy(
+                payload,
+                remainderStart,
+                result,
+                at + newDimensions.Length,
+                payload.Length - remainderStart);
+            return result;
+        }
+
+        // The Arrow matrix Struct stores dimensions as a List&lt;int32&gt; child: an offsets
+        // buffer [0, 2] followed by a values buffer [2, 3] for the 2x3 matrix under test.
+        // The dimensions are corrupted in place (never changing any buffer size, so the
+        // IPC record-batch metadata stays valid): a two-dimension replacement rewrites the
+        // values, and a rank-one replacement shrinks the list to a single element via its
+        // offset and rewrites the first value.
+        private static byte[] ReplaceArrowDimensions(byte[] payload, int[] dimensions)
+        {
+            byte[] result = (byte[])payload.Clone();
+            byte[] originalValues = [0x02, 0, 0, 0, 0x03, 0, 0, 0];
+
+            int valuesOffset = -1;
+            for (int i = 4; i + originalValues.Length <= result.Length; i++)
+            {
+                if (BytesMatch(result, i, originalValues) &&
+                    BinaryPrimitives.ReadInt32LittleEndian(result.AsSpan(i - 4)) == 0)
+                {
+                    valuesOffset = i;
+                    break;
+                }
+            }
+            Assert.That(
+                valuesOffset,
+                Is.GreaterThanOrEqualTo(0),
+                "The encoded Arrow payload does not contain the expected dimensions values buffer.");
+
+            // The list length lives in the offsets buffer as the last non-zero int32 that
+            // precedes the (padding-separated) values buffer.
+            int lengthOffset = valuesOffset - 4;
+            while (lengthOffset >= 4 &&
+                BinaryPrimitives.ReadInt32LittleEndian(result.AsSpan(lengthOffset)) == 0)
+            {
+                lengthOffset -= sizeof(int);
+            }
+            Assert.That(
+                BinaryPrimitives.ReadInt32LittleEndian(result.AsSpan(lengthOffset)),
+                Is.EqualTo(2),
+                "Unexpected Arrow dimensions offsets layout.");
+
+            if (dimensions.Length == 1)
+            {
+                BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(lengthOffset), 1);
+                BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(valuesOffset), dimensions[0]);
+            }
+            else
+            {
+                for (int i = 0; i < dimensions.Length; i++)
+                {
+                    BinaryPrimitives.WriteInt32LittleEndian(
+                        result.AsSpan(valuesOffset + (i * sizeof(int))),
+                        dimensions[i]);
+                }
+            }
+            return result;
+        }
+
+        private static bool BytesMatch(byte[] data, int offset, byte[] pattern)
+        {
+            for (int i = 0; i < pattern.Length; i++)
+            {
+                if (data[offset + i] != pattern[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Encodes an Avro plain array&lt;int&gt;: zig-zag block count, zig-zag items, 0 terminator.
+        private static byte[] EncodeAvroIntArray(int[] values)
+        {
+            var buffer = new List<byte>();
+            WriteAvroLong(buffer, values.Length);
+            foreach (int value in values)
+            {
+                WriteAvroLong(buffer, value);
+            }
+            buffer.Add(0x00);
+            return buffer.ToArray();
+        }
+
+        private static void WriteAvroLong(List<byte> buffer, long value)
+        {
+            ulong zig = (ulong)((value << 1) ^ (value >> 63));
+            while ((zig & ~0x7FUL) != 0)
+            {
+                buffer.Add((byte)((zig & 0x7F) | 0x80));
+                zig >>= 7;
+            }
+            buffer.Add((byte)zig);
+        }
+
+        private static int IndexOf(byte[] haystack, byte[] needle)
+        {
+            for (int i = 0; i <= haystack.Length - needle.Length; i++)
+            {
+                bool match = true;
+                for (int j = 0; j < needle.Length; j++)
+                {
+                    if (haystack[i + j] != needle[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match)
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }
