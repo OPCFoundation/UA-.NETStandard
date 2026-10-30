@@ -1821,5 +1821,534 @@ namespace Opc.Ua.Client.Tests
                 }));
             return session;
         }
+
+        [TestCase(true, true, true, TestName = "ReleaseAcknowledgementRemovesTrackingAndReturnsConfirmation_TrackedConfirmed")]
+        [TestCase(true, false, false, TestName = "ReleaseAcknowledgementRemovesTrackingAndReturnsConfirmation_TrackedUnconfirmed")]
+        [TestCase(false, false, false, TestName = "ReleaseAcknowledgementRemovesTrackingAndReturnsConfirmation_NotTracked")]
+        public async Task ReleaseAcknowledgementRemovesTrackingAndReturnsConfirmationAsync(
+            bool tracked,
+            bool confirmed,
+            bool expectedConfirmed)
+        {
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            var provider = new ConfirmedAcknowledgementProvider();
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var handle = new AcknowledgementHandle(scope, 3);
+
+            if (tracked)
+            {
+                provider.Track(handle);
+                if (confirmed)
+                {
+                    provider.Confirm(handle);
+                }
+            }
+
+            Assert.That(provider.Release(handle), Is.EqualTo(expectedConfirmed));
+            Assert.That(provider.TrackedAcknowledgements, Is.Zero);
+            Assert.That(provider.PendingConfirmations, Is.Zero);
+            Assert.That(provider.Release(handle), Is.False, "A removed or absent handle cannot be released twice.");
+
+            provider.Confirm(handle);
+            Assert.That(provider.TrackedAcknowledgements, Is.Zero, "A late confirmation cannot recreate tracking.");
+            Assert.That(provider.PendingConfirmations, Is.Zero);
+
+            var controlHandle = new AcknowledgementHandle(scope, 4);
+            AcknowledgementDecision removedDecision = await provider.DecideAsync(
+                new[] { handle }.ToArrayOf()).ConfigureAwait(false);
+            Assert.That(removedDecision.Deferred.ToArray(), Is.EqualTo(s_deferredFirstIndex));
+
+            var isolationProvider = new ConfirmedAcknowledgementProvider();
+            isolationProvider.Track(handle);
+            isolationProvider.Confirm(handle);
+            isolationProvider.Track(controlHandle);
+            isolationProvider.Confirm(controlHandle);
+            Assert.That(isolationProvider.Release(handle), Is.True);
+            Assert.That(isolationProvider.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(isolationProvider.PendingConfirmations, Is.EqualTo(1));
+            AcknowledgementDecision decision = await isolationProvider.DecideAsync(
+                new[] { handle, controlHandle }.ToArrayOf()).ConfigureAwait(false);
+
+            Assert.That(decision.Deferred.ToArray(), Is.EqualTo(s_deferredFirstIndex),
+                "The released handle is deferred while the independently tracked control remains eligible.");
+            AcknowledgementDecision controlDecision = await isolationProvider.DecideAsync(
+                new[] { controlHandle }.ToArrayOf()).ConfigureAwait(false);
+            Assert.That(controlDecision.Deferred.Count, Is.Zero);
+        }
+
+        [Test]
+        public async Task ReleaseAcknowledgementsDoesNotChangeStateWhenDetachFailsAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var handle = new AcknowledgementHandle(scope, 3);
+            var provider = (ConfirmedAcknowledgementProvider)configuration.Provider!;
+            provider.Confirm(handle);
+            int detachCalls = 0;
+            List<AcknowledgementHandover> released;
+
+            bool detached = engine.ReleaseAcknowledgementsOf(
+                subscription,
+                () =>
+                {
+                    detachCalls++;
+                    return false;
+                },
+                out released);
+
+            Assert.That(detachCalls, Is.EqualTo(1));
+            Assert.That(detached, Is.False);
+            Assert.That(released, Is.Empty);
+            Assert.That(owners, Is.EqualTo(new[] { subscription }));
+            Assert.That(provider.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(provider.PendingConfirmations, Is.EqualTo(1));
+            Assert.That(observer.Outcomes, Is.Empty);
+
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(sent.ToArray(), Is.EqualTo(s_sequenceThree),
+                "The queued acknowledgement remains available after detach fails.");
+            Assert.That(provider.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(provider.PendingConfirmations, Is.EqualTo(1));
+            Assert.That(observer.Outcomes, Is.Empty);
+
+            bool detachedOnRetry = engine.ReleaseAcknowledgementsOf(
+                subscription,
+                () =>
+                {
+                    detachCalls++;
+                    owners.Remove(subscription);
+                    return true;
+                },
+                out released);
+
+            Assert.That(detachedOnRetry, Is.True);
+            Assert.That(detachCalls, Is.EqualTo(2));
+            Assert.That(owners, Is.Empty);
+            Assert.That(released, Has.Count.EqualTo(1));
+            Assert.That(released[0].Handle, Is.EqualTo(handle));
+            Assert.That(released[0].Confirmed, Is.True);
+            Assert.That(observer.Outcomes, Is.Empty);
+        }
+
+        [TestCase(false, TestName = "ReleaseAcknowledgementsSeparatesOldAndCurrentLifetimes_CurrentUnconfirmed")]
+        [TestCase(true, TestName = "ReleaseAcknowledgementsSeparatesOldAndCurrentLifetimes_CurrentConfirmed")]
+        public async Task ReleaseAcknowledgementsSeparatesOldAndCurrentLifetimesAsync(bool currentConfirmed)
+        {
+            var observer = new SignalingObserver(expectedOutcomeCount: 1);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription oldSubscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(oldSubscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+
+            engine.AddPendingAcknowledgement(7, 3);
+            AcknowledgementScope oldScope = oldSubscription.GetAcknowledgementScope();
+            var oldHandle = new AcknowledgementHandle(oldScope, 3);
+            using Subscription currentSubscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(currentSubscription);
+            engine.AddPendingAcknowledgement(7, 4);
+            AcknowledgementScope currentScope = currentSubscription.GetAcknowledgementScope();
+            var currentHandle = new AcknowledgementHandle(currentScope, 4);
+            Assert.That(oldSubscription.IsIdClaimSuperseded, Is.True);
+            Assert.That(currentSubscription.IsIdClaimSuperseded, Is.False);
+            var provider = (ConfirmedAcknowledgementProvider)configuration.Provider!;
+            if (currentConfirmed)
+            {
+                provider.Confirm(currentHandle);
+            }
+
+            bool detached = engine.ReleaseAcknowledgementsOf(
+                oldSubscription,
+                () =>
+                {
+                    owners.Remove(oldSubscription);
+                    return true;
+                },
+                out List<AcknowledgementHandover> released);
+
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Assert.That(detached, Is.True);
+            Assert.That(owners, Has.Count.EqualTo(1));
+            Assert.That(owners[0], Is.SameAs(currentSubscription));
+            Assert.That(released, Is.Empty, "Releasing the old owner cannot hand off the current owner's acknowledgement.");
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
+            Assert.That(observer.Outcomes[0].Handle, Is.EqualTo(oldHandle));
+            Assert.That(observer.Outcomes[0].Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(observer.Outcomes[0].Status, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Assert.That(provider.TrackedAcknowledgements, Is.EqualTo(1));
+            Assert.That(provider.PendingConfirmations, Is.EqualTo(currentConfirmed ? 1 : 0));
+            AcknowledgementDecision currentDecision = await provider.DecideAsync(
+                new[] { currentHandle }.ToArrayOf()).ConfigureAwait(false);
+            Assert.That(currentDecision.Deferred.Count, Is.EqualTo(currentConfirmed ? 0 : 1),
+                "The current owner's confirmation state survives retirement of the superseded owner.");
+
+            bool currentDetached = engine.ReleaseAcknowledgementsOf(
+                currentSubscription,
+                () =>
+                {
+                    owners.Remove(currentSubscription);
+                    return true;
+                },
+                out List<AcknowledgementHandover> currentReleased);
+
+            Assert.That(currentDetached, Is.True);
+            Assert.That(owners, Is.Empty);
+            Assert.That(currentReleased, Has.Count.EqualTo(1));
+            Assert.That(currentReleased[0].Handle, Is.EqualTo(currentHandle));
+            Assert.That(currentReleased[0].Confirmed, Is.EqualTo(currentConfirmed));
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1),
+                "Only the superseded old handle retires; the current handle is released for handover.");
+            Assert.That(provider.TrackedAcknowledgements, Is.Zero);
+            Assert.That(provider.PendingConfirmations, Is.Zero);
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+        }
+
+        [Test]
+        public async Task RestoreAcknowledgementsPreservesConfirmationAsync()
+        {
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.AddPendingAcknowledgement(7, 4);
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var confirmedHandle = new AcknowledgementHandle(scope, 3);
+            var unconfirmedHandle = new AcknowledgementHandle(scope, 4);
+            var provider = (ConfirmedAcknowledgementProvider)configuration.Provider!;
+            provider.Confirm(confirmedHandle);
+
+            bool detached = engine.ReleaseAcknowledgementsOf(
+                subscription,
+                () =>
+                {
+                    owners.Remove(subscription);
+                    return true;
+                },
+                out List<AcknowledgementHandover> released);
+            int attachCalls = 0;
+            bool restored = engine.RestoreAcknowledgementsOf(
+                subscription,
+                released,
+                () =>
+                {
+                    attachCalls++;
+                    owners.Add(subscription);
+                    return true;
+                });
+
+            Assert.That(detached, Is.True);
+            Assert.That(released.Select(item => item.Handle), Is.EquivalentTo(new[] { confirmedHandle, unconfirmedHandle }));
+            Assert.That(restored, Is.True);
+            Assert.That(attachCalls, Is.EqualTo(1));
+            Assert.That(owners, Is.EqualTo(new[] { subscription }));
+            Assert.That(provider.TrackedAcknowledgements, Is.EqualTo(2));
+            Assert.That(provider.PendingConfirmations, Is.EqualTo(1));
+            AcknowledgementDecision decision = await provider.DecideAsync(
+                released.Select(item => item.Handle).ToArrayOf()).ConfigureAwait(false);
+            Assert.That(decision.Deferred.ToArray(), Is.EqualTo(s_deferredSecondIndex),
+                "Only the previously confirmed acknowledgement is eligible.");
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(2),
+                "Restore queues each released handle exactly once.");
+            Assert.That(provider.TrackedAcknowledgements, Is.Zero);
+            Assert.That(provider.PendingConfirmations, Is.Zero);
+        }
+
+        [Test]
+        public async Task RestoreAcknowledgementsDoesNotQueueWhenAttachFailsAsync()
+        {
+            var observer = new SignalingObserver(expectedOutcomeCount: 1);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var handle = new AcknowledgementHandle(scope, 3);
+            ((ConfirmedAcknowledgementProvider)configuration.Provider!).Confirm(handle);
+            bool detached = engine.ReleaseAcknowledgementsOf(
+                subscription,
+                () =>
+                {
+                    owners.Remove(subscription);
+                    return true;
+                },
+                out List<AcknowledgementHandover> released);
+            int attachCalls = 0;
+
+            bool restored = engine.RestoreAcknowledgementsOf(
+                subscription,
+                released,
+                () =>
+                {
+                    attachCalls++;
+                    return false;
+                });
+
+            Assert.That(detached, Is.True);
+            Assert.That(released, Has.Count.EqualTo(1));
+            Assert.That(released[0].Handle, Is.EqualTo(handle));
+            Assert.That(released[0].Confirmed, Is.True);
+            Assert.That(restored, Is.False);
+            Assert.That(attachCalls, Is.EqualTo(1));
+            Assert.That(owners, Is.Empty);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+            Assert.That(observer.Outcomes, Is.Empty);
+
+            engine.RetireReleasedAcknowledgements(released);
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
+            Assert.That(observer.Outcomes[0].Handle, Is.EqualTo(handle));
+            Assert.That(observer.Outcomes[0].Disposition, Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+            Assert.That(observer.Outcomes[0].Status, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
+
+        [Test]
+        public async Task RestoreAcknowledgementsHandlesEmptyReleasedListAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            int attachCalls = 0;
+
+            bool restored = engine.RestoreAcknowledgementsOf(
+                subscription,
+                [],
+                () =>
+                {
+                    attachCalls++;
+                    owners.Add(subscription);
+                    return true;
+                });
+
+            Assert.That(restored, Is.True);
+            Assert.That(attachCalls, Is.EqualTo(1));
+            Assert.That(owners, Is.EqualTo(new[] { subscription }));
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).PendingConfirmations, Is.Zero);
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+            Assert.That(observer.Outcomes, Is.Empty);
+        }
+
+        [Test]
+        public async Task RestoreAcknowledgementsQueuesLegacyHandlesWithoutTrackingAsync()
+        {
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements => ([.. acknowledgements], []));
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => null));
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var confirmedHandle = new AcknowledgementHandle(scope, 3);
+            var unconfirmedHandle = new AcknowledgementHandle(scope, 4);
+            List<AcknowledgementHandover> released =
+            [
+                new(confirmedHandle, true),
+                new(unconfirmedHandle, false)
+            ];
+            int attachCalls = 0;
+
+            bool restored = engine.RestoreAcknowledgementsOf(
+                subscription,
+                released,
+                () =>
+                {
+                    attachCalls++;
+                    owners.Add(subscription);
+                    return true;
+                });
+
+            Assert.That(restored, Is.True);
+            Assert.That(attachCalls, Is.EqualTo(1));
+            Assert.That(owners, Is.EqualTo(new[] { subscription }));
+            System.Collections.Concurrent.ConcurrentQueue<uint> sent = CapturePublishedAcknowledgements();
+            Assert.That(engine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(sent.ToArray(), Is.EqualTo(new uint[] { 3, 4 }),
+                "Legacy restore publishes the original sequence numbers, including the unconfirmed handle.");
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero,
+                "Both restored legacy acknowledgements have left the pending queue for Publish.");
+        }
+
+        [Test]
+        public async Task RetireReleasedAcknowledgementsReportsOriginalHandlesAsync()
+        {
+            var observer = new SignalingObserver(expectedOutcomeCount: 2);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            engine.AddPendingAcknowledgement(7, 3);
+            engine.AddPendingAcknowledgement(7, 4);
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var confirmedHandle = new AcknowledgementHandle(scope, 3);
+            var unconfirmedHandle = new AcknowledgementHandle(scope, 4);
+            ((ConfirmedAcknowledgementProvider)configuration.Provider!).Confirm(confirmedHandle);
+            bool detached = engine.ReleaseAcknowledgementsOf(
+                subscription,
+                () =>
+                {
+                    owners.Remove(subscription);
+                    return true;
+                },
+                out List<AcknowledgementHandover> released);
+
+            engine.RetireReleasedAcknowledgements(released);
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            Assert.That(detached, Is.True);
+            Assert.That(released.Select(item => item.Handle), Is.EquivalentTo(new[] { confirmedHandle, unconfirmedHandle }));
+            Assert.That(observer.Outcomes.Select(outcome => outcome.Handle),
+                Is.EquivalentTo(new[] { confirmedHandle, unconfirmedHandle }));
+            Assert.That(observer.Outcomes.All(outcome =>
+                    outcome.Disposition == AcknowledgementDisposition.OwnerRetired &&
+                    outcome.Status == StatusCodes.BadSubscriptionIdInvalid),
+                Is.True);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+
+            engine.Dispose();
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(2),
+                "Disposal after the handover list was retired adds no terminal outcomes.");
+        }
+
+        [Test]
+        public async Task LateRepublishDoesNotReopenAnEndedAcknowledgementAsync()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            var observer = new SignalingObserver(expectedOutcomeCount: 1);
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            List<Subscription> owners = [];
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            owners.Add(subscription);
+            m_mockContext.Setup(c => c.Subscriptions).Returns(() => owners);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+            AcknowledgementScope scope = subscription.GetAcknowledgementScope();
+            var handle = new AcknowledgementHandle(scope, 3);
+
+            engine.AdoptAcknowledgements(
+                subscription,
+                [new AcknowledgementHandover(handle, Confirmed: true)],
+                [3u],
+                []);
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                7,
+                [],
+                false,
+                new NotificationMessage());
+            await observer.Completion.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                7,
+                [],
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 3,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                republished: true);
+
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero,
+                "A successful late replay cannot recreate the terminally ended acknowledgement.");
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).PendingConfirmations, Is.Zero);
+            Assert.That(observer.Outcomes, Has.Count.EqualTo(1));
+            Assert.That(observer.Outcomes[0].Handle, Is.EqualTo(handle));
+            Assert.That(observer.Outcomes[0].Disposition, Is.EqualTo(AcknowledgementDisposition.NotRetained));
+            Assert.That(observer.Outcomes[0].Status, Is.EqualTo(StatusCodes.BadSequenceNumberUnknown));
+        }
+
+        [Test]
+        public async Task RetireReleasedAcknowledgementsDoesNothingForEmptyListAsync()
+        {
+            var observer = new CollectingObserver();
+            var configuration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, observer);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => configuration));
+
+            engine.RetireReleasedAcknowledgements([]);
+
+            Assert.That(observer.Outcomes, Is.Empty);
+            Assert.That(((ConfirmedAcknowledgementProvider)configuration.Provider!).TrackedAcknowledgements, Is.Zero);
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero);
+        }
+
+        /// <summary>
+        /// Signals after the expected asynchronous observer outcomes arrive.
+        /// </summary>
+        private sealed class SignalingObserver(int expectedOutcomeCount) : ISubscriptionAcknowledgementObserver
+        {
+            public IReadOnlyList<AcknowledgementOutcome> Outcomes => [.. m_outcomes];
+
+            public Task Completion => m_completion.Task;
+
+            public ValueTask OnCompletedAsync(
+                ArrayOf<AcknowledgementOutcome> outcomes,
+                CancellationToken ct = default)
+            {
+                foreach (AcknowledgementOutcome outcome in outcomes)
+                {
+                    m_outcomes.Enqueue(outcome);
+                    if (Interlocked.Increment(ref m_outcomeCount) >= expectedOutcomeCount)
+                    {
+                        m_completion.TrySetResult(true);
+                    }
+                }
+                return default;
+            }
+
+            private readonly System.Collections.Concurrent.ConcurrentQueue<AcknowledgementOutcome> m_outcomes = new();
+            private readonly TaskCompletionSource<bool> m_completion = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            private int m_outcomeCount;
+        }
+
+        private static readonly int[] s_deferredFirstIndex = [0];
+        private static readonly int[] s_deferredSecondIndex = [1];
+        private static readonly uint[] s_sequenceThree = [3u];
     }
 }

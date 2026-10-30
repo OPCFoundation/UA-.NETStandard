@@ -741,10 +741,17 @@ namespace Opc.Ua.Client
                 // server.
                 if (notificationMessage.NotificationData.Count > 0)
                 {
-                    receivedScope = AddAcknowledgementToSend(
-                        acknowledgementsToSend,
-                        subscriptionId,
-                        notificationMessage.SequenceNumber);
+                    Subscription? owner = republished ? FindSubscription(subscriptionId) : null;
+                    var handle = owner != null
+                        ? new AcknowledgementHandle(owner.GetAcknowledgementScope(), notificationMessage.SequenceNumber)
+                        : default;
+                    if (!republished || !m_endedRepublishHandles.Contains(handle))
+                    {
+                        receivedScope = AddAcknowledgementToSend(
+                            acknowledgementsToSend,
+                            subscriptionId,
+                            notificationMessage.SequenceNumber);
+                    }
                     UpdateLatestSequenceNumberToSend(
                         ref latestSequenceNumberToSend,
                         notificationMessage.SequenceNumber);
@@ -1355,6 +1362,12 @@ namespace Opc.Ua.Client
             {
                 var handle = new AcknowledgementHandle(scope, acknowledgement.SequenceNumber);
                 m_outstandingHandles.Remove(handle);
+                if (m_republishReservedAcknowledgements.ContainsKey(handle))
+                {
+                    // A replay can complete after another Publish response ends its reservation.
+                    // Keep the terminal handle closed for the rest of this subscription lifetime.
+                    m_endedRepublishHandles.Add(handle);
+                }
                 m_republishReservedAcknowledgements.Remove(handle);
                 (Acknowledgements?.Provider as IAcknowledgementTracker)?.Complete(handle);
                 (outcomes ??= []).Add(new AcknowledgementOutcome(handle, disposition, status));
@@ -1570,6 +1583,8 @@ namespace Opc.Ua.Client
             {
                 m_acknowledgementsToSend.RemoveAll(handedOver.Contains);
             }
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null && ReferenceEquals(handle.Scope.Owner, subscription));
             return released;
         }
 
@@ -1578,11 +1593,15 @@ namespace Opc.Ua.Client
             bool includeCurrentLifetime,
             ref List<AcknowledgementOutcome>? retired)
         {
+            AcknowledgementScope current = subscription.GetAcknowledgementScope();
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null &&
+                ReferenceEquals(handle.Scope.Owner, subscription) &&
+                (includeCurrentLifetime || !handle.Scope.Equals(current)));
             if (m_acknowledgementScopes.Count == 0)
             {
                 return;
             }
-            AcknowledgementScope current = subscription.GetAcknowledgementScope();
             List<SubscriptionAcknowledgement>? ended = null;
             foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
                 m_acknowledgementScopes)
@@ -2054,6 +2073,12 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly Dictionary<AcknowledgementHandle, SubscriptionAcknowledgement>
             m_republishReservedAcknowledgements = [];
+
+        /// <summary>
+        /// Republish reservations that ended before their late replay response arrived.
+        /// Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly HashSet<AcknowledgementHandle> m_endedRepublishHandles = [];
 
         /// <summary>
         /// A reserved provider decision and its candidates. The task is null while the

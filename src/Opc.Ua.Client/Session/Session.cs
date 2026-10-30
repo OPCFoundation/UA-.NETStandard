@@ -4956,7 +4956,15 @@ namespace Opc.Ua.Client
                     out released);
                 if (removed)
                 {
-                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                    try
+                    {
+                        m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch
+                    {
+                        engine.RetireReleasedAcknowledgements(released);
+                        throw;
+                    }
                 }
                 return removed;
             }
