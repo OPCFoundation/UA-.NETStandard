@@ -54,6 +54,20 @@ namespace Opc.Ua.Server
         internal bool IsShuttingDown => m_shuttingDown;
 
         /// <summary>
+        /// Gets the number of admitted lifecycle operations.
+        /// </summary>
+        internal int ActiveOperationCount
+        {
+            get
+            {
+                lock (m_state)
+                {
+                    return m_activeOperations;
+                }
+            }
+        }
+
+        /// <summary>
         /// Rejects operations that cannot be admitted by the running writer.
         /// </summary>
         internal void EnsureRunning()

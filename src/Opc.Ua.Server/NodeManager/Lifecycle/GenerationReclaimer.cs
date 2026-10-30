@@ -339,7 +339,16 @@ namespace Opc.Ua.Server
             {
                 Task? finalization = StartTransitionFinalization(retired);
                 InvalidateContinuationPoints(retired.Server, retired.Generation);
-                await retired.Generation.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
+                await LifecycleWaitDiagnostics.WaitAsync(
+                    retired.Generation.WaitForQuiescenceAsync(CancellationToken.None).AsTask(),
+                    m_timeProvider,
+                    LifecycleWaitDiagnostics.WarningThreshold,
+                    elapsed => retired.Server.Telemetry.CreateLogger<GenerationReclaimer>()
+                        .LifecycleWaitExceeded(
+                            "retired generation quiescence",
+                            elapsed,
+                            retired.Generation.GetQuiescenceWaitContext()))
+                    .ConfigureAwait(false);
                 retired.RequestsDrained = true;
                 if (finalization is not null)
                 {

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema;
 using Opc.Ua.Server.RuntimeNodeSet;
 using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
@@ -53,8 +54,20 @@ namespace Opc.Ua.Server
         /// prevents new operations through it but does not dispose the server's generations or writer.
         /// </remarks>
         public NodeManagerLifecycle(StandardServer server)
+            : this(server, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the server-owned lifecycle provider with its time source.
+        /// </summary>
+        /// <param name="server">The directly constructed server.</param>
+        /// <param name="timeProvider">The server's clock.</param>
+        internal NodeManagerLifecycle(StandardServer server, TimeProvider timeProvider)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            m_reclaimer = new GenerationReclaimer(m_timeProvider);
             m_canonicalOwner = server.NodeManagerLifecycle as NodeManagerLifecycle;
             m_writer = new LifecycleWriter(() => m_reclaimer.Count == 0 && m_registrations.Count == 0);
         }
@@ -197,7 +210,16 @@ namespace Opc.Ua.Server
             bool shutdownPrepared = false;
             try
             {
-                await activeOperations.WaitAsync(ct).ConfigureAwait(false);
+                await LifecycleWaitDiagnostics.WaitAsync(
+                    activeOperations,
+                    m_timeProvider,
+                    LifecycleWaitDiagnostics.WarningThreshold,
+                    elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                        .LifecycleWaitExceeded(
+                            "NodeManager lifecycle operations before shutdown",
+                            elapsed,
+                            GetLifecycleWaitContext()),
+                    ct).ConfigureAwait(false);
                 RegistrationState[] registrations;
                 lock (m_registrationLock)
                 {
@@ -304,7 +326,16 @@ namespace Opc.Ua.Server
             bool shutdownCompleted = false;
             try
             {
-                await activeOperations.WaitAsync(ct).ConfigureAwait(false);
+                await LifecycleWaitDiagnostics.WaitAsync(
+                    activeOperations,
+                    m_timeProvider,
+                    LifecycleWaitDiagnostics.WarningThreshold,
+                    elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                        .LifecycleWaitExceeded(
+                            "NodeManager lifecycle operations before shutdown",
+                            elapsed,
+                            GetLifecycleWaitContext()),
+                    ct).ConfigureAwait(false);
                 cleanupOwnership = await m_writer.BeginShutdownCleanupAsync(ct).ConfigureAwait(false);
                 m_reclaimer.StopScheduling();
                 ArrayOf<NodeManagerBatchChange> applications;
@@ -389,7 +420,17 @@ namespace Opc.Ua.Server
 
             ct.ThrowIfCancellationRequested();
             using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
-            await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
+            string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
+            await LifecycleWaitDiagnostics.WaitAsync(
+                participant.OnServerReadyAsync(ct).AsTask(),
+                m_timeProvider,
+                LifecycleWaitDiagnostics.WarningThreshold,
+                elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                    .LifecycleWaitExceeded(
+                        "NodeManager readiness callback",
+                        elapsed,
+                        readinessContext),
+                ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
             EnsurePublicationServer(server, host, initial);
@@ -420,8 +461,40 @@ namespace Opc.Ua.Server
                         native.CompleteReadiness(generation);
                     }
                 }
-                await generation.FlushDeferredEventsAsync().ConfigureAwait(false);
+                await LifecycleWaitDiagnostics.WaitAsync(
+                    generation.FlushDeferredEventsAsync(),
+                    m_timeProvider,
+                    LifecycleWaitDiagnostics.WarningThreshold,
+                    elapsed => m_server.CurrentInstance.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                        .LifecycleWaitExceeded(
+                            "NodeManager readiness event flush",
+                            elapsed,
+                            generation.GetQuiescenceWaitContext()))
+                    .ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Gets current generation pin details when lifecycle operations delay shutdown.
+        /// </summary>
+        /// <returns>The active lifecycle-operation count and non-quiescent generation identities.</returns>
+        private string GetLifecycleWaitContext()
+        {
+            RegistrationState[] registrations;
+            lock (m_registrationLock)
+            {
+                registrations = [.. m_registrations.Values];
+            }
+            string[] generations = registrations
+                .Select(static state => state.Registration.Identity)
+                .Where(static generation => generation.HasActiveQuiescenceBlockers)
+                .Take(8)
+                .Select(static generation => generation.GetQuiescenceWaitContext())
+                .ToArray();
+            return $"activeLifecycleOperations={m_writer.ActiveOperationCount}; " +
+                (generations.Length == 0
+                    ? "no active generation pin snapshot"
+                    : string.Join("; ", generations));
         }
 
         private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
@@ -2844,6 +2917,9 @@ namespace Opc.Ua.Server
 
         private readonly StandardServer m_server;
 
+        /// <summary>The clock used for lifecycle wait diagnostics and retry delays.</summary>
+        private readonly TimeProvider m_timeProvider;
+
         /// <summary>The server-owned coordinator, or null when this instance is that coordinator.</summary>
         private readonly NodeManagerLifecycle? m_canonicalOwner;
 
@@ -2852,7 +2928,7 @@ namespace Opc.Ua.Server
         private Dictionary<Guid, RegistrationState> m_registrations = [];
 
         /// <summary>Owns retired generations independently of lifecycle publication.</summary>
-        private readonly GenerationReclaimer m_reclaimer = new();
+        private readonly GenerationReclaimer m_reclaimer;
 
     }
 }

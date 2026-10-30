@@ -76,7 +76,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            m_nodeManagerLifecycle = new NodeManagerLifecycle(this);
+            m_nodeManagerLifecycle = new NodeManagerLifecycle(this, TimeProvider);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
@@ -289,7 +289,15 @@ namespace Opc.Ua.Server
             // Run the orderly server shutdown (idempotent) before releasing base resources,
             // so no request is still dispatching to the address space when it is torn down.
             // The cached m_disposeTask joins concurrent callers and retains successful disposal.
-            await StopAsync(CancellationToken.None).ConfigureAwait(false);
+            await LifecycleWaitDiagnostics.WaitAsync(
+                StopAsync(CancellationToken.None).AsTask(),
+                TimeProvider,
+                LifecycleWaitDiagnostics.WarningThreshold,
+                elapsed => m_logger.LifecycleWaitExceeded(
+                    "server StopAsync during disposal",
+                    elapsed,
+                    "Server resources remain owned until orderly shutdown completes."))
+                .ConfigureAwait(false);
 
             // halt any outstanding timer and configuration watcher.
             await StopRegistrationAsync().ConfigureAwait(false);

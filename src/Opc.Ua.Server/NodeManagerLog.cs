@@ -63,5 +63,13 @@ namespace Opc.Ua.Server
         public static partial void RetiredGenerationCleanupFailed(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 5, Level = LogLevel.Warning,
+            Message = "NodeManager lifecycle wait {Wait} has remained pending for {Elapsed}. Context: {Context}")]
+        public static partial void LifecycleWaitExceeded(
+            this ILogger logger,
+            string wait,
+            TimeSpan elapsed,
+            string context);
     }
 }

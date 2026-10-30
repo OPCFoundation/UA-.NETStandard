@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -481,6 +482,42 @@ namespace Opc.Ua.Server
                 }
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Gets whether an admitted generation operation or view pin still blocks reclamation.
+        /// </summary>
+        internal bool HasActiveQuiescenceBlockers
+        {
+            get
+            {
+                if (Gate.ActiveCount != 0)
+                {
+                    return true;
+                }
+                lock (m_epochLock)
+                {
+                    return m_viewEpochs.Any(static epoch => epoch.ActiveCount != 0);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a cold-path description of the active admissions and pinned view epochs.
+        /// </summary>
+        /// <returns>The generation identity and current drain blockers.</returns>
+        internal string GetQuiescenceWaitContext()
+        {
+            AddressSpaceEpoch[] epochs;
+            lock (m_epochLock)
+            {
+                epochs = m_viewEpochs.Where(static epoch => epoch.ActiveCount != 0).ToArray();
+            }
+            string pinnedEpochs = epochs.Length == 0
+                ? "none"
+                : string.Join(", ", epochs.Select(static epoch => $"{epoch.Id}={epoch.ActiveCount}"));
+            return $"slot={Slot.Id}; generation={Number}; manager={NodeManager.GetType().FullName}; " +
+                $"activeAdmissions={Gate.ActiveCount}; pinnedEpochs=[{pinnedEpochs}]";
         }
 
         /// <summary>
@@ -1454,6 +1491,11 @@ namespace Opc.Ua.Server
     internal sealed class AddressSpaceEpoch
     {
         /// <summary>
+        /// Gets the stable diagnostic identity of this published view epoch.
+        /// </summary>
+        internal long Id { get; } = Interlocked.Increment(ref s_nextId);
+
+        /// <summary>
         /// Attempts to pin this view while it is still published.
         /// </summary>
         /// <param name="slot">The counter slot on success.</param>
@@ -1544,5 +1586,8 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether this epoch has stopped admitting pins.</summary>
         private int m_closed;
+
+        /// <summary>The next process-wide view epoch identity.</summary>
+        private static long s_nextId;
     }
 }
