@@ -283,7 +283,7 @@ namespace Opc.Ua.Server
         private static bool IsShutdownPrepared(RegistrationState registration)
         {
             return registration.Prepared.NodeManager is not INodeManagerShutdown ||
-                registration.ShutdownPreparation is { IsCompletedSuccessfully: true };
+                registration.ShutdownPreparation is { Status: TaskStatus.RanToCompletion };
         }
 
         /// <summary>

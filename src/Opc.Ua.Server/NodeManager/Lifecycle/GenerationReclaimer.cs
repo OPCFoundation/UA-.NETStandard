@@ -33,6 +33,7 @@ using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua;
 
 namespace Opc.Ua.Server
 {
@@ -427,7 +428,7 @@ namespace Opc.Ua.Server
             long scheduleEpoch,
             TimeSpan delay)
         {
-            await Task.Delay(delay, m_timeProvider, CancellationToken.None).ConfigureAwait(false);
+            await m_timeProvider.Delay(delay, CancellationToken.None).ConfigureAwait(false);
             lock (m_sync)
             {
                 retired.RetryScheduled = false;

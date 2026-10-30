@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua;
 
 namespace Opc.Ua.Server
 {
@@ -58,9 +59,18 @@ namespace Opc.Ua.Server
             Action<TimeSpan> warning,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(operation);
-            ArgumentNullException.ThrowIfNull(timeProvider);
-            ArgumentNullException.ThrowIfNull(warning);
+            if (operation is null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            if (timeProvider is null)
+            {
+                throw new ArgumentNullException(nameof(timeProvider));
+            }
+            if (warning is null)
+            {
+                throw new ArgumentNullException(nameof(warning));
+            }
 
             Task wait = operation.WaitAsync(cancellationToken);
             if (wait.IsCompleted)
@@ -71,7 +81,7 @@ namespace Opc.Ua.Server
 
             long started = timeProvider.GetTimestamp();
             using var warningCancellation = new CancellationTokenSource();
-            Task warningDelay = Task.Delay(warningThreshold, timeProvider, warningCancellation.Token);
+            Task warningDelay = timeProvider.Delay(warningThreshold, warningCancellation.Token);
             try
             {
                 if (await Task.WhenAny(wait, warningDelay).ConfigureAwait(false) == wait)

@@ -65,7 +65,7 @@ namespace Opc.Ua.Server
             {
                 staging.NamespaceUris.GetIndexOrAppend(namespaceUri);
                 staging.StageNamespaceRegistration(namespaceUri);
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             ThrowIfNamespaceRegistrationFromDecision();
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server
 
             cancellationToken.ThrowIfCancellationRequested();
             master.RegisterNamespaceManager(namespaceUri, nodeManager);
-            return ValueTask.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Opc.Ua.Server
 
             cancellationToken.ThrowIfCancellationRequested();
             master.RegisterNamespaceManager(namespaceUri, nodeManager);
-            return ValueTask.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
+            return new ValueTask<bool>(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
         }
 
         /// <summary>
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.FromResult(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
+            return new ValueTask<bool>(master.UnregisterNamespaceManager(namespaceUri, nodeManager));
         }
     }
 }

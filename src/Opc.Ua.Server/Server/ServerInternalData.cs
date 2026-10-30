@@ -1314,7 +1314,10 @@ namespace Opc.Ua.Server
 
         void IServerServiceLevelControlRevocation.ReleaseServiceLevelControl(Action<byte> writer)
         {
-            ArgumentNullException.ThrowIfNull(writer);
+            if (writer is null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
             if (writer.Target is not ServiceLevelWriter owner)
             {
                 throw new ArgumentException("The writer was not issued by this server.", nameof(writer));
