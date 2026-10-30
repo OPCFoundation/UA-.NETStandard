@@ -1368,6 +1368,16 @@ namespace Opc.Ua.Server
                         notifications.Enqueue(overflowEvent);
                         maxNotificationsPerPublish--;
                     }
+
+                    // once the overflow event went out in an earlier publish, keep a slot for the
+                    // pending RefreshRequired, so new events cannot push it out of every publish.
+                    if (m_eventQueueHandler.ConditionEventsLost &&
+                        !m_eventQueueHandler.Overflow &&
+                        maxNotificationsPerPublish > 0)
+                    {
+                        maxNotificationsPerPublish--;
+                    }
+
                     uint notificationCount = m_eventQueueHandler.Publish(
                         context,
                         notifications,

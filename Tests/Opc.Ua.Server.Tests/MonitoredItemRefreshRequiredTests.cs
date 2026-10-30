@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Moq;
@@ -164,6 +165,193 @@ namespace Opc.Ua.Server.Tests
             var third = new Queue<EventFieldList>();
             monitoredItem.Publish(new OperationContext(monitoredItem), third, 3);
             Assert.That(third, Is.Empty, "The RefreshRequired event is sent once.");
+        }
+
+        /// <summary>
+        /// DiscardOldest, queue size 3, budget 3: the oldest event, a Condition event, is
+        /// discarded. The queue is refilled to three entries (without overflowing) before
+        /// every publish; the RefreshRequired event still follows the overflow event.
+        /// </summary>
+        [Test]
+        public void DiscardOldestRefreshRequiredIsNotStarvedByARefilledQueue()
+        {
+            const uint queueSize = 3;
+            const uint budget = 3;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, queueSize, discardOldest: true);
+
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+
+            var publishes = new List<object[]>
+            {
+                Publish(monitoredItem, budget)
+            };
+            Assert.That(publishes[0][0], Is.AssignableTo<EventQueueOverflowEventState>());
+
+            for (int ii = 0; ii < 5; ii++)
+            {
+                Refill(monitoredItem, (int)queueSize - monitoredItem.ItemsInQueue);
+                publishes.Add(Publish(monitoredItem, budget));
+            }
+
+            AssertRefreshRequiredSentOnceAfterOverflow(publishes, budget);
+        }
+
+        /// <summary>
+        /// No DiscardOldest, queue size 5, budget 3: five audit events fill the queue and
+        /// the incoming Condition event is dropped. After the overflow event was
+        /// delivered, three audit events arrive before every publish; the RefreshRequired
+        /// event still follows the overflow event.
+        /// </summary>
+        [Test]
+        public void NoDiscardRefreshRequiredIsNotStarvedByNewEvents()
+        {
+            const uint queueSize = 5;
+            const uint budget = 3;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, queueSize, discardOldest: false);
+
+            Refill(monitoredItem, (int)queueSize);
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+
+            List<object[]> publishes = PublishUntilOverflowEventIsDelivered(monitoredItem, budget);
+
+            for (int ii = 0; ii < 5; ii++)
+            {
+                Refill(monitoredItem, 3);
+                publishes.Add(Publish(monitoredItem, budget));
+            }
+
+            AssertRefreshRequiredSentOnceAfterOverflow(publishes, budget);
+        }
+
+        /// <summary>
+        /// A budget of one: no publish returns more than one notification, and the
+        /// RefreshRequired event still arrives exactly once after the overflow event
+        /// while the queue keeps being refilled to its size.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RefreshRequiredWithABudgetOfOneStaysWithinTheBudget(bool discardOldest)
+        {
+            const uint queueSize = 3;
+            const uint budget = 1;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, queueSize, discardOldest);
+
+            if (discardOldest)
+            {
+                monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+                Refill(monitoredItem, (int)queueSize);
+            }
+            else
+            {
+                Refill(monitoredItem, (int)queueSize);
+                monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+            }
+
+            List<object[]> publishes = PublishUntilOverflowEventIsDelivered(monitoredItem, budget);
+
+            for (int ii = 0; ii < 5; ii++)
+            {
+                Refill(monitoredItem, (int)queueSize - monitoredItem.ItemsInQueue);
+                publishes.Add(Publish(monitoredItem, budget));
+            }
+
+            AssertRefreshRequiredSentOnceAfterOverflow(publishes, budget);
+        }
+
+        /// <summary>
+        /// DiscardOldest, queue size 3, budget 3, no new events: the overflow publish is
+        /// full, so, as without DiscardOldest, the RefreshRequired event follows the
+        /// queued events in the next publish and the item stays ready to publish.
+        /// </summary>
+        [Test]
+        public void DiscardOldestRefreshRequiredIsDeferredWhenTheOverflowPublishIsFull()
+        {
+            const uint queueSize = 3;
+            const uint budget = 3;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MonitoredItem monitoredItem = CreateMonitoredItem(telemetry, queueSize, discardOldest: true);
+
+            monitoredItem.QueueEvent(CreateConditionEvent(telemetry));
+            Refill(monitoredItem, (int)queueSize);
+
+            var first = new Queue<EventFieldList>();
+            bool more = monitoredItem.Publish(new OperationContext(monitoredItem), first, budget);
+            object[] handles = [.. first.Select(r => r.Handle)];
+            Assert.That(handles, Has.Length.EqualTo(3));
+            Assert.That(handles[0], Is.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(handles[1], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[2], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(more, Is.True, "The RefreshRequired event is still pending.");
+
+            handles = Publish(monitoredItem, budget);
+            Assert.That(handles, Has.Length.EqualTo(2));
+            Assert.That(handles[0], Is.AssignableTo<AuditUrlMismatchEventState>());
+            Assert.That(handles[1], Is.AssignableTo<RefreshRequiredEventState>());
+
+            Assert.That(Publish(monitoredItem, budget), Is.Empty, "The RefreshRequired event is sent once.");
+        }
+
+        private static void AssertRefreshRequiredSentOnceAfterOverflow(
+            List<object[]> publishes,
+            uint budget)
+        {
+            for (int ii = 0; ii < publishes.Count; ii++)
+            {
+                Assert.That(
+                    publishes[ii],
+                    Has.Length.LessThanOrEqualTo((int)budget),
+                    $"Publish {ii} exceeds the budget.");
+            }
+
+            object[] handles = [.. publishes.SelectMany(p => p)];
+            Assert.That(handles, Has.One.AssignableTo<EventQueueOverflowEventState>());
+            Assert.That(
+                handles,
+                Has.One.AssignableTo<RefreshRequiredEventState>(),
+                "The RefreshRequired event is sent once, although the queue keeps being refilled.");
+
+            int overflowIndex = Array.FindIndex(handles, h => h is EventQueueOverflowEventState);
+            int refreshIndex = Array.FindIndex(handles, h => h is RefreshRequiredEventState);
+            Assert.That(refreshIndex, Is.GreaterThan(overflowIndex));
+        }
+
+        private static List<object[]> PublishUntilOverflowEventIsDelivered(
+            MonitoredItem monitoredItem,
+            uint budget)
+        {
+            var publishes = new List<object[]>();
+            for (int ii = 0; ii < 20; ii++)
+            {
+                object[] handles = Publish(monitoredItem, budget);
+                publishes.Add(handles);
+                if (handles.Any(h => h is EventQueueOverflowEventState))
+                {
+                    return publishes;
+                }
+            }
+            Assert.Fail("The overflow event was not delivered.");
+            return publishes;
+        }
+
+        private static void Refill(MonitoredItem monitoredItem, int count)
+        {
+            for (int ii = 0; ii < count; ii++)
+            {
+                monitoredItem.QueueEvent(new AuditUrlMismatchEventState(null));
+            }
+        }
+
+        private static object[] Publish(MonitoredItem monitoredItem, uint budget)
+        {
+            var result = new Queue<EventFieldList>();
+            monitoredItem.Publish(new OperationContext(monitoredItem), result, budget);
+            return [.. result.Select(r => r.Handle)];
         }
 
         private static InstanceStateSnapshot CreateConditionEvent(ITelemetryContext telemetry)
