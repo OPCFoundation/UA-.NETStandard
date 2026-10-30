@@ -318,7 +318,13 @@ semantics. This follows [OPC 10000-4, 7.41](https://reference.opcfoundation.org/
 
 ### Server-Side Certificate Rotation via Push (OPC UA Part 12 §7.10.9)
 
-When a client rotates a server's application certificate through the standard `ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges` push flow, the server must — once the `ApplyChanges` response has been delivered — force the SecureChannels that were negotiated against the old certificate to renegotiate. The session (and any subscriptions) stay alive so the client's reconnect logic can transfer them onto a fresh channel.
+When a client rotates a server's application certificate through the standard
+`ServerConfiguration.UpdateCertificate` + `ServerConfiguration.ApplyChanges`
+push flow, affected SecureChannels renegotiate after the ApplyChanges response.
+This stack's in-process apply preserves Sessions and subscriptions so the client
+can reactivate the original Session on a fresh channel after validating the
+renewed Server certificate. Part 12 also permits a Server to shut down when
+applying changes; Session preservation is not a guarantee for that case.
 
 The stack implements this contract in two pieces:
 
@@ -326,6 +332,15 @@ The stack implements this contract in two pieces:
 2. **`ITransportListenerCertificateRotation`** is an optional capability interface on `ITransportListener`. `TcpTransportListener` implements it by thumbprint-matching the per-channel `ServerCertificate` and force-closing only affected channels (listener socket stays bound). `HttpsTransportListener` implements it by cycling its Kestrel host (`Stop()` + `Start()`).
 
 Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
+
+The [RSE certificate integration fixture](rse.md#security-native-mappings-and-certificate-management)
+demonstrates this flow through a gateway with stable management Sessions on both
+hops, real pending-key generation, a synthetic local CA, installed-key verification
+and UA-TCP/Binary or TLS HTTPS UA JSON. It recovers a lost CSR reply without generating
+another key. ApplyChanges remains the transaction commit Method, never result polling.
+The CSR, pending key and transaction belong to the device being managed, not the
+gateway's own application identity. A device shutdown or loss of trust can end
+same-Session recovery; the Client must not recreate the uncertain operation.
 
 The commit installs the key-bearing certificate in the live registry before
 that deferred reload. Signing and token decryption can use the new key during

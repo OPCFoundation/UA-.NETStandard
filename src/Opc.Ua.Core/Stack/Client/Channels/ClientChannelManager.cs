@@ -125,9 +125,9 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token supplied by the caller.</param>
         /// <returns>The opened transport channel.</returns>
         /// <remarks>
-        /// Managed entries also retain the supplied handles until transport closure. The entry and transport
-        /// share these idempotently disposed handles, not the manager's reusable handles, so transports that do
-        /// not adopt the settings do not leave additional certificate references behind.
+        /// Managed entries retain independent certificate references for recovery after physical transport closure.
+        /// They also release the supplied, idempotently disposed handles at entry teardown so custom transports
+        /// that do not adopt the settings do not leave certificate references behind.
         /// </remarks>
         public async ValueTask<ITransportChannel> CreateChannelAsync(
             ConfiguredEndpoint endpoint,
@@ -469,7 +469,7 @@ namespace Opc.Ua
         {
             int ivLength = iv?.Length ?? 0;
             int keyLength = key?.Length ?? 0;
-            if (sk == null || sk.Length == 0 || (ivLength == 0) != (keyLength == 0))
+            if (sk == null || sk.Length == 0 || ivLength == 0 != (keyLength == 0))
             {
                 return null;
             }

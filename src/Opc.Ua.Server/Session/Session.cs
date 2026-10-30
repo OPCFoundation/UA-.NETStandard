@@ -752,6 +752,7 @@ namespace Opc.Ua.Server
         /// RSA certificate). Leaves the session's key state untouched, so a policy
         /// that cannot be served is rejected before the working key is discarded.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         internal bool CanCreateEphemeralKey(string securityPolicyUri)
         {
             lock (m_lock)
@@ -929,7 +930,7 @@ namespace Opc.Ua.Server
             {
                 // A null LocaleId is legal on the wire (Part 3 8.4, "unknown") but
                 // carries no preference, and translation helpers do not expect it.
-                string[] ids = Array.FindAll<string>([.. localeIds], id => id != null);
+                string[] ids = Array.FindAll([.. localeIds], id => id != null);
 
                 // The diagnostics report the LocaleIds as specified by the client,
                 // null entries included (Part 5 12.11); only the preference list is filtered.
@@ -1239,8 +1240,8 @@ namespace Opc.Ua.Server
             long? expectedIdentityGeneration)
         {
             Nonce? retiredUserTokenNonce = null;
-            Nonce? unusedUserTokenNonce = null;
             bool changed = false;
+            Nonce? unusedUserTokenNonce;
             lock (m_lock)
             {
                 bool rolesChanged = expectedIdentityGeneration.HasValue &&
@@ -2075,7 +2076,7 @@ namespace Opc.Ua.Server
             bool authorizationError)
         {
             int slot = (int)requestType;
-            if ((uint)slot >= (uint)kRequestTypeCount)
+            if ((uint)slot >= kRequestTypeCount)
             {
                 throw ServiceResultException.Unexpected(
                     $"Unexpected RequestType {requestType}");
@@ -2146,6 +2147,7 @@ namespace Opc.Ua.Server
                 _ => null
             };
         }
+
         private readonly Lock m_lock = new();
 
         /// <summary>Serializes identity commits and notification delivery before entering the session state.</summary>

@@ -34,6 +34,17 @@ namespace System.Threading.Tasks
     /// </summary>
     public static class PolyFills
     {
+#if NETFRAMEWORK || NETSTANDARD2_0
+        extension(Task task)
+        {
+            /// <summary>
+            /// Gets whether a task completed successfully without waiting for or observing its result.
+            /// </summary>
+            public bool IsCompletedSuccessfully =>
+                (task ?? throw new ArgumentNullException(nameof(task))).Status == TaskStatus.RanToCompletion;
+        }
+#endif
+
 #if !NET6_0_OR_GREATER
         /// <summary>
         /// Gets a System.Threading.Tasks.Task that will complete when this System.Threading.Tasks.Task

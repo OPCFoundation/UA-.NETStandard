@@ -48,6 +48,12 @@ namespace Opc.Ua.Client
         public ConfiguredEndpoint? Endpoint { get; init; }
 
         /// <summary>
+        /// Gets optional prefer-recoverable execution settings. Null preserves ordinary session behavior.
+        /// Settings are applied before connection and cannot be enabled implicitly on an existing session.
+        /// </summary>
+        public RecoverableSessionOptions? RecoverableExecution { get; init; }
+
+        /// <summary>
         /// Optional lazy identity provider. When both <see cref="IdentityProvider"/>
         /// and <see cref="Identity"/> are set, the provider takes precedence
         /// and can refresh identities after the session is connected.

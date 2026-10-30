@@ -1001,22 +1001,26 @@ namespace Opc.Ua.Server
 
                 // Notifications have no incoming request channel. Only the subscriber's
                 // session endpoint can supply their transport security, never the reporter.
-                EndpointDescription? endpointDescription =
-                    context?.ChannelContext?.EndpointDescription ??
-                    MonitoredReadAuthorization.GetEndpoint(context?.Session);
+                SecureChannelContext? channelContext = context?.ChannelContext;
+                EndpointDescription? endpointDescription = channelContext == null
+                    ? MonitoredReadAuthorization.GetEndpoint(context?.Session) : null;
+                bool providesEncryption = channelContext?.ProvidesEncryption ??
+                    MonitoredReadAuthorization.IsConfidential(endpointDescription);
+                bool providesIntegrity = channelContext?.ProvidesIntegrity ??
+                    (endpointDescription?.SecurityMode == MessageSecurityMode.Sign ||
+                        MonitoredReadAuthorization.IsConfidential(endpointDescription));
 
                 if ((
                         encryptionRequired &&
-                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
+                        !providesEncryption &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        endpointDescription?.SecurityMode != MessageSecurityMode.Sign &&
-                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
+                        !providesIntegrity &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
-                    (sessionRequired && context?.Session == null))
+                    (sessionRequired && context?.Session == null && context?.IsSessionIndependent != true))
                 {
                     serviceResult = ServiceResult.Create(
                         StatusCodes.BadSecurityModeInsufficient,

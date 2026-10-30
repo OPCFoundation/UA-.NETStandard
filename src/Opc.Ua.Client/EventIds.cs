@@ -79,6 +79,16 @@ namespace Opc.Ua
         public const int SubscriptionManagerContinued = 590;
 
         /// <summary>
+        /// Event identifier offset for experimental recoverable Service acceptance.
+        /// </summary>
+        public const int AsyncServiceOperation = 600;
+
+        /// <summary>
+        /// Event identifier offset for transparent recoverable session execution.
+        /// </summary>
+        public const int RecoverableSessionExecution = 610;
+
+        /// <summary>
         /// The <see cref="Microsoft.Extensions.Logging.ILogger"/> category name that
         /// preserves the identity of the legacy "OPC-UA-Client" EventSource provider
         /// (Guid 8CFA469E-18C6-480F-9B74-B005DACDE3D3). Loggers created for this

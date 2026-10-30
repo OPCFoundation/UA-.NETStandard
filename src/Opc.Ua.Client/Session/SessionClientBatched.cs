@@ -213,8 +213,9 @@ namespace Opc.Ua
                         ArrayOf<BrowseResult> batchResults = response.Results;
                         ArrayOf<DiagnosticInfo> batchDiagnosticInfos = response.DiagnosticInfos;
 
-                        ValidateResponse(batchResults, continuationPointsBatch);
-                        ValidateDiagnosticInfos(batchDiagnosticInfos, continuationPointsBatch);
+                        ArrayOf<ByteString> expected = releaseContinuationPoints ? [] : continuationPointsBatch;
+                        ValidateResponse(batchResults, expected);
+                        ValidateDiagnosticInfos(batchDiagnosticInfos, expected);
 
                         AddResponses(
                             ref results,

@@ -384,6 +384,41 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             AssertReservationsReleasedOnce(provider);
         }
 
+        /// <summary>
+        /// Response handoff moves the existing lease or value reservation and outlives entry and queue disposal.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void ResponseCostTransferPreservesExactlyOneOwner(bool reservations, bool disposedFirst)
+        {
+            TestProvider provider = reservations ? new ReservingTestProvider() : new TestProvider();
+            NodeId owner = provider.AddOwner("A");
+            using FairRequestQueue queue = CreateQueue(provider, requestCost: 10);
+            Enqueue(queue, new TestRequest(owner, park: true));
+            using FairRequestQueue.Entry entry = Dequeue(queue);
+            int grants = provider.Grants;
+            if (disposedFirst)
+            {
+                entry.Dispose();
+            }
+            using IDisposable? retained = entry.TransferResponseCost();
+            Assert.That(retained == null, Is.EqualTo(disposedFirst));
+            Assert.That(entry.TransferResponseCost(), Is.Null);
+            Assert.That(provider.Grants, Is.EqualTo(grants), "Handoff must not acquire a second reservation.");
+            entry.Dispose();
+            entry.Dispose();
+            queue.Dispose();
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(disposedFirst ? 0 : 10));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.Zero);
+            retained?.Dispose();
+            retained?.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
+        }
+
         [Test]
         public void PrecancelledRequestDoesNotClassifyOrAcquire()
         {

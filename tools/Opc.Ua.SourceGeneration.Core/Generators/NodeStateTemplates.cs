@@ -191,7 +191,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        global::{{Tokens.NamespacePrefix}}.ObjectTypes.{{Tokens.TypeName}},
+                        global::{{Tokens.NamespacePrefix}}.{{Tokens.HelperPrefix}}ObjectTypes.{{Tokens.TypeName}},
                         {{Tokens.NamespaceUri}},
                         namespaceUris);
                 }
@@ -475,7 +475,7 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        global::{{Tokens.NamespacePrefix}}.VariableTypes.{{Tokens.TypeName}},
+                        global::{{Tokens.NamespacePrefix}}.{{Tokens.HelperPrefix}}VariableTypes.{{Tokens.TypeName}},
                         {{Tokens.NamespaceUri}},
                         namespaceUris);
                 }
@@ -485,7 +485,8 @@ namespace Opc.Ua.SourceGeneration
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
                     return global::Opc.Ua.NodeId.Create(
-                        global::{{Tokens.DataTypeNamespacePrefix}}.DataTypes.{{Tokens.DataType}},
+                        global::{{Tokens.DataTypeNamespacePrefix}}.{{Tokens.DataTypeHelperPrefix}}DataTypes
+                            .{{Tokens.DataType}},
                         {{Tokens.DataTypeNamespaceUri}},
                         namespaceUris);
                 }
@@ -1436,7 +1437,7 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             // Register node state factory for {{Tokens.BrowseName}} {{Tokens.NodeClass}}
             builder = builder.RegisterType(
-                {{Tokens.NodeClass}}Ids.{{Tokens.SymbolicId}},
+                {{Tokens.HelperPrefix}}{{Tokens.NodeClass}}Ids.{{Tokens.SymbolicId}},
                 {{Tokens.StateClassName}}Activator.Instance);
             """);
 

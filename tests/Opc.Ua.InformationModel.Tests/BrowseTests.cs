@@ -414,11 +414,9 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { continuationPoint }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(releaseResponse.Results.Count, Is.EqualTo(1));
-            Assert.That(StatusCode.IsGood(releaseResponse.Results[0].StatusCode), Is.True,
-                "Releasing a continuation point should return Good.");
-            Assert.That(releaseResponse.Results[0].ContinuationPoint.IsNull, Is.True,
-                "No continuation point should remain after release.");
+            Assert.That(releaseResponse.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(releaseResponse.Results, Is.Empty);
+            Assert.That(releaseResponse.DiagnosticInfos, Is.Empty);
         }
 
         [Description("Browse ObjectsFolder with ResultMask=BrowseName only.")]
@@ -1112,9 +1110,9 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { cp }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(releaseResp.Results.Count, Is.EqualTo(1));
-            Assert.That(
-                StatusCode.IsGood(releaseResp.Results[0].StatusCode), Is.True);
+            Assert.That(releaseResp.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(releaseResp.Results, Is.Empty);
+            Assert.That(releaseResp.DiagnosticInfos, Is.Empty);
         }
 
         [Description("BrowseNext with invalid continuation point returns BadContinuationPointInvalid.")]

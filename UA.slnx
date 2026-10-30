@@ -24,6 +24,9 @@
     <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
     <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
   </Folder>
+  <Folder Name="/samples/AsyncServices/">
+    <Project Path="samples/AsyncServices/RecoverableServiceDemo/RecoverableServiceDemo.csproj" />
+  </Folder>
   <Folder Name="/samples/AMB/">
     <Project Path="samples/AMB/AmbServer/AmbServer.csproj" />
     <Project Path="samples/AMB/AmbClient/AmbClient.csproj" />

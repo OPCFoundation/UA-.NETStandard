@@ -396,7 +396,8 @@ namespace Opc.Ua.InformationModel.Tests
                 "should be returned with MaxRefs=100.");
         }
 
-        [Description("Call BrowseNext with releaseContinuationPoints=true. The server should return Good status but no references in the result.")]
+        [Description("Call BrowseNext with releaseContinuationPoints=true. The server should return Good service status " +
+            "and empty results and diagnostics.")]
         [Test]
         public async Task BrowseNextWithReleaseTrueReturnsNoReferencesAsync()
         {
@@ -426,14 +427,9 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { cp }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(releaseResp.Results.Count, Is.EqualTo(1));
-            Assert.That(
-                StatusCode.IsGood(releaseResp.Results[0].StatusCode),
-                Is.True,
-                "Release should return Good status.");
-            Assert.That(
-                releaseResp.Results[0].ContinuationPoint.IsNull, Is.True,
-                "No continuation point should remain after release.");
+            Assert.That(releaseResp.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(releaseResp.Results, Is.Empty);
+            Assert.That(releaseResp.DiagnosticInfos, Is.Empty);
         }
 
         [Description("Browse the Types folder with MaxReferencesPerNode=1 and confirm a continuation point is returned.")]
@@ -636,9 +632,10 @@ namespace Opc.Ua.InformationModel.Tests
                 "without a continuation point.");
         }
 
-        [Description("Release a continuation point, then release the same one again. The second release should return BadContinuationPointInvalid because it no longer exists.")]
+        [Description("Release a continuation point twice, then attempt to consume it. Releases return empty results; " +
+            "consumption returns BadContinuationPointInvalid.")]
         [Test]
-        public async Task ReleaseContinuationPointTwiceReturnsErrorAsync()
+        public async Task ReleaseContinuationPointTwiceThenUseReturnsErrorAsync()
         {
             BrowseResponse response = await Session.BrowseAsync(
                 null, null, 1,
@@ -667,9 +664,9 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { cp }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(first.Results.Count, Is.EqualTo(1));
-            Assert.That(
-                StatusCode.IsGood(first.Results[0].StatusCode), Is.True);
+            Assert.That(first.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(first.Results, Is.Empty);
+            Assert.That(first.DiagnosticInfos, Is.Empty);
 
             // Second release – continuation point no longer valid
             BrowseNextResponse second = await Session.BrowseNextAsync(
@@ -677,12 +674,17 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { cp }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(second.Results.Count, Is.EqualTo(1));
-            // Server may return BadContinuationPointInvalid or Good (spec allows both)
-            Assert.That(
-                second.Results[0].StatusCode.Code,
-                Is.EqualTo(StatusCodes.BadContinuationPointInvalid)
-                    .Or.EqualTo(StatusCodes.Good));
+            Assert.That(second.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(second.Results, Is.Empty);
+            Assert.That(second.DiagnosticInfos, Is.Empty);
+
+            BrowseNextResponse reuse = await Session.BrowseNextAsync(
+                null, false,
+                new ByteString[] { cp }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(reuse.Results.Count, Is.EqualTo(1));
+            Assert.That(reuse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         [Description("Browse the Objects folder in the Inverse direction with MaxReferencesPerNode=1 and verify a continuation point is returned when there are multiple inverse references.")]

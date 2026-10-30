@@ -43,6 +43,62 @@
     </EmbeddedResource>
     <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\..\samples\AsyncServices\RecoverableServiceDemo\RecoverableServiceDemo.csproj" />
+    <Compile Include="..\Opc.Ua.Stress.Tests\Channels\Fakes\TcpChaosProxy.cs"
+             Link="AsyncServices\TcpChaosProxy.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <Compile Remove="AsyncServices\RecoverableServiceDemoTests.cs" />
+    <Compile Remove="AsyncServices\AsyncServiceNetworkChaosTests.cs" />
+  </ItemGroup>
+  <!--
+    The sample child has its own deps/runtimeconfig and must not depend on the
+    test host's additional shared frameworks or pruned copy-local closure.
+    Query output metadata only, even when BuildProjectReferences=false. This
+    AfterBuild target does not run for no-build tests or design-time checks.
+  -->
+  <Target Name="StageRecoverableServiceDemoChildHost"
+          AfterTargets="Build"
+          Condition="'$(TargetFramework)' == 'net10.0' and '$(DesignTimeBuild)' != 'true'">
+    <ItemGroup>
+      <_RseSampleProject Include="@(ProjectReference)"
+                         Condition="'%(ProjectReference.Filename)' == 'RecoverableServiceDemo'" />
+    </ItemGroup>
+    <Error Condition="'@(_RseSampleProject->Count())' != '1'"
+           Text="The net10 restart binding requires exactly one RecoverableServiceDemo project reference." />
+    <MSBuild Projects="@(_RseSampleProject)"
+             Targets="GetTargetPath"
+             BuildInParallel="false"
+             RemoveProperties="TargetFrameworks;RuntimeIdentifier;SelfContained;OutDir;OutputPath;BaseOutputPath;BaseIntermediateOutputPath;IntermediateOutputPath"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0;BuildProjectReferences=false">
+      <Output TaskParameter="TargetOutputs" ItemName="_RseSampleTarget" />
+    </MSBuild>
+    <Error Condition="'@(_RseSampleTarget->Count())' != '1'"
+           Text="Could not resolve the existing net10 RecoverableServiceDemo output through GetTargetPath." />
+    <PropertyGroup>
+      <_RseSampleOutputDirectory>@(_RseSampleTarget->'%(RootDir)%(Directory)')</_RseSampleOutputDirectory>
+      <_RseSampleHostName>@(_RseSampleTarget->'%(Filename)')</_RseSampleHostName>
+      <_RseChildHostDirectory>$(TargetDir)rse-process-host\</_RseChildHostDirectory>
+    </PropertyGroup>
+    <Error Condition="!Exists('@(_RseSampleTarget)') or !Exists('$(_RseSampleOutputDirectory)$(_RseSampleHostName).deps.json') or !Exists('$(_RseSampleOutputDirectory)$(_RseSampleHostName).runtimeconfig.json')"
+           Text="Build RecoverableServiceDemo net10.0 $(Configuration) before staging its child host. The existing assembly, deps and runtimeconfig are required; this target never builds project references." />
+    <Error Condition="'$(OS)' == 'Windows_NT' and !Exists('$(_RseSampleOutputDirectory)$(_RseSampleHostName).exe')"
+           Text="The Windows restart binding requires the already-built RecoverableServiceDemo apphost." />
+    <ItemGroup>
+      <_RseChildPrivateMaterial Include="$(_RseSampleOutputDirectory)**\*.pfx;$(_RseSampleOutputDirectory)**\*.p12;$(_RseSampleOutputDirectory)**\*.pem;$(_RseSampleOutputDirectory)**\*.key;$(_RseSampleOutputDirectory)**\*.cer;$(_RseSampleOutputDirectory)**\*.crt;$(_RseSampleOutputDirectory)**\*.crl;$(_RseSampleOutputDirectory)**\pki\**\*;$(_RseSampleOutputDirectory)**\private\**\*" />
+      <_RseChildRuntimeFiles Include="$(_RseSampleOutputDirectory)**\*" />
+    </ItemGroup>
+    <Error Condition="'@(_RseChildPrivateMaterial)' != ''"
+           Text="The sample runtime output contains key/certificate/PKI material and cannot be staged as a child host. Runtime credentials must remain in run-owned temporary storage." />
+    <!-- This dedicated build-output directory is owned solely by this target. -->
+    <RemoveDir Directories="$(_RseChildHostDirectory)" />
+    <MakeDir Directories="$(_RseChildHostDirectory)" />
+    <Copy SourceFiles="@(_RseChildRuntimeFiles)"
+          DestinationFiles="@(_RseChildRuntimeFiles->'$(_RseChildHostDirectory)%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Message Importance="high"
+             Text="Staged @(_RseChildRuntimeFiles->Count()) sample runtime files from $(_RseSampleOutputDirectory) to $(_RseChildHostDirectory)" />
+  </Target>
   <ItemGroup>
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
       <LogicalName>Opc.Ua.Server.Tests.ComplexTypes.ServerComplexTypesTestModel.NodeSet2.xml</LogicalName>
@@ -57,6 +113,12 @@
   <!-- Source-generation pipeline for the kitchen-sink coverage NodeSet (issue #4251).
        The same XML is embedded above for the runtime import pipeline. -->
   <ItemGroup>
+    <AdditionalFiles Include="AsyncServices\Model\AsyncExecution.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:async-services</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>AsyncExecution</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.TestModels.AsyncExecution</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="AsyncServices\Model\AsyncExecution.csv" />
     <AdditionalFiles Include="Programs\Assets\DomainDownloadModel.xml">
       <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:programs</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>DomainDownloadModel</ModelSourceGeneratorName>

@@ -23,6 +23,11 @@ directly when you need:
 - The fluent DI surface (`services.AddOpcUa()`).
 - Part 10 Program state/control mappings and the generated SDK Program model,
   including concrete transition/audit events and its typed Create proxy.
+- The experimental RSE generated model and qualified payload-interpretation
+  witnesses. Registering types does not enable Server execution.
+- Protected local shared storage with explicit durability and bounded-write
+  reporting (`FileSharedKeyValueStore`, `ISharedKeyValueStoreDurability` and
+  `ISharedKeyValueStoreCapacity`).
 
 ## Getting started
 
@@ -35,6 +40,11 @@ IServiceCollection services = new ServiceCollection();
 // automatically - no extra transport registration call is required.
 services.AddOpcUa();
 ```
+
+See the [local durable storage guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DurableStorage.md)
+for asynchronous startup, secret-store-backed protection and full-capacity
+behavior. This backend is single-live-owner local persistence, not replication
+or a host-restart time authority.
 
 ## Target frameworks
 

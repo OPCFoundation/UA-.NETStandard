@@ -61,7 +61,7 @@ namespace Opc.Ua.SourceGeneration
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.DataTypes.g.cs",
-                nsPrefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
 
             using var templateWriter = new TemplateWriter(writer);
@@ -71,7 +71,11 @@ namespace Opc.Ua.SourceGeneration
                 nsPrefix);
             template.AddReplacement(
                 Tokens.Namespace,
-                nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                    .Replace(".", string.Empty, StringComparison.Ordinal));
+            template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix());
             template.AddReplacement(
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -1906,7 +1910,8 @@ namespace Opc.Ua.SourceGeneration
                 {
                     context.Template.AddReplacement(
                         kv.Key,
-                        CoreUtils.Format("ObjectIds.{0}", kv.Value));
+                        CoreUtils.Format("{0}ObjectIds.{1}",
+                            m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(), kv.Value));
                 }
             }
         }
@@ -1970,8 +1975,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            string helperPrefix = m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix();
             string resourceName = CoreUtils.Format(
-                "Values.{0}_{1}",
+                "{0}.{1}_{2}",
+                helperPrefix.Length == 0 ? "Values" : helperPrefix + "DataTypeValues",
                 dataType.SymbolicId.Name,
                 field.Name);
             string uniqueName = resourceName;
@@ -2007,7 +2014,7 @@ namespace Opc.Ua.SourceGeneration
             var initializers = new ResourceGenerator(m_context);
             return initializers.Embed(
                 m_context.ModelDesign.TargetNamespace.Prefix,
-                "DataTypes.i",
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix() + "DataTypes.i",
                 internalAccess: true,
                 [.. m_initializers.Values]);
         }

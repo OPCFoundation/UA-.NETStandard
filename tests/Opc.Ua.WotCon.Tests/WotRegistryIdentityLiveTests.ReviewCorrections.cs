@@ -172,7 +172,7 @@ namespace Opc.Ua.WotCon.Tests
         }
 
         /// <summary>
-        /// Verifies that session close after store commit preserves committed native allocation.
+        /// Session close cancels the request without rolling back an already committed native allocation.
         /// </summary>
         /// <param name="getOrCreate">The get-or-create flag for this test case.</param>
         [TestCase(false)]
@@ -206,7 +206,7 @@ namespace Opc.Ua.WotCon.Tests
             FileState version = m_manager.FindPredefinedNode<FileState>(trace.Version)!;
             Assert.Multiple(() =>
             {
-                Assert.That(status, Is.EqualTo(StatusCodes.Good));
+                Assert.That(status, Is.EqualTo(StatusCodes.BadSessionClosed));
                 Assert.That(trace.Status, Is.EqualTo(StatusCodes.Good));
                 Assert.That(trace.Owner!.IsClosing, Is.True);
                 Assert.That(m_registry.Current, Is.SameAs(stored));

@@ -81,6 +81,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
             using JsonDocument document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
 
+            if (releaseContinuationPoint)
+            {
+                Assert.That(root.TryGetProperty("error", out _), Is.False);
+                Assert.That(GetRequiredProperty(root, "responseHeader").ValueKind, Is.EqualTo(JsonValueKind.Object));
+                Assert.That(GetRequiredProperty(root, "statusCode").GetString(), Is.EqualTo("Good"));
+                Assert.That(GetRequiredProperty(root, "continuationPoint").ValueKind, Is.EqualTo(JsonValueKind.Null));
+                Assert.That(GetRequiredProperty(root, "references").GetArrayLength(), Is.Zero);
+                return;
+            }
+
             if (root.TryGetProperty("error", out JsonElement error))
             {
                 Assert.That(error.GetBoolean(), Is.True);

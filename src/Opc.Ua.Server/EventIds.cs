@@ -59,6 +59,11 @@ namespace Opc.Ua
         public const int ProgramNodeManager = 730;
 
         /// <summary>
+        /// Event identifier offset for experimental recoverable Service execution.
+        /// </summary>
+        public const int AsyncServiceExecution = 750;
+
+        /// <summary>
         /// Event identifier offset for aggregate calculation messages.
         /// </summary>
         public const int AggregateCalculator = 0;

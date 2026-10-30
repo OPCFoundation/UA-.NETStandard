@@ -1,0 +1,95 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+using Opc.Ua.Client;
+using Opc.Ua.Redundancy;
+
+namespace Microsoft.Extensions.DependencyInjection
+{
+    /// <summary>
+    /// Registers the stateless experimental Client factory without enabling any Server feature.
+    /// </summary>
+    public static class AsyncServiceClientServiceCollectionExtensions
+    {
+        /// <summary>
+        /// Makes typed handle creation injectable; direct construction of AsyncServiceClient remains available.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddExperimentalAsyncServiceClient(this IServiceCollection services)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            services.TryAddSingleton<AsyncServiceClient>();
+            return services;
+        }
+
+        /// <summary>
+        /// Registers explicit Client recovery settings with injectable owner-continuity and checkpoint providers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddExperimentalAsyncServiceClient(
+            this IServiceCollection services, Func<IServiceProvider, RecoverableSessionOptions> configure)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            services.TryAddSingleton(provider => new AsyncServiceClient(configure(provider)));
+            return services;
+        }
+
+        /// <summary>
+        /// Registers protected Client checkpoints using an explicitly registered durable store and protector.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddRecoverableOperationCheckpoints(
+            this IServiceCollection services, string keyPrefix = "rse-client/")
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            services.AddRecoverableExecutionTypeCompatibility();
+            services.TryAddSingleton(provider => new RecoverableOperationCheckpointStore(
+                provider.GetRequiredService<ISharedKeyValueStore>(),
+                provider.GetRequiredService<IRecordProtector>(), keyPrefix,
+                provider.GetRequiredService<RecoverableExecutionTypeCompatibility>()));
+            return services;
+        }
+    }
+}

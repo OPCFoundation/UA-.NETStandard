@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
             }
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.Identifiers.g.cs",
-                m_context.ModelDesign.TargetNamespace.Prefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -68,6 +68,9 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.Namespace,
                 m_context.ModelDesign.TargetNamespace.Prefix);
+            template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix());
             template.AddReplacement(
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -257,6 +260,17 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.NamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     node.SymbolicId.Namespace));
+            context.Template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.Namespaces.GetNamespace(node.SymbolicId.Namespace)?.GetModelHelperPrefix()
+                    ?? string.Empty);
+            context.Template.AddReplacement(
+                Tokens.IdentifierType,
+                CoreUtils.Format("global::{0}.{1}{2}s",
+                    m_context.ModelDesign.Namespaces.GetNamespacePrefix(node.SymbolicId.Namespace),
+                    m_context.ModelDesign.Namespaces.GetNamespace(node.SymbolicId.Namespace)?.GetModelHelperPrefix()
+                        ?? string.Empty,
+                    node.GetNodeClassAsString()));
             context.Template.AddReplacement(Tokens.IdType, idType);
             context.Template.AddReplacement(Tokens.IdModifier, idModifier);
 

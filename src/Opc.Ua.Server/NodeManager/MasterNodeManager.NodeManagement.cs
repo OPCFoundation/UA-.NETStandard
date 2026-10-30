@@ -543,6 +543,7 @@ namespace Opc.Ua.Server
             {
                 return (permissionResult, NodeId.Null);
             }
+            context.RecordRetainedPermission(new NodeId(0u, targetNamespaceIndex), PermissionType.AddNode);
 
             permissionResult = await ValidatePermissionsAsync(
                 context,
@@ -556,6 +557,7 @@ namespace Opc.Ua.Server
             {
                 return (permissionResult, NodeId.Null);
             }
+            context.RecordRetainedPermission(parentMetadata.NodeId, PermissionType.AddReference);
 
             try
             {
@@ -607,6 +609,7 @@ namespace Opc.Ua.Server
             {
                 return permissionResult;
             }
+            context.RecordRetainedPermission(item.NodeId, PermissionType.DeleteNode);
 
             try
             {

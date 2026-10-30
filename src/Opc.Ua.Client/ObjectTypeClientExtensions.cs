@@ -46,7 +46,7 @@ namespace Opc.Ua.Client
         /// <exception cref="ServiceResultException">
         /// The method namespace is absent or the service response is invalid.
         /// </exception>
-        public static async ValueTask<CallMethodResult> CallWithResultAsync(
+        public static ValueTask<CallMethodResult> CallWithResultAsync(
             this ObjectTypeClient client,
             ExpandedNodeId methodId,
             ArrayOf<Variant> arguments,
@@ -56,6 +56,16 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(client));
             }
+            return ClientOperationContext.ExecuteAsync(
+                client.Session, token => CallWithResultCoreAsync(client, methodId, arguments, token), ct);
+        }
+
+        /// <summary>
+        /// Validates the complete ordinary Method result before caller acceptance.
+        /// </summary>
+        private static async ValueTask<CallMethodResult> CallWithResultCoreAsync(
+            ObjectTypeClient client, ExpandedNodeId methodId, ArrayOf<Variant> arguments, CancellationToken ct)
+        {
             var localMethod = ExpandedNodeId.ToNodeId(methodId, client.Session.MessageContext.NamespaceUris);
             if (methodId.ServerIndex != 0 || localMethod.IsNull)
             {
@@ -72,7 +82,8 @@ namespace Opc.Ua.Client
             CallResponse response = await client.Session.CallAsync(null, requests, ct).ConfigureAwait(false);
             if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
             {
-                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+                throw ClientOperationContext.OriginalFailure(
+                    client.Session, new ServiceResultException(response.ResponseHeader.ServiceResult));
             }
             ClientBase.ValidateResponse(response.Results, requests);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);

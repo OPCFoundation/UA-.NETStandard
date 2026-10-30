@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
         IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource,
-        IResourceIsolationAdmissionEvidence, IResourceIsolationReservations, IDisposable
+        IResourceIsolationAdmissionEvidence, IResourceIsolationReservations,
+        IRecoverableExecutionResourceIsolationProvider, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -136,6 +137,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ResourceIsolationOwner ClassifyRecoverableOwner(RecoverableExecutionOwnerId owner)
+        {
+            ThrowIfDisposed();
+            if (owner.AuthorityId == Uuid.Empty ||
+                owner.ApplicationId == Uuid.Empty ||
+                owner.UserId == Uuid.Empty)
+            {
+                throw new ArgumentException("A validated stable owner is required.", nameof(owner));
+            }
+            string key = "rse:" + Hash(Encoding.UTF8.GetBytes(
+                $"{owner.AuthorityId}|{owner.ApplicationId}|{owner.UserId}"));
+            return CreateOwner(key, ResourceIsolationClass.Established, out _);
+        }
+
+        /// <inheritdoc/>
         public ResourceIsolationOwner Classify(
             SecureChannelContext channelContext,
             NodeId authenticationToken = default,
@@ -159,7 +175,9 @@ namespace Opc.Ua.Server
             // Only inputs IsAdmissionCurrent can confirm: a binding without a liveness
             // check, or a token whose session may still bind, needs the full lookup, and a
             // classifier may map the same inputs differently at any time.
-            evidence = m_classifier == null && identity.Channel != null && !identity.OnlyStage.HasValue &&
+            evidence = m_classifier == null &&
+                identity.Channel != null &&
+                !identity.OnlyStage.HasValue &&
                 (identity.Binding?.Liveness != null || (identity.Binding == null && authenticationToken.IsNull))
                 ? identity : null;
             return owner;
@@ -205,13 +223,17 @@ namespace Opc.Ua.Server
             bool secure = channelContext.EndpointDescription is
             {
                 SecurityMode: MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt
-            } endpoint && endpoint.SecurityPolicyUri != SecurityPolicies.None;
+            } endpoint &&
+                endpoint.SecurityPolicyUri != SecurityPolicies.None;
             if (m_classifier != null)
             {
                 SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
                     channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
                     peerAddress: channelContext.PeerAddress)
-                { UpstreamIdentity = channelContext.UpstreamIdentity };
+                {
+                    UpstreamIdentity = channelContext.UpstreamIdentity,
+                    HasTransportSecurity = channelContext.HasTransportSecurity
+                };
                 if (m_classifier.TryClassify(verifiedContext, binding, out ResourceIsolationIdentity identity) ||
                     m_classifier.TryClassifyIngress(
                         channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
@@ -255,7 +277,8 @@ namespace Opc.Ua.Server
         public ResourceIsolationOwner ClassifyReassembly(SecureChannelContext channelContext)
         {
             ResourceIsolationOwner owner = Classify(channelContext);
-            if (!UseFairScheduling || owner.Class != ResourceIsolationClass.Established ||
+            if (!UseFairScheduling ||
+                owner.Class != ResourceIsolationClass.Established ||
                 owner.Key.StartsWith("mapped:", StringComparison.Ordinal) ||
                 m_sessionBindings?.HasSession(channelContext.SecureChannelId) != true)
             {
@@ -329,7 +352,10 @@ namespace Opc.Ua.Server
                 SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
                     channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
                     peerAddress: channelContext.PeerAddress)
-                { UpstreamIdentity = channelContext.UpstreamIdentity };
+                {
+                    UpstreamIdentity = channelContext.UpstreamIdentity,
+                    HasTransportSecurity = channelContext.HasTransportSecurity
+                };
                 if (m_classifier.TryClassify(verifiedContext, current, out ResourceIsolationIdentity identity) ||
                     m_classifier.TryClassifyIngress(
                         channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
@@ -345,7 +371,8 @@ namespace Opc.Ua.Server
                 ? ResourceIsolationClass.Control
                 : current != null && sessionEstablishment
                     ? ResourceIsolationClass.Reconnect : ResourceIsolationClass.Established;
-            return owner.Class == expected && !owner.Key.StartsWith("mapped:", StringComparison.Ordinal) &&
+            return owner.Class == expected &&
+                !owner.Key.StartsWith("mapped:", StringComparison.Ordinal) &&
                 !owner.Key.StartsWith("trusted:", StringComparison.Ordinal)
                 ? StatusCodes.Good : StatusCodes.BadServerTooBusy;
         }
@@ -427,6 +454,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns current aggregate usage of a resource pool.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public long GetUsage(ResourceIsolationStage stage)
         {
             if (stage is < ResourceIsolationStage.Connection or > ResourceIsolationStage.ParkedRequest)
@@ -604,7 +632,8 @@ namespace Opc.Ua.Server
             }
             long fromShared = amount - fromReserved;
             bool admitted = TryAddBounded(ref state.Used, amount, state.Plan.Capacity);
-            if (admitted && fromShared > 0 &&
+            if (admitted &&
+                fromShared > 0 &&
                 !TryAddBounded(ref state.SharedUsed, fromShared, state.Plan.SharedCapacity))
             {
                 Interlocked.Add(ref state.Used, -amount);
@@ -671,6 +700,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The protected-floor counter a class draws from; only called for classes with a floor.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         private static ref long GetReservedCounter(
             StageState state,
             OwnerState accounting,
@@ -832,7 +862,8 @@ namespace Opc.Ua.Server
             SessionBindingContext? binding = null,
             SecureChannelContext? channelContext = null)
         {
-            if (string.IsNullOrEmpty(identity.Key) || identity.Key.Length > Plan.MaxOwnerKeyLength ||
+            if (string.IsNullOrEmpty(identity.Key) ||
+                identity.Key.Length > Plan.MaxOwnerKeyLength ||
                 identity.Class is < ResourceIsolationClass.Bootstrap or > ResourceIsolationClass.Control)
             {
                 throw new InvalidOperationException("The configured classifier returned an invalid owner.");
@@ -865,9 +896,10 @@ namespace Opc.Ua.Server
             ClassificationCache? cache = channelContext == null ? null :
                 m_channelClassifications.GetValue(
                     channelContext.SecureChannelId, static _ => new ClassificationCache());
-            if (cache != null && cache.TryGet(
-                ownerClass, binding, channelContext!, out ResourceIsolationOwner? cached,
-                out OwnerIdentity? cachedIdentity, key, onlyStage, mapped))
+            if (cache != null &&
+                cache.TryGet(
+                    ownerClass, binding, channelContext!, out ResourceIsolationOwner? cached,
+                    out OwnerIdentity? cachedIdentity, key, onlyStage, mapped))
             {
                 identity = cachedIdentity;
                 return cached;
@@ -1014,12 +1046,13 @@ namespace Opc.Ua.Server
                 ResourceIsolationStage? onlyStage = null,
                 bool mapped = false)
             {
-                Entry[] entries = Volatile.Read(ref m_entries);
-                foreach (Entry entry in entries)
+                foreach (Entry entry in Volatile.Read(ref m_entries))
                 {
                     if (entry.Owner.Class == ownerClass &&
-                        entry.Mapped == mapped && entry.Stage == onlyStage &&
-                        ReferenceEquals(entry.Binding, binding) && (key == null || key == entry.Owner.Key) &&
+                        entry.Mapped == mapped &&
+                        entry.Stage == onlyStage &&
+                        ReferenceEquals(entry.Binding, binding) &&
+                        (key == null || key == entry.Owner.Key) &&
                         entry.Snapshot.Matches(context))
                     {
                         owner = entry.Owner;
@@ -1088,6 +1121,7 @@ namespace Opc.Ua.Server
             public ChannelSnapshot(SecureChannelContext context)
             {
                 m_channelId = context.SecureChannelId;
+                m_transportProtected = context.HasTransportSecurity;
                 SecurityPolicyUri = context.EndpointDescription?.SecurityPolicyUri;
                 SecurityMode = context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid;
                 // Copied: the context wraps a buffer the transport owns, and revalidation
@@ -1114,6 +1148,7 @@ namespace Opc.Ua.Server
             public bool Matches(SecureChannelContext context)
             {
                 return m_channelId == context.SecureChannelId &&
+                    m_transportProtected == context.HasTransportSecurity &&
                     SecurityPolicyUri == context.EndpointDescription?.SecurityPolicyUri &&
                     SecurityMode == (context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid) &&
                     (SecurityPolicyUri == SecurityPolicies.None ||
@@ -1143,6 +1178,7 @@ namespace Opc.Ua.Server
             }
 
             private readonly string m_channelId;
+            private readonly bool m_transportProtected;
             private readonly ByteString m_certificate;
             private readonly byte[]? m_peer;
             private readonly IUserIdentity? m_upstreamIdentity;

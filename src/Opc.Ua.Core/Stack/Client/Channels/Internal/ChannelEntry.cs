@@ -294,7 +294,7 @@ namespace Opc.Ua
                     ChannelState.Faulted,
                     new ServiceResult(ex),
                     attempt: 0);
-                ServiceResultException failure = ServiceResultException.Create(
+                var failure = ServiceResultException.Create(
                     StatusCodes.BadSecureChannelClosed,
                     ex,
                     "The shared channel failed during initial opening.");
@@ -1370,6 +1370,8 @@ namespace Opc.Ua
             using (certificates)
             {
                 if (underlying != null &&
+                    underlying.ServerCertificate == Endpoint.Description.ServerCertificate &&
+                    underlying.MaxMessageSize == Endpoint.Configuration!.MaxMessageSize &&
                     ClientChannelCertificateSnapshot.HaveSameMaterial(
                         underlying.Certificates.Certificate,
                         underlying.Certificates.Chain,
@@ -1440,6 +1442,7 @@ namespace Opc.Ua
         private async ValueTask CloseTransportBestEffortAsync(OwnedTransport transport)
         {
             using ClientChannelCertificateSnapshot certificates = transport.Certificates;
+            using ClientChannelCertificateSnapshot transportCertificates = transport.TransportCertificates;
             try
             {
                 await transport.Channel.CloseAsync(default).ConfigureAwait(false);
@@ -1521,18 +1524,25 @@ namespace Opc.Ua
         {
             ClientChannelCertificateSnapshot? certificates = new(
                 clientCertificate, clientCertificateChain, certificateVersion);
+            ClientChannelCertificateSnapshot? transportCertificates = null;
             OwnedTransport? transport = null;
             try
             {
+                transportCertificates = new ClientChannelCertificateSnapshot(
+                    certificates.Certificate, certificates.Chain, certificates.Version);
+                ByteString serverCertificate = Endpoint.Description.ServerCertificate;
+                int maxMessageSize = Endpoint.Configuration!.MaxMessageSize;
                 ITransportChannel channel = await OwnerManager.CreateChannelAsync(
                     Endpoint,
                     MessageContext,
-                    certificates.Certificate,
-                    certificates.Chain,
+                    transportCertificates.Certificate,
+                    transportCertificates.Chain,
                     TakeReverseConnection(),
                     ct).ConfigureAwait(false);
-                transport = new OwnedTransport(channel, certificates);
+                transport = new OwnedTransport(
+                    channel, certificates, transportCertificates, serverCertificate, maxMessageSize);
                 certificates = null;
+                transportCertificates = null;
                 if (IsClosing)
                 {
                     throw ServiceResultException.Create(
@@ -1553,6 +1563,7 @@ namespace Opc.Ua
             }
             finally
             {
+                transportCertificates?.Dispose();
                 certificates?.Dispose();
             }
         }
@@ -2035,13 +2046,21 @@ namespace Opc.Ua
         private ITransportWaitingConnection? m_reverseConnection;
 
         /// <summary>
-        /// Couples a transport with the certificate references that must remain alive until it closes.
+        /// Retains recovery material independently of handles the physical transport can release when it closes.
         /// </summary>
         /// <param name="channel">The transport whose lifetime is managed by the entry.</param>
-        /// <param name="certificates">The certificate snapshot retained for that transport.</param>
+        /// <param name="certificates">The independent certificate snapshot retained for recovery.</param>
+        /// <param name="transportCertificates">
+        /// The handles transferred to the transport, also released at teardown.
+        /// </param>
+        /// <param name="serverCertificate">The peer certificate blob used to open the transport.</param>
+        /// <param name="maxMessageSize">The configured message capacity used when opening the transport.</param>
         private sealed class OwnedTransport(
             ITransportChannel channel,
-            ClientChannelCertificateSnapshot certificates)
+            ClientChannelCertificateSnapshot certificates,
+            ClientChannelCertificateSnapshot transportCertificates,
+            ByteString serverCertificate,
+            int maxMessageSize)
         {
             /// <summary>
             /// Gets the transport opened with the retained certificate snapshot.
@@ -2052,6 +2071,21 @@ namespace Opc.Ua
             /// Gets the certificate references released after the transport is closed.
             /// </summary>
             public ClientChannelCertificateSnapshot Certificates { get; } = certificates;
+
+            /// <summary>
+            /// Gets the transferred handles, retained for cleanup when a custom transport does not adopt them.
+            /// </summary>
+            public ClientChannelCertificateSnapshot TransportCertificates { get; } = transportCertificates;
+
+            /// <summary>
+            /// Gets the original peer certificate blob, used to detect an explicitly refreshed endpoint.
+            /// </summary>
+            public ByteString ServerCertificate { get; } = serverCertificate;
+
+            /// <summary>
+            /// Gets the opened capacity so an explicit change is applied to a fresh transport.
+            /// </summary>
+            public int MaxMessageSize { get; } = maxMessageSize;
         }
 
         /// <summary>

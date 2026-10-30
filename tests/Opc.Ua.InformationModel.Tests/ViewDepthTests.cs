@@ -145,9 +145,9 @@ namespace Opc.Ua.InformationModel.Tests
                 null, true,
                 new ByteString[] { result.ContinuationPoint }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(release.Results.Count, Is.EqualTo(1));
-            Assert.That(
-                StatusCode.IsGood(release.Results[0].StatusCode), Is.True);
+            Assert.That(release.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(release.Results, Is.Empty);
+            Assert.That(release.DiagnosticInfos, Is.Empty);
         }
 
         [Test]
@@ -368,7 +368,7 @@ namespace Opc.Ua.InformationModel.Tests
         }
 
         [Test]
-        public async Task BrowseNextReleaseAlreadyReleasedCpFailsAsync()
+        public async Task BrowseNextReleaseAlreadyReleasedCpThenUseFailsAsync()
         {
             BrowseResult result = await BrowseAsync(
                 ObjectIds.Server, BrowseDirection.Forward, 1,
@@ -386,16 +386,17 @@ namespace Opc.Ua.InformationModel.Tests
                 new ByteString[] { cp }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(again.Results.Count, Is.EqualTo(1));
-            // Server may return Good (no-op) or Bad for already-released CP
-            // Both behaviors are acceptable per spec
-            if (StatusCode.IsGood(again.Results[0].StatusCode))
-            {
-                Assert.Ignore("Server treats releasing already-released CP as no-op (Good).");
-            }
-            Assert.That(
-                StatusCode.IsBad(again.Results[0].StatusCode), Is.True,
-                "Releasing an already-released CP should fail.");
+            Assert.That(again.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(again.Results, Is.Empty);
+            Assert.That(again.DiagnosticInfos, Is.Empty);
+
+            BrowseNextResponse reuse = await Session.BrowseNextAsync(
+                null, false,
+                new ByteString[] { cp }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(reuse.Results.Count, Is.EqualTo(1));
+            Assert.That(reuse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
         [Test]

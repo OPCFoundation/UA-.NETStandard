@@ -343,12 +343,7 @@ namespace Opc.Ua.Server
         {
             return endpoint != null &&
                 (endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                    Profiles.IsHttpsBinary(endpoint.TransportProfileUri) ||
-                    Profiles.IsHttpsJson(endpoint.TransportProfileUri) ||
-                    Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
-                    Profiles.IsWssBinary(endpoint.TransportProfileUri) ||
-                    Profiles.IsWssJson(endpoint.TransportProfileUri) ||
-                    Profiles.IsWssOpenApi(endpoint.TransportProfileUri));
+                    IsAcceptedTlsEndpoint(endpoint));
         }
 
         /// <summary>
@@ -376,12 +371,28 @@ namespace Opc.Ua.Server
                 return context;
             }
             var channel = new SecureChannelContext(
-                session.SecureChannelId ?? string.Empty, endpoint, RequestEncoding.Binary);
+                session.SecureChannelId ?? string.Empty, endpoint, RequestEncoding.Binary)
+            {
+                HasTransportSecurity = IsAcceptedTlsEndpoint(endpoint)
+            };
             var operationContext = new OperationContext(
                 new RequestHeader { ReturnDiagnostics = (uint)diagnostics },
                 channel, RequestType.Read, RequestLifetime.None, session);
             operationContext.DisableDefaultPermissionCache();
             return operationContext;
+        }
+
+        /// <summary>
+        /// Restores TLS protection from the subscriber's accepted endpoint, never an incoming request's claim.
+        /// </summary>
+        private static bool IsAcceptedTlsEndpoint(EndpointDescription endpoint)
+        {
+            return Profiles.IsHttpsBinary(endpoint.TransportProfileUri) ||
+                Profiles.IsHttpsJson(endpoint.TransportProfileUri) ||
+                Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
+                Profiles.IsWssBinary(endpoint.TransportProfileUri) ||
+                Profiles.IsWssJson(endpoint.TransportProfileUri) ||
+                Profiles.IsWssOpenApi(endpoint.TransportProfileUri);
         }
 
         /// <summary>

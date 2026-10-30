@@ -136,17 +136,18 @@ namespace Opc.Ua.SourceGeneration
             #endif
             {{Tokens.ClientMethodAsync}}
             {
-                {{Tokens.Name}}Request request = new {{Tokens.Name}}Request();
-                {{Tokens.Name}}Response response = null;
+                {{Tokens.Name}}Request {{Tokens.ClientRequestVariable}} = new {{Tokens.Name}}Request();
+                {{Tokens.Name}}Response {{Tokens.ClientResponseVariable}} = null;
 
                 {{Tokens.RequestParameters}}
 
-                UpdateRequestHeader(request, requestHeader == null, "{{Tokens.Name}}");
+                UpdateRequestHeader({{Tokens.ClientRequestVariable}}, requestHeader == null, "{{Tokens.Name}}");
 
                 try
                 {
                     global::Opc.Ua.IServiceResponse? genericResponse =
-                        await TransportChannel.SendRequestAsync(request, ct).ConfigureAwait(false);
+                        await TransportChannel.SendRequestAsync({{Tokens.ClientRequestVariable}}, ct)
+                            .ConfigureAwait(false);
 
                     if (genericResponse == null)
                     {
@@ -154,15 +155,26 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     ValidateResponse(genericResponse.ResponseHeader);
-                    response = ({{Tokens.Name}}Response)genericResponse;
+                    {{Tokens.ClientResponseVariable}} = ({{Tokens.Name}}Response)genericResponse;
                 }
                 finally
                 {
-                    RequestCompleted(request, response, "{{Tokens.Name}}");
+                    RequestCompleted(
+                        {{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
                 }
 
-                return response;
+                return {{Tokens.ClientResponseVariable}};
             }
+
+            {{Tokens.LegacyClientMethods}}
+
+            """);
+
+        /// <summary>
+        /// Compatibility methods emitted only for Services that already have a legacy Client API.
+        /// </summary>
+        public static readonly TemplateString LegacyMethods = TemplateString.Parse(
+            $$"""
 
             /// <summary>
             /// Invokes the {{Tokens.Name}} service synchronously.
@@ -170,17 +182,18 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Obsolete("Sync methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
             {{Tokens.ClientMethodSync}}
             {
-                {{Tokens.Name}}Request request = new {{Tokens.Name}}Request();
-                {{Tokens.Name}}Response? response = null;
+                {{Tokens.Name}}Request {{Tokens.ClientRequestVariable}} = new {{Tokens.Name}}Request();
+                {{Tokens.Name}}Response? {{Tokens.ClientResponseVariable}} = null;
 
                 {{Tokens.RequestParameters}}
 
-                UpdateRequestHeader(request, requestHeader == null, "{{Tokens.Name}}");
+                UpdateRequestHeader({{Tokens.ClientRequestVariable}}, requestHeader == null, "{{Tokens.Name}}");
 
                 try
                 {
                     global::Opc.Ua.IServiceResponse? genericResponse = TransportChannel
-                        .SendRequestAsync(request, global::System.Threading.CancellationToken.None)
+                        .SendRequestAsync(
+                            {{Tokens.ClientRequestVariable}}, global::System.Threading.CancellationToken.None)
                         .AsTask()
                         .GetAwaiter()
                         .GetResult();
@@ -191,16 +204,17 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     ValidateResponse(genericResponse.ResponseHeader);
-                    response = ({{Tokens.Name}}Response)genericResponse;
+                    {{Tokens.ClientResponseVariable}} = ({{Tokens.Name}}Response)genericResponse;
 
                     {{Tokens.ResponseParameters}}
                 }
                 finally
                 {
-                    RequestCompleted(request, response, "{{Tokens.Name}}");
+                    RequestCompleted(
+                        {{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
                 }
 
-                return response.ResponseHeader;
+                return {{Tokens.ClientResponseVariable}}.ResponseHeader;
             }
 
             /// <summary>
@@ -209,14 +223,14 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Obsolete("Begin/End methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
             {{Tokens.ClientMethodBegin}}
             {
-                {{Tokens.Name}}Request request = new {{Tokens.Name}}Request();
+                {{Tokens.Name}}Request {{Tokens.ClientRequestVariable}} = new {{Tokens.Name}}Request();
 
                 {{Tokens.RequestParameters}}
 
-                UpdateRequestHeader(request, requestHeader == null, "{{Tokens.Name}}");
+                UpdateRequestHeader({{Tokens.ClientRequestVariable}}, requestHeader == null, "{{Tokens.Name}}");
 
                 global::System.Threading.Tasks.Task<global::Opc.Ua.IServiceResponse> task = TransportChannel
-                    .SendRequestAsync(request, global::System.Threading.CancellationToken.None)
+                    .SendRequestAsync({{Tokens.ClientRequestVariable}}, global::System.Threading.CancellationToken.None)
                     .AsTask();
                 global::System.Threading.Tasks.TaskCompletionSource<global::Opc.Ua.IServiceResponse> tcs =
                     new global::System.Threading.Tasks.TaskCompletionSource<global::Opc.Ua.IServiceResponse>(asyncState);
@@ -245,7 +259,7 @@ namespace Opc.Ua.SourceGeneration
             [global::System.Obsolete("Begin/End methods are deprecated in this version. Use {{Tokens.Name}}Async instead.")]
             {{Tokens.ClientMethodEnd}}
             {
-                {{Tokens.Name}}Response response = null;
+                {{Tokens.Name}}Response {{Tokens.ClientResponseVariable}} = null;
 
                 try
                 {
@@ -260,16 +274,16 @@ namespace Opc.Ua.SourceGeneration
                     }
 
                     ValidateResponse(genericResponse.ResponseHeader);
-                    response = ({{Tokens.Name}}Response)genericResponse;
+                    {{Tokens.ClientResponseVariable}} = ({{Tokens.Name}}Response)genericResponse;
 
                     {{Tokens.ResponseParameters}}
                 }
                 finally
                 {
-                    RequestCompleted(null, response, "{{Tokens.Name}}");
+                    RequestCompleted(null, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
                 }
 
-                return response.ResponseHeader;
+                return {{Tokens.ClientResponseVariable}}.ResponseHeader;
             }
 
             """);

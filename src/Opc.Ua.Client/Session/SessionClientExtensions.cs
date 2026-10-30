@@ -203,6 +203,10 @@ namespace Opc.Ua.Client
                 throw new ServiceResultException(errors[0]);
             }
 
+            if (releaseContinuationPoint)
+            {
+                return (responseHeader, default, []);
+            }
             Debug.Assert(referencesList.Count == 1);
             Debug.Assert(revisedContinuationPoints.Count == 1);
             return (responseHeader, revisedContinuationPoints[0], referencesList[0]);
@@ -318,21 +322,20 @@ namespace Opc.Ua.Client
         /// should not be omitted.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The array of nodes and associated errors.</returns>
-        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
+        public static Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
             ArrayOf<NodeId> nodeIds,
             NodeClass nodeClass,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            var nodeCacheContext = new NodeCacheContext(session);
-            ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
-                null,
-                nodeIds,
-                nodeClass,
-                !optionalAttributes,
-                ct).ConfigureAwait(false);
-            return (result.Results, result.Errors);
+            return ClientOperationContext.ExecuteAsync(session, async token =>
+            {
+                var nodeCacheContext = new NodeCacheContext(session);
+                ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
+                    null, nodeIds, nodeClass, !optionalAttributes, token).ConfigureAwait(false);
+                return (result.Results, result.Errors);
+            }, ct).AsTask();
         }
 
         /// <summary>
@@ -344,19 +347,19 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">The array of NodeIds to read.</param>
         /// <param name="optionalAttributes">If optional attributes to read.</param>
         /// <param name="ct">The cancellation token.</param>
-        public static async Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
+        public static Task<(ArrayOf<Node>, ArrayOf<ServiceResult>)> ReadNodesAsync(
             this ISessionClient session,
             ArrayOf<NodeId> nodeIds,
             bool optionalAttributes = false,
             CancellationToken ct = default)
         {
-            var nodeCacheContext = new NodeCacheContext(session);
-            ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
-                null,
-                nodeIds,
-                !optionalAttributes,
-                ct).ConfigureAwait(false);
-            return (result.Results, result.Errors);
+            return ClientOperationContext.ExecuteAsync(session, async token =>
+            {
+                var nodeCacheContext = new NodeCacheContext(session);
+                ResultSet<Node> result = await nodeCacheContext.FetchNodesAsync(
+                    null, nodeIds, !optionalAttributes, token).ConfigureAwait(false);
+                return (result.Results, result.Errors);
+            }, ct).AsTask();
         }
 
         /// <summary>
@@ -391,13 +394,9 @@ namespace Opc.Ua.Client
             bool optionalAttributes = true,
             CancellationToken ct = default)
         {
-            var nodeCacheContext = new NodeCacheContext(session);
-            return nodeCacheContext.FetchNodeAsync(
-                null,
-                nodeId,
-                nodeClass,
-                !optionalAttributes,
-                ct).AsTask();
+            return ClientOperationContext.ExecuteAsync(session, token =>
+                new NodeCacheContext(session).FetchNodeAsync(
+                    null, nodeId, nodeClass, !optionalAttributes, token), ct).AsTask();
         }
 
         /// <summary>
@@ -407,10 +406,20 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds">node for which to read display name</param>
         /// <param name="ct">Cancellation token to use to cancel the operation</param>
         /// <returns>Paired list of displaynames and potential errors per node</returns>
-        public static async Task<(ArrayOf<string>, ArrayOf<ServiceResult>)> ReadDisplayNameAsync(
+        public static Task<(ArrayOf<string>, ArrayOf<ServiceResult>)> ReadDisplayNameAsync(
             this ISessionClient session,
             ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                session, token => ReadDisplayNamesCoreAsync(session, nodeIds, token), ct).AsTask();
+        }
+
+        /// <summary>
+        /// Reads and validates display names within the caller's completion context.
+        /// </summary>
+        private static async ValueTask<(ArrayOf<string>, ArrayOf<ServiceResult>)> ReadDisplayNamesCoreAsync(
+            ISessionClient session, ArrayOf<NodeId> nodeIds, CancellationToken ct)
         {
             var displayNames = new List<string>();
             var errors = new List<ServiceResult>();
@@ -513,10 +522,21 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<T> ReadValueAsync<T>(
+        public static Task<T> ReadValueAsync<T>(
             this ISessionClient session,
             NodeId nodeId,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                session, token => ReadTypedValueCoreAsync<T>(session, nodeId, token), ct).AsTask();
+        }
+
+        /// <summary>
+        /// Applies the existing typed-read validation before caller acceptance and acknowledgement.
+        /// </summary>
+        /// <typeparam name="T">The requested value type.</typeparam>
+        private static async ValueTask<T> ReadTypedValueCoreAsync<T>(
+            ISessionClient session, NodeId nodeId, CancellationToken ct)
         {
             DataValue dataValue = await session.ReadValueAsync(nodeId, ct).ConfigureAwait(false);
             object? value;
@@ -556,11 +576,8 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            var nodeCacheContext = new NodeCacheContext(session);
-            return nodeCacheContext.FetchValueAsync(
-                null,
-                nodeId,
-                ct).AsTask();
+            return ClientOperationContext.ExecuteAsync(session, token =>
+                new NodeCacheContext(session).FetchValueAsync(null, nodeId, token), ct).AsTask();
         }
 
         /// <summary>
@@ -569,17 +586,17 @@ namespace Opc.Ua.Client
         /// <param name="session">The session to use</param>
         /// <param name="nodeIds">The node Id.</param>
         /// <param name="ct">The cancellation token for the request.</param>
-        public static async Task<(ArrayOf<DataValue>, ArrayOf<ServiceResult>)> ReadValuesAsync(
+        public static Task<(ArrayOf<DataValue>, ArrayOf<ServiceResult>)> ReadValuesAsync(
             this ISessionClient session,
             ArrayOf<NodeId> nodeIds,
             CancellationToken ct = default)
         {
-            var nodeCacheContext = new NodeCacheContext(session);
-            ResultSet<DataValue> result = await nodeCacheContext.FetchValuesAsync(
-                null,
-                nodeIds,
-                ct).ConfigureAwait(false);
-            return (result.Results, result.Errors);
+            return ClientOperationContext.ExecuteAsync(session, async token =>
+            {
+                ResultSet<DataValue> result = await new NodeCacheContext(session).FetchValuesAsync(
+                    null, nodeIds, token).ConfigureAwait(false);
+                return (result.Results, result.Errors);
+            }, ct).AsTask();
         }
 
         /// <summary>
@@ -698,8 +715,9 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseResult> results = response.Results;
             ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, continuationPoints);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+            ArrayOf<ByteString> expected = releaseContinuationPoint ? [] : continuationPoints;
+            ClientBase.ValidateResponse(results, expected);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, expected);
 
             int ii = 0;
             var errors = new List<ServiceResult>();
@@ -745,11 +763,21 @@ namespace Opc.Ua.Client
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public static async ValueTask<ByteString> ReadBytesAsync(
+        public static ValueTask<ByteString> ReadBytesAsync(
             this ISessionClient session,
             NodeId nodeId,
             int maxByteStringLength,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(session,
+                token => ReadBytesCoreAsync(session, nodeId, maxByteStringLength, token), ct);
+        }
+
+        /// <summary>
+        /// Collects all fragments before accepting the caller's complete ByteString.
+        /// </summary>
+        private static async ValueTask<ByteString> ReadBytesCoreAsync(
+            ISessionClient session, NodeId nodeId, int maxByteStringLength, CancellationToken ct)
         {
             if (maxByteStringLength == 0 ||
                 maxByteStringLength > session.MessageContext.MaxByteStringLength)
@@ -820,7 +848,8 @@ namespace Opc.Ua.Client
                             0,
                             diagnosticInfos,
                             responseHeader);
-                        throw new ServiceResultException(serviceResult);
+                        throw ClientOperationContext.OriginalFailure(
+                            session, new ServiceResultException(serviceResult));
                     }
 
                     if (!results[0].WrappedValue.TryGetValue(out ByteString chunk) || chunk.Length == 0)
@@ -889,12 +918,22 @@ namespace Opc.Ua.Client
         /// <param name="args">The input arguments.</param>
         /// <returns>The list of output argument values.</returns>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<ArrayOf<Variant>> CallAsync(
+        public static Task<ArrayOf<Variant>> CallAsync(
             this ISessionClient session,
             NodeId objectId,
             NodeId methodId,
             CancellationToken ct = default,
             params Variant[] args)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                session, token => CallMethodCoreAsync(session, objectId, methodId, args, token), ct).AsTask();
+        }
+
+        /// <summary>
+        /// Validates the ordinary single-Method result before accepting its output arguments.
+        /// </summary>
+        private static async ValueTask<ArrayOf<Variant>> CallMethodCoreAsync(
+            ISessionClient session, NodeId objectId, NodeId methodId, ArrayOf<Variant> args, CancellationToken ct)
         {
             var request = new CallMethodRequest
             {
@@ -918,11 +957,11 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw ServiceResultException.Create(
+                throw ClientOperationContext.OriginalFailure(session, ServiceResultException.Create(
                     results[0].StatusCode,
                     0,
                     diagnosticInfos,
-                    response.ResponseHeader.StringTable);
+                    response.ResponseHeader.StringTable));
             }
 
             return results[0].OutputArguments;
@@ -931,10 +970,20 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the ResendData method on the server for all subscriptions.
         /// </summary>
-        public static async ValueTask<ArrayOf<ServiceResult>> ResendDataAsync(
+        public static ValueTask<ArrayOf<ServiceResult>> ResendDataAsync(
             this ISessionClient session,
             ArrayOf<uint> subscriptionIds,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                session, token => ResendDataCoreAsync(session, subscriptionIds, token), ct);
+        }
+
+        /// <summary>
+        /// Validates the complete ResendData Call response before exposing its per-item statuses.
+        /// </summary>
+        private static async ValueTask<ArrayOf<ServiceResult>> ResendDataCoreAsync(
+            ISessionClient session, ArrayOf<uint> subscriptionIds, CancellationToken ct)
         {
             ArrayOf<CallMethodRequest> requests = subscriptionIds
                 .ConvertAll(subscriptionId => new CallMethodRequest

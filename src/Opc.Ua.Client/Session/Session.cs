@@ -2419,6 +2419,7 @@ namespace Opc.Ua.Client
 
             // choose a default token.
             identity ??= new UserIdentity();
+            NotifyRequestContextIdentityChanging(identity);
 
             // check that the user identity is supported by the endpoint.
             UserTokenPolicy? identityPolicy =
@@ -2521,6 +2522,7 @@ namespace Opc.Ua.Client
                 RequestHeader? requestHeader = CreateRequestHeaderForActivateSession(
                     keyPolicyUri);
 
+                RequestContextReactivation reactivation = CaptureRequestContextReactivation();
                 response = await (recoveryClient ?? this).ActivateSessionAsync(
                     requestHeader,
                     clientSignature,
@@ -2537,6 +2539,7 @@ namespace Opc.Ua.Client
                     m_endpoint.Description.SecurityMode);
 
                 ProcessResponseAdditionalHeader(response.ResponseHeader, m_serverCertificate);
+                ConfirmRequestContextReactivation(reactivation);
             }
             catch
             {
@@ -4622,6 +4625,7 @@ namespace Opc.Ua.Client
                 try
                 {
                     // reactivate session.
+                    RequestContextReactivation reactivation = CaptureRequestContextReactivation();
                     ActivateSessionResponse activateResult = await (recoveryClient ?? this).ActivateSessionAsync(
                         header,
                         clientSignature,
@@ -4639,6 +4643,7 @@ namespace Opc.Ua.Client
                     ProcessResponseAdditionalHeader(
                         activateResult.ResponseHeader,
                         m_serverCertificate);
+                    ConfirmRequestContextReactivation(reactivation);
                     ArrayOf<StatusCode> certificateResults = activateResult.Results;
                     ArrayOf<DiagnosticInfo> certificateDiagnosticInfos = activateResult.DiagnosticInfos;
 
@@ -6461,6 +6466,13 @@ namespace Opc.Ua.Client
                     expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
+                    string.Equals(
+                        TransportProfileIdentity.GetEffective(
+                            serverEndpoint.TransportProfileUri, serverEndpoint.EndpointUrl!),
+                        TransportProfileIdentity.GetEffective(
+                            match.TransportProfileUri, match.EndpointUrl!,
+                            m_endpoint.Configuration?.UseBinaryEncoding ?? true),
+                        StringComparison.Ordinal) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&
                     serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
                 {

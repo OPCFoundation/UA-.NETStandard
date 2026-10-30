@@ -53,6 +53,22 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Optionally classifies recognized recovery or release requests for protected control capacity.
+    /// </summary>
+    /// <remarks>
+    /// Selection is not authorization. The predicate must be bounded, thread-safe and free of Session
+    /// side effects. A batched request qualifies only when every item is a recognized control invocation;
+    /// an arbitrary Call or a mixed batch must not acquire the control partition.
+    /// </remarks>
+    public interface IRequestControlPolicy
+    {
+        /// <summary>
+        /// Returns whether the entire request uses a currently installed recovery or control binding.
+        /// </summary>
+        bool IsControlRequest(IServiceRequest request);
+    }
+
+    /// <summary>
     /// Optional capability for servers that supply custom request parking without changing <see cref="IServerBase"/>.
     /// </summary>
     public interface IRequestParkingPolicySource

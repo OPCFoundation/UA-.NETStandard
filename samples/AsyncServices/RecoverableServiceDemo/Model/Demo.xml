@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+-->
+<opc:ModelDesign
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns="urn:opcfoundation:samples:recoverable-services"
+  TargetNamespace="urn:opcfoundation:samples:recoverable-services"
+  TargetXmlNamespace="urn:opcfoundation:samples:recoverable-services:Types.xsd"
+  TargetVersion="1.0.0"
+  TargetPublicationDate="2026-10-19T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace Name="Demo" Prefix="RecoverableServiceDemo.Model"
+                   XmlNamespace="urn:opcfoundation:samples:recoverable-services:Types.xsd"
+                   XmlPrefix="Demo">urn:opcfoundation:samples:recoverable-services</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" Version="1.05.07"
+                   PublicationDate="2025-12-25T00:00:00Z" InternalPrefix="Opc.Ua.Server"
+                   XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                   XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+  <opc:Method SymbolicName="SlowIncrementMethodType">
+    <opc:Description>Waits for simulated work, then increments the counter once.</opc:Description>
+    <opc:InputArguments>
+      <opc:Argument Name="amount" DataType="ua:Int32" />
+    </opc:InputArguments>
+    <opc:OutputArguments>
+      <opc:Argument Name="value" DataType="ua:Int32" />
+    </opc:OutputArguments>
+  </opc:Method>
+  <opc:ObjectType SymbolicName="DemoDeviceType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Method SymbolicName="SlowIncrement" TypeDefinition="SlowIncrementMethodType"
+                  ModellingRule="Mandatory" />
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:Object SymbolicName="DemoDevice" TypeDefinition="DemoDeviceType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>

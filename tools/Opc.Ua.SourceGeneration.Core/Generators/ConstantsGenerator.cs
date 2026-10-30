@@ -70,7 +70,7 @@ namespace Opc.Ua.SourceGeneration
 
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.Constants.g.cs",
-                m_context.ModelDesign.TargetNamespace.Prefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
 
             using var templateWriter = new TemplateWriter(writer);
@@ -78,6 +78,9 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.Namespace,
                 m_context.ModelDesign.TargetNamespace.Prefix);
+            template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix());
             template.AddReplacement(
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(

@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.OutputFolder,
                 CoreUtils.Format(
                     "{0}.EventRecords.g.cs",
-                    modelPrefix));
+                    m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -214,8 +214,9 @@ namespace Opc.Ua.SourceGeneration
                 isStandardEventType
                     ? CoreUtils.Format("global::Opc.Ua.ObjectTypeIds.{0}", typeName)
                     : CoreUtils.Format(
-                        "global::Opc.Ua.ExpandedNodeId.ToNodeId(global::{0}.ObjectTypeIds.{1}, namespaceUris)",
+                        "global::Opc.Ua.ExpandedNodeId.ToNodeId(global::{0}.{1}ObjectTypeIds.{2}, namespaceUris)",
                         m_context.ModelDesign.TargetNamespace.Prefix,
+                        m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(),
                         typeName));
 
             List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
@@ -347,8 +348,9 @@ namespace Opc.Ua.SourceGeneration
                     string.Equals(ns, m_context.ModelDesign.TargetNamespace.Value, StringComparison.Ordinal)))
             {
                 name = CoreUtils.Format(
-                    "global::{0}.BrowseNames.{1}",
+                    "global::{0}.{1}BrowseNames.{2}",
                     m_context.ModelDesign.TargetNamespace.Prefix,
+                    m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(),
                     field.BrowseName);
             }
             else
@@ -1045,8 +1047,9 @@ namespace Opc.Ua.SourceGeneration
                 ? CoreUtils.Format("global::Opc.Ua.ObjectTypeIds.{0}", typeName)
                 : CoreUtils.Format(
                     "global::Opc.Ua.ExpandedNodeId.ToNodeId(" +
-                    "global::{0}.ObjectTypeIds.{1}, namespaceUris)",
+                    "global::{0}.{1}ObjectTypeIds.{2}, namespaceUris)",
                     m_context.ModelDesign.TargetNamespace.Prefix,
+                    m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(),
                     typeName);
         }
 

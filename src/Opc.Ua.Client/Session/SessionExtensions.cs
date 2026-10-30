@@ -225,10 +225,21 @@ namespace Opc.Ua.Client
         /// <param name="nodeId">The node id of a byte string variable</param>
         /// <param name="ct">Cancellation token to cancel operation with</param>
         /// <exception cref="ServiceResultException"></exception>
-        public static async Task<ByteString> ReadByteStringInChunksAsync(
+        public static Task<ByteString> ReadByteStringInChunksAsync(
             this ISession session,
             NodeId nodeId,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                session, token => new ValueTask<ByteString>(
+                    ReadByteStringInChunksCoreAsync(session, nodeId, token)), ct).AsTask();
+        }
+
+        /// <summary>
+        /// Accepts the final assembled value rather than independently acknowledging its fragments.
+        /// </summary>
+        private static async Task<ByteString> ReadByteStringInChunksCoreAsync(
+            ISession session, NodeId nodeId, CancellationToken ct)
         {
             // An absent server property reads as 0 (Part 5 6.3.2: not provided = no
             // limit) and a value beyond int range is effectively unlimited as well:

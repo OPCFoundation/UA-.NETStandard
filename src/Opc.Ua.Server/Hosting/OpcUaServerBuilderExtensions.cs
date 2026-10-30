@@ -408,6 +408,9 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOptions<OpcUaServerOptions>()
                 .Configure(options => BindResourceIsolationOptions(options.ResourceIsolation,
                     section.GetSection(nameof(OpcUaServerOptions.ResourceIsolation))));
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => section.GetSection(nameof(OpcUaServerOptions.AsyncServices))
+                    .Bind(options.AsyncServices));
 
             IConfigurationSection rolesSection = section.GetSection("Roles");
             if (rolesSection.Exists())

@@ -68,6 +68,31 @@ adopting dependency injection. The document loads on first use; set
 validate it during `StartAsync`, and read it back through the public
 `OpcUaClientOptions.ConfigurationProvider`.
 
+## Experimental recoverable execution
+
+`ManagedSessionBuilder.PreferRecoverableExecution()` or
+`ManagedSessionOptions.RecoverableExecution` selects the default-off RSE prototype
+behind the existing asynchronous `ISession` Read/Write/Call interface. Typed
+helpers and generated Method proxies retain their normal signatures.
+Ordinary fallback is permitted only after conclusive unsupported discovery
+**before Submit is attempted**. Once Submit has been attempted, the Client
+never falls back or replays the original request—even if Submit returns
+`BadServiceUnsupported`.
+
+Use `session.BeginAcknowledgementScope(requireRecoverableReceipt: true)` when
+external storage or an RPC handoff must finish before acknowledgement. An
+ordinary fallback has no receipt and cannot produce a successful no-op ACK.
+The binding uses the experimental OPC 10000-29 draft 0.4.0 manager Methods:
+`Submit`, `GetResult`, `Acknowledge`, `Cancel`, and `Abandon`. Session recovery
+remains the default; Owner and Durable are strict opt-ins that require an
+application-qualified identity provider for authenticated application and user
+continuity. Durable additionally requires protected, qualified checkpoints;
+Owner can use checkpoints as well. The experimental contract is not an adopted
+standard. See the
+[RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/rse.md)
+for the complete Client workflow, qualification requirements, and validation
+scope.
+
 ## Reverse connect lifecycle
 
 `ReverseConnectManager` uses an asynchronous, cancellation-aware lifecycle:

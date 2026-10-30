@@ -109,7 +109,8 @@ namespace Opc.Ua.SourceGeneration
         public IEnumerable<Resource> Emit()
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
-            string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
+            string typeStem = m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                .Replace(".", string.Empty, StringComparison.Ordinal);
             string? nsUriSymbol = m_context.ModelDesign.Namespaces
                 .GetConstantSymbolForNamespace(m_context.ModelDesign.TargetNamespace.Value);
 
@@ -126,7 +127,7 @@ namespace Opc.Ua.SourceGeneration
             // class name in different namespaces, and the output file system
             // silently overwrites an existing file of the same name.
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
-                ? nsPrefix
+                ? m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
                 : targetNamespace + "." + OverrideClassName;
 
             var resources = new List<Resource>(2)

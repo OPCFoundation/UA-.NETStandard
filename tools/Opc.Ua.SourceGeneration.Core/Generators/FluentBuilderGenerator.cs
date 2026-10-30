@@ -122,7 +122,8 @@ namespace Opc.Ua.SourceGeneration
         public IEnumerable<Resource> Emit()
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
-            string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
+            string typeStem = m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                .Replace(".", string.Empty, StringComparison.Ordinal);
             string outputNamespace = string.IsNullOrEmpty(OverrideManagerNamespace)
                 ? nsPrefix
                 : OverrideManagerNamespace;
@@ -170,7 +171,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.OutputFolder,
                 CoreUtils.Format("{0}.FluentBuilders.g.cs",
                     string.IsNullOrEmpty(OverrideManagerClassName)
-                        ? nsPrefix
+                        ? m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
                         // Namespace-qualified, like the node manager files, so
                         // two bound managers sharing a class name do not
                         // overwrite each other's output.

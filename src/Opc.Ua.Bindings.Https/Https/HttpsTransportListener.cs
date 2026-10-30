@@ -44,6 +44,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
+#if NET8_0_OR_GREATER
+using Microsoft.AspNetCore.Connections.Features;
+#else
+using Microsoft.AspNetCore.Http.Features;
+#endif
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -649,6 +654,7 @@ namespace Opc.Ua.Bindings
         /// certificate and the host it built, so a caller that drops a
         /// listener which failed to open leaks nothing.
         /// </remarks>
+        /// <exception cref="AggregateException"></exception>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             try
@@ -909,7 +915,10 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Binary,
                     context.Connection.ClientCertificate?.RawData,
                     ServerChannelCertificate,
-                    peerAddress: context.Connection.RemoteIpAddress);
+                    peerAddress: context.Connection.RemoteIpAddress)
+                {
+                    HasTransportSecurity = HasTlsProtection(context)
+                };
 
                 IServiceResponse output =
                     await m_callback.ProcessRequestAsync(
@@ -920,6 +929,10 @@ namespace Opc.Ua.Bindings
                 if (!ct.IsCancellationRequested)
                 {
                     await WriteServiceResponseAsync(context, output, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    (output as IPooledEncodeable)?.Reuse();
                 }
 
                 return;
@@ -1062,7 +1075,10 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Json,
                     context.Connection.ClientCertificate?.RawData,
                     ServerChannelCertificate,
-                    peerAddress: context.Connection.RemoteIpAddress);
+                    peerAddress: context.Connection.RemoteIpAddress)
+                {
+                    HasTransportSecurity = HasTlsProtection(context)
+                };
 
                 IServiceResponse output = await m_callback
                     .ProcessRequestAsync(secureChannelContext, input, ct)
@@ -1071,6 +1087,10 @@ namespace Opc.Ua.Bindings
                 if (!ct.IsCancellationRequested)
                 {
                     await WriteJsonResponseAsync(context, output, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    (output as IPooledEncodeable)?.Reuse();
                 }
                 return;
             }
@@ -1396,8 +1416,7 @@ namespace Opc.Ua.Bindings
             // Snapshot the set under the concurrent dictionary's enumerator
             // contract; status callbacks of the disposed channels no longer
             // find them in the set and so do not dispose them twice.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            foreach (TcpServerChannel channel in reverseChannels)
+            foreach (TcpServerChannel channel in (TcpServerChannel[])[.. m_reverseConnectChannels.Keys])
             {
                 if (!m_reverseConnectChannels.TryRemove(channel, out _))
                 {
@@ -1519,6 +1538,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Holds physical connection admission through the host pipeline and releases it after transport closure.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <c>null</c>.</exception>
         internal static async Task RunHttpsConnectionAsync(
             ConnectionContext connection,
             ConnectionDelegate next,
@@ -2011,10 +2031,7 @@ namespace Opc.Ua.Bindings
             IServiceResponse response,
             CancellationToken ct)
         {
-            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] payload = EncodeJsonResponseAndRelease(response, ct);
             context.Response.ContentLength = payload.Length;
             context.Response.ContentType = Profiles.OpcUaJsonContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -2027,6 +2044,22 @@ namespace Opc.Ua.Bindings
                 .WriteAsync(payload, 0, payload.Length, ct)
                 .ConfigureAwait(false);
 #endif
+        }
+
+        /// <summary>
+        /// Releases the response's owned resources whether JSON encoding completes, fails or is cancelled.
+        /// </summary>
+        private byte[] EncodeJsonResponseAndRelease(IServiceResponse response, CancellationToken ct)
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                return JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            }
+            finally
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
         }
 
         /// <summary>
@@ -2614,12 +2647,7 @@ namespace Opc.Ua.Bindings
                         responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
-                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
-                        responseToSend,
-                        m_quotas.MessageContext);
-
-                    // encoded: the response is no longer read (releases pooled and leased payloads).
-                    (responseToSend as IPooledEncodeable)?.Reuse();
+                    byte[] responseBytes = EncodeJsonResponseAndRelease(responseToSend, ct);
 #if NET5_0_OR_GREATER
                     await ws.SendAsync(
                         new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
@@ -3206,11 +3234,7 @@ namespace Opc.Ua.Bindings
                 m_logger.ErrorProcessingOpenApiRequest(exception);
                 response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
             }
-            ct.ThrowIfCancellationRequested();
-            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] payload = EncodeJsonResponseAndRelease(response, ct);
             await sendGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -3237,10 +3261,16 @@ namespace Opc.Ua.Bindings
             IServiceResponse response,
             CancellationToken ct)
         {
-            byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] encodedResponse;
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
+            }
+            finally
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -3267,6 +3297,20 @@ namespace Opc.Ua.Bindings
             response.ContentType = kHttpsContentType;
             response.StatusCode = (int)status;
             return response.WriteAsync(message);
+        }
+
+        /// <summary>
+        /// Uses the TLS handshake established by Kestrel, never a profile, forwarded scheme or caller header alone.
+        /// </summary>
+        private static bool HasTlsProtection(HttpContext context)
+        {
+#if NET8_0_OR_GREATER
+            return context.Request.IsHttps &&
+                context.Features.Get<ITlsHandshakeFeature>() is { Protocol: not SslProtocols.None };
+#else
+            // Kestrel 2.x exposes this feature only on requests that passed its TLS connection adapter.
+            return context.Request.IsHttps && context.Features.Get<ITlsConnectionFeature>() != null;
+#endif
         }
 
         /// <summary>

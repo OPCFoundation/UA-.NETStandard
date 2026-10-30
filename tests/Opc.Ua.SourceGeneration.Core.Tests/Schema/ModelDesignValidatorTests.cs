@@ -294,7 +294,11 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(39));
+            Service[] services = validator.GetListOfServices();
+            Assert.That(services, Has.Length.EqualTo(39));
+            Assert.That(Array.ConvertAll(services, static service => service.Name),
+                Has.None.EqualTo("SubmitService").And.None.EqualTo("GetServiceResult")
+                    .And.None.EqualTo("ControlServiceExecution"));
         }
 
         [Test]

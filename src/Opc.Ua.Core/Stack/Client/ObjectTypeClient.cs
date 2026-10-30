@@ -107,6 +107,7 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            RequireTypedOperationContext();
             CallResponse response = await CallOnceAsync(methodId, ct, args)
                 .ConfigureAwait(false);
             return ThrowOrGetOutputArguments(response);
@@ -152,6 +153,7 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            RequireTypedOperationContext();
             // Reuse a previously resolved instance MethodId if we already
             // had to fall back for this method against a non-conformant
             // server; otherwise start with the type-declaration MethodId.
@@ -171,6 +173,7 @@ namespace Opc.Ua
             // Bad_MethodInvalid. Resolve the instance MethodId via
             // HasComponent, cache it, and retry once.
             if (usedTypeMethodId &&
+                Session is not IMethodCallRetryPolicy { AllowMethodIdFallback: false } &&
                 response.Results[0].StatusCode == StatusCodes.BadMethodInvalid)
             {
                 NodeId instanceMethodId = await ResolveChildNodeIdAsync(
@@ -190,6 +193,20 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Prevents older generated proxies from acknowledging before their uninstrumented typed decoding runs.
+        /// Ordinary sessions retain the existing proxy behavior.
+        /// </summary>
+        private void RequireTypedOperationContext()
+        {
+            if (Session is IClientOperationContext
+                { RequiresTypedOperationContext: true, HasOperationContext: false })
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "This proxy requires regeneration to participate in typed recoverable acceptance.");
+            }
+        }
+
+        /// <summary>
         /// Resolves the NodeId of a HasComponent-referenced Object
         /// child of the wrapped object via
         /// <c>TranslateBrowsePathsToNodeIds</c>. Used by every
@@ -204,6 +221,7 @@ namespace Opc.Ua
         /// <param name="browseName">The unqualified child browse
         /// name.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected async ValueTask<NodeId> ResolveChildNodeIdAsync(
             string namespaceUri,
             string browseName,
@@ -274,6 +292,7 @@ namespace Opc.Ua
         /// <param name="methodId">The NodeId of the method to invoke.</param>
         /// <param name="ct">Cancellation token for the request.</param>
         /// <param name="args">The boxed input arguments.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<CallResponse> CallOnceAsync(
             NodeId methodId,
             CancellationToken ct,
@@ -310,17 +329,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The validated Call response.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private static ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
+        private ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
         {
             CallMethodResult result = response.Results[0];
 
             if (StatusCode.IsBad(result.StatusCode))
             {
-                throw ServiceResultException.Create(
+                throw ClientOperationContext.OriginalFailure(Session, ServiceResultException.Create(
                     result.StatusCode,
                     0,
                     response.DiagnosticInfos,
-                    response.ResponseHeader.StringTable);
+                    response.ResponseHeader.StringTable));
             }
 
             return result.OutputArguments;

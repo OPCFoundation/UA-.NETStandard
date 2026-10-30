@@ -81,6 +81,7 @@ namespace Opc.Ua
             IParkableIncomingRequest,
             IEquatable<EndpointIncomingRequest>,
             ILinksScheduledCancellation,
+            IResourceRetainingRequest,
             IQueueAwareIncomingRequest
         {
             /// <summary>
@@ -187,20 +188,45 @@ namespace Opc.Ua
                     using (activity)
                     {
                         ServiceDefinition service = m_endpoint.FindService(Request.TypeId);
-                        IServiceResponse response = await service.InvokeAsync(Request, SecureChannelContext, requestLifetime).ConfigureAwait(false);
-
-                        // Allow tests / diagnostics to mutate the
-                        // response before dispatch via the optional
-                        // ResponseMutator hook on the server.
-                        IServiceResponseMutator? mutator = m_endpoint.ServerForContext?.ResponseMutator;
-                        if (mutator != null)
+                        IServiceResponse? response = null;
+                        try
                         {
-                            response = await mutator.MutateResponseAsync(
-                                Request, response, requestLifetime.CancellationToken)
+                            response = await service.InvokeAsync(Request, SecureChannelContext, requestLifetime)
                                 .ConfigureAwait(false);
-                        }
+                            IServiceResponseMutator? mutator = m_endpoint.ServerForContext?.ResponseMutator;
+                            if (mutator != null)
+                            {
+                                IServiceResponse mutated = await mutator.MutateResponseAsync(
+                                    Request, response, requestLifetime.CancellationToken).ConfigureAwait(false);
+                                if (!ReferenceEquals(response, mutated))
+                                {
+                                    (response as IPooledEncodeable)?.Reuse();
+                                }
+                                response = mutated;
+                            }
+                            if (response is IResponseResourceRetention retaining &&
+                                m_transferResponseCost?.Invoke() is { } resources)
+                            {
+                                try
+                                {
+                                    retaining.AttachRequestResources(resources);
+                                }
+                                catch
+                                {
+                                    resources.Dispose();
+                                    throw;
+                                }
+                            }
 
-                        m_vts.TrySetResult(m_lease, response);
+                            if (m_vts.TrySetResult(m_lease, response))
+                            {
+                                response = null;
+                            }
+                        }
+                        finally
+                        {
+                            (response as IPooledEncodeable)?.Reuse();
+                        }
                     }
                 }
                 catch (Exception e)
@@ -271,6 +297,12 @@ namespace Opc.Ua
             CancellationToken ILinksScheduledCancellation.ScheduledCancellationToken =>
                 m_transportCancellationToken;
 
+            /// <inheritdoc/>
+            void IResourceRetainingRequest.SetResponseResourceTransfer(Func<IDisposable?> transfer)
+            {
+                m_transferResponseCost = transfer;
+            }
+
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
 
@@ -286,6 +318,7 @@ namespace Opc.Ua
             /// </summary>
             private readonly long m_receivedTimestamp;
             private CancellationToken m_transportCancellationToken;
+            private Func<IDisposable?>? m_transferResponseCost;
         }
     }
 }

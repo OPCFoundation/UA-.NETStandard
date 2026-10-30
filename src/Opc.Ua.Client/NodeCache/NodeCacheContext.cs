@@ -266,7 +266,8 @@ namespace Opc.Ua.Client
                 attributes,
                 itemsToRead,
                 values,
-                diagnosticInfos);
+                diagnosticInfos,
+                m_session);
         }
 
         /// <inheritdoc/>
@@ -306,7 +307,7 @@ namespace Opc.Ua.Client
                     0,
                     diagnosticInfos,
                     readResponse.ResponseHeader);
-                throw new ServiceResultException(result);
+                throw ClientOperationContext.OriginalFailure(m_session, new ServiceResultException(result));
             }
 
             return values[0];
@@ -529,7 +530,8 @@ namespace Opc.Ua.Client
             IDictionary<uint, DataValue> attributes,
             ArrayOf<ReadValueId> itemsToRead,
             ArrayOf<DataValue> values,
-            ArrayOf<DiagnosticInfo> diagnosticInfos)
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            ISessionClient? session = null)
         {
             // process results.
             NodeClass nodeClass = default;
@@ -543,11 +545,12 @@ namespace Opc.Ua.Client
                 {
                     if (!values[ii].IsGood)
                     {
-                        throw ServiceResultException.Create(
+                        ServiceResultException failure = ServiceResultException.Create(
                             values[ii].StatusCode,
                             ii,
                             diagnosticInfos,
                             responseHeader.StringTable);
+                        throw session == null ? failure : ClientOperationContext.OriginalFailure(session, failure);
                     }
 
                     // check for valid node class.
@@ -587,11 +590,12 @@ namespace Opc.Ua.Client
                     // all supported attributes must be readable.
                     if (attributeId != Attributes.Value)
                     {
-                        throw ServiceResultException.Create(
+                        ServiceResultException failure = ServiceResultException.Create(
                             values[ii].StatusCode,
                             ii,
                             diagnosticInfos,
                             responseHeader.StringTable);
+                        throw session == null ? failure : ClientOperationContext.OriginalFailure(session, failure);
                     }
                 }
 

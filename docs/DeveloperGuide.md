@@ -208,6 +208,29 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
+### RSE testing
+
+The [recoverable Service prototype](rse.md) separates
+codec, scripted-lifecycle, in-process endpoint and native transport evidence.
+Its native Server selection is `FullyQualifiedName~AsyncServices` in
+`tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj`; run with
+`-f net10.0 -p:CustomTestTarget=net10.0`. The certificate-cycle filter is
+`FullyQualifiedName~CertificateCycleAcrossRecoverableGateway`.
+`AsyncServicesAotTests` must additionally be published and executed as a
+native binary; running its managed assembly alone is not NativeAOT evidence.
+When formatting a single test target, set the `CustomTestTarget` environment
+variable too, so the formatter does not analyze an unrestored first TFM.
+
+The net10.0 Server test build stages the console sample's complete runtime output
+under `rse-process-host/` beside the test assembly. The Windows process-restart
+test selects that child apphost explicitly, with its own dependencies and
+runtimeconfig rather than the test host's shared frameworks. With
+`BuildProjectReferences=false`, build `RecoverableServiceDemo` first; the staging
+target only queries its existing output metadata and fails if the built host is
+missing. A `--no-build` test run uses the existing stage without rebuilding or
+recopying it. Generated credentials and PKI must remain in run-owned temporary
+storage, not in the staged build output.
+
 ### Testing UaLens
 
 All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:
@@ -447,6 +470,12 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
+- **Experimental RSE (Async Services) definitions** — verify the pinned OPC 10000-29
+  draft 0.4.0 inputs using [the contract tooling](../tools/AsyncServices/README.md).
+  The RSE-namespaced five-Method model replaces the retired dedicated experimental
+  Services. Runtime activation remains opt-in, and Owner/Durable need their
+  explicit qualifying providers.
+  Do not hand-edit generated C# or treat static model checks as runtime conformance.
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).
@@ -575,6 +604,12 @@ sets that timeout to `20 + projectCount × perProjectTimeout` minutes, including
 20 minutes for setup/build overhead. Per-test hang guards are independent and
 can vary by shard. A batch exceeding the job ceiling fails matrix generation
 rather than having its timeout silently clamped.
+
+`Opc.Ua.Server.Tests` runs separately from other projects. Windows net48 and
+macOS use eight exhaustive, non-overlapping Server shards because the combined
+suite can exceed the 45-minute test-execution budget. Windows/Linux net10.0
+retain a single Server workload. Sharding does not extend the mainline
+10-minute single-test hang detector, skip tests, or change category filters.
 
 The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 

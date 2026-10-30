@@ -870,6 +870,22 @@ namespace Opc.Ua.Server
                             error = await ValidatePermissionsAsync(
                                 context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
                                 null, true, cancellationToken).ConfigureAwait(false);
+                            if (ServiceResult.IsGood(error))
+                            {
+                                NodeId source = cp.RequestedNodeId;
+                                if (context.IsOwnedInvocation && source.IsNull)
+                                {
+                                    NodeMetadata? metadata = await cp.Manager.GetNodeMetadataAsync(
+                                        context, cp.NodeToBrowse, BrowseResultMask.NodeClass, cancellationToken)
+                                        .ConfigureAwait(false);
+                                    if (metadata == null || metadata.NodeId.IsNull)
+                                    {
+                                        throw new ServiceResultException(StatusCodes.BadNotSupported);
+                                    }
+                                    source = metadata.NodeId;
+                                }
+                                context.RecordRetainedPermission(source, PermissionType.Browse);
+                            }
                         }
 
                         if (ServiceResult.IsGood(error) && !releaseContinuationPoints)
@@ -4050,7 +4066,7 @@ namespace Opc.Ua.Server
                 readValueId.Handle = resolved;
             }
 
-            return await ValidatePermissionsAsync(
+            ServiceResult result = await ValidatePermissionsAsync(
                     context,
                     nodeManager,
                     nodeHandle,
@@ -4059,6 +4075,11 @@ namespace Opc.Ua.Server
                     permissionsOnly,
                     cancellationToken)
                 .ConfigureAwait(false);
+            if (ServiceResult.IsGood(result))
+            {
+                context.RecordRetainedPermission(readValueId.NodeId, requestedPermission);
+            }
+            return result;
         }
 
         /// <summary>
@@ -4170,7 +4191,7 @@ namespace Opc.Ua.Server
                 (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
-                return await ValidatePermissionsAsync(
+                ServiceResult result = await ValidatePermissionsAsync(
                         context,
                         nodeManager,
                         nodeHandle,
@@ -4179,6 +4200,11 @@ namespace Opc.Ua.Server
                         permissionsOnly,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsGood(result))
+                {
+                    context.RecordRetainedPermission(nodeId, requestedPermision);
+                }
+                return result;
             }
             return StatusCodes.Good;
         }
@@ -4231,9 +4257,10 @@ namespace Opc.Ua.Server
                 return (StatusCodes.Good, null);
             }
 
-            // Most callers only need the verdict: validate on the stack instead of
-            // materializing NodeMetadata for every node of the request.
-            if (!metadataRequired && nodeManager is AsyncCustomNodeManager customNodeManager)
+            // Owned invocations also need the resolved NodeId for retained permission checks.
+            if (!metadataRequired &&
+                !context.IsOwnedInvocation &&
+                nodeManager is AsyncCustomNodeManager customNodeManager)
             {
                 try
                 {
@@ -4315,12 +4342,18 @@ namespace Opc.Ua.Server
                 nodeMetadata,
                 requestedPermission,
                 m_logger);
-            return ServiceResult.IsGood(result)
-                ? MasterNodeManager.ValidateAccessRestrictions(
+            if (ServiceResult.IsGood(result))
+            {
+                result = MasterNodeManager.ValidateAccessRestrictions(
                     context,
                     nodeMetadata,
-                    requestedPermission)
-                : result;
+                    requestedPermission);
+            }
+            if (ServiceResult.IsGood(result))
+            {
+                context.RecordRetainedPermission(nodeMetadata.NodeId, requestedPermission);
+            }
+            return result;
         }
 
         /// <summary>

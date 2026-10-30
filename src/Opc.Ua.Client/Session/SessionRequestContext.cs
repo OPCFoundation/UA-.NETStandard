@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -40,7 +41,9 @@ namespace Opc.Ua.Client
     /// Use <see cref="Session"/> for every classification, request and cleanup in the operation.
     /// Each wire dispatch checks the originating stack session, its generation and namespace mappings,
     /// then sends once using the captured authentication token and physical transport. Recovery invalidates
-    /// the context even when it might ultimately reactivate the same server session. Already dispatched
+    /// the default context even when it might ultimately reactivate the same server session.
+    /// <see cref="CaptureRecoverableAsync"/> explicitly permits fresh exchanges after verified reactivation.
+    /// Already dispatched
     /// requests may complete; their results are not replaced by a later cancellation or invalidation.
     /// The context owns only local client resources, never the owner's session, subscriptions or channel.
     /// Server-side model changes within a session still require the caller's model-invalidation policy.
@@ -51,16 +54,20 @@ namespace Opc.Ua.Client
         /// Captures a session under identity synchronization and, when present, its managed service gate.
         /// </summary>
         internal SessionRequestContext(
-            ManagedSession? owner, Session session, long generation, bool requireConfidentiality = false)
+            ManagedSession? owner, Session session, long generation,
+            bool requireConfidentiality = false, bool allowSameSessionRecovery = false)
         {
             m_owner = owner;
             m_originalSession = session;
             m_generation = generation;
+            AllowsSameSessionRecovery = allowSameSessionRecovery;
+            m_activationGeneration = session.RequestContextActivationGeneration;
+            m_identity = allowSameSessionRecovery ? session.Identity.TokenHandler.Copy() : null;
             m_requireConfidentiality = requireConfidentiality;
             SessionConfiguration configuration = session.SaveSessionConfiguration();
             SessionId = configuration.SessionId;
             m_authenticationToken = configuration.AuthenticationToken;
-            if (SessionId.IsNull || m_authenticationToken.IsNull)
+            if (SessionId.IsNull || m_authenticationToken.IsNull || (allowSameSessionRecovery && session.Reconnecting))
             {
                 throw InvalidSession();
             }
@@ -75,17 +82,31 @@ namespace Opc.Ua.Client
             m_entry = m_lease?.Entry;
             m_channelGeneration = m_entry?.ReconnectGeneration ?? 0;
             m_transport = m_entry?.Underlying ?? m_originalChannel;
+            m_clientCertificate = ByteString.From(m_transport.ClientChannelCertificate.AsSpan());
             if (m_entry != null && (m_entry.State != ChannelState.Ready || !m_lease!.IsActive))
             {
                 throw InvalidSession();
             }
-            ValidateConfidentiality();
+            ValidateConfidentiality(m_transport);
             m_namespaceUris = session.NamespaceUris.ToArrayOf();
             m_serverUris = session.ServerUris.ToArrayOf();
             m_messageContext = new ServiceMessageContext(session.MessageContext, session.MessageContext.Telemetry);
+            m_maxMessageSize = m_messageContext.MaxMessageSize;
             m_endpoint = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
             m_endpointConfiguration = CoreUtils.Clone(session.ConfiguredEndpoint.Configuration)
                 ?? EndpointConfiguration.Create();
+            m_checkDomain = session.CheckDomain;
+            if (allowSameSessionRecovery &&
+                m_identity!.TokenType == UserTokenType.Anonymous &&
+                m_endpoint.SecurityMode == MessageSecurityMode.Sign)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Anonymous Sign sessions cannot reactivate on a replacement channel.");
+            }
+            if (allowSameSessionRecovery)
+            {
+                ValidateServerIdentity(m_transport);
+            }
             m_requestTransport = new RequestContextTransport(this);
             try
             {
@@ -97,6 +118,10 @@ namespace Opc.Ua.Client
                 throw;
             }
             session.RequestContextChanged += Invalidate;
+            if (allowSameSessionRecovery)
+            {
+                session.RequestContextIdentityChanging += Invalidate;
+            }
             if (owner != null)
             {
                 owner.ConnectionStateChanged += OnConnectionStateChanged;
@@ -116,10 +141,35 @@ namespace Opc.Ua.Client
         public NodeId SessionId { get; }
 
         /// <summary>
-        /// Completes when the generation changes, recovery or close begins, or this context is disposed.
+        /// Completes when the generation changes, close begins, or this context is disposed.
+        /// A default context also invalidates when recovery begins; a recoverable context does not.
         /// Namespace remapping discovered at dispatch also completes this task. It is not a model-change monitor.
         /// </summary>
         public Task Invalidated => m_invalidated.Task;
+
+        /// <summary>
+        /// Gets whether fresh requests may wait for same-Session recovery before entering the service gate.
+        /// </summary>
+        internal bool AllowsSameSessionRecovery { get; }
+
+        /// <summary>
+        /// Requests managed recovery without replaying a request or accepting a replacement Session.
+        /// Fresh dispatch still verifies the recorded activation and captured encoding context.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask RecoverAsync(CancellationToken ct)
+        {
+            if (!AllowsSameSessionRecovery || m_owner == null || m_invalidated.Task.IsCompleted)
+            {
+                throw InvalidSession();
+            }
+            await m_owner.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+            if (m_invalidated.Task.IsCompleted || !ReferenceEquals(m_owner.InnerSession, m_originalSession))
+            {
+                Invalidate();
+                throw InvalidSession();
+            }
+        }
 
         /// <summary>
         /// Captures a stack-managed session without acquiring ownership of its connection.
@@ -188,6 +238,35 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Captures an explicitly recoverable, same-Session context whose individual requests are sent once.
+        /// </summary>
+        /// <remarks>
+        /// Only fresh exchanges may follow a successfully validated reactivation of the original Session.
+        /// No request is retried, including one whose response was lost. A replacement Session, changed user,
+        /// Client certificate, security policy, mode, transport mapping or namespace mapping invalidates the context.
+        /// A smaller current MaxMessageSize is a delivery limit, not invalidation; the captured ceiling is never
+        /// raised.
+        /// This API does not make an arbitrary service safe to repeat after an uncertain result.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static ValueTask<SessionRequestContext> CaptureRecoverableAsync(
+            ISession session, CancellationToken ct = default)
+        {
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            if (session is not ManagedSession managed)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Recoverable requests require a stack ManagedSession.");
+            }
+            return managed.CaptureRequestContextAsync(
+                requireConfidentiality: false, ct, allowSameSessionRecovery: true);
+        }
+
+        /// <summary>
         /// Invokes an operation with the borrowed session; each service request is independently guarded.
         /// </summary>
         /// <remarks>
@@ -216,6 +295,7 @@ namespace Opc.Ua.Client
             }
             Invalidate();
             m_originalSession.RequestContextChanged -= Invalidate;
+            m_originalSession.RequestContextIdentityChanging -= Invalidate;
             if (m_owner != null)
             {
                 m_owner.ConnectionStateChanged -= OnConnectionStateChanged;
@@ -244,18 +324,31 @@ namespace Opc.Ua.Client
                 generation != m_generation ||
                 current.SessionId != SessionId ||
                 authenticationToken != m_authenticationToken ||
-                !ReferenceEquals(current.NullableTransportChannel, m_originalChannel) ||
-                (m_lease != null &&
-                    (!m_lease.IsActive ||
-                        !ReferenceEquals(m_lease.Entry, m_entry) ||
-                        m_entry!.ReconnectGeneration != m_channelGeneration ||
-                        m_entry.State != ChannelState.Ready ||
-                        !ReferenceEquals(m_entry.Underlying, m_transport))) ||
                 !Matches(current.NamespaceUris, m_namespaceUris) ||
                 !Matches(current.ServerUris, m_serverUris))
             {
                 Invalidate();
                 throw InvalidSession();
+            }
+            ITransportChannel transport;
+            if (AllowsSameSessionRecovery)
+            {
+                transport = ResolveRecoverableTransport(current);
+            }
+            else
+            {
+                if (!ReferenceEquals(current.NullableTransportChannel, m_originalChannel) ||
+                    (m_lease != null &&
+                        (!m_lease.IsActive ||
+                            !ReferenceEquals(m_lease.Entry, m_entry) ||
+                            m_entry!.ReconnectGeneration != m_channelGeneration ||
+                            m_entry.State != ChannelState.Ready ||
+                            !ReferenceEquals(m_entry.Underlying, m_transport))))
+                {
+                    Invalidate();
+                    throw InvalidSession();
+                }
+                transport = m_transport;
             }
             if (request is CreateSessionRequest or ActivateSessionRequest or CloseSessionRequest)
             {
@@ -270,12 +363,134 @@ namespace Opc.Ua.Client
                 throw InvalidSession();
             }
             ct.ThrowIfCancellationRequested();
-            ValidateConfidentiality();
+            ValidateConfidentiality(transport);
             request.RequestHeader.AuthenticationToken = m_authenticationToken;
 
             // A managed lease may wait, swap transports, retry, or reject an already completed
             // response on cancellation. Send once on the physical transport captured above instead.
-            return m_transport.SendRequestAsync(request, ct);
+            return transport.SendRequestAsync(request, ct);
+        }
+
+        /// <summary>
+        /// Selects one physical send target only when its activation evidence and captured encoding remain valid.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private ITransportChannel ResolveRecoverableTransport(Session current)
+        {
+            ITransportChannel channel = current.TransportChannel;
+            var lease = channel as ManagedTransportChannelLease;
+            ChannelEntry? entry = lease?.Entry;
+            if (current.Reconnecting || (entry != null && entry.State != ChannelState.Ready))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "The original Session is not ready for a fresh exchange.");
+            }
+            ITransportChannel transport = entry?.Underlying ?? channel;
+            long generation = entry?.ReconnectGeneration ?? 0;
+            bool unchanged = current.RequestContextActivationGeneration == m_activationGeneration &&
+                ReferenceEquals(channel, m_originalChannel) &&
+                ReferenceEquals(entry, m_entry) &&
+                generation == m_channelGeneration &&
+                ReferenceEquals(transport, m_transport);
+            EndpointDescription endpoint = transport.EndpointDescription;
+            if ((lease != null && !lease.IsActive) ||
+                (channel is IManagedTransportChannel && lease == null) ||
+                (!unchanged && !current.HasVerifiedRequestContextReactivation(channel, entry, generation, transport)) ||
+                !m_identity!.Equals(current.Identity.TokenHandler) ||
+                endpoint.SecurityMode != m_endpoint.SecurityMode ||
+                !string.Equals(endpoint.SecurityPolicyUri, m_endpoint.SecurityPolicyUri, StringComparison.Ordinal) ||
+                !string.Equals(
+                    endpoint.TransportProfileUri, m_endpoint.TransportProfileUri, StringComparison.Ordinal) ||
+                !string.Equals(endpoint.Server.ApplicationUri, m_endpoint.Server.ApplicationUri,
+                    StringComparison.Ordinal) ||
+                m_clientCertificate != ByteString.From(transport.ClientChannelCertificate.AsSpan()) ||
+                !MatchesEncodingLimits(transport.MessageContext) ||
+                !ReferenceEquals(transport.MessageContext.Factory, m_messageContext.Factory) ||
+                m_messageContext.MaxMessageSize != m_maxMessageSize ||
+                !Matches(m_session.NamespaceUris, m_namespaceUris) ||
+                !Matches(m_session.ServerUris, m_serverUris) ||
+                !Matches(transport.MessageContext.NamespaceUris, m_namespaceUris) ||
+                !Matches(transport.MessageContext.ServerUris, m_serverUris))
+            {
+                Invalidate();
+                throw InvalidSession();
+            }
+            ValidateServerIdentity(transport);
+            int currentLimit = transport.MessageContext.MaxMessageSize;
+            if (currentLimit < 0 ||
+                (m_maxMessageSize > 0 && (currentLimit == 0 || currentLimit > m_maxMessageSize)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The current transport would exceed the captured message-size safety ceiling.");
+            }
+            return transport;
+        }
+
+        /// <summary>
+        /// Binds the transport-authenticated peer certificate to the intended Server, not refreshed discovery text.
+        /// HTTPS authenticates its transport host; its TLS certificate need not be an ApplicationCertificate.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ValidateServerIdentity(ITransportChannel transport)
+        {
+            var peer = ByteString.From(transport.ServerChannelCertificate.AsSpan());
+            if (!peer.IsEmpty && peer == m_verifiedServerCertificate)
+            {
+                return;
+            }
+            bool https = m_endpoint.TransportProfileUri is
+                Profiles.HttpsBinaryTransport or Profiles.HttpsJsonTransport;
+            if (peer.IsEmpty &&
+                m_verifiedServerCertificate.IsEmpty &&
+                m_endpoint.SecurityMode == MessageSecurityMode.None &&
+                !https)
+            {
+                m_verifiedServerCertificate = peer;
+                return;
+            }
+            try
+            {
+                if (peer.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+                using Certificate certificate = Utils.ParseCertificateBlob(peer, m_messageContext.Telemetry);
+                var expected = new ConfiguredEndpoint(null, m_endpoint, m_endpointConfiguration);
+                if (!https)
+                {
+                    ServiceResult identity = CertificateValidationHelpers.ValidateServerCertificateApplicationUri(
+                        certificate, expected);
+                    if (ServiceResult.IsBad(identity))
+                    {
+                        throw new ServiceResultException(identity);
+                    }
+                }
+                if ((m_checkDomain || https) &&
+                    (expected.EndpointUrl == null ||
+                        !CertificateValidationHelpers.FindDomain(certificate, expected.EndpointUrl)))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                }
+                m_verifiedServerCertificate = peer;
+            }
+            catch (ServiceResultException)
+            {
+                Invalidate();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Preserves encoding interpretation limits; MaxMessageSize is checked separately as delivery capacity.
+        /// </summary>
+        private bool MatchesEncodingLimits(IServiceMessageContext context)
+        {
+            return context.MaxStringLength == m_messageContext.MaxStringLength &&
+                context.MaxByteStringLength == m_messageContext.MaxByteStringLength &&
+                context.MaxArrayLength == m_messageContext.MaxArrayLength &&
+                context.MaxEncodingNestingLevels == m_messageContext.MaxEncodingNestingLevels &&
+                context.MaxDecoderRecoveries == m_messageContext.MaxDecoderRecoveries;
         }
 
         /// <summary>
@@ -312,13 +527,13 @@ namespace Opc.Ua.Client
         /// Checks the physical channel, not mutable advertised session metadata, before any confidential send.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private void ValidateConfidentiality()
+        private void ValidateConfidentiality(ITransportChannel transport)
         {
             if (!m_requireConfidentiality)
             {
                 return;
             }
-            EndpointDescription endpoint = m_transport.EndpointDescription;
+            EndpointDescription endpoint = transport.EndpointDescription;
             if (endpoint == null ||
                 endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
                 string.IsNullOrEmpty(endpoint.SecurityPolicyUri) ||
@@ -372,7 +587,9 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs args)
         {
-            if (args.NewState != ConnectionState.Connected)
+            if (args.NewState != ConnectionState.Connected &&
+                (!AllowsSameSessionRecovery ||
+                    args.NewState is ConnectionState.Closed or ConnectionState.Closing))
             {
                 Invalidate();
             }
@@ -383,7 +600,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnChannelStateChanged(ManagedSession sender, ChannelStateChange change)
         {
-            if (change.NewState != ChannelState.Ready)
+            if (!AllowsSameSessionRecovery && change.NewState != ChannelState.Ready)
             {
                 Invalidate();
             }
@@ -465,6 +682,9 @@ namespace Opc.Ua.Client
         private readonly Session m_session;
         private readonly RequestContextTransport m_requestTransport;
         private readonly long m_generation;
+        private readonly long m_activationGeneration;
+        private readonly IUserIdentityTokenHandler? m_identity;
+        private readonly ByteString m_clientCertificate;
         private readonly NodeId m_authenticationToken;
         private readonly ITransportChannel m_originalChannel;
         private readonly ITransportChannel m_transport;
@@ -474,8 +694,11 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_namespaceUris;
         private readonly ArrayOf<string> m_serverUris;
         private readonly ServiceMessageContext m_messageContext;
+        private readonly int m_maxMessageSize;
         private readonly EndpointDescription m_endpoint;
         private readonly EndpointConfiguration m_endpointConfiguration;
+        private readonly bool m_checkDomain;
+        private ByteString m_verifiedServerCertificate;
 
         /// <summary>Whether every physical dispatch requires an encrypted channel.</summary>
         private readonly bool m_requireConfidentiality;

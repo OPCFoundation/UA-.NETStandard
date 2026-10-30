@@ -544,6 +544,7 @@ namespace Opc.Ua.Server
         /// Bad_NonceInvalid (Part 4 5.7.2.2). A None channel does not require a
         /// random nonce, so a client reusing one there is not rejected.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private void ThrowIfClientNonceInUse(OperationContext context, ByteString clientNonce)
         {
             if (clientNonce.IsEmpty ||
@@ -931,7 +932,6 @@ namespace Opc.Ua.Server
                     {
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
-
 
                     lock (m_bindingsLock)
                     {
@@ -1709,7 +1709,7 @@ namespace Opc.Ua.Server
             catch (ServiceResultException sre)
             {
                 if ((sre.StatusCode == StatusCodes.BadSessionClosed ||
-                        sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
+                    sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
                     session != null &&
                     !SessionTermination.IsClosingOrClaimed(session) &&
                     session.HasExpired)
@@ -1746,6 +1746,44 @@ namespace Opc.Ua.Server
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Rechecks a waiting exchange without counting a second request or refreshing Session activity.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask<OperationContext> RevalidateRetainedResultContextAsync(
+            OperationContext original, RequestHeader header)
+        {
+            if (!m_sessions.TryGetValue(header.AuthenticationToken, out ISession? session) ||
+                !ReferenceEquals(session, original.Session))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+            if (SessionTermination.IsClosingOrClaimed(session))
+            {
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+            if (session.HasExpired)
+            {
+                await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+            SecureChannelContext channel = original.ChannelContext!;
+            if (!session.Activated || !session.IsSecureChannelValid(channel.SecureChannelId))
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+            }
+            EnsureRoleManagerSubscription();
+            ReevaluateIdentityIfStale(session, channel);
+            if (session.IsIdentityStale)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
+            RequestHeader currentHeader = CoreUtils.Clone(header)!;
+            session.ValidateDiagnosticInfo(currentHeader);
+            return new OperationContext(
+                currentHeader, channel, original.RequestType, original.RequestLifetime, session);
         }
 
         /// <summary>
@@ -2688,8 +2726,8 @@ namespace Opc.Ua.Server
         {
             for (int attempt = 0;
                 attempt < kMaxCapEvictionAttempts &&
-                    m_maxSessionCount > 0 &&
-                    m_sessions.Count >= m_maxSessionCount;
+                m_maxSessionCount > 0 &&
+                m_sessions.Count >= m_maxSessionCount;
                 attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();

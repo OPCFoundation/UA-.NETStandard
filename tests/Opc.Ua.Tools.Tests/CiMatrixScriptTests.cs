@@ -489,12 +489,12 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The oversized net48 server suite is split into exclusive filters,
-        /// while the other frameworks retain their existing single workload.
+        /// The oversized net48 and macOS server suites are split into exclusive
+        /// filters, while other profiles retain their existing single workload.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task ServerNet48FiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
+        public async Task ServerFiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
             MatrixEntry[] server = matrix.Tests.Where(entry =>
@@ -514,7 +514,9 @@ namespace Opc.Ua.Tools.Tests
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                string[] expectedShards = profile.First().Framework == "net48" ? serverShards : ["all"];
+                string[] expectedShards = profile.First().Framework == "net48" || profile.First().Os == "macos"
+                    ? serverShards
+                    : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
             }
 
@@ -531,7 +533,7 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server
-                .Where(entry => entry.Framework == "net48")
+                .Where(entry => entry.Framework == "net48" || entry.Os == "macos")
                 .GroupBy(entry => entry.Profile))
             {
                 foreach ((string testName, string expectedShard) in testCases)
