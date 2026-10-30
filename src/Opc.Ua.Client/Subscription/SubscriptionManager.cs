@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -277,6 +278,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Clear();
                     registered = [.. m_subscriptions];
                     m_subscriptions.Clear();
+                    OwnershipChangedLocked();
                     m_establishedSubscriptions.Clear();
                 }
 
@@ -344,6 +346,7 @@ namespace Opc.Ua.Client.Subscriptions
                             StatusCodes.BadShutdown);
                     }
                     m_deferredAcknowledgements.Clear();
+                    UpdateDeferredWarning();
                 }
                 foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
                 {
@@ -356,6 +359,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_claims.Clear();
                     m_superseded.Clear();
+                    OwnershipChangedLocked();
                     m_windows.Clear();
                 }
                 GC.SuppressFinalize(this);
@@ -452,6 +456,7 @@ namespace Opc.Ua.Client.Subscriptions
                         m_superseded.Add(registered);
                     }
                 }
+                OwnershipChangedLocked();
                 m_superseded.Remove(owner);
                 m_claims[subscriptionId] = new SubscriptionClaim(
                     owner, Interlocked.Increment(ref m_claimSequence), createdAt);
@@ -645,6 +650,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // reference — never by identifier, because every
                 // subscription that is not created (yet) shares id 0.
                 registered = m_subscriptions.Remove(partition);
+                OwnershipChangedLocked();
                 if (registered)
                 {
                     m_establishedSubscriptions.Remove(partition);
@@ -800,6 +806,7 @@ namespace Opc.Ua.Client.Subscriptions
                     // Roll the primary back out so we do not leak
                     // a partition with no logical wrapper.
                     m_subscriptions.Remove(primary);
+                    OwnershipChangedLocked();
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register logical subscription.");
                 }
@@ -883,6 +890,7 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 m_subscriptions.Remove(partition);
+                OwnershipChangedLocked();
                 // Retire the identifier under the registry lock so a
                 // publish worker cannot observe the partition as removed
                 // before the identifier is known to be retired.
@@ -1169,6 +1177,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (!m_logicals.Add(wrapper))
                 {
                     m_subscriptions.Remove(subscription);
+                    OwnershipChangedLocked();
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register restored logical subscription.");
                 }
@@ -1267,6 +1276,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_logicals.Remove(wrapper);
                     m_subscriptions.Remove(subscription);
+                    OwnershipChangedLocked();
                 }
                 try
                 {
@@ -1371,6 +1381,7 @@ namespace Opc.Ua.Client.Subscriptions
                     foreach (IManagedSubscription partition in partitions)
                     {
                         m_subscriptions.Remove(partition);
+                        OwnershipChangedLocked();
                     }
                 }
                 try
@@ -1441,6 +1452,7 @@ namespace Opc.Ua.Client.Subscriptions
                 lock (m_subscriptionLock)
                 {
                     m_subscriptions.Remove(partition);
+                    OwnershipChangedLocked();
                 }
                 await partition.DisposeAsync().ConfigureAwait(false);
                 throw;
@@ -2211,6 +2223,14 @@ namespace Opc.Ua.Client.Subscriptions
         private List<PendingAcknowledgement> PrepareAcknowledgementsToSend(
             List<PendingAcknowledgement> acknowledgements)
         {
+            if (Volatile.Read(ref m_deferredCount) == 0 && !m_session.HasAcknowledgementPolicy)
+            {
+                // Without a deferral policy or a deferred backlog the batch is only validated:
+                // the policy lock is not taken, nothing is copied or presented, and no callback
+                // can change ownership before it is sent.
+                RemoveStaleAcknowledgements(acknowledgements);
+                return acknowledgements;
+            }
             lock (m_acknowledgementPolicyLock)
             {
                 int deferredCount = m_deferredAcknowledgements.Count;
@@ -2220,8 +2240,6 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 if (deferredCount == 0 && !m_session.HasAcknowledgementPolicy)
                 {
-                    // Without a deferral policy the batch is only validated: nothing is copied
-                    // or presented, and no callback can change ownership before it is sent.
                     RemoveStaleAcknowledgements(acknowledgements);
                     return acknowledgements;
                 }
@@ -2369,25 +2387,26 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             List<PendingAcknowledgement> candidates = acknowledgements;
-            lock (m_acknowledgementPolicyLock)
-            {
-                if (m_deferredAcknowledgements.Count != 0)
-                {
-                    // Merged into the worker's batch, so an abandoned attempt requeues them as well.
-                    candidates.AddRange(m_deferredAcknowledgements);
-                    m_deferredAcknowledgements.Clear();
-                }
-            }
-            RemoveStaleAcknowledgements(candidates);
-            if (candidates.Count == 0)
+            if (Volatile.Read(ref m_deferredCount) != 0)
             {
                 lock (m_acknowledgementPolicyLock)
                 {
-                    UpdateDeferredWarning();
+                    if (m_deferredAcknowledgements.Count != 0)
+                    {
+                        // Merged into the worker's batch, so an abandoned attempt requeues them as well.
+                        candidates.AddRange(m_deferredAcknowledgements);
+                        m_deferredAcknowledgements.Clear();
+                        UpdateDeferredWarning();
+                    }
                 }
+            }
+            long version = RemoveStaleAcknowledgements(candidates);
+            if (candidates.Count == 0)
+            {
                 return candidates;
             }
 
+            // A fresh array per decision: the provider may keep the batch it was given.
             var handles = new AcknowledgementHandle[candidates.Count];
             for (int i = 0; i < handles.Length; i++)
             {
@@ -2412,30 +2431,95 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             ArrayOf<int> deferredIndices = decision.Deferred;
-            if (deferredIndices.Count == 0)
+            if (deferredIndices.Count != 0)
             {
-                // Validated again: a subscription can retire while the provider decides.
-                RemoveStaleAcknowledgements(candidates);
-                return candidates;
+                DeferSelected(candidates, deferredIndices);
             }
-            bool[] deferred = new bool[candidates.Count];
-            for (int i = 0; i < deferredIndices.Count; i++)
+            // Validated again, since a subscription can retire while the provider decides.
+            RevalidateAcknowledgements(candidates, version);
+            return candidates;
+        }
+
+        /// <summary>
+        /// Moves the candidates at the deferred indices to the deferred list and compacts
+        /// the remaining candidates in place. Indices out of range or repeated are ignored.
+        /// </summary>
+        /// <param name="candidates">The presented acknowledgements; on return the ones to send.</param>
+        /// <param name="deferredIndices">The indices the provider deferred.</param>
+        private void DeferSelected(List<PendingAcknowledgement> candidates, ArrayOf<int> deferredIndices)
+        {
+            int count = candidates.Count;
+            bool[]? rented = null;
+            Span<bool> deferred = count <= kStackAllocThreshold
+                ? stackalloc bool[kStackAllocThreshold]
+                : (rented = ArrayPool<bool>.Shared.Rent(count));
+            deferred = deferred[..count];
+            deferred.Clear();
+            try
             {
-                int index = deferredIndices[i];
-                if ((uint)index < (uint)deferred.Length)
+                for (int i = 0; i < deferredIndices.Count; i++)
                 {
-                    deferred[index] = true;
+                    int index = deferredIndices[i];
+                    if ((uint)index < (uint)count)
+                    {
+                        deferred[index] = true;
+                    }
+                }
+                int kept = 0;
+                lock (m_acknowledgementPolicyLock)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (deferred[i])
+                        {
+                            m_deferredAcknowledgements.Add(candidates[i]);
+                        }
+                        else
+                        {
+                            candidates[kept++] = candidates[i];
+                        }
+                    }
+                    UpdateDeferredWarning();
+                }
+                candidates.RemoveRange(kept, count - kept);
+            }
+            finally
+            {
+                if (rented != null)
+                {
+                    ArrayPool<bool>.Shared.Return(rented);
                 }
             }
-            var toSend = new List<PendingAcknowledgement>(candidates.Count);
-            var toDefer = new List<PendingAcknowledgement>(deferredIndices.Count);
-            for (int i = 0; i < candidates.Count; i++)
+        }
+
+        /// <summary>
+        /// Validates a batch again after an unlocked step. When no ownership changed since
+        /// <paramref name="version"/> was captured, only the per-owner state that changes
+        /// without the registry lock (server id and message generation) is checked, without
+        /// taking the registry lock. A change of the server's availability window is then not
+        /// rechecked: the server answers such an acknowledgement with
+        /// <c>Bad_SequenceNumberUnknown</c>, which is reported as not retained as well.
+        /// </summary>
+        /// <param name="acknowledgements">The batch; stale entries are removed in place.</param>
+        /// <param name="version">The ownership version of the first validation.</param>
+        private void RevalidateAcknowledgements(List<PendingAcknowledgement> acknowledgements, long version)
+        {
+            if (Interlocked.Read(ref m_ownershipVersion) != version)
             {
-                (deferred[i] ? toDefer : toSend).Add(candidates[i]);
+                RemoveStaleAcknowledgements(acknowledgements);
+                return;
             }
-            DeferAcknowledgements(toDefer);
-            RemoveStaleAcknowledgements(toSend);
-            return toSend;
+            for (int i = 0; i < acknowledgements.Count; i++)
+            {
+                PendingAcknowledgement pending = acknowledgements[i];
+                IMessageProcessor owner = pending.Owner;
+                if (owner.Id != pending.Acknowledgement.SubscriptionId ||
+                    owner.MessageGeneration != pending.Generation)
+                {
+                    RemoveStaleAcknowledgements(acknowledgements);
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -2630,13 +2714,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// Removes acknowledgements that must not be sent anymore. Each entry is
         /// validated in constant time under a single registry lock acquisition.
         /// </summary>
-        private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        /// <returns>The ownership version the batch was validated against.</returns>
+        private long RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
+            if (acknowledgements.Count == 0)
+            {
+                return Interlocked.Read(ref m_ownershipVersion);
+            }
             int kept = 0;
+            long version;
             bool observed = RequiresAcknowledgementTracking;
             List<AcknowledgementOutcome>? outcomes = null;
             lock (m_subscriptionLock)
             {
+                version = Interlocked.Read(ref m_ownershipVersion);
                 for (int i = 0; i < acknowledgements.Count; i++)
                 {
                     PendingAcknowledgement pending = acknowledgements[i];
@@ -2667,6 +2758,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_logger.StaleAcknowledgementsDiscarded(removed);
             }
             ReportOutcomes(outcomes);
+            return version;
         }
 
         /// <summary>
@@ -2823,12 +2915,22 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Records a change of subscription ownership, so acknowledgements validated before
+        /// it are fully validated again. Requires the registry lock.
+        /// </summary>
+        private void OwnershipChangedLocked()
+        {
+            Interlocked.Increment(ref m_ownershipVersion);
+        }
+
+        /// <summary>
         /// Forgets the retransmission view of a retiring owner, and its claim on
         /// <paramref name="subscriptionId"/> unless a live subscription created later holds it.
         /// Requires the registry lock.
         /// </summary>
         private void ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId)
         {
+            OwnershipChangedLocked();
             m_windows.Remove(owner);
             m_superseded.Remove(owner);
             if (subscriptionId != 0 &&
@@ -2865,11 +2967,13 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Warns once when deferred acknowledgements accumulate, and re-arms when the
-        /// backlog has drained. Must be called with the policy lock held.
+        /// backlog has drained, and publishes the backlog size for lock-free reads. Must be
+        /// called with the policy lock held after every change of the deferred list.
         /// </summary>
         private void UpdateDeferredWarning()
         {
             int count = m_deferredAcknowledgements.Count;
+            Volatile.Write(ref m_deferredCount, count);
             if (!m_deferredWarningRaised && count >= kDeferredAcknowledgementWarningThreshold)
             {
                 m_deferredWarningRaised = true;
@@ -3206,7 +3310,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         continue;
                     }
-                    List<PendingAcknowledgement> batch = [];
+                    List<PendingAcknowledgement> batch = ResetBatch();
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
@@ -3672,7 +3776,7 @@ namespace Opc.Ua.Client.Subscriptions
                             // Throws when the wait timed out or was cancelled;
                             // the finally below still rescues a racing ack.
                             await pausedTask.ConfigureAwait(false);
-                            return [];
+                            return ResetBatch();
                         }
                         firstAck = await readTask.ConfigureAwait(false);
                         readConsumed = true;
@@ -3706,8 +3810,7 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (OperationCanceledException)
                     {
                     }
-                    List<PendingAcknowledgement> acks = GetAcksReadyToSend();
-                    acks.Insert(0, firstAck);
+                    List<PendingAcknowledgement> acks = GetAcksReadyToSend(firstAck);
                     if (m_logger.IsEnabled(LogLevel.Debug))
                     {
                         m_logger.PublishWorkerPublishAcksAfterPausing(
@@ -3725,7 +3828,7 @@ namespace Opc.Ua.Client.Subscriptions
                             Index,
                             m_outer.m_timeProvider.GetElapsedTime(swStart));
                     }
-                    return [];
+                    return ResetBatch();
                 }
                 finally
                 {
@@ -3735,12 +3838,18 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             /// <summary>
-            /// Get acks that are ready to send
+            /// Get acks that are ready to send. The worker's batch list is reused for every
+            /// Publish request; nothing retains it beyond the request.
             /// </summary>
-            /// <returns></returns>
-            private List<PendingAcknowledgement> GetAcksReadyToSend()
+            /// <param name="first">An acknowledgement already read that goes first.</param>
+            private List<PendingAcknowledgement> GetAcksReadyToSend(
+                PendingAcknowledgement? first = null)
             {
-                var acks = new List<PendingAcknowledgement>();
+                List<PendingAcknowledgement> acks = ResetBatch();
+                if (first.HasValue)
+                {
+                    acks.Add(first.Value);
+                }
 
                 // TODO: Is this something that we can get from ops limit?
                 int available = m_outer.m_acks.Reader.Count;
@@ -3757,6 +3866,20 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.PublishWorkerAcknowledging(Index, acks.Count, available);
                 }
                 return acks;
+            }
+
+            /// <summary>
+            /// Empties the reused batch list, releasing its storage after an unusually
+            /// large burst.
+            /// </summary>
+            private List<PendingAcknowledgement> ResetBatch()
+            {
+                m_batch.Clear();
+                if (m_batch.Capacity > kMaxRetainedBatchCapacity)
+                {
+                    m_batch.Capacity = 0;
+                }
+                return m_batch;
             }
 
             /// <summary>
@@ -3826,6 +3949,8 @@ namespace Opc.Ua.Client.Subscriptions
                 return minPublishInterval - (int)latency;
             }
 
+            private const int kMaxRetainedBatchCapacity = 4096;
+            private readonly List<PendingAcknowledgement> m_batch = [];
             private readonly ILogger m_logger;
             private readonly SubscriptionManager m_outer;
             private readonly CancellationTokenSource m_cts;
@@ -3843,6 +3968,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
         private const int kDeferredAcknowledgementWarningThreshold = 1000;
+        private const int kStackAllocThreshold = 256;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
@@ -3863,6 +3989,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private readonly List<SubscriptionAcknowledgement> m_presentedAcknowledgements = [];
         private bool m_deferredWarningRaised;
+        /// <summary>
+        /// Number of <see cref="m_deferredAcknowledgements"/>, written under
+        /// <see cref="m_acknowledgementPolicyLock"/> and read without it, so a Publish
+        /// worker skips the lock while nothing is deferred. An entry deferred
+        /// concurrently with such a read is picked up by the next Publish request.
+        /// </summary>
+        private int m_deferredCount;
+        /// <summary>
+        /// Incremented under <see cref="m_subscriptionLock"/> whenever subscription
+        /// ownership changes (registration, removal, supersession or claims), so a batch
+        /// validated before an unlocked step only needs a full revalidation when it moved.
+        /// </summary>
+        private long m_ownershipVersion;
         private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;
         /// <summary>
         /// Acknowledgements that are queued, deferred or in flight and have not ended yet.
