@@ -313,6 +313,7 @@ namespace Opc.Ua.Client.Redundancy
                 // standby session keeps its own server session until the takeover succeeded and
                 // is then closed like any other session.
                 ManagedSession standby = m_session;
+                handoff = await SelectTakeoverEndpointAsync(handoff, standby, ct).ConfigureAwait(false);
                 ManagedSession leader = await standby.CreateTakeoverSessionAsync(
                     handoff,
                     new SessionTakeoverOptions { Identity = identity },
@@ -333,6 +334,54 @@ namespace Opc.Ua.Client.Redundancy
                 m_logger.TokenReuseFastActivateFailedUsing(ex);
                 return false;
             }
+        }
+
+        private async ValueTask<SessionHandoff> SelectTakeoverEndpointAsync(
+            SessionHandoff handoff,
+            ManagedSession standby,
+            CancellationToken ct)
+        {
+            EndpointDescription savedEndpoint = handoff.Session.ConfiguredEndpoint?.Description
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    "The saved session handoff has no endpoint description.");
+            EndpointDescription standbyEndpoint = standby.ConfiguredEndpoint.Description
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The standby session has no endpoint description.");
+            if (string.Equals(
+                savedEndpoint.EndpointUrl,
+                standbyEndpoint.EndpointUrl,
+                StringComparison.Ordinal))
+            {
+                return handoff;
+            }
+
+            ServiceResultException? securityMismatch = ManagedSession.GetSecurityConfigurationMismatch(
+                savedEndpoint,
+                standbyEndpoint);
+            if (securityMismatch != null)
+            {
+                throw securityMismatch;
+            }
+
+            Func<EndpointDescription, EndpointDescription, CancellationToken, ValueTask<bool>>? validator =
+                m_options.ValidateMirroredEndpointAsync;
+            if (validator == null ||
+                !await validator(savedEndpoint, standbyEndpoint, ct).ConfigureAwait(false))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The standby endpoint is not an authorized mirrored member of the saved endpoint.");
+            }
+
+            return handoff with
+            {
+                Session = handoff.Session with
+                {
+                    ConfiguredEndpoint = CoreUtils.Clone(standby.ConfiguredEndpoint)!
+                }
+            };
         }
 
         private async ValueTask DisposeQuietlyAsync(ManagedSession session)

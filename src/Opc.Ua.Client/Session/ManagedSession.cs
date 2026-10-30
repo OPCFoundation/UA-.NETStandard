@@ -1718,71 +1718,76 @@ namespace Opc.Ua.Client
                     {
                         session = taken;
                     }
-                    else if (waitingConnection != null)
-                    {
-                        ISessionFactory reverseFactory = CreateChannelManagerFactory() ?? SessionFactory;
-                        session = (Session)await reverseFactory.CreateAsync(
-                            m_configuration,
-                            waitingConnection,
-                            endpoint,
-                            updateBeforeConnect,
-                            m_checkDomain,
-                            m_sessionName,
-                            m_sessionTimeout,
-                            initialIdentity,
-                            m_preferredLocales,
-                            ct).ConfigureAwait(false);
-                        unadopted = null;
-                    }
-                    else if (m_reverseConnectManager != null)
-                    {
-                        ISessionFactory reverseFactory =
-                            CreateChannelManagerFactory() ?? SessionFactory;
-
-                        session = (Session)await reverseFactory.CreateAsync(
-                            m_configuration,
-                            m_reverseConnectManager,
-                            endpoint,
-                            updateBeforeConnect,
-                            m_checkDomain,
-                            m_sessionName,
-                            m_sessionTimeout,
-                            initialIdentity,
-                            m_preferredLocales,
-                            ct).ConfigureAwait(false);
-                    }
-                    else if (CreateChannelManagerFactory() is ISessionFactory channelFactory)
-                    {
-                        // Channel-manager-aware path: acquire a shared
-                        // managed channel and let the manager drive any
-                        // future reconnect transparently. Other sessions
-                        // sharing this endpoint join the same channel.
-                        // Routed through the factory so the diagnostics mask
-                        // configured on SessionFactory is applied, as on the
-                        // reverse-connect path above.
-                        session = (Session)await channelFactory.CreateAsync(
-                            m_configuration,
-                            endpoint,
-                            updateBeforeConnect,
-                            m_checkDomain,
-                            m_sessionName,
-                            m_sessionTimeout,
-                            initialIdentity,
-                            m_preferredLocales,
-                            ct).ConfigureAwait(false);
-                    }
                     else
                     {
-                        session = (Session)await SessionFactory.CreateAsync(
-                            m_configuration,
-                            endpoint,
-                            updateBeforeConnect,
-                            m_checkDomain,
-                            m_sessionName,
-                            m_sessionTimeout,
-                            initialIdentity,
-                            m_preferredLocales,
-                            ct).ConfigureAwait(false);
+                        IUserIdentity? connectIdentity =
+                            Volatile.Read(ref m_takeoverFallbackIdentity) ?? initialIdentity;
+                        if (waitingConnection != null)
+                        {
+                            ISessionFactory reverseFactory = CreateChannelManagerFactory() ?? SessionFactory;
+                            session = (Session)await reverseFactory.CreateAsync(
+                                m_configuration,
+                                waitingConnection,
+                                endpoint,
+                                updateBeforeConnect,
+                                m_checkDomain,
+                                m_sessionName,
+                                m_sessionTimeout,
+                                connectIdentity,
+                                m_preferredLocales,
+                                ct).ConfigureAwait(false);
+                            unadopted = null;
+                        }
+                        else if (m_reverseConnectManager != null)
+                        {
+                            ISessionFactory reverseFactory =
+                                CreateChannelManagerFactory() ?? SessionFactory;
+
+                            session = (Session)await reverseFactory.CreateAsync(
+                                m_configuration,
+                                m_reverseConnectManager,
+                                endpoint,
+                                updateBeforeConnect,
+                                m_checkDomain,
+                                m_sessionName,
+                                m_sessionTimeout,
+                                connectIdentity,
+                                m_preferredLocales,
+                                ct).ConfigureAwait(false);
+                        }
+                        else if (CreateChannelManagerFactory() is ISessionFactory channelFactory)
+                        {
+                            // Channel-manager-aware path: acquire a shared
+                            // managed channel and let the manager drive any
+                            // future reconnect transparently. Other sessions
+                            // sharing this endpoint join the same channel.
+                            // Routed through the factory so the diagnostics mask
+                            // configured on SessionFactory is applied, as on the
+                            // reverse-connect path above.
+                            session = (Session)await channelFactory.CreateAsync(
+                                m_configuration,
+                                endpoint,
+                                updateBeforeConnect,
+                                m_checkDomain,
+                                m_sessionName,
+                                m_sessionTimeout,
+                                connectIdentity,
+                                m_preferredLocales,
+                                ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            session = (Session)await SessionFactory.CreateAsync(
+                                m_configuration,
+                                endpoint,
+                                updateBeforeConnect,
+                                m_checkDomain,
+                                m_sessionName,
+                                m_sessionTimeout,
+                                connectIdentity,
+                                m_preferredLocales,
+                                ct).ConfigureAwait(false);
+                        }
                     }
 
                     session.ConfigureChannelReconnectTimeout(m_channelReconnectTimeout, m_sessionTimeout);

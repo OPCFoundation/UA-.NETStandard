@@ -92,6 +92,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Assert.That(handoff.Subscriptions.Count, Is.EqualTo(1));
                     Assert.That(handoff.Subscriptions[0].ServerId, Is.EqualTo(SubscriptionId));
                     Assert.That(handoff.Subscriptions[0].MonitoredItems.Count, Is.EqualTo(1));
+                    Assert.That(handoff.Subscriptions[0].HasRevisedSettings, Is.True);
+                    Assert.That(handoff.Subscriptions[0].MonitoredItems[0].HasRevisedSettings, Is.True);
                     Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
                     Assert.That(after, Has.None.InstanceOf<DeleteSubscriptionsRequest>());
                     Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
@@ -264,10 +266,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             };
             harness.ReleaseAllGates();
             int mark = harness.Requests.Count;
+            var takeoverIdentity = new UserIdentity();
 
             UaManagedSession successor = await harness.TakeOverAsync(handoff, new SessionTakeoverOptions
             {
                 SubscriptionHandlerFactory = _ => harness.CreateNotificationHandler(),
+                Identity = takeoverIdentity,
                 FailureMode = SessionTakeoverFailureMode.CreateNewSession
             }).ConfigureAwait(false);
             await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
@@ -280,6 +284,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Assert.That(after, Has.Some.InstanceOf<CreateMonitoredItemsRequest>());
                 Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
                 Assert.That(successor.SessionId, Is.Not.EqualTo(TakeoverSessionId));
+                Assert.That(successor.Identity, Is.SameAs(takeoverIdentity));
                 Assert.That(successor.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
                 Assert.That(
                     harness.Logs.Records.Any(r => r.Message.Contains("continuity", StringComparison.Ordinal)),

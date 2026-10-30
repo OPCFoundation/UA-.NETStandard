@@ -375,6 +375,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // collision throws out of Dictionary.Add in MonitoredItemManager.
             Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, state.ClientHandle);
             ServerId = state.ServerId;
+            if (state.HasRevisedSettings)
+            {
+                CurrentSamplingInterval = state.RevisedSamplingInterval;
+                CurrentQueueSize = state.RevisedQueueSize;
+                FilterResult = state.RevisedFilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)state.RevisedFilterResult.Clone();
+            }
             // Install the saved desired triggering set as the runtime
             // canonical state. For TransferSubscriptions this restores
             // the local view without re-issuing SetTriggering (the
@@ -454,7 +462,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_options.CurrentValue,
                 ClientHandle,
                 ServerId,
-                DesiredTriggeredByNames);
+                DesiredTriggeredByNames) with
+            {
+                HasRevisedSettings = true,
+                RevisedSamplingInterval = CurrentSamplingInterval,
+                RevisedQueueSize = CurrentQueueSize,
+                RevisedFilterResult = FilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)FilterResult.Clone()
+            };
         }
 
         /// <inheritdoc/>

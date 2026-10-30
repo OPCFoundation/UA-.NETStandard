@@ -41,12 +41,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// <para>
     /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
     /// <see cref="ISubscriptionManager.LoadAsync"/>.
-    /// Per-item runtime values (filter result, last sample,
-    /// current sampling interval) are intentionally not captured. After
-    /// <c>GetMonitoredItems</c> re-binds the saved handles, transfer-on-load
-    /// reapplies the saved monitoring parameters using <c>ModifyMonitoredItems</c>
-    /// to obtain the revised interval, queue size and filter result. It does not
-    /// recreate the item or change its monitoring mode. Recreation obtains new
+    /// The public encoded fields describe requested configuration. Session takeover
+    /// also captures the server-revised sampling interval, queue size and filter result
+    /// in internal properties; <see cref="SessionHandoffCodec"/> stores those values
+    /// separately from the snapshot's encodeable wire shape. Adoption restores them
+    /// with the existing server items. Transfer-on-load reapplies the saved monitoring
+    /// parameters using <c>ModifyMonitoredItems</c> to obtain revised values, without
+    /// recreating the item or changing its monitoring mode. Recreation obtains new
     /// parameters and identifiers from <c>CreateMonitoredItems</c>.
     /// </para>
     /// <para>
@@ -190,6 +191,26 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         [DataTypeField(Order = 22)]
         public partial string? Affinity { get; init; }
+
+        /// <summary>
+        /// Whether the snapshot carries server-revised runtime values for session takeover.
+        /// </summary>
+        internal bool HasRevisedSettings { get; init; }
+
+        /// <summary>
+        /// The server-revised sampling interval captured for session takeover.
+        /// </summary>
+        internal TimeSpan RevisedSamplingInterval { get; init; }
+
+        /// <summary>
+        /// The server-revised queue size captured for session takeover.
+        /// </summary>
+        internal uint RevisedQueueSize { get; init; }
+
+        /// <summary>
+        /// The filter result captured for session takeover.
+        /// </summary>
+        internal MonitoringFilterResult? RevisedFilterResult { get; init; }
 
         /// <summary>
         /// Project the encoded surrogate fields back into a live

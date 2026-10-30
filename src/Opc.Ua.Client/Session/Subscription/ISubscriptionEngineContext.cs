@@ -36,6 +36,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
+    /// Internal capability for a session engine context that can fence a
+    /// server session without closing it.
+    /// </summary>
+    internal interface ISessionTakeoverContext
+    {
+        /// <summary>
+        /// Abandons the server session.
+        /// </summary>
+        void AbandonServerSession();
+    }
+
+    /// <summary>
     /// Context provided by the session to the
     /// <see cref="ISubscriptionEngine"/>. Decouples the engine from the
     /// Session implementation, providing only the services and state the

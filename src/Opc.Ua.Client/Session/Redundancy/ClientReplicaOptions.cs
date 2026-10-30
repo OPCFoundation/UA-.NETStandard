@@ -62,6 +62,14 @@ namespace Opc.Ua.Client.Redundancy
         public bool EnableTokenReuse { get; init; } = true;
 
         /// <summary>
+        /// Validates that a connected standby endpoint is an authorized mirrored member for
+        /// the endpoint saved in the leader handoff. Without a validator, token reuse requires
+        /// an exact endpoint URL match.
+        /// </summary>
+        public Func<EndpointDescription, EndpointDescription, CancellationToken, ValueTask<bool>>?
+            ValidateMirroredEndpointAsync { get; init; }
+
+        /// <summary>
         /// Creates a connected managed session for this replica. The coordinator
         /// connects per <see cref="Mode"/> (immediately for Warm/Hot, on promotion
         /// for Cold). Subscriptions are applied by <see cref="ConfigureLeaderAsync"/>.

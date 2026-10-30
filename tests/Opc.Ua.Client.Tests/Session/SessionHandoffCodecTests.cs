@@ -28,6 +28,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -112,6 +114,136 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(restored.Session.AuthenticationToken, Is.EqualTo(new NodeId("token", 1)));
                 Assert.That(restored.RevisedSessionTimeout, Is.EqualTo(1500));
             });
+        }
+
+        /// <summary>
+        /// Runtime values revised by the server survive the protected handoff encoding without
+        /// changing the public subscription snapshot wire shape.
+        /// </summary>
+        [Test]
+        public void TryUnprotectRestoresServerRevisedSubscriptionAndMonitoredItemSettings()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.Create(telemetry);
+            messageContext.Factory.Builder.AddOpcUaClientDataTypes();
+            var filterResult = new EventFilterResult();
+            var handoff = new SessionHandoff
+            {
+                Session = new SessionConfiguration
+                {
+                    SessionName = "handoff",
+                    SessionId = new NodeId("session", 1),
+                    AuthenticationToken = new NodeId("token", 1),
+                    ConfiguredEndpoint = SessionChannelHarness.CreateEndpoint()
+                },
+                RevisedSessionTimeout = 1500,
+                Subscriptions =
+                [
+                    new SubscriptionStateSnapshot
+                    {
+                        ServerId = 7,
+                        HasRevisedSettings = true,
+                        RevisedPublishingInterval = TimeSpan.FromMilliseconds(850),
+                        RevisedKeepAliveCount = 12,
+                        RevisedLifetimeCount = 36,
+                        RevisedPriority = 4,
+                        RevisedMaxNotificationsPerPublish = 24,
+                        RevisedPublishingEnabled = false,
+                        MonitoredItems =
+                        [
+                            new MonitoredItemStateSnapshot
+                            {
+                                Name = "temperature",
+                                ServerId = 9,
+                                HasRevisedSettings = true,
+                                RevisedSamplingInterval = TimeSpan.FromMilliseconds(125),
+                                RevisedQueueSize = 17,
+                                RevisedFilterResult = filterResult
+                            }
+                        ]
+                    }
+                ]
+            };
+            ByteString context = RecordProtectionContext.Create(
+                "client-replica-session",
+                "client-replica/session");
+
+            ByteString record = SessionHandoffCodec.Protect(
+                handoff,
+                NullRecordProtector.Instance,
+                context,
+                messageContext);
+            bool decoded = SessionHandoffCodec.TryUnprotect(
+                record,
+                NullRecordProtector.Instance,
+                context,
+                telemetry,
+                out SessionHandoff? restored);
+
+            Assert.That(decoded, Is.True);
+            Assert.That(restored, Is.Not.Null);
+            SubscriptionStateSnapshot subscription = restored!.Subscriptions[0];
+            MonitoredItemStateSnapshot item = subscription.MonitoredItems[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(subscription.HasRevisedSettings, Is.True);
+                Assert.That(subscription.RevisedPublishingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(850)));
+                Assert.That(subscription.RevisedKeepAliveCount, Is.EqualTo(12));
+                Assert.That(subscription.RevisedLifetimeCount, Is.EqualTo(36));
+                Assert.That(subscription.RevisedPriority, Is.EqualTo(4));
+                Assert.That(subscription.RevisedMaxNotificationsPerPublish, Is.EqualTo(24));
+                Assert.That(subscription.RevisedPublishingEnabled, Is.False);
+                Assert.That(item.HasRevisedSettings, Is.True);
+                Assert.That(item.RevisedSamplingInterval, Is.EqualTo(TimeSpan.FromMilliseconds(125)));
+                Assert.That(item.RevisedQueueSize, Is.EqualTo(17));
+                Assert.That(item.RevisedFilterResult, Is.TypeOf<EventFilterResult>());
+            });
+        }
+
+        /// <summary>
+        /// Version-one handoffs remain readable after adding separately encoded runtime settings.
+        /// </summary>
+        [Test]
+        public void TryUnprotectReadsVersionOneHandoffs()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.Create(telemetry);
+            messageContext.Factory.Builder.AddOpcUaClientDataTypes();
+            var session = new SessionConfiguration
+            {
+                SessionName = "legacy",
+                SessionId = new NodeId("session", 1),
+                AuthenticationToken = new NodeId("token", 1),
+                ConfiguredEndpoint = SessionChannelHarness.CreateEndpoint()
+            };
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, messageContext, true))
+            {
+                encoder.WriteInt32(null, 0x48535541);
+                encoder.WriteInt32(null, 1);
+                using var configuration = new MemoryStream();
+                SnapshotCodec.SaveConfiguration(configuration, messageContext, session);
+                encoder.WriteByteString(null, new ByteString(configuration.ToArray()));
+                encoder.WriteDouble(null, 1500);
+                encoder.WriteStringArray(null, messageContext.NamespaceUris.ToArrayOf());
+                encoder.WriteStringArray(null, messageContext.ServerUris.ToArrayOf());
+                encoder.WriteInt32(null, 0);
+            }
+            ByteString context = RecordProtectionContext.Create(
+                "client-replica-session",
+                "client-replica/session");
+
+            bool decoded = SessionHandoffCodec.TryUnprotect(
+                new ByteString(stream.ToArray()),
+                NullRecordProtector.Instance,
+                context,
+                telemetry,
+                out SessionHandoff? restored);
+
+            Assert.That(decoded, Is.True);
+            Assert.That(restored, Is.Not.Null);
+            Assert.That(restored!.Session.AuthenticationToken, Is.EqualTo(session.AuthenticationToken));
+            Assert.That(restored.Subscriptions, Is.Empty);
         }
     }
 }

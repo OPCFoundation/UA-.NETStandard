@@ -217,7 +217,9 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter :
+            ISubscriptionManagerContext,
+            ISessionTakeoverContext
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -229,6 +231,17 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public NodeId SessionId => m_context.SessionId;
+
+            /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                if (m_context is not ISessionTakeoverContext takeoverContext)
+                {
+                    throw new InvalidOperationException(
+                        "The subscription engine context cannot abandon a server session.");
+                }
+                takeoverContext.AbandonServerSession();
+            }
 
             /// <inheritdoc/>
             public int SessionSubscriptionCount

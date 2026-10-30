@@ -489,6 +489,93 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 "the replaced standby session is disposed normally, which closes its own server session");
         }
 
+        /// <summary>
+        /// Token reuse on another endpoint requires explicit mirror authorization and then targets the standby endpoint.
+        /// </summary>
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        [TestCase(false, false)]
+        public async Task TokenReuseOnDifferentEndpointRequiresMirrorAuthorizationAsync(
+            bool validatorAccepts,
+            bool configureValidator)
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            SetServerNonce(seedSession, [1, 2, 3, 4]);
+            await store.SetAsync(
+                "client-replica/session",
+                CreateHandoffRecord(NullRecordProtector.Instance, seedSession)).ConfigureAwait(false);
+
+            EndpointDescription standbyDescription = CoreUtils.Clone(
+                seedSession.ConfiguredEndpoint.Description)!;
+            standbyDescription.EndpointUrl = "opc.tcp://standby-mirror:4840";
+            var standbyEndpoint = new ConfiguredEndpoint(null!, standbyDescription);
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(
+                standbyEndpoint,
+                NodeId.Parse("s=auth"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(
+                standbyEndpoint,
+                NodeId.Parse("s=auth"));
+            int validatorCalls = 0;
+            int takeovers = 0;
+            string? takeoverEndpointUrl = null;
+            SetTakeoverFactory(standbySession, (handoff, _, _) =>
+            {
+                takeovers++;
+                takeoverEndpointUrl = handoff.Session.ConfiguredEndpoint?.Description?.EndpointUrl;
+                return Task.FromResult(leaderSession);
+            });
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Cold,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(standbySession),
+                ValidateMirroredEndpointAsync = configureValidator
+                    ? (saved, candidate, _) =>
+                    {
+                        validatorCalls++;
+                        Assert.That(saved.EndpointUrl, Is.Not.EqualTo(candidate.EndpointUrl));
+                        return new ValueTask<bool>(validatorAccepts);
+                    }
+                    : null,
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(validatorCalls, Is.EqualTo(configureValidator ? 1 : 0));
+                Assert.That(takeovers, Is.EqualTo(validatorAccepts ? 1 : 0));
+                Assert.That(fastActivated, Is.EqualTo(validatorAccepts));
+                if (validatorAccepts)
+                {
+                    Assert.That(takeoverEndpointUrl, Is.EqualTo("opc.tcp://standby-mirror:4840"));
+                    Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
+                    Assert.That(standbySession.Disposed, Is.True);
+                }
+                else
+                {
+                    Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
+                    Assert.That(standbySession.Disposed, Is.False);
+                }
+            });
+        }
+
         [Test]
         public async Task PromotionRetryKeepsTheTakenOverLeaderSessionAsync()
         {

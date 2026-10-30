@@ -278,7 +278,16 @@ namespace Opc.Ua.Client.Subscriptions
                 Options,
                 Id,
                 available.ToArrayOf(),
-                items.ToArrayOf());
+                items.ToArrayOf()) with
+            {
+                HasRevisedSettings = true,
+                RevisedPublishingInterval = CurrentPublishingInterval,
+                RevisedKeepAliveCount = CurrentKeepAliveCount,
+                RevisedLifetimeCount = CurrentLifetimeCount,
+                RevisedPriority = CurrentPriority,
+                RevisedMaxNotificationsPerPublish = CurrentMaxNotificationsPerPublish,
+                RevisedPublishingEnabled = CurrentPublishingEnabled
+            };
         }
 
         /// <inheritdoc/>
@@ -589,7 +598,7 @@ namespace Opc.Ua.Client.Subscriptions
         public ValueTask<bool> TryCompleteTransferAsync(
             IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
         {
-            return CompleteBindingAsync(availableSequenceNumbers, adopt: false, ct);
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: false, null, ct);
         }
 
         /// <summary>
@@ -599,18 +608,25 @@ namespace Opc.Ua.Client.Subscriptions
         /// GetMonitoredItems or ModifySubscription request is sent: the saved item handles and
         /// settings are used as they are. Messages the server still holds are republished.
         /// </summary>
-        /// <param name="availableSequenceNumbers">The saved sequence numbers available for
-        /// republishing.</param>
+        /// <param name="state">The saved subscription state, including server-revised settings.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns><c>true</c> when the subscription was bound.</returns>
         internal ValueTask<bool> TryCompleteAdoptionAsync(
-            IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
         {
-            return CompleteBindingAsync(availableSequenceNumbers, adopt: true, ct);
+            ArgumentNullException.ThrowIfNull(state);
+            IReadOnlyList<uint> availableSequenceNumbers = state.AvailableSequenceNumbers.IsNull
+                ? []
+                : [.. state.AvailableSequenceNumbers];
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: true, state, ct);
         }
 
         private async ValueTask<bool> CompleteBindingAsync(
-            IReadOnlyList<uint> availableSequenceNumbers, bool adopt, CancellationToken ct)
+            IReadOnlyList<uint> availableSequenceNumbers,
+            bool adopt,
+            SubscriptionStateSnapshot? adoptionState,
+            CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -639,12 +655,24 @@ namespace Opc.Ua.Client.Subscriptions
                         options.Priority,
                         options.MaxNotificationsPerPublish);
                     OnSubscriptionUpdateComplete(false, 0,
-                        options.PublishingInterval,
-                        keepAliveCount,
-                        lifetimeCount,
-                        options.Priority,
-                        options.MaxNotificationsPerPublish,
-                        options.PublishingEnabled);
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPublishingInterval
+                            : options.PublishingInterval,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedKeepAliveCount
+                            : keepAliveCount,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedLifetimeCount
+                            : lifetimeCount,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPriority
+                            : options.Priority,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedMaxNotificationsPerPublish
+                            : options.MaxNotificationsPerPublish,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPublishingEnabled
+                            : options.PublishingEnabled);
                 }
                 else
                 {

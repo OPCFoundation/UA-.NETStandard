@@ -28,9 +28,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Client
@@ -75,6 +77,36 @@ namespace Opc.Ua.Client
                 {
                     encoder.WriteEncodeable(null, handoff.Subscriptions[i]);
                 }
+                for (int i = 0; i < handoff.Subscriptions.Count; i++)
+                {
+                    SubscriptionStateSnapshot subscription = handoff.Subscriptions[i];
+                    encoder.WriteBoolean(null, subscription.HasRevisedSettings);
+                    if (subscription.HasRevisedSettings)
+                    {
+                        encoder.WriteDouble(null, subscription.RevisedPublishingInterval.TotalMilliseconds);
+                        encoder.WriteUInt32(null, subscription.RevisedKeepAliveCount);
+                        encoder.WriteUInt32(null, subscription.RevisedLifetimeCount);
+                        encoder.WriteByte(null, subscription.RevisedPriority);
+                        encoder.WriteUInt32(null, subscription.RevisedMaxNotificationsPerPublish);
+                        encoder.WriteBoolean(null, subscription.RevisedPublishingEnabled);
+                    }
+                    encoder.WriteInt32(null, subscription.MonitoredItems.Count);
+                    for (int j = 0; j < subscription.MonitoredItems.Count; j++)
+                    {
+                        MonitoredItemStateSnapshot item = subscription.MonitoredItems[j];
+                        encoder.WriteBoolean(null, item.HasRevisedSettings);
+                        if (item.HasRevisedSettings)
+                        {
+                            encoder.WriteDouble(null, item.RevisedSamplingInterval.TotalMilliseconds);
+                            encoder.WriteUInt32(null, item.RevisedQueueSize);
+                            encoder.WriteExtensionObject(
+                                null,
+                                item.RevisedFilterResult == null
+                                    ? ExtensionObject.Null
+                                    : new ExtensionObject(item.RevisedFilterResult));
+                        }
+                    }
+                }
             }
             return protector.Protect(context, new ByteString(stream.ToArray()));
         }
@@ -105,7 +137,9 @@ namespace Opc.Ua.Client
             messageContext.Factory.Builder.AddOpcUaClientDataTypes();
             using var stream = new MemoryStream(plaintext.ToArray(), writable: false);
             using var decoder = new BinaryDecoder(stream, messageContext, true);
-            if (decoder.ReadInt32(null) != kMagic || decoder.ReadInt32(null) != kVersion)
+            int magic = decoder.ReadInt32(null);
+            int version = decoder.ReadInt32(null);
+            if (magic != kMagic || version < kVersion1 || version > kVersion)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -142,6 +176,81 @@ namespace Opc.Ua.Client
             {
                 subscriptions.Add(decoder.ReadEncodeable<SubscriptionStateSnapshot>(null));
             }
+            if (version >= kVersion)
+            {
+                for (int i = 0; i < subscriptions.Count; i++)
+                {
+                    SubscriptionStateSnapshot subscription = subscriptions[i];
+                    bool hasRevisedSettings = decoder.ReadBoolean(null);
+                    TimeSpan revisedPublishingInterval = TimeSpan.Zero;
+                    uint revisedKeepAliveCount = 0;
+                    uint revisedLifetimeCount = 0;
+                    byte revisedPriority = 0;
+                    uint revisedMaxNotificationsPerPublish = 0;
+                    bool revisedPublishingEnabled = false;
+                    if (hasRevisedSettings)
+                    {
+                        revisedPublishingInterval = TimeSpan.FromMilliseconds(decoder.ReadDouble(null));
+                        revisedKeepAliveCount = decoder.ReadUInt32(null);
+                        revisedLifetimeCount = decoder.ReadUInt32(null);
+                        revisedPriority = decoder.ReadByte(null);
+                        revisedMaxNotificationsPerPublish = decoder.ReadUInt32(null);
+                        revisedPublishingEnabled = decoder.ReadBoolean(null);
+                    }
+                    int itemCount = decoder.ReadInt32(null);
+                    if (itemCount != subscription.MonitoredItems.Count)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "The monitored item count in the handoff runtime state does not match the snapshot.");
+                    }
+                    var items = new MonitoredItemStateSnapshot[itemCount];
+                    for (int j = 0; j < itemCount; j++)
+                    {
+                        MonitoredItemStateSnapshot item = subscription.MonitoredItems[j];
+                        bool hasItemSettings = decoder.ReadBoolean(null);
+                        TimeSpan revisedSamplingInterval = TimeSpan.Zero;
+                        uint revisedQueueSize = 0;
+                        MonitoringFilterResult? revisedFilterResult = null;
+                        if (hasItemSettings)
+                        {
+                            revisedSamplingInterval = TimeSpan.FromMilliseconds(decoder.ReadDouble(null));
+                            revisedQueueSize = decoder.ReadUInt32(null);
+                            ExtensionObject filterResult = decoder.ReadExtensionObject(null);
+                            if (!filterResult.IsNull &&
+                                filterResult.TryGetValue(out IEncodeable? filterBody) &&
+                                filterBody is MonitoringFilterResult result)
+                            {
+                                revisedFilterResult = result;
+                            }
+                            else if (!filterResult.IsNull)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadDecodingError,
+                                    "The monitored item filter result in the handoff is invalid.");
+                            }
+                        }
+                        items[j] = item with
+                        {
+                            HasRevisedSettings = hasItemSettings,
+                            RevisedSamplingInterval = revisedSamplingInterval,
+                            RevisedQueueSize = revisedQueueSize,
+                            RevisedFilterResult = revisedFilterResult
+                        };
+                    }
+                    subscriptions[i] = subscription with
+                    {
+                        HasRevisedSettings = hasRevisedSettings,
+                        RevisedPublishingInterval = revisedPublishingInterval,
+                        RevisedKeepAliveCount = revisedKeepAliveCount,
+                        RevisedLifetimeCount = revisedLifetimeCount,
+                        RevisedPriority = revisedPriority,
+                        RevisedMaxNotificationsPerPublish = revisedMaxNotificationsPerPublish,
+                        RevisedPublishingEnabled = revisedPublishingEnabled,
+                        MonitoredItems = items
+                    };
+                }
+            }
             handoff = new SessionHandoff
             {
                 Session = configuration,
@@ -159,6 +268,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The version of the record format.
         /// </summary>
-        private const int kVersion = 1;
+        private const int kVersion1 = 1;
+
+        /// <summary>
+        /// The current record format version.
+        /// </summary>
+        private const int kVersion = 2;
     }
 }

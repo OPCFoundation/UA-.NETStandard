@@ -2592,6 +2592,86 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Drain does not complete while a subscription update can still mutate server state.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task DrainAsyncWaitsForInFlightSubscriptionUpdateAsync(CancellationToken testCt)
+        {
+            var sut = new SubscriptionManager(
+                new FakeSubscriptionManagerContext(),
+                m_telemetry.LoggerFactory,
+                DiagnosticsMasks.None);
+            var updateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseUpdate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                Task update = sut.RunWithSessionAvailableAsync(async ct =>
+                {
+                    updateEntered.TrySetResult(true);
+                    await releaseUpdate.Task.WaitAsync(ct).ConfigureAwait(false);
+                }, testCt).AsTask();
+
+                await updateEntered.Task.WaitAsync(testCt).ConfigureAwait(false);
+                using var drainCts = CancellationTokenSource.CreateLinkedTokenSource(testCt);
+                drainCts.CancelAfter(TimeSpan.FromMilliseconds(300));
+                Assert.That(
+                    async () => await sut.DrainAsync(drainCts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                releaseUpdate.TrySetResult(true);
+                await update.WaitAsync(testCt).ConfigureAwait(false);
+                await sut.DrainAsync(testCt).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseUpdate.TrySetResult(true);
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Failed adoption fences the server session before local wrapper disposal can delete
+        /// subscriptions that still belong to the handoff.
+        /// </summary>
+        [Test]
+        public async Task FailedAdoptionAbandonsServerSessionBeforeDisposingSubscriptionAsync()
+        {
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 42,
+                Created = true
+            };
+            subscription.OnDisposeAsync = () =>
+            {
+                Assert.That(m_session.AbandonServerSessionCalls, Is.EqualTo(1));
+                return default;
+            };
+            m_session.CreateSubscriptionFactory = (_, _, _) => subscription;
+            SubscriptionStateSnapshot snapshot = SubscriptionStateSnapshot.AsOptions(
+                new SubscriptionOptions { DisableUnboundedItemMode = true },
+                42,
+                [],
+                []);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_subscriptionManager.AdoptGroupAsync(
+                    m_mockNotificationDataHandler.Object,
+                    [snapshot],
+                    CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure?.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                Assert.That(m_session.AbandonServerSessionCalls, Is.EqualTo(1));
+                Assert.That(m_session.DeleteCallsCount, Is.Zero);
+                Assert.That(subscription.DisposeAsyncCalls, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
         /// Regression for #4113. A subscription resets its server side id to
         /// zero before its message processor drains and completes, so
         /// <see cref="IMessageAckQueue.CompleteAsync"/> must retire the

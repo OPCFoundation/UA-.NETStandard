@@ -260,6 +260,7 @@ namespace Opc.Ua.Client
                 ex is not OperationCanceledException)
             {
                 m_logger.ManagedSessionTakeoverContinuityLost(ex, handoff.Subscriptions.Count);
+                Volatile.Write(ref m_takeoverFallbackIdentity, identity);
                 m_takeoverRecreate = handoff.Subscriptions;
                 return null;
             }
@@ -360,7 +361,7 @@ namespace Opc.Ua.Client
         /// Activates the saved server session on <paramref name="session"/> and adopts the
         /// subscriptions of the handoff. On failure the server session is abandoned, never closed.
         /// </summary>
-        private static async Task ActivateHandoffAsync(
+        private async Task ActivateHandoffAsync(
             Session session,
             SessionHandoff handoff,
             SessionTakeoverOptions options,
@@ -373,6 +374,7 @@ namespace Opc.Ua.Client
             SubscriptionManager? manager = handoff.Subscriptions.IsEmpty ? null : GetSubscriptionManager(session);
             try
             {
+                session.Acknowledgements = m_acknowledgements;
                 await session.ActivateHandoffAsync(
                     handoff.Session,
                     handoff.RevisedSessionTimeout,
@@ -381,11 +383,13 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
                 if (manager != null)
                 {
-                    await AttachSubscriptionsAsync(
-                        manager,
-                        handoff.Subscriptions,
-                        options.SubscriptionHandlerFactory!,
-                        adopt: true,
+                    await manager.RunWithPublishingQuiescedAsync(
+                        async token => await AttachSubscriptionsAsync(
+                            manager,
+                            handoff.Subscriptions,
+                            options.SubscriptionHandlerFactory!,
+                            adopt: true,
+                            token).ConfigureAwait(false),
                         ct).ConfigureAwait(false);
                 }
             }
@@ -405,6 +409,7 @@ namespace Opc.Ua.Client
             ArrayOf<SubscriptionStateSnapshot> subscriptions = m_takeoverRecreate;
             if (subscriptions.IsEmpty)
             {
+                Volatile.Write(ref m_takeoverFallbackIdentity, null);
                 return;
             }
             await AttachSubscriptionsAsync(
@@ -414,6 +419,7 @@ namespace Opc.Ua.Client
                 adopt: false,
                 ct).ConfigureAwait(false);
             m_takeoverRecreate = default;
+            Volatile.Write(ref m_takeoverFallbackIdentity, null);
         }
 
         /// <summary>
@@ -595,6 +601,11 @@ namespace Opc.Ua.Client
         /// The subscriptions to recreate on a new server session after a failed takeover.
         /// </summary>
         private ArrayOf<SubscriptionStateSnapshot> m_takeoverRecreate;
+
+        /// <summary>
+        /// The identity resolved for takeover, used when that takeover falls back to a new session.
+        /// </summary>
+        private IUserIdentity? m_takeoverFallbackIdentity;
 
         /// <summary>
         /// Creates a managed session with the settings of this one that takes over a server session.
