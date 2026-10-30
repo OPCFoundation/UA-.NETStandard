@@ -630,87 +630,110 @@ the caller, so it can be reused for another session.
 
 ### Taking over a session (`ISessionTakeover`)
 
-`Session` and `ManagedSession` implement the optional `ISessionTakeover`
-capability. It supports hand-overs where another process (for example a
-promoted replica) continues the same server session with the saved
-`SessionConfiguration` and subscription state:
+A takeover moves a server session from one `ManagedSession` to another without
+closing it. The previous owner retires its session and receives a
+`SessionHandoff`. The new owner creates a managed session from that handoff, and
+the new session activates the same server session on its own secure channel.
+The server session id, the subscription ids and the notifications still queued
+on the server stay the same.
 
-- `SessionGeneration` starts at 1 and increments each time the session binds
-  a different server session: a create, a recreate after the old server
-  session was lost, or loading saved state of another server session.
-  Reactivating the same server session, or replacing only the channel, does
-  not change it. On `ManagedSession` the value stays monotonic across inner
-  session replacements. `SessionGenerationChanged` reports the new generation
-  together with the previous and current `SessionId`. Handlers must not block
-  or call session services synchronously.
-- `RetireAndPreserveAsync` (previous owner) releases the session locally but
-  keeps the server session and its subscriptions alive. No further request
-  reaches the server from this object: no Publish, `DeleteSubscriptions` or
-  `CloseSession`. Reconnect, failover and connect attempts are rejected with
-  `BadSessionClosed`, including attempts already in progress. The session is
-  disposed afterwards.
-- `PrepareTakeoverAsync` and then `ReconnectAsync` (new owner) take the saved
-  session over in two stages, see below.
+There is no call sequence to get right. Each owner performs one operation, and
+the session holds no intermediate "prepared" state between them:
 
-The previous owner captures the state **before** retiring:
+- `RetireAsync` on the previous owner captures the state and fences the server
+  session in one step.
+- `TakeOver` (or `ManagedSessionOptions.TakeoverFrom`) on the new owner is a
+  connect option. The first connect of the new session performs the takeover.
+
+The previous owner retires and hands the result to the new owner:
 
 ```csharp
-if (session is ISessionTakeover takeover)
-{
-    SessionConfiguration saved = session.SaveSessionConfiguration();
-    // ... persist saved state and subscriptions for the new owner ...
-    await takeover.RetireAndPreserveAsync(ct);
-}
+SessionHandoff handoff = await ((ISessionTakeover)session).RetireAsync(ct);
+// ... protect the handoff and pass it to the new owner ...
 ```
 
-Retaining and closing exclude each other. If a `CloseAsync` or `DisposeAsync`
-started first, `RetireAndPreserveAsync` throws a `ServiceResultException` with
-`BadInvalidState`, because the server session may already be closed. A later
-`DisposeAsync` on a retired session completes without contacting the server.
+`RetireAsync` stops keep-alive, publishing and recovery and waits for
+subscription work already in flight. It then captures the server session and
+its subscriptions and installs the fence: from then on, the object sends no
+`CloseSession`, `DeleteSubscriptions`, Publish or reconnect request for the
+server session. Finally it disposes the session, so every later call fails with
+`BadInvalidState`. Retiring and disposing exclude each other. A `DisposeAsync`
+that starts during `RetireAsync` waits for it and does not close the server
+session. A session that is not connected, is recovering or is already closing
+fails `RetireAsync` with `BadNotConnected` or `BadInvalidState`. If the call
+fails before the fence is in place, the session is closed normally.
 
-The new owner connects a helper session to the **same** endpoint (URL,
-security mode and policy, server certificate) and takes the saved session over:
+The new owner builds its session from the handoff:
 
 ```csharp
-// Stage 1: validate, quiesce, close the helper's own server session on the
-// kept channel and load the saved state. Nothing is activated yet.
-var takeover = (ISessionTakeover)helper;
-await takeover.PrepareTakeoverAsync(
-    saved,
-    new SessionTakeoverOptions { Identity = credentials },
-    ct);
-
-// ... restore the client-side subscription objects, for example with
-// ISession.Load(stream, transferSubscriptions: true) ...
-
-// Stage 2: activate exactly the saved session by reusing its token.
-await helper.ReconnectAsync(connection: null, channel: null, ct);
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .TakeOver(handoff, new SessionTakeoverOptions
+    {
+        Identity = credentials,
+        SubscriptionHandlerFactory = snapshot => CreateHandler(snapshot),
+        FailureMode = SessionTakeoverFailureMode.Throw
+    })
+    .ConnectAsync(ct);
 ```
 
-- **Validation first.** Saved state without a session id or authentication
-  token, for another endpoint URL, security mode, policy or server
-  certificate, or without a server nonce on a secure endpoint is rejected
-  with a `ServiceResultException` before anything changes.
-- **Prepared state.** Keep-alive, publishing and recovery stop. A
-  `ManagedSession` reports `ConnectionState.Disconnected`, `Connected == false`
-  and `IsPrepared == true`; service calls fail fast with
-  `BadSessionNotActivated` instead of waiting. A raw `Session` keeps
-  `Connected == true` (as after `ApplySessionConfiguration`) but rejects every
-  request except the activation. The helper's server-revised session timeout
-  is kept, because the snapshot does not carry it.
-- **Activation.** `ReconnectAsync` sends only `ActivateSession` with the saved
-  token, on the kept channel or on a supplied channel or reverse connection.
-  It never sends `CreateSession`. A failed or cancelled activation throws and
-  leaves the session prepared, so it can be retried. After success the managed
-  session is `Connected`, and keep-alive, publishing and the configured
-  recovery policy resume.
-- **Release without commit.** Closing, disposing or retiring a prepared
-  session leaves the saved server session alive, because its ownership never
-  committed. Disposing a managed session cancels a preparation or activation
-  in flight and waits for it.
-- If closing the helper's server session fails, the preparation throws and
-  the helper stays usable. `DeleteHelperSubscriptions` controls whether the
-  helper's server-side subscriptions are deleted with it (default `true`).
+The connect validates the handoff before it sends anything. It rejects a
+handoff without a session id or authentication token, a handoff for a different
+endpoint URL, security mode, security policy or server certificate, and a
+handoff whose saved server nonce is invalid on a secure endpoint. The session
+uses the endpoint of the handoff unless the builder configures one.
+
+The session then attaches the subscriptions of the handoff locally. The server
+already associates them with this server session, so the client neither
+transfers nor recreates them: it sends no `TransferSubscriptions`,
+`CreateSubscription` or monitored item request. `SubscriptionHandlerFactory`
+creates the notification handler for each subscription and is required when
+the handoff contains subscriptions. Finally the session sends
+`ActivateSession` with the saved authentication token. It never sends
+`CreateSession`. After that, keep-alive, publishing and the configured
+recovery policy start, and a later reconnect behaves like any other.
+
+`SessionTakeoverOptions.Identity` supplies the user credentials, because the
+handoff does not carry them. When it is `null`, the session uses the identity
+from its managed session options and, if those set none, the identity token
+saved in the handoff. The handoff carries the session timeout that the server
+revised, so the new owner times its keep-alive and recovery against the
+server's value rather than against the timeout it would request.
+
+What happens when activation fails?
+
+- With `SessionTakeoverFailureMode.Throw` (the default), the connect fails with
+  the activation error. The new owner does not create a server session and does
+  not close the saved one, because it cannot know whether another owner still
+  holds it.
+- With `SessionTakeoverFailureMode.CreateNewSession`, the session creates a new
+  server session and recreates the subscriptions of the handoff on it. The
+  session logs that continuity was lost. Notifications that only the old server
+  session held are gone.
+
+The handoff contains the authentication token and the secrets of the secure
+session. Treat it as a credential. Protect it with `IRecordProtector` before
+storing it or sending it to another process.
+
+The API does not decide who owns the server session. Two owners that activate
+the same handoff take the server session away from each other, and the last
+activation wins. The application must make sure that only one new owner uses a
+handoff. Leader election, as used by `ClientReplicaCoordinator`, or an atomic
+claim in a shared store, such as `ISharedKeyValueStore.CompareAndSwapAsync`,
+provides that guarantee. A handoff also expires: the server deletes the session
+once `SessionHandoff.RevisedSessionTimeout` has passed since the previous owner's
+last request.
+
+Only the default subscription engine supports takeover. A session that uses the
+classic engine fails both `RetireAsync` and the takeover connect with
+`BadNotSupported` before it sends any request.
+
+`ISessionTakeover` also reports which server session a client session is bound
+to. `SessionGeneration` is 0 before the first server session and increases each
+time the bound server session changes, for example when recovery has to create a
+new server session. Reactivating the same server session, or only replacing the
+channel, leaves it unchanged. `SessionGenerationChanged` reports the new
+generation with the previous and current `SessionId`. Handlers must return
+quickly and must not wait for session or subscription operations.
 
 ### Server retry-after backpressure
 
