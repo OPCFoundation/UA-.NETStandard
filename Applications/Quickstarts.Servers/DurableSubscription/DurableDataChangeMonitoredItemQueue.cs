@@ -69,8 +69,10 @@ namespace Quickstarts.Servers
         /// </summary>
         public DurableDataChangeMonitoredItemQueue(
             StorableDataChangeQueue queue,
-            IBatchPersistor batchPersistor)
+            IBatchPersistor batchPersistor,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<DurableDataChangeMonitoredItemQueue>();
             m_batchPersistor = batchPersistor;
             MonitoredItemId = queue.MonitoredItemId;
             IsDurable = queue.IsDurable;

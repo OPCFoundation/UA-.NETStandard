@@ -70,14 +70,16 @@ namespace Quickstarts.Servers
         /// </summary>
         public DurableEventMonitoredItemQueue(
             StorableEventQueue queue,
-            IBatchPersistor batchPersistor)
+            IBatchPersistor batchPersistor,
+            ITelemetryContext telemetry)
         {
+            m_logger = telemetry.CreateLogger<DurableEventMonitoredItemQueue>();
             IsDurable = queue.IsDurable;
             m_enqueueBatch = queue.EnqueueBatch;
             m_eventBatches = queue.EventBatches;
             m_dequeueBatch = queue.DequeueBatch;
             QueueSize = queue.QueueSize;
-            ItemsInQueue = 0;
+            ItemsInQueue = queue.ItemsInQueue;
             MonitoredItemId = queue.MonitoredItemId;
             m_batchPersistor = batchPersistor;
         }
@@ -366,7 +368,8 @@ namespace Quickstarts.Servers
                 DequeueBatch = m_dequeueBatch,
                 EnqueueBatch = m_enqueueBatch,
                 EventBatches = m_eventBatches,
-                QueueSize = QueueSize
+                QueueSize = QueueSize,
+                ItemsInQueue = ItemsInQueue
             };
         }
 
@@ -439,5 +442,7 @@ namespace Quickstarts.Servers
         public EventBatch DequeueBatch { get; set; }
 
         public uint QueueSize { get; set; }
+
+        public int ItemsInQueue { get; set; }
     }
 }
