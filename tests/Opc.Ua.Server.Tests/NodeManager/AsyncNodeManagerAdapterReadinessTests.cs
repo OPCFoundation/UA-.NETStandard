@@ -79,6 +79,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             asyncReady.Verify(m => m.OnServerReadyAsync(It.IsAny<CancellationToken>()), Times.Once);
             syncReady.Verify(m => m.OnServerReady(), Times.Never);
+            Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
         [Test]
@@ -91,6 +92,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await adapter.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
 
             syncReady.Verify(m => m.OnServerReady(), Times.Once);
+            Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
 
         [Test]
@@ -117,6 +119,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ValueTask pending = adapter.OnServerReadyAsync(CancellationToken.None);
 
             Assert.That(pending.IsCompletedSuccessfully, Is.True);
+            Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.False);
+        }
+
+        [Test]
+        public void AsyncFacadeOverSyncManagerWithoutReadinessCapabilityIsNotParticipant()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            using var adapter = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(manager.Object));
+
+            Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.False);
+        }
+
+        [Test]
+        public void AsyncFacadeOverSyncManagerWithReadinessCapabilityIsParticipant()
+        {
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.As<INodeManagerReadinessNotification>();
+            using var adapter = new AsyncNodeManagerAdapter(new SyncNodeManagerAdapter(manager.Object));
+
+            Assert.That(NodeManagerReadiness.IsParticipant(adapter), Is.True);
         }
     }
 }

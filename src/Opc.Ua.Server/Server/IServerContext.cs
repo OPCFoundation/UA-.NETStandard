@@ -162,11 +162,23 @@ namespace Opc.Ua.Server
     public interface IServerServiceLevelControl
     {
         /// <summary>
-        /// Claims service-level publication for the lifetime of this server and returns its writer.
-        /// Session-headroom updates stop once ownership is claimed.
+        /// Claims service-level publication for the current owner and returns its writer.
+        /// Session-headroom updates stop while the claim is active.
         /// </summary>
         /// <returns>A writer that publishes a value, timestamp and data-change notification atomically.</returns>
         /// <exception cref="InvalidOperationException">The service level already has an explicit owner.</exception>
         Action<byte> ClaimServiceLevelControl();
+    }
+
+    /// <summary>
+    /// Releases an explicit service-level claim when its owning NodeManager generation retires.
+    /// </summary>
+    internal interface IServerServiceLevelControlRevocation
+    {
+        /// <summary>
+        /// Revokes the exact writer previously returned by <see cref="IServerServiceLevelControl.ClaimServiceLevelControl"/>.
+        /// </summary>
+        /// <param name="writer">The writer being released.</param>
+        void ReleaseServiceLevelControl(Action<byte> writer);
     }
 }

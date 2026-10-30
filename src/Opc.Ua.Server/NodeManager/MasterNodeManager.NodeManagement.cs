@@ -169,26 +169,38 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            while (true)
+            ThrowIfNodeManagementFromDecision();
+            bool mutationAdmissionHeld = false;
+            if (HasActiveCallbackPermit(
+                    CaptureLifecycleCallbackPermit(),
+                    NodeManagerAdmissionCapability.AddressSpaceMutation))
             {
-                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
-                if (decisionWindow is null)
+                await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                while (true)
                 {
-                    break;
-                }
-                try
-                {
-                    if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
+                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                    if (decisionWindow is null)
                     {
-                        return preRoutingResponse;
+                        mutationAdmissionHeld = true;
+                        break;
                     }
+                    try
+                    {
+                        if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
+                        {
+                            return preRoutingResponse;
+                        }
+                    }
+                    finally
+                    {
+                        m_dynamicMutationSemaphore.Release();
+                    }
+                    await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
-                finally
-                {
-                    m_dynamicMutationSemaphore.Release();
-                }
-                await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
             try
             {
@@ -240,7 +252,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_dynamicMutationSemaphore.Release();
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
             }
         }
 
@@ -251,7 +266,8 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
+            bool mutationAdmissionHeld = await AcquireDynamicMutationAdmissionAsync(cancellationToken)
+                .ConfigureAwait(false);
             try
             {
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
@@ -297,7 +313,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                m_dynamicMutationSemaphore.Release();
+                if (mutationAdmissionHeld)
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
             }
         }
 
@@ -308,57 +327,47 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
-            try
+            await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
+
+            var results = new StatusCode[referencesToAdd.Count];
+            var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < referencesToAdd.Count; ii++)
             {
-                using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
-                await using var callbackPermit = new NodeManagerCallbackPermit(
-                    m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-
-                var results = new StatusCode[referencesToAdd.Count];
-                var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
-                bool anyDiagnostics = false;
-
-                for (int ii = 0; ii < referencesToAdd.Count; ii++)
+                AddReferencesItem item = referencesToAdd[ii];
+                ServiceResult result;
+                try
                 {
-                    AddReferencesItem item = referencesToAdd[ii];
-                    ServiceResult result;
-                    try
-                    {
-                        result = await DispatchAddReferenceAsync(
-                            context, item, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch (Exception exception)
-                    {
-                        result = CreateNodeManagementError(exception);
-                    }
-
-                    results[ii] = result.StatusCode;
-
-                    if (ServiceResult.IsBad(result) &&
-                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        anyDiagnostics = true;
-                        diagnosticInfos[ii] = new DiagnosticInfo(
-                            result,
-                            context.DiagnosticsMask,
-                            false,
-                            context.StringTable,
-                            m_logger);
-                    }
+                    result = await DispatchAddReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
                 }
 
-                return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+                results[ii] = result.StatusCode;
+
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
             }
-            finally
-            {
-                m_dynamicMutationSemaphore.Release();
-            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
         }
 
         /// <inheritdoc/>
@@ -368,57 +377,47 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
-            try
+            await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
+
+            var results = new StatusCode[referencesToDelete.Count];
+            var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
+            bool anyDiagnostics = false;
+
+            for (int ii = 0; ii < referencesToDelete.Count; ii++)
             {
-                using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
-                await using var callbackPermit = new NodeManagerCallbackPermit(
-                    m_lifecycleCallbackPermit,
-                    NodeManagerAdmissionCapability.AddressSpaceMutation).ConfigureAwait(false);
-
-                var results = new StatusCode[referencesToDelete.Count];
-                var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
-                bool anyDiagnostics = false;
-
-                for (int ii = 0; ii < referencesToDelete.Count; ii++)
+                DeleteReferencesItem item = referencesToDelete[ii];
+                ServiceResult result;
+                try
                 {
-                    DeleteReferencesItem item = referencesToDelete[ii];
-                    ServiceResult result;
-                    try
-                    {
-                        result = await DispatchDeleteReferenceAsync(
-                            context, item, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        throw;
-                    }
-                    catch (Exception exception)
-                    {
-                        result = CreateNodeManagementError(exception);
-                    }
-
-                    results[ii] = result.StatusCode;
-
-                    if (ServiceResult.IsBad(result) &&
-                        (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        anyDiagnostics = true;
-                        diagnosticInfos[ii] = new DiagnosticInfo(
-                            result,
-                            context.DiagnosticsMask,
-                            false,
-                            context.StringTable,
-                            m_logger);
-                    }
+                    result = await DispatchDeleteReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
                 }
 
-                return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
+                results[ii] = result.StatusCode;
+
+                if (ServiceResult.IsBad(result) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    anyDiagnostics = true;
+                    diagnosticInfos[ii] = new DiagnosticInfo(
+                        result,
+                        context.DiagnosticsMask,
+                        false,
+                        context.StringTable,
+                        m_logger);
+                }
             }
-            finally
-            {
-                m_dynamicMutationSemaphore.Release();
-            }
+
+            return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
         }
 
         private ServiceResult CreateNodeManagementError(Exception exception)

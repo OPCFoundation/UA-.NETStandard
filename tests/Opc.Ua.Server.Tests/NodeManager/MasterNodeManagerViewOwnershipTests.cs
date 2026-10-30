@@ -29,7 +29,9 @@
 
 using System;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.AliasNames;
 using Opc.Ua.Server.Historian;
@@ -46,6 +48,8 @@ namespace Opc.Ua.Server.Tests
     [NonParallelizable]
     public sealed class MasterNodeManagerViewOwnershipTests
     {
+        private const string kDerivedManagerNamespace = "urn:opcfoundation.org:Tests:DerivedMasterLookup";
+
         /// <summary>
         /// Candidate facades retain the host's clock and expose host registries only while published.
         /// </summary>
@@ -186,6 +190,80 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A derived master that inherits the default lookup still resolves through the captured request view.
+        /// </summary>
+        [Test]
+        public async Task DerivedMasterWithoutLookupOverrideUsesCapturedRoutingAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.SetupGet(manager => manager.NamespaceUris).Returns([kDerivedManagerNamespace]);
+                using var master = new DerivedMasterNodeManager(
+                    server.CurrentInstance, fixture.Config, nodeManager.Object);
+                ushort namespaceIndex = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(
+                    kDerivedManagerNamespace);
+                NodeId nodeId = new("DerivedMasterLookup", namespaceIndex);
+                var expectedHandle = new object();
+                nodeManager.Setup(manager => manager.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(expectedHandle);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                var routing = (IRequestRouting)master;
+                routing.PinRequest(context);
+
+                (object? handle, IAsyncNodeManager? actualOwner) = await routing.GetManagerHandleAsync(
+                    context, nodeId, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(handle, Is.SameAs(expectedHandle));
+                Assert.That(actualOwner, Is.SameAs(nodeManager.Object));
+                nodeManager.VerifyAll();
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A derived master's legacy handle lookup override remains in the contextual dispatch path.
+        /// </summary>
+        [Test]
+        public async Task DerivedMasterLookupOverrideRemainsEffectiveAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.SetupGet(manager => manager.NamespaceUris).Returns([kDerivedManagerNamespace]);
+                var expectedHandle = new object();
+                using var master = new OverridingMasterNodeManager(
+                    server.CurrentInstance, fixture.Config, nodeManager.Object, expectedHandle);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                var routing = (IRequestRouting)master;
+                routing.PinRequest(context);
+                ushort namespaceIndex = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(
+                    kDerivedManagerNamespace);
+
+                (object? handle, IAsyncNodeManager? owner) = await routing.GetManagerHandleAsync(
+                    context, new NodeId("DerivedMasterOverride", namespaceIndex), CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(handle, Is.SameAs(expectedHandle));
+                Assert.That(owner, Is.SameAs(nodeManager.Object));
+                Assert.That(master.LookupCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Verifies that server shutdown does not replace canonical metadata handles.
         /// </summary>
         [Test]
@@ -228,6 +306,74 @@ namespace Opc.Ua.Server.Tests
                     await fixture.StopAsync().ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Exercises the legacy virtual lookup path without overriding its default implementation.
+        /// </summary>
+        private sealed class DerivedMasterNodeManager : MasterNodeManager
+        {
+            /// <summary>
+            /// Initializes a derived master with the supplied server configuration.
+            /// </summary>
+            /// <param name="server">The server to own.</param>
+            /// <param name="configuration">The server configuration.</param>
+            /// <param name="manager">The additional manager in the initial routing view.</param>
+            public DerivedMasterNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                IAsyncNodeManager manager)
+                : base(server, configuration, null, [manager], null)
+            {
+            }
+        }
+
+        /// <summary>
+        /// Returns a controlled owner through a legacy virtual lookup override.
+        /// </summary>
+        private sealed class OverridingMasterNodeManager : MasterNodeManager
+        {
+            /// <summary>
+            /// Initializes a derived master with the supplied owner and handle.
+            /// </summary>
+            /// <param name="server">The server to own.</param>
+            /// <param name="configuration">The server configuration.</param>
+            /// <param name="manager">The additional manager in the initial routing view.</param>
+            /// <param name="handle">The handle returned by the override.</param>
+            public OverridingMasterNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                IAsyncNodeManager manager,
+                object handle)
+                : base(server, configuration, null, [manager], null)
+            {
+                Manager = manager;
+                Handle = handle;
+            }
+
+            /// <summary>
+            /// Gets the number of legacy lookup calls.
+            /// </summary>
+            public int LookupCount { get; private set; }
+
+            /// <inheritdoc/>
+            public override ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
+                NodeId nodeId,
+                CancellationToken cancellationToken = default)
+            {
+                LookupCount++;
+                return new ValueTask<(object?, IAsyncNodeManager?)>((Handle, Manager));
+            }
+
+            /// <summary>
+            /// The manager returned by the override.
+            /// </summary>
+            private IAsyncNodeManager Manager { get; }
+
+            /// <summary>
+            /// The handle returned by the override.
+            /// </summary>
+            private object Handle { get; }
         }
 
         private static TypeTable GetRoutingImage(IMasterNodeManager manager)

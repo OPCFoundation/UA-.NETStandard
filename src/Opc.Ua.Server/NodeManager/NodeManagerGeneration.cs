@@ -292,9 +292,27 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool ReadinessPending
         {
-            get => Volatile.Read(ref m_readinessPending) != 0;
-            set => Volatile.Write(ref m_readinessPending, value ? 1 : 0);
+            get => Volatile.Read(ref m_deferredEventState) == 1;
+            set
+            {
+                lock (m_deferredEventsLock)
+                {
+                    if (value)
+                    {
+                        Volatile.Write(ref m_deferredEventState, 1);
+                    }
+                    else if (Volatile.Read(ref m_deferredEventState) == 1)
+                    {
+                        Volatile.Write(ref m_deferredEventState, 2);
+                    }
+                }
+            }
         }
+
+        /// <summary>
+        /// Gets whether event deliveries must remain deferred until the readiness queue drains.
+        /// </summary>
+        internal bool IsDeferringEvents => Volatile.Read(ref m_deferredEventState) != 0;
 
         /// <summary>
         /// Gets the number of retained events dropped because the bounded retention was full.
@@ -302,64 +320,260 @@ namespace Opc.Ua.Server
         internal long DroppedDeferredEvents => Interlocked.Read(ref m_droppedDeferredEvents);
 
         /// <summary>
-        /// Retains an event for items not bound to this generation until its readiness completes.
+        /// Gets the number of item deliveries dropped with retained events.
         /// </summary>
-        /// <param name="delivery">The delivery to run once readiness completed.</param>
-        /// <returns><c>false</c> when readiness already completed and the caller must deliver now.</returns>
-        internal bool TryDeferEvent(Func<Task> delivery)
+        internal long DroppedDeferredDeliveries => Interlocked.Read(ref m_droppedDeferredDeliveries);
+
+        /// <summary>
+        /// Captures the readiness state for a source emission and retains its lifetime while events drain.
+        /// </summary>
+        /// <param name="eventId">The source emission identity.</param>
+        /// <param name="readinessPending">Whether readiness was pending at capture time.</param>
+        /// <returns>Whether the source emission must be tracked through the readiness drain.</returns>
+        internal bool CaptureSourceEmission(long eventId, out bool readinessPending)
         {
+            if (eventId == 0 || !IsDeferringEvents)
+            {
+                readinessPending = false;
+                return false;
+            }
             lock (m_deferredEventsLock)
             {
-                if (!ReadinessPending)
+                int state = Volatile.Read(ref m_deferredEventState);
+                readinessPending = state == 1;
+                if (state == 0)
                 {
                     return false;
                 }
-                m_deferredEvents ??= new Queue<Func<Task>>();
-                if (m_deferredEvents.Count >= MaxDeferredEvents)
-                {
-                    m_deferredEvents.Dequeue();
-                    Interlocked.Increment(ref m_droppedDeferredEvents);
-                }
-                m_deferredEvents.Enqueue(delivery);
+                TrackSourceEmissionLocked(eventId);
                 return true;
             }
         }
 
         /// <summary>
-        /// Delivers the events retained while the readiness was pending, in emission order.
+        /// Tracks a child emission propagated from a source callback captured during readiness.
         /// </summary>
-        /// <returns>The completion of the retained deliveries.</returns>
-        /// <exception cref="AggregateException">
-        /// One or more deliveries failed. The remaining retained events were still delivered.
-        /// </exception>
-        internal async Task FlushDeferredEventsAsync()
+        /// <param name="eventId">The source emission identity.</param>
+        internal void TrackSourceEmission(long eventId)
         {
-            Func<Task>[] pending;
             lock (m_deferredEventsLock)
             {
-                if (m_deferredEvents is not { Count: > 0 })
+                TrackSourceEmissionLocked(eventId);
+            }
+        }
+
+        /// <summary>
+        /// Releases one source emission after its event deliveries have completed.
+        /// </summary>
+        /// <param name="eventId">The source emission identity.</param>
+        internal void ReleaseSourceEmission(long eventId)
+        {
+            TaskCompletionSource<bool>? drained = null;
+            lock (m_deferredEventsLock)
+            {
+                if (m_sourceEmissionCounts is null ||
+                    !m_sourceEmissionCounts.TryGetValue(eventId, out int count))
                 {
                     return;
                 }
-                pending = [.. m_deferredEvents];
-                m_deferredEvents.Clear();
-            }
-            List<Exception>? failures = null;
-            foreach (Func<Task> delivery in pending)
-            {
-                try
+                if (count > 1)
                 {
-                    await delivery().ConfigureAwait(false);
+                    m_sourceEmissionCounts[eventId] = count - 1;
+                    return;
                 }
-                catch (Exception ex)
+                m_sourceEmissionCounts.Remove(eventId);
+                m_droppedDeferredEventIds?.Remove(eventId);
+                if (--m_activeSourceEmissions == 0)
                 {
-                    (failures ??= []).Add(ex);
+                    drained = m_sourceEmissionsDrained;
+                    m_sourceEmissionsDrained = null;
                 }
             }
-            if (failures is not null)
+            drained?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Retains one event's item deliveries until readiness completes.
+        /// </summary>
+        /// <param name="eventId">The identity shared by every delivery of this event.</param>
+        /// <param name="delivery">The delivery work to run once readiness completes.</param>
+        /// <param name="deliveryCount">The number of affected monitored items.</param>
+        /// <param name="overflowed">Whether an older event was dropped to make room.</param>
+        /// <returns><c>false</c> when event retention is not active.</returns>
+        internal bool TryDeferEvent(
+            long eventId,
+            Func<Task> delivery,
+            int deliveryCount,
+            out bool overflowed)
+        {
+            overflowed = false;
+            if (!IsDeferringEvents)
             {
-                throw new AggregateException(failures);
+                return false;
             }
+            lock (m_deferredEventsLock)
+            {
+                if (Volatile.Read(ref m_deferredEventState) == 0)
+                {
+                    return false;
+                }
+                if (m_droppedDeferredEventIds?.Contains(eventId) == true)
+                {
+                    Interlocked.Add(ref m_droppedDeferredDeliveries, deliveryCount);
+                    return true;
+                }
+                if (m_deferredEventsById is not null &&
+                    m_deferredEventsById.TryGetValue(eventId, out DeferredEventWork? existing))
+                {
+                    existing.Deliveries.Add(new DeferredEventDelivery(delivery, deliveryCount));
+                    existing.DeliveryCount += deliveryCount;
+                    return true;
+                }
+                if (m_deferredEventOrder is { Count: >= MaxDeferredEvents })
+                {
+                    long droppedEventId = m_deferredEventOrder.First!.Value;
+                    m_deferredEventOrder.RemoveFirst();
+                    DeferredEventWork dropped = m_deferredEventsById![droppedEventId];
+                    m_deferredEventsById.Remove(droppedEventId);
+                    Interlocked.Increment(ref m_droppedDeferredEvents);
+                    Interlocked.Add(ref m_droppedDeferredDeliveries, dropped.DeliveryCount);
+                    if (m_sourceEmissionCounts?.ContainsKey(droppedEventId) == true)
+                    {
+                        (m_droppedDeferredEventIds ??= []).Add(droppedEventId);
+                    }
+                    overflowed = true;
+                }
+                var work = new DeferredEventWork();
+                work.Deliveries.Add(new DeferredEventDelivery(delivery, deliveryCount));
+                work.DeliveryCount = deliveryCount;
+                (m_deferredEventsById ??= []).Add(eventId, work);
+                (m_deferredEventOrder ??= new LinkedList<long>()).AddLast(eventId);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Delivers retained events in emission order after admitted readiness-time emissions have drained.
+        /// </summary>
+        /// <returns>The completion of the retained deliveries.</returns>
+        /// <exception cref="AggregateException">
+        /// One or more deliveries failed. Failed work remains queued ahead of later events for retry.
+        /// </exception>
+        internal async Task FlushDeferredEventsAsync()
+        {
+            if (ReadinessPending)
+            {
+                throw new InvalidOperationException("Deferred events cannot be flushed before readiness succeeds.");
+            }
+            while (true)
+            {
+                DeferredEventWork? work = null;
+                long eventId = 0;
+                Task? waitForEmissions = null;
+                lock (m_deferredEventsLock)
+                {
+                    if (m_activeSourceEmissions != 0)
+                    {
+                        m_sourceEmissionsDrained ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        waitForEmissions = m_sourceEmissionsDrained.Task;
+                    }
+                    else if (m_deferredEventOrder is { Count: > 0 })
+                    {
+                        eventId = m_deferredEventOrder.First!.Value;
+                        m_deferredEventOrder.RemoveFirst();
+                        work = m_deferredEventsById![eventId];
+                        m_deferredEventsById.Remove(eventId);
+                    }
+                    else
+                    {
+                        Volatile.Write(ref m_deferredEventState, 0);
+                        return;
+                    }
+                }
+
+                if (waitForEmissions is not null)
+                {
+                    await waitForEmissions.ConfigureAwait(false);
+                    continue;
+                }
+
+                List<Exception>? failures = null;
+                List<DeferredEventDelivery>? failedDeliveries = null;
+                foreach (DeferredEventDelivery pending in work!.Deliveries)
+                {
+                    try
+                    {
+                        await pending.Delivery().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        (failures ??= []).Add(ex);
+                        (failedDeliveries ??= []).Add(pending);
+                    }
+                }
+                if (failures is not null)
+                {
+                    lock (m_deferredEventsLock)
+                    {
+                        var retry = new DeferredEventWork();
+                        retry.Deliveries.AddRange(failedDeliveries ?? []);
+                        foreach (DeferredEventDelivery pending in retry.Deliveries)
+                        {
+                            retry.DeliveryCount += pending.DeliveryCount;
+                        }
+                        if (m_deferredEventsById is not null &&
+                            m_deferredEventsById.TryGetValue(eventId, out DeferredEventWork? newer))
+                        {
+                            m_deferredEventsById.Remove(eventId);
+                            retry.Deliveries.AddRange(newer.Deliveries);
+                            retry.DeliveryCount += newer.DeliveryCount;
+                        }
+                        while (m_deferredEventOrder is { Count: >= MaxDeferredEvents })
+                        {
+                            long droppedEventId = m_deferredEventOrder.Last!.Value;
+                            m_deferredEventOrder.RemoveLast();
+                            DeferredEventWork dropped = m_deferredEventsById![droppedEventId];
+                            m_deferredEventsById.Remove(droppedEventId);
+                            Interlocked.Increment(ref m_droppedDeferredEvents);
+                            Interlocked.Add(ref m_droppedDeferredDeliveries, dropped.DeliveryCount);
+                            if (m_sourceEmissionCounts?.ContainsKey(droppedEventId) == true)
+                            {
+                                (m_droppedDeferredEventIds ??= []).Add(droppedEventId);
+                            }
+                        }
+                        (m_deferredEventsById ??= []).Add(eventId, retry);
+                        (m_deferredEventOrder ??= new LinkedList<long>()).AddFirst(eventId);
+                    }
+                    throw new AggregateException(failures);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Marks that the deferred-event overflow warning has been emitted for this generation.
+        /// </summary>
+        /// <returns>Whether this call should emit the warning.</returns>
+        internal bool TryMarkDeferredEventOverflowLogged()
+        {
+            return Interlocked.Exchange(ref m_deferredEventOverflowLogged, 1) == 0;
+        }
+
+        private void TrackSourceEmissionLocked(long eventId)
+        {
+            m_sourceEmissionCounts ??= [];
+            m_sourceEmissionCounts.TryGetValue(eventId, out int count);
+            m_sourceEmissionCounts[eventId] = count + 1;
+            m_activeSourceEmissions++;
+        }
+
+        private readonly record struct DeferredEventDelivery(Func<Task> Delivery, int DeliveryCount);
+
+        private sealed class DeferredEventWork
+        {
+            internal List<DeferredEventDelivery> Deliveries { get; } = [];
+
+            internal int DeliveryCount { get; set; }
         }
 
         /// <summary>
@@ -503,6 +717,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Registers a view epoch whose dispatch routes include this generation.
+        /// </summary>
+        /// <param name="epoch">The view epoch.</param>
+        internal void RegisterViewEpoch(AddressSpaceEpoch epoch)
+        {
+            lock (m_epochLock)
+            {
+                m_viewEpochs.RemoveAll(static current => current.IsDrained);
+                m_viewEpochs.Add(epoch);
+            }
+        }
+
+        /// <summary>
         /// Gets a cold-path description of the active admissions and pinned view epochs.
         /// </summary>
         /// <returns>The generation identity and current drain blockers.</returns>
@@ -518,19 +745,6 @@ namespace Opc.Ua.Server
                 : string.Join(", ", epochs.Select(static epoch => $"{epoch.Id}={epoch.ActiveCount}"));
             return $"slot={Slot.Id}; generation={Number}; manager={NodeManager.GetType().FullName}; " +
                 $"activeAdmissions={Gate.ActiveCount}; pinnedEpochs=[{pinnedEpochs}]";
-        }
-
-        /// <summary>
-        /// Registers a view epoch whose dispatch routes include this generation.
-        /// </summary>
-        /// <param name="epoch">The view epoch.</param>
-        internal void RegisterViewEpoch(AddressSpaceEpoch epoch)
-        {
-            lock (m_epochLock)
-            {
-                m_viewEpochs.RemoveAll(static current => current.IsDrained);
-                m_viewEpochs.Add(epoch);
-            }
         }
 
         /// <summary>
@@ -721,12 +935,21 @@ namespace Opc.Ua.Server
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;
 
-        /// <summary>Nonzero until the committed generation's readiness callback has finished.</summary>
-        private int m_readinessPending;
-        private const int MaxDeferredEvents = 1024;
+        /// <summary>Zero when ready, one while the readiness callback is active, two while events are draining.</summary>
+        private int m_deferredEventState;
+
+        /// <summary>The maximum number of distinct source events retained during readiness.</summary>
+        internal const int MaxDeferredEvents = 1024;
         private readonly Lock m_deferredEventsLock = new();
-        private Queue<Func<Task>>? m_deferredEvents;
+        private LinkedList<long>? m_deferredEventOrder;
+        private Dictionary<long, DeferredEventWork>? m_deferredEventsById;
+        private Dictionary<long, int>? m_sourceEmissionCounts;
+        private HashSet<long>? m_droppedDeferredEventIds;
+        private TaskCompletionSource<bool>? m_sourceEmissionsDrained;
+        private int m_activeSourceEmissions;
         private long m_droppedDeferredEvents;
+        private long m_droppedDeferredDeliveries;
+        private int m_deferredEventOverflowLogged;
 
         /// <summary>Serializes cold-path disposal transfer with the reclamation handoff.</summary>
         private readonly Lock m_retirementResourcesLock = new();

@@ -39,32 +39,106 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// A failing retained-event delivery still lets later retained events through and then surfaces the failure.
+        /// A failed retained event is retried before later events to preserve emission order.
         /// </summary>
         [Test]
-        public async Task RetainedEventDeliveryFailureSurfacesAfterRemainingEventsAreDeliveredAsync()
+        public async Task RetainedEventDeliveryFailureRetriesBeforeLaterEventsAsync()
         {
             Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RetainedEventFailure");
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
             var failure = new InvalidOperationException("The retained delivery failed.");
             var delivered = new System.Collections.Generic.List<int>();
+            int failedDeliveryAttempts = 0;
             generation.ReadinessPending = true;
-            Assert.That(generation.TryDeferEvent(() => Task.FromException(failure)), Is.True);
-            Assert.That(generation.TryDeferEvent(() =>
+            Assert.That(generation.TryDeferEvent(1, () =>
             {
+                if (Interlocked.Increment(ref failedDeliveryAttempts) == 1)
+                {
+                    return Task.FromException(failure);
+                }
                 delivered.Add(1);
                 return Task.CompletedTask;
-            }), Is.True);
+            }, 1, out _), Is.True);
+            Assert.That(generation.TryDeferEvent(2, () =>
+            {
+                delivered.Add(2);
+                return Task.CompletedTask;
+            }, 1, out _), Is.True);
             generation.ReadinessPending = false;
 
             AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
                 () => generation.FlushDeferredEventsAsync()).ConfigureAwait(false);
 
             Assert.That(observed!.InnerExceptions, Has.Exactly(1).SameAs(failure));
-            Assert.That(delivered, Has.Count.EqualTo(1));
-            Assert.That(generation.TryDeferEvent(() => Task.CompletedTask), Is.False);
+            Assert.That(delivered, Is.Empty);
+            Assert.That(generation.TryDeferEvent(3, () =>
+            {
+                delivered.Add(3);
+                return Task.CompletedTask;
+            }, 1, out _), Is.True);
             await generation.FlushDeferredEventsAsync().ConfigureAwait(false);
+            Assert.That(failedDeliveryAttempts, Is.EqualTo(2));
+            Assert.That(delivered, Has.Count.EqualTo(3));
+            Assert.That(delivered[0], Is.EqualTo(1));
+            Assert.That(delivered[1], Is.EqualTo(2));
+            Assert.That(delivered[2], Is.EqualTo(3));
+        }
+
+        [Test]
+        public async Task DeferredEventCapacityCountsEventsAndRetainsAllItemDeliveriesAsync()
+        {
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DeferredEventCapacity");
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+            generation.ReadinessPending = true;
+
+            for (int eventId = 1; eventId <= NodeManagerGeneration.MaxDeferredEvents; eventId++)
+            {
+                Assert.That(generation.TryDeferEvent(eventId, () => Task.CompletedTask, 2, out _), Is.True);
+                Assert.That(generation.TryDeferEvent(eventId, () => Task.CompletedTask, 3, out _), Is.True);
+            }
+
+            Assert.That(
+                generation.TryDeferEvent(
+                    NodeManagerGeneration.MaxDeferredEvents + 1,
+                    () => Task.CompletedTask,
+                    4,
+                    out bool overflowed),
+                Is.True);
+            Assert.That(overflowed, Is.True);
+            Assert.That(generation.DroppedDeferredEvents, Is.EqualTo(1));
+            Assert.That(generation.DroppedDeferredDeliveries, Is.EqualTo(5));
+
+            generation.ReadinessPending = false;
+            await generation.FlushDeferredEventsAsync().ConfigureAwait(false);
+            Assert.That(generation.IsDeferringEvents, Is.False);
+        }
+
+        [Test]
+        public async Task DeferredEventFlushWaitsForAdmittedReadinessEmissionsAsync()
+        {
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DeferredEmissionDrain");
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+            generation.ReadinessPending = true;
+            Assert.That(generation.CaptureSourceEmission(1, out bool readinessPending), Is.True);
+            Assert.That(readinessPending, Is.True);
+            Assert.That(generation.TryDeferEvent(1, () => Task.CompletedTask, 1, out _), Is.True);
+
+            InvalidOperationException? notReady = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => generation.FlushDeferredEventsAsync()).ConfigureAwait(false);
+            Assert.That(notReady!.Message, Does.Contain("readiness succeeds"));
+            Assert.That(generation.IsDeferringEvents, Is.True);
+
+            generation.ReadinessPending = false;
+
+            Task flush = generation.FlushDeferredEventsAsync();
+
+            Assert.That(flush.IsCompleted, Is.False);
+            generation.ReleaseSourceEmission(1);
+            await flush.ConfigureAwait(false);
+            Assert.That(generation.IsDeferringEvents, Is.False);
         }
 
         /// <summary>
@@ -225,6 +299,80 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A producer preparation failure does not block retirement of independent prepared managers.
+        /// </summary>
+        [Test]
+        public async Task ShutdownRetiresPreparedManagersWhenPeerPreparationFailsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Mock<IAsyncNodeManager> prepared = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:PreparedPeerShutdown");
+            Mock<IDisposable> preparedDisposable = prepared.As<IDisposable>();
+            prepared.As<INodeManagerShutdown>().Setup(value => value.PrepareForShutdownAsync())
+                .Returns(default(ValueTask));
+            Mock<IAsyncNodeManager> retrying = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:FailedPeerShutdown");
+            Mock<IDisposable> retryingDisposable = retrying.As<IDisposable>();
+            var failure = new InvalidOperationException("The peer producer-stop attempt failed.");
+            int failPreparation = 1;
+            retrying.As<INodeManagerShutdown>().Setup(value => value.PrepareForShutdownAsync()).Returns(() =>
+                Volatile.Read(ref failPreparation) != 0
+                    ? new ValueTask(Task.FromException(failure))
+                    : default);
+            foreach (Mock<IAsyncNodeManager> manager in new[] { prepared, retrying })
+            {
+                var factory = new Mock<IAsyncNodeManagerFactory>();
+                factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(manager.Object);
+                await m_server.NodeManagerLifecycle.AddAsync(factory.Object, timeout.Token).ConfigureAwait(false);
+            }
+
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            IServerInternal server = m_server.CurrentInstance;
+            NodeManagerGeneration preparedGeneration = NodeManagerGenerationRegistry.GetOrCreate(prepared.Object);
+            NodeManagerGeneration retryingGeneration = NodeManagerGenerationRegistry.GetOrCreate(retrying.Object);
+            NodeManagerGeneration coreGeneration = NodeManagerGenerationRegistry.GetOrCreate(
+                server.NodeManager.CoreNodeManager!);
+            NodeManagerGeneration configurationGeneration = NodeManagerGenerationRegistry.GetOrCreate(
+                server.NodeManager.ConfigurationNodeManager!);
+            try
+            {
+                AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
+                    () => lifecycle.CompleteShutdownAsync(server, retireSystems: true, timeout.Token).AsTask())
+                    .ConfigureAwait(false);
+
+                Assert.That(observed!.Flatten().InnerExceptions, Has.Exactly(1).SameAs(failure));
+                Assert.That(preparedGeneration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(retryingGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(coreGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(configurationGeneration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                prepared.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                preparedDisposable.Verify(value => value.Dispose(), Times.Once);
+                retrying.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
+                retryingDisposable.Verify(value => value.Dispose(), Times.Never);
+
+                Volatile.Write(ref failPreparation, 0);
+                await lifecycle.CompleteShutdownAsync(server, retireSystems: true, timeout.Token)
+                    .ConfigureAwait(false);
+                await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(retryingGeneration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(coreGeneration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                Assert.That(configurationGeneration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                retrying.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                retryingDisposable.Verify(value => value.Dispose(), Times.Once);
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                Volatile.Write(ref failPreparation, 0);
                 await FinishShutdownTestAsync().ConfigureAwait(false);
             }
         }

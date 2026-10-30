@@ -262,31 +262,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Preserves asynchronous override metadata through a statically typed base-class boundary.
+        /// Uses direct edits only when the base implementation is not overridden.
         /// </summary>
         private static bool UsesDirectReferenceStorage(AsyncCustomNodeManager owner)
         {
-            // Interface pattern narrowing does not propagate the class's NativeAOT metadata requirements.
-            if (owner.GetType() == typeof(AsyncCustomNodeManager))
-            {
-                return true;
-            }
-            Func<object, NodeId, bool, ExpandedNodeId, bool, CancellationToken, ValueTask<ServiceResult>> deletion =
-                ((IAsyncNodeManager)owner).DeleteReferenceAsync;
-            return deletion.Method.DeclaringType == typeof(AsyncCustomNodeManager);
+            return owner.GetType() == typeof(AsyncCustomNodeManager);
         }
 
         /// <summary>
-        /// Preserves synchronous override metadata through a statically typed base-class boundary.
+        /// Uses direct edits only when the base implementation is not overridden.
         /// </summary>
         private static bool UsesDirectReferenceStorage(CustomNodeManager2 owner)
         {
-            if (owner.GetType() == typeof(CustomNodeManager2))
-            {
-                return true;
-            }
-            Func<object, NodeId, bool, ExpandedNodeId, bool, ServiceResult> deletion = owner.DeleteReference;
-            return deletion.Method.DeclaringType == typeof(CustomNodeManager2);
+            return owner.GetType() == typeof(CustomNodeManager2);
         }
 
         /// <summary>

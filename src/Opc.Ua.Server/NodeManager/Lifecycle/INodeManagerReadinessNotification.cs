@@ -77,4 +77,24 @@ namespace Opc.Ua.Server
         /// </summary>
         void OnServerReady();
     }
+
+    /// <summary>
+    /// Readiness participation helpers for adapted and directly implemented managers.
+    /// </summary>
+    internal static class NodeManagerReadiness
+    {
+        /// <summary>
+        /// Gets whether a manager or its wrapped implementation has a readiness callback.
+        /// </summary>
+        /// <param name="nodeManager">The manager to inspect.</param>
+        /// <returns>True when the manager has a callback that must complete before readiness is released.</returns>
+        internal static bool IsParticipant(IAsyncNodeManager nodeManager)
+        {
+            return nodeManager switch
+            {
+                AsyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
+                _ => nodeManager is INodeManagerReadinessNotification
+            };
+        }
+    }
 }

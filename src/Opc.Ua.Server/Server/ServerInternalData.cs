@@ -75,7 +75,8 @@ namespace Opc.Ua.Server
         ISecurityPolicyRegistryProvider,
         ICertificateValidatorProvider,
         INodeIdFactoryProvider,
-        IServerServiceLevelControl
+        IServerServiceLevelControl,
+        IServerServiceLevelControlRevocation
     {
         /// <summary>
         /// Initializes the datastore with the server configuration.
@@ -1297,7 +1298,7 @@ namespace Opc.Ua.Server
         {
             lock (m_serviceLevelLock)
             {
-                if (m_hasServiceLevelOwner)
+                if (m_serviceLevelOwner is not null)
                 {
                     throw new InvalidOperationException("Server.ServiceLevel already has an explicit provider.");
                 }
@@ -1305,15 +1306,37 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("Server.ServiceLevel is not available.");
                 }
-                m_hasServiceLevelOwner = true;
-                return PublishServiceLevel;
+                var owner = new ServiceLevelWriter(this);
+                m_serviceLevelOwner = owner;
+                return owner.Publish;
             }
         }
 
-        private void PublishServiceLevel(byte level)
+        void IServerServiceLevelControlRevocation.ReleaseServiceLevelControl(Action<byte> writer)
+        {
+            ArgumentNullException.ThrowIfNull(writer);
+            if (writer.Target is not ServiceLevelWriter owner)
+            {
+                throw new ArgumentException("The writer was not issued by this server.", nameof(writer));
+            }
+            lock (m_serviceLevelLock)
+            {
+                if (ReferenceEquals(m_serviceLevelOwner, owner))
+                {
+                    m_serviceLevelOwner = null;
+                }
+            }
+        }
+
+        private void PublishServiceLevel(ServiceLevelWriter owner, byte level)
         {
             lock (m_serviceLevelLock)
             {
+                if (!ReferenceEquals(m_serviceLevelOwner, owner))
+                {
+                    throw new InvalidOperationException(
+                        "The service-level writer no longer owns publication.");
+                }
                 ServerObject.ServiceLevel!.Value = level;
                 ServerObject.ServiceLevel.Timestamp = TimeProvider.GetUtcNow().UtcDateTime;
                 ServerObject.ServiceLevel.ClearChangeMasks(DefaultSystemContext, false);
@@ -1346,7 +1369,7 @@ namespace Opc.Ua.Server
 
             lock (m_serviceLevelLock)
             {
-                if (m_hasServiceLevelOwner)
+                if (m_serviceLevelOwner is not null)
                 {
                     return;
                 }
@@ -1827,7 +1850,22 @@ namespace Opc.Ua.Server
         private readonly List<Historian.HistorianBuilder> m_historianBuilders = [];
         private readonly Lock m_historianBuildersLock = new();
         private readonly Lock m_serviceLevelLock = new();
-        private bool m_hasServiceLevelOwner;
+        private ServiceLevelWriter? m_serviceLevelOwner;
+
+        /// <summary>
+        /// Provides a revocable service-level writer tied to the current explicit owner.
+        /// </summary>
+        private sealed class ServiceLevelWriter(ServerInternalData owner)
+        {
+            /// <summary>
+            /// Publishes one service-level value while this writer still owns the claim.
+            /// </summary>
+            /// <param name="level">The service level to publish.</param>
+            public void Publish(byte level)
+            {
+                owner.PublishServiceLevel(this, level);
+            }
+        }
         private RoleStateBinding? m_roleStateBinding;
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;

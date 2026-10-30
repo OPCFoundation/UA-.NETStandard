@@ -70,6 +70,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
+        [TestCase(3)]
         public void ChangedSubscriberInputReplacesContext(int change)
         {
             var subscriber = new Subscriber();
@@ -84,8 +85,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 case 1:
                     subscriber.Generation++;
                     break;
-                default:
+                case 2:
                     subscriber.Endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.Sign };
+                    break;
+                default:
+                    subscriber.SecureChannelId = "replacement-channel";
                     break;
             }
             OperationContext after = MonitoredReadAuthorization.GetSubscriberContext(item);
@@ -97,6 +101,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Switching an item to sessionless delivery does not reuse its prior session context.
+        /// </summary>
+        [Test]
+        public void SessionlessItemDoesNotReusePriorSessionContext()
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem item = subscriber.CreateItem();
+            OperationContext sessionContext = MonitoredReadAuthorization.GetSubscriberContext(item);
+            subscriber.ActiveSession = null;
+
+            OperationContext sessionlessContext = MonitoredReadAuthorization.GetSubscriberContext(item);
+
+            Assert.That(sessionlessContext, Is.Not.SameAs(sessionContext));
+            Assert.That(sessionlessContext.Session, Is.Null);
+            Assert.That(sessionlessContext.UserIdentity, Is.SameAs(subscriber.Identity));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(sessionlessContext));
+        }
+
+        /// <summary>
         /// A modeled custom session whose identity, identity refresh generation and endpoint can change.
         /// </summary>
         private sealed class Subscriber
@@ -104,6 +127,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Subscriber()
             {
                 Session.SetupGet(value => value.Id).Returns(new NodeId(1, 1));
+                Session.SetupGet(value => value.SecureChannelId).Returns(() => SecureChannelId);
                 Session.SetupGet(value => value.EffectiveIdentity).Returns(() => Identity);
                 Session.SetupGet(value => value.EndpointDescription).Returns(() => Endpoint);
                 Session.Setup(value => value.CaptureIdentityRefreshSnapshot())
@@ -116,14 +140,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public long Generation { get; set; }
 
+            public string SecureChannelId { get; set; } = "initial-channel";
+
+            public ISession? ActiveSession { get; set; }
+
             public EndpointDescription Endpoint { get; set; } =
                 new() { SecurityMode = MessageSecurityMode.SignAndEncrypt };
 
             public IMonitoredItem CreateItem()
             {
                 var item = new Mock<IMonitoredItem>();
-                item.SetupGet(value => value.Session).Returns(Session.Object);
+                item.SetupGet(value => value.Session).Returns(() => ActiveSession!);
                 item.SetupGet(value => value.EffectiveIdentity).Returns(() => Identity);
+                ActiveSession = Session.Object;
                 return item.Object;
             }
         }

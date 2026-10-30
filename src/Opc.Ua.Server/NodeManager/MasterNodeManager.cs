@@ -1043,7 +1043,8 @@ namespace Opc.Ua.Server
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
-            if (!Server.IsRunning || GetVisibleNodeManager(nodeManager) is not { } visibleNodeManager)
+            if ((!Server.IsRunning && !NodeManagerReadinessScope.Allows(Server)) ||
+                GetVisibleNodeManager(nodeManager) is not { } visibleNodeManager)
             {
                 return;
             }
@@ -1524,7 +1525,8 @@ namespace Opc.Ua.Server
             {
                 Generation = generation;
                 MonitoredItems = monitoredItems;
-                m_origin = new SourceEmissionOrigin(owner, generation, slot);
+                var emission = new SourceEmissionAdmission(owner, generation, slot);
+                m_origin = emission.TransferToOrigin();
             }
 
             /// <summary>
@@ -1588,18 +1590,46 @@ namespace Opc.Ua.Server
         /// Acquires mutation admission without retaining it while a durable lifecycle decision is pending.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
-        /// <returns>A task that completes with mutation admission held and no decision window pending.</returns>
-        private async ValueTask AcquireDynamicMutationAdmissionAsync(CancellationToken cancellationToken)
+        /// <returns>
+        /// True when this call acquired mutation admission; false when an active callback already owns it.
+        /// </returns>
+        private async ValueTask<bool> AcquireDynamicMutationAdmissionAsync(CancellationToken cancellationToken)
         {
+            ThrowIfNodeManagementFromDecision();
+            if (HasActiveCallbackPermit(
+                    CaptureLifecycleCallbackPermit(),
+                    NodeManagerAdmissionCapability.AddressSpaceMutation))
+            {
+                Task? pendingDecision = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                if (pendingDecision is not null)
+                {
+                    await pendingDecision.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return false;
+            }
+
             while (true)
             {
                 await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 Task? pending = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
                 if (pending is null)
                 {
-                    return;
+                    return true;
                 }
                 m_dynamicMutationSemaphore.Release();
+                await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Waits for an active lifecycle decision without serializing reference-only mutations.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
+        private async ValueTask WaitForLifecycleDecisionAsync(CancellationToken cancellationToken)
+        {
+            ThrowIfNodeManagementFromDecision();
+            while (Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task is { } pending)
+            {
                 await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1649,6 +1679,18 @@ namespace Opc.Ua.Server
             {
                 throw new InvalidOperationException(
                     "Namespace registration cannot change serving routes from a lifecycle publication callback.");
+            }
+        }
+
+        /// <summary>
+        /// Rejects node-management re-entry from the durable decision callback that is waiting for completion.
+        /// </summary>
+        private void ThrowIfNodeManagementFromDecision()
+        {
+            if (m_currentLifecycleDecision.Value is { IsCompleted: false })
+            {
+                throw new InvalidOperationException(
+                    "Node management cannot modify serving routes from the durable decision callback.");
             }
         }
 

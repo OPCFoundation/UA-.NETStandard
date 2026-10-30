@@ -427,8 +427,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
             await AssertReadinessCleanupAndRecoveryAsync(observed, participant).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Replacing a service-level owner revokes its writer before the replacement readiness callback claims it.
+        /// </summary>
+        [Test]
+        public async Task ReplacingServiceLevelOwnerRevokesWriterForNextGenerationAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            Action<byte>? retiredWriter = null;
+            Action<byte>? replacementWriter = null;
+            ReadinessLifecycleNodeManager? retiredManager = null;
+            ReadinessLifecycleNodeManager? replacementManager = null;
+            NodeManagerRegistration registration = await StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    retiredManager = manager;
+                    manager.ReadinessCallback = _ =>
+                    {
+                        retiredWriter = ((IServerServiceLevelControl)manager.SystemContext.Server)
+                            .ClaimServiceLevelControl();
+                        return default;
+                    };
+                },
+                timeout.Token).ConfigureAwait(false);
+
+            NodeManagerRegistration replacement = await StartReadinessChangeAsync(
+                ReadinessChange.Reload,
+                registration,
+                synchronousFactory: false,
+                kGeneration2Value,
+                manager =>
+                {
+                    replacementManager = manager;
+                    manager.ReadinessCallback = _ =>
+                    {
+                        replacementWriter = ((IServerServiceLevelControl)manager.SystemContext.Server)
+                            .ClaimServiceLevelControl();
+                        return default;
+                    };
+                },
+                timeout.Token).ConfigureAwait(false);
+
+            AssertLifecycleValue(retiredManager);
+            AssertLifecycleValue(replacementManager);
+            Assert.That(replacement.Generation, Is.EqualTo(registration.Generation + 1));
+            Assert.That(retiredWriter, Is.Not.Null);
+            Assert.That(replacementWriter, Is.Not.Null);
+            Assert.That(() => retiredWriter!(10), Throws.TypeOf<InvalidOperationException>());
+            replacementWriter!(20);
+            await RemoveReadinessRegistrationAsync(replacement).ConfigureAwait(false);
         }
 
         /// <summary>

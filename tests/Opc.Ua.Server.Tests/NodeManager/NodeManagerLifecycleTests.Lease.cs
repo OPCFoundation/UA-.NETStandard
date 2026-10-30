@@ -352,30 +352,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.DeleteAddressSpaceFailuresRemaining = failCleanup ? 1 : 0;
                 failPublication = true;
 
-                Exception? observed = await Assert.CatchAsync<Exception>(() =>
-                    lifecycle.CompleteShutdownAsync(server, retireSystems: true, timeout.Token).AsTask())
-                    .ConfigureAwait(false);
+                Exception? observed = null;
+                try
+                {
+                    await lifecycle.CompleteShutdownAsync(server, retireSystems: true, timeout.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception observedFailure)
+                {
+                    observed = observedFailure;
+                }
 
-                Assert.That(observed, Is.Not.Null);
-                Assert.That(observed!.ToString(), Does.Contain(failure.Message));
                 Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independent.DisposeCount, Is.EqualTo(1));
                 Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(manager.DisposeCount, Is.EqualTo(failCleanup ? 0 : 1));
                 Assert.That(lifecycle.Registrations.Count, Is.Zero);
                 Assert.That(lifecycle.RetiredNodeManagerCount, Is.EqualTo(failCleanup ? 1 : 0));
-                Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
-                Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                 if (failCleanup)
                 {
+                    Assert.That(observed, Is.Not.Null);
+                    Assert.That(observed!.ToString(), Does.Contain(failure.Message));
                     Assert.That(observed, Is.TypeOf<AggregateException>());
                     Assert.That(((AggregateException)observed).Flatten().InnerExceptions, Has.Count.EqualTo(2));
                     Assert.That(((AggregateException)observed).Flatten().InnerExceptions,
                         Has.Exactly(1).TypeOf<SentinelException>());
+                    Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                    Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                 }
                 else
                 {
-                    Assert.That(observed, Is.TypeOf<InvalidOperationException>());
+                    Assert.That(observed, Is.Null);
+                    Assert.That(core.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                    Assert.That(configuration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
                 }
 
                 failPublication = false;
@@ -385,8 +394,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(independent.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independent.DisposeCount, Is.EqualTo(1));
                 Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
-                Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
-                Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                if (failCleanup)
+                {
+                    Assert.That(core.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                    Assert.That(configuration.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+                }
+                else
+                {
+                    Assert.That(core.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                    Assert.That(configuration.Gate.State, Is.Not.EqualTo(NodeManagerGenerationState.Live));
+                }
             }
             finally
             {

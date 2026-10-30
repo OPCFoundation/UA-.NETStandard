@@ -87,6 +87,13 @@ namespace Opc.Ua.Server
         /// </summary>
         internal IAsyncNodeManager AsyncNodeManager => m_nodeManager;
 
+        /// <summary>
+        /// Gets whether the wrapped manager has an actual readiness callback.
+        /// </summary>
+        internal bool HasReadinessParticipant => m_nodeManager is AsyncNodeManagerAdapter adapter
+            ? adapter.HasReadinessParticipant
+            : m_nodeManager is INodeManagerReadinessNotification;
+
         /// <inheritdoc/>
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,

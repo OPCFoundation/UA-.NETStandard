@@ -96,6 +96,44 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A replacement generation can claim service-level publication after the retired owner is revoked.
+        /// </summary>
+        [Test]
+        public void RetiredCandidateReleasesServiceLevelClaimForReplacement()
+        {
+            Mock<IServerInternal> server = CreateServer();
+            Mock<IServerServiceLevelControl> control = server.As<IServerServiceLevelControl>();
+            Mock<IServerServiceLevelControlRevocation> revocation =
+                server.As<IServerServiceLevelControlRevocation>();
+            var oldPublications = new List<byte>();
+            var newPublications = new List<byte>();
+            Action<byte> oldWriter = oldPublications.Add;
+            Action<byte> newWriter = newPublications.Add;
+            control.SetupSequence(value => value.ClaimServiceLevelControl())
+                .Returns(oldWriter)
+                .Returns(newWriter);
+            using ChangePreparer.StagingServer oldFacade = new ChangePreparer(server.Object).CreateServer();
+            oldFacade.Bind();
+            Action<byte> oldFacadeWriter =
+                ((IServerServiceLevelControl)(IServerInternal)oldFacade).ClaimServiceLevelControl();
+            oldFacadeWriter(11);
+
+            oldFacade.RevokeServiceLevelControl();
+
+            Assert.That(() => oldFacadeWriter(12), Throws.TypeOf<InvalidOperationException>());
+            using ChangePreparer.StagingServer newFacade = new ChangePreparer(server.Object).CreateServer();
+            newFacade.Bind();
+            Action<byte> replacementWriter =
+                ((IServerServiceLevelControl)(IServerInternal)newFacade).ClaimServiceLevelControl();
+            replacementWriter(21);
+
+            Assert.That(oldPublications, Is.EqualTo(new byte[] { 11 }));
+            Assert.That(newPublications, Is.EqualTo(new byte[] { 21 }));
+            revocation.Verify(value => value.ReleaseServiceLevelControl(oldWriter), Times.Once);
+            control.Verify(value => value.ClaimServiceLevelControl(), Times.Exactly(2));
+        }
+
+        /// <summary>
         /// Verifies that an absent serving capability fails explicitly after publication.
         /// </summary>
         [Test]

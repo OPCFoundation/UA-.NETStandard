@@ -406,13 +406,14 @@ namespace Opc.Ua.Server
                 IUserIdentity? identity = item.EffectiveIdentity;
                 SubscriberContext? itemContext = s_itemContexts.TryGetValue(item, out SubscriberContextSlot? itemSlot)
                     ? Volatile.Read(ref itemSlot.Current) : null;
-                if (itemContext != null && ReferenceEquals(itemContext.Identity, identity))
+                if (itemContext is { Context.Session: null } &&
+                    ReferenceEquals(itemContext.Identity, identity))
                 {
                     return itemContext.Context;
                 }
                 // CA2000: the shared context is owned by the item's entry and never disposed by callers.
 #pragma warning disable CA2000
-                var created = new SubscriberContext(identity, null, 0, null, new OperationContext(item));
+                var created = new SubscriberContext(identity, null, 0, null, null, new OperationContext(item));
 #pragma warning restore CA2000
                 Volatile.Write(ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).Current, created);
                 return created.Context;
@@ -425,12 +426,14 @@ namespace Opc.Ua.Server
             long generation = session is Session ? 0 : session.CaptureIdentityRefreshSnapshot().Generation;
             IUserIdentity effectiveIdentity = session.EffectiveIdentity;
             EndpointDescription? endpoint = GetEndpoint(session);
+            string secureChannelId = session.SecureChannelId ?? string.Empty;
             SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
             SubscriberContext? current = Volatile.Read(ref slot.Current);
             if (current != null &&
                 ReferenceEquals(current.Identity, effectiveIdentity) &&
                 current.Generation == generation &&
                 ReferenceEquals(current.Endpoint, endpoint) &&
+                current.SecureChannelId == secureChannelId &&
                 (session is not Session || ReferenceEquals(current.Authorization, authorization)))
             {
                 return current.Context;
@@ -438,7 +441,7 @@ namespace Opc.Ua.Server
             OperationContext context = CreateContext(session);
             // the constructor captured identity and epoch together; key the entry on what it captured.
             current = new SubscriberContext(
-                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, context);
+                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, secureChannelId, context);
             Volatile.Write(ref slot.Current, current);
             return context;
         }
@@ -451,12 +454,14 @@ namespace Opc.Ua.Server
             NotificationAuthorization? authorization,
             long generation,
             EndpointDescription? endpoint,
+            string? secureChannelId,
             OperationContext context)
         {
             public IUserIdentity? Identity { get; } = identity;
             public NotificationAuthorization? Authorization { get; } = authorization;
             public long Generation { get; } = generation;
             public EndpointDescription? Endpoint { get; } = endpoint;
+            public string? SecureChannelId { get; } = secureChannelId;
             public OperationContext Context { get; } = context;
         }
 

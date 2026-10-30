@@ -89,7 +89,7 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            emission = new SourceEmissionAdmission(master, generation, slot);
+            emission = new SourceEmissionAdmission(master, generation, slot, trackReadinessEvents: false);
             return true;
         }
 
@@ -194,7 +194,8 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            admission = new SourceEmissionAdmission(master, currentGeneration, slot);
+            admission = new SourceEmissionAdmission(
+                master, currentGeneration, slot, trackReadinessEvents: false);
             return true;
         }
 
@@ -210,12 +211,53 @@ namespace Opc.Ua.Server
             internal SourceEmissionAdmission(
                 MasterNodeManager owner,
                 NodeManagerGeneration generation,
-                int slot)
+                int slot,
+                bool trackReadinessEvents = true)
             {
                 m_owner = owner;
                 Generation = generation;
-                ReadinessPending = generation.ReadinessPending;
                 m_slot = slot;
+                if (trackReadinessEvents)
+                {
+                    ReadinessEventId = generation.IsDeferringEvents ? NextReadinessEventId() : 0;
+                    m_tracksReadiness = generation.CaptureSourceEmission(
+                        ReadinessEventId, out bool readinessPending);
+                    ReadinessPending = readinessPending;
+                }
+                else
+                {
+                    ReadinessEventId = 0;
+                    m_tracksReadiness = false;
+                    ReadinessPending = generation.ReadinessPending;
+                }
+            }
+
+            /// <summary>
+            /// Initializes a child admission propagated from an existing source event.
+            /// </summary>
+            internal SourceEmissionAdmission(
+                MasterNodeManager owner,
+                NodeManagerGeneration generation,
+                int slot,
+                long readinessEventId,
+                bool readinessPending,
+                bool tracksReadiness)
+            {
+                m_owner = owner;
+                Generation = generation;
+                m_slot = slot;
+                ReadinessEventId = readinessEventId == 0 &&
+                    (tracksReadiness || generation.IsDeferringEvents)
+                        ? NextReadinessEventId()
+                        : readinessEventId;
+                bool tracksGeneration = generation.CaptureSourceEmission(
+                    ReadinessEventId, out bool generationReadinessPending);
+                if (tracksReadiness && !tracksGeneration)
+                {
+                    generation.TrackSourceEmission(ReadinessEventId);
+                }
+                ReadinessPending = readinessPending || generationReadinessPending;
+                m_tracksReadiness = tracksReadiness || tracksGeneration;
             }
 
             /// <summary>
@@ -230,22 +272,45 @@ namespace Opc.Ua.Server
             internal bool ReadinessPending { get; }
 
             /// <summary>
+            /// Gets the identity shared by every delivery propagated from this event.
+            /// </summary>
+            internal long ReadinessEventId { get; }
+
+            /// <summary>
+            /// Creates an identity used only while a generation retains readiness-time events.
+            /// </summary>
+            /// <returns>A unique source-event identity.</returns>
+            internal static long NextReadinessEventId()
+            {
+                return Interlocked.Increment(ref s_nextReadinessEventId);
+            }
+
+            /// <summary>
             /// Transfers this single-owned admission to an explicitly propagated event origin.
             /// </summary>
             /// <returns>The new owner; the original admission must not be disposed afterward.</returns>
             internal SourceEmissionOrigin TransferToOrigin()
             {
-                return new SourceEmissionOrigin(m_owner, Generation, m_slot);
+                return new SourceEmissionOrigin(
+                    m_owner, Generation, m_slot, ReadinessEventId, ReadinessPending, m_tracksReadiness);
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
+                if (m_tracksReadiness)
+                {
+                    Generation.ReleaseSourceEmission(ReadinessEventId);
+                }
                 Generation.Gate.Exit(m_slot);
             }
 
+            /// <summary>The process-wide event identity sequence.</summary>
+            private static long s_nextReadinessEventId;
+
             private readonly MasterNodeManager m_owner;
             private readonly int m_slot;
+            private readonly bool m_tracksReadiness;
         }
 
         /// <summary>
@@ -259,11 +324,23 @@ namespace Opc.Ua.Server
             /// <param name="owner">The routing owner that admitted the source.</param>
             /// <param name="generation">The exact source generation.</param>
             /// <param name="slot">The admitted counter slot transferred by the caller.</param>
-            internal SourceEmissionOrigin(MasterNodeManager owner, NodeManagerGeneration generation, int slot)
+            /// <param name="readinessEventId">The source event identity.</param>
+            /// <param name="readinessPending">Whether readiness was pending at source admission.</param>
+            /// <param name="tracksReadiness">Whether this origin owns a readiness-drain admission.</param>
+            internal SourceEmissionOrigin(
+                MasterNodeManager owner,
+                NodeManagerGeneration generation,
+                int slot,
+                long readinessEventId,
+                bool readinessPending,
+                bool tracksReadiness)
             {
                 m_owner = owner;
                 m_generation = generation;
                 m_lease = new GenerationGate.Lease(generation.Gate, slot);
+                m_readinessEventId = readinessEventId;
+                m_readinessPending = readinessPending;
+                m_tracksReadiness = tracksReadiness;
             }
 
             /// <summary>
@@ -333,15 +410,20 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
-                emission = new SourceEmissionAdmission(owner, generation, slot);
+                emission = new SourceEmissionAdmission(
+                    owner, generation, slot, m_readinessEventId, m_readinessPending, m_tracksReadiness);
                 return true;
             }
 
             /// <inheritdoc/>
             public void Dispose()
             {
+                NodeManagerGeneration? generation = Interlocked.Exchange(ref m_generation, null);
+                if (m_tracksReadiness && generation is not null)
+                {
+                    generation.ReleaseSourceEmission(m_readinessEventId);
+                }
                 m_lease.Dispose();
-                Volatile.Write(ref m_generation, null);
                 Volatile.Write(ref m_owner, null);
             }
 
@@ -353,6 +435,15 @@ namespace Opc.Ua.Server
 
             /// <summary>The existing generation gate admission, not a separate retention counter.</summary>
             private readonly GenerationGate.Lease m_lease;
+
+            /// <summary>The unique source-event identity inherited by child emissions.</summary>
+            private readonly long m_readinessEventId;
+
+            /// <summary>Whether the source event was admitted while readiness was pending.</summary>
+            private readonly bool m_readinessPending;
+
+            /// <summary>Whether this origin owns one readiness-drain admission.</summary>
+            private readonly bool m_tracksReadiness;
         }
 
         /// <summary>

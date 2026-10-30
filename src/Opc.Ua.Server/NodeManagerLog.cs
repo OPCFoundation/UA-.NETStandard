@@ -71,5 +71,11 @@ namespace Opc.Ua.Server
             string wait,
             TimeSpan elapsed,
             string context);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 6, Level = LogLevel.Warning,
+            Message = "NodeManager shutdown reconciliation failed after commit, but retirement completed.")]
+        public static partial void ShutdownReconciliationReported(
+            this ILogger logger,
+            Exception exception);
     }
 }

@@ -106,6 +106,14 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IRequestRouting.PinRequest(OperationContext context)
         {
+            // These services recapture routing after their mutation-admission wait.
+            if (context.RequestType is RequestType.AddNodes or
+                RequestType.DeleteNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteReferences)
+            {
+                return;
+            }
             context.PinRouting(m_nodeManagers);
         }
 

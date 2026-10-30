@@ -75,9 +75,10 @@ namespace Opc.Ua.Server
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             Func<NodeId, CancellationToken, ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>> lookup =
                 owner.GetManagerHandleAsync;
-            if (lookup.Method.DeclaringType != typeof(MasterNodeManager))
+            if (owner.GetType() != typeof(MasterNodeManager))
             {
                 m_handleLookupOverride = lookup;
+                m_legacyLookupContext = new AsyncLocal<OperationContext?>();
             }
         }
 
@@ -125,23 +126,35 @@ namespace Opc.Ua.Server
             NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
             return m_handleLookupOverride is null
                 ? ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken)
-                : GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken);
+                : GetOverriddenManagerHandleAsync(context, nodeId, snapshot, cancellationToken);
         }
 
         /// <summary>
         /// Honors external legacy lookup owners without crossing managed routing revisions.
         /// </summary>
+        /// <param name="context">The operation selecting routes.</param>
         /// <param name="nodeId">The node to resolve.</param>
         /// <param name="snapshot">The view selecting eligible owners.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The handle and owning manager, if found.</returns>
         private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetOverriddenManagerHandleAsync(
+            OperationContext context,
             NodeId nodeId,
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            (object? handle, IAsyncNodeManager? nodeManager) result =
-                await m_handleLookupOverride!(nodeId, cancellationToken).ConfigureAwait(false);
+            AsyncLocal<OperationContext?> lookupContext = m_legacyLookupContext!;
+            OperationContext? previousContext = lookupContext.Value;
+            lookupContext.Value = context;
+            (object? handle, IAsyncNodeManager? nodeManager) result;
+            try
+            {
+                result = await m_handleLookupOverride!(nodeId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                lookupContext.Value = previousContext;
+            }
             if (result.nodeManager is null)
             {
                 return result;
@@ -232,7 +245,8 @@ namespace Opc.Ua.Server
             NodeId nodeId,
             CancellationToken cancellationToken = default)
         {
-            return ResolveManagerHandleAsync(nodeId, null, cancellationToken);
+            OperationContext? context = m_legacyLookupContext?.Value;
+            return ResolveManagerHandleAsync(nodeId, context is null ? null : GetRouting(context), cancellationToken);
         }
 
         /// <summary>
@@ -4698,6 +4712,11 @@ namespace Opc.Ua.Server
         /// </summary>
         private readonly Func<NodeId, CancellationToken,
             ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>>? m_handleLookupOverride;
+
+        /// <summary>
+        /// Carries the captured view through a legacy virtual lookup that delegates to the base implementation.
+        /// </summary>
+        private readonly AsyncLocal<OperationContext?>? m_legacyLookupContext;
 
         /// <summary>
         /// The namespace routes of the valid operations of one service call, so that the call

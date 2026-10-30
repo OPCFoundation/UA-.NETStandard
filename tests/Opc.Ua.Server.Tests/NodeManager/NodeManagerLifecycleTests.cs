@@ -6092,6 +6092,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var publicationFailure = new SentinelException("Committed replacement publication callback failed.");
             var readinessFailure = new SentinelException("Committed replacement readiness failed.");
             ReadinessLifecycleNodeManager? replacementManager = null;
+            int readinessAttempts = 0;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
@@ -6103,7 +6104,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replacementManager = new ReadinessLifecycleNodeManager(
                         candidateServer, configuration, m_logger, kGeneration2Value)
                     {
-                        ReadinessCallback = _ => new ValueTask(Task.FromException(readinessFailure))
+                        ReadinessCallback = _ => Interlocked.Increment(ref readinessAttempts) == 1
+                            ? new ValueTask(Task.FromException(readinessFailure))
+                            : default
                     };
                     return new ValueTask<IAsyncNodeManager>(replacementManager);
                 });
@@ -6149,9 +6152,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(replacementManager.DeleteAddressSpaceCount, Is.Zero);
                     Assert.That(replacementManager.DisposeCount, Is.Zero);
                 }
+                DataValue unavailableValue = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
+                Assert.That(unavailableValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+
+                await result.RetryReconciliationAsync().ConfigureAwait(false);
+                Assert.That(
+                    (result.Issues.ToArray() ?? [])
+                        .Where(issue => issue.Stage == NodeManagerReconciliationStage.Readiness),
+                    Is.Empty);
                 DataValue currentValue = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
                 Assert.That(currentValue.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(currentValue.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+                Assert.That(replacementManager.ReadinessCount, Is.EqualTo(2));
             }
             finally
             {

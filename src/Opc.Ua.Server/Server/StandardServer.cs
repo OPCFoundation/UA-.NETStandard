@@ -34,6 +34,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -286,43 +287,68 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
-            // Run the orderly server shutdown (idempotent) before releasing base resources,
-            // so no request is still dispatching to the address space when it is torn down.
-            // The cached m_disposeTask joins concurrent callers and retains successful disposal.
-            await LifecycleWaitDiagnostics.WaitAsync(
+            var failures = new List<Exception>();
+            await RunShutdownStageAsync(failures, () => new ValueTask(LifecycleWaitDiagnostics.WaitAsync(
                 StopAsync(CancellationToken.None).AsTask(),
                 TimeProvider,
                 LifecycleWaitDiagnostics.WarningThreshold,
                 elapsed => m_logger.LifecycleWaitExceeded(
                     "server StopAsync during disposal",
                     elapsed,
-                    "Server resources remain owned until orderly shutdown completes."))
+                    "Server resources remain owned until orderly shutdown completes."))))
                 .ConfigureAwait(false);
 
-            // halt any outstanding timer and configuration watcher.
-            await StopRegistrationAsync().ConfigureAwait(false);
+            ServerInternalData? serverInternal = m_serverInternal;
+            bool internalsDisposed = serverInternal is null;
+
+            await RunShutdownStageAsync(failures, StopRegistrationAsync).ConfigureAwait(false);
+            RunShutdownStage(failures, DisposeConfigurationWatcher);
+            RunShutdownStage(failures, DisposeCertificateManagerSubscription);
+
+            if (internalsDisposed)
+            {
+                RunShutdownStage(failures, () => m_nodeManagerLifecycle.Dispose());
+                RunShutdownStage(failures, DisposeOwnedRateLimiterProvider);
+                RunShutdownStage(failures, DisposeBaseResources);
+                try
+                {
+                    ResetOwnedResourceIsolation();
+                    ResourceIsolationProvider = null;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failures.Add(ex);
+                }
+                RunShutdownStage(failures, m_semaphoreSlim.Dispose);
+            }
+
+            ThrowShutdownFailures(failures);
+        }
+
+        private void DisposeConfigurationWatcher()
+        {
             m_configurationWatcher?.Dispose();
             m_configurationWatcher = null;
+        }
 
-            m_nodeManagerLifecycle.Dispose();
+        private void DisposeCertificateManagerSubscription()
+        {
+            m_certManagerSubscription?.Dispose();
+            m_certManagerSubscription = null;
+        }
 
-            // dispose a rate-limiter provider the server created; caller-supplied providers
-            // are owned by the caller.
+        private void DisposeOwnedRateLimiterProvider()
+        {
             if (m_ownsRateLimiterProvider)
             {
                 m_rateLimiterProvider?.Dispose();
             }
             m_rateLimiterProvider = null;
-            ResetOwnedResourceIsolation();
-            ResourceIsolationProvider = null;
+        }
 
-            m_certManagerSubscription?.Dispose();
-            m_certManagerSubscription = null;
-
-            // releases listeners, hosts, the request queue and an owned certificate manager.
+        private void DisposeBaseResources()
+        {
             base.Dispose(true);
-
-            m_semaphoreSlim.Dispose();
         }
 
         /// <summary>
@@ -4937,6 +4963,7 @@ namespace Opc.Ua.Server
                 .ConfigureAwait(false);
             if ((progress.CompletedStages & ShutdownStage.RequestQueue) == 0)
             {
+                // An executing request may still use the address space, so do not retire any of its dependencies.
                 return;
             }
             await RunShutdownStageOnceAsync(
@@ -5120,6 +5147,30 @@ namespace Opc.Ua.Server
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 failures.Add(ex);
+            }
+        }
+
+        private static void RunShutdownStage(List<Exception> failures, Action stage)
+        {
+            try
+            {
+                stage();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                failures.Add(ex);
+            }
+        }
+
+        private static void ThrowShutdownFailures(List<Exception> failures)
+        {
+            if (failures.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures.Count > 1)
+            {
+                throw new AggregateException("One or more server disposal stages failed.", failures);
             }
         }
 

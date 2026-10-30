@@ -121,6 +121,27 @@ namespace Opc.Ua.Server.Tests
                     cancellation.Token).ConfigureAwait(false));
         }
 
+        [TestCase(RequestType.AddNodes, false)]
+        [TestCase(RequestType.DeleteNodes, false)]
+        [TestCase(RequestType.AddReferences, false)]
+        [TestCase(RequestType.DeleteReferences, false)]
+        [TestCase(RequestType.Browse, true)]
+        public void RequestRoutingPinningRespectsNodeManagementAdmission(
+            RequestType requestType,
+            bool shouldPin)
+        {
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                requestType,
+                RequestLifetime.None);
+            var routing = (IRequestRouting)((ServerInternalData)m_server.CurrentInstance).NodeManager;
+
+            routing.PinRequest(context);
+
+            Assert.That(context.RoutingSnapshot is not null, Is.EqualTo(shouldPin));
+        }
+
         [TestCase("")]
         [TestCase(null)]
         public void InvalidPathBrowseNameReturnsOperationStatus(string? name)

@@ -1207,6 +1207,108 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A SessionClosing callback can mutate the address space without reacquiring its own mutation admission.
+        /// </summary>
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task SessionClosingNodeManagementCallbackCanReenterMasterAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var rescue = new CancellationTokenSource();
+            const string namespaceUri = kModelNamespaceUri + ":SessionClosingNodeManagement";
+            var lifecycle = m_server.NodeManagerLifecycle;
+            var nodeManagementResult = new TaskCompletionSource<StatusCode>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeManagerRegistration? registration = null;
+            Task<CloseSessionResponse>? close = null;
+
+            try
+            {
+                registration = await lifecycle.AddAsync(
+                    CreateLifecycleCallbackNodeManagerFactory(
+                        namespaceUri,
+                        addNode: null,
+                        async callbackToken =>
+                        {
+                            using var callbackCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                                callbackToken,
+                                rescue.Token,
+                                timeout.Token);
+                            using var context = new OperationContext(
+                                new RequestHeader(),
+                                null,
+                                RequestType.AddNodes,
+                                RequestLifetime.None);
+                            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                                namespaceUri);
+                            var item = new AddNodesItem
+                            {
+                                ParentNodeId = ObjectIds.ObjectsFolder,
+                                ReferenceTypeId = ReferenceTypeIds.Organizes,
+                                RequestedNewNodeId = new NodeId(8406, namespaceIndex),
+                                BrowseName = new QualifiedName("SessionClosingAddedNode", namespaceIndex),
+                                NodeClass = NodeClass.Object,
+                                TypeDefinition = ObjectTypeIds.BaseObjectType
+                            };
+                            try
+                            {
+                                IMasterNodeManager master =
+                                    ((ServerInternalData)m_server.CurrentInstance).NodeManager;
+                                (ArrayOf<AddNodesResult> results, _) =
+                                    await master.AddNodesAsync(
+                                        context, [item], callbackCancellation.Token).ConfigureAwait(false);
+                                (ArrayOf<StatusCode> deleteNodeResults, _) = await master.DeleteNodesAsync(
+                                    context, [], callbackCancellation.Token).ConfigureAwait(false);
+                                (ArrayOf<StatusCode> addReferenceResults, _) = await master.AddReferencesAsync(
+                                    context, [], callbackCancellation.Token).ConfigureAwait(false);
+                                (ArrayOf<StatusCode> deleteReferenceResults, _) =
+                                    await master.DeleteReferencesAsync(
+                                        context, [], callbackCancellation.Token).ConfigureAwait(false);
+                                Assert.That(deleteNodeResults, Is.Empty);
+                                Assert.That(addReferenceResults, Is.Empty);
+                                Assert.That(deleteReferenceResults, Is.Empty);
+                                nodeManagementResult.TrySetResult(results[0].StatusCode);
+                            }
+                            catch (Exception exception)
+                            {
+                                nodeManagementResult.TrySetException(exception);
+                                throw;
+                            }
+                        }),
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                close = m_server.CloseSessionAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    true,
+                    RequestLifetime.None).AsTask();
+                m_requestHeader = null!;
+
+                StatusCode statusCode = await nodeManagementResult.Task.WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+                CloseSessionResponse response = await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                rescue.Cancel();
+                if (close is not null)
+                {
+                    await close.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (registration is not null)
+                {
+                    await lifecycle.RemoveAsync(registration, null, timeout.Token).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// A SessionClosing callback may enter during a durable decision, but nested publication waits for its writer.
         /// </summary>
         [Test]

@@ -345,6 +345,14 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Checks whether this mutation is still held by the specified writer.
+            /// </summary>
+            internal bool IsHeldBy(LifecycleWriter writer)
+            {
+                return m_held && ReferenceEquals(owner, writer);
+            }
+
+            /// <summary>
             /// Relinquishes mutation ownership without ending operation admission.
             /// </summary>
             public void Dispose()

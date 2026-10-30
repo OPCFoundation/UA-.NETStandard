@@ -99,6 +99,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Readiness can recover a restored item while the server is not yet marked running.
+        /// </summary>
+        [Test]
+        public async Task OwnerlessRestoredItemRecoversDuringStartupReadinessAsync()
+        {
+            Mock<IServerInternal> server = CreateServer(out MonitoredItemQueueFactory queues);
+            server.SetupGet(value => value.IsRunning).Returns(false);
+            using (queues)
+            {
+                using MonitoredItem item = Restore(server.Object, queues);
+                Claim(item);
+                Mock<IAsyncNodeManager> manager = CreateManager(item.NodeId, out var source);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+                IDynamicNodeManagerHost host = master;
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+
+                await host.ResolveUnresolvedSourcesAsync(manager.Object, null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(item.NodeManager, Is.Null);
+
+                using (new NodeManagerReadinessScope(server.Object, generation))
+                {
+                    await host.ResolveUnresolvedSourcesAsync(manager.Object, null, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+
+                Assert.That(item.NodeManager, Is.SameAs(manager.Object));
+                source.Verify(value => value.AdoptSourceAsync(
+                    item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
         /// Empty or unrelated node notifications do not consume the later matching recovery.
         /// </summary>
         [Test]

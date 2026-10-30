@@ -828,12 +828,24 @@ namespace Opc.Ua.Server.Hosting
                     finally
                     {
                         INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
-                        m_server?.Dispose();
-                        if (lifecycle is not null)
+                        try
                         {
-                            m_nodeManagerLifecycle.Detach(lifecycle);
+                            m_server?.Dispose();
                         }
-                        m_server = null;
+                        finally
+                        {
+                            try
+                            {
+                                if (lifecycle is not null)
+                                {
+                                    m_nodeManagerLifecycle.Detach(lifecycle);
+                                }
+                            }
+                            finally
+                            {
+                                m_server = null;
+                            }
+                        }
                     }
                 }
             }
@@ -845,13 +857,25 @@ namespace Opc.Ua.Server.Hosting
         public override void Dispose()
         {
             INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
-            m_server?.Dispose();
-            if (lifecycle is not null)
+            try
             {
-                m_nodeManagerLifecycle.Detach(lifecycle);
+                m_server?.Dispose();
             }
-            m_server = null;
-            base.Dispose();
+            finally
+            {
+                try
+                {
+                    if (lifecycle is not null)
+                    {
+                        m_nodeManagerLifecycle.Detach(lifecycle);
+                    }
+                }
+                finally
+                {
+                    m_server = null;
+                    base.Dispose();
+                }
+            }
         }
     }
 

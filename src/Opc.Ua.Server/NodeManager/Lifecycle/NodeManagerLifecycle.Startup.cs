@@ -56,7 +56,7 @@ namespace Opc.Ua.Server
                     m_registrations.Add(registration.Id, new RegistrationState(registration, prepared)
                     {
                         IsSystem = true,
-                        ReadinessPending = generation.NodeManager is INodeManagerReadinessNotification
+                        ReadinessPending = NodeManagerReadiness.IsParticipant(generation.NodeManager)
                     });
                 }
             }

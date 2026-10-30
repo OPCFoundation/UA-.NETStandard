@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -47,6 +49,21 @@ namespace Opc.Ua.Server.Tests
     {
         private sealed class TestableStandardServer : StandardServer
         {
+            private sealed class FailOnceRequestQueue(TestableStandardServer server)
+                : RequestQueue(server, 1, 1, 1)
+            {
+                private int m_failureRemaining = 1;
+
+                protected override void Dispose(bool disposing)
+                {
+                    if (disposing && Interlocked.Exchange(ref m_failureRemaining, 0) != 0)
+                    {
+                        throw new InvalidOperationException("The request queue drain failed.");
+                    }
+                    base.Dispose(disposing);
+                }
+            }
+
             private int m_serverStoppingCount;
 
             public TestableStandardServer(ITelemetryContext telemetry)
@@ -60,11 +77,40 @@ namespace Opc.Ua.Server.Tests
             /// </summary>
             public int ServerStoppingCount => Volatile.Read(ref m_serverStoppingCount);
 
-            protected override ValueTask OnServerStoppingAsync(
+            /// <summary>
+            /// Gets or sets whether to report a failure after the server stop stages complete.
+            /// </summary>
+            public bool ThrowAfterStopping { get; set; }
+
+            public async Task FailNextRequestQueueStopAsync()
+            {
+                FieldInfo? requestQueueField = null;
+                for (Type? currentType = typeof(StandardServer);
+                    currentType is not null && requestQueueField is null;
+                    currentType = currentType.BaseType)
+                {
+                    requestQueueField = currentType.GetField(
+                        "m_requestQueue",
+                        BindingFlags.Instance | BindingFlags.NonPublic);
+                }
+                FieldInfo resolvedRequestQueueField = requestQueueField
+                    ?? throw new AssertionException("The request queue field was not found.");
+                if (resolvedRequestQueueField.GetValue(this) is RequestQueue requestQueue)
+                {
+                    await requestQueue.StopAsync().ConfigureAwait(false);
+                }
+                resolvedRequestQueueField.SetValue(this, new FailOnceRequestQueue(this));
+            }
+
+            protected override async ValueTask OnServerStoppingAsync(
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_serverStoppingCount);
-                return base.OnServerStoppingAsync(cancellationToken);
+                await base.OnServerStoppingAsync(cancellationToken).ConfigureAwait(false);
+                if (ThrowAfterStopping)
+                {
+                    throw new InvalidOperationException("The stop hook failed after completing shutdown.");
+                }
             }
         }
 
@@ -152,6 +198,72 @@ namespace Opc.Ua.Server.Tests
             await server.DisposeAsync().ConfigureAwait(false);
 
             AssertReleased(server);
+        }
+
+        /// <summary>
+        /// Verifies disposal releases resources when a post-shutdown error is reported.
+        /// </summary>
+        [Test]
+        public async Task DisposeAsyncReleasesResourcesWhenStopReportsFailureAfterTeardownAsync()
+        {
+            ServerFixture<TestableStandardServer> fixture = CreateFixture();
+            TestableStandardServer? server = null;
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+                server.ThrowAfterStopping = true;
+
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => server.DisposeAsync().AsTask()).ConfigureAwait(false);
+
+                Assert.That(
+                    failure!.Message,
+                    Is.EqualTo("The stop hook failed after completing shutdown."));
+                Assert.That(server.BaseResourcesDisposedForTest, Is.True);
+                Assert.That(
+                    () => _ = server.CurrentInstance,
+                    Throws.TypeOf<ServiceResultException>());
+            }
+            finally
+            {
+                if (server is not null)
+                {
+                    server.ThrowAfterStopping = false;
+                    await server.DisposeAsync().ConfigureAwait(false);
+                }
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Failed request admission drain retains base resources and disposal can retry the drain.
+        /// </summary>
+        [Test]
+        public async Task DisposeAsyncRetainsResourcesWhenRequestQueueDrainFailsAndRetriesAsync()
+        {
+            ServerFixture<TestableStandardServer> fixture = CreateFixture();
+            TestableStandardServer? server = null;
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+                await server.FailNextRequestQueueStopAsync().ConfigureAwait(false);
+
+                AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(
+                    () => server.DisposeAsync().AsTask()).ConfigureAwait(false);
+
+                Assert.That(failure!.ToString(), Does.Contain("The request queue drain failed."));
+                Assert.That(server.CurrentInstance, Is.Not.Null);
+
+                await server.DisposeAsync().ConfigureAwait(false);
+
+                AssertReleased(server);
+            }
+            finally
+            {
+                await CleanupAsync(fixture, server!).ConfigureAwait(false);
+            }
         }
 
         [Test]

@@ -124,6 +124,16 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public INodeManager SyncNodeManager { get; }
 
+        /// <summary>
+        /// Gets whether the wrapped manager has an actual readiness callback.
+        /// </summary>
+        internal bool HasReadinessParticipant => SyncNodeManager switch
+        {
+            SyncNodeManagerAdapter adapter => adapter.HasReadinessParticipant,
+            INodeManagerReadinessNotification or ISyncNodeManagerReadinessNotification => true,
+            _ => false
+        };
+
         /// <inheritdoc/>
         public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
         {

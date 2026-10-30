@@ -206,6 +206,17 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            Exception[] failures = await PrepareShutdownRegistrationsAsync(server, ct).ConfigureAwait(false);
+            if (failures.Length != 0)
+            {
+                throw new AggregateException("Accepted NodeManager work failed to stop.", failures);
+            }
+        }
+
+        private async ValueTask<Exception[]> PrepareShutdownRegistrationsAsync(
+            IServerInternal server,
+            CancellationToken ct)
+        {
             Task activeOperations = await m_writer.BeginShutdownAsync(ct).ConfigureAwait(false);
             bool shutdownPrepared = false;
             try
@@ -241,11 +252,8 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                if (failures.Count != 0)
-                {
-                    throw new AggregateException("Accepted NodeManager work failed to stop.", failures);
-                }
-                shutdownPrepared = true;
+                shutdownPrepared = failures.Count == 0;
+                return [.. failures];
             }
             finally
             {
@@ -270,6 +278,12 @@ namespace Opc.Ua.Server
                 }
                 return registration.ShutdownPreparation;
             }
+        }
+
+        private static bool IsShutdownPrepared(RegistrationState registration)
+        {
+            return registration.Prepared.NodeManager is not INodeManagerShutdown ||
+                registration.ShutdownPreparation is { IsCompletedSuccessfully: true };
         }
 
         /// <summary>
@@ -320,7 +334,8 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await BeginShutdownAsync(server, ct).ConfigureAwait(false);
+            Exception[] preparationFailures = await PrepareShutdownRegistrationsAsync(server, ct)
+                .ConfigureAwait(false);
             Task activeOperations = await m_writer.BeginShutdownAsync(ct).ConfigureAwait(false);
             LifecycleWriter.ShutdownCleanup? cleanupOwnership = null;
             bool shutdownCompleted = false;
@@ -336,56 +351,38 @@ namespace Opc.Ua.Server
                             elapsed,
                             GetLifecycleWaitContext()),
                     ct).ConfigureAwait(false);
-                cleanupOwnership = await m_writer.BeginShutdownCleanupAsync(ct).ConfigureAwait(false);
+                LifecycleWriter.ShutdownCleanup shutdownCleanup =
+                    await m_writer.BeginShutdownCleanupAsync(ct).ConfigureAwait(false);
+                cleanupOwnership = shutdownCleanup;
                 m_reclaimer.StopScheduling();
                 ArrayOf<NodeManagerBatchChange> applications;
-                ArrayOf<NodeManagerBatchChange> systems;
                 lock (m_registrationLock)
                 {
                     applications = m_registrations.Values.Where(state => !state.IsSystem)
+                        .Where(IsShutdownPrepared)
                         .Select(state => NodeManagerBatchChange.Remove(state.Registration)).ToArrayOf();
-                    systems = retireSystems
-                        ? m_registrations.Values.Where(state => state.IsSystem)
-                            .Select(state => NodeManagerBatchChange.Remove(state.Registration)).ToArrayOf()
-                        : [];
                 }
-                foreach (ArrayOf<NodeManagerBatchChange> changes in new[] { applications, systems })
+                await CompleteShutdownBatchAsync(server, applications, shutdownCleanup, ct).ConfigureAwait(false);
+
+                ArrayOf<NodeManagerBatchChange> systems = [];
+                if (retireSystems && m_reclaimer.Count == 0)
                 {
-                    Exception? reconciliationFailure = null;
-                    if (changes.Count != 0)
+                    lock (m_registrationLock)
                     {
-                        var shutdown = new ShutdownPublication(this, server, cleanupOwnership);
-                        IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
-                            changes,
-                            null,
-                            CaptureLifecycleCallbackPermit(),
-                            ct,
-                            shutdown: shutdown).ConfigureAwait(false);
-                        await using var lifetime = batch.ConfigureAwait(false);
-                        NodeManagerBatchResult result = await batch.CommitAsync(
-                            static _ => default, ct).ConfigureAwait(false);
-                        if (result.CleanupFailure is { } failure)
+                        if (m_registrations.Values.All(state => state.IsSystem))
                         {
-                            reconciliationFailure = new InvalidOperationException(
-                                "Shutdown removal reconciliation failed.", failure);
+                            systems = m_registrations.Values.Where(state => state.IsSystem)
+                                .Where(IsShutdownPrepared)
+                                .Select(state => NodeManagerBatchChange.Remove(state.Registration)).ToArrayOf();
                         }
                     }
-                    try
-                    {
-                        await m_reclaimer.CompleteShutdownAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (Exception cleanupFailure) when (
-                        reconciliationFailure is not null && cleanupFailure is not OutOfMemoryException)
-                    {
-                        throw new AggregateException(
-                            "Shutdown reconciliation and retirement cleanup failed.",
-                            reconciliationFailure,
-                            cleanupFailure);
-                    }
-                    if (reconciliationFailure is not null)
-                    {
-                        throw reconciliationFailure;
-                    }
+                }
+                await CompleteShutdownBatchAsync(server, systems, shutdownCleanup, ct).ConfigureAwait(false);
+                if (preparationFailures.Length != 0)
+                {
+                    throw new AggregateException(
+                        "One or more NodeManager shutdown preparations failed.",
+                        preparationFailures);
                 }
                 shutdownCompleted = true;
             }
@@ -394,6 +391,58 @@ namespace Opc.Ua.Server
                 cleanupOwnership?.Dispose();
                 m_writer.EndShutdown(!shutdownCompleted, completing: true);
             }
+        }
+
+        private async ValueTask CompleteShutdownBatchAsync(
+            IServerInternal server,
+            ArrayOf<NodeManagerBatchChange> changes,
+            LifecycleWriter.ShutdownCleanup cleanupOwnership,
+            CancellationToken ct)
+        {
+            Exception? reconciliationFailure = null;
+            if (changes.Count != 0)
+            {
+                var shutdown = new ShutdownPublication(this, server, cleanupOwnership);
+                IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
+                    changes,
+                    null,
+                    CaptureLifecycleCallbackPermit(),
+                    ct,
+                    shutdown: shutdown).ConfigureAwait(false);
+                await using var lifetime = batch.ConfigureAwait(false);
+                NodeManagerBatchResult result = await batch.CommitAsync(static _ => default, ct).ConfigureAwait(false);
+                if (result.CleanupFailure is { } failure)
+                {
+                    reconciliationFailure = new InvalidOperationException(
+                        "Shutdown removal reconciliation failed.", failure);
+                }
+            }
+
+            try
+            {
+                await m_reclaimer.CompleteShutdownAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure) when (
+                reconciliationFailure is not null &&
+                cleanupFailure is not OutOfMemoryException and not OperationCanceledException)
+            {
+                throw new AggregateException(
+                    "Shutdown reconciliation and retirement cleanup failed.",
+                    reconciliationFailure,
+                    cleanupFailure);
+            }
+
+            if (reconciliationFailure is null)
+            {
+                return;
+            }
+            if (m_reclaimer.Count == 0)
+            {
+                server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                    .ShutdownReconciliationReported(reconciliationFailure);
+                return;
+            }
+            throw reconciliationFailure;
         }
 
         /// <summary>
@@ -413,65 +462,50 @@ namespace Opc.Ua.Server
             CancellationToken ct,
             InitialPublication? initial = null)
         {
-            if (state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
+            if (state.ReadinessPending)
             {
-                return;
+                if (!NodeManagerReadiness.IsParticipant(state.Prepared.NodeManager) ||
+                    state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
+                {
+                    throw new InvalidOperationException(
+                        "A registration pending readiness does not expose a readiness callback.");
+                }
+
+                ct.ThrowIfCancellationRequested();
+                using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
+                string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
+                await LifecycleWaitDiagnostics.WaitAsync(
+                    participant.OnServerReadyAsync(ct).AsTask(),
+                    m_timeProvider,
+                    LifecycleWaitDiagnostics.WarningThreshold,
+                    elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                        .LifecycleWaitExceeded(
+                            "NodeManager readiness callback",
+                            elapsed,
+                            readinessContext),
+                    ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+
+                EnsurePublicationServer(server, host, initial);
+                if (!IsCurrentRegistration(state.Registration))
+                {
+                    throw new InvalidOperationException(
+                        "The registration changed while its readiness operation was completing.");
+                }
+
+                CompleteReadinessClaim(state);
             }
 
-            ct.ThrowIfCancellationRequested();
-            using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
-            string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
             await LifecycleWaitDiagnostics.WaitAsync(
-                participant.OnServerReadyAsync(ct).AsTask(),
+                state.Registration.Identity.FlushDeferredEventsAsync(),
                 m_timeProvider,
                 LifecycleWaitDiagnostics.WarningThreshold,
                 elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
                     .LifecycleWaitExceeded(
-                        "NodeManager readiness callback",
+                        "NodeManager readiness event flush",
                         elapsed,
-                        readinessContext),
-                ct).ConfigureAwait(false);
-            ct.ThrowIfCancellationRequested();
-
-            EnsurePublicationServer(server, host, initial);
-            if (!IsCurrentRegistration(state.Registration))
-            {
-                throw new InvalidOperationException(
-                    "The registration changed while its readiness operation was completing.");
-            }
-        }
-
-        /// <summary>
-        /// Clears the pending readiness flag of a registration.
-        /// </summary>
-        /// <param name="state">The registration state, or null.</param>
-        private async Task ReleaseReadinessClaimAsync(RegistrationState? state)
-        {
-            if (state is not null)
-            {
-                lock (m_registrationLock)
-                {
-                    state.ReadinessPending = false;
-                }
-                NodeManagerGeneration generation = state.Registration.Identity;
-                foreach (KeyValuePair<IMonitoredItem, ISubscription> entry in generation.MonitoredItems.ToArray())
-                {
-                    if (entry.Key is MonitoredItem native)
-                    {
-                        native.CompleteReadiness(generation);
-                    }
-                }
-                await LifecycleWaitDiagnostics.WaitAsync(
-                    generation.FlushDeferredEventsAsync(),
-                    m_timeProvider,
-                    LifecycleWaitDiagnostics.WarningThreshold,
-                    elapsed => m_server.CurrentInstance.Telemetry.CreateLogger<NodeManagerLifecycle>()
-                        .LifecycleWaitExceeded(
-                            "NodeManager readiness event flush",
-                            elapsed,
-                            generation.GetQuiescenceWaitContext()))
-                    .ConfigureAwait(false);
-            }
+                        state.Registration.Identity.GetQuiescenceWaitContext()))
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -495,6 +529,26 @@ namespace Opc.Ua.Server
                 (generations.Length == 0
                     ? "no active generation pin snapshot"
                     : string.Join("; ", generations));
+        }
+
+        /// <summary>
+        /// Opens a generation after its readiness callback completed successfully.
+        /// </summary>
+        /// <param name="state">The registration whose readiness completed.</param>
+        private void CompleteReadinessClaim(RegistrationState state)
+        {
+            lock (m_registrationLock)
+            {
+                state.ReadinessPending = false;
+            }
+            NodeManagerGeneration generation = state.Registration.Identity;
+            foreach (KeyValuePair<IMonitoredItem, ISubscription> entry in generation.MonitoredItems.ToArray())
+            {
+                if (entry.Key is MonitoredItem native)
+                {
+                    native.CompleteReadiness(generation);
+                }
+            }
         }
 
         private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
@@ -1783,7 +1837,7 @@ namespace Opc.Ua.Server
                                 entry.Manager);
                             entry.Next = new RegistrationState(registration, entry.Prepared)
                             {
-                                ReadinessPending = entry.Manager is INodeManagerReadinessNotification
+                                ReadinessPending = NodeManagerReadiness.IsParticipant(entry.Manager)
                             };
                         }
                         finally
@@ -1896,7 +1950,8 @@ namespace Opc.Ua.Server
                 {
                     if (entry.Current is not null &&
                         !ReferenceEquals(
-                            GetCurrentState(entry.Current.Registration, batch.Shutdown is not null), entry.Current))
+                            GetCurrentState(entry.Current.Registration, batch.Shutdown is not null),
+                            entry.Current))
                     {
                         throw new InvalidOperationException("A registration changed while the batch was prepared.");
                     }
@@ -2103,6 +2158,10 @@ namespace Opc.Ua.Server
                                 publishedRevision =
                                     batch.Host.RoutingRevision.Revision;
                             }
+                            foreach (RetiredGeneration retirement in retired)
+                            {
+                                ChangePreparer.RevokeServiceLevelControl(retirement.NodeManager);
+                            }
                             if (batch.Resolver is not null)
                             {
                                 m_server.ComplexTypeResolverHolder?.SetResolver(batch.Resolver);
@@ -2201,39 +2260,26 @@ namespace Opc.Ua.Server
                 foreach ((RegistrationState state, bool recoverSources) in readinessStates)
                 {
                     NodeManagerGeneration generation = state.Registration.Identity;
-                    bool readinessFailed = true;
-                    try
+                    if (recoverSources)
                     {
-                        if (recoverSources)
-                        {
-                            await reconciliation.RunAsync(
-                                NodeManagerReconciliationStage.MonitoredItems,
-                                [generation],
-                                () => ResolveUnresolvedSourcesAsync(
-                                    batch.Server, generation.NodeManager, CancellationToken.None))
-                                .ConfigureAwait(false);
-                        }
+                        using var readinessScope = new NodeManagerReadinessScope(
+                            batch.Server,
+                            state.Registration.Identity);
                         await reconciliation.RunAsync(
-                            NodeManagerReconciliationStage.Readiness,
+                            NodeManagerReconciliationStage.MonitoredItems,
                             [generation],
-                            () => CompleteReadinessAsync(
-                                batch.Server, batch.Host, state,
-                                batch.Initial is not null ? cancellationToken : CancellationToken.None,
-                                batch.Initial))
+                            () => ResolveUnresolvedSourcesAsync(
+                                batch.Server, generation.NodeManager, CancellationToken.None))
                             .ConfigureAwait(false);
-                        readinessFailed = false;
                     }
-                    finally
-                    {
-                        // A retained-event delivery failure surfaces unless a readiness failure is already in flight.
-                        try
-                        {
-                            await ReleaseReadinessClaimAsync(state).ConfigureAwait(false);
-                        }
-                        catch (AggregateException) when (readinessFailed)
-                        {
-                        }
-                    }
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.Readiness,
+                        [generation],
+                        () => CompleteReadinessAsync(
+                            batch.Server, batch.Host, state,
+                            batch.Initial is not null ? cancellationToken : CancellationToken.None,
+                            batch.Initial))
+                        .ConfigureAwait(false);
                 }
                 // Publication and readiness are complete. Reclamation owns its records and callbacks independently;
                 // this operation never reacquires the writer after handing them off.
@@ -2299,18 +2345,6 @@ namespace Opc.Ua.Server
                 }
                 if (batch.IsCommitted)
                 {
-                    foreach (BatchEntry entry in batch.Entries)
-                    {
-                        try
-                        {
-                            await ReleaseReadinessClaimAsync(entry.Next).ConfigureAwait(false);
-                        }
-                        catch (AggregateException)
-                        {
-                            // Registrations that completed readiness already surfaced their delivery failures;
-                            // this cleanup only runs for the rest while the operation failure is in flight.
-                        }
-                    }
                     m_reclaimer.Activate(retired);
                     ScheduleRetiredGenerationDrainCleanup();
                 }

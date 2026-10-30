@@ -285,5 +285,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
             master.RegisterNamespaceManager(AliasUri, manager);
             Assert.That(master.UnregisterNamespaceManager(AliasUri, manager), Is.True);
         }
+
+        /// <summary>
+        /// Node-management writes reject their own durable decision instead of waiting for that decision to finish.
+        /// </summary>
+        [TestCase(RequestType.AddNodes)]
+        [TestCase(RequestType.DeleteNodes)]
+        [TestCase(RequestType.AddReferences)]
+        [TestCase(RequestType.DeleteReferences)]
+        public async Task NodeManagementFromDurableDecisionIsRejectedAsync(RequestType requestType)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IMasterNodeManager master = m_server.CurrentInstance.NodeManager;
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                requestType,
+                RequestLifetime.None);
+            await using IPreparedNodeManagerBatch prepared =
+                await ((INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle).PrepareAsync(
+                    [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kGeneration2Value)))],
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+
+            NodeManagerBatchResult result = await prepared.CommitAsync(async _ =>
+            {
+                Task nodeManagement = requestType switch
+                {
+                    RequestType.AddNodes => master.AddNodesAsync(
+                        context, [], CancellationToken.None).AsTask(),
+                    RequestType.DeleteNodes => master.DeleteNodesAsync(
+                        context, [], CancellationToken.None).AsTask(),
+                    RequestType.AddReferences => master.AddReferencesAsync(
+                        context, [], CancellationToken.None).AsTask(),
+                    RequestType.DeleteReferences => master.DeleteReferencesAsync(
+                        context, [], CancellationToken.None).AsTask(),
+                    _ => throw new AssertionException($"Unexpected request type {requestType}.")
+                };
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await nodeManagement.ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure!.Message, Does.Contain("durable decision callback"));
+            }, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(result.CleanupFailure, Is.Null);
+        }
     }
 }

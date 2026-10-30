@@ -38,7 +38,8 @@ namespace Opc.Ua.Server
     internal interface IRequestRouting
     {
         /// <summary>
-        /// Pins the current routing view for the request's lifetime.
+        /// Pins the current routing view for request-lifetime consistency.
+        /// Node-management writes defer pinning until their mutation admission is acquired.
         /// </summary>
         /// <param name="context">The admitted request.</param>
         void PinRequest(OperationContext context);

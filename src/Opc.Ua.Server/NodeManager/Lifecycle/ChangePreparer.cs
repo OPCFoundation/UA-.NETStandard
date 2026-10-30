@@ -189,6 +189,15 @@ namespace Opc.Ua.Server
             GetServer(manager)?.Detach();
         }
 
+        /// <summary>
+        /// Revokes a manager's service-level writer as soon as its generation leaves routing.
+        /// </summary>
+        /// <param name="manager">The retiring NodeManager.</param>
+        internal static void RevokeServiceLevelControl(IAsyncNodeManager manager)
+        {
+            GetServer(manager)?.RevokeServiceLevelControl();
+        }
+
         /// <summary>Retains candidate-owned handles without extending manager lifetimes.</summary>
         private static readonly ConditionalWeakTable<IAsyncNodeManager, StagingServer> s_candidates = new();
 
@@ -430,16 +439,69 @@ namespace Opc.Ua.Server
             public Action<byte> ClaimServiceLevelControl()
             {
                 EnsurePublishedRegistryAccess();
+                lock (m_serviceLevelControlLock)
+                {
+                    if (m_serviceLevelControlRevoked)
+                    {
+                        throw new InvalidOperationException(
+                            "The NodeManager generation no longer owns service-level publication.");
+                    }
+                    if (m_serviceLevelControlWriter is not null)
+                    {
+                        throw new InvalidOperationException(
+                            "This NodeManager generation already claimed service-level publication.");
+                    }
+                }
                 if (m_server is not IServerServiceLevelControl control)
                 {
                     throw new NotSupportedException("The server does not provide service-level control.");
                 }
                 Action<byte> publishLevel = control.ClaimServiceLevelControl();
+                lock (m_serviceLevelControlLock)
+                {
+                    if (m_serviceLevelControlRevoked)
+                    {
+                        if (m_server is IServerServiceLevelControlRevocation revocation)
+                        {
+                            revocation.ReleaseServiceLevelControl(publishLevel);
+                        }
+                        throw new InvalidOperationException(
+                            "The NodeManager generation no longer owns service-level publication.");
+                    }
+                    m_serviceLevelControlWriter = publishLevel;
+                }
                 return level =>
                 {
                     EnsurePublishedRegistryAccess();
+                    if (Volatile.Read(ref m_serviceLevelControlRevoked))
+                    {
+                        throw new InvalidOperationException(
+                            "The NodeManager generation no longer owns service-level publication.");
+                    }
                     publishLevel(level);
                 };
+            }
+
+            /// <summary>
+            /// Revokes this generation's service-level writer and releases the serving server's claim.
+            /// </summary>
+            internal void RevokeServiceLevelControl()
+            {
+                Action<byte>? writer;
+                lock (m_serviceLevelControlLock)
+                {
+                    if (m_serviceLevelControlRevoked)
+                    {
+                        return;
+                    }
+                    Volatile.Write(ref m_serviceLevelControlRevoked, true);
+                    writer = m_serviceLevelControlWriter;
+                    m_serviceLevelControlWriter = null;
+                }
+                if (writer is not null && m_server is IServerServiceLevelControlRevocation revocation)
+                {
+                    revocation.ReleaseServiceLevelControl(writer);
+                }
             }
 
             /// <inheritdoc/>
@@ -633,6 +695,7 @@ namespace Opc.Ua.Server
             internal void Detach()
             {
                 IsDetached = true;
+                RevokeServiceLevelControl();
                 TypeTree.Detach();
                 ((EncodeableFactory)Factory).Detach();
                 NamespaceUris.Detach();
@@ -667,6 +730,10 @@ namespace Opc.Ua.Server
 
             /// <summary>Frozen reference contributions reconciled by publication before physical deletion.</summary>
             private readonly Dictionary<NodeId, ReferenceDictionary<bool>> m_externalReferences = [];
+
+            private readonly Lock m_serviceLevelControlLock = new();
+            private Action<byte>? m_serviceLevelControlWriter;
+            private bool m_serviceLevelControlRevoked;
         }
     }
 }

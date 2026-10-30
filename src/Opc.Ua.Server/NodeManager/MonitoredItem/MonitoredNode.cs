@@ -813,9 +813,10 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                m_eventBatch[events++] = CreateEventDelivery(snapshot, 0);
+                m_eventBatch[events++] = CreateEventDelivery(snapshot, 0, count);
                 if (!m_useMultipleConsumers)
                 {
+                    DeferUnboundEventItems(1);
                     for (int ii = 0; ii < count; ii++)
                     {
                         await StartEventDelivery(m_eventBatch[0], ii, cancellationToken).ConfigureAwait(false);
@@ -836,6 +837,7 @@ namespace Opc.Ua.Server
                 int next = 0;
                 if (m_parallelEventDeliveryBudget >= 0 && m_channel.Reader.Count == 0)
                 {
+                    DeferUnboundEventItems(1);
                     long start = m_timeProvider.GetTimestamp();
                     while (next < count)
                     {
@@ -876,8 +878,9 @@ namespace Opc.Ua.Server
                             break;
                         }
                         (batchedEmissions ??= []).Add(waitingEvent.SourceEmission);
-                        m_eventBatch[events++] = CreateEventDelivery(waitingEvent, offset);
+                        m_eventBatch[events++] = CreateEventDelivery(waitingEvent, offset, waitingCount);
                     }
+                    DeferUnboundEventItems(events);
                 }
 
                 try
@@ -916,7 +919,7 @@ namespace Opc.Ua.Server
         /// Creates the delivery of an event whose items start at <paramref name="offset"/>
         /// in <see cref="m_eventDeliveries"/>.
         /// </summary>
-        private EventDelivery CreateEventDelivery(EventSnapshot snapshot, int offset)
+        private EventDelivery CreateEventDelivery(EventSnapshot snapshot, int offset, int itemCount)
         {
             // Extract EventTypeId + SourceNodeId once so the per-item
             // permission cache can be keyed by them. The asynchronous
@@ -931,7 +934,82 @@ namespace Opc.Ua.Server
                 sourceNodeId,
                 snapshot.SourceEmission?.Generation,
                 snapshot.SourceEmission?.ReadinessPending ?? false,
+                snapshot.SourceEmission?.ReadinessEventId ?? 0,
+                itemCount,
                 offset);
+        }
+
+        /// <summary>
+        /// Retains one event delivery for all monitored items not yet bound to its source generation.
+        /// </summary>
+        /// <param name="events">The number of deliveries in <see cref="m_eventBatch"/> to inspect.</param>
+        private void DeferUnboundEventItems(int events)
+        {
+            for (int eventIndex = 0; eventIndex < events; eventIndex++)
+            {
+                EventDelivery delivery = m_eventBatch[eventIndex];
+                NodeManagerGeneration? generation = delivery.SourceGeneration;
+                if (generation is null || delivery.ReadinessEventId == 0 ||
+                    (!delivery.SourceReadinessPending && !generation.IsDeferringEvents))
+                {
+                    continue;
+                }
+
+                List<EventItemDelivery>? deferredItems = null;
+                List<int>? deferredIndices = null;
+                for (int itemIndex = 0; itemIndex < delivery.ItemCount; itemIndex++)
+                {
+                    EventItemDelivery item = m_eventDeliveries[delivery.Offset + itemIndex];
+                    if (item.Item is MonitoredItem monitoredItem &&
+                        !monitoredItem.IsBoundToGeneration(generation))
+                    {
+                        (deferredItems ??= []).Add(item);
+                        (deferredIndices ??= []).Add(delivery.Offset + itemIndex);
+                    }
+                }
+                if (deferredItems is null)
+                {
+                    continue;
+                }
+
+                EventItemDelivery[] pendingItems = deferredItems.ToArray();
+                if (generation.TryDeferEvent(
+                    delivery.ReadinessEventId,
+                    () => DeliverDeferredEventAsync(delivery, pendingItems),
+                    pendingItems.Length,
+                    out bool overflowed))
+                {
+                    foreach (int index in deferredIndices!)
+                    {
+                        m_eventDeliveries[index] = default;
+                    }
+                    if (overflowed && generation.TryMarkDeferredEventOverflowLogged())
+                    {
+                        m_logger?.DeferredEventRetentionOverflow(
+                            generation.DroppedDeferredEvents,
+                            generation.DroppedDeferredDeliveries);
+                    }
+                }
+            }
+        }
+
+        private async Task DeliverDeferredEventAsync(EventDelivery delivery, EventItemDelivery[] items)
+        {
+            Task[] pending = new Task[items.Length];
+            for (int ii = 0; ii < items.Length; ii++)
+            {
+                EventItemDelivery item = items[ii];
+                pending[ii] = ProcessEventForItemAsync(
+                    item.Item,
+                    delivery.Target,
+                    delivery.EventTypeId,
+                    delivery.SourceNodeId,
+                    delivery.SourceGeneration,
+                    item.Key,
+                    item.Evaluation,
+                    CancellationToken.None);
+            }
+            await Task.WhenAll(pending).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1156,13 +1234,16 @@ namespace Opc.Ua.Server
         private Task StartEventDelivery(EventDelivery delivery, int index, CancellationToken cancellationToken)
         {
             EventItemDelivery item = m_eventDeliveries[delivery.Offset + index];
+            if (item.Item is null)
+            {
+                return Task.CompletedTask;
+            }
             return ProcessEventForItemAsync(
                 item.Item,
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
                 delivery.SourceGeneration,
-                delivery.SourceReadinessPending,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
@@ -1180,6 +1261,8 @@ namespace Opc.Ua.Server
                 NodeId sourceNodeId,
                 NodeManagerGeneration? sourceGeneration,
                 bool sourceReadinessPending,
+                long readinessEventId,
+                int itemCount,
                 int offset)
             {
                 Target = target;
@@ -1187,6 +1270,8 @@ namespace Opc.Ua.Server
                 SourceNodeId = sourceNodeId;
                 SourceGeneration = sourceGeneration;
                 SourceReadinessPending = sourceReadinessPending;
+                ReadinessEventId = readinessEventId;
+                ItemCount = itemCount;
                 Offset = offset;
             }
 
@@ -1199,6 +1284,10 @@ namespace Opc.Ua.Server
             public NodeManagerGeneration? SourceGeneration { get; }
 
             public bool SourceReadinessPending { get; }
+
+            public long ReadinessEventId { get; }
+
+            public int ItemCount { get; }
 
             public int Offset { get; }
         }
@@ -1268,22 +1357,10 @@ namespace Opc.Ua.Server
             NodeId eventTypeId,
             NodeId sourceNodeId,
             NodeManagerGeneration? sourceGeneration,
-            bool sourceReadinessPending,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
         {
-            // Events of a generation that was still initializing reach items bound to it at once and every other
-            // item when its readiness completes. The retention is bounded; the oldest events are dropped first.
-            if (sourceReadinessPending && sourceGeneration is not null &&
-                monitoredItem is MonitoredItem boundItem && !boundItem.IsBoundToGeneration(sourceGeneration) &&
-                sourceGeneration.TryDeferEvent(() => ProcessEventForItemAsync(
-                    monitoredItem, target, eventTypeId, sourceNodeId, sourceGeneration, false,
-                    key, evaluation, CancellationToken.None)))
-            {
-                return;
-            }
-
             if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
             {
                 EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
@@ -2359,5 +2436,18 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 5, Level = LogLevel.Warning,
             Message = "MonitoredNode2 consumer faulted during shutdown.")]
         public static partial void MonitoredNode2ConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
+
+        /// <summary>
+        /// Logs that readiness-time event retention dropped old events.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic message.</param>
+        /// <param name="events">The number of dropped events observed so far.</param>
+        /// <param name="deliveries">The number of dropped item deliveries observed so far.</param>
+        [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 6, Level = LogLevel.Warning,
+            Message = "Readiness event retention overflowed; dropped {Events} event(s) and {Deliveries} item delivery(ies).")]
+        public static partial void DeferredEventRetentionOverflow(
+            this ILogger logger,
+            long events,
+            long deliveries);
     }
 }
