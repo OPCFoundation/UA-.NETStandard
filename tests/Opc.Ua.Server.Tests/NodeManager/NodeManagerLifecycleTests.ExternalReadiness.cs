@@ -119,12 +119,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 Assert.That(adopted.NodeManager, Is.SameAs(completed.NodeManager));
                 Assert.That(((IMonitoredItemGenerationBinding)adopted).SourceRevision, Is.EqualTo(sourceRevision));
-                Assert.That(((IReadySignalingMonitoredItem)adopted).HasPendingNotifications, Is.True);
-                adopted.Publish(context, notifications, diagnostics, 10, logger);
-                Assert.That(notifications.Any(notification =>
-                    notification.Value.StatusCode == StatusCodes.Good &&
-                    notification.Value.WrappedValue.TryGetValue(out int value) && value == 4242), Is.True,
-                    "Readiness must expose the retained first sample without requiring another producer emission.");
+                if (readinessFails)
+                {
+                    Assert.That(adopted.IsReadyToPublish, Is.False);
+                    Assert.That(((IReadySignalingMonitoredItem)adopted).HasPendingNotifications, Is.False);
+                    Assert.That(adopted.Publish(context, notifications, diagnostics, 10, logger), Is.False);
+                    Assert.That(notifications, Is.Empty);
+                    Assert.That(adopted.ToStorableMonitoredItem().LastValue.WrappedValue.TryGetValue(
+                        out retained), Is.True);
+                    Assert.That(retained, Is.EqualTo(4242));
+                }
+                else
+                {
+                    Assert.That(((IReadySignalingMonitoredItem)adopted).HasPendingNotifications, Is.True);
+                    adopted.Publish(context, notifications, diagnostics, 10, logger);
+                    Assert.That(notifications.Any(notification =>
+                        notification.Value.StatusCode == StatusCodes.Good &&
+                        notification.Value.WrappedValue.TryGetValue(out int value) && value == 4242), Is.True,
+                        "Readiness must expose the retained first sample without requiring another producer emission.");
+                }
             }
             finally
             {

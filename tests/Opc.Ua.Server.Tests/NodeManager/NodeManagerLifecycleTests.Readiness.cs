@@ -642,7 +642,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(observeCancellation ? 0 : 1));
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            if (observeCancellation)
+            {
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            }
+            else
+            {
+                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            }
             await AssertReadinessCleanupAndRecoveryAsync(observed, participant).ConfigureAwait(false);
         }
 
