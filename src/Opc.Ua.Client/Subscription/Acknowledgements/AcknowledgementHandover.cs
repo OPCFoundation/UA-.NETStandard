@@ -32,9 +32,9 @@ namespace Opc.Ua.Client
     /// <summary>
     /// An acknowledgement released by a previous session during subscription transfer.
     /// </summary>
-    /// <param name="SequenceNumber">The sequence number of the acknowledgement.</param>
+    /// <param name="Handle">The identity of the acknowledgement.</param>
     /// <param name="Confirmed">Whether the application confirmed the acknowledgement.</param>
     internal readonly record struct AcknowledgementHandover(
-        uint SequenceNumber,
+        AcknowledgementHandle Handle,
         bool Confirmed);
 }

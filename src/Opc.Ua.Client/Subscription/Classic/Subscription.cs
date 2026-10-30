@@ -1937,20 +1937,15 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
+            Session? previousSession = Session as Session;
+            List<AcknowledgementHandover> releasedAcknowledgements = [];
+            bool sourceDetached = false;
+            bool acknowledgementsHandedOver = false;
             if (Created)
             {
                 // handle the case when the client has the subscription template and reconnects
                 if (id != Id)
                 {
-                    return (false, default);
-                }
-
-                // remove the subscription from disconnected session
-                if (Session?.RemoveTransferredSubscription(this) != true)
-                {
-                    m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
-                        Id,
-                        Session?.SessionId);
                     return (false, default);
                 }
 
@@ -1961,13 +1956,53 @@ namespace Opc.Ua.Client
                 await session.RemoveSubscriptionsAsync(subscriptionsToRemove, ct)
                     .ConfigureAwait(false);
 
-                // add transferred subscription to session
-                if (!session.AddSubscription(this))
+                // Detach and release while the previous engine is locked, so its Publish
+                // completion cannot retire or report these acknowledgements in the gap.
+                bool removed = previousSession != null &&
+                    !ReferenceEquals(previousSession, session)
+                    ? previousSession.RemoveTransferredSubscriptionForTransfer(
+                        this,
+                        out releasedAcknowledgements)
+                    : Session?.RemoveTransferredSubscription(this) == true;
+                if (!removed)
                 {
-                    m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
+                    m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
                         Id,
-                        session.SessionId);
+                        Session?.SessionId);
                     return (false, default);
+                }
+                sourceDetached = previousSession != null &&
+                    !ReferenceEquals(previousSession, session);
+
+                // add transferred subscription to session
+                try
+                {
+                    if (!session.AddSubscription(this))
+                    {
+                        m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
+                            Id,
+                            session.SessionId);
+                        if (sourceDetached &&
+                            previousSession!.RestoreTransferredSubscription(this, releasedAcknowledgements))
+                        {
+                            sourceDetached = false;
+                        }
+                        else if (sourceDetached)
+                        {
+                            previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                            acknowledgementsHandedOver = true;
+                        }
+                        return (false, default);
+                    }
+                }
+                catch
+                {
+                    if (sourceDetached)
+                    {
+                        previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                        acknowledgementsHandedOver = true;
+                    }
+                    throw;
                 }
             }
             else
@@ -2073,7 +2108,38 @@ namespace Opc.Ua.Client
             }
 
             // add available sequence numbers to incoming
-            ArrayOf<uint> acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+            ArrayOf<uint> acknowledgements;
+            try
+            {
+                acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+                if (sourceDetached && releasedAcknowledgements.Count != 0)
+                {
+                    if (session is Session targetSession)
+                    {
+                        targetSession.HandOverAcknowledgements(
+                            previousSession,
+                            this,
+                            releasedAcknowledgements,
+                            availableSequenceNumbers,
+                            acknowledgements);
+                    }
+                    else if (previousSession != null)
+                    {
+                        previousSession.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                    }
+                    acknowledgementsHandedOver = true;
+                }
+            }
+            catch
+            {
+                if (sourceDetached &&
+                    !acknowledgementsHandedOver)
+                {
+                    previousSession!.RetireReleasedAcknowledgements(releasedAcknowledgements);
+                    acknowledgementsHandedOver = true;
+                }
+                throw;
+            }
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();

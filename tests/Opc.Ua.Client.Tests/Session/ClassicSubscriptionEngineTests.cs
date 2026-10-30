@@ -1144,7 +1144,11 @@ namespace Opc.Ua.Client.Tests
             oldConfiguration.Confirm(new AcknowledgementHandle(scope, 3));
 
             var released = oldEngine.ReleaseAcknowledgementsOf(subscription);
-            newEngine.AdoptAcknowledgements(subscription, released, ArrayOf.Create<uint>([3u]));
+            newEngine.AdoptAcknowledgements(
+                subscription,
+                released,
+                ArrayOf.Create<uint>([3u]),
+                ArrayOf.Create<uint>([3u]));
             oldEngine.Dispose();
 
             Assert.That(released, Has.Count.EqualTo(2));
@@ -1160,6 +1164,61 @@ namespace Opc.Ua.Client.Tests
                 "Only the retained acknowledgement stays tracked.");
             Assert.That(newEngine.RemoveAcknowledgementsForSubscription(7), Is.EqualTo(1),
                 "The retained acknowledgement is queued in the new engine.");
+        }
+
+        /// <summary>
+        /// A transferred acknowledgement reserved for republish remains tracked but cannot be
+        /// sent until the republished notification is received.
+        /// </summary>
+        [Test]
+        public async Task RepublishReservedAcknowledgementIsQueuedAfterReceiptAsync()
+        {
+            var oldConfiguration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            var newConfiguration = new SessionAcknowledgements(AcknowledgementMode.AfterConfirmation, null, null);
+            m_mockContext.Setup(c => c.Connected).Returns(true);
+            using Subscription subscription = await CreateSubscriptionAsync(7).ConfigureAwait(false);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
+            using var oldEngine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => oldConfiguration));
+            using var newEngine = new ClassicSubscriptionEngine(
+                new AcknowledgingContext(m_mockContext.Object, () => newConfiguration));
+            var requests = new List<ArrayOf<SubscriptionAcknowledgement>>();
+            var pendingResponse = new TaskCompletionSource<PublishResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            m_mockContext.Setup(c => c.PublishAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader, ArrayOf<SubscriptionAcknowledgement>, CancellationToken>(
+                    (_, acknowledgements, _) => requests.Add(acknowledgements))
+                .Returns(() => new ValueTask<PublishResponse>(pendingResponse.Task));
+            oldEngine.AddPendingAcknowledgement(7, 3);
+            AcknowledgementHandle handle = new(subscription.GetAcknowledgementScope(), 3);
+            oldConfiguration.Confirm(handle);
+
+            List<AcknowledgementHandover> released = oldEngine.ReleaseAcknowledgementsOf(subscription);
+            newEngine.AdoptAcknowledgements(subscription, released, [3u], []);
+
+            Assert.That(
+                ((ConfirmedAcknowledgementProvider)newConfiguration.Provider!).PendingConfirmations,
+                Is.EqualTo(1),
+                "The confirmation stays associated with the tracked acknowledgement.");
+
+            Assert.That(newEngine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(requests.Single().IsEmpty, Is.True,
+                "A reserved acknowledgement cannot be sent before the republished notification arrives.");
+
+            newEngine.AddPendingAcknowledgement(7, 3);
+
+            Assert.That(newEngine.BeginPublish(timeout: 5000), Is.True);
+            Assert.That(requests, Has.Count.EqualTo(2));
+            Assert.That(requests[1].ToArray()!.Select(acknowledgement => acknowledgement.SequenceNumber),
+                Is.EqualTo([3u]),
+                "Receiving the republished message makes its acknowledgement eligible.");
+            Assert.That(
+                ((ConfirmedAcknowledgementProvider)newConfiguration.Provider!).TrackedAcknowledgements,
+                Is.EqualTo(1),
+                "The acknowledgement remains tracked until its Publish result arrives.");
         }
 
         /// <summary>

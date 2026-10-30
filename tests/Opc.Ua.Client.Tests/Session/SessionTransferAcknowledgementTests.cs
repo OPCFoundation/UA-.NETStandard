@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -288,6 +289,271 @@ namespace Opc.Ua.Client.Tests
                 targetPublish.Release();
                 finalPublish.Release();
             }
+        }
+
+        /// <summary>
+        /// A source publish completing while transfer is suspended cannot retire an
+        /// acknowledgement that has moved to the destination session.
+        /// </summary>
+        [Test]
+        public async Task TransferHandsOffSourceAcknowledgementBeforeSourcePublishCompletesAsync()
+        {
+            await using var harness = new SessionChannelHarness();
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint();
+            ScriptedChannel originChannel = harness.CreateOpenedStandaloneChannel(endpoint);
+            ScriptedChannel targetChannel = harness.CreateOpenedStandaloneChannel(endpoint);
+            var sourcePublish = new AsyncOperationGate();
+            var targetPublish = new AsyncOperationGate();
+            var republish = new AsyncOperationGate();
+            var sourceInFlight = new TaskCompletionSource<PublishRequest>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var targetFirstPublish = new TaskCompletionSource<PublishRequest>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var targetSecondPublish = new TaskCompletionSource<PublishRequest>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sourceDetached = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sourcePublishCompleted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var republishedNotification = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var sourceObserver = new CollectingObserver();
+            var targetObserver = new CollectingObserver();
+            int originPublishCount = 0;
+            int targetPublishCount = 0;
+
+            originChannel.RequestHandler = async (request, ct) =>
+            {
+                switch (request)
+                {
+                    case CreateSubscriptionRequest create:
+                        return new CreateSubscriptionResponse
+                        {
+                            ResponseHeader = originChannel.CreateGoodHeader(),
+                            SubscriptionId = 1,
+                            RevisedPublishingInterval = create.RequestedPublishingInterval,
+                            RevisedLifetimeCount = create.RequestedLifetimeCount,
+                            RevisedMaxKeepAliveCount = create.RequestedMaxKeepAliveCount
+                        };
+                    case PublishRequest publish when Interlocked.Increment(ref originPublishCount) == 1:
+                        return new PublishResponse
+                        {
+                            ResponseHeader = originChannel.CreateGoodHeader(),
+                            SubscriptionId = 1,
+                            Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good),
+                            AvailableSequenceNumbers = [1],
+                            NotificationMessage = new NotificationMessage()
+                        };
+                    case PublishRequest publish:
+                        sourceInFlight.TrySetResult(publish);
+                        await sourcePublish.WaitAsync(ct).ConfigureAwait(false);
+                        sourcePublishCompleted.TrySetResult(true);
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    case SetPublishingModeRequest publishing:
+                        return new SetPublishingModeResponse
+                        {
+                            ResponseHeader = originChannel.CreateGoodHeader(),
+                            Results = publishing.SubscriptionIds.ConvertAll(_ => StatusCodes.Good)
+                        };
+                    default:
+                        return originChannel.CreateResponse(request);
+                }
+            };
+            targetChannel.RequestHandler = async (request, ct) =>
+            {
+                switch (request)
+                {
+                    case CreateSessionRequest:
+                        var created = (CreateSessionResponse)targetChannel.CreateResponse(request);
+                        created.SessionId = new NodeId(2u, 1);
+                        created.AuthenticationToken = new NodeId(102u, 1);
+                        return created;
+                    case TransferSubscriptionsRequest transfer:
+                        return new TransferSubscriptionsResponse
+                        {
+                            ResponseHeader = targetChannel.CreateGoodHeader(),
+                            Results = transfer.SubscriptionIds.ConvertAll(_ => new TransferResult
+                            {
+                                StatusCode = StatusCodes.Good,
+                                AvailableSequenceNumbers = [1]
+                            })
+                        };
+                    case RepublishRequest replay:
+                        await republish.WaitAsync(ct).ConfigureAwait(false);
+                        return new RepublishResponse
+                        {
+                            ResponseHeader = targetChannel.CreateGoodHeader(),
+                            NotificationMessage = CreateNotificationMessage(replay.RetransmitSequenceNumber)
+                        };
+                    case PublishRequest publish when Interlocked.Increment(ref targetPublishCount) == 1:
+                        targetFirstPublish.TrySetResult(publish);
+                        await targetPublish.WaitAsync(ct).ConfigureAwait(false);
+                        return new PublishResponse
+                        {
+                            ResponseHeader = targetChannel.CreateGoodHeader(),
+                            SubscriptionId = 1,
+                            Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good),
+                            AvailableSequenceNumbers = [1],
+                            NotificationMessage = new NotificationMessage { SequenceNumber = 2 }
+                        };
+                    case PublishRequest publish:
+                        targetSecondPublish.TrySetResult(publish);
+                        return new PublishResponse
+                        {
+                            ResponseHeader = targetChannel.CreateGoodHeader(),
+                            SubscriptionId = 1,
+                            Results = publish.SubscriptionAcknowledgements.ConvertAll(_ => StatusCodes.Good),
+                            NotificationMessage = new NotificationMessage { SequenceNumber = 2 }
+                        };
+                    default:
+                        return targetChannel.CreateResponse(request);
+                }
+            };
+
+            await using var origin = new Session(
+                originChannel.Channel, harness.Configuration, endpoint,
+                engineFactory: ClassicSubscriptionEngineFactory.Instance)
+            {
+                Acknowledgements = new SessionAcknowledgements(
+                    AcknowledgementMode.AfterConfirmation,
+                    null,
+                    sourceObserver),
+                MinPublishRequestCount = 1,
+                MaxPublishRequestCount = 1
+            };
+            await using var target = new Session(
+                targetChannel.Channel, harness.Configuration, endpoint,
+                engineFactory: ClassicSubscriptionEngineFactory.Instance)
+            {
+                Acknowledgements = new SessionAcknowledgements(
+                    AcknowledgementMode.AfterConfirmation,
+                    null,
+                    targetObserver),
+                MinPublishRequestCount = 1,
+                MaxPublishRequestCount = 1
+            };
+            using var subscription = new Subscription(origin.DefaultSubscription)
+            {
+                PublishingInterval = 1_000,
+                KeepAliveCount = 10,
+                LifetimeCount = 100,
+                PublishingEnabled = true,
+                RepublishAfterTransfer = true,
+                DisableMonitoredItemCache = true,
+                FastDataChangeCallback = (owner, notification, _) =>
+                {
+                    if (notification.SequenceNumber == 1 && ReferenceEquals(owner.Session, target))
+                    {
+                        republishedNotification.TrySetResult(true);
+                    }
+                }
+            };
+            try
+            {
+                await origin.OpenAsync("origin", new UserIdentity(), CancellationToken.None).ConfigureAwait(false);
+                await target.OpenAsync("target", new UserIdentity(), CancellationToken.None).ConfigureAwait(false);
+                Assert.That(origin.AddSubscription(subscription), Is.True);
+                origin.SubscriptionsChanged += (_, _) =>
+                {
+                    if (!origin.Subscriptions.Contains(subscription))
+                    {
+                        sourceDetached.TrySetResult(true);
+                        sourcePublish.Release();
+                    }
+                };
+                await subscription.CreateAsync().ConfigureAwait(false);
+
+                PublishRequest inFlightSourceRequest =
+                    await sourceInFlight.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(inFlightSourceRequest.SubscriptionAcknowledgements, Is.Empty,
+                    "The in-flight source Publish predates this acknowledgement.");
+                var handle = new AcknowledgementHandle(subscription.GetAcknowledgementScope(), 1);
+                ClassicSubscriptionEngine sourceEngine =
+                    (ClassicSubscriptionEngine)origin.SubscriptionEngine;
+                sourceEngine.AddPendingAcknowledgement(subscription.Id, 1);
+                origin.Acknowledgements!.Confirm(handle);
+
+                Task<bool> transferTask =
+                    target.TransferSubscriptionsAsync([subscription], false, CancellationToken.None);
+                await sourceDetached.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                await sourcePublishCompleted.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(await transferTask.ConfigureAwait(false), Is.True);
+                PublishRequest firstTargetRequest =
+                    await targetFirstPublish.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(firstTargetRequest.SubscriptionAcknowledgements, Is.Empty,
+                    "A source-tracked message reserved for republish cannot be acknowledged early.");
+                await republish.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
+                sourcePublish.Release();
+                republish.Release();
+                await republishedNotification.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                targetPublish.Release();
+
+                PublishRequest secondTargetRequest =
+                    await targetSecondPublish.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(
+                    secondTargetRequest.SubscriptionAcknowledgements.ToArray()!
+                        .Select(acknowledgement => acknowledgement.SequenceNumber),
+                    Is.EqualTo([1u]),
+                    "The carried confirmation makes the message eligible only after republish receipt.");
+                await targetObserver.WaitForCompletionAsync().WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(sourceObserver.Outcomes, Is.Empty,
+                    "The source publish completion cannot end the transferred acknowledgement.");
+                Assert.That(targetObserver.Outcomes.Single().Handle, Is.EqualTo(handle));
+                Assert.That(
+                    targetObserver.Outcomes.Single().Disposition,
+                    Is.EqualTo(AcknowledgementDisposition.Acknowledged));
+            }
+            finally
+            {
+                sourcePublish.Release();
+                republish.Release();
+                targetPublish.Release();
+            }
+        }
+
+        private static NotificationMessage CreateNotificationMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems =
+                        [
+                            new MonitoredItemNotification
+                            {
+                                ClientHandle = 1,
+                                Value = new DataValue(new Variant(sequenceNumber))
+                            }
+                        ]
+                    })
+                ]
+            };
+        }
+
+        private sealed class CollectingObserver : ISubscriptionAcknowledgementObserver
+        {
+            public AcknowledgementOutcome[] Outcomes => [.. m_outcomes];
+
+            public Task<bool> WaitForCompletionAsync() => m_completed.Task;
+
+            public ValueTask OnCompletedAsync(
+                ArrayOf<AcknowledgementOutcome> outcomes,
+                CancellationToken ct = default)
+            {
+                for (int i = 0; i < outcomes.Count; i++)
+                {
+                    m_outcomes.Enqueue(outcomes[i]);
+                }
+                m_completed.TrySetResult(true);
+                return ValueTask.CompletedTask;
+            }
+
+            private readonly ConcurrentQueue<AcknowledgementOutcome> m_outcomes = new();
+            private readonly TaskCompletionSource<bool> m_completed = new(
+                TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(5);

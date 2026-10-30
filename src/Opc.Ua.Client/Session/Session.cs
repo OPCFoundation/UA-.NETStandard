@@ -2730,13 +2730,16 @@ namespace Opc.Ua.Client
         /// this session. When this session tracks no acknowledgements the previous session
         /// ends them itself, so they still end exactly once.
         /// </summary>
-        private void HandOverAcknowledgements(
+        internal void HandOverAcknowledgements(
             Session? previous,
             Subscription subscription,
-            ArrayOf<uint> availableSequenceNumbers)
+            List<AcknowledgementHandover> released,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<uint> acknowledgementsToSend)
         {
             if (previous == null ||
                 ReferenceEquals(previous, this) ||
+                released.Count == 0 ||
                 previous.m_engine is not ClassicSubscriptionEngine previousEngine)
             {
                 return;
@@ -2746,12 +2749,21 @@ namespace Opc.Ua.Client
             {
                 engine.AdoptAcknowledgements(
                     subscription,
-                    previousEngine.ReleaseAcknowledgementsOf(subscription),
-                    availableSequenceNumbers);
+                    released,
+                    availableSequenceNumbers,
+                    acknowledgementsToSend);
             }
             else
             {
-                previousEngine.RetireAcknowledgementsOf(subscription, includeCurrentLifetime: true);
+                previousEngine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        internal void RetireReleasedAcknowledgements(List<AcknowledgementHandover> released)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.RetireReleasedAcknowledgements(released);
             }
         }
 
@@ -2802,11 +2814,6 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
-                var previousSessions = new Session?[subscriptions.Count];
-                for (int ii = 0; ii < previousSessions.Length; ii++)
-                {
-                    previousSessions[ii] = subscriptions[ii].Session as Session;
-                }
                 try
                 {
                     reconnecting = Reconnecting;
@@ -2849,11 +2856,6 @@ namespace Opc.Ua.Client
                             if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
-                                HandOverAcknowledgements(
-                                    previousSessions[ii],
-                                    subscriptions[ii],
-                                    results[ii].AvailableSequenceNumbers);
-
                                 // Messages claimed for republish are acknowledged only after receipt.
                                 foreach (uint sequenceNumber in acknowledgements)
                                 {
@@ -4928,6 +4930,69 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(subscription));
             }
 
+            bool removed = RemoveTransferredSubscriptionCore(subscription);
+            if (removed)
+            {
+                m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return removed;
+        }
+
+        internal bool RemoveTransferredSubscriptionForTransfer(
+            Subscription subscription,
+            out List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool removed = engine.ReleaseAcknowledgementsOf(
+                    subscription,
+                    () => RemoveTransferredSubscriptionCore(subscription),
+                    out released);
+                if (removed)
+                {
+                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return removed;
+            }
+
+            released = [];
+            return RemoveTransferredSubscription(subscription);
+        }
+
+        internal bool RestoreTransferredSubscription(
+            Subscription subscription,
+            List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool restored = engine.RestoreAcknowledgementsOf(
+                    subscription,
+                    released,
+                    () => AddTransferredSubscriptionCore(subscription));
+                if (restored)
+                {
+                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return restored;
+            }
+
+            return AddSubscription(subscription);
+        }
+
+        private bool RemoveTransferredSubscriptionCore(Subscription subscription)
+        {
             if (subscription.Session != this)
             {
                 return false;
@@ -4942,9 +5007,21 @@ namespace Opc.Ua.Client
 
                 subscription.Session = null;
             }
+            return true;
+        }
 
-            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
-
+        private bool AddTransferredSubscriptionCore(Subscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Contains(subscription))
+                {
+                    return false;
+                }
+                subscription.Session = this;
+                subscription.Telemetry = m_telemetry;
+                m_subscriptions.Add(subscription);
+            }
             return true;
         }
 
