@@ -148,9 +148,11 @@ $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
 #                           validates, so a legacy leg fails with NETSDK1005
 #                           before the no-op shell can take effect. It is covered
 #                           by the fuzz-public-drop job instead.
-#   Native flow backends  - require verified x64 native assets and run in the
-#   and bindings            required native-data-channels reusable workflow.
-#                           The HTTP3 test host also uses TUnit rather than VSTest.
+#   Flow backends         - modern transport tests run in managed-data-channels
+#   and bindings            on Windows/Linux, without custom native assets.
+#                           Native-only fixtures run in the separately selected
+#                           native-data-channels workflow. The native HTTP3 test
+#                           host also uses TUnit rather than VSTest.
 $MainlineExclusions = @(
     'Opc.Ua.Aot.Tests.csproj',
     'Opc.Ua.Stress.Tests.csproj',

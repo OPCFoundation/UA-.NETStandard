@@ -36,6 +36,8 @@ using Opc.Ua.Client;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Bindings;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>

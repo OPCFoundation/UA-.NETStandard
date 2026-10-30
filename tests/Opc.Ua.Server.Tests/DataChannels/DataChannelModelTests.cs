@@ -264,6 +264,24 @@ namespace Opc.Ua.Server.Tests.DataChannels
         [Test]
         public async Task LiveOfferedEventIsRecipientScopedAndDoesNotAuthorizeOrOpen()
         {
+            BrowseResponse schema = await m_session.BrowseAsync(null, null, 100,
+            [
+                new BrowseDescription
+                {
+                    NodeId = ObjectTypeIds.DataChannelOfferedEventType,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = ReferenceTypeIds.Aggregates,
+                    IncludeSubtypes = true,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ], CancellationToken.None).ConfigureAwait(false);
+            Assert.That(schema.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(schema.Results[0].References.ToList().Select(reference => reference.BrowseName.Name),
+                Is.EquivalentTo(
+                [
+                    BrowseNames.SourceNodeId, BrowseNames.ResourceUri, BrowseNames.Parameters,
+                    BrowseNames.RecipientSessionId, BrowseNames.ExpiresAt
+                ]), "An offer must not expose a GrantId, binding challenge, or direct token.");
             ClientSession other = await m_client.ConnectAsync(new Uri(m_endpoint), SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             try

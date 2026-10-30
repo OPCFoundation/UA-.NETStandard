@@ -596,6 +596,15 @@ namespace Opc.Ua.Configuration
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationBuilderSecurityOptions SetAllowUnencryptedUserNameTokens(
+            bool allowUnencryptedUserNameTokens)
+        {
+            ApplicationConfiguration.SecurityConfiguration.AllowUnencryptedUserNameTokens =
+                allowUnencryptedUserNameTokens;
+            return this;
+        }
+
+        /// <inheritdoc/>
         public IApplicationConfigurationBuilderSecurityOptions SetSendCertificateChain(
             bool sendCertificateChain)
         {

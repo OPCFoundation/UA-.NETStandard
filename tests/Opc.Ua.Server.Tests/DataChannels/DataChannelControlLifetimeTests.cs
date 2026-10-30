@@ -323,7 +323,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
         public async Task EvictedControlOperationCannotBeReplayedBelowRetainedHighWater()
         {
             await using DataChannelControlTestContext test =
-                await DataChannelControlTestContext.CreateAsync().ConfigureAwait(false);
+                await DataChannelControlTestContext.CreateAsync(keepAliveInterval: TimeSpan.FromHours(1))
+                    .ConfigureAwait(false);
             test.SessionTimeout = 1_000_000;
             (DataChannel opener, _) = await OpenSessionFlowAsync(test).ConfigureAwait(false);
             DataChannelParametersDataType proposed = DataChannelControlTestContext.Parameters();
@@ -349,6 +350,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(recent.OperationId, Is.EqualTo(65));
                 Assert.That(recent.Result, Is.EqualTo(DataChannelResult.Timeout));
                 Assert.That(opener.Revision, Is.EqualTo(revision));
+                Assert.That(test.Pair.Client.IsReady && test.Pair.Server.IsReady, Is.True);
+                Assert.That(opener.State, Is.EqualTo(DataChannelState.Open));
             });
         }
 

@@ -350,6 +350,60 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(delivered!.MessageId, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Rejects JSON and bare bytes before admission without consuming DATA identifiers or queue storage.
+        /// </summary>
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, "7b7d")]
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, "dead")]
+        [TestCase(DataChannelCarrierKind.SharedUasc, "7b7d")]
+        [TestCase(DataChannelCarrierKind.SharedUasc, "dead")]
+        [TestCase(DataChannelCarrierKind.QuicUasc, "7b7d")]
+        [TestCase(DataChannelCarrierKind.QuicUasc, "dead")]
+        public async Task NonUadpSendRefusalPreservesAdmissionAndFollowingMessageAsync(
+            DataChannelCarrierKind carrier,
+            string payloadHex)
+        {
+            await using var pair = new FlowLoopback(carrier);
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
+            Assert.That(await pair.Initiator.PingAsync().ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            await pair.FlushAsync().ConfigureAwait(false);
+            await FlowLoopback.EventuallyAsync(() =>
+                pair.InitiatorBudget.Usage.Messages == 0 && pair.AcceptorBudget.Usage.Messages == 0)
+                .ConfigureAwait(false);
+            int writes = pair.InitiatorCarrier.Writes.Count;
+            long bufferedBytes = pair.InitiatorBudget.Usage.BufferedBytes;
+            ByteString invalid = ByteString.FromHexString(payloadHex);
+
+            Assert.That(await flow.Local.SendAsync(invalid).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.InvalidArgument));
+            Assert.That(await flow.Local.SendWithAdmissionAsync(invalid).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.InvalidArgument));
+            Assert.Multiple(() =>
+            {
+                Assert.That(flow.Local.StateData.LastDataId, Is.Zero);
+                Assert.That(pair.InitiatorCarrier.Writes, Has.Count.EqualTo(writes));
+                Assert.That(pair.InitiatorBudget.Usage.Messages, Is.Zero);
+                Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(bufferedBytes));
+                Assert.That(flow.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Initiator.IsReady && pair.Acceptor.IsReady, Is.True);
+            });
+
+            ByteString valid = FlowLoopback.UadpPayload(ByteString.Empty);
+            Assert.That(await flow.Local.SendWithAdmissionAsync(valid).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage? delivered = await flow.Remote.ReadAsync().AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(delivered!.MessageId, Is.EqualTo(1));
+                Assert.That(delivered.Payload, Is.EqualTo(valid));
+            });
+        }
+
         [Test]
         public async Task RevisionBarrierRefusalIsNotRetriedAsAuthorizationOrCapacityPressure()
         {

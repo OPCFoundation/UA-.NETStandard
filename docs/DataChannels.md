@@ -16,7 +16,10 @@ the distinct native `webtransport-h3` binding. This correction is not merged
 into the authoritative Part 32 source yet.
 
 The package now provides an explicitly selected managed client and listener
-using public .NET QUIC APIs. They establish HTTP/3 critical streams and
+using public .NET QUIC APIs. The default packages contain no custom native
+images and do not depend on the native HTTP/3 package.
+`IncludeExperimentalNativeDataChannelAssets=true` selects that dependency for
+the separate native experiment. The managed peers establish HTTP/3 critical streams and
 SETTINGS, exchange a capsule-mode CONNECT, and adapt the CONNECT stream to the
 ordinary UACP/UASC byte-transport factory. A managed QUIC loopback test covers
 CONNECT, stream-zero credit setup and byte-for-byte transfer of UACP HEL/ACK
@@ -312,6 +315,21 @@ probes and streams. `DataChannelOptions` bounds each context and flow, with an
 injected `TimeProvider` for timers. Do not create a fresh application budget per
 connection and expect an application-wide limit.
 
+`AddManagedWebTransportUasc` uses that shared budget for capsule connections.
+For direct construction, pass the same budget to
+`ManagedWebTransportUascTransport`, `ManagedWebTransportUascServer` and the
+context factory. Each pending or established connection reserves 6 MiB of
+managed storage and 70 additional HTTP/3 critical/extension stream slots.
+The reservation covers parser state, overlapping capsule copies and queued
+payloads; it adds no per-message accounting operations. Exhausted capacity
+refuses establishment with `WouldBlock`. Failed establishment releases the
+reservation. Successful establishment transfers it to the connection, which
+releases it after asynchronous disposal has stopped its workers and cleared
+unread payloads. Runtime/operating-system QUIC buffers are outside this managed
+storage reservation.
+Cancellation of a final capsule write during owner shutdown does not bypass
+cleanup; cancellation during an ordinary write still reaches the caller.
+
 For UASC, supply `TransportChannelSettings.DataChannels` and connect through
 `UascDataChannelClient`. Its `UascDataChannelConnection` exposes the ready
 `Context`; `Services` is available only for Shared UASC. Server hosting attaches
@@ -524,9 +542,10 @@ NetworkMessageType. PubSub reader routes associate ordinary DataSet
 NetworkMessages and writer-addressable discovery responses with their
 configured writer identity. Discovery requests and publisher-only responses
 use the configured PublisherId and NetworkMessageType. Discovery requests
-also require a visible subtype. Publisher-only responses are admitted only
-when the PublisherId selects one configured resource; ambiguous matches are
-rejected.
+also require a visible subtype. The DATA RequestId selects the flow before
+these fields are validated. Only associations for that flow's resource
+participate; registrations for another resource cannot redirect the message
+or make a publisher-only response ambiguous.
 Multiple writers can share an authorized flow; different resource permissions,
 delivery contracts or lifetimes need separate flows.
 
@@ -631,10 +650,20 @@ both zero representations treated as unlimited for ordered delivery. Datagram
 rates must be strictly positive. A Configured OPEN has no grant bytes;
 a Session OPEN has exactly one Guid. There is no JSON CONTROL fallback.
 
-The control-only AdmissionId retains the model's ChannelId name. It is not
-serialized before UADP and is not a PublisherId. Configured UADP associations
-select the admitted resource from authenticated identity and visible source /
-writer fields. Canonical DATA carries `0x80000000` OR the ChannelId as RequestId and routes by it alone; CONTROL uses RequestId zero.
+The AdmissionId retains the model's ChannelId name. It is not serialized before
+UADP and is not a PublisherId. Configured UADP associations validate the selected
+resource against authenticated identity and visible source / writer fields.
+Canonical DATA carries `0x80000000` OR the ChannelId as RequestId and routes by
+it alone; CONTROL uses RequestId zero.
+
+Each peer allocates increasing ChannelIds from its own odd/even namespace.
+Removing a flow does not permit identifier reuse. The runtime classifies late
+DATA using the local allocation cursor or peer high-water mark, without a
+per-flow tombstone or a lifetime MaxFlows cap. Late DATA for a retired identifier
+is discarded silently; never-admitted identifiers beyond those marks receive
+a rate-limited flow-0 STATUS `unknown_channel`. Both paths release aggregate
+credit, and that STATUS does not close its receiving context.
+
 Legacy native datagrams carry an external ChannelId and common record.
 Authenticated direct datagrams instead carry a 16-byte UA Binary Guid token,
 UInt32 revision and UInt32 nonwrapping per-direction sequence before unchanged
@@ -703,6 +732,8 @@ Services remain ahead of DATA. Already numbered or in-flight writes, including
 coalesced writes, cannot be reordered. Canonical CONTROL on opc.wss is binary
 application data, not an RFC6455 control frame. These policies imply no
 wall-clock latency or one-frame Service-delay guarantee.
+When the SecureChannel enters Closing, queued uncommitted DATA and CONTROL
+are refused before security sequence assignment; they cannot follow CLO.
 Benchmark results include their actual load, pacing and loopback setup;
 numbers from the discarded framing are not evidence for this protocol.
 
@@ -781,6 +812,16 @@ The common codec/runtime tests live in `Opc.Ua.Core.DataChannels.Tests`.
 Physical UASC tests, optional model/control tests, PubSub tests, native binding
 tests and real-process sample tests exercise their own layers. Passing a codec
 suite alone does not establish carrier or application interoperability.
+The shared secured-socket fixture also runs over managed capsule HTTP/3. It
+covers distinct HTTPS and UASC certificate identities, exact application-trust
+and URI refusals, multipart Services, abort recovery, DATA limits and control
+progress under exhausted DATA credit. Typed PublisherIds, chunked UADP and
+discovery bodies remain byte-identical; a writer set spanning resources is
+rejected as a whole. Certificate expiry and application-trust changes close an
+idle context independently of a Session. Queued old-revision messages remain
+readable after both directional revision barriers. Token-renewal and close-order
+cases use the actual UASC writer. These are same-stack loopbacks, not independent-peer
+or browser qualification.
 
 ```powershell
 $env:CustomTestTarget = 'net10.0'
@@ -809,10 +850,23 @@ bytes through sender disposal for both openers and verify surviving UACP.
 Those transport-primitive checks do not replace authenticated baseline UASC
 Services or actual browser qualification.
 
+The same executable accepts `--managed --require-aot` to exercise HTTP/3
+SETTINGS, capsule CONNECT, flow-control grants and a bidirectional UACP exchange
+using public QUIC APIs. This path does not load custom native assets or execute
+the native retention checks. The executable rejects `--require-aot` when run
+under the managed runtime.
+On Windows, a NativeAOT application must deploy the stock .NET runtime's
+`msquic.dll` beside its executable; the framework-dependent runtime normally
+supplies this library. This test host accepts its trusted installed-runtime
+path through `-p:ManagedMsQuicPath=...`. On Linux, install the operating system
+`libmsquic` package. Neither dependency is the custom native QUIC/HTTP3 backend.
+
 See the [Developer Guide](DeveloperGuide.md) for full-solution framework runs,
-coverage and the dedicated required Windows/Linux native workflow. Native tests
-require their actual assets and fail when prerequisites are absent; a skipped
-or empty test run is not native acceptance.
+coverage and the required Windows/Linux managed transport workflow. The native
+workflow is separately selected with `include_experimental_native_data_channels`
+on a manual CI or nightly run, or run directly. Native tests require their
+actual assets and fail when prerequisites are absent; a skipped or empty test
+run is not native acceptance.
 
 ### Current limitations
 
@@ -887,17 +941,19 @@ or empty test run is not native acceptance.
 - **Configured UADP routing is partial.** Receiving PubSub flows register each
   reader's PublisherId, WriterGroupId, and DataSetWriterId against the exact
   resource URI. Visible UADP source and writer fields and NetworkMessageType
-  select the configured resource. ChannelId is control-only and is not
-  serialized in the MSG DATA envelope or UADP. A multi-writer NetworkMessage is admitted only when every visible
-  DataSetWriterId resolves to the same resource; unmatched or ambiguous traffic
-  is rejected rather than routed by arrival order. Metadata and
+  validate the resource on the flow selected by the DATA RequestId. ChannelId
+  occupies that RequestId's low 31 bits; it is not inserted into UADP, and the
+  carrier does not rewrite PublisherId. A multi-writer NetworkMessage is admitted
+  only when every visible DataSetWriterId matches an association for the selected
+  resource. A writer authorized on another resource cannot authorize this
+  message or move it to another flow. Metadata and
   writer-configuration discovery bodies are also
   matched when they expose DataSetWriterIds. Reader-derived routes include all
   six discovery request subtypes, selected by PublisherId, NetworkMessageType
   and visible subtype; writer selectors remain for requests that expose writer
-  identities. Publisher-only responses use the configured PublisherId and
-  NetworkMessageType when they select one resource; ambiguous matches are
-  rejected. Metadata and writer-configuration responses retain writer-based
+  identities. Publisher-only responses validate the configured PublisherId and
+  NetworkMessageType within the selected resource; associations for another
+  resource do not make them ambiguous. Metadata and writer-configuration responses retain writer-based
   matching. Callers can register additional explicit PublisherId,
   NetworkMessageType and discovery-subtype selectors. Request
   subtype values 1–6 identify PublisherEndpoints, DataSetMetaData,

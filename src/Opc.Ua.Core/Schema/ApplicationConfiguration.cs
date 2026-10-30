@@ -836,6 +836,28 @@ namespace Opc.Ua
         public bool SuppressNonceValidationErrors { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether a client may send a
+        /// UserName identity token whose password is not encrypted over
+        /// a channel that does not encrypt messages.
+        /// By default the client refuses to open a session with a UserName
+        /// token when the effective user token security policy is
+        /// <see cref="SecurityPolicies.None"/> and the channel security
+        /// mode is not SignAndEncrypt, because the password would be
+        /// transmitted in plain text (OPC 10000-4 v1.05.07 7.40.4). The specification
+        /// says this configuration should not be used unless the network
+        /// traffic is encrypted in some other manner, such as a VPN. A server
+        /// that offers such a policy on a channel that does not encrypt does
+        /// not follow 7.40.4, which expects it to specify a security policy
+        /// for the user token in that case.
+        /// Set this flag to true only for interoperability with such legacy
+        /// devices, and only where the network traffic is encrypted in some
+        /// other manner, since the password is readable by anyone who can
+        /// observe it.
+        /// </summary>
+        [DataTypeField(Order = 20)]
+        public bool AllowUnencryptedUserNameTokens { get; set; }
+
+        /// <summary>
         /// The type of Configuration (deprecated or not)
         /// </summary>
         public bool IsDeprecatedConfiguration { get; set; }
@@ -1017,21 +1039,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The minimum number of threads assigned to processing requests.
+        /// The lower bound of the request concurrency limit; values below 1 are raised to 1.
         /// </summary>
-        /// <value>The minimum request thread count.</value>
+        /// <remarks>
+        /// Requests do not run on dedicated threads. With a resource isolation profile
+        /// other than SharedOnly, this many request workers are started with the server.
+        /// <see cref="MaxRequestThreadCount"/> is raised to this value.
+        /// </remarks>
+        /// <value>The minimum request concurrency.</value>
         [DataTypeField(Order = 3)]
         public int MinRequestThreadCount { get; set; } = 10;
 
         /// <summary>
-        /// The maximum number of threads assigned to processing requests.
+        /// The maximum number of requests that execute at once (the request concurrency limit).
         /// </summary>
-        /// <value>The maximum request thread count.</value>
+        /// <remarks>
+        /// Requests run on the .NET thread pool, not on dedicated threads. A request that
+        /// finds the limit reached waits in the request queue (see
+        /// <see cref="MaxQueuedRequestCount"/>). With <see cref="DecoupleHeldPublishRequests"/>
+        /// a held request, such as a <c>Publish</c> waiting for notifications, does not
+        /// count against the limit while it waits.
+        /// </remarks>
+        /// <value>The maximum request concurrency.</value>
         [DataTypeField(Order = 4)]
         public int MaxRequestThreadCount { get; set; } = 100;
 
         /// <summary>
-        /// The maximum number of requests that will be queued waiting for a thread.
+        /// The maximum number of requests that will be queued waiting to execute.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataTypeField(Order = 5)]

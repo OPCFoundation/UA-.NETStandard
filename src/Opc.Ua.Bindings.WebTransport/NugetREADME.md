@@ -1,5 +1,12 @@
 # OPC UA WebTransport bindings
 
+The default package uses the managed capsule path without a native HTTP/3
+package dependency. Builds selecting
+`IncludeExperimentalNativeDataChannelAssets=true` retain the reviewed native
+HTTP/3 package for the separate experiment. The QUIC dependency includes a
+managed backend bridge; it does not require custom native images for the
+managed transport.
+
 **Experimental; full Parts 30–32 acceptance remains open.** The current
 specification baseline is the merged source at
 [`1703d60`](https://github.com/OPCF-Members/OPC10000-Core/tree/1703d60261542a4fbeca75bca6571d33cdd6d6ad).
@@ -138,7 +145,7 @@ RESET also retains the legacy management-path exchange before native FIN,
 rather than the older experiment's data-stream ordering. These entry points
 therefore do not establish conformance to that experiment's complete wire
 contract. The split Parts 31–32 direct binding uses a different contract:
-COMMIT and END occupy the ordered data stream; RESET remains on secured FLC.
+COMMIT and END occupy the ordered data stream; RESET remains on secured MSG.
 
 ## Managed capsule WebTransport baseline
 
@@ -156,7 +163,7 @@ channel must still authenticate the OPC UA applications and use
 factory; it does not create a SecureChannel or Session on its own:
 
 ```csharp
-var transport = new ManagedWebTransportUascTransport();
+var transport = new ManagedWebTransportUascTransport(applicationBudget);
 await using ManagedWebTransportUascConnection baseline = await transport.ConnectAsync(
     new Uri("https://device.example:4840/ua/wt"),
     clientTlsAuthenticationOptions,
@@ -181,15 +188,29 @@ one peer, client profile confirmation times out; the connection does not fall
 back to Services-only operation.
 
 `AddManagedWebTransportUasc` registers the managed client and server services
-with the OPC UA builder. The host still supplies TLS options, authorization,
-endpoint descriptions and listener lifecycle.
+and their shared `DataChannelApplicationBudget` with the OPC UA builder. In
+direct construction, `applicationBudget` must be the same provider used by the
+application's context factory. Parameterless construction creates an isolated
+provider; it does not establish an application-wide limit.
+
+Each pending or established connection reserves 6 MiB for managed parser,
+capsule-copy and receive-queue storage, plus 70 HTTP/3 critical/extension stream
+slots. Admission returns `WouldBlock` when either dimension cannot be reserved.
+Failed establishment releases the reservation; a successful connection retains
+it until asynchronous disposal has stopped its workers and discarded unread
+payloads, including when shutdown cancels the final capsule write. Cancellation
+during an ordinary write still reaches the caller. Accounting occurs once per
+connection, not per message. These are
+managed storage bounds, not measurements of runtime/operating-system QUIC
+buffers. The host still supplies TLS options, authorization, endpoint
+descriptions and listener lifecycle.
 
 The server supplies its TLS certificate and CONNECT authorizer explicitly. The
 `endpoint` argument is the canonical HTTPS endpoint advertised to UASC; use port
 zero when the listener should publish its actual bound port.
 
 ```csharp
-var server = new ManagedWebTransportUascServer();
+var server = new ManagedWebTransportUascServer(applicationBudget);
 await using ManagedWebTransportUascListener listener = await server.ListenAsync(
     endpoint, localUdpEndpoint, serverTlsAuthenticationOptions, authorizeConnect,
     cancellationToken: cancellationToken);
@@ -217,7 +238,7 @@ managed connection.
 connection, authorizes the exact HTTPS Extended CONNECT resource, and reserves
 the first client-created WebTransport bidirectional stream for ordinary UACP
 bytes. The existing UASC stack handles HEL/ACK, application-certificate
-SignAndEncrypt OPN, Services, FLO/FLC and close. The transport TLS client
+SignAndEncrypt OPN, Services, DATA/CONTROL in standard MSG messages and close. The transport TLS client
 supplies trust roots only; application authentication remains an independent
 UASC operation. No Data Channel context, Session or model is created by
 baseline establishment.
@@ -247,7 +268,7 @@ establish readiness or grant permission to send.
 intact unreliable send/receive operations through the same UASC wrappers.
 The common runtime authenticates each 24-byte token/revision/sequence prefix
 before admitting unchanged UADP against finite replay, rate and queue limits.
-No datagram carries control or Services; controls stay on protected FLC.
+No datagram carries control or Services; controls stay on protected MSG.
 One context-owned, budgeted receive operation drains direct input. The H3 pump
 discards unsolicited datagrams without waiting for the unattached legacy
 context, and cancellation releases the single pending receiver.
@@ -396,8 +417,9 @@ Native assets are separately packaged and hash-bound. Select an absolute trusted
 RID asset using `NativeHttp3Library`; there is no PATH/current-directory probing.
 Supported asset targets are x64 Windows and glibc Linux (minimum 2.34), not macOS,
 ARM, musl or browsers. The Go image remains loaded for process lifetime. Source
-checkout packaging retains the native-only HTTP/3 dependency and copies its
-RID assets through NuGet. Product signing and release integration remain gated;
+checkout packaging includes the native-only HTTP/3 dependency and its RID
+assets only when `IncludeExperimentalNativeDataChannelAssets=true`.
+Product signing and release integration remain gated;
 staged local proofs do not establish final-hash SBOM/SCA/VEX or minimum-host approval.
 
 The binding reserves conservative, finite additional H3/native/host capacity from

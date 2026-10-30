@@ -19,6 +19,10 @@ on:
         description: 'Include macOS runners in the test / AoT matrix'
         type: boolean
         default: true
+      include_experimental_native_data_channels:
+        description: 'Also qualify experimental native assets, direct streams and datagrams'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -200,15 +204,21 @@ jobs:
         # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  managed-data-channels:
+    name: Managed Data Channels
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    uses: ./.github/workflows/managed-data-channels.yml
+
   native-data-channels:
     name: Native Data Channels
     needs: discover
-    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' && inputs.include_experimental_native_data_channels == true }}
     uses: ./.github/workflows/native-data-channels.yml
 
   code-coverage:
     name: code coverage
-    needs: [discover, build-and-test, native-data-channels]
+    needs: [discover, build-and-test, managed-data-channels, native-data-channels]
     runs-on: ubuntu-latest
     # always(): the coverage of a run whose tests failed is still worth
     # reporting. Gated on the same condition build-and-test itself uses, so a
@@ -605,6 +615,7 @@ jobs:
     - build-solutions
     - fuzz-replay
     - fuzz-drop
+    - managed-data-channels
     - native-data-channels
     steps:
     - name: Evaluate job results
@@ -617,6 +628,7 @@ jobs:
         BUILD_RESULT: ${{ needs.build-solutions.result }}
         FUZZ_RESULT: ${{ needs.fuzz-replay.result }}
         FUZZ_DROP_RESULT: ${{ needs.fuzz-drop.result }}
+        MANAGED_RESULT: ${{ needs.managed-data-channels.result }}
         NATIVE_RESULT: ${{ needs.native-data-channels.result }}
       run: |
         if ($env:RELEVANT_CHANGES -eq 'true') {
@@ -633,6 +645,7 @@ jobs:
           'build-solutions'  = $env:BUILD_RESULT
           'fuzz-replay'      = $env:FUZZ_RESULT
           'fuzz-public-drop' = $env:FUZZ_DROP_RESULT
+          'managed-data-channels' = $env:MANAGED_RESULT
           'native-data-channels' = $env:NATIVE_RESULT
         }
 
@@ -644,6 +657,10 @@ jobs:
           if (@('success', 'skipped') -notcontains $job.Value) {
             $bad += "$($job.Key)=$($job.Value)"
           }
+        }
+
+        if ($env:RELEVANT_CHANGES -eq 'true' -and $env:MANAGED_RESULT -ne 'success') {
+          $bad += "managed-data-channels=$($env:MANAGED_RESULT)"
         }
 
         if ($bad.Count -gt 0) {

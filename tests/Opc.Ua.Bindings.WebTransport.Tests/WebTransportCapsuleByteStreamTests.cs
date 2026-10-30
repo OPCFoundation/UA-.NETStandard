@@ -33,7 +33,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             await using var duplex = new DuplexTestStream(input, output);
             await using Http3CapsuleSession session = await Http3CapsuleSession.AcceptConnectResponseAsync(
                 duplex, 128, 128, 128, CancellationToken.None);
-            await using var byteStream = await WebTransportCapsuleByteStream.CreateAsync(
+            await using WebTransportCapsuleByteStream byteStream = await WebTransportCapsuleByteStream.CreateAsync(
                 session, 128, 16, CancellationToken.None);
 
             byte[] received = new byte[3];
@@ -90,12 +90,72 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             await using var duplex = new DuplexTestStream(input, output);
             await using Http3CapsuleSession session = await Http3CapsuleSession.AcceptConnectResponseAsync(
                 duplex, 128, 128, 128, CancellationToken.None);
-            await using var byteStream = await WebTransportCapsuleByteStream.CreateAsync(
+            await using WebTransportCapsuleByteStream byteStream = await WebTransportCapsuleByteStream.CreateAsync(
                 session, 128, 8, CancellationToken.None);
 
             ChannelClosedException exception = await Assert.ThrowsAsync<ChannelClosedException>(async () =>
                 await byteStream.ReadExactlyAsync(new byte[1]));
             Assert.That(exception.InnerException, Is.TypeOf<InvalidDataException>());
+        }
+
+        /// <summary>
+        /// Disposal drops queued payloads and a partially consumed payload while the owner remains reachable.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task DisposeAsyncReleasesUnreadPayloads(bool partialRead, bool cancelFin)
+        {
+            using var input = new MemoryStream();
+            await WriteSuccessfulResponseAsync(input);
+            await WriteDataFrameCapsuleAsync(input, StreamDataCapsuleType, [0, 1, 2, 3]);
+            await WriteDataFrameCapsuleAsync(input, StreamDataCapsuleType, [0, 4, 5, 6]);
+            await WriteDataFrameCapsuleAsync(input, StreamFinCapsuleType, [0]);
+            input.Position = 0;
+            using var output = new MemoryStream();
+            await using var duplex = new DuplexTestStream(input, output);
+            await using Http3CapsuleSession session = await Http3CapsuleSession.AcceptConnectResponseAsync(
+                duplex, 128, 128, 128, CancellationToken.None);
+            await using WebTransportCapsuleByteStream byteStream = await WebTransportCapsuleByteStream.CreateAsync(
+                session, 128, 16, CancellationToken.None);
+            if (partialRead)
+            {
+                byte[] first = new byte[1];
+                await byteStream.ReadExactlyAsync(first);
+                Assert.That(first[0], Is.EqualTo(1));
+            }
+            Assert.That(byteStream.RetainedPayloadCount, Is.GreaterThanOrEqualTo(2));
+
+            duplex.CancelWrites = cancelFin;
+            await byteStream.DisposeAsync();
+            Assert.That(byteStream.RetainedPayloadCount, Is.Zero);
+            await byteStream.DisposeAsync();
+            Assert.That(byteStream.RetainedPayloadCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Transport cancellation during an ordinary write remains visible to the caller.
+        /// </summary>
+        [Test]
+        public async Task WriteAsyncPropagatesTransportCancellation()
+        {
+            using var input = new MemoryStream();
+            await WriteSuccessfulResponseAsync(input);
+            await WriteDataFrameCapsuleAsync(input, MaxDataCapsuleType, [16]);
+            await WriteDataFrameCapsuleAsync(input, MaxStreamDataCapsuleType, [0, 16]);
+            await WriteDataFrameCapsuleAsync(input, StreamFinCapsuleType, [0]);
+            input.Position = 0;
+            using var output = new MemoryStream();
+            await using var duplex = new DuplexTestStream(input, output);
+            await using Http3CapsuleSession session = await Http3CapsuleSession.AcceptConnectResponseAsync(
+                duplex, 128, 128, 128, CancellationToken.None);
+            await using WebTransportCapsuleByteStream byteStream = await WebTransportCapsuleByteStream.CreateAsync(
+                session, 128, 16, CancellationToken.None);
+            duplex.CancelWrites = true;
+
+            await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), async () =>
+                await byteStream.WriteAsync(new byte[] { 1, 2, 3 }).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         private static async Task WriteSuccessfulResponseAsync(Stream stream)
@@ -150,6 +210,12 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             public override bool CanRead => true;
             public override bool CanSeek => false;
             public override bool CanWrite => true;
+
+            /// <summary>
+            /// Gets or sets whether transport writes fail with cancellation during owner shutdown.
+            /// </summary>
+            public bool CancelWrites { get; set; }
+
             public override long Length => throw new NotSupportedException();
             public override long Position
             {
@@ -157,21 +223,46 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 set => throw new NotSupportedException();
             }
 
-            public override void Flush() => throw new NotSupportedException();
-            public override int Read(byte[] buffer, int offset, int count) =>
-                m_input.Read(buffer, offset, count);
+            public override void Flush()
+            {
+                throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return m_input.Read(buffer, offset, count);
+            }
+
             public override ValueTask<int> ReadAsync(
-                Memory<byte> buffer,
-                CancellationToken cancellationToken = default) =>
-                m_input.ReadAsync(buffer, cancellationToken);
-            public override void Write(byte[] buffer, int offset, int count) =>
+                            Memory<byte> buffer,
+                            CancellationToken cancellationToken = default)
+            {
+                return m_input.ReadAsync(buffer, cancellationToken);
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
                 m_output.Write(buffer, offset, count);
+            }
+
             public override ValueTask WriteAsync(
-                ReadOnlyMemory<byte> buffer,
-                CancellationToken cancellationToken = default) =>
-                m_output.WriteAsync(buffer, cancellationToken);
-            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-            public override void SetLength(long value) => throw new NotSupportedException();
+                            ReadOnlyMemory<byte> buffer,
+                            CancellationToken cancellationToken = default)
+            {
+                return CancelWrites
+                    ? ValueTask.FromException(new OperationCanceledException())
+                    : m_output.WriteAsync(buffer, cancellationToken);
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
 
             protected override void Dispose(bool disposing)
             {

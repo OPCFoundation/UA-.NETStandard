@@ -337,7 +337,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         [TestCase(2, DataChannelResult.InvalidState)]
         [TestCase(3, DataChannelResult.InvalidArgument)]
         [TestCase(4, DataChannelResult.InvalidArgument)]
-        [TestCase(5, DataChannelResult.NotAuthorized)]
+        [TestCase(5, DataChannelResult.UnknownChannel)]
         [TestCase(6, DataChannelResult.UnknownChannel)]
         [TestCase(7, DataChannelResult.UnknownChannel)]
         public async Task InvalidDatagramsCannotAuthorizePayloadOrPoisonReplay(int variant, DataChannelResult expected)

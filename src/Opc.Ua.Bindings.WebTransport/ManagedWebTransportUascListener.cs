@@ -13,6 +13,7 @@ using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using Opc.Ua.DataChannels;
 
 namespace Opc.Ua.Bindings
 {
@@ -32,13 +33,15 @@ namespace Opc.Ua.Bindings
             Uri endpoint,
             Func<Uri, CancellationToken, ValueTask<bool>> connectAuthorizer,
             WebTransportOriginPolicy originPolicy,
-            string? origin)
+            string? origin,
+            DataChannelApplicationBudget applicationBudget)
         {
             m_listener = listener;
             EndpointUrl = endpoint;
             m_connectAuthorizer = connectAuthorizer;
             m_originPolicy = originPolicy;
             m_origin = origin;
+            m_applicationBudget = applicationBudget;
         }
 
         /// <summary>
@@ -52,13 +55,15 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ManagedWebTransportUascConnection> AcceptAsync(
             CancellationToken cancellationToken = default)
         {
-            QuicConnection connection = await m_listener.AcceptConnectionAsync(cancellationToken)
-                .ConfigureAwait(false);
+            DataChannelApplicationBudget.DataChannelCarrierReservation? reservation =
+                ManagedWebTransportUascTransport.ReserveCapacity(m_applicationBudget);
+            QuicConnection? connection = null;
             ManagedHttp3ServerConnectionOwner? owner = null;
             QuicStream? requestStream = null;
             Http3CapsuleSession? session = null;
             try
             {
+                connection = await m_listener.AcceptConnectionAsync(cancellationToken).ConfigureAwait(false);
                 if (connection.NegotiatedApplicationProtocol != s_http3Protocol)
                 {
                     throw new AuthenticationException("The peer did not negotiate the exact h3 ALPN.");
@@ -104,8 +109,10 @@ namespace Opc.Ua.Bindings
                 WebTransportCapsuleByteStream stream = await WebTransportCapsuleByteStream.CreateAsync(
                     session, MaximumCapsulePayloadBytes, InitialReceiveWindowBytes, deadline.Token)
                     .ConfigureAwait(false);
-                return new ManagedWebTransportUascConnection(
-                    session, stream, EndpointUrl, isInitiator: false);
+                var accepted = new ManagedWebTransportUascConnection(
+                    session, stream, EndpointUrl, isInitiator: false, reservation);
+                reservation = null;
+                return accepted;
             }
             catch
             {
@@ -117,7 +124,7 @@ namespace Opc.Ua.Bindings
                 {
                     await session.DisposeAsync().ConfigureAwait(false);
                 }
-                else if (owner == null)
+                else if (owner == null && connection != null)
                 {
                     await connection.DisposeAsync().ConfigureAwait(false);
                 }
@@ -125,9 +132,16 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (owner != null)
+                try
                 {
-                    await owner.DisposeAsync().ConfigureAwait(false);
+                    if (owner != null)
+                    {
+                        await owner.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    reservation?.Dispose();
                 }
             }
         }
@@ -149,6 +163,9 @@ namespace Opc.Ua.Bindings
         private readonly Func<Uri, CancellationToken, ValueTask<bool>> m_connectAuthorizer;
         private readonly WebTransportOriginPolicy m_originPolicy;
         private readonly string? m_origin;
+
+        /// <summary>Application-wide capacity shared with Core flow admission.</summary>
+        private readonly DataChannelApplicationBudget m_applicationBudget;
 
         private static bool IsOriginAllowed(
             string? requestOrigin,
@@ -178,6 +195,23 @@ namespace Opc.Ua.Bindings
     [SupportedOSPlatform("osx")]
     public sealed class ManagedWebTransportUascServer
     {
+        /// <summary>
+        /// Creates a server with its own accounting provider.
+        /// </summary>
+        public ManagedWebTransportUascServer()
+            : this(new DataChannelApplicationBudget())
+        {
+        }
+
+        /// <summary>
+        /// Creates a server sharing the application's carrier and flow budget.
+        /// </summary>
+        public ManagedWebTransportUascServer(DataChannelApplicationBudget applicationBudget)
+        {
+            ArgumentNullException.ThrowIfNull(applicationBudget);
+            m_applicationBudget = applicationBudget;
+        }
+
         /// <summary>
         /// Binds an OPC UA endpoint to a local UDP address and authorizes each accepted CONNECT request.
         /// </summary>
@@ -232,7 +266,7 @@ namespace Opc.Ua.Bindings
                     endpoint, listener.LocalEndPoint.ToString() ?? throw new InvalidOperationException(
                         "The managed QUIC listener did not report its bound address."));
                 return new ManagedWebTransportUascListener(
-                    listener, boundEndpoint, connectAuthorizer, originPolicy, origin);
+                    listener, boundEndpoint, connectAuthorizer, originPolicy, origin, m_applicationBudget);
             }
             catch
             {
@@ -245,7 +279,7 @@ namespace Opc.Ua.Bindings
         {
             if (tls.ApplicationProtocols is not { Count: 1 } ||
                 tls.ApplicationProtocols[0] != s_http3Protocol ||
-                tls.EnabledSslProtocols != System.Security.Authentication.SslProtocols.None)
+                tls.EnabledSslProtocols != SslProtocols.None)
             {
                 throw new ArgumentException(
                     "HTTP/3 requires the exact h3 ALPN and operating-system-selected QUIC TLS.",
@@ -257,6 +291,9 @@ namespace Opc.Ua.Bindings
         private const int MaximumPeerUnidirectionalStreams = 72;
         private static readonly TimeSpan s_idleTimeout = TimeSpan.FromMinutes(1);
         private static readonly SslApplicationProtocol s_http3Protocol = new("h3");
+
+        /// <summary>Application-wide accounting inherited by each listener.</summary>
+        private readonly DataChannelApplicationBudget m_applicationBudget;
     }
 
     [SupportedOSPlatform("windows")]
@@ -311,7 +348,7 @@ namespace Opc.Ua.Bindings
             Task[] peerTasks;
             lock (m_gate)
             {
-                peerTasks = m_peerTasks.ToArray();
+                peerTasks = [.. m_peerTasks];
             }
             await Task.WhenAll(peerTasks).ConfigureAwait(false);
             foreach (QuicStream? stream in m_peerCriticalStreams)
@@ -450,11 +487,8 @@ namespace Opc.Ua.Bindings
                 while (true)
                 {
                     Http3Frame? frame = await Http3StreamCodec.ReadFrameAsync(
-                        stream, MaximumControlFrameBytes, cancellationToken).ConfigureAwait(false);
-                    if (frame == null)
-                    {
+                        stream, MaximumControlFrameBytes, cancellationToken).ConfigureAwait(false) ??
                         throw new EndOfStreamException("The peer closed its HTTP/3 control stream.");
-                    }
                     Http3ControlStreamFrameResult result = state.AcceptFrame(
                         frame.Value.Type, frame.Value.Payload);
                     if (result != Http3ControlStreamFrameResult.Accepted)

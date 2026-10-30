@@ -260,7 +260,7 @@ namespace Opc.Ua.Bindings
                         messageBody.AsSpan()[0] == 0 && messageBody.AsSpan()[1] is 254 or 255))
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError,
-                        "A channel message requires contiguous RequestId-zero chunks.");
+                        "A channel message requires contiguous chunks with an unchanged RequestId.");
                 }
                 if (!context.IsReady)
                 {
@@ -272,7 +272,7 @@ namespace Opc.Ua.Bindings
             if (SecurityMode == MessageSecurityMode.None)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError,
-                    "RequestId zero requires an explicitly selected Data Channel capability.");
+                    "DATA and CONTROL require a protected Data Channel capability.");
             }
             try
             {

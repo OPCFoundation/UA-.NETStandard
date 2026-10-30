@@ -26,6 +26,13 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             {
                 throw new InvalidOperationException("This invocation requires an actual NativeAOT executable.");
             }
+            if (Array.IndexOf(args, "--managed") >= 0)
+            {
+                await ManagedCapsuleScenario.RunAsync().ConfigureAwait(false);
+                Console.WriteLine(
+                    $"PASS ({(aot ? "NativeAOT" : "JIT")}): managed HTTP/3, capsules and UACP without custom assets.");
+                return;
+            }
             (INativeQuicBackend backend, NativeHttp3Library library) =
                 await WebTransportTestEnvironment.LoadAsync().ConfigureAwait(false);
             await using var environment = await WebTransportTestEnvironment.CreateAsync(backend, library)

@@ -1,0 +1,93 @@
+name: Managed Data Channel validation
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NBGV_SetCloudBuildVersionVars: 'false'
+  OPCUA_QUIC_NATIVE_PATH: ''
+  OPCUA_HTTP3_NATIVE_PATH: ''
+  OPCUA_HTTP3_NATIVE_SHA256: ''
+  OPCUA_REQUIRE_MANAGED_QUIC: 'true'
+
+jobs:
+  managed:
+    name: Managed transports (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Install the operating system QUIC runtime
+      if: ${{ runner.os == 'Linux' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        source /etc/os-release
+        curl -fsSL "https://packages.microsoft.com/config/ubuntu/${VERSION_ID}/packages-microsoft-prod.deb" \
+          -o "$RUNNER_TEMP/packages-microsoft-prod.deb"
+        sudo dpkg -i "$RUNNER_TEMP/packages-microsoft-prod.deb"
+        sudo apt-get update
+        sudo apt-get install -y libmsquic
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: tests/Opc.Ua.Bindings.Quic.Tests/Opc.Ua.Bindings.Quic.Tests.csproj;tests/Opc.Ua.Bindings.WebTransport.Tests/Opc.Ua.Bindings.WebTransport.Tests.csproj;tests/Opc.Ua.DataChannel.ClientServer.Tests/Opc.Ua.DataChannel.ClientServer.Tests.csproj;tests/Opc.Ua.DataChannel.Samples.Tests/Opc.Ua.DataChannel.Samples.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.402'
+        filter: FullyQualifiedName!~QuicNativeFlowTests&FullyQualifiedName!~NativeQuicTlsOwnerTests&TestCategory!=WebTransportNative&TestCategory!=DataChannelClientServerNative&TestCategory!=NativeDataChannelSamples
+        hang-timeout: 5m
+        per-project-timeout: '30'
+        coverage: 'true'
+        artifact-name: dotnet-results-managed-data-channels-${{ matrix.os }}
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.402'
+        filter: FullyQualifiedName~UascDataChannelSocketTests
+        hang-timeout: 5m
+        per-project-timeout: '30'
+        coverage: 'true'
+        artifact-name: dotnet-results-managed-uasc-${{ matrix.os }}
+    - name: Publish and execute the managed NativeAOT transport
+      shell: pwsh
+      run: |
+        $rid = if ($IsWindows) { 'win-x64' } else { 'linux-x64' }
+        $output = Join-Path $env:RUNNER_TEMP 'managed-webtransport-aot'
+        $runtimeArguments = @()
+        if ($IsWindows) {
+          $runtime = dotnet --list-runtimes |
+            Where-Object { $_ -match '^Microsoft.NETCore.App 10\.' } |
+            Select-Object -Last 1
+          if ($runtime -notmatch '^Microsoft.NETCore.App (\S+) \[(.+)\]$') {
+            throw 'The installed .NET 10 runtime and its stock MsQuic library are required.'
+          }
+          $msquic = Join-Path $Matches[2] "$($Matches[1])/msquic.dll"
+          if (-not (Test-Path -LiteralPath $msquic)) {
+            throw 'The installed .NET runtime does not contain its stock MsQuic library.'
+          }
+          $runtimeArguments += "-p:ManagedMsQuicPath=$msquic"
+        }
+        dotnet publish ./tests/Opc.Ua.Bindings.WebTransport.Tests/Aot/Opc.Ua.Bindings.WebTransport.Aot.csproj `
+          -c Release -r $rid -p:CustomTestTarget=net10.0 -o $output @runtimeArguments
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $program = Join-Path $output $(if ($IsWindows) {
+          'Opc.Ua.Bindings.WebTransport.Aot.exe'
+        } else {
+          'Opc.Ua.Bindings.WebTransport.Aot'
+        })
+        & $program --managed --require-aot
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

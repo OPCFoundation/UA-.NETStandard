@@ -1874,6 +1874,13 @@ namespace Opc.Ua.Bindings
                     object? operationState = GetOriginalUascWriteState(write.State);
                     if (operationState is DataChannelWriteOperation flowOperation)
                     {
+                        if (State != TcpChannelState.Open)
+                        {
+                            flowOperation.Refuse(DataChannelResult.Closed);
+                            message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                            ReportWriteComplete(null, write.State, 0, ServiceResult.Good);
+                            continue;
+                        }
                         if (SequenceBudget.Remaining < message.Chunks.Count)
                         {
                             flowOperation.Refuse(DataChannelResult.WouldBlock);

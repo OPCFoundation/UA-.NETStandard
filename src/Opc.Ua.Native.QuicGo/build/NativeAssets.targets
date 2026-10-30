@@ -19,9 +19,7 @@
           Pack="true" PackagePath="native\source\" />
   </ItemGroup>
   <Target Name="ValidateQuicNativeAssets" BeforeTargets="GenerateNuspec"
-          Condition="'$(IsPackable)' == 'true'">
-    <Error Condition="'$(NativeQuicAssetRoot)' == ''"
-           Text="Native QUIC packaging requires reviewed assets. Use build\Pack-Native.ps1; binaries are not committed." />
+          Condition="'$(IsPackable)' == 'true' and '$(NativeQuicAssetRoot)' != ''">
     <Error Condition="!Exists('$(NativeQuicAssetRoot)\win-x64\opcua_quic_go.dll') or !Exists('$(NativeQuicAssetRoot)\linux-x64\libopcua_quic_go.so')"
            Text="Both reviewed win-x64 and linux-x64 native assets are required." />
     <Error Condition="!Exists('$(NativeQuicAssetRoot)\win-x64\native-receipt.json') or !Exists('$(NativeQuicAssetRoot)\linux-x64\native-receipt.json')"
@@ -29,6 +27,7 @@
     <Exec Command="&quot;$(NativeQuicPython)&quot; &quot;$(MSBuildThisFileDirectory)verify_package.py&quot; --inputs &quot;$(NativeQuicAssetRoot)&quot;" />
   </Target>
   <Target Name="PrepareQuicPackageRecipes" BeforeTargets="_GetPackageFiles;GenerateNuspec"
+          DependsOnTargets="ValidateQuicNativeAssets"
           Condition="'$(IsPackable)' == 'true'">
     <MakeDir Directories="$(BaseIntermediateOutputPath)native-package" />
     <Copy SourceFiles="$(MSBuildThisFileDirectory)Build-Native.ps1"
@@ -36,8 +35,10 @@
     <Copy SourceFiles="$(MSBuildThisFileDirectory)Pack-Native.ps1"
           DestinationFiles="$(BaseIntermediateOutputPath)native-package\Pack-Native.ps1.txt" />
     <Copy SourceFiles="$(NativeQuicAssetRoot)\win-x64\native-receipt.json"
+          Condition="'$(NativeQuicAssetRoot)' != ''"
           DestinationFiles="$(BaseIntermediateOutputPath)native-package\win-x64.json" />
     <Copy SourceFiles="$(NativeQuicAssetRoot)\linux-x64\native-receipt.json"
+          Condition="'$(NativeQuicAssetRoot)' != ''"
           DestinationFiles="$(BaseIntermediateOutputPath)native-package\linux-x64.json" />
   </Target>
 </Project>

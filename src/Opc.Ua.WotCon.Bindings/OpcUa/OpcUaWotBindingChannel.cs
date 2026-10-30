@@ -547,12 +547,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             ArrayOf<WotResolvedEventSelectClause> captureRequirements = default)
         {
             int interval = NormalizeInterval(m_options.ObserveInterval);
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
             var subscription = new Subscription(m_session.DefaultSubscription)
             {
                 DisplayName = "wot-" + Form.AffordanceName,
                 PublishingEnabled = true,
                 PublishingInterval = interval
             };
+#pragma warning restore CS0618
             m_session.AddSubscription(subscription);
             OpcUaMonitoredItemSubscription? lifetime = null;
             try

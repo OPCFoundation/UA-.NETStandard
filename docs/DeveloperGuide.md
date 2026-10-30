@@ -133,6 +133,18 @@ Conventions and requirements:
   `System.Net.Quic` or `libmsquic`. The QUIC binding also retains its managed
   `QuicUascTransport` and managed-peer interoperability tests, which use `System.Net.Quic`;
   those tests require the platform MsQuic library (`libmsquic` on Linux).
+  The required [managed transport workflow](../.github/workflows/managed-data-channels.yml)
+  runs the asset-independent binding, secured UASC, composition and sample tests on Windows/Linux,
+  then publishes and executes the managed capsule NativeAOT path. It clears the
+  custom native-image variables and sets `OPCUA_REQUIRE_MANAGED_QUIC=true`, so an
+  unavailable operating system QUIC runtime fails the loopback tests instead of
+  skipping them. The native workflow remains separately selectable with the
+  `include_experimental_native_data_channels` input on manual CI/nightly runs,
+  or by dispatching the native workflow directly.
+  Windows NativeAOT output also needs the stock .NET runtime's `msquic.dll`
+  beside the executable. The managed workflow supplies its installed-runtime
+  path to the transport AOT host through `ManagedMsQuicPath`; it does not load
+  the custom native backend.
   Follow the source-build instructions in
   [`Native.QuicGo/NATIVE_ABI.md`](../src/Opc.Ua.Native.QuicGo/NATIVE_ABI.md) and
   [`Native.Http3/ABI.md`](../src/Opc.Ua.Native.Http3/ABI.md). The supported native test hosts
@@ -153,9 +165,14 @@ Conventions and requirements:
   Required native CI jobs also set the test action's `require-clean-exit` input:
   a crashed test host can leave only passing counters in a partial TRX, so the
   mainline at-exit tolerance is not sufficient evidence for native qualification.
-  Native QUIC and HTTP/3 validation packages are built by the dedicated native
-  workflow and are excluded from the standard signed NuGet package set until
-  their separate production release gate is satisfied.
+  Custom native QUIC and HTTP/3 validation packages are built by the dedicated
+  native workflow and are excluded from the standard signed NuGet package set
+  until their separate production release gate is satisfied. The standard
+  `Native.QuicGo` package contains only the managed bridge and source recipes.
+  Packaging it with `NativeQuicAssetRoot` additionally requires reviewed images
+  for both supported platforms. The default WebTransport package has no
+  `Native.Http3` dependency; `IncludeExperimentalNativeDataChannelAssets=true`
+  selects that dependency for the native experiment.
 
 Wire compatibility with the released 1.5 stack is covered by
 [`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
@@ -573,13 +590,14 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 | Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
 | Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
 | Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
-| Native Data Channels | Required Windows/Linux x64 backend, real-flow and backend/carrier NativeAOT checks | Same dedicated native checks |
+| Managed Data Channels | Required Windows/Linux transport, composition, sample and managed capsule NativeAOT checks, without custom images | Same managed checks |
+| Native Data Channels | Separately selected experimental backend, real-flow and native NativeAOT checks | Same opt-in native checks |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
 A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses.
 
-The native Data Channel projects use the required
+The native Data Channel projects use the separately selected
 [reusable native workflow](../.github/workflows/native-data-channels.yml), not the
 all-platform mainline sweep. It verifies pinned public Go, Zig and Rust inputs, builds
 the production libraries, and supplies those exact assets to native and managed tests.
@@ -650,7 +668,8 @@ The tiers those filters leave out run elsewhere:
 | `SampleHaLongHaul` in `Opc.Ua.Redundancy.Samples.Tests` | [`.github/workflows/sample-ha-longhaul.yml`](../.github/workflows/sample-ha-longhaul.yml), opt-in |
 | `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `aot-test` job (both workflows) — published and run as native executables, not through `dotnet test` |
 | `Opc.Ua.OneFuzz.Validator.Tests` | `fuzz-drop` job — it pins net10.0 to match the drop it validates |
-| Native QUIC/H3 backends, QUIC/WebTransport bindings, native Client/Server lane and streaming/audio sample test projects | Required `native-data-channels` workflow on Windows/Linux x64; H3 uses its own TUnit/NativeAOT host |
+| Asset-independent QUIC/WebTransport, Client/Server composition and streaming/audio sample tests | Required `managed-data-channels` workflow on Windows/Linux |
+| Native QUIC/H3 backends and native-only transport, Client/Server lane and sample fixtures | Separately selected `native-data-channels` workflow on Windows/Linux x64; H3 uses its own TUnit/NativeAOT host |
 
 The opt-in workflows run on their schedule, on demand from the Actions tab, and on a pull request that carries their label. Like `interop` for the [foreign stack interop](../.github/workflows/interop-foreign.yml) run, the label is not a required check: add it to start a run, and each later push to the pull request restarts it, cancelling the run in progress. Adding an unrelated label does not restart it.
 

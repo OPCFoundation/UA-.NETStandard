@@ -12,6 +12,10 @@ on:
         description: 'Include the macOS runners'
         type: boolean
         default: true
+      include_experimental_native_data_channels:
+        description: 'Also qualify experimental native assets, direct streams and datagrams'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -162,9 +166,15 @@ jobs:
         coverage: ${{ matrix.entry.coverage }}
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  managed-data-channels:
+    name: Managed Data Channels
+    needs: discover
+    uses: ./.github/workflows/managed-data-channels.yml
+
   native-data-channels:
     name: Native Data Channels
     needs: discover
+    if: ${{ inputs.include_experimental_native_data_channels == true }}
     uses: ./.github/workflows/native-data-channels.yml
 
   aot:
@@ -268,7 +278,7 @@ jobs:
 
   coverage:
     name: coverage
-    needs: [discover, tests, native-data-channels]
+    needs: [discover, tests, managed-data-channels, native-data-channels]
     runs-on: ubuntu-latest
     # always(): the coverage of a run whose tests failed is still worth
     # reporting.
@@ -437,7 +447,7 @@ jobs:
     name: nightly summary
     runs-on: ubuntu-latest
     if: ${{ always() }}
-    needs: [discover, build-solutions, tests, aot, coverage, crash-corpus]
+    needs: [discover, build-solutions, tests, aot, coverage, crash-corpus, managed-data-channels, native-data-channels]
     steps:
     - name: Evaluate job results
       shell: pwsh
@@ -448,6 +458,8 @@ jobs:
         AOT_RESULT: ${{ needs.aot.result }}
         COVERAGE_RESULT: ${{ needs.coverage.result }}
         CORPUS_RESULT: ${{ needs.crash-corpus.result }}
+        MANAGED_RESULT: ${{ needs.managed-data-channels.result }}
+        NATIVE_RESULT: ${{ needs.native-data-channels.result }}
       run: |
         $results = [ordered]@{
           'discover'        = $env:DISCOVER_RESULT
@@ -456,6 +468,8 @@ jobs:
           'aot'             = $env:AOT_RESULT
           'coverage'        = $env:COVERAGE_RESULT
           'crash-corpus'    = $env:CORPUS_RESULT
+          'managed-data-channels' = $env:MANAGED_RESULT
+          'native-data-channels' = $env:NATIVE_RESULT
         }
 
         $bad = @()
@@ -470,6 +484,9 @@ jobs:
         # never empty, so unlike the other jobs it may not be skipped.
         if ($env:CORPUS_RESULT -eq 'skipped') {
           $bad += 'crash-corpus=skipped'
+        }
+        if ($env:MANAGED_RESULT -ne 'success') {
+          $bad += "managed-data-channels=$($env:MANAGED_RESULT)"
         }
 
         if ($bad.Count -gt 0) {

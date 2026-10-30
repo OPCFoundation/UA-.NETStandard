@@ -79,7 +79,7 @@ namespace Opc.Ua.DataChannels
 
         /// <summary>
         /// Queues a verified MSG after UASC security and sequence checks.
-        /// Configured UADP source/writer routes select DATA admission; controls carry their own flow identifier.
+        /// DATA RequestId selects the admission; configured UADP source/writer routes validate its association.
         /// </summary>
         internal void QueueVerifiedUasc(
             DataChannelUascMessageKind kind,
@@ -275,12 +275,12 @@ namespace Opc.Ua.DataChannels
                 malformedHeader = true;
             }
 
-            string? resourceUri = null;
             bool typedStreaming = !malformedHeader && networkMessageHeader.NetworkMessageType == 3 &&
                 FlowModel.SharesServices(m_carrier.Kind);
             if (!malformedHeader && !typedStreaming && m_uascPublisherRoutes.Count > 0)
             {
-                DataChannelResult routeResult = ResolveUascPublisherRoute(networkMessageHeader, out resourceUri);
+                DataChannelResult routeResult = ValidateUascPublisherRoutes(
+                    networkMessageHeader, target.Parameters.ResourceUri);
                 if (routeResult != DataChannelResult.Good)
                 {
                     return routeResult;
@@ -300,9 +300,7 @@ namespace Opc.Ua.DataChannels
                 !DataChannelProfiles.IsUadpPayloadProtocol(target.Parameters.Protocol) ||
                 !messageTypeSupported ||
                 (!malformedHeader && typedStreaming &&
-                    !target.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
-                (resourceUri != null && !string.Equals(
-                    target.Parameters.ResourceUri, resourceUri, StringComparison.Ordinal)))
+                    !target.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)))
             {
                 return DataChannelResult.UnknownChannel;
             }
@@ -313,15 +311,26 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Resolves one complete visible UADP source/writer association to exactly one resource.
+        /// Validates visible UADP source/writer associations only within the RequestId-selected resource.
         /// </summary>
-        private DataChannelResult ResolveUascPublisherRoute(
+        private DataChannelResult ValidateUascPublisherRoutes(
             UadpNetworkMessageHeader header,
-            out string? resourceUri)
+            string? resourceUri)
         {
-            resourceUri = null;
-            List<UascPublisherRoute> candidates = [.. m_uascPublisherRoutes.Where(route =>
-                route.PublisherId.Equals(header.PublisherId) || route.PublisherId.IsNull)];
+            List<UascPublisherRoute>? candidates = null;
+            foreach (UascPublisherRoute route in m_uascPublisherRoutes)
+            {
+                if (string.Equals(route.ResourceUri, resourceUri, StringComparison.Ordinal))
+                {
+                    candidates ??= [];
+                    candidates.Add(route);
+                }
+            }
+            if (candidates is null)
+            {
+                return DataChannelResult.Good;
+            }
+            candidates.RemoveAll(route => !route.PublisherId.Equals(header.PublisherId) && !route.PublisherId.IsNull);
             if (!header.PublisherId.IsNull &&
                 candidates.Exists(route => route.PublisherId.Equals(header.PublisherId)))
             {
@@ -370,45 +379,26 @@ namespace Opc.Ua.DataChannels
                     candidates.RemoveAll(route => route.WriterGroupId.HasValue);
                 }
             }
-            HashSet<string>? matchingResources = null;
-            if (header.DataSetWriterIds.Length == 0)
-            {
-                matchingResources = candidates
-                    .Select(static route => route.ResourceUri)
-                    .ToHashSet(StringComparer.Ordinal);
-            }
-            else
-            {
-                foreach (ushort dataSetWriterId in header.DataSetWriterIds)
-                {
-                    List<UascPublisherRoute> exactWriterRoutes = [.. candidates.Where(route =>
-                        route.DataSetWriterId == dataSetWriterId)];
-                    List<UascPublisherRoute> matchingWriterRoutes = exactWriterRoutes.Count > 0
-                        ? exactWriterRoutes
-                        : [.. candidates.Where(static route => !route.DataSetWriterId.HasValue)];
-                    HashSet<string> writerResources = matchingWriterRoutes
-                        .Select(static route => route.ResourceUri)
-                        .ToHashSet(StringComparer.Ordinal);
-                    if (matchingResources is null)
-                    {
-                        matchingResources = writerResources;
-                    }
-                    else
-                    {
-                        matchingResources.IntersectWith(writerResources);
-                    }
-                }
-            }
-
-            if (matchingResources is null || matchingResources.Count == 0)
+            if (candidates.Count == 0)
             {
                 return DataChannelResult.UnknownChannel;
             }
-            if (matchingResources.Count != 1)
+            foreach (ushort dataSetWriterId in header.DataSetWriterIds)
             {
-                return DataChannelResult.InvalidState;
+                bool matched = false;
+                foreach (UascPublisherRoute route in candidates)
+                {
+                    if (!route.DataSetWriterId.HasValue || route.DataSetWriterId == dataSetWriterId)
+                    {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched)
+                {
+                    return DataChannelResult.UnknownChannel;
+                }
             }
-            resourceUri = matchingResources.Single();
             return DataChannelResult.Good;
         }
 

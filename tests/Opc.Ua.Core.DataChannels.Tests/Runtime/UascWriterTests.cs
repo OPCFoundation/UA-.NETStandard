@@ -102,6 +102,37 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClosingRefusesUnsealedFlowWritesBeforeSequenceConsumption(bool control)
+        {
+            await using var fixture = new WriterFixture();
+            fixture.Transport.BlockCall = 1;
+            Task first = fixture.Channel.ServiceAsync();
+            await fixture.Transport.Blocked.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            DataChannelWrite write = control ? ControlWrite() : DataWrite();
+            Task<DataChannelResult> flow = fixture.Channel.SendDataChannelWriteAsync(write, CancellationToken.None)
+                .AsTask();
+            Assert.That(write.IsCommitted, Is.False);
+            fixture.Channel.BeginClosing();
+            Task close = fixture.Channel.ServiceAsync(TcpMessageType.Close);
+            fixture.Transport.Release.TrySetResult(true);
+            await Task.WhenAll(first, close, flow).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            DataChannelResult result = await flow.ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result, Is.EqualTo(DataChannelResult.Closed));
+                Assert.That(write.IsCommitted, Is.False);
+                Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
+                [
+                    TcpMessageType.Message, TcpMessageType.Close
+                ]));
+                Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101 }));
+                Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(2));
+                Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
+            });
+        }
+
         /// <summary>
         /// Queued controls make bounded progress before security assignment while DATA remains below Services.
         /// </summary>
@@ -120,12 +151,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             {
                 pending.Add(fixture.Channel.ServiceAsync());
             }
-            FlowRecord control = FlowControlCodec.Encode(
-                new FlowProbe(FlowOperation.Ping, 0, 42), 0, 900, new FlowCodecLimits());
-            ByteString payload = UascFlowMessageCodec.Encode(
-                FlowCarrier.SharedUasc, 0, in control, new FlowCodecLimits(), out uint requestId);
-            var controlWrite = new DataChannelWrite(
-                DataChannelPath.Management, 0, 0, requestId, payload, false, 0, () => DataChannelResult.Good);
+            DataChannelWrite controlWrite = ControlWrite();
             pending.Add(fixture.Channel.SendDataChannelWriteAsync(controlWrite, CancellationToken.None).AsTask());
             Assert.That(controlWrite.IsCommitted, Is.False);
             Assert.That(dataWrite.IsCommitted, Is.False);
@@ -137,15 +163,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             byte[][] chunks = fixture.Transport.Chunks;
             int bodyOffset = TcpMessageLimits.MessageTypeAndSize +
                 TcpMessageLimits.SymmetricHeaderSize;
-            int firstFlowControl = Array.FindIndex(chunks, chunk =>
-            {
-                return (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) ==
+            int firstFlowControl = Array.FindIndex(chunks, chunk => (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) ==
                     TcpMessageType.Message &&
                     chunk.Length >= bodyOffset + UascFlowMessageCodec.ControlPrefixSize + 1 &&
                     chunk[bodyOffset] == 0 && chunk[bodyOffset + 1] == 255 &&
                     BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(bodyOffset + 2)) == 0 &&
-                    chunk[bodyOffset + UascFlowMessageCodec.ControlPrefixSize] == (byte)FlowOperation.Ping;
-            });
+                    chunk[bodyOffset + UascFlowMessageCodec.ControlPrefixSize] == (byte)FlowOperation.Ping);
             Assert.Multiple(() =>
             {
                 Assert.That(types, Has.Length.EqualTo(27));
@@ -358,7 +381,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(fixture.Transport.Sequences,
                     Is.EqualTo(Enumerable.Range(100, chunks.Length).Select(value => (uint)value)));
                 Assert.That(fixture.Channel.SequenceBudget.Remaining,
-                    Is.EqualTo((long)uint.MaxValue - chunks.Length));
+                    Is.EqualTo(uint.MaxValue - chunks.Length));
                 Assert.That(body.ToArray(), Is.EqualTo(write.Payload.ToArray()));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
             });
@@ -634,6 +657,16 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             });
         }
 
+        private static DataChannelWrite ControlWrite()
+        {
+            FlowRecord control = FlowControlCodec.Encode(
+                new FlowProbe(FlowOperation.Ping, 0, 42), 0, 900, new FlowCodecLimits());
+            ByteString payload = UascFlowMessageCodec.Encode(
+                FlowCarrier.SharedUasc, 0, in control, new FlowCodecLimits(), out uint requestId);
+            return new DataChannelWrite(
+                DataChannelPath.Management, 0, 0, requestId, payload, false, 0, () => DataChannelResult.Good);
+        }
+
         private static DataChannelWrite DataWrite(int payloadLength = 4, Func<DataChannelResult>? commit = null)
         {
             var record = new FlowRecord(
@@ -703,7 +736,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     telemetry: telemetry)
             {
                 Transport = transport;
+                State = TcpChannelState.Open;
                 CalculateSymmetricKeySizes();
+            }
+
+            internal void BeginClosing()
+            {
+                State = TcpChannelState.Closing;
             }
 
             internal void Activate(uint tokenId)
@@ -769,13 +808,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 NotifyChannelClosed();
             }
 
-            internal async Task ServiceAsync()
+            internal async Task ServiceAsync(uint messageType = TcpMessageType.Message)
             {
                 var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 using (await Gate.EnterAsync(CancellationToken.None).ConfigureAwait(false))
                 {
                     EncodedSymmetricMessage message = EncodeSymmetricMessage(
-                        TcpMessageType.Message, 21, new ArraySegment<byte>([]), true, out bool exceeded);
+                        messageType, 21, new ArraySegment<byte>([]), true, out bool exceeded);
                     if (exceeded || !BeginWriteSymmetricMessage(message, completed))
                     {
                         message.Chunks.Release(BufferManager, nameof(ServiceAsync));
@@ -858,7 +897,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             internal TaskCompletionSource<bool> Release { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            internal byte[][] Chunks => m_chunks.ToArray();
+            internal byte[][] Chunks => [.. m_chunks];
 
             internal uint[] Sequences => [.. m_chunks.Select(bytes =>
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(16)))];

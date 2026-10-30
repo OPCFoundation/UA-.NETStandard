@@ -96,7 +96,8 @@ jobs:
       run: |
         $output = Join-Path $env:OPCUA_NATIVE_BUILD_ROOT 'managed-package-check'
         dotnet pack .\src\Opc.Ua.Bindings.WebTransport\Opc.Ua.Bindings.WebTransport.csproj `
-          -c Release --no-build --no-restore -p:BuildProjectReferences=false -o $output -v quiet
+          -c Release -p:IncludeExperimentalNativeDataChannelAssets=true `
+          -p:BuildProjectReferences=false -o $output -v quiet
         if ($LASTEXITCODE -ne 0) { throw 'WebTransport package validation failed.' }
         $packages = @(Get-ChildItem $output -Filter '*.nupkg' -File)
         if ($packages.Count -ne 1) { throw 'Expected one WebTransport validation package.' }

@@ -27,7 +27,9 @@ namespace Opc.Ua.Server.Tests.DataChannels
         /// <summary>
         /// Builds the source, authenticated identities and Session metadata seams.
         /// </summary>
-        private DataChannelControlTestContext(ArrayOf<ExpandedNodeId> contentNodeIds)
+        private DataChannelControlTestContext(
+            ArrayOf<ExpandedNodeId> contentNodeIds,
+            TimeSpan? keepAliveInterval)
         {
             Telemetry = NUnitTelemetryContext.Create();
             Clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
@@ -65,6 +67,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 MaxReceiveBytes = 16384,
                 MaxContextBytes = 65536
             };
+            if (keepAliveInterval.HasValue)
+            {
+                Options = Options with { KeepAliveInterval = keepAliveInterval.Value };
+            }
             Provider = new ServerDataChannelProvider(
                 sources, Options, new DataChannelApplicationBudget(), Clock, Telemetry);
             Session.SetupGet(value => value.Id).Returns(new NodeId(100u, 1));
@@ -153,9 +159,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
         /// Establishes two actual common-runtime contexts through their HELLO exchange.
         /// </summary>
         internal static async Task<DataChannelControlTestContext> CreateAsync(
-            ArrayOf<ExpandedNodeId> contentNodeIds = default)
+            ArrayOf<ExpandedNodeId> contentNodeIds = default,
+            TimeSpan? keepAliveInterval = null)
         {
-            var fixture = new DataChannelControlTestContext(contentNodeIds);
+            var fixture = new DataChannelControlTestContext(contentNodeIds, keepAliveInterval);
             try
             {
                 fixture.Pair = await DataChannelControlTestPair.CreateAsync(
@@ -405,9 +412,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 DataChannelWrite write, CancellationToken cancellationToken = default)
             {
                 ByteString payload = write.Payload.Copy();
-                DataChannelUascMessageKind kind = write.IsData
-                    ? DataChannelUascMessageKind.Flo
-                    : DataChannelUascMessageKind.Flc;
+                DataChannelUascMessageKind kind = DataChannelUascMessageKind.Msg;
                 if (!await Peer.m_incoming.Writer.WaitToWriteAsync(cancellationToken).ConfigureAwait(false) ||
                     !write.TryCommit())
                 {

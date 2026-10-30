@@ -594,6 +594,22 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
+        public void AllowUnencryptedUserNameTokensRoundTrip()
+        {
+            ApplicationConfiguration config = DecodeFromFile<ApplicationConfiguration>(
+                "test-security-modern.xml");
+            Assert.That(config.SecurityConfiguration.AllowUnencryptedUserNameTokens, Is.False);
+
+            // The opt-in must survive a write and read of the configuration.
+            config.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+            string xml = EncodeToXml(config);
+            Assert.That(xml, Does.Contain("AllowUnencryptedUserNameTokens"));
+
+            ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
+            Assert.That(roundTripped.SecurityConfiguration.AllowUnencryptedUserNameTokens, Is.True);
+        }
+
+        [Test]
         public void ModernSecurityConfigurationRoundTrip()
         {
             ApplicationConfiguration config = DecodeFromFile<ApplicationConfiguration>(
@@ -663,6 +679,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(sec.SendCertificateChain, Is.True);
             Assert.That(sec.AddAppCertToTrustedStore, Is.False);
             Assert.That(sec.SuppressNonceValidationErrors, Is.False);
+            Assert.That(sec.AllowUnencryptedUserNameTokens, Is.False);
 
             // Round-trip
             string xml = EncodeToXml(config);

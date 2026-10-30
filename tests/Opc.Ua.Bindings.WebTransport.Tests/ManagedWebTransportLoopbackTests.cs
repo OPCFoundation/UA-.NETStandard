@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings.WebTransport.Tests
@@ -36,10 +37,12 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         /// Completes HTTP/3 SETTINGS, capsule CONNECT, origin policy, and stream-zero credit setup.
         /// </summary>
         [Test]
-        public async Task ConnectAsync_AndAcceptAsync_EstablishCapsuleUascBaselines()
+        public async Task ConnectAndAcceptEstablishCapsuleUascBaselinesAsync()
         {
             if (!QuicConnection.IsSupported || !QuicListener.IsSupported)
             {
+                Assert.That(Environment.GetEnvironmentVariable("OPCUA_REQUIRE_MANAGED_QUIC"),
+                    Is.Not.EqualTo("true"), "This validation lane requires the operating system QUIC runtime.");
                 Assert.Ignore("The .NET QUIC runtime is unavailable on this platform.");
             }
 
@@ -71,14 +74,28 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 TargetHost = IPAddress.Loopback.ToString()
             };
 
-            var server = new ManagedWebTransportUascServer();
+            var budget = new DataChannelApplicationBudget(new DataChannelApplicationLimits
+            {
+                MaxBufferedBytes = 2 * ManagedWebTransportUascTransport.ConnectionBufferedBytes
+            });
+            var server = new ManagedWebTransportUascServer(budget);
             await using ManagedWebTransportUascListener listener = await server.ListenAsync(
                 new Uri("https://127.0.0.1:0/ua/wt"),
                 new IPEndPoint(IPAddress.Loopback, 0),
                 serverTls,
                 static (_, _) => ValueTask.FromResult(true));
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-            var client = new ManagedWebTransportUascTransport();
+            var client = new ManagedWebTransportUascTransport(budget);
+            using (var cancelled = new CancellationTokenSource())
+            {
+                await cancelled.CancelAsync();
+                await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), async () =>
+                    await listener.AcceptAsync(cancelled.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), async () =>
+                    await client.ConnectAsync(listener.EndpointUrl, clientTls, cancelled.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(budget.Usage, Is.Default);
+            }
             Task<ManagedWebTransportUascConnection> rejectedAcceptTask = listener.AcceptAsync(timeout.Token).AsTask();
             Uri mismatchedEndpoint = new UriBuilder(listener.EndpointUrl)
             {
@@ -89,6 +106,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 .ConfigureAwait(false);
             await Assert.ThrowsAsync<AuthenticationException>(async () =>
                 await rejectedAcceptTask.ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(budget.Usage, Is.Default);
 
             Task<ManagedWebTransportUascConnection> acceptTask = listener.AcceptAsync(timeout.Token).AsTask();
             ManagedWebTransportUascConnection clientConnection;
@@ -106,6 +124,19 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             using var telemetryOwner = (IDisposable)telemetry;
             try
             {
+                DataChannelResourceUsage admitted = budget.Usage;
+                Assert.That(admitted.BufferedBytes,
+                    Is.EqualTo(2 * ManagedWebTransportUascTransport.ConnectionBufferedBytes));
+                Assert.That(admitted.Streams, Is.EqualTo(140));
+                DataChannelException? clientRefusal = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                    await client.ConnectAsync(listener.EndpointUrl, clientTls, timeout.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                DataChannelException? serverRefusal = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                    await listener.AcceptAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(clientRefusal?.Result, Is.EqualTo(DataChannelResult.WouldBlock));
+                Assert.That(serverRefusal?.Result, Is.EqualTo(DataChannelResult.WouldBlock));
+                Assert.That(budget.Usage, Is.EqualTo(admitted),
+                    "Refused admission must not change any shared budget dimension.");
                 Assert.That(observedThumbprint, Is.EqualTo(expectedThumbprint));
                 Assert.That(clientConnection.TransportProfileUri, Is.EqualTo(serverConnection.TransportProfileUri));
                 Assert.That(clientConnection.EndpointUrl, Is.EqualTo(listener.EndpointUrl));
@@ -168,6 +199,9 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 }
                 clientTransport.Close();
                 serverTransport.Close();
+                await clientConnection.DisposeAsync().ConfigureAwait(false);
+                Assert.That(budget.Usage.BufferedBytes,
+                    Is.EqualTo(ManagedWebTransportUascTransport.ConnectionBufferedBytes));
             }
             finally
             {
@@ -175,6 +209,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                     clientConnection.DisposeAsync().AsTask(),
                     serverConnection.DisposeAsync().AsTask()).ConfigureAwait(false);
             }
+            Assert.That(budget.Usage, Is.Default);
         }
     }
 }

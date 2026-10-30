@@ -1890,7 +1890,7 @@ namespace Opc.Ua.Bindings
             if (requestId == 0 || (requestId & UascFlowMessageCodec.DataRequestIdFlag) != 0)
             {
                 // RequestId 0 and the high bit are reserved for control and data messages.
-                Interlocked.Exchange(ref m_lastRequestId, 0);
+                m_lastRequestId = 0;
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
             long deadline = long.MaxValue;

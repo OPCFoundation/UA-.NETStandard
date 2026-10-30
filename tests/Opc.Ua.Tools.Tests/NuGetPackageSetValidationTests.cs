@@ -61,10 +61,10 @@ namespace Opc.Ua.Tools.Tests
         ];
 
         /// <summary>
-        /// Native bindings publish with the standard set; backend packages use the separate native validation gate.
+        /// Managed bindings and the backend bridge publish without requiring custom native assets.
         /// </summary>
         [Test]
-        public async Task ExpectedPackageInventoryKeepsNativeBackendPackagesOutOfStandardPublishAsync()
+        public async Task ExpectedPackageInventoryIncludesManagedNativeBackendBridgeAsync()
         {
             string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
@@ -78,17 +78,18 @@ namespace Opc.Ua.Tools.Tests
             string[] expected =
             [
                 "OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic",
-                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport"
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport",
+                "OPCFoundation.NetStandard.Opc.Ua.Native.QuicGo"
             ];
 
             Assert.That(actual, Is.EquivalentTo(expected));
         }
 
         /// <summary>
-        /// Restore must retain the native package edge without exposing or copying a placeholder managed library.
+        /// Only explicitly selected native experiments retain the native-only HTTP3 package dependency.
         /// </summary>
         [Test]
-        public void WebTransportRetainsTheNativeOnlyHttp3PackageEdge()
+        public void WebTransportOptsIntoTheNativeOnlyHttp3PackageEdge()
         {
             string path = Path.Combine(FindRepositoryRoot(), "src",
                 "Opc.Ua.Bindings.WebTransport", "Opc.Ua.Bindings.WebTransport.csproj");
@@ -102,11 +103,35 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.Multiple(() =>
             {
+                Assert.That(reference.Attribute("Condition")?.Value,
+                    Is.EqualTo("'$(IncludeExperimentalNativeDataChannelAssets)' == 'true'"));
                 Assert.That(reference.Attribute("ReferenceOutputAssembly")?.Value,
                     Is.Not.EqualTo("false").IgnoreCase,
                     "NuGet removes false ReferenceOutputAssembly edges from the restore graph.");
                 Assert.That(assets, Is.EquivalentTo(expected));
                 Assert.That(reference.Attribute("Private")?.Value, Is.EqualTo("false"));
+            });
+        }
+
+        /// <summary>
+        /// Explicit native packing validates both reviewed images before reading their receipts.
+        /// </summary>
+        [Test]
+        public void NativeQuicPackagingValidatesAssetsBeforeCopyingReceipts()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "src",
+                "Opc.Ua.Native.QuicGo", "build", "NativeAssets.targets");
+            var targets = XDocument.Load(path);
+            XElement prepare = targets.Descendants("Target").Single(element =>
+                element.Attribute("Name")?.Value == "PrepareQuicPackageRecipes");
+            XElement validate = targets.Descendants("Target").Single(element =>
+                element.Attribute("Name")?.Value == "ValidateQuicNativeAssets");
+            Assert.Multiple(() =>
+            {
+                Assert.That(prepare.Attribute("DependsOnTargets")?.Value, Is.EqualTo("ValidateQuicNativeAssets"));
+                Assert.That(validate.Attribute("Condition")?.Value, Does.Contain("'$(NativeQuicAssetRoot)' != ''"));
+                Assert.That(validate.Descendants("Exec").Single().Attribute("Command")?.Value,
+                    Does.Contain("verify_package.py"));
             });
         }
 
@@ -155,7 +180,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The AutoID companion ships as exactly the model, server, client and MCP packages.
+        /// AutoID ships the model, server, client and MCP packages without a registration-only package.
         /// </summary>
         [Test]
         public async Task ExpectedPackageInventoryContainsTheFourAutoIdPackagesAsync()

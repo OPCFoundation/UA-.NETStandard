@@ -37,10 +37,12 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         /// </summary>
         [Test]
         [CancelAfter(60000)]
-        public async Task ManagedCapsuleSession_ConfirmsContextsAndExchangesSecuredUascServiceAsync()
+        public async Task ManagedCapsuleSessionConfirmsContextsAndExchangesSecuredUascServiceAsync()
         {
             if (!QuicConnection.IsSupported || !QuicListener.IsSupported)
             {
+                Assert.That(Environment.GetEnvironmentVariable("OPCUA_REQUIRE_MANAGED_QUIC"),
+                    Is.Not.EqualTo("true"), "This validation lane requires the operating system QUIC runtime.");
                 Assert.Ignore("The .NET QUIC runtime is unavailable on this platform.");
             }
 

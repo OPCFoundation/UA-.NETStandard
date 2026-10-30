@@ -160,13 +160,7 @@ namespace Opc.Ua.DataChannels
                 return DataChannelResult.Good;
             }
             UadpNetworkMessageHeader header = UadpApplicationPayloadHeaderCodec.DecodePublisherHeader(body);
-            DataChannelResult route = ResolveUascPublisherRoute(header, out string? resource);
-            if (route != DataChannelResult.Good)
-            {
-                return route;
-            }
-            return string.Equals(resource, flow.Parameters.ResourceUri, StringComparison.Ordinal)
-                ? DataChannelResult.Good : DataChannelResult.NotAuthorized;
+            return ValidateUascPublisherRoutes(header, flow.Parameters.ResourceUri);
         }
 
         /// <summary>The one context-level datagram ingress worker.</summary>

@@ -537,6 +537,38 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
+        /// Another resource cannot constrain or redirect the flow already selected by the DATA RequestId.
+        /// </summary>
+        [Test]
+        public async Task UascPublisherAssociationsCannotConstrainOrRedirectAnotherResourceAsync()
+        {
+            await using var pair = new FlowLoopback();
+            await pair.StartAsync().ConfigureAwait(false);
+            FlowPair target = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:selected"))
+                .ConfigureAwait(false);
+            FlowPair other = await pair.OpenAsync(PublisherRouteParameters("urn:publisher:other"))
+                .ConfigureAwait(false);
+            using IDisposable otherRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:other", new Variant(42u));
+            ByteString payload = PublisherRoutePayload(new Variant(42u));
+            Assert.That(await ReceivePublisherFloAsync(pair, payload, target.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(target.Remote, payload, 1).ConfigureAwait(false);
+            using IDisposable targetRoute = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:selected", new Variant(17u));
+            Assert.That(await ReceivePublisherFloAsync(pair, payload, target.Remote).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.UnknownChannel));
+            Assert.Multiple(() =>
+            {
+                Assert.That(target.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(other.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(target.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(other.Remote.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(pair.Acceptor.IsReady, Is.True);
+            });
+        }
+
+        /// <summary>
         /// Each half of a duplex flow admits only the PublisherId configured by its receiving context.
         /// </summary>
         [TestCase(DataChannelCarrierKind.DedicatedUasc)]
@@ -729,10 +761,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await ReceivePublisherFloAsync(pair, UadpWriterPayload(12, 36), first.Remote)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.UnknownChannel));
             Assert.That(await ReceivePublisherFloAsync(pair, PublisherRoutePayload(new Variant(42u)), first.Remote)
-                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.InvalidState));
+                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(first.Remote, PublisherRoutePayload(new Variant(42u)), 2)
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(first.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(2));
                 Assert.That(second.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
                 Assert.That(third.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(2));
                 Assert.That(first.Remote.State, Is.EqualTo(DataChannelState.Open));
@@ -742,10 +776,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         /// <summary>
-        /// Uses the writer IDs carried in UADP discovery bodies and rejects undiscriminated responses.
+        /// Discovery associations validate the selected resource without ambiguity from other resources.
         /// </summary>
         [Test]
-        public async Task UascDiscoveryMessagesRouteByWriterAndRejectAmbiguousPublisherOnlyResponse()
+        public async Task UascDiscoveryAssociationsValidateOnlyTheRequestIdSelectedResource()
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.SharedUasc);
             await pair.StartAsync().ConfigureAwait(false);
@@ -768,10 +802,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Is.EqualTo(DataChannelResult.Good));
             await AssertPublisherMessageAsync(target.Remote, response, 2).ConfigureAwait(false);
             Assert.That(await ReceivePublisherFloAsync(pair, undiscriminatedResponse, target.Remote).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.InvalidState));
+                Is.EqualTo(DataChannelResult.Good));
+            await AssertPublisherMessageAsync(target.Remote, undiscriminatedResponse, 3).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(target.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(2));
+                Assert.That(target.Remote.GetDiagnostics().MessagesReceived, Is.EqualTo(3));
                 Assert.That(other.Remote.GetDiagnostics().MessagesReceived, Is.Zero);
             });
         }
@@ -1462,7 +1497,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         }
 
         [TestCase("unmatched", DataChannelResult.UnknownChannel)]
-        [TestCase("missing-resource", DataChannelResult.UnknownChannel)]
+        [TestCase("missing-resource", DataChannelResult.Good)]
         [TestCase("ambiguous-exact", DataChannelResult.Good)]
         [TestCase("ambiguous-wildcard", DataChannelResult.Good)]
         [TestCase("unregistered", DataChannelResult.Good)]
@@ -1581,6 +1616,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             duplicate.Dispose();
             using IDisposable decoy = pair.Acceptor.RegisterUascPublisherRoute(
                 "urn:publisher:decoy", new Variant(43u));
+            using IDisposable denied = pair.Acceptor.RegisterUascPublisherRoute(
+                "urn:publisher:first", new Variant(44u));
             Assert.That(await ReceivePublisherFloAsync(pair, payload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.UnknownChannel), "The final owner must remove the route.");
             decoy.Dispose();

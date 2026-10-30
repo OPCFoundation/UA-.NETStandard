@@ -162,7 +162,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("Opc.Ua.Bindings.WebTransport.Tests")]
         [TestCase("Opc.Ua.DataChannel.ClientServer.Tests")]
         [TestCase("Opc.Ua.DataChannel.Samples.Tests")]
-        public async Task NativeProjectsUseTheRequiredSupportedHostWorkflowAsync(string project)
+        public async Task NativeProjectsUseTheExplicitSupportedHostWorkflowAsync(string project)
         {
             MatrixResult matrix = await RunMatrixAsync("pr").ConfigureAwait(false);
             Assert.That(
@@ -183,9 +183,57 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(pullRequest, Does.Contain("uses: ./.github/workflows/native-data-channels.yml"));
             Assert.That(pullRequest, Does.Contain("'native-data-channels' = $env:NATIVE_RESULT"));
             Assert.That(pullRequest, Does.Contain("NATIVE_RESULT: ${{ needs.native-data-channels.result }}"));
+            Assert.That(pullRequest, Does.Contain(
+                "inputs.include_experimental_native_data_channels == true"));
             string nightly = await File.ReadAllTextAsync(
                 Path.Combine(root, ".github", "workflows", "nightly.yml")).ConfigureAwait(false);
             Assert.That(nightly, Does.Contain("uses: ./.github/workflows/native-data-channels.yml"));
+            Assert.That(nightly, Does.Contain("inputs.include_experimental_native_data_channels == true"));
+        }
+
+        /// <summary>
+        /// Managed transport validation remains mandatory without selecting custom native images.
+        /// </summary>
+        [Test]
+        public async Task ManagedTransportsHaveAnAssetIndependentRequiredLaneAsync()
+        {
+            string root = FindRepositoryRoot();
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "managed-data-channels.yml")).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(workflow, Does.Contain("os: [windows-latest, ubuntu-latest]"));
+                Assert.That(workflow, Does.Contain("OPCUA_QUIC_NATIVE_PATH: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_HTTP3_NATIVE_PATH: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_HTTP3_NATIVE_SHA256: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_REQUIRE_MANAGED_QUIC: 'true'"));
+                Assert.That(workflow, Does.Contain("https://packages.microsoft.com/config/ubuntu/"));
+                Assert.That(workflow, Does.Contain("sudo dpkg -i \"$RUNNER_TEMP/packages-microsoft-prod.deb\""));
+                Assert.That(workflow, Does.Contain("sudo apt-get install -y libmsquic"));
+                Assert.That(workflow, Does.Contain("-p:ManagedMsQuicPath=$msquic"));
+                Assert.That(workflow, Does.Contain("--managed --require-aot"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.Bindings.WebTransport.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.Bindings.Quic.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.DataChannel.ClientServer.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.DataChannel.Samples.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("projects: tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("filter: FullyQualifiedName~UascDataChannelSocketTests"));
+                Assert.That(workflow, Does.Contain("TestCategory!=WebTransportNative"));
+                Assert.That(workflow, Does.Not.Contain("continue-on-error"));
+                Assert.That(workflow, Does.Not.Contain("prepare-native"));
+            });
+            foreach (string file in new[] { "buildandtest.yml", "nightly.yml" })
+            {
+                string caller = await File.ReadAllTextAsync(
+                    Path.Combine(root, ".github", "workflows", file)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(caller, Does.Contain("uses: ./.github/workflows/managed-data-channels.yml"));
+                    Assert.That(caller, Does.Contain("MANAGED_RESULT: ${{ needs.managed-data-channels.result }}"));
+                    Assert.That(caller, Does.Contain("'managed-data-channels' = $env:MANAGED_RESULT"));
+                    Assert.That(caller, Does.Contain("$env:MANAGED_RESULT -ne 'success'"));
+                });
+            }
         }
 
         /// <summary>

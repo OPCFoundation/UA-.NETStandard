@@ -5,6 +5,12 @@ It does **not** implement Data Channel records, HTTP/3, Sessions or PubSub, and 
 dependency to ordinary Core/client/server/PubSub packages. The separate HTTP/3 engine
 reuses this runtime rather than loading another Go image.
 
+The standard package contains the managed bridge and native source recipes,
+not custom native binaries. Managed `System.Net.Quic` transport does not load
+this backend. A host selecting the native backend must supply reviewed native
+assets explicitly; packaging with `NativeQuicAssetRoot` validates and includes
+both supported platform images and their receipts.
+
 The backend uses pinned quic-go **0.64.0**, Go **1.27.2** and Zig **0.17.0**, with three
 hash-pinned exact-reset-09 observation overlays and a STOP_SENDING reliable-prefix policy
 overlay. TLS 1.3, real RFC9221 datagrams and exact peer TP `0x1d` are mandatory.
@@ -99,7 +105,8 @@ to the exact upstream source hash and covered by native live tests; see `native/
 
 ## Deployment and ownership
 
-Only **win-x64** and **glibc linux-x64** are included. The source-adoption execution
+Native-image packages include only **win-x64** and **glibc linux-x64**. The managed-only
+package includes neither platform image. The source-adoption execution
 matrix is serviced Windows/.NET and Linux glibc 2.38/2.39. The Linux compiler target is
 glibc 2.28; this is **not minimum-host execution evidence**. There is no musl, ARM or
 macOS claim. Windows uses OS UCRT; Linux uses system libc/pthread/resolver libraries.

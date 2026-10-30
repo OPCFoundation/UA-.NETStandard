@@ -24,6 +24,23 @@ namespace Opc.Ua.Bindings
     public sealed class ManagedWebTransportUascTransport
     {
         /// <summary>
+        /// Creates a client transport with its own accounting provider.
+        /// </summary>
+        public ManagedWebTransportUascTransport()
+            : this(new DataChannelApplicationBudget())
+        {
+        }
+
+        /// <summary>
+        /// Creates a client transport sharing the application's carrier and flow budget.
+        /// </summary>
+        public ManagedWebTransportUascTransport(DataChannelApplicationBudget applicationBudget)
+        {
+            ArgumentNullException.ThrowIfNull(applicationBudget);
+            m_applicationBudget = applicationBudget;
+        }
+
+        /// <summary>
         /// Establishes a managed HTTP/3 capsule session and its stream-zero UACP/UASC byte transport.
         /// </summary>
         /// <remarks>
@@ -37,39 +54,75 @@ namespace Opc.Ua.Bindings
         {
             ArgumentNullException.ThrowIfNull(endpoint);
             ArgumentNullException.ThrowIfNull(tls);
-            Http3CapsuleSession session = await ManagedHttp3WebTransportClient.ConnectAsync(
-                endpoint,
-                tls,
-                origin: null,
-                MaximumHeaderBytes,
-                MaximumFramePayloadBytes,
-                MaximumCapsulePayloadBytes,
-                EstablishmentTimeout,
-                cancellationToken).ConfigureAwait(false);
+            DataChannelApplicationBudget.DataChannelCarrierReservation reservation =
+                ReserveCapacity(m_applicationBudget);
             try
             {
-                WebTransportCapsuleByteStream stream = await WebTransportCapsuleByteStream.CreateAsync(
-                    session,
+                Http3CapsuleSession session = await ManagedHttp3WebTransportClient.ConnectAsync(
+                    endpoint,
+                    tls,
+                    origin: null,
+                    MaximumHeaderBytes,
+                    MaximumFramePayloadBytes,
                     MaximumCapsulePayloadBytes,
-                    InitialReceiveWindowBytes,
+                    EstablishmentTimeout,
                     cancellationToken).ConfigureAwait(false);
-                return new ManagedWebTransportUascConnection(session, stream, endpoint, isInitiator: true);
+                try
+                {
+                    WebTransportCapsuleByteStream stream = await WebTransportCapsuleByteStream.CreateAsync(
+                        session,
+                        MaximumCapsulePayloadBytes,
+                        InitialReceiveWindowBytes,
+                        cancellationToken).ConfigureAwait(false);
+                    return new ManagedWebTransportUascConnection(
+                        session, stream, endpoint, isInitiator: true, reservation);
+                }
+                catch
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
             }
             catch
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                reservation.Dispose();
                 throw;
             }
         }
 
         /// <summary>
-        /// Registers the managed client transport without creating TLS credentials or advertising endpoints.
+        /// Reserves managed parser, capsule-copy and receive-queue capacity before connection establishment.
         /// </summary>
+        /// <remarks>
+        /// Six MiB covers two receive-window payloads, one capsule parser payload, two send copies,
+        /// bounded QPACK/header/control storage and 64 extension-stream discard buffers.
+        /// The 70 additional streams cover six critical streams and 64 permitted extension streams;
+        /// Core accounts for the logical management stream. No per-message budget operations are required.
+        /// </remarks>
+        internal static DataChannelApplicationBudget.DataChannelCarrierReservation ReserveCapacity(
+            DataChannelApplicationBudget budget)
+        {
+            if (!budget.TryReserveCarrier(ConnectionBufferedBytes, 70, 0, out
+                DataChannelApplicationBudget.DataChannelCarrierReservation? reservation))
+            {
+                throw new DataChannelException(DataChannelResult.WouldBlock);
+            }
+            return reservation;
+        }
+
+        /// <summary>
+        /// The fixed managed retained-storage ceiling for one capsule connection, in bytes.
+        /// </summary>
+        internal const long ConnectionBufferedBytes = 6L * 1024 * 1024;
+
         private const int MaximumHeaderBytes = 65536;
         private const int MaximumFramePayloadBytes = 1048576;
         private const int MaximumCapsulePayloadBytes = 1048576;
         private const int InitialReceiveWindowBytes = 1048576;
         private static readonly TimeSpan EstablishmentTimeout = TimeSpan.FromSeconds(15);
+
+        /// <summary>Shared admission accounting for all connections created by this transport.</summary>
+        private readonly DataChannelApplicationBudget m_applicationBudget;
     }
 
     /// <summary>
@@ -89,6 +142,7 @@ namespace Opc.Ua.Bindings
         public static IOpcUaBuilder AddManagedWebTransportUasc(this IOpcUaBuilder builder)
         {
             ArgumentNullException.ThrowIfNull(builder);
+            builder.Services.TryAddSingleton<DataChannelApplicationBudget>();
             builder.Services.TryAddSingleton<ManagedWebTransportUascTransport>();
             builder.Services.TryAddSingleton<ManagedWebTransportUascServer>();
             return builder;
@@ -111,12 +165,14 @@ namespace Opc.Ua.Bindings
             Http3CapsuleSession session,
             WebTransportCapsuleByteStream stream,
             Uri endpoint,
-            bool isInitiator)
+            bool isInitiator,
+            DataChannelApplicationBudget.DataChannelCarrierReservation reservation)
         {
             m_session = session;
             m_stream = stream;
             EndpointUrl = endpoint;
             m_isInitiator = isInitiator;
+            m_reservation = reservation;
         }
 
         /// <summary>
@@ -185,7 +241,14 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                await m_session.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await m_session.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_reservation.Dispose();
+                }
             }
         }
 
@@ -228,6 +291,9 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly Http3CapsuleSession m_session;
+
+        /// <summary>Carrier capacity retained until all managed session owners have stopped.</summary>
+        private readonly DataChannelApplicationBudget.DataChannelCarrierReservation m_reservation;
         private readonly WebTransportCapsuleByteStream m_stream;
         private readonly bool m_isInitiator;
         private int m_streamClaimed;

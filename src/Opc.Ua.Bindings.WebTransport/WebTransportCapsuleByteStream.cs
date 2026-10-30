@@ -48,11 +48,21 @@ namespace Opc.Ua.Bindings
             }
             var stream = new WebTransportCapsuleByteStream(
                 session, maximumCapsulePayloadBytes, initialReceiveWindowBytes);
-            await stream.WriteCreditCapsulesAsync(stream.m_initialReceiveWindowBytes, cancellationToken)
-                .ConfigureAwait(false);
-            stream.m_advertisedReceiveMaximum = stream.m_initialReceiveWindowBytes;
-            stream.m_receiveTask = stream.ReceiveCapsulesAsync(stream.m_lifetime.Token);
-            return stream;
+            try
+            {
+                await stream.WriteCreditCapsulesAsync(stream.m_initialReceiveWindowBytes, cancellationToken)
+                    .ConfigureAwait(false);
+                stream.m_advertisedReceiveMaximum = stream.m_initialReceiveWindowBytes;
+                stream.m_receiveTask = stream.ReceiveCapsulesAsync(stream.m_lifetime.Token);
+                return stream;
+            }
+            catch
+            {
+                stream.m_readGate.Dispose();
+                stream.m_writeGate.Dispose();
+                stream.m_lifetime.Dispose();
+                throw;
+            }
         }
 
         public override bool CanRead => Volatile.Read(ref m_disposed) == 0;
@@ -68,6 +78,11 @@ namespace Opc.Ua.Bindings
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
+
+        /// <summary>
+        /// Gets the number of payload arrays retained by the receive queue and current read.
+        /// </summary>
+        internal int RetainedPayloadCount => m_incoming.Reader.Count + (m_currentPayload.Length == 0 ? 0 : 1);
 
         public override void Flush()
         {
@@ -136,6 +151,10 @@ namespace Opc.Ua.Bindings
                 {
                     // Closing the owned HTTP/3 session can race with the peer's session shutdown.
                 }
+                catch (OperationCanceledException) when (m_lifetime.IsCancellationRequested)
+                {
+                    // UASC shutdown can cancel the underlying QUIC stream before its final capsule.
+                }
                 finally
                 {
                     m_writeGate.Release();
@@ -156,6 +175,11 @@ namespace Opc.Ua.Bindings
                 }
                 await m_readGate.WaitAsync().ConfigureAwait(false);
                 await m_writeGate.WaitAsync().ConfigureAwait(false);
+                while (m_incoming.Reader.TryRead(out _))
+                {
+                }
+                m_currentPayload = [];
+                m_currentOffset = 0;
                 m_readGate.Dispose();
                 m_writeGate.Dispose();
                 m_lifetime.Dispose();
@@ -181,7 +205,7 @@ namespace Opc.Ua.Bindings
                 return 0;
             }
             ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
-            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_lifetime.Token);
             await m_readGate.WaitAsync(linked.Token).ConfigureAwait(false);
             try
@@ -216,7 +240,7 @@ namespace Opc.Ua.Bindings
         private async ValueTask WriteCoreAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
-            using CancellationTokenSource linked = CancellationTokenSource.CreateLinkedTokenSource(
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_lifetime.Token);
             await m_writeGate.WaitAsync(linked.Token).ConfigureAwait(false);
             try
@@ -253,11 +277,7 @@ namespace Opc.Ua.Bindings
                 while (true)
                 {
                     WebTransportCapsule? capsule = await m_session.ReadCapsuleAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    if (capsule == null)
-                    {
-                        throw new EndOfStreamException("The WebTransport CONNECT stream ended without stream FIN.");
-                    }
+                        .ConfigureAwait(false) ?? throw new EndOfStreamException("The WebTransport CONNECT stream ended without stream FIN.");
 
                     ReadOnlySequence<byte> payload = capsule.Value.Payload;
                     SequenceReader<byte> reader = new(payload);

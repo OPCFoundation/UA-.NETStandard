@@ -18,4 +18,8 @@
     <Compile Include="..\WebTransportTestEnvironment.cs" Link="WebTransportTestEnvironment.cs" />
     <Compile Include="..\RecordingQuicBackend.cs" Link="RecordingQuicBackend.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(ManagedMsQuicPath)' != ''">
+    <None Include="$(ManagedMsQuicPath)" Link="msquic.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

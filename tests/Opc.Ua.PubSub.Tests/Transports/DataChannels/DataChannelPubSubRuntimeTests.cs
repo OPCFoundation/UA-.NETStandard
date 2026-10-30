@@ -131,9 +131,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
             Assert.Multiple(() =>
             {
-                Assert.That(prePublishResults, Is.All.EqualTo(DataChannelResult.Good),
-                    $"All configured writer metadata must be admitted before the data assertion; " +
+                Assert.That(prePublishResults, Has.Exactly(2).EqualTo(DataChannelResult.Good),
+                    $"Metadata for the two resource-matched writers must be admitted; " +
                     $"results: {string.Join(",", prePublishResults)}.");
+                Assert.That(prePublishResults, Has.Exactly(1).EqualTo(DataChannelResult.UnknownChannel),
+                    "Writer B metadata must not cross from its RequestId-selected first resource to the second.");
                 Assert.That(crossResourceMessages, Has.Length.EqualTo(1),
                     $"The input must be one two-writer NetworkMessage; emitted headers: {headerSummary}; " +
                     $"pre-publish receive results: {string.Join(",", prePublishResults)}.");
