@@ -32,6 +32,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -90,20 +91,23 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 throw new ArgumentNullException(nameof(context));
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return networkMessage switch
+            ReadOnlyMemory<byte> encoded = networkMessage switch
             {
-                JsonNetworkMessage data => new ValueTask<ReadOnlyMemory<byte>>(
-                    EncodeNetwork(data, context)),
-                JsonMetaDataMessage meta => new ValueTask<ReadOnlyMemory<byte>>(
-                    EncodeMetaData(meta, context)),
-                JsonDiscoveryMessage discovery => new ValueTask<ReadOnlyMemory<byte>>(
-                    EncodeDiscovery(discovery, context)),
-                JsonActionNetworkMessage action => new ValueTask<ReadOnlyMemory<byte>>(
-                    EncodeAction(action, context)),
+                JsonNetworkMessage data => EncodeNetwork(data, context),
+                JsonMetaDataMessage meta => EncodeMetaData(meta, context),
+                JsonDiscoveryMessage discovery => EncodeDiscovery(discovery, context),
+                JsonActionNetworkMessage action => EncodeAction(action, context),
                 _ => throw new ArgumentException(
                     "Network message type is not supported by the JSON encoder.",
                     nameof(networkMessage))
             };
+            context.Diagnostics.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages);
+            if (networkMessage is JsonNetworkMessage message && message.DataSetMessages.Count > 0)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.SentDataSetMessages, message.DataSetMessages.Count);
+            }
+            return new ValueTask<ReadOnlyMemory<byte>>(encoded);
         }
 
         /// <summary>

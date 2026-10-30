@@ -31,7 +31,9 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Bindings;
 using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.DataChannels;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -57,6 +59,25 @@ namespace Opc.Ua.Server.Hosting
             NodeIdFactory = m_services.GetService<IRebasableNodeIdFactory>();
             DetectNodeIdCollisions = m_services.GetService<NodeIdCollisionDetection>()?.Enabled;
             OpcUaServerRegistrationStaging.Apply(this, m_services);
+
+            ResolveDataChannelHooks(services);
+        }
+
+        /// <summary>
+        /// Resolves an explicitly registered application flow provider and independent model opt-in.
+        /// </summary>
+        /// <remarks>
+        /// Registering a native or UASC transport alone never enables the optional Session model.
+        /// There is no fallback from an unsupported selected carrier.
+        /// </remarks>
+        /// <param name="services">The service provider that supplies the hooks.</param>
+        private void ResolveDataChannelHooks(IServiceProvider services)
+        {
+            if (services.GetService<ServerDataChannelProvider>() is { } provider)
+            {
+                DataChannelProvider = provider;
+                EnableDataChannelModel = services.GetService<DataChannelModelOptions>()?.Enabled == true;
+            }
         }
 
         /// <inheritdoc/>

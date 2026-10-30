@@ -35,6 +35,7 @@ using NUnit.Framework;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.Tests;
 
@@ -65,7 +66,8 @@ namespace Opc.Ua.PubSub.Tests.Groups
         {
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            DataSetReader reader = BuildReader(clock, timeoutMs: 500);
+            DataSetReader reader = await BuildOperationalReaderAsync(clock, timeoutMs: 500)
+                .ConfigureAwait(false);
             var diagnostics = new PubSubDiagnostics(
                 PubSubDiagnosticsLevel.High, clock);
 
@@ -108,7 +110,8 @@ namespace Opc.Ua.PubSub.Tests.Groups
         {
             var clock = new FakeTimeProvider(
                 new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            DataSetReader reader = BuildReader(clock, timeoutMs: 5000);
+            DataSetReader reader = await BuildOperationalReaderAsync(clock, timeoutMs: 5000)
+                .ConfigureAwait(false);
             var diagnostics = new PubSubDiagnostics(
                 PubSubDiagnosticsLevel.High, clock);
 
@@ -130,7 +133,117 @@ namespace Opc.Ua.PubSub.Tests.Groups
             });
         }
 
-        private static DataSetReader BuildReader(TimeProvider clock, int timeoutMs)
+        [Test]
+        public async Task PollOnceAsync_DoesNotFaultBeforeFirstDataSetMessageAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            DataSetReader reader = BuildEnabledReader(clock, timeoutMs: 500);
+            var diagnostics = new PubSubDiagnostics(
+                PubSubDiagnosticsLevel.High, clock);
+
+            await using var watcher = new DataSetReaderTimeoutWatcher(
+                [reader],
+                new NoOpScheduler(),
+                diagnostics,
+                NUnitTelemetryContext.Create());
+
+            clock.Advance(TimeSpan.FromSeconds(10));
+            await watcher.PollOnceAsync().ConfigureAwait(false);
+            Assert.That(reader.State.State, Is.EqualTo(PubSubState.PreOperational));
+
+            await reader.DispatchAsync(new UadpDataSetMessage { DataSetWriterId = 1 })
+                .ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            await watcher.PollOnceAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error));
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.MessageReceiveTimeouts),
+                    Is.EqualTo(1L));
+            });
+        }
+
+        [Test]
+        public async Task PollOnceAsync_RequiresNewSequenceNumberToRecoverAfterTimeoutAsync()
+        {
+            var clock = new FakeTimeProvider(
+                new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+            DataSetReader reader = BuildEnabledReader(clock, timeoutMs: 500);
+            var diagnostics = new PubSubDiagnostics(
+                PubSubDiagnosticsLevel.High, clock);
+
+            await using var watcher = new DataSetReaderTimeoutWatcher(
+                [reader],
+                new NoOpScheduler(),
+                diagnostics,
+                NUnitTelemetryContext.Create());
+
+            await reader.DispatchAsync(BuildSequencedMessage(10)).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            await watcher.PollOnceAsync().ConfigureAwait(false);
+            Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error));
+
+            await reader.DispatchAsync(BuildSequencedMessage(10)).ConfigureAwait(false);
+            Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error));
+
+            await reader.DispatchAsync(BuildSequencedMessage(11)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(reader.IsReceiveTimedOut(), Is.False);
+            });
+
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            await watcher.PollOnceAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error));
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.MessageReceiveTimeouts),
+                    Is.EqualTo(2L));
+            });
+
+            await reader.DispatchAsync(
+                BuildSequencedMessage(11, PubSubDataSetMessageType.KeepAlive)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(reader.IsReceiveTimedOut(), Is.False);
+                Assert.That(
+                    diagnostics.Read(PubSubDiagnosticsCounterKind.MessageReceiveTimeouts),
+                    Is.EqualTo(2L));
+            });
+        }
+
+        private static UadpDataSetMessage BuildSequencedMessage(
+            uint sequenceNumber,
+            PubSubDataSetMessageType messageType = PubSubDataSetMessageType.KeyFrame)
+        {
+            return new UadpDataSetMessage
+            {
+                DataSetWriterId = 1,
+                SequenceNumber = sequenceNumber,
+                MessageType = messageType,
+                ContentMask = UadpDataSetMessageContentMask.SequenceNumber
+            };
+        }
+
+        private static async ValueTask<DataSetReader> BuildOperationalReaderAsync(
+            TimeProvider clock,
+            int timeoutMs)
+        {
+            DataSetReader reader = BuildEnabledReader(clock, timeoutMs);
+            await reader.DispatchAsync(new UadpDataSetMessage { DataSetWriterId = 1 })
+                .ConfigureAwait(false);
+            return reader;
+        }
+
+        private static DataSetReader BuildEnabledReader(TimeProvider clock, int timeoutMs)
         {
             var config = new DataSetReaderDataType
             {
@@ -145,7 +258,6 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 NUnitTelemetryContext.Create(),
                 clock);
             _ = reader.State.TryEnable();
-            _ = reader.State.TryMarkOperational();
             return reader;
         }
 

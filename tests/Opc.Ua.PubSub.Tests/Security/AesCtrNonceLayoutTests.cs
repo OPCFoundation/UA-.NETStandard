@@ -160,6 +160,18 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.That(shortProjection, Is.EqualTo(otherShortProjection));
         }
 
+        [TestCase("", 0UL)]
+        [TestCase("1234567", 0x0037363534333231UL)]
+        [TestCase("12345678", 0x3837363534333231UL)]
+        [TestCase("12345678901234567890", 0x3837363534333231UL)]
+        [TestCase("1234567\U0001f600", 0xf037363534333231UL)]
+        [TestCase("\U0001f600abcdef", 0x6463626180989ff0UL)]
+        [TestCase("\u03b1\u03b2\u03b3\u03b4\u03b5", 0xb4ceb3ceb2ceb1ceUL)]
+        public void ToLow64UsesTheExactBoundedUtf8Prefix(string publisherId, ulong expected)
+        {
+            Assert.That(AesCtrNonceLayout.ToLow64(PublisherId.FromString(publisherId)), Is.EqualTo(expected));
+        }
+
         [Test]
         public void ToLow64_GuidPublisherId_UsesFirstEightBytes()
         {

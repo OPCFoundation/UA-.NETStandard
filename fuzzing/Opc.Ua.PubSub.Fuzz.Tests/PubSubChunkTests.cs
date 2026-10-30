@@ -85,7 +85,8 @@ namespace Opc.Ua.Fuzzing
 
                 Assert.That(reassembled.ToArray(), Is.EqualTo(payload), $"reverse={reverse}");
                 // Pins reassembler work, including the first-fragment duplicate, rather than an identity return.
-                Assert.That(clock.UtcNowReads, Is.EqualTo(expectedCount + (expectedCount > 1 ? 1 : 0)));
+                int expectedTimestampReads = expectedCount == 1 ? 1 : 2 * expectedCount + 1;
+                Assert.That(clock.TimestampReads, Is.EqualTo(expectedTimestampReads));
             }
         }
 
@@ -101,7 +102,7 @@ namespace Opc.Ua.Fuzzing
                     payload, clock, reverse, maxFrameSize: UadpChunker.ChunkHeaderSize + 1);
 
                 Assert.That(result.ToArray(), Is.EqualTo(payload));
-                Assert.That(clock.UtcNowReads, Is.EqualTo(5), "Four one-byte fragments plus the first duplicate.");
+                Assert.That(clock.TimestampReads, Is.EqualTo(9), "Four one-byte fragments plus the first duplicate.");
             }
         }
 
@@ -162,7 +163,7 @@ namespace Opc.Ua.Fuzzing
             // whose first byte is the sequence number 42 (not a UADP v1 header), hence one expected rejection.
             PubSubSeedAssertions.AssertDiagnostics(context, received: 1, dataSets: 1, invalid: 1);
             Assert.That(
-                clock.UtcNowReads, Is.EqualTo(3), "Raw probe plus independently ordered and reversed round-trips.");
+                clock.TimestampReads, Is.EqualTo(3), "Raw probe plus independently ordered and reversed round-trips.");
             Assert.That(
                 UadpChunker.TryParseChunk(
                     frame, out ushort sequence, out uint offset, out uint totalSize, out ReadOnlyMemory<byte> payload),
@@ -212,7 +213,7 @@ namespace Opc.Ua.Fuzzing
                 // Raw and generated chunks deliberately share sequence 42 but advertise different total sizes.
                 FuzzableCode.ExerciseUadpChunks(frames[i], probeContext);
                 PubSubSeedAssertions.AssertDiagnostics(probeContext, invalid: 1);
-                Assert.That(clock.UtcNowReads, Is.EqualTo(3));
+                Assert.That(clock.TimestampReads, Is.EqualTo(4));
                 ReplayChunkAdapters(frames[i]);
             }
 
@@ -457,12 +458,12 @@ namespace Opc.Ua.Fuzzing
 
         private sealed class ObservedTimeProvider(FakeTimeProvider clock) : TimeProvider
         {
-            public int UtcNowReads { get; private set; }
+            public int TimestampReads { get; private set; }
 
-            public override DateTimeOffset GetUtcNow()
+            public override long GetTimestamp()
             {
-                UtcNowReads++;
-                return clock.GetUtcNow();
+                TimestampReads++;
+                return clock.GetTimestamp();
             }
         }
     }

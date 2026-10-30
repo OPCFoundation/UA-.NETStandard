@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' or '$(CustomTestTarget)' == 'net9.0' or '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Native.QuicGo</AssemblyName>
+    <RootNamespace>Opc.Ua.Native.QuicGo</RootNamespace>
+    <PackageId>$(PackagePrefix).Opc.Ua.Native.QuicGo</PackageId>
+    <Description>Optional, bounded asynchronous native QUIC backend. Supplied mutual TLS identities, real datagrams and exact reliable-reset-09 evidence; no flow or HTTP/3 interpretation.</Description>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <IncludeSymbols>false</IncludeSymbols>
+    <DebugType Condition="'$(CollectCoverage)' != 'true'">none</DebugType>
+    <DebugType Condition="'$(CollectCoverage)' == 'true'">portable</DebugType>
+    <EmbedUntrackedSources>false</EmbedUntrackedSources>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
+    <InternalsVisibleTo Include="Opc.Ua.Native.QuicGo.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Quic.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <None Include="NATIVE_ABI.md;THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="native\" />
+    <None Include="notices\Go-BSD-3-Clause.txt;notices\Go-fiat-crypto-BSD-1-Clause.txt;notices\Go-linked-file-exceptions.txt;notices\Go-PATENTS.txt;notices\MinGW-COPYING.txt;notices\quic-go-MIT.txt;notices\x-crypto-BSD-3-Clause.txt;notices\x-net-BSD-3-Clause.txt;notices\x-sys-BSD-3-Clause.txt;notices\Zig-bundled-musl-COPYRIGHT.txt;notices\Zig-MIT.txt;notices\Zig-musl-math-attributions.txt"
+          Pack="true" PackagePath="native\notices\" />
+    <None Include="native\*.go;native\go.mod;native\go.sum"
+          Pack="true" PackagePath="native\source\native\" />
+    <None Include="native\include\opcua_quic.h;native\include\exports.map"
+          Pack="true" PackagePath="native\source\native\include\" />
+    <None Include="build\native-pins.json;build\exports.json;build\prepare_overlay.py;build\verify_native.py;build\verify_package.py"
+          Pack="true" PackagePath="native\source\build\" />
+    <!-- Recipes are inert source text, never NuGet installation scripts. -->
+    <None Include="$(BaseIntermediateOutputPath)native-package\Build-Native.ps1.txt"
+          Pack="true" PackagePath="native\source\build\" />
+    <None Include="$(BaseIntermediateOutputPath)native-package\Pack-Native.ps1.txt"
+          Pack="true" PackagePath="native\source\build\" />
+  </ItemGroup>
+  <Import Project="build\NativeAssets.targets" />
+  <Target Name="GetPackagingOutputs" />
+</Project>

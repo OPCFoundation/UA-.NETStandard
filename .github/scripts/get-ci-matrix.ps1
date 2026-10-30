@@ -148,11 +148,22 @@ $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
 #                           validates, so a legacy leg fails with NETSDK1005
 #                           before the no-op shell can take effect. It is covered
 #                           by the fuzz-public-drop job instead.
+#   Flow backends         - modern transport tests run in managed-data-channels
+#   and bindings            on Windows/Linux, without custom native assets.
+#                           Native-only fixtures run in the separately selected
+#                           native-data-channels workflow. The native HTTP3 test
+#                           host also uses TUnit rather than VSTest.
 $MainlineExclusions = @(
     'Opc.Ua.Aot.Tests.csproj',
     'Opc.Ua.Stress.Tests.csproj',
     'Opc.Ua.Subscriptions.Durable.Tests.csproj',
-    'Opc.Ua.OneFuzz.Validator.Tests.csproj')
+    'Opc.Ua.OneFuzz.Validator.Tests.csproj',
+    'Opc.Ua.Native.QuicGo.Tests.csproj',
+    'Opc.Ua.Native.Http3.Tests.csproj',
+    'Opc.Ua.Bindings.Quic.Tests.csproj',
+    'Opc.Ua.Bindings.WebTransport.Tests.csproj',
+    'Opc.Ua.DataChannel.ClientServer.Tests.csproj',
+    'Opc.Ua.DataChannel.Samples.Tests.csproj')
 
 $DurableProject = 'Opc.Ua.Subscriptions.Durable.Tests.csproj'
 

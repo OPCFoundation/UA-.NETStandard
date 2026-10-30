@@ -151,6 +151,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new <see cref="ManagedSession"/> that is connected
         /// to the specified endpoint.
+        /// Returns after the initial Connected notification has been delivered.
         /// </summary>
         /// <param name="configuration">The application configuration.
         /// </param>
@@ -283,6 +284,7 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Creates a connected managed session from an options snapshot and injectable collaborators.
+        /// Returns after the initial Connected notification has been delivered.
         /// </summary>
         /// <param name="options">The session settings, including its endpoint and channel recovery deadline.</param>
         /// <param name="configuration">The application configuration.</param>
@@ -504,7 +506,7 @@ namespace Opc.Ua.Client
             try
             {
                 await managed.StateMachine
-                    .WaitForConnectedAsync(ct)
+                    .WaitForInitialConnectionAsync(ct)
                     .ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

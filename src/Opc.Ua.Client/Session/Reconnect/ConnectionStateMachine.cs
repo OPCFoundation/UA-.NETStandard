@@ -279,6 +279,16 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Waits for the first successful connection and delivery of its state notification.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask WaitForInitialConnectionAsync(CancellationToken ct)
+        {
+            await WaitForConnectedAsync(ct).ConfigureAwait(false);
+            await m_initialConnectionNotified.Task.WaitAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Waits for an activated session, including the callback-dependent phase before recovery settles.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -1325,6 +1335,10 @@ namespace Opc.Ua.Client
                     change = m_stateChanges.Dequeue();
                 }
                 OnStateChanged(change);
+                if (change.NewState == ConnectionState.Connected)
+                {
+                    m_initialConnectionNotified.TrySetResult(true);
+                }
             }
         }
 
@@ -1343,6 +1357,10 @@ namespace Opc.Ua.Client
                 m_logger.ConnectionStateMachineStateChangedHandlerThrewException(ex);
             }
         }
+
+        /// <summary>Completes after the first Connected notification has reached its observers.</summary>
+        private readonly TaskCompletionSource<bool> m_initialConnectionNotified =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     /// <summary>

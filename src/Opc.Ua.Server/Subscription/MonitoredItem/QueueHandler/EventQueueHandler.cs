@@ -365,11 +365,13 @@ namespace Opc.Ua.Server
         /// discardOldest TRUE for an event lost while publishing (it precedes the events still
         /// queued).
         /// </param>
+        /// <param name="eventManager">Releases identity admission for discarded event fields.</param>
         internal uint Publish(
             OperationContext context,
             Queue<EventFieldList> notifications,
             uint maxNotificationsPerPublish,
-            out bool overflowEventDue)
+            out bool overflowEventDue,
+            EventManager? eventManager = null)
         {
             overflowEventDue = false;
 
@@ -409,6 +411,13 @@ namespace Opc.Ua.Server
                 }
 
                 fields = transformed;
+                if (fields.Handle is IFilterTarget scoped &&
+                    !DataChannels.DataChannelEventScope.IsVisible(scoped, context.Session))
+                {
+                    eventManager?.ReleaseEventFields(fields);
+                    ((IPooledEncodeable)fields).Reuse();
+                    continue;
+                }
                 foreach (Variant field in fields.EventFields)
                 {
                     StatusResult tmpStatus;

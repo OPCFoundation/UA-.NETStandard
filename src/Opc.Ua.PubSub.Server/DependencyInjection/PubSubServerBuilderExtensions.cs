@@ -29,7 +29,10 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
+using Opc.Ua.DataChannels;
+using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Policies;
 using Opc.Ua.PubSub.Security.Sks;
@@ -46,6 +49,49 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class PubSubServerBuilderExtensions
     {
+        /// <summary>
+        /// Registers injectable Part 81 reservation methods for host-owned AutomationComponents.
+        /// A host lifecycle capability registered with <see cref="WithFxConnectionLifecycle"/> handles
+        /// endpoint lifecycle commands and the component's <c>CloseConnections</c> Method.
+        /// </summary>
+        [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public static IPubSubServerBuilder WithFxCommunicationIdReservations(this IPubSubServerBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.TryAddSingleton(sp => new PubSubFxReservationMethods(
+                sp.GetRequiredService<IPubSubApplication>(),
+                sp.GetRequiredService<IOptions<PubSubServerOptions>>().Value,
+                sp.GetService<IPubSubFxConnectionLifecycle>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the host-owned lifecycle capability used by Part 81 endpoint commands and
+        /// <c>CloseConnections</c>.
+        /// </summary>
+        /// <param name="builder">PubSub server builder.</param>
+        /// <param name="lifecycle">Host implementation that authorizes and transacts endpoint lifecycle.</param>
+        /// <returns>The same builder for chaining.</returns>
+        public static IPubSubServerBuilder WithFxConnectionLifecycle(
+            this IPubSubServerBuilder builder,
+            IPubSubFxConnectionLifecycle lifecycle)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (lifecycle is null)
+            {
+                throw new ArgumentNullException(nameof(lifecycle));
+            }
+            builder.Services.TryAddSingleton(lifecycle);
+            return builder;
+        }
+
         /// <summary>
         /// Registers an
         /// <see cref="InMemoryPubSubKeyServiceServer"/> as the

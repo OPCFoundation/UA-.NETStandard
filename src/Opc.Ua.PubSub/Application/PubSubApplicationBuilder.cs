@@ -95,6 +95,7 @@ namespace Opc.Ua.PubSub.Application
         private PubSubConfigurationDataType? m_configuration;
         private string? m_configurationFilePath;
         private IPubSubSecurityWrapperResolver? m_securityWrapperResolver;
+        private IPubSubCommunicationIdReservations? m_communicationIds;
 
         private Func<PubSubConnectionDataType, string, IPubSubSecurityPolicy?>?
             m_securityPolicySelector;
@@ -156,6 +157,16 @@ namespace Opc.Ua.PubSub.Application
                 throw new ArgumentNullException(nameof(config));
             }
             m_configuration = config;
+            return this;
+        }
+
+        /// <summary>
+        /// Uses an explicit communication-ID reservation provider for configuration transactions.
+        /// The caller owns the provider's lifetime.
+        /// </summary>
+        public PubSubApplicationBuilder WithCommunicationIdReservations(IPubSubCommunicationIdReservations reservations)
+        {
+            m_communicationIds = reservations ?? throw new ArgumentNullException(nameof(reservations));
             return this;
         }
 
@@ -628,7 +639,13 @@ namespace Opc.Ua.PubSub.Application
                     m_dataSetSinks,
                     m_dataSetSourceProvider,
                     m_dataSetSinkProvider,
-                    securityWrapperResolver: resolver);
+                    securityWrapperResolver: resolver,
+                    maxNetworkMessageSizeResolver: null,
+                    configurationStore: null,
+                    runtimeStateStore: null,
+                    activationCoordinator: null,
+                    writerCheckpointStore: null,
+                    communicationIds: m_communicationIds);
                 for (int i = 0; i < m_actionResponders.Count; i++)
                 {
                     application.RegisterActionHandler(

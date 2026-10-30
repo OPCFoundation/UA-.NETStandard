@@ -258,7 +258,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 s = s[1..];
             }
-            keySize >>= 3;
+            keySize = (keySize + 7) >> 3;
             byte[] result = new byte[2 * keySize];
             if (r.Length > keySize || s.Length > keySize)
             {

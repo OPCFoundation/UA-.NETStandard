@@ -29,9 +29,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di;
+using Opc.Ua.Fx.Ac;
+using Opc.Ua.Fx.Cm;
+using Opc.Ua.Fx.Data;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.Security.Sks;
@@ -71,7 +76,7 @@ namespace Opc.Ua.PubSub.Server.Tests
             Assert.That(harness.EnableMethod.OnCallMethod, Is.Not.Null);
             Assert.That(harness.DisableMethod.OnCallMethod, Is.Not.Null);
             Assert.That(harness.SetSecurityKeysMethod.OnCallMethod, Is.Not.Null);
-            Assert.That(harness.AddConnectionMethod.OnCallMethod, Is.Not.Null);
+            Assert.That(harness.AddConnectionMethod.OnCallMethod2Async, Is.Not.Null);
             Assert.That(harness.RemoveConnectionMethod.OnCallMethod, Is.Not.Null);
         }
 
@@ -106,6 +111,64 @@ namespace Opc.Ua.PubSub.Server.Tests
             // Enable/Disable on PubSubStatusType is always bound — those
             // belong to the Status object, not the configuration set.
             Assert.That(harness.EnableMethod.OnCallMethod, Is.Not.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateAddressSpaceAsync_OptionallyLoadsFxModel(bool exposeFxModel)
+        {
+            using var harness = new Harness(opt => opt.ExposeFxModel = exposeFxModel);
+            if (exposeFxModel)
+            {
+                var context = new SystemContext(NUnitTelemetryContext.Create())
+                {
+                    NamespaceUris = harness.NamespaceTable,
+                    EncodeableFactory = harness.MockServer.Object.Factory
+                };
+                var modelNodes = new NodeStateCollection();
+                modelNodes.AddOpcUaDi(context)
+                    .AddOpcUaFxData(context)
+                    .AddOpcUaFxAc(context)
+                    .AddOpcUaFxCm(context);
+                HashSet<NodeId> modelTypeIds = modelNodes
+                    .OfType<BaseTypeState>()
+                    .Select(type => type.NodeId)
+                    .ToHashSet();
+                foreach (NodeId superTypeId in modelNodes
+                    .OfType<BaseTypeState>()
+                    .Select(type => type.SuperTypeId)
+                    .Where(superTypeId => !superTypeId.IsNull && !modelTypeIds.Contains(superTypeId))
+                    .Distinct())
+                {
+                    if (!harness.MockServer.Object.TypeTree.IsKnown(superTypeId))
+                    {
+                        harness.MockServer.Object.TypeTree.AddSubtype(superTypeId, NodeId.Null);
+                    }
+                }
+            }
+            await harness.Manager.CreateAddressSpaceAsync(
+                new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            int fxNamespaceIndex = harness.NamespaceTable.GetIndex(Opc.Ua.Fx.Ac.Namespaces.FxAc);
+            if (!exposeFxModel)
+            {
+                Assert.That(fxNamespaceIndex, Is.LessThan(0));
+                return;
+            }
+
+            NodeId automationComponentTypeId = new(2u, (ushort)fxNamespaceIndex);
+            NodeState? automationComponentType =
+                harness.Manager.FindPredefinedNode<NodeState>(automationComponentTypeId);
+            Assert.That(automationComponentType, Is.Not.Null);
+            Assert.That(harness.MockServer.Object.Factory.KnownTypeIds,
+                Does.Contain(new ExpandedNodeId(
+                    Opc.Ua.Fx.Data.DataTypes.PubSubReserveCommunicationIds2DataType,
+                    Opc.Ua.Fx.Data.Namespaces.FxData)));
+            Assert.That(harness.MockServer.Object.Factory.TryGetEncodeableType(
+                Opc.Ua.Fx.Data.ObjectIds.PubSubReserveCommunicationIds2DataType_Encoding_DefaultBinary,
+                out IEncodeableType? encodeableType), Is.True);
+            Assert.That(encodeableType?.CreateInstance(),
+                Is.TypeOf<Opc.Ua.Fx.Data.PubSubReserveCommunicationIds2DataType>());
         }
 
         [Test]
@@ -338,7 +401,8 @@ namespace Opc.Ua.PubSub.Server.Tests
                 Assert.That(connectionNode, Is.Not.Null);
                 Assert.That(connectionNode.TypeDefinitionId, Is.EqualTo(new NodeId(14209u)));
                 Assert.That(statusNode, Is.Not.Null);
-                Assert.That(enable.OnCallMethod, Is.Not.Null);
+                Assert.That(enable.OnCallMethod, Is.Null);
+                Assert.That(enable.OnCallMethod2Async, Is.Not.Null);
                 Assert.That(version, Is.Not.Null);
             });
         }
@@ -725,31 +789,36 @@ namespace Opc.Ua.PubSub.Server.Tests
 
         [Test]
         [TestSpec("9.1.3.7", Summary = "PubSubConfigurationType exposes FileType-style import/export")]
-        public async Task PubSubConfigurationFileMethods_ReadAndCloseAndUpdateConfiguration()
+        public async Task PubSubConfigurationFileMethodsReadAndEmptyUpdateIsRejected()
         {
             using var harness = new Harness();
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(i => i.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_ConfigureAdmin]);
+            harness.Context.SessionId = new NodeId(123u);
+            harness.Context.UserIdentity = identity.Object;
             await harness.Manager.CreateAddressSpaceAsync(
                 new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
             BaseObjectState fileNode = harness.Manager.FindPredefinedNode<BaseObjectState>(
                 new NodeId("pubsub:configuration", harness.Manager.AddressSpaceNamespaceIndex))!;
             var open = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("Open", harness.Manager.AddressSpaceNamespaceIndex))!;
+                new QualifiedName("Open"))!;
             var read = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("Read", harness.Manager.AddressSpaceNamespaceIndex))!;
+                new QualifiedName("Read"))!;
             var reserve = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("ReserveIds", harness.Manager.AddressSpaceNamespaceIndex))!;
+                new QualifiedName("ReserveIds"))!;
             var closeAndUpdate = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("CloseAndUpdate", harness.Manager.AddressSpaceNamespaceIndex))!;
+                new QualifiedName("CloseAndUpdate"))!;
             var reserveOutputs = new List<Variant>();
-            ServiceResult reserveResult = reserve.OnCallMethod!(
+            ServiceResult reserveResult = await reserve.OnCallMethod2Async!(
                 harness.Context,
                 reserve,
+                fileNode.NodeId,
                 BuildArray(Variant.From(Profiles.PubSubUdpUadpTransport), Variant.From((ushort)1), Variant.From((ushort)1)),
-                reserveOutputs);
+                reserveOutputs, default).ConfigureAwait(false);
             var openReadOutputs = new List<Variant>();
             open.OnCallMethod!(
                 harness.Context,
@@ -765,16 +834,19 @@ namespace Opc.Ua.PubSub.Server.Tests
                 BuildArray(Variant.From(readHandle), Variant.From(4096)),
                 readOutputs);
             Assert.That(readOutputs[0].TryGetValue(out ArrayOf<byte> payload), Is.True);
+            var close = (MethodState)fileNode.FindChild(harness.Context, new QualifiedName(BrowseNames.Close))!;
+            Assert.That(close.OnCallMethod!(harness.Context, close, BuildArray(Variant.From(readHandle)), []).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
             var openWriteOutputs = new List<Variant>();
             open.OnCallMethod!(
                 harness.Context,
                 open,
-                BuildArray(Variant.From((byte)2)),
+                BuildArray(Variant.From((byte)6)),
                 openWriteOutputs);
             Assert.That(openWriteOutputs[0].TryGetValue(out uint writeHandle), Is.True);
             var write = (MethodState)fileNode.FindChild(
                 harness.Context,
-                new QualifiedName("Write", harness.Manager.AddressSpaceNamespaceIndex))!;
+                new QualifiedName("Write"))!;
             write.OnCallMethod!(
                 harness.Context,
                 write,
@@ -782,22 +854,22 @@ namespace Opc.Ua.PubSub.Server.Tests
                 []);
             var updateOutputs = new List<Variant>();
 
-            ServiceResult updateResult = closeAndUpdate.OnCallMethod!(
+            ServiceResult updateResult = await closeAndUpdate.OnCallMethod2Async!(
                 harness.Context,
                 closeAndUpdate,
-                BuildArray(Variant.From(writeHandle), Variant.From(false), Variant.Null),
-                updateOutputs);
+                fileNode.NodeId,
+                BuildArray(Variant.From(writeHandle), Variant.From(false),
+                    Variant.From(ArrayOf<ExtensionObject>.Empty)),
+                updateOutputs, default).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(StatusCode.IsGood(readResult.StatusCode), Is.True);
-                Assert.That(StatusCode.IsGood(reserveResult.StatusCode), Is.True);
-                Assert.That(reserveOutputs[1].TryGetValue(out ArrayOf<uint> writerIds), Is.True);
-                Assert.That(writerIds, Has.Count.EqualTo(1));
+                Assert.That(reserveResult.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(reserveOutputs, Is.Empty);
                 Assert.That(payload, Is.Not.Empty);
-                Assert.That(StatusCode.IsGood(updateResult.StatusCode), Is.True);
-                Assert.That(updateOutputs[0].TryGetValue(out bool applied), Is.True);
-                Assert.That(applied, Is.True);
+                Assert.That(updateResult.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
+                Assert.That(updateOutputs, Is.Empty);
             });
         }
 
@@ -842,6 +914,36 @@ namespace Opc.Ua.PubSub.Server.Tests
 
             Assert.That(nm, Is.Not.Null);
             (nm as IDisposable)?.Dispose();
+        }
+
+        [Test]
+        public void Factory_NamespacesUris_IncludesFxNamespacesOnlyWhenModelIsExposed()
+        {
+            using var harness = new Harness();
+            var disabledFactory = new PubSubNodeManagerFactory(
+                harness.Application,
+                null,
+                new PubSubServerOptions(),
+                NUnitTelemetryContext.Create());
+            var enabledFactory = new PubSubNodeManagerFactory(
+                harness.Application,
+                null,
+                new PubSubServerOptions { ExposeFxModel = true },
+                NUnitTelemetryContext.Create());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(disabledFactory.NamespacesUris.ToArray(),
+                    Is.EquivalentTo(new[] { PubSubNodeManager.NamespaceUri }));
+                Assert.That(enabledFactory.NamespacesUris.ToArray(), Is.EquivalentTo(new[]
+                {
+                    PubSubNodeManager.NamespaceUri,
+                    Opc.Ua.Di.Namespaces.OpcUaDi,
+                    Opc.Ua.Fx.Data.Namespaces.FxData,
+                    Opc.Ua.Fx.Ac.Namespaces.FxAc,
+                    Opc.Ua.Fx.Cm.Namespaces.FxCm
+                }));
+            });
         }
 
         [Test]
@@ -904,7 +1006,10 @@ namespace Opc.Ua.PubSub.Server.Tests
                 m_queueFactory = new MonitoredItemQueueFactory(telemetry);
                 MockServer.Setup(s => s.MonitoredItemQueueFactory).Returns(m_queueFactory);
 
-                Context = new ServerSystemContext(MockServer.Object);
+                Context = new ServerSystemContext(MockServer.Object) { SessionId = new NodeId(123u) };
+                var identity = new Mock<IUserIdentity>();
+                identity.SetupGet(i => i.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_ConfigureAdmin]);
+                Context.UserIdentity = identity.Object;
                 MockServer.Setup(s => s.DefaultSystemContext).Returns(Context);
 
                 Configuration = new ApplicationConfiguration

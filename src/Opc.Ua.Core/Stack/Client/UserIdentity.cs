@@ -190,7 +190,25 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a certificate identity using the specified security policies.
         /// </summary>
-        public static Task<UserIdentity> CreateAsync(
+        /// <param name="certificateId">The user certificate identifier.</param>
+        /// <param name="passwordProvider">Resolves the private key password.</param>
+        /// <param name="certificateProvider">Materialises the certificate.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The asynchronously created user identity.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// A required argument is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The identifier does not resolve to a private-key certificate.
+        /// </exception>
+        /// <exception cref="OperationCanceledException">
+        /// The operation is canceled.
+        /// </exception>
+        public static async Task<UserIdentity> CreateAsync(
             CertificateIdentifier certificateId,
             ICertificatePasswordProvider passwordProvider,
             ICertificateProvider certificateProvider,
@@ -210,12 +228,13 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificateProvider));
             }
 
-            var handler = new X509IdentityTokenHandler(
+            X509IdentityTokenHandler handler = await X509IdentityTokenHandler.CreateAsync(
                 certificateId,
                 passwordProvider,
                 certificateProvider,
-                securityPolicies);
-            return Task.FromResult(new UserIdentity(handler));
+                securityPolicies,
+                ct).ConfigureAwait(false);
+            return new UserIdentity(handler);
         }
 
         /// <summary>

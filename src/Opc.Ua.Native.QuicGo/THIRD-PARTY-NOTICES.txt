@@ -1,0 +1,40 @@
+Native QUIC dependency and redistribution notice
+==============================================
+
+The authored C/Go/.NET adapter is OPC Foundation MIT License 1.00.
+This does NOT relicense all linked native material as MIT.
+
+quic-go v0.64.0 (9abbbad05626e3e9609e850cd98d375b73a3d2e7):
+MIT plus copied Go BSD material (notably internal/utils/linkedlist).
+Brand/logo material is not part of the binary or source-overlay payload.
+The three-file observation-only patch is distributed with source hashes and
+modification receipts. It does not alter protocol acceptance or encoding.
+
+Go1.27.2 runtime/standard library and x/crypto0.57.0, x/net0.60.0,
+x/sys0.48.0: BSD-3-Clause and Go PATENTS; linked runtime exceptions include
+MIT Lucent/Vita Nuova memmove, BSD-1-Clause fiat-crypto, and Sun math notices.
+Full retained notices are in notices/.
+
+Zig0.17.0/MinGW compiler runtime: MIT; MinGW ZPL-2.1/public-domain and
+per-file exceptions. Musl-derived math/runtime pieces retain their original
+MIT/BSD/Sun attributions. Compiler executables and SDKs are not redistributed.
+
+Windows: OS-provided UCRT/kernel API sets; no bundled Microsoft SDK or CRT
+installer. Linux: dynamically linked OS libc/pthread/resolver libraries,
+not bundled glibc. Preserve ordinary replaceability and applicable linked
+startup/runtime obligations. The build targets glibc2.28; execution support
+at that minimum is not inferred from target flags.
+
+Only the pinned direct/transitive source closure is used. The actual per-RID
+package, binary, export and hash inventory must be regenerated for every
+release; do not copy an old prototype VEX or claim that a module graph alone
+proves the linked runtime license/advisory closure.
+
+Servicing: statically linked Go/QUIC/compiler-runtime fixes require rebuilding
+and redeploying this native package and restarting the process. Updating only
+an OS CRT installer does not service the embedded runtime.
+
+SOURCE ADOPTION IS NOT DISTRIBUTION APPROVAL. Local packages built by the
+included script are unsigned development artifacts. Final product signing,
+per-RID linked SBOM/notices, hash-bound SCA/VEX, deployment prerequisites and
+minimum-host acceptance remain an explicit release gate.

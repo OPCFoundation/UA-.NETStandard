@@ -295,12 +295,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             bool isLast = offset + payload.Length == totalSizeInt;
             var key = new ReassemblyKey(
                 publisherId, writerGroupId, dataSetWriterId, sequenceNumber);
-            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            long nowTimestamp = m_timeProvider.GetTimestamp();
             long charge = (long)payload.Length + ChunkBookkeepingBytes;
 
             lock (m_lock)
             {
-                GarbageCollect(nowTicks);
+                GarbageCollect(nowTimestamp);
 
                 if (!m_pending.TryGetValue(key, out ReassemblyEntry? entry))
                 {
@@ -310,7 +310,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                         reassembled = payload.ToArray();
                         return true;
                     }
-                    entry = new ReassemblyEntry(totalSizeInt, nowTicks);
+                    entry = new ReassemblyEntry(totalSizeInt, nowTimestamp);
                     if (!entry.CanAccept(offset, payload.Length, isLast, m_maxChunksPerMessage) ||
                         !TryMakeRoom(charge, newEntry: true, exclude: null))
                     {
@@ -348,10 +348,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         public int Sweep()
         {
-            long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            long nowTimestamp = m_timeProvider.GetTimestamp();
             lock (m_lock)
             {
-                return GarbageCollect(nowTicks);
+                return GarbageCollect(nowTimestamp);
             }
         }
 
@@ -365,10 +365,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             }
         }
 
-        private int GarbageCollect(long nowTicks)
+        private int GarbageCollect(long nowTimestamp)
         {
-            long timeoutTicks = m_chunkTimeout.Ticks;
-            if (timeoutTicks <= 0 || m_pending.Count == 0)
+            if (m_chunkTimeout <= TimeSpan.Zero || m_pending.Count == 0)
             {
                 return 0;
             }
@@ -376,7 +375,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             List<ReassemblyKey>? expired = null;
             foreach (KeyValuePair<ReassemblyKey, ReassemblyEntry> kvp in m_pending)
             {
-                if (nowTicks - kvp.Value.CreatedAtTicks > timeoutTicks)
+                TimeSpan age = m_timeProvider.GetElapsedTime(
+                    kvp.Value.CreatedAtTimestamp, nowTimestamp);
+                if (age > m_chunkTimeout)
                 {
                     expired ??= [];
                     expired.Add(kvp.Key);
@@ -407,18 +408,27 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 return false;
             }
+            long nowTimestamp = m_timeProvider.GetTimestamp();
             while ((newEntry && m_pending.Count >= m_maxConcurrentReassemblies) ||
                 m_pendingBytes > m_maxAggregatePendingBytes - charge)
             {
                 ReassemblyKey oldestKey = default;
                 ReassemblyEntry? oldest = null;
+                TimeSpan oldestAge = TimeSpan.MinValue;
                 foreach (KeyValuePair<ReassemblyKey, ReassemblyEntry> kvp in m_pending)
                 {
-                    if (!ReferenceEquals(kvp.Value, exclude) &&
-                        (oldest is null || kvp.Value.CreatedAtTicks < oldest.CreatedAtTicks))
+                    if (ReferenceEquals(kvp.Value, exclude))
+                    {
+                        continue;
+                    }
+
+                    TimeSpan age = m_timeProvider.GetElapsedTime(
+                        kvp.Value.CreatedAtTimestamp, nowTimestamp);
+                    if (oldest is null || age > oldestAge)
                     {
                         oldestKey = kvp.Key;
                         oldest = kvp.Value;
+                        oldestAge = age;
                     }
                 }
                 if (oldest is null)
@@ -534,15 +544,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             private int m_pendingLastOffset;
             private byte[]? m_pendingLast;
 
-            public ReassemblyEntry(int totalSize, long createdAtTicks)
+            public ReassemblyEntry(int totalSize, long createdAtTimestamp)
             {
                 TotalSize = totalSize;
-                CreatedAtTicks = createdAtTicks;
+                CreatedAtTimestamp = createdAtTimestamp;
             }
 
             public int TotalSize { get; }
 
-            public long CreatedAtTicks { get; }
+            public long CreatedAtTimestamp { get; }
 
             public long ChargedBytes { get; set; }
 

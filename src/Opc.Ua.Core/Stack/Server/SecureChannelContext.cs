@@ -139,6 +139,7 @@ namespace Opc.Ua
         /// the transport's dispatch path returns.
         /// </remarks>
         public IUserIdentity? UpstreamIdentity { get; set; }
+
     }
 
     /// <summary>

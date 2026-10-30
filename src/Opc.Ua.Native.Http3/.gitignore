@@ -1,0 +1,7 @@
+/target/
+/artifacts/
+/obj/
+/bin/
+/build/__pycache__/
+*.nupkg
+*.snupkg

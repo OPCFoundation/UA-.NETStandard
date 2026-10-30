@@ -39,7 +39,10 @@ and await `EncryptAsync`, `DecryptAsync`, `SignAsync`, or `VerifyAsync`. Handler
 are not disposable. The current signatures, including optional certificate and
 ephemeral-key arguments, are defined by
 [`IUserIdentityTokenHandler`](../../../src/Opc.Ua.Core/Stack/Types/IUserIdentityTokenHandler.cs).
-Do not replace the asynchronous operations with blocking waits.
+When constructing an X.509 handler directly from a certificate identifier, use
+`X509IdentityTokenHandler.CreateAsync(...)`; the constructor is retained for
+compatibility but may synchronously wait for a certificate-store miss. Do not
+replace asynchronous operations with blocking waits.
 
 ### Earlier 2.0 previews
 
@@ -53,7 +56,7 @@ have used.
 | `UserIdentity : IDisposable` | Drop `using` on identities; manage certificate and secret ownership through their providers. |
 | Synchronous `handler.Encrypt`, `Decrypt`, `Sign`, `Verify` | Await the corresponding `*Async` operation. |
 | `new UserIdentity(Certificate)` | Use `UserIdentity.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)`. |
-| `new X509IdentityTokenHandler(Certificate)` | Use the `CertificateIdentifier`, `ICertificatePasswordProvider`, and `ICertificateProvider` constructor. |
+| `new X509IdentityTokenHandler(Certificate)` | Use `X509IdentityTokenHandler.CreateAsync(certificateIdentifier, passwordProvider, certificateProvider, ct)`. |
 | `UserIdentity.CreateAsync(certId, passwordProvider, telemetry, ct)` | Pass an `ICertificateProvider` instead of the telemetry argument. |
 
 The current handler types are `AnonymousIdentityTokenHandler`,

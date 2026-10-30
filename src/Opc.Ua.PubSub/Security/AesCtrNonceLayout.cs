@@ -251,24 +251,18 @@ namespace Opc.Ua.PubSub.Security
         private static ulong ProjectString(string value)
         {
             Span<byte> buffer = stackalloc byte[PublisherIdLength];
-            int written = 0;
 #if NET6_0_OR_GREATER
-            written = SystemEncoding.UTF8.GetBytes(value.AsSpan(), buffer);
-            if (written < PublisherIdLength)
-            {
-                buffer[written..].Clear();
-            }
+            // The extra UTF-16 unit preserves a surrogate pair crossing the eight-byte prefix.
+            Span<byte> utf8 = stackalloc byte[SystemEncoding.UTF8.GetMaxByteCount(PublisherIdLength + 1)];
+            int written = SystemEncoding.UTF8.GetBytes(
+                value.AsSpan(0, Math.Min(value.Length, PublisherIdLength + 1)), utf8);
+            ReadOnlySpan<byte> prefix = utf8[..Math.Min(written, PublisherIdLength)];
 #else
             byte[] utf8 = SystemEncoding.UTF8.GetBytes(value);
-            int copy = utf8.Length < PublisherIdLength ? utf8.Length : PublisherIdLength;
-            utf8.AsSpan(0, copy).CopyTo(buffer);
-            if (copy < PublisherIdLength)
-            {
-                buffer[copy..].Clear();
-            }
-            written = copy;
+            ReadOnlySpan<byte> prefix = utf8.AsSpan(0, Math.Min(utf8.Length, PublisherIdLength));
 #endif
-            _ = written;
+            prefix.CopyTo(buffer);
+            buffer[prefix.Length..].Clear();
             return BinaryPrimitives.ReadUInt64LittleEndian(buffer);
         }
 

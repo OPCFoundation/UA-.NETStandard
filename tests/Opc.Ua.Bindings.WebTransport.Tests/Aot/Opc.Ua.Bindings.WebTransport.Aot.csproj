@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsTestProject>false</IsTestProject>
+    <IsPackable>false</IsPackable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>Opc.Ua.Bindings.WebTransport.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Bindings.WebTransport\Opc.Ua.Bindings.WebTransport.csproj"
+                      Condition="'$(WebTransportPrebuiltReferencesDirectory)' == ''" />
+    <Reference Include="$(WebTransportPrebuiltReferencesDirectory)\*.dll"
+               Exclude="$(WebTransportPrebuiltReferencesDirectory)\opcua_http3.dll;$(WebTransportPrebuiltReferencesDirectory)\opcua_quic_go.dll"
+               Condition="'$(WebTransportPrebuiltReferencesDirectory)' != ''" />
+    <Compile Include="..\WebTransportTestEnvironment.cs" Link="WebTransportTestEnvironment.cs" />
+    <Compile Include="..\RecordingQuicBackend.cs" Link="RecordingQuicBackend.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(ManagedMsQuicPath)' != ''">
+    <None Include="$(ManagedMsQuicPath)" Link="msquic.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,58 @@
+{
+  "upstream_commit": "99a8c71d396b718a922f5108abe9c453c2671905",
+  "reason": "Bound allocated capsule and HTTP framing buffers, release on error/close, retain session isolation.",
+  "wire_format_or_crypto_changes": false,
+  "local_resource_policy_changes": true,
+  "overlay_sha256": "ea50f349e4a46bf979d8f1d48190ca832eca3c27f886c1aa48ad09a0707591da",
+  "review_diff_sha256": "e8e65801a501914a91d742adafd6869efdcfdf53b68520844a8621d08e0eef5c",
+  "files": [
+    {
+      "path": "src/connection/client.rs",
+      "original_sha256": "0d7df36743674fba1b0f5055d3a81ae0f5853b4272b891286cb221b9d197add2",
+      "patched_sha256": "23af35ac5195c0506e02bb2e6b00b7a21cdcde6598a420e39393ed45b66b0e3c",
+      "patched_bytes": 12402
+    },
+    {
+      "path": "src/connection/mod.rs",
+      "original_sha256": "bcd413356a316beb8e0e1aef16d3db8834a196daa4a156ade5b7cd3999d00418",
+      "patched_sha256": "cbcd3a9759a8053775d53f52996a66445edfe1004f1c89d83e1662135d016b29",
+      "patched_bytes": 347163
+    },
+    {
+      "path": "src/connection/receive_limits.rs",
+      "original_sha256": null,
+      "patched_sha256": "6867542f421d09adef3e168c6d482b3454e6fc087dda57f8fdcdb30b2ec3bcd2",
+      "patched_bytes": 3516
+    },
+    {
+      "path": "src/connection/server.rs",
+      "original_sha256": "fbf83a12629dba619b41606e7985703f03a8f32a1674e88e1759df08dcbf24ca",
+      "patched_sha256": "6fc6f13d176f964b42d4f7fc40d9dcd8f011373a0acb273df7699a7ee7dad963",
+      "patched_bytes": 12218
+    },
+    {
+      "path": "src/connection/wt_capsule.rs",
+      "original_sha256": "ffcd3d1cfbf4e723eb6e92854ead2d50e077c297dc702448d6aa13bc9b32e13d",
+      "patched_sha256": "8750438bf8bbb81c90acf42444355cfc6f4ac38e3950a36e33a1520808bf73b0",
+      "patched_bytes": 12462
+    },
+    {
+      "path": "src/connection/wt_session.rs",
+      "original_sha256": "5cfc741a4df39dd28e249884c81e7fb1f96c3746aca3258c0f751cc2650d2fa9",
+      "patched_sha256": "c1ddb84612c307c57dae59979085687c22571a5cfead84e3a1f421cd67b20fdd",
+      "patched_bytes": 52698
+    },
+    {
+      "path": "src/stream/mod.rs",
+      "original_sha256": "01a9ad7393d225b86058fe222f49cd91adcd36e69e6cb3f7051096e1a1d90b5f",
+      "patched_sha256": "24d71831b0e3ecf299a53bed38d671ac521dc5e8eeb29d33aa6ad16b0d9c0898",
+      "patched_bytes": 12833
+    },
+    {
+      "path": "src/stream/request.rs",
+      "original_sha256": "a22da4d1e5980e06250deb403cf87bbb79ac4d1413a4bea4c5f48165efdb0911",
+      "patched_sha256": "c1a7595fcd4e0d50f09a5c7223b105350b89e3522648ecec9ade9686278ea823",
+      "patched_bytes": 46517
+    }
+  ]
+}

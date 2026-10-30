@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             byte[] header = BuildAsymmetricHeader(
                 SecurityPolicies.Basic256Sha256,
                 sender.RawData,
-                Array.Empty<byte>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.CallReadAsymmetricMessageHeader(
@@ -843,7 +843,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 nameof(ClosedTransportWriteCompletesWithoutGateReentryAsync));
             var buffers = new BufferCollection { new ArraySegment<byte>(buffer, 0, 16) };
 
-            Task beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
+            var beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
 
             Assert.That(
                 await CompletesWithinAsync(beginWrite, 30).ConfigureAwait(false),
@@ -854,6 +854,75 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(channel.WriteCompletion, 30).ConfigureAwait(false),
                 Is.True,
                 "closed transport write completion was not reported");
+        }
+
+        /// <summary>
+        /// A verified RequestId-zero body without a selected capability sends CLO, not a Service response or reconnect.
+        /// </summary>
+        [TestCase("00fe0100")]
+        [TestCase("00ff000000000100000000")]
+        public async Task UnsupportedChannelMsgSendsCloseBeforeShuttingDownAsync(string bodyHex)
+        {
+            var pool = new PoisoningArrayPool();
+            var buffers = new BufferManager("channel-msg-close", 65536, m_telemetry, pool);
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry, new FakeTimeProvider());
+            channel.OpenForAbortTest(transport, chunkLimit: false);
+            channel.ResetResponseLimitsForTest();
+
+            await channel.FeedPooledReplyAsync(
+                0, 1, TcpMessageType.Final, ByteString.FromHexString(bodyHex).ToArray()).ConfigureAwait(false);
+            await transport.FirstSendTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            byte[] close = transport.LastSent;
+            Assert.Multiple(() =>
+            {
+                Assert.That(BitConverter.ToUInt32(close, 0), Is.EqualTo(TcpMessageType.Close | TcpMessageType.Final));
+                Assert.That(BitConverter.ToUInt32(close, 20), Is.Not.Zero);
+                Assert.That(transport.SentCount, Is.EqualTo(1));
+            });
+            await channel.StopBackgroundWorkAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+                Assert.That(pool.OutstandingCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Invalid token or sequence metadata faults under Part 6 before an untrusted TypeId can trigger CLO.
+        /// </summary>
+        [TestCase(99u, 2u)]
+        [TestCase(1u, 1u)]
+        public async Task InvalidSecurityMetadataPrecedesChannelMsgDispatchAsync(uint tokenId, uint sequence)
+        {
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry, new FakeTimeProvider());
+            channel.OpenForAbortTest(transport, chunkLimit: false);
+            await channel.FeedPooledReplyAsync(7, 1, TcpMessageType.Final, [1, 0, 1, 0]).ConfigureAwait(false);
+            var closed = new TaskCompletionSource<StatusCode>(TaskCreationOptions.RunContinuationsAsynchronously);
+            channel.SetStateChangedCallback((_, state, reason) =>
+            {
+                if (state == TcpChannelState.Closed)
+                {
+                    closed.TrySetResult(reason.StatusCode);
+                }
+            });
+            channel.CurrentState = TcpChannelState.Closing;
+            await channel.FeedPooledReplyAsync(
+                0, sequence, TcpMessageType.Final, [0, 254], tokenId).ConfigureAwait(false);
+            StatusCode status = await closed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.SentCount, Is.Zero);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(status, Is.EqualTo(tokenId == 1
+                    ? StatusCodes.BadSequenceNumberInvalid : StatusCodes.BadTcpSecureChannelUnknown));
+            });
         }
 
         [TestCase(true)]
@@ -1293,7 +1362,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     timeProvider)
             {
                 SenderCertificateChainParsedForTest =
-                    chain => ParsedSenderChain = new List<Certificate>(chain);
+                    chain => ParsedSenderChain = [.. chain];
             }
 
             /// <summary>
@@ -1350,18 +1419,24 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 MaxResponseChunkCount = 16;
             }
 
-            public ValueTask FeedPooledReplyAsync(uint requestId, uint sequence, uint flag, byte[] body)
+            public ValueTask FeedPooledReplyAsync(
+                uint requestId, uint sequence, uint flag, byte[] body, uint? tokenId = null)
             {
                 int length = 24 + body.Length;
                 byte[] buffer = BufferManager.TakeBuffer(length, nameof(FeedPooledReplyAsync));
                 BitConverter.GetBytes(TcpMessageType.Message | flag).CopyTo(buffer, 0);
                 BitConverter.GetBytes(length).CopyTo(buffer, 4);
                 BitConverter.GetBytes(ChannelId).CopyTo(buffer, 8);
-                BitConverter.GetBytes(CurrentToken!.TokenId).CopyTo(buffer, 12);
+                BitConverter.GetBytes(tokenId ?? CurrentToken!.TokenId).CopyTo(buffer, 12);
                 BitConverter.GetBytes(sequence).CopyTo(buffer, 16);
                 BitConverter.GetBytes(requestId).CopyTo(buffer, 20);
                 body.CopyTo(buffer, 24);
                 return OnChunkReceivedAsync(new ArraySegment<byte>(buffer, 0, length), CancellationToken.None);
+            }
+
+            public ValueTask StopBackgroundWorkAsync()
+            {
+                return BackgroundWork.DisposeAsync();
             }
 
             public void BeginClosedTransportWriteUnderGate(BufferCollection buffers)
@@ -1548,6 +1623,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public bool IsClosed => m_closed.Task.IsCompleted;
 
+            /// <summary>
+            /// Number of writes observed by the transport.
+            /// </summary>
+            public int SentCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sent.Count;
+                    }
+                }
+            }
+
             public byte[] LastSent
             {
                 get
@@ -1616,6 +1705,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void Close()
             {
                 m_closed.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Captures the symmetric sequence numbers in wire order.
+            /// </summary>
+            public ArrayOf<uint> GetSequenceNumbers()
+            {
+                lock (m_lock)
+                {
+                    return [.. m_sent.Select(bytes => BitConverter.ToUInt32(bytes, 16))];
+                }
             }
 
             private void Record(byte[] bytes)

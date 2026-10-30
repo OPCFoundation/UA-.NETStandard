@@ -57,6 +57,7 @@
       <xs:attribute name="TargetPublicationDate" type="xs:dateTime" use="optional" />
       <xs:attribute name="TargetXmlNamespace" type="xs:string" use="optional" />
       <xs:attribute name="DefaultLocale" type="xs:string" use="optional" default="en" />
+      <xs:attribute name="IdentifierCompatibilityFile" type="xs:string" use="optional" />
       <xs:anyAttribute processContents="lax" />
     </xs:complexType>
   </xs:element>
@@ -378,6 +379,7 @@
     <xs:attribute name="ReleaseStatus" type="ReleaseStatus" use="optional" default="Released" />
     <xs:attribute name="Purpose" type="DataTypePurpose" use="optional" default="Normal" />
     <xs:attribute name="IsDynamic" type="xs:boolean" use="optional" default="false" />
+    <xs:attribute name="PreserveExplicitNodes" type="xs:boolean" use="optional" default="false" />
 
   </xs:complexType>
 

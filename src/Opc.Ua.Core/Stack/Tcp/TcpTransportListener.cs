@@ -37,6 +37,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
@@ -472,12 +473,56 @@ namespace Opc.Ua.Bindings
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            foreach (EndpointDescription endpoint in settings.Descriptions ?? [])
+            {
+                if (UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri))
+                {
+                    throw UascDataChannelEndpoint.Unsupported();
+                }
+            }
+            Initialize(baseAddress, settings, callback);
+            Start();
+            return default;
+        }
+
+        /// <summary>
+        /// Initializes the ordinary UASC dispatcher for externally accepted byte transports, without binding a socket.
+        /// The caller owns the external accept loop and must close its transports asynchronously when required.
+        /// </summary>
+        /// <remarks>
+        /// External transport hosts must validate their endpoint, negotiated protocol and connection/session
+        /// limits before handing streams to this listener. This dispatcher still authenticates the application
+        /// through OPN; successful external transport establishment does not authenticate a UASC application.
+        /// </remarks>
+        public void OpenExternal(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
+        {
+            Initialize(baseAddress, settings, callback);
+            m_inactivityDetectionTimer = m_timeProvider.CreateTimer(
+                DetectInactiveChannels,
+                null,
+                TimeSpan.FromMilliseconds(Math.Max(1, m_inactivityDetectPeriod)),
+                TimeSpan.FromMilliseconds(Math.Max(1, m_inactivityDetectPeriod)));
+        }
+
+        /// <summary>
+        /// Shares channel quotas, admission, certificates and dispatch across physical and virtual transports.
+        /// </summary>
+        private void Initialize(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
+        {
+            UascDataChannelEndpoint.ValidateListener(settings);
 
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_descriptions = settings.Descriptions!;
+            // Reverse-connect listeners do not publish server endpoint descriptions.
+            m_descriptions = settings.Descriptions ?? [];
             EndpointConfiguration? configuration = settings.Configuration;
 
             // initialize the quotas.
@@ -518,7 +563,7 @@ namespace Opc.Ua.Bindings
             // negotiated maximum message size alive by never sending a final
             // chunk, and enough connections exhaust the memory of the process.
             m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
-                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(configuration);
+                ChunkReassemblyBudget.CreateDefault(configuration);
 
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;
@@ -541,13 +586,11 @@ namespace Opc.Ua.Bindings
                 m_telemetry);
             m_acceptedTransportDecorator = settings.AcceptedTransportDecorator;
             m_onAcceptedChannel = settings.OnAcceptedChannel;
+            m_dataChannelFactory = settings.DataChannels;
+            m_allowDataChannelIntegrity = settings.AllowDataChannelIntegrity;
 
             // save the callback to the server.
             m_callback = callback;
-
-            // start the listener.
-            Start();
-            return default;
         }
 
         /// <summary>
@@ -701,6 +744,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ConfigureAcceptedChannel(TcpListenerChannel channel)
         {
+            channel.ConfigureDataChannels(m_dataChannelFactory, m_allowDataChannelIntegrity);
             channel.TransportDecorator = m_acceptedTransportDecorator;
             m_onAcceptedChannel?.Invoke(channel);
         }
@@ -1360,20 +1404,7 @@ namespace Opc.Ua.Bindings
                     return;
                 }
                 reserved = true;
-                channel = m_reverseConnectListener
-                    ? new TcpReverseConnectChannel(
-                        ListenerId, this, m_bufferManager, m_quotas, m_descriptions, m_telemetry, m_timeProvider)
-                    : new TcpServerChannel(
-                        ListenerId, this, m_bufferManager, m_quotas, m_serverCertificates,
-                        m_descriptions, m_telemetry, m_timeProvider);
-                if (m_callback != null)
-                {
-                    channel.SetRequestReceivedCallback(OnRequestReceived);
-                    channel.SetReportOpenSecureChannelAuditCallback(OnReportAuditOpenSecureChannelEvent);
-                    channel.SetReportCloseSecureChannelAuditCallback(OnReportAuditCloseSecureChannelEvent);
-                    channel.SetReportCertificateAuditCallback(OnReportAuditCertificateEvent);
-                }
-                ConfigureAcceptedChannel(channel);
+                channel = CreateAcceptedChannel(m_quotas);
 
                 using (channel.Gate.Enter())
                 {
@@ -1415,6 +1446,170 @@ namespace Opc.Ua.Bindings
                 }
                 ownedSocket?.Dispose();
                 lease?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Applies ordinary connection admission, registry and dispatch to an externally established byte transport.
+        /// The factory is invoked with this listener's buffer manager so receive ownership follows the existing stack.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">The transport factory is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The buffer size is outside the listener limits.</exception>
+        /// <exception cref="ServiceResultException">Admission was refused or the listener is shutting down.</exception>
+        public TcpListenerChannel AcceptTransport(
+            IUaSCByteTransportFactory factory,
+            ICertificateValidatorEx certificateValidator,
+            int maxBufferSize)
+        {
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+            if (maxBufferSize < TcpMessageLimits.MinBufferSize || maxBufferSize > m_quotas.MaxBufferSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxBufferSize));
+            }
+            IUaSCByteTransport? transport = null;
+            IUaSCByteTransport? decorated = null;
+            TcpListenerChannel? channel = null;
+            UaScConnectionAdmission.Lease? lease = null;
+            ConcurrentDictionary<uint, TcpListenerChannel>? channels = null;
+            uint channelId = 0;
+            bool reserved = false;
+            try
+            {
+                foreach (EndpointDescription endpoint in m_descriptions ?? [])
+                {
+                    UascDataChannelEndpoint.ValidateTransportProfile(endpoint.TransportProfileUri, factory);
+                }
+                transport = factory.Create(m_bufferManager, maxBufferSize, m_telemetry);
+                if (m_admission == null ||
+                    !m_admission.TryAcquire(transport.RemoteEndpoint, out lease, TryReclaimUnusedChannel))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTcpNotEnoughResources);
+                }
+                lease.SetAbortAction(transport.Close);
+                channels = ReserveAcceptedChannel() ??
+                    throw new ServiceResultException(StatusCodes.BadTcpNotEnoughResources);
+                reserved = true;
+                var quotas = new ChannelQuotas((ServiceMessageContext)m_quotas.MessageContext)
+                {
+                    MaxBufferSize = maxBufferSize,
+                    MaxMessageSize = m_quotas.MaxMessageSize,
+                    ChannelLifetime = m_quotas.ChannelLifetime,
+                    SecurityTokenLifetime = m_quotas.SecurityTokenLifetime,
+                    CertificateValidator = certificateValidator,
+                    CryptoProviders = m_quotas.CryptoProviders,
+                    SecurityPolicyRegistry = m_quotas.SecurityPolicyRegistry,
+                    ChunkReassemblyBudget = m_quotas.ChunkReassemblyBudget,
+                    SessionBindingProvider = m_quotas.SessionBindingProvider,
+                    ResourceIsolationProvider = m_quotas.ResourceIsolationProvider,
+                    HandshakeTimeout = m_quotas.HandshakeTimeout
+                };
+                channel = CreateAcceptedChannel(quotas);
+                decorated = m_acceptedTransportDecorator?.Invoke(transport) ?? transport;
+                lease.Attach(decorated);
+                lock (m_lock)
+                {
+                    if (!ReferenceEquals(m_channels, channels))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadShutdown);
+                    }
+                    do
+                    {
+                        channelId = GetNextChannelId();
+                    } while (!channels.TryAdd(channelId, channel));
+                    m_pendingAccepts--;
+                    reserved = false;
+                }
+                channel.Attach(channelId, lease);
+                TcpListenerChannel accepted = channel;
+                channel = null;
+                lease = null;
+                transport = null;
+                decorated = null;
+                return accepted;
+            }
+            finally
+            {
+                if (reserved)
+                {
+                    lock (m_lock)
+                    {
+                        m_pendingAccepts--;
+                    }
+                }
+                if (channel != null)
+                {
+                    if (channelId != 0)
+                    {
+                        channels?.TryRemove(channelId, out _);
+                    }
+                    channel.Dispose();
+                }
+                lease?.Dispose();
+                if (!ReferenceEquals(decorated, transport))
+                {
+                    decorated?.Close();
+                }
+                transport?.Close();
+            }
+        }
+
+        /// <summary>
+        /// Removes an external channel by identity and lets only the registry remover dispose it.
+        /// A retained lane handle cannot accidentally close a later channel with a reused numeric identifier.
+        /// </summary>
+        internal void CloseExternalChannel(TcpListenerChannel channel)
+        {
+            bool removed;
+            lock (m_lock)
+            {
+                removed = m_channels != null &&
+                    m_channels.TryGetValue(channel.Id, out TcpListenerChannel? registered) &&
+                    ReferenceEquals(registered, channel) &&
+                    m_channels.TryRemove(channel.Id, out _);
+            }
+            if (removed)
+            {
+                try
+                {
+                    m_logger.TcpTransportLog4(channel.Id);
+                }
+                finally
+                {
+                    channel.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Installs exactly the same dispatcher, auditing and profile/capture hooks on every accepted channel.
+        /// </summary>
+        private TcpListenerChannel CreateAcceptedChannel(ChannelQuotas quotas)
+        {
+            TcpListenerChannel channel = m_reverseConnectListener
+                ? new TcpReverseConnectChannel(
+                    ListenerId, this, m_bufferManager, quotas, m_descriptions, m_telemetry, m_timeProvider)
+                : new TcpServerChannel(
+                    ListenerId, this, m_bufferManager, quotas, m_serverCertificates,
+                    m_descriptions, m_telemetry, m_timeProvider);
+            try
+            {
+                if (m_callback != null)
+                {
+                    channel.SetRequestReceivedCallback(OnRequestReceived);
+                    channel.SetReportOpenSecureChannelAuditCallback(OnReportAuditOpenSecureChannelEvent);
+                    channel.SetReportCloseSecureChannelAuditCallback(OnReportAuditCloseSecureChannelEvent);
+                    channel.SetReportCertificateAuditCallback(OnReportAuditCertificateEvent);
+                }
+                ConfigureAcceptedChannel(channel);
+                return channel;
+            }
+            catch
+            {
+                channel.Dispose();
+                throw;
             }
         }
 
@@ -1611,7 +1806,7 @@ namespace Opc.Ua.Bindings
                 {
                     return false;
                 }
-                candidates = channels.Values.ToArray();
+                candidates = [.. channels.Values];
             }
             foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
                 channel => channel.ElapsedSinceLastActiveTime))
@@ -2146,6 +2341,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private static readonly ObjectPool<PendingRequest> s_pendingRequests =
             new(static () => new PendingRequest(), int.MaxValue);
+
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
@@ -2168,6 +2364,8 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private Func<IUaSCByteTransport, IUaSCByteTransport>? m_acceptedTransportDecorator;
         private Action<TcpListenerChannel>? m_onAcceptedChannel;
+        private IDataChannelContextFactory? m_dataChannelFactory;
+        private bool m_allowDataChannelIntegrity;
         private int m_inactivityDetectPeriod;
         private ITimer? m_inactivityDetectionTimer;
         private ActiveClientTracker? m_activeClientTracker;

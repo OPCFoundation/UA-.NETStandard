@@ -33,7 +33,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.PubSub.Configuration
 {
     /// <summary>
-    /// Allocates PubSub server-side transient identifiers.
+    /// Allocates PubSub configuration identifiers and FileType handles, not communication identifiers.
     /// </summary>
     /// <remarks>
     /// Implements the externalized state contract required for Part 14
@@ -43,7 +43,8 @@ namespace Opc.Ua.PubSub.Configuration
     public interface IPubSubIdAllocator
     {
         /// <summary>
-        /// Reserves a sequence of PubSub configuration identifiers.
+        /// Reserves a sequence of PubSub configuration identifiers. For the standard
+        /// PubSubConfiguration ReserveIds Method use <see cref="IPubSubCommunicationIdReservations"/>.
         /// </summary>
         /// <param name="count">Number of identifiers to reserve.</param>
         /// <param name="cancellationToken">Cancellation token.</param>

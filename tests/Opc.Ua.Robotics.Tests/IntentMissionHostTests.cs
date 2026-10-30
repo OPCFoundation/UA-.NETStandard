@@ -301,7 +301,11 @@ namespace Opc.Ua.Robotics.Tests
                 await WaitForCompletion(a.Operation).ConfigureAwait(false);
             }
 
-            int missionCount = m_added.OfType<MissionObjectState>().Count();
+            int missionCount;
+            lock (m_addedLock)
+            {
+                missionCount = m_added.OfType<MissionObjectState>().Count();
+            }
             Assert.That(missionCount, Is.GreaterThanOrEqualTo(4),
                 "at least RetainedTerminalMissions missions should survive");
         }

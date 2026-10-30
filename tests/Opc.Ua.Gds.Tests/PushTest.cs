@@ -216,7 +216,8 @@ namespace Opc.Ua.Gds.Tests
 
             static bool AreEquivalent(ArrayOf<ByteString> expected, ArrayOf<ByteString> actual)
             {
-                return expected.Count == actual.Count &&
+                return expected.IsNull == actual.IsNull &&
+                    expected.Count == actual.Count &&
                     Sorted(expected).SequenceEqual(Sorted(actual), StringComparer.Ordinal);
             }
 

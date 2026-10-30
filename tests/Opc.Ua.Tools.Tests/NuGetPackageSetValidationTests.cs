@@ -61,6 +61,81 @@ namespace Opc.Ua.Tools.Tests
         ];
 
         /// <summary>
+        /// Managed bindings and the backend bridge publish without requiring custom native assets.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryIncludesManagedNativeBackendBridgeAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(id =>
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Native.", StringComparison.Ordinal) ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic", StringComparison.Ordinal) ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport", StringComparison.Ordinal))
+            ];
+            string[] expected =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic",
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport",
+                "OPCFoundation.NetStandard.Opc.Ua.Native.QuicGo"
+            ];
+
+            Assert.That(actual, Is.EquivalentTo(expected));
+        }
+
+        /// <summary>
+        /// Only explicitly selected native experiments retain the native-only HTTP3 package dependency.
+        /// </summary>
+        [Test]
+        public void WebTransportOptsIntoTheNativeOnlyHttp3PackageEdge()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "src",
+                "Opc.Ua.Bindings.WebTransport", "Opc.Ua.Bindings.WebTransport.csproj");
+            var project = XDocument.Load(path);
+            XElement reference = project.Descendants("ProjectReference").Single(element =>
+                element.Attribute("Include")?.Value.EndsWith(
+                    "Opc.Ua.Native.Http3.csproj", StringComparison.Ordinal) == true);
+            string[] assets = (reference.Attribute("IncludeAssets")?.Value ?? string.Empty)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+            string[] expected = ["runtime", "native"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reference.Attribute("Condition")?.Value,
+                    Is.EqualTo("'$(IncludeExperimentalNativeDataChannelAssets)' == 'true'"));
+                Assert.That(reference.Attribute("ReferenceOutputAssembly")?.Value,
+                    Is.Not.EqualTo("false").IgnoreCase,
+                    "NuGet removes false ReferenceOutputAssembly edges from the restore graph.");
+                Assert.That(assets, Is.EquivalentTo(expected));
+                Assert.That(reference.Attribute("Private")?.Value, Is.EqualTo("false"));
+            });
+        }
+
+        /// <summary>
+        /// Explicit native packing validates both reviewed images before reading their receipts.
+        /// </summary>
+        [Test]
+        public void NativeQuicPackagingValidatesAssetsBeforeCopyingReceipts()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "src",
+                "Opc.Ua.Native.QuicGo", "build", "NativeAssets.targets");
+            var targets = XDocument.Load(path);
+            XElement prepare = targets.Descendants("Target").Single(element =>
+                element.Attribute("Name")?.Value == "PrepareQuicPackageRecipes");
+            XElement validate = targets.Descendants("Target").Single(element =>
+                element.Attribute("Name")?.Value == "ValidateQuicNativeAssets");
+            Assert.Multiple(() =>
+            {
+                Assert.That(prepare.Attribute("DependsOnTargets")?.Value, Is.EqualTo("ValidateQuicNativeAssets"));
+                Assert.That(validate.Attribute("Condition")?.Value, Does.Contain("'$(NativeQuicAssetRoot)' != ''"));
+                Assert.That(validate.Descendants("Exec").Single().Attribute("Command")?.Value,
+                    Does.Contain("verify_package.py"));
+            });
+        }
+
+        /// <summary>
         /// The approved suite adds exactly twelve package identities and never a separate WMTP package.
         /// </summary>
         [Test]

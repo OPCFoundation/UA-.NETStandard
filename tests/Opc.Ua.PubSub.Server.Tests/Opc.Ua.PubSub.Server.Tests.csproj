@@ -27,6 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.PubSub.Tests\Transports\DataChannels\DataChannelTestPair.cs"
+             Link="DataChannels\DataChannelTestPair.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

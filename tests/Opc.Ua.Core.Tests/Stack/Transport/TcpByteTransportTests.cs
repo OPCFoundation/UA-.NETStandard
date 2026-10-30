@@ -202,6 +202,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using (client)
             {
                 byte[] payload = BuildValidChunk(TcpMessageType.Hello, 64);
+                var progress = new List<int>();
+                ((IUaSCByteTransportSendProgress)client).SetSendProgressCallback(progress.Add);
                 await client.SendChunkAsync(payload, CancellationToken.None).ConfigureAwait(false);
 
                 byte[] received = new byte[payload.Length];
@@ -218,6 +220,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
 
                 Assert.That(received, Is.EqualTo(payload));
+                Assert.That(progress.Sum(), Is.EqualTo(payload.Length));
             }
         }
 
@@ -370,6 +373,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             int[] partialSends = [3, 4, 5];
             int sendIndex = 0;
             var snapshots = new List<ArraySegment<byte>[]>();
+            var progress = new List<int>();
 
             await TcpByteTransport.SendAllAsync(
                 buffers,
@@ -377,9 +381,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     snapshots.Add(CopySegments(pending));
                     return Task.FromResult(partialSends[sendIndex++]);
-                }).ConfigureAwait(false);
+                },
+                progress.Add).ConfigureAwait(false);
 
             Assert.That(sendIndex, Is.EqualTo(partialSends.Length));
+            Assert.That(progress, Is.EqualTo(partialSends));
             Assert.That(snapshots, Has.Count.EqualTo(3));
             Assert.That(snapshots[0], Is.EqualTo(original));
             Assert.That(

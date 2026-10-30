@@ -35,6 +35,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
@@ -93,12 +94,36 @@ namespace Opc.Ua.Bindings
             List<EndpointDescription> endpoints,
             ITelemetryContext telemetry,
             TimeProvider? timeProvider)
+            : this(
+                contextId,
+                listener,
+                bufferManager,
+                quotas,
+                serverCertificates,
+                new EndpointSelection([.. endpoints]),
+                telemetry,
+                timeProvider)
+        {
+        }
+
+        /// <summary>
+        /// Owns endpoint candidates so HEL selection never mutates another accepted channel.
+        /// </summary>
+        private TcpListenerChannel(
+            string contextId,
+            ITcpChannelListener listener,
+            BufferManager bufferManager,
+            ChannelQuotas quotas,
+            ICertificateRegistry serverCertificates,
+            EndpointSelection endpoints,
+            ITelemetryContext telemetry,
+            TimeProvider? timeProvider)
             : base(
                 contextId,
                 bufferManager,
                 quotas,
                 serverCertificates,
-                endpoints,
+                endpoints.Endpoints,
                 MessageSecurityMode.None,
                 SecurityPolicies.None,
                 telemetry,
@@ -106,6 +131,7 @@ namespace Opc.Ua.Bindings
         {
             m_logger = telemetry.CreateLogger<TcpListenerChannel>();
             Listener = listener;
+            m_endpointCandidates = endpoints.Endpoints;
 
             // Bridge the base channel's token-activated callback to the
             // public event so external diagnostic taps can observe token
@@ -160,6 +186,7 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_peerCertificateChain, null);
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
             }
+            UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
             base.Dispose(disposing);
         }
 
@@ -174,6 +201,35 @@ namespace Opc.Ua.Bindings
         protected ITcpChannelListener Listener { get; }
 
         /// <summary>
+        /// Gets the immutable dispatch mode selected by the HEL endpoint resource.
+        /// </summary>
+        internal DataChannelCarrierKind? SelectedDataChannelKind { get; private set; }
+
+        /// <summary>
+        /// Gets the explicitly configured authenticated-context factory.
+        /// </summary>
+        internal IDataChannelContextFactory? DataChannelFactory { get; private set; }
+
+        /// <summary>
+        /// Gets whether binding policy explicitly permits integrity-only flow protection.
+        /// </summary>
+        internal bool AllowDataChannelIntegrity { get; private set; }
+
+        /// <summary>
+        /// Gets whether omitting HEL endpoint selection could otherwise expose a data profile as ordinary Services.
+        /// </summary>
+        internal bool HasDataChannelEndpoints => m_endpointCandidates.Exists(endpoint =>
+            endpoint.TransportProfileUri is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
+                DataChannelProfiles.PubSubUasc or DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
+                UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri));
+
+        /// <summary>
+        /// Gets whether HEL selected a Part 31/32 endpoint requiring confidential UASC independently of PubSub.
+        /// </summary>
+        internal bool IsReliableStreamBaseline => m_endpointCandidates.Exists(endpoint =>
+            UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri));
+
+        /// <summary>
         /// Optional decorator applied to the byte transport when the channel
         /// is attached to an accepted socket. Set by the listener from
         /// <see cref="TransportListenerSettings.AcceptedTransportDecorator"/>
@@ -181,6 +237,66 @@ namespace Opc.Ua.Bindings
         /// <c>null</c> (the default) the transport is used unchanged.
         /// </summary>
         internal Func<IUaSCByteTransport, IUaSCByteTransport>? TransportDecorator { get; set; }
+
+        /// <summary>
+        /// Binds a flow provider before physical connection processing starts.
+        /// </summary>
+        internal void ConfigureDataChannels(IDataChannelContextFactory? factory, bool allowIntegrity)
+        {
+            if (State != TcpChannelState.Closed)
+            {
+                throw new InvalidOperationException("Flow configuration cannot change on an accepted connection.");
+            }
+            DataChannelFactory = factory;
+            AllowDataChannelIntegrity = allowIntegrity;
+        }
+
+        /// <inheritdoc/>
+        protected override bool SetEndpointUrl(string endpointUrl)
+        {
+            if (!Uri.TryCreate(endpointUrl, UriKind.Absolute, out Uri? url))
+            {
+                return false;
+            }
+            string? profile = UascDataChannelEndpoint.GetResourceProfile(url.AbsolutePath);
+            DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetKind(profile);
+            if (UascDataChannelEndpoint.IsFlowResource(url) &&
+                (!kind.HasValue || DataChannelFactory == null ||
+                    url.Query.Length != 0 || url.Fragment.Length != 0 || url.UserInfo.Length != 0))
+            {
+                return false;
+            }
+
+            m_endpointCandidates.RemoveAll(endpoint =>
+            {
+                if (UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri))
+                {
+                    return !UascDataChannelEndpoint.MatchesReliableStreamEndpoint(url, endpoint) ||
+                        (endpoint.TransportProfileUri == DataChannelProfiles.WebTransport && DataChannelFactory == null);
+                }
+                DataChannelCarrierKind? candidate = UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri);
+                if (candidate != kind ||
+                    endpoint.TransportProfileUri is DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
+                    !Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? expected) ||
+                    expected.Scheme != url.Scheme)
+                {
+                    return true;
+                }
+                return kind.HasValue
+                    ? profile != endpoint.TransportProfileUri ||
+                        UascDataChannelEndpoint.GetResourceProfile(expected.AbsolutePath) != profile
+                    : UascDataChannelEndpoint.IsFlowResource(expected);
+            });
+            if (m_endpointCandidates.Count == 0 || !base.SetEndpointUrl(endpointUrl))
+            {
+                return false;
+            }
+            SelectedDataChannelKind = IsReliableStreamBaseline
+                ? DataChannelFactory == null ? null :
+                    UascDataChannelEndpoint.GetKind(m_endpointCandidates[0].TransportProfileUri)
+                : kind;
+            return true;
+        }
 
         /// <summary>
         /// Sets the callback used to receive notifications of new events.
@@ -313,8 +429,17 @@ namespace Opc.Ua.Bindings
             ChannelId = channelId;
             State = TcpChannelState.Connecting;
             Transport = transport;
+
+            if (transport is IUaSCSecureChannelBoundTransport boundTransport)
+            {
+                boundTransport.OnSecureChannelAttached(GlobalChannelId);
+            }
+
+            UaSCSecureChannelRegistry.Bind(GlobalChannelId, this);
+
             if (Volatile.Read(ref m_disposed) != 0)
             {
+                UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
                 DetachTransportForHandoff()?.Close();
                 throw new ObjectDisposedException(nameof(TcpListenerChannel));
             }
@@ -331,6 +456,7 @@ namespace Opc.Ua.Bindings
             {
                 if (Volatile.Read(ref m_disposed) != 0 ||
                     UsedBySession ||
+                    DataChannels != null ||
                     !(State is TcpChannelState.Open or TcpChannelState.Faulted ||
                         (State == TcpChannelState.Connecting && IsReclaimableWhileConnecting)) ||
                     HasPartialMessage ||
@@ -844,6 +970,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private protected void ForceChannelFaultCore(ServiceResult reason)
         {
+            NotifyChannelClosed();
             CompleteReverseHello(new ServiceResultException(reason));
             TakeSavedChunks().Release(BufferManager, nameof(ForceChannelFaultCore));
 
@@ -853,7 +980,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            bool close = resourceLimitReached;
+            bool close = resourceLimitReached || SelectedDataChannelKind.HasValue;
             if (State is not TcpChannelState.Connecting and not TcpChannelState.Opening)
             {
                 EndPoint? remoteEndpoint = Transport?.RemoteEndpoint;
@@ -1005,6 +1132,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelClosed()
         {
+            NotifyChannelClosed();
             try
             {
                 CloseTransport(Transport);
@@ -1032,6 +1160,7 @@ namespace Opc.Ua.Bindings
 
         private void ChannelFaulted(TcpChannelState finalState)
         {
+            NotifyChannelClosed();
             try
             {
                 CloseTransport(Transport);
@@ -1233,7 +1362,9 @@ namespace Opc.Ua.Bindings
             }
 
             if (requestedChannelId == 0 ||
-                ReferenceEquals(this, reconnectingChannel))
+                ReferenceEquals(this, reconnectingChannel) ||
+                SelectedDataChannelKind.HasValue ||
+                reconnectingChannel.SelectedDataChannelKind.HasValue)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -1342,7 +1473,13 @@ namespace Opc.Ua.Bindings
             private readonly TcpListenerChannel? m_channel;
         }
 
+        /// <summary>
+        /// Isolates the endpoint list used by all subsequent security-policy selections.
+        /// </summary>
+        private sealed record EndpointSelection(List<EndpointDescription> Endpoints);
+
         private readonly ILogger m_logger;
+        private readonly List<EndpointDescription> m_endpointCandidates;
         private int m_pendingServiceRequests;
 
         /// <summary>

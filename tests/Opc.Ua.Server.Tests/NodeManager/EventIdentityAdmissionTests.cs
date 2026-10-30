@@ -218,6 +218,44 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Retains admission for visible events and releases it when publication denies a scoped event.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ScopedPublicationReleasesOnlyDeniedEventFields(bool visible)
+        {
+            using var fixture = new IdentityFixture();
+            EnableAdmission(fixture);
+            using MonitoredItem item = fixture.CreateItem();
+            IFilterTarget occurrence = Server.DataChannels.DataChannelEventScope.Create(
+                fixture.Context, Event(s_id), _ => visible);
+            var fields = new TrackingEventFieldList { Handle = occurrence, EventFields = [new Variant(s_id)] };
+            fixture.Manager.RegisterEventFields(fields, occurrence);
+            item.QueueEvent(fields);
+            var published = new Queue<EventFieldList>();
+            using var context = new OperationContext(new Mock<ISession>().Object, DiagnosticsMasks.None);
+
+            item.Publish(context, published, 8);
+
+            Assert.That(published, Has.Count.EqualTo(visible ? 1 : 0));
+            if (visible)
+            {
+                Assert.That(published.Peek(), Is.SameAs(fields));
+                Assert.That(fields.Handle, Is.SameAs(occurrence));
+                Assert.That(fields.Reused, Is.False);
+                Assert.DoesNotThrow(() => fixture.Manager.AdmitEventFields(fields));
+                fixture.Manager.ReleaseEventFields(fields);
+            }
+            else
+            {
+                Assert.That(fields.Handle, Is.Null);
+                Assert.That(fields.Reused, Is.True);
+                Assert.That(fields.AdmissionReleasedBeforeReuse, Is.True);
+                AssertStatus(() => fixture.Manager.AdmitEventFields(fields), StatusCodes.BadNotSupported);
+            }
+        }
+
+        /// <summary>
         /// Verifies that native retained condition refresh preserves identity and permitted properties.
         /// </summary>
         [Test]
@@ -829,6 +867,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public bool IsSameOccurrence(IEventIdentitySource other)
             {
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Records recycling without returning the fields to a shared pool.
+        /// </summary>
+        private sealed class TrackingEventFieldList : EventFieldList, IPooledEncodeable
+        {
+            /// <summary>
+            /// Gets whether the discard path recycled these fields.
+            /// </summary>
+            public bool Reused { get; private set; }
+
+            /// <summary>
+            /// Gets whether identity admission was released before recycling.
+            /// </summary>
+            public bool AdmissionReleasedBeforeReuse { get; private set; }
+
+            /// <inheritdoc/>
+            void IPooledEncodeable.Reuse()
+            {
+                AdmissionReleasedBeforeReuse = Handle == null;
+                Reused = true;
             }
         }
 

@@ -11,13 +11,12 @@
     TRX parsing it consumes, in their own file lets both be tested without
     building or running anything.
 
-    The emitted TRX decides the verdict, not the 'dotnet test' exit code. A
-    non-zero exit is tolerated when - and only when - the results record at least
-    one *passing* test, no failure of any kind, and no test fixture whose setup or
-    teardown failed, which means the host died during process exit after the last
-    test and every teardown had already run. A host that dies mid-run leaves a
-    non-zero failed/aborted/passedButRunAborted counter and is rejected, and a
-    suite whose tests were all skipped is rejected as well.
+    The emitted TRX is the primary verdict. By default, the existing at-exit
+    tolerance accepts a non-zero exit only with passing results, no failure
+    counters, and no failed fixture setup or teardown. Counters alone cannot
+    distinguish every mid-run crash: VSTest can omit aborted counters after a
+    host dies. RequireCleanExit disables that tolerance for native qualification.
+    A suite whose tests were all skipped is always rejected.
 #>
 
 <#
@@ -48,6 +47,11 @@
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.
 
+ .PARAMETER RequireCleanExit
+    Reject any non-zero host exit, even when the partial TRX contains only
+    passing counters. Native qualification uses this stricter policy without
+    changing the default tolerance for existing mainline test jobs.
+
  .PARAMETER TimedOut
     Whether the executor killed the process at its per-project ceiling.
 
@@ -70,7 +74,8 @@ function Get-TestRunVerdict
         [Parameter(Mandatory = $true)] [int] $ExitCode,
         [Parameter(Mandatory = $true)] [bool] $TimedOut,
         [Parameter(Mandatory = $false)] [int] $TimeoutMinutes = 0,
-        [Parameter(Mandatory = $false)] [string[]] $FixtureFailures = @()
+        [Parameter(Mandatory = $false)] [string[]] $FixtureFailures = @(),
+        [Parameter(Mandatory = $false)] [switch] $RequireCleanExit
     )
 
     # A timeout is never benign: the executor killed a process that was still
@@ -141,6 +146,13 @@ function Get-TestRunVerdict
     }
 
     if ($ExitCode -ne 0) {
+        if ($RequireCleanExit) {
+            return [pscustomobject]@{
+                Passed    = $false
+                Tolerated = $false
+                Reason    = "A clean host exit is required, but the test host exited with code $ExitCode."
+            }
+        }
         return [pscustomobject]@{
             Passed    = $true
             Tolerated = $true

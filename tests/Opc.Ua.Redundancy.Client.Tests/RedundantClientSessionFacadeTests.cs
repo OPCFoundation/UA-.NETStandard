@@ -657,6 +657,42 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(await facade.CancelAsync(null, 1, ct).ConfigureAwait(false), Is.SameAs(cancel));
         }
 
+        /// <summary>
+        /// Modelled Data Channel operations use the current session's ordinary Call Service.
+        /// </summary>
+        [TestCase(Methods.DataChannelManager_OpenDataChannel)]
+        [TestCase(Methods.DataChannelManager_ModifyDataChannel)]
+        [TestCase(Methods.DataChannelManager_CloseDataChannel)]
+        public async Task LeaderDataChannelMethodsDelegateThroughCallAsync(uint methodId)
+        {
+            var session = new Mock<ISession>();
+            RedundantClientSession facade = CreateLeaderFacade(session);
+            CancellationToken ct = CancellationToken.None;
+            var request = new CallMethodRequest
+            {
+                ObjectId = ObjectIds.DataChannelManager,
+                MethodId = new NodeId(methodId),
+                InputArguments = [new Variant(7u)]
+            };
+            var response = new CallResponse
+            {
+                Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+            };
+            session.Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<CallMethodRequest>>(calls => calls.Count == 1 && ReferenceEquals(calls[0], request)),
+                    ct))
+                .Returns(new ValueTask<CallResponse>(response));
+
+            CallResponse actual = await facade.CallAsync(null, [request], ct).ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(response));
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader>(),
+                It.Is<ArrayOf<CallMethodRequest>>(calls => calls.Count == 1 && ReferenceEquals(calls[0], request)),
+                ct), Times.Once);
+        }
+
         [Test]
         public async Task LeaderConvenienceMethodsDelegateToCurrentSessionAsync()
         {

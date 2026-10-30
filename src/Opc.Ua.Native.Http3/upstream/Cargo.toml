@@ -1,0 +1,13 @@
+# Copyright (c) OPC Foundation. Licensed under the MIT License.
+# Build-only manifest for the exact selected upstream source and accepted overlay.
+# The unchanged upstream manifest is retained in Cargo.toml.upstream.
+[package]
+name = "shiguredo_http3"
+version = "2026.1.0-canary.12"
+edition = "2024"
+rust-version = "1.93"
+publish = false
+license = "Apache-2.0"
+
+[lib]
+path = "src/lib.rs"

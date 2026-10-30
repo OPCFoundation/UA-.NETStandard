@@ -433,7 +433,12 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    if (node is TypeDesign)
+                    if (node.PreserveExplicitNodes && !current.Value.ExplicitlyDefined)
+                    {
+                        continue;
+                    }
+
+                    if (!node.PreserveExplicitNodes && node is TypeDesign)
                     {
                         if (!current.Value.ExplicitlyDefined)
                         {
@@ -452,7 +457,7 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    if (node is InstanceDesign)
+                    if (!node.PreserveExplicitNodes && node is InstanceDesign)
                     {
                         if (current.Value.Instance is not InstanceDesign child)
                         {

@@ -392,6 +392,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded, Is.Null);
         }
 
+        [TestCase(0)]
+        [TestCase(7)]
+        [TestCase(byte.MaxValue)]
+        public void DiscoveryRequestRejectsUnsupportedSubtype(byte subtype)
+        {
+            byte[] frame = [0x91, 0x80, 0x04, 0x00, subtype, 0x00, 0x00, 0x00, 0x00];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
+            Assert.That(decoded, Is.Null);
+        }
+
         [Test]
         public void DiscoveryResponseRejectsEndpointCountBeyondRemainingBytes()
         {
@@ -400,6 +412,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] frame = [0x91, 0x80, 0x08, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x7F];
             PubSubNetworkMessage? decoded = null;
             Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
+        }
+
+        [TestCase(0)]
+        [TestCase(6)]
+        [TestCase(byte.MaxValue)]
+        public void DiscoveryResponseRejectsUnsupportedSubtype(byte subtype)
+        {
+            byte[] frame = [0x91, 0x80, 0x08, 0x00, subtype, 0x00, 0x00];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
             Assert.That(decoded, Is.Null);
         }
 

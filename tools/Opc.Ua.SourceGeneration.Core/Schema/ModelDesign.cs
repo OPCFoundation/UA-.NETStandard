@@ -505,6 +505,13 @@ namespace Opc.Ua.Schema.Model
     public partial class ModelDesign : IEquatable<ModelDesign>
     {
         /// <summary>
+        /// Optional CSV of previously generated numeric identifiers to preserve during allocation.
+        /// The path is relative to this design file and is not a source of additional model nodes.
+        /// </summary>
+        [XmlAttribute]
+        public string? IdentifierCompatibilityFile { get; set; }
+
+        /// <summary>
         /// Namespace table
         /// </summary>
         [XmlIgnore]
@@ -546,7 +553,8 @@ namespace Opc.Ua.Schema.Model
                 TargetVersion == design.TargetVersion &&
                 TargetPublicationDate == design.TargetPublicationDate &&
                 TargetXmlNamespace == design.TargetXmlNamespace &&
-                DefaultLocale == design.DefaultLocale;
+                DefaultLocale == design.DefaultLocale &&
+                IdentifierCompatibilityFile == design.IdentifierCompatibilityFile;
         }
 
         /// <inheritdoc/>
@@ -562,6 +570,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(TargetPublicationDate);
             hash.Add(TargetXmlNamespace);
             hash.Add(DefaultLocale);
+            hash.Add(IdentifierCompatibilityFile);
             return hash.ToHashCode();
         }
 
@@ -770,6 +779,15 @@ namespace Opc.Ua.Schema.Model
     public partial class NodeDesign : IFormattable, IEquatable<NodeDesign>
     {
         /// <summary>
+        /// Limits this top-level declaration's predefined subtree to explicitly authored nodes and
+        /// allocated encodings. Inherited members remain available when creating runtime instances.
+        /// All published nodes in the subtree must have an explicit identifier.
+        /// </summary>
+        [XmlAttribute]
+        [System.ComponentModel.DefaultValue(false)]
+        public bool PreserveExplicitNodes { get; set; }
+
+        /// <summary>
         /// Parent node
         /// </summary>
         [XmlIgnore]
@@ -897,7 +915,8 @@ namespace Opc.Ua.Schema.Model
                 NotInAddressSpace == other.NotInAddressSpace &&
                 ReleaseStatus == other.ReleaseStatus &&
                 Purpose == other.Purpose &&
-                IsDynamic == other.IsDynamic;
+                IsDynamic == other.IsDynamic &&
+                PreserveExplicitNodes == other.PreserveExplicitNodes;
         }
 
         /// <inheritdoc/>
@@ -934,6 +953,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(ReleaseStatus);
             hash.Add(Purpose);
             hash.Add(IsDynamic);
+            hash.Add(PreserveExplicitNodes);
             return hash.ToHashCode();
         }
 

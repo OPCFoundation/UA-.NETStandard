@@ -25,6 +25,7 @@
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Fx\Opc.Ua.Fx.csproj" />
   </ItemGroup>
   <Target Name="GetPackagingOutputs" />
 </Project>

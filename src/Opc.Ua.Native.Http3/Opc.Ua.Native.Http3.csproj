@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Compatibility metadata only: the package ships native assets, not this build's placeholder assembly. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsPackable Condition="'$(NativeValidationOnly)' == 'true'">true</IsPackable>
+    <IsPackable Condition="'$(NativeValidationOnly)' != 'true'">false</IsPackable>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeSymbols>false</IncludeSymbols>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>$(PackagePrefix).Opc.Ua.Native.Http3</PackageId>
+    <NuspecFile>$(MSBuildThisFileDirectory)artifacts\native-http3.$(Configuration).nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildThisFileDirectory)</NuspecBasePath>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <Description>Opt-in native HTTP3/WebTransport draft16 Sans-I/O state backend.</Description>
+    <!-- Retained PowerShell source recipes are deliberately not NuGet installation hooks.
+         TODO: remove these two package-analysis exclusions when NuGet supports declaring
+         non-installation PowerShell source explicitly. Never rename recipes to install.ps1. -->
+    <NoWarn>$(NoWarn);NU5110;NU5111</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <!-- Repository build/version tooling is private; the native-only nuspec ships no managed dependency. -->
+  <Target Name="RequireVerifiedNativeHttp3Inputs" BeforeTargets="Pack;GenerateNuspec"
+          Condition="'$(NativeValidationOnly)' == 'true'">
+    <Error Condition="!Exists('$(NuspecFile)')"
+           Text="Run Pack-Native.ps1 to verify exact native/source/export allowlists first." />
+  </Target>
+  <Target Name="GetPackagingOutputs" />
+</Project>

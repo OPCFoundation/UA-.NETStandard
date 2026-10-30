@@ -12,6 +12,7 @@ instructions. If you are new to the SDK, start with the
   - [Minimal samples](#minimal-samples)
   - [Reference applications](#reference-applications)
   - [PubSub samples](#pubsub-samples)
+  - [Experimental Data Channel samples](#experimental-data-channel-samples)
   - [Companion-model samples](#companion-model-samples)
   - [OpenUSD site composition](#openusd-site-composition)
 
@@ -46,6 +47,23 @@ Minimal Client together.
 - [Console Reference PubSub Client](../samples/PubSub/ConsoleReferencePubSubClient/README.md) —
   one executable with `publisher`, `subscriber`, and `external`
   external-server-adapter modes across the supported transport profiles.
+- [SecureChannel PubSub](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
+  (experimental) - brokerless UADP over dedicated or shared UASC, in one
+  or two processes, with byte/value validation, live revision and optional
+  Session authorization.
+
+## Experimental Data Channel samples
+
+These .NET 10 applications use the rewritten [Data Channels](DataChannels.md)
+protocol. Configured dedicated/native modes create no Session or optional
+address-space model. Native modes require the reviewed assets described in
+their READMEs; there is no alternate-carrier fallback.
+
+- [Streaming](../samples/Core/ConsoleDataChannelStreaming/README.md) - finite
+  complete-message runs over all four carriers, payload role reversal, live
+  revision and a shared-channel Read/Publish benchmark.
+- [Audio](../samples/Core/ConsoleDataChannelAudio/README.md) - complete opaque
+  PCM messages, finite headless WAV output and explicit Windows playback.
 
 ## Companion-model samples
 

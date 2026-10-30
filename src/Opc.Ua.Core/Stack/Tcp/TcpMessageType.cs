@@ -108,6 +108,21 @@ namespace Opc.Ua.Bindings
         public const uint Error = 0x46525245;
 
         /// <summary>
+        /// The superseded FLO identifier, retained for diagnostics but not accepted as a UACP message type.
+        /// </summary>
+        public const uint FlowData = 0x004F4C46;
+
+        /// <summary>
+        /// The legacy flow message identifier, equal to FLO.
+        /// </summary>
+        public const uint Flow = FlowData;
+
+        /// <summary>
+        /// The superseded FLC identifier, retained for diagnostics but not accepted as a UACP message type.
+        /// </summary>
+        public const uint FlowControl = 0x00434C46;
+
+        /// <summary>
         /// Returns true if the message type is equal to the expected type.
         /// </summary>
         public static bool IsType(uint actualType, uint expectedType)

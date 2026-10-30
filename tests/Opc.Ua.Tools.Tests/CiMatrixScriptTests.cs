@@ -100,7 +100,7 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Every test project on disk has to be claimed by the matrix. The
-        /// exclusions are the four projects other jobs own; anything else that
+        /// exclusions are projects that dedicated jobs own; anything else that
         /// stopped being scheduled would silently stop being tested.
         /// </summary>
         [Test]
@@ -108,7 +108,7 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync("full").ConfigureAwait(false);
 
-            HashSet<string> scheduled = matrix.Tests
+            var scheduled = matrix.Tests
                 .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 .ToHashSet(StringComparer.Ordinal);
 
@@ -117,7 +117,13 @@ namespace Opc.Ua.Tools.Tests
             [
                 "Opc.Ua.Aot.Tests.csproj",
                 "Opc.Ua.Stress.Tests.csproj",
-                "Opc.Ua.OneFuzz.Validator.Tests.csproj"
+                "Opc.Ua.OneFuzz.Validator.Tests.csproj",
+                "Opc.Ua.Native.QuicGo.Tests.csproj",
+                "Opc.Ua.Native.Http3.Tests.csproj",
+                "Opc.Ua.Bindings.Quic.Tests.csproj",
+                "Opc.Ua.Bindings.WebTransport.Tests.csproj",
+                "Opc.Ua.DataChannel.ClientServer.Tests.csproj",
+                "Opc.Ua.DataChannel.Samples.Tests.csproj"
             ];
 
             List<string> missing = [];
@@ -145,6 +151,178 @@ namespace Opc.Ua.Tools.Tests
             }
 
             Assert.That(missing, Is.Empty, "These test projects are on disk but nothing schedules them.");
+        }
+
+        /// <summary>
+        /// Native-only tests have mandatory supported-host jobs instead of an all-platform no-op.
+        /// </summary>
+        [TestCase("Opc.Ua.Native.QuicGo.Tests")]
+        [TestCase("Opc.Ua.Native.Http3.Tests")]
+        [TestCase("Opc.Ua.Bindings.Quic.Tests")]
+        [TestCase("Opc.Ua.Bindings.WebTransport.Tests")]
+        [TestCase("Opc.Ua.DataChannel.ClientServer.Tests")]
+        [TestCase("Opc.Ua.DataChannel.Samples.Tests")]
+        public async Task NativeProjectsUseTheExplicitSupportedHostWorkflowAsync(string project)
+        {
+            MatrixResult matrix = await RunMatrixAsync("pr").ConfigureAwait(false);
+            Assert.That(
+                matrix.Tests.SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries)),
+                Has.None.EndsWith($"/{project}.csproj"),
+                "Native projects must not enter legacy or unsupported-platform mainline batches.");
+
+            string root = FindRepositoryRoot();
+            string native = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "native-data-channels.yml")).ConfigureAwait(false);
+            Assert.That(native, Does.Contain(project + "/" + project + ".csproj"));
+            Assert.That(native, Does.Contain("runs-on: windows-latest"));
+            Assert.That(native, Does.Contain("runs-on: ubuntu-latest"));
+            Assert.That(native, Does.Not.Contain("continue-on-error: true"));
+
+            string pullRequest = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "buildandtest.yml")).ConfigureAwait(false);
+            Assert.That(pullRequest, Does.Contain("uses: ./.github/workflows/native-data-channels.yml"));
+            Assert.That(pullRequest, Does.Contain("'native-data-channels' = $env:NATIVE_RESULT"));
+            Assert.That(pullRequest, Does.Contain("NATIVE_RESULT: ${{ needs.native-data-channels.result }}"));
+            Assert.That(pullRequest, Does.Contain(
+                "inputs.include_experimental_native_data_channels == true"));
+            string nightly = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "nightly.yml")).ConfigureAwait(false);
+            Assert.That(nightly, Does.Contain("uses: ./.github/workflows/native-data-channels.yml"));
+            Assert.That(nightly, Does.Contain("inputs.include_experimental_native_data_channels == true"));
+        }
+
+        /// <summary>
+        /// Managed transport validation remains mandatory without selecting custom native images.
+        /// </summary>
+        [Test]
+        public async Task ManagedTransportsHaveAnAssetIndependentRequiredLaneAsync()
+        {
+            string root = FindRepositoryRoot();
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "managed-data-channels.yml")).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(workflow, Does.Contain("os: [windows-latest, ubuntu-latest]"));
+                Assert.That(workflow, Does.Contain("OPCUA_QUIC_NATIVE_PATH: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_HTTP3_NATIVE_PATH: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_HTTP3_NATIVE_SHA256: ''"));
+                Assert.That(workflow, Does.Contain("OPCUA_REQUIRE_MANAGED_QUIC: 'true'"));
+                Assert.That(workflow, Does.Contain("https://packages.microsoft.com/config/ubuntu/"));
+                Assert.That(workflow, Does.Contain("sudo dpkg -i \"$RUNNER_TEMP/packages-microsoft-prod.deb\""));
+                Assert.That(workflow, Does.Contain("sudo apt-get install -y libmsquic"));
+                Assert.That(workflow, Does.Contain("-p:ManagedMsQuicPath=$msquic"));
+                Assert.That(workflow, Does.Contain("--managed --require-aot"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.Bindings.WebTransport.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.Bindings.Quic.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.DataChannel.ClientServer.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("Opc.Ua.DataChannel.Samples.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("projects: tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj"));
+                Assert.That(workflow, Does.Contain("filter: FullyQualifiedName~UascDataChannelSocketTests"));
+                Assert.That(workflow, Does.Contain("TestCategory!=WebTransportNative"));
+                Assert.That(workflow, Does.Not.Contain("continue-on-error"));
+                Assert.That(workflow, Does.Not.Contain("prepare-native"));
+            });
+            foreach (string file in new[] { "buildandtest.yml", "nightly.yml" })
+            {
+                string caller = await File.ReadAllTextAsync(
+                    Path.Combine(root, ".github", "workflows", file)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(caller, Does.Contain("uses: ./.github/workflows/managed-data-channels.yml"));
+                    Assert.That(caller, Does.Contain("MANAGED_RESULT: ${{ needs.managed-data-channels.result }}"));
+                    Assert.That(caller, Does.Contain("'managed-data-channels' = $env:MANAGED_RESULT"));
+                    Assert.That(caller, Does.Contain("$env:MANAGED_RESULT -ne 'success'"));
+                });
+            }
+        }
+
+        /// <summary>
+        /// Both native carrier facades are published and executed, not only their lower-level backends.
+        /// </summary>
+        [TestCase("Quic")]
+        [TestCase("WebTransport")]
+        public async Task NativeCarrierAotProgramsRunOnBothSupportedHostsAsync(string binding)
+        {
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(FindRepositoryRoot(), ".github", "workflows", "native-data-channels.yml"))
+                .ConfigureAwait(false);
+            workflow = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+            int linuxJob = workflow.IndexOf("\n  linux:", StringComparison.Ordinal);
+            Assert.That(linuxJob, Is.GreaterThan(0));
+            string windows = workflow[..linuxJob];
+            string linux = workflow[linuxJob..];
+            string project = $"Opc.Ua.Bindings.{binding}";
+            int windowsPublish = windows.IndexOf(
+                $"dotnet publish .\\tests\\{project}.Tests\\Aot\\{project}.Aot.csproj",
+                StringComparison.Ordinal);
+            int linuxPublish = linux.IndexOf(
+                $"dotnet publish ./tests/{project}.Tests/Aot/{project}.Aot.csproj",
+                StringComparison.Ordinal);
+            Assert.That(windowsPublish, Is.GreaterThanOrEqualTo(0));
+            Assert.That(linuxPublish, Is.GreaterThanOrEqualTo(0));
+            int windowsExitCheck = windows.IndexOf("if ($LASTEXITCODE", windowsPublish, StringComparison.Ordinal);
+            int linuxExitCheck = linux.IndexOf("if ($LASTEXITCODE", linuxPublish, StringComparison.Ordinal);
+            Assert.That(windowsExitCheck, Is.GreaterThan(windowsPublish));
+            Assert.That(linuxExitCheck, Is.GreaterThan(linuxPublish));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(windows[windowsPublish..windowsExitCheck], Does.Contain("-r win-x64"));
+                Assert.That(windows, Does.Contain($"'{project}.Aot.exe')"));
+                Assert.That(linux[linuxPublish..linuxExitCheck], Does.Contain("-r linux-x64"));
+                Assert.That(linux, Does.Contain($"/{project}.Aot "));
+            });
+        }
+
+        /// <summary>
+        /// Native CI inspects a real packed dependency rather than inferring deployment from project references.
+        /// </summary>
+        [Test]
+        public async Task NativeWorkflowVerifiesThePackedHttp3DependencyAsync()
+        {
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(FindRepositoryRoot(), ".github", "workflows", "native-data-channels.yml"))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(workflow, Does.Contain(
+                    "dotnet pack .\\src\\Opc.Ua.Bindings.WebTransport\\Opc.Ua.Bindings.WebTransport.csproj"));
+                Assert.That(workflow, Does.Contain("[IO.Compression.ZipFile]::OpenRead"));
+                Assert.That(workflow, Does.Contain("OPCFoundation.NetStandard.Opc.Ua.Native.Http3"));
+                Assert.That(workflow, Does.Contain(
+                    "throw 'The HTTP3 native runtime dependency is missing, suppressed or version-mismatched.'"));
+            });
+        }
+
+        /// <summary>
+        /// Both runtime images must pass before either unsigned native package configuration is accepted.
+        /// </summary>
+        [Test]
+        public async Task NativePackagesAreVerifiedAfterBothRuntimeJobsAsync()
+        {
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(FindRepositoryRoot(), ".github", "workflows", "native-data-channels.yml"))
+                .ConfigureAwait(false);
+            workflow = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+            int packageJob = workflow.IndexOf("\n  packages:", StringComparison.Ordinal);
+            Assert.That(packageJob, Is.GreaterThan(0));
+            string packaging = workflow[packageJob..];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(packaging, Does.Contain("needs: [windows, linux]"));
+                Assert.That(packaging, Does.Contain("CustomTestTarget: ''"));
+                Assert.That(packaging, Does.Contain("name: native-http3-package-win-x64"));
+                Assert.That(packaging, Does.Contain("name: native-http3-package-linux-x64"));
+                Assert.That(packaging, Does.Contain("foreach ($configuration in 'Release','Debug')"));
+                Assert.That(packaging, Does.Contain("-p:PackageVersion=0.0.0-native-validation"));
+                Assert.That(packaging, Does.Contain("Pack-Native.ps1 -ValidationOnly -Configuration $configuration"));
+                Assert.That(packaging, Does.Contain("package_verifier_test.py"));
+                Assert.That(packaging, Does.Contain("packaging_tests.py"));
+                Assert.That(packaging, Does.Contain("name: unsigned-native-validation-packages"));
+                Assert.That(packaging, Does.Not.Contain("nuget push"));
+            });
         }
 
         /// <summary>

@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Replacing the experimental Data Channels protocol](#replacing-the-experimental-data-channels-protocol)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -46,6 +47,56 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## Replacing the experimental Data Channels protocol
+
+The Part 30 audit model also replaces the experimental custom-field
+`AuditDataChannelEventType`: it is now a fieldless `AuditUpdateMethodEventType`
+subtype. Select specialized metadata from `DataChannelOperationEventType` and
+join its `AuditEventId` to the audit record's `EventId`. Both records require
+authorized audit-consumer access. Do not treat the operation's `Result` as the
+Method Call's `Status`, or expect an audit record for configured data-path
+admission. See [manager audit records](DataChannels.md#manager-audit-records).
+
+`DataChannelStatusDataType.TransportStreamId` is reserved and now always zero.
+Do not use the earlier experimental native stream number as flow identity;
+identify flows by ContextId, Generation and ChannelId.
+
+The rewritten Data Channels draft is a deliberate **wire, model and API break
+from the earlier experiment**, not a replacement for stable Client/Server
+Services. Update both flow peers together; no legacy-draft compatibility mode
+is provided. Applications not using experimental flows need no flow migration.
+
+Replace the old Open/Modify/Close Service requests with generated manager
+Methods through ordinary `Call` when Session authorization is needed.
+Configured flows instead use explicit resource policy without creating a
+Session or model. Replace `DataChannelManager`, frame flags and `Write` with
+the ready `DataChannelContext` / `DataChannel` complete-message facade,
+awaited `SendAsync` outcomes and disposed receive-message leases.
+
+Regenerate model-dependent code and use the new constants and
+`DataChannelResult`; old provisional NodeIds and custom StatusCodes are not
+preserved. Reconnection needs fresh context identity, flow IDs and authorization.
+
+The later split OPC 10000-30, -31 and -32 drafts `0.3.0` supersede that native
+transport design. Parts 31 and 32 require UACP/UASC Services and PubSub on a
+reliable baseline stream. Select `QuicUascTransport` or
+`NativeQuicUascTransport` with `DataChannelProfiles.UascQuic` for Part 31, or
+`WebTransportUascTransport` with `DataChannelProfiles.UascWebTransport` for
+the native Part 32 baseline. These reuse ordinary UACP/UASC and require
+SignAndEncrypt application authentication independently of transport TLS.
+The separately selectable `opcua-flow/1` protocol and nested Client/Server
+lane are legacy compositions, not those baselines. Browser WebTransport is
+not implemented, and full draft conformance remains unqualified.
+The coordinated Part 14
+application-payload amendment assigns NetworkMessageType 3 to the explicitly
+selected A/V and opaque formats; unamended type 3 and reserved types 4 through
+7 remain invalid. PubSub over Data Channels requires ordinary UADP; replace
+experimental JSON-over-flow configurations rather than expecting a payload
+fallback.
+
+See [the migration table and carrier guide](DataChannels.md#migrating-from-the-earlier-experiment)
+and the [updated sample catalogue](Samples.md#experimental-data-channel-samples).
 
 ## General principles
 

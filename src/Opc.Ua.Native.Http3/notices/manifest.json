@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "files": [
+    {
+      "path": "notices/HTTP3-Apache-2.0.txt",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/OPC-resource-guard-MIT.txt",
+      "sha256": "19b1e8437ba2b960e13862ae7342f53566bf30bbeb07fb589abfe38a8a724532",
+      "origin": "Exact accepted OPC Foundation shim/resource-guard MIT attribution"
+    },
+    {
+      "path": "notices/rust-release/LICENSE-MIT",
+      "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1",
+      "origin": "hash-verified official rustc archive"
+    },
+    {
+      "path": "notices/rust-release/LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "origin": "hash-verified official rustc archive"
+    },
+    {
+      "path": "notices/rust-library/COPYRIGHT-library.html",
+      "sha256": "0a65bb747c49c7bb816cbc7188319bd6e4e8d08091c1190b8a3c0971c47968ed",
+      "origin": "official toolchain library notice superset; not proof every package is linked"
+    },
+    {
+      "path": "notices/rust-library/MIT.txt",
+      "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+      "origin": "official toolchain license text"
+    },
+    {
+      "path": "notices/rust-library/Apache-2.0.txt",
+      "sha256": "074e6e32c86a4c0ef8b3ed25b721ca23aca83df277cd88106ef7177c354615ff",
+      "origin": "official toolchain license text"
+    },
+    {
+      "path": "notices/rust-library/Unicode-3.0.txt",
+      "sha256": "f5062c9a188d81dfe66b56db4182dcf9e4b17c0d9b0d311a8e20b3a1b075c443",
+      "origin": "official toolchain license text"
+    },
+    {
+      "path": "notices/rust-library/LLVM-exception.txt",
+      "sha256": "e34c58338bd89d43e709e226610d8f32b3e3c47f4ad9a99a8dc1d4ac7842488e",
+      "origin": "official toolchain license text"
+    },
+    {
+      "path": "notices/stdlib-vendor/addr2line-0.25.1/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/addr2line-0.25.1/LICENSE-MIT",
+      "sha256": "e99d88d232bf57d70f0fb87f6b496d44b6653f99f8a63d250a54c61ea4bcde40",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/adler2-2.0.1/LICENSE-0BSD",
+      "sha256": "861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/adler2-2.0.1/LICENSE-APACHE",
+      "sha256": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/adler2-2.0.1/LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/gimli-0.32.3/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/gimli-0.32.3/LICENSE-MIT",
+      "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/hashbrown-0.17.1/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/hashbrown-0.17.1/LICENSE-MIT",
+      "sha256": "ff8f68cb076caf8cefe7a6430d4ac086ce6af2ca8ce2c4e5a2004d4552ef52a2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/libc-0.2.185/LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/libc-0.2.185/LICENSE-MIT",
+      "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/memchr-2.7.6/LICENSE-MIT",
+      "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/memchr-2.7.6/UNLICENSE",
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/miniz_oxide-0.8.9/LICENSE",
+      "sha256": "4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/miniz_oxide-0.8.9/LICENSE-APACHE.md",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/miniz_oxide-0.8.9/LICENSE-MIT.md",
+      "sha256": "799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/miniz_oxide-0.8.9/LICENSE-ZLIB.md",
+      "sha256": "0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/object-0.37.3/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/object-0.37.3/LICENSE-MIT",
+      "sha256": "0b74dfa0bcee5c420c6b7f67b4b2658f9ab8388c97b8e733975f2cecbdd668a6",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/rustc-demangle-0.1.27/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/stdlib-vendor/rustc-demangle-0.1.27/LICENSE-MIT",
+      "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+      "origin": "hash-pinned rust-src archive; Cargo.lock package checksum and vendor file hash"
+    },
+    {
+      "path": "notices/compiler-builtins/LICENSE.txt",
+      "sha256": "ab6eec6caf0fa5775e411c7a8bc6a45c4ef2956b0980b157ab74fc5cd62a928b",
+      "origin": "official rust-src compiler-builtins subtree"
+    },
+    {
+      "path": "notices/compiler-builtins/libm/LICENSE.txt",
+      "sha256": "3823dda7cf046602f4b4e77ec8e227863dc4736037cc85bb33d9f19febe16bb7",
+      "origin": "official rust-src compiler-builtins subtree"
+    },
+    {
+      "path": "notices/linux/compiler-builtins-0.1.160-LICENSE.txt",
+      "sha256": "ab6eec6caf0fa5775e411c7a8bc6a45c4ef2956b0980b157ab74fc5cd62a928b",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/gcc-12-copyright.txt",
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/GCC-runtime-exception-3.1.txt",
+      "sha256": "8a9b812a337f5f1ab8960aa1c53e436342ff3b14696550e28196cb4ebbe99997",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/glibc-copyright.txt",
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/GPL-3.txt",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/LGPL-2.1.txt",
+      "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/linux/memchr-2.7.6-COPYING",
+      "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/microsoft/Windows-SDK-10.0.26100.0-license.rtf",
+      "sha256": "0f4a26ac9dc50066f8a1bfeaaf3f092d1b9e4791df5487b9f3c31e7c3dc4d7f5",
+      "origin": "Exact installed public Windows SDK terms, section 2 linked-output condition"
+    },
+    {
+      "path": "notices/microsoft/vs2026-pro-enterprise-terms.txt",
+      "sha256": "48accb8f5c3094fe34af1ebfe8fdd4cc50d845bb3d220e687c866cf044d2a4a6",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/microsoft/vs2026-pro-enterprise.txt",
+      "sha256": "3b9e02eee9ba91861889a831fc71cde941590eece5940765cb5bc9d324aecc83",
+      "origin": "accepted selected-runtime license evidence"
+    },
+    {
+      "path": "notices/microsoft/vs2026-redist.txt",
+      "sha256": "8e0c811a1e793e5c32d82f0127f986f9dea855386a58fe19c1f2103a7e8ff8de",
+      "origin": "accepted selected-runtime license evidence"
+    }
+  ],
+  "selection": "Runtime attribution superset, not a claim every stdlib component is retained on every RID."
+}

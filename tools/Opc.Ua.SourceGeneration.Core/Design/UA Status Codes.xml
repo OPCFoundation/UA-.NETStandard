@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <opc:TypeDictionary
   xmlns:s0="http://opcfoundation.org/UA/BuiltInTypes/"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -889,5 +889,5 @@
   <opc:Constant Name="Bad_DataSetIdInvalid">
     <opc:Documentation>The DataSet specified for the DataSetWriter creation is invalid.</opc:Documentation>
   </opc:Constant>
-  
+
 </opc:TypeDictionary>

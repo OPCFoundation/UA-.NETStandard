@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Native bindings are opt-in on modern TFMs. Legacy matrix legs are inert. -->
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' or '$(CustomTestTarget)' == 'net9.0' or '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Bindings.Quic</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Quic</PackageId>
+    <RootNamespace>Opc.Ua.Bindings</RootNamespace>
+    <Description>Optional managed QUIC UACP/UASC baseline and experimental native QUIC flow binding. Uses explicit transport/profile selection, certificate-manager policy and the common OPC UA Data Channel runtime.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExperimentalAttribute">
+      <_Parameter1>DataChannels</_Parameter1>
+      <UrlFormat>https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DataChannels.md</UrlFormat>
+    </AssemblyAttribute>
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Quic.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.WebTransport" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Native.QuicGo\Opc.Ua.Native.QuicGo.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

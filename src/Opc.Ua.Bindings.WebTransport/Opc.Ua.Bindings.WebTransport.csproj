@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' or '$(CustomTestTarget)' == 'net9.0' or '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(LibCoreTargetFrameworks)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <AssemblyName>$(AssemblyPrefix).Bindings.WebTransport</AssemblyName>
+    <PackageId>$(PackagePrefix).Opc.Ua.Bindings.WebTransport</PackageId>
+    <RootNamespace>Opc.Ua.Bindings</RootNamespace>
+    <Description>Managed capsule-based WebTransport over HTTP/3 for UACP/UASC and OPC UA Data Channels, with separately selected experimental native WebTransport support.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExperimentalAttribute">
+      <_Parameter1>DataChannels</_Parameter1>
+      <UrlFormat>https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DataChannels.md</UrlFormat>
+    </AssemblyAttribute>
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" />
+    <!-- Native experiments can request reviewed assets without coupling the managed baseline to them.
+         Restore drops ReferenceOutputAssembly=false edges, so retain only native/runtime assets. -->
+    <ProjectReference Include="..\Opc.Ua.Native.Http3\Opc.Ua.Native.Http3.csproj"
+                      Condition="'$(IncludeExperimentalNativeDataChannelAssets)' == 'true'"
+                      IncludeAssets="runtime;native" Private="false" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.WebTransport.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.DataChannel.ClientServer.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <Target Name="GetPackagingOutputs" />
+</Project>

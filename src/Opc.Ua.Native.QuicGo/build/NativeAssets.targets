@@ -1,0 +1,44 @@
+<Project>
+  <PropertyGroup>
+    <NativeQuicPython Condition="'$(NativeQuicPython)' == ''">python</NativeQuicPython>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(NativeQuicAssetRoot)' != ''">
+    <None Include="$(NativeQuicAssetRoot)\win-x64\opcua_quic_go.dll"
+          Pack="true" PackagePath="runtimes\win-x64\native\" />
+    <None Include="$(NativeQuicAssetRoot)\win-x64\opcua_quic_go.dll.sha256"
+          Pack="true" PackagePath="runtimes\win-x64\native\" />
+    <None Include="$(NativeQuicAssetRoot)\linux-x64\libopcua_quic_go.so"
+          Pack="true" PackagePath="runtimes\linux-x64\native\" />
+    <None Include="$(NativeQuicAssetRoot)\linux-x64\libopcua_quic_go.so.sha256"
+          Pack="true" PackagePath="runtimes\linux-x64\native\" />
+    <None Include="$(BaseIntermediateOutputPath)native-package\win-x64.json"
+          Pack="true" PackagePath="native\receipts\" />
+    <None Include="$(BaseIntermediateOutputPath)native-package\linux-x64.json"
+          Pack="true" PackagePath="native\receipts\" />
+    <None Include="$(NativeQuicAssetRoot)\win-x64\overlay\quic-overlay.patch"
+          Pack="true" PackagePath="native\source\" />
+  </ItemGroup>
+  <Target Name="ValidateQuicNativeAssets" BeforeTargets="GenerateNuspec"
+          Condition="'$(IsPackable)' == 'true' and '$(NativeQuicAssetRoot)' != ''">
+    <Error Condition="!Exists('$(NativeQuicAssetRoot)\win-x64\opcua_quic_go.dll') or !Exists('$(NativeQuicAssetRoot)\linux-x64\libopcua_quic_go.so')"
+           Text="Both reviewed win-x64 and linux-x64 native assets are required." />
+    <Error Condition="!Exists('$(NativeQuicAssetRoot)\win-x64\native-receipt.json') or !Exists('$(NativeQuicAssetRoot)\linux-x64\native-receipt.json')"
+           Text="Build receipts and production export validation are required before packaging." />
+    <Exec Command="&quot;$(NativeQuicPython)&quot; &quot;$(MSBuildThisFileDirectory)verify_package.py&quot; --inputs &quot;$(NativeQuicAssetRoot)&quot;" />
+  </Target>
+  <Target Name="PrepareQuicPackageRecipes" BeforeTargets="_GetPackageFiles;GenerateNuspec"
+          DependsOnTargets="ValidateQuicNativeAssets"
+          Condition="'$(IsPackable)' == 'true'">
+    <MakeDir Directories="$(BaseIntermediateOutputPath)native-package" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)Build-Native.ps1"
+          DestinationFiles="$(BaseIntermediateOutputPath)native-package\Build-Native.ps1.txt" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)Pack-Native.ps1"
+          DestinationFiles="$(BaseIntermediateOutputPath)native-package\Pack-Native.ps1.txt" />
+    <Copy SourceFiles="$(NativeQuicAssetRoot)\win-x64\native-receipt.json"
+          Condition="'$(NativeQuicAssetRoot)' != ''"
+          DestinationFiles="$(BaseIntermediateOutputPath)native-package\win-x64.json" />
+    <Copy SourceFiles="$(NativeQuicAssetRoot)\linux-x64\native-receipt.json"
+          Condition="'$(NativeQuicAssetRoot)' != ''"
+          DestinationFiles="$(BaseIntermediateOutputPath)native-package\linux-x64.json" />
+  </Target>
+</Project>

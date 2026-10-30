@@ -432,8 +432,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// </summary>
             public BufferCollection Encode(ArraySegment<byte> payload, bool request, out bool exceeded)
             {
-                return WriteSymmetricMessage(
+                BufferCollection chunks = WriteSymmetricMessage(
                     TcpMessageType.Message, 17, CurrentToken!, payload, request, out exceeded);
+                return chunks;
             }
 
             /// <summary>

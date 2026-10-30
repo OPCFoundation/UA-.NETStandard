@@ -252,9 +252,11 @@ namespace Opc.Ua.PubSub.Configuration
 
         private PubSubConfigurationDataType DecodePayload(byte[] payload)
         {
+            // Standalone configuration loading must not depend on a Session initializing standard types.
+            ServiceMessageContext defaultContext = ServiceMessageContext.Create(m_telemetry);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                ServiceMessageContext.CreateEmpty(m_telemetry);
+                defaultContext;
             return PubSubConfigurationXmlSerializer.DecodeXml(payload, context);
         }
 
@@ -280,9 +282,10 @@ namespace Opc.Ua.PubSub.Configuration
 
         private byte[] EncodePayload(PubSubConfigurationDataType configuration)
         {
+            ServiceMessageContext defaultContext = ServiceMessageContext.Create(m_telemetry);
             using IDisposable scope = AmbientMessageContext.SetScopedContext(m_telemetry);
             IServiceMessageContext context = AmbientMessageContext.CurrentContext ??
-                ServiceMessageContext.CreateEmpty(m_telemetry);
+                defaultContext;
             return PubSubConfigurationXmlSerializer.EncodeXml(configuration, context);
         }
 

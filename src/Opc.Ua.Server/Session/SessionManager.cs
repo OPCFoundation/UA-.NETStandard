@@ -2381,6 +2381,17 @@ namespace Opc.Ua.Server
         /// change cannot be overwritten by an older refresh.
         /// </para>
         /// </remarks>
+        internal void RefreshIdentityForAuthorization(ISession session)
+        {
+            ReevaluateIdentityIfStale(
+                session,
+                new SecureChannelContext(
+                    session.SecureChannelId, session.EndpointDescription, RequestEncoding.Binary));
+        }
+
+        /// <summary>
+        /// Re-evaluates live roles without refreshing Session activity.
+        /// </summary>
         protected virtual void ReevaluateIdentityIfStale(
             ISession session,
             SecureChannelContext secureChannelContext)

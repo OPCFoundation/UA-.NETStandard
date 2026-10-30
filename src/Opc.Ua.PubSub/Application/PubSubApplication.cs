@@ -62,7 +62,9 @@ namespace Opc.Ua.PubSub.Application
     /// disabling the application cascades to every connection.
     /// Exposes a runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
-    public sealed class PubSubApplication : IPubSubApplication
+    public sealed class PubSubApplication :
+        IPubSubApplication, IPubSubCommunicationIdApplication, IPubSubConfigurationImportApplication,
+        IPubSubRuntimeControlApplication
     {
         private readonly List<PubSubConnection> m_connections;
         private readonly ITelemetryContext m_telemetry;
@@ -134,6 +136,8 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = [];
         private readonly IPubSubConfigurationStore m_configurationStore;
         private readonly IPubSubRuntimeStateStore m_runtimeStateStore;
+        /// <summary>Whether the application owns the direct-construction fallback reservation provider.</summary>
+        private readonly bool m_ownsCommunicationIds;
 
         private bool m_started;
         private bool m_disposed;
@@ -141,7 +145,38 @@ namespace Opc.Ua.PubSub.Application
         private MetaDataPublisher? m_metaDataPublisher;
 
         /// <summary>
-        /// Initializes a new <see cref="PubSubApplication"/>.
+        /// Initializes an application with the original constructor contract and a process-local reservation provider.
+        /// </summary>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources = null,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
+            IPubSubConfigurationStore? configurationStore = null,
+            IPubSubRuntimeStateStore? runtimeStateStore = null,
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            : this(
+                snapshot, transportFactories, encoders, decoders, securityPolicies,
+                scheduler, metaDataRegistry, diagnostics, telemetry, timeProvider,
+                publishedDataSetSources, subscribedDataSetSinks, securityWrapperResolver,
+                maxNetworkMessageSizeResolver, configurationStore, runtimeStateStore,
+                activationCoordinator, writerCheckpointStore, communicationIds: null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="PubSubApplication"/> with an explicit reservation provider.
         /// </summary>
         /// <param name="snapshot">Validated configuration snapshot.</param>
         /// <param name="transportFactories">Registered transport factories.</param>
@@ -165,6 +200,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="communicationIds">Optional communication-ID reservation store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -176,14 +212,15 @@ namespace Opc.Ua.PubSub.Application
             IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
-            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources = null,
-            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks = null,
-            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
-            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
-            IPubSubConfigurationStore? configurationStore = null,
-            IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            IPubSubCommunicationIdReservations? communicationIds)
             : this(
                 snapshot,
                 transportFactories,
@@ -204,7 +241,41 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider: null,
                 dataSetSinkProvider: null,
                 activationCoordinator: activationCoordinator,
-                writerCheckpointStore: writerCheckpointStore)
+                writerCheckpointStore: writerCheckpointStore,
+                communicationIds: communicationIds)
+        {
+        }
+
+        /// <summary>
+        /// Initializes an application with runtime source and sink providers using the original constructor contract.
+        /// </summary>
+        public PubSubApplication(
+            PubSubConfigurationSnapshot snapshot,
+            IEnumerable<IPubSubTransportFactory> transportFactories,
+            IEnumerable<INetworkMessageEncoder> encoders,
+            IEnumerable<INetworkMessageDecoder> decoders,
+            IEnumerable<IPubSubSecurityPolicy> securityPolicies,
+            IPubSubScheduler scheduler,
+            IDataSetMetaDataRegistry metaDataRegistry,
+            IPubSubDiagnostics diagnostics,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider,
+            IReadOnlyDictionary<string, IPublishedDataSetSource>? publishedDataSetSources,
+            IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
+            IDataSetSourceProvider? dataSetSourceProvider,
+            IDataSetSinkProvider? dataSetSinkProvider,
+            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
+            IPubSubConfigurationStore? configurationStore = null,
+            IPubSubRuntimeStateStore? runtimeStateStore = null,
+            IPubSubActivationCoordinator? activationCoordinator = null,
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            : this(
+                snapshot, transportFactories, encoders, decoders, securityPolicies,
+                scheduler, metaDataRegistry, diagnostics, telemetry, timeProvider,
+                publishedDataSetSources, subscribedDataSetSinks, dataSetSourceProvider, dataSetSinkProvider,
+                securityWrapperResolver, maxNetworkMessageSizeResolver, configurationStore, runtimeStateStore,
+                activationCoordinator, writerCheckpointStore, communicationIds: null)
         {
         }
 
@@ -243,6 +314,7 @@ namespace Opc.Ua.PubSub.Application
         /// <param name="runtimeStateStore">Optional external runtime-state store.</param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <param name="communicationIds">Optional communication-ID reservation store.</param>
         public PubSubApplication(
             PubSubConfigurationSnapshot snapshot,
             IEnumerable<IPubSubTransportFactory> transportFactories,
@@ -258,12 +330,13 @@ namespace Opc.Ua.PubSub.Application
             IReadOnlyDictionary<string, ISubscribedDataSetSink>? subscribedDataSetSinks,
             IDataSetSourceProvider? dataSetSourceProvider,
             IDataSetSinkProvider? dataSetSinkProvider,
-            IPubSubSecurityWrapperResolver? securityWrapperResolver = null,
-            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver = null,
-            IPubSubConfigurationStore? configurationStore = null,
-            IPubSubRuntimeStateStore? runtimeStateStore = null,
-            IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubSecurityWrapperResolver? securityWrapperResolver,
+            Func<PubSubConnectionDataType, int>? maxNetworkMessageSizeResolver,
+            IPubSubConfigurationStore? configurationStore,
+            IPubSubRuntimeStateStore? runtimeStateStore,
+            IPubSubActivationCoordinator? activationCoordinator,
+            IPubSubWriterCheckpointStore? writerCheckpointStore,
+            IPubSubCommunicationIdReservations? communicationIds)
             : this(
                 snapshot,
                 transportFactories,
@@ -284,7 +357,8 @@ namespace Opc.Ua.PubSub.Application
                 dataSetSourceProvider,
                 dataSetSinkProvider,
                 activationCoordinator,
-                writerCheckpointStore)
+                writerCheckpointStore,
+                communicationIds)
         {
         }
 
@@ -308,7 +382,8 @@ namespace Opc.Ua.PubSub.Application
             IDataSetSourceProvider? dataSetSourceProvider = null,
             IDataSetSinkProvider? dataSetSinkProvider = null,
             IPubSubActivationCoordinator? activationCoordinator = null,
-            IPubSubWriterCheckpointStore? writerCheckpointStore = null)
+            IPubSubWriterCheckpointStore? writerCheckpointStore = null,
+            IPubSubCommunicationIdReservations? communicationIds = null)
         {
             if (snapshot is null)
             {
@@ -398,6 +473,8 @@ namespace Opc.Ua.PubSub.Application
                 validator.Validate(snapshot.Configuration);
             result.ThrowIfInvalid();
 
+            CommunicationIds = communicationIds ?? new InMemoryPubSubCommunicationIdReservations();
+            m_ownsCommunicationIds = communicationIds is null;
             ApplicationId = ResolveApplicationId(snapshot);
             State = new PubSubStateMachine(
                 "application",
@@ -608,6 +685,9 @@ namespace Opc.Ua.PubSub.Application
         public string ApplicationId { get; }
 
         /// <inheritdoc/>
+        public IPubSubCommunicationIdReservations CommunicationIds { get; }
+
+        /// <inheritdoc/>
         // Live view over mutable internal list; ArrayOf would copy on every access.
         public IReadOnlyList<IPubSubConnection> Connections => m_connections;
 
@@ -796,6 +876,10 @@ namespace Opc.Ua.PubSub.Application
             }
 
             m_mutationGate.Dispose();
+            if (m_ownsCommunicationIds && CommunicationIds is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         /// <summary>
@@ -1927,11 +2011,257 @@ namespace Opc.Ua.PubSub.Application
             }
         }
 
-        private async ValueTask<TResult> ApplyMutationAsync<TResult>(
+        /// <inheritdoc/>
+        public async ValueTask<PubSubCommunicationIdReservation> ReserveCommunicationIdsAsync(
+            NodeId sessionId,
+            string transportProfileUri,
+            ushort writerGroupCount,
+            ushort dataSetWriterCount,
+            CancellationToken cancellationToken = default)
+        {
+            await m_mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await CommunicationIds.ReserveAsync(
+                    sessionId, transportProfileUri, writerGroupCount, dataSetWriterCount,
+                    GetConfiguration(), cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_mutationGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<PubSubState> SetComponentEnabledAsync(
+            NodeId componentId,
+            bool enabled,
+            CancellationToken cancellationToken = default)
+        {
+            if (componentId.IsNull)
+            {
+                throw new ArgumentException("componentId must not be null.", nameof(componentId));
+            }
+            await m_mutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                List<Func<CancellationToken, ValueTask<PubSubState>>> transitions = [];
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        throw new ObjectDisposedException(nameof(PubSubApplication));
+                    }
+                    if (componentId.NamespaceIndex != m_addressSpaceNamespaceIndex)
+                    {
+                        throw new ArgumentException(
+                            "The component NodeId is not in the PubSub address-space namespace.",
+                            nameof(componentId));
+                    }
+                    foreach (PubSubConnection connection in m_connections)
+                    {
+                        if (componentId == CreateConnectionNodeId(connection.Name))
+                        {
+                            transitions.Add(ct => SetConnectionEnabledAsync(connection, enabled, ct));
+                        }
+                        for (int i = 0; i < connection.WriterGroups.Count; i++)
+                        {
+                            if (connection.WriterGroups[i] is not WriterGroup writerGroup)
+                            {
+                                continue;
+                            }
+                            if (componentId == CreateWriterGroupNodeId(connection.Name, writerGroup.Name))
+                            {
+                                transitions.Add(ct => SetWriterGroupEnabledAsync(writerGroup, enabled, ct));
+                            }
+                            for (int j = 0; j < writerGroup.DataSetWriters.Count; j++)
+                            {
+                                IDataSetWriter writer = writerGroup.DataSetWriters[j];
+                                if (componentId == CreateWriterNodeId(
+                                    connection.Name, writerGroup.Name, writer.Name))
+                                {
+                                    transitions.Add(ct => SetLeafEnabledAsync(writer.State, enabled, ct));
+                                }
+                            }
+                        }
+                        for (int i = 0; i < connection.ReaderGroups.Count; i++)
+                        {
+                            if (connection.ReaderGroups[i] is not ReaderGroup readerGroup)
+                            {
+                                continue;
+                            }
+                            if (componentId == CreateReaderGroupNodeId(connection.Name, readerGroup.Name))
+                            {
+                                transitions.Add(ct => SetReaderGroupEnabledAsync(readerGroup, enabled, ct));
+                            }
+                            for (int j = 0; j < readerGroup.DataSetReaders.Count; j++)
+                            {
+                                IDataSetReader reader = readerGroup.DataSetReaders[j];
+                                if (componentId == CreateReaderNodeId(
+                                    connection.Name, readerGroup.Name, reader.Name))
+                                {
+                                    transitions.Add(ct => SetLeafEnabledAsync(reader.State, enabled, ct));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                if (transitions.Count == 0)
+                {
+                    throw new ArgumentException("The component NodeId does not identify a current PubSub component.",
+                        nameof(componentId));
+                }
+                if (transitions.Count != 1)
+                {
+                    throw new ArgumentException("The component NodeId identifies multiple PubSub components.",
+                        nameof(componentId));
+                }
+                return await transitions[0](cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_mutationGate.Release();
+            }
+        }
+
+        private static async ValueTask<PubSubState> SetConnectionEnabledAsync(
+            PubSubConnection connection,
+            bool enabled,
+            CancellationToken cancellationToken)
+        {
+            if (enabled)
+            {
+                await connection.EnableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await connection.DisableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            return connection.State.State;
+        }
+
+        private static async ValueTask<PubSubState> SetWriterGroupEnabledAsync(
+            WriterGroup group,
+            bool enabled,
+            CancellationToken cancellationToken)
+        {
+            if (enabled)
+            {
+                await group.EnableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await group.DisableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            return group.State.State;
+        }
+
+        private static async ValueTask<PubSubState> SetReaderGroupEnabledAsync(
+            ReaderGroup group,
+            bool enabled,
+            CancellationToken cancellationToken)
+        {
+            if (enabled)
+            {
+                await group.EnableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await group.DisableAsync(cancellationToken).ConfigureAwait(false);
+            }
+            return group.State.State;
+        }
+
+        private static ValueTask<PubSubState> SetLeafEnabledAsync(
+            PubSubStateMachine state,
+            bool enabled,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (enabled)
+            {
+                _ = state.TryEnable();
+                if (state.ComponentKind == PubSubComponentKind.DataSetWriter)
+                {
+                    _ = state.TryMarkOperational();
+                }
+            }
+            else
+            {
+                _ = state.TryDisable();
+            }
+            return new ValueTask<PubSubState>(state.State);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<PubSubConfigurationImportResult> ImportConfigurationAsync(
+            PubSubConfiguration2DataType configuration,
+            ArrayOf<PubSubConfigurationRefDataType> references,
+            bool requireCompleteUpdate,
+            bool allowSecurityConfiguration = true,
+            CancellationToken cancellationToken = default)
+        {
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (references.Count == 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadNothingToDo);
+            }
+            configuration = (PubSubConfiguration2DataType)configuration.Clone();
+            references = new ArrayOf<PubSubConfigurationRefDataType>(
+                references.ToList().Select(r => r is null ? null! : (PubSubConfigurationRefDataType)r.Clone()).ToArray());
+            var leases = new List<IPubSubCommunicationIdAllocationLease>();
+            try
+            {
+                return await ApplyMutationAsync(
+                    (current, ct) =>
+                    {
+                        var processor = new PubSubConfigurationImportProcessor(
+                            CommunicationIds as IPubSubCommunicationIdAllocation, leases,
+                            new PubSubConfigurationValidator(m_factories.Select(f => f.TransportProfileUri))
+                            {
+                                RegisteredSecurityGroupIds =
+                                    m_securityWrapperResolver is IPubSubSecurityKeyProviderCatalog catalog
+                                        ? catalog.SecurityGroupIds : default
+                            });
+                        return processor.ApplyAsync(
+                            current, configuration, references, requireCompleteUpdate,
+                            allowSecurityConfiguration, ct);
+                    }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (IPubSubCommunicationIdAllocationLease lease in leases)
+                {
+                    lease.Dispose();
+                }
+            }
+        }
+
+        private ValueTask<TResult> ApplyMutationAsync<TResult>(
             Func<
                 PubSubConfigurationDataType,
                 (PubSubConfigurationDataType Configuration, TResult Result, bool HasChanges)>
                 mutator,
+            CancellationToken cancellationToken)
+        {
+            return ApplyMutationAsync(
+                (configuration, _) => new ValueTask<(
+                    PubSubConfigurationDataType Configuration, TResult Result, bool HasChanges)>(mutator(configuration)),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Serializes asynchronous preparation, persistence and runtime replacement as one mutation.
+        /// </summary>
+        /// <typeparam name="TResult">The mutation's result.</typeparam>
+        private async ValueTask<TResult> ApplyMutationAsync<TResult>(
+            Func<PubSubConfigurationDataType, CancellationToken,
+                ValueTask<(PubSubConfigurationDataType Configuration, TResult Result, bool HasChanges)>> mutator,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -1956,7 +2286,7 @@ namespace Opc.Ua.PubSub.Application
                 (
                     PubSubConfigurationDataType configuration,
                     TResult result,
-                    bool hasChanges) = mutator(previousConfiguration);
+                    bool hasChanges) = await mutator(previousConfiguration, cancellationToken).ConfigureAwait(false);
                 if (!hasChanges)
                 {
                     return result;
@@ -1966,10 +2296,32 @@ namespace Opc.Ua.PubSub.Application
                 RebuiltState rebuilt = BuildRebuiltState(configuration);
                 ConfigurationVersionDataType newConfigurationVersion = CreateConfigurationVersion(
                     m_timeProvider.GetUtcNow().UtcDateTime);
-                await PersistConfigurationAsync(
-                    configuration,
-                    newConfigurationVersion,
-                    cancellationToken).ConfigureAwait(false);
+                if (configuration is PubSubConfiguration2DataType extended)
+                {
+                    extended.ConfigurationVersion = newConfigurationVersion.MajorVersion;
+                }
+                try
+                {
+                    await PersistConfigurationAsync(
+                        configuration,
+                        newConfigurationVersion,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch
+                {
+                    foreach (PubSubConnection connection in rebuilt.Connections)
+                    {
+                        try
+                        {
+                            await connection.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.FailedToDisposeRejectedConnection(ex, connection.Name);
+                        }
+                    }
+                    throw;
+                }
                 bool restartRequired;
                 lock (m_gate)
                 {
@@ -2092,7 +2444,9 @@ namespace Opc.Ua.PubSub.Application
             ConfigurationVersionDataType configurationVersion,
             CancellationToken cancellationToken)
         {
-            await m_configurationStore.SaveAsync(configuration, cancellationToken).ConfigureAwait(false);
+            await CommunicationIds.PersistAsync(configuration,
+                ct => m_configurationStore.SaveAsync(configuration, ct),
+                cancellationToken).ConfigureAwait(false);
             await m_configurationStore.SetConfigurationVersionAsync(configurationVersion, cancellationToken)
                 .ConfigureAwait(false);
             if (configuration.PublishedDataSets.IsNull)
@@ -2867,5 +3221,17 @@ namespace Opc.Ua.PubSub.Diagnostics
             Exception exception,
             string connection,
             string? writerGroup);
+
+        /// <summary>
+        /// Reports cleanup failure without replacing the original configuration transaction error.
+        /// </summary>
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 14,
+            Level = LogLevel.Warning,
+            Message = "Failed to dispose rejected PubSub connection {Connection}.")]
+        public static partial void FailedToDisposeRejectedConnection(
+            this ILogger logger,
+            Exception exception,
+            string connection);
     }
 }
