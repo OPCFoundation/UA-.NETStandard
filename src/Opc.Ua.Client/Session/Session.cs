@@ -2754,6 +2754,72 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Moves the tracked acknowledgements of a subscription from the session it left to
+        /// this session. When this session tracks no acknowledgements the previous session
+        /// ends them itself, so they still end exactly once.
+        /// </summary>
+        internal void HandOverAcknowledgements(
+            Session? previous,
+            Subscription subscription,
+            List<AcknowledgementHandover> released,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<uint> acknowledgementsToSend)
+        {
+            if (previous == null ||
+                ReferenceEquals(previous, this) ||
+                released.Count == 0 ||
+                previous.m_engine is not ClassicSubscriptionEngine previousEngine)
+            {
+                return;
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine && Acknowledgements != null)
+            {
+                engine.AdoptAcknowledgements(
+                    subscription,
+                    released,
+                    availableSequenceNumbers,
+                    acknowledgementsToSend);
+            }
+            else
+            {
+                previousEngine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        internal void RetireReleasedAcknowledgements(List<AcknowledgementHandover> released)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        /// <summary>
+        /// Defers source acknowledgement outcomes until the subscription transfer is resolved.
+        /// </summary>
+        /// <param name="subscription">The subscription being transferred.</param>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.BeginAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
+        /// Applies source acknowledgement outcomes deferred by an unsuccessful transfer.
+        /// </summary>
+        /// <param name="subscription">The subscription whose transfer was unsuccessful.</param>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.CancelAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
         /// Transfers the subscriptions to this session.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -2800,10 +2866,20 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
+                var acknowledgementTransferSources = new Dictionary<Subscription, Session>();
                 try
                 {
                     reconnecting = Reconnecting;
                     Reconnecting = true;
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        if (subscription.Session is Session source &&
+                            !ReferenceEquals(source, this) &&
+                            acknowledgementTransferSources.TryAdd(subscription, source))
+                        {
+                            source.BeginAcknowledgementTransfer(subscription);
+                        }
+                    }
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(
                             null,
@@ -2842,7 +2918,6 @@ namespace Opc.Ua.Client
                             if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
-
                                 // Messages claimed for republish are acknowledged only after receipt.
                                 foreach (uint sequenceNumber in acknowledgements)
                                 {
@@ -2906,6 +2981,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    foreach (KeyValuePair<Subscription, Session> transfer in acknowledgementTransferSources)
+                    {
+                        transfer.Value.CancelAcknowledgementTransfer(transfer.Key);
+                    }
                     ExitReconnectLockHolder(lockHolder);
                     foreach (Subscription subscription in subscriptions)
                     {
@@ -4922,6 +5001,77 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(subscription));
             }
 
+            bool removed = RemoveTransferredSubscriptionCore(subscription);
+            if (removed)
+            {
+                m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return removed;
+        }
+
+        internal bool RemoveTransferredSubscriptionForTransfer(
+            Subscription subscription,
+            out List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool removed = engine.ReleaseAcknowledgementsOf(
+                    subscription,
+                    () => RemoveTransferredSubscriptionCore(subscription),
+                    out released);
+                if (removed)
+                {
+                    try
+                    {
+                        m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch
+                    {
+                        engine.RetireReleasedAcknowledgements(released);
+                        throw;
+                    }
+                }
+                return removed;
+            }
+
+            released = [];
+            return RemoveTransferredSubscription(subscription);
+        }
+
+        internal bool RestoreTransferredSubscription(
+            Subscription subscription,
+            List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool restored = engine.RestoreAcknowledgementsOf(
+                    subscription,
+                    released,
+                    () => AddTransferredSubscriptionCore(subscription));
+                if (restored)
+                {
+                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return restored;
+            }
+
+            return AddSubscription(subscription);
+        }
+
+        private bool RemoveTransferredSubscriptionCore(Subscription subscription)
+        {
             if (subscription.Session != this)
             {
                 return false;
@@ -4936,9 +5086,21 @@ namespace Opc.Ua.Client
 
                 subscription.Session = null;
             }
+            return true;
+        }
 
-            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
-
+        private bool AddTransferredSubscriptionCore(Subscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Contains(subscription))
+                {
+                    return false;
+                }
+                subscription.Session = this;
+                subscription.Telemetry = m_telemetry;
+                m_subscriptions.Add(subscription);
+            }
             return true;
         }
 

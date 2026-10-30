@@ -735,20 +735,54 @@ namespace Opc.Ua.Client
                     new List<SubscriptionAcknowledgement>();
 
                 uint latestSequenceNumberToSend = 0;
+                List<AcknowledgementOutcome>? pruned = null;
 
                 // create an acknowledgement to be sent back to the
                 // server.
                 if (notificationMessage.NotificationData.Count > 0)
                 {
-                    receivedScope = AddAcknowledgementToSend(
-                        acknowledgementsToSend,
-                        subscriptionId,
-                        notificationMessage.SequenceNumber);
+                    Subscription? owner = republished ? FindSubscription(subscriptionId) : null;
+                    var handle = owner != null
+                        ? new AcknowledgementHandle(owner.GetAcknowledgementScope(), notificationMessage.SequenceNumber)
+                        : default;
+                    if (!republished || !m_endedRepublishHandles.Contains(handle))
+                    {
+                        receivedScope = AddAcknowledgementToSend(
+                            acknowledgementsToSend,
+                            subscriptionId,
+                            notificationMessage.SequenceNumber);
+                    }
                     UpdateLatestSequenceNumberToSend(
                         ref latestSequenceNumberToSend,
                         notificationMessage.SequenceNumber);
 
                     availableSequenceNumberList.Remove(notificationMessage.SequenceNumber);
+                }
+
+                if (!republished && m_republishReservedAcknowledgements.Count != 0)
+                {
+                    foreach (KeyValuePair<AcknowledgementHandle, SubscriptionAcknowledgement> reserved in
+                        m_republishReservedAcknowledgements.ToList())
+                    {
+                        if (reserved.Key.SubscriptionId != subscriptionId)
+                        {
+                            continue;
+                        }
+                        if (availableSequenceNumberList.Remove(reserved.Key.SequenceNumber))
+                        {
+                            UpdateLatestSequenceNumberToSend(
+                                ref latestSequenceNumberToSend,
+                                reserved.Key.SequenceNumber);
+                        }
+                        else
+                        {
+                            EndAcknowledgementLocked(
+                                ref pruned,
+                                reserved.Value,
+                                AcknowledgementDisposition.NotRetained,
+                                StatusCodes.BadSequenceNumberUnknown);
+                        }
+                    }
                 }
 
                 // match an acknowledgement to be sent back to the
@@ -816,7 +850,6 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                List<AcknowledgementOutcome>? pruned = null;
                 if (m_acknowledgementScopes.Count != 0)
                 {
                     var kept = new HashSet<SubscriptionAcknowledgement>(
@@ -1325,13 +1358,82 @@ namespace Opc.Ua.Client
             AcknowledgementDisposition disposition,
             StatusCode status)
         {
-            if (m_acknowledgementScopes.Remove(acknowledgement, out AcknowledgementScope? scope) && scope != null)
+            if (m_acknowledgementScopes.TryGetValue(acknowledgement, out AcknowledgementScope? scope) &&
+                scope != null)
             {
                 var handle = new AcknowledgementHandle(scope, acknowledgement.SequenceNumber);
+                if (scope.Owner is Subscription owner &&
+                    m_acknowledgementTransferReservations.ContainsKey(owner) &&
+                    scope.Equals(owner.GetAcknowledgementScope()))
+                {
+                    m_deferredTransferOutcomes.TryAdd(acknowledgement, (disposition, status));
+                    return;
+                }
+                m_acknowledgementScopes.Remove(acknowledgement);
                 m_outstandingHandles.Remove(handle);
+                if (m_republishReservedAcknowledgements.ContainsKey(handle))
+                {
+                    // A replay can complete after another Publish response ends its reservation.
+                    // Keep the terminal handle closed for the rest of this subscription lifetime.
+                    m_endedRepublishHandles.Add(handle);
+                }
+                m_republishReservedAcknowledgements.Remove(handle);
                 (Acknowledgements?.Provider as IAcknowledgementTracker)?.Complete(handle);
                 (outcomes ??= []).Add(new AcknowledgementOutcome(handle, disposition, status));
             }
+        }
+
+        /// <summary>
+        /// Protects the current acknowledgements of a subscription while its transfer request
+        /// is in flight, deferring terminal Publish outcomes until transfer success is known.
+        /// </summary>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            lock (m_acknowledgementsToSendLock)
+            {
+                m_acknowledgementTransferReservations.TryGetValue(subscription, out int reservations);
+                m_acknowledgementTransferReservations[subscription] = reservations + 1;
+            }
+        }
+
+        /// <summary>
+        /// Ends a failed transfer reservation and applies any terminal outcomes deferred while
+        /// the server's transfer result was unknown.
+        /// </summary>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (!m_acknowledgementTransferReservations.TryGetValue(subscription, out int reservations))
+                {
+                    return;
+                }
+                if (reservations > 1)
+                {
+                    m_acknowledgementTransferReservations[subscription] = reservations - 1;
+                    return;
+                }
+                m_acknowledgementTransferReservations.Remove(subscription);
+                foreach (KeyValuePair<SubscriptionAcknowledgement, (AcknowledgementDisposition Disposition, StatusCode Status)>
+                    deferred in m_deferredTransferOutcomes.ToList())
+                {
+                    if (m_acknowledgementScopes.TryGetValue(
+                            deferred.Key,
+                            out AcknowledgementScope? scope) &&
+                        scope != null &&
+                        ReferenceEquals(scope.Owner, subscription))
+                    {
+                        m_deferredTransferOutcomes.Remove(deferred.Key);
+                        EndAcknowledgementLocked(
+                            ref outcomes,
+                            deferred.Key,
+                            deferred.Value.Disposition,
+                            deferred.Value.Status);
+                    }
+                }
+            }
+            ReportOutcomes(outcomes);
         }
 
         /// <summary>
@@ -1352,7 +1454,7 @@ namespace Opc.Ua.Client
             List<SubscriptionAcknowledgement> acknowledgements,
             ref List<AcknowledgementOutcome>? retired)
         {
-            if (m_acknowledgementScopes.Count == 0 || acknowledgements.Count == 0)
+            if (m_acknowledgementScopes.Count == 0)
             {
                 return;
             }
@@ -1372,6 +1474,18 @@ namespace Opc.Ua.Client
                 acknowledgements[kept++] = acknowledgement;
             }
             acknowledgements.RemoveRange(kept, acknowledgements.Count - kept);
+
+            foreach (SubscriptionAcknowledgement reserved in
+                m_republishReservedAcknowledgements.Values.ToList())
+            {
+                if (m_acknowledgementScopes.TryGetValue(reserved, out AcknowledgementScope? scope) &&
+                    scope != null &&
+                    !IsCurrent(scope, owners ??= GetOwnersLocked()))
+                {
+                    EndAcknowledgementLocked(ref retired, reserved,
+                        AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
+                }
+            }
 
             static bool IsCurrent(AcknowledgementScope scope, Dictionary<uint, Subscription> owners)
             {
@@ -1398,36 +1512,239 @@ namespace Opc.Ua.Client
             List<AcknowledgementOutcome>? retired = null;
             lock (m_acknowledgementsToSendLock)
             {
-                if (m_acknowledgementScopes.Count == 0)
-                {
-                    return;
-                }
-                AcknowledgementScope current = subscription.GetAcknowledgementScope();
-                List<SubscriptionAcknowledgement>? ended = null;
-                foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
-                    m_acknowledgementScopes)
-                {
-                    if (entry.Value != null &&
-                        ReferenceEquals(entry.Value.Owner, subscription) &&
-                        (includeCurrentLifetime || !entry.Value.Equals(current)))
-                    {
-                        (ended ??= []).Add(entry.Key);
-                    }
-                }
-                if (ended == null)
-                {
-                    return;
-                }
-                var removed = new HashSet<SubscriptionAcknowledgement>(
-                    ended, IdentityComparer<SubscriptionAcknowledgement>.Instance);
-                foreach (SubscriptionAcknowledgement acknowledgement in ended)
-                {
-                    EndAcknowledgementLocked(ref retired, acknowledgement,
-                        AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
-                }
-                m_acknowledgementsToSend.RemoveAll(removed.Contains);
+                RetireAcknowledgementsOfLocked(subscription, includeCurrentLifetime, ref retired);
             }
             ReportOutcomes(retired);
+        }
+
+        /// <summary>
+        /// Retires acknowledgements from previous subscription lifetimes while atomically
+        /// detaching the current subscription and releasing its acknowledgements.
+        /// </summary>
+        internal bool ReleaseAcknowledgementsOf(
+            Subscription subscription,
+            Func<bool> detach,
+            out List<AcknowledgementHandover> released)
+        {
+            List<AcknowledgementOutcome>? retired = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (!detach())
+                {
+                    released = [];
+                    return false;
+                }
+
+                RetireAcknowledgementsOfLocked(subscription, includeCurrentLifetime: false, ref retired);
+                released = ReleaseAcknowledgementsOfLocked(subscription);
+            }
+            ReportOutcomes(retired);
+            return true;
+        }
+
+        /// <summary>
+        /// Restores a transferred subscription and its acknowledgement state under the engine lock.
+        /// </summary>
+        internal bool RestoreAcknowledgementsOf(
+            Subscription subscription,
+            List<AcknowledgementHandover> released,
+            Func<bool> attach)
+        {
+            lock (m_acknowledgementsToSendLock)
+            {
+                if (!attach())
+                {
+                    return false;
+                }
+
+                SessionAcknowledgements? acknowledgements = Acknowledgements;
+                foreach (AcknowledgementHandover acknowledgement in released)
+                {
+                    AcknowledgementScope? scope = AddAcknowledgementToSend(
+                        m_acknowledgementsToSend,
+                        subscription.Id,
+                        acknowledgement.Handle.SequenceNumber);
+                    if (acknowledgement.Confirmed && scope != null)
+                    {
+                        acknowledgements?.Confirm(
+                            new AcknowledgementHandle(scope, acknowledgement.Handle.SequenceNumber));
+                    }
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Reports acknowledgements whose transfer could not be completed.
+        /// </summary>
+        internal void RetireReleasedAcknowledgements(List<AcknowledgementHandover> released)
+        {
+            if (released.Count == 0)
+            {
+                return;
+            }
+            List<AcknowledgementOutcome> outcomes = new(released.Count);
+            foreach (AcknowledgementHandover acknowledgement in released)
+            {
+                outcomes.Add(new AcknowledgementOutcome(
+                    acknowledgement.Handle,
+                    AcknowledgementDisposition.OwnerRetired,
+                    StatusCodes.BadSubscriptionIdInvalid));
+            }
+            ReportOutcomes(outcomes);
+        }
+
+        /// <summary>
+        /// Releases the tracked acknowledgements of a subscription that moves to another
+        /// session, pending or in flight, without reporting an outcome. Those of an earlier
+        /// lifetime of the subscription end as retired.
+        /// </summary>
+        /// <param name="subscription">The subscription that moved.</param>
+        /// <returns>The released acknowledgements and whether the application confirmed
+        /// each of them.</returns>
+        internal List<AcknowledgementHandover> ReleaseAcknowledgementsOf(Subscription subscription)
+        {
+            List<AcknowledgementOutcome>? retired = null;
+            List<AcknowledgementHandover> released;
+            lock (m_acknowledgementsToSendLock)
+            {
+                RetireAcknowledgementsOfLocked(subscription, includeCurrentLifetime: false, ref retired);
+                released = ReleaseAcknowledgementsOfLocked(subscription);
+            }
+            ReportOutcomes(retired);
+            return released;
+        }
+
+        private List<AcknowledgementHandover> ReleaseAcknowledgementsOfLocked(Subscription subscription)
+        {
+            var released = new List<AcknowledgementHandover>();
+            m_acknowledgementTransferReservations.Remove(subscription);
+            if (m_acknowledgementScopes.Count == 0)
+            {
+                return released;
+            }
+            var tracker = Acknowledgements?.Provider as IAcknowledgementTracker;
+            var handedOver = new HashSet<SubscriptionAcknowledgement>(
+                IdentityComparer<SubscriptionAcknowledgement>.Instance);
+            foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
+                m_acknowledgementScopes.ToList())
+            {
+                if (entry.Value == null || !ReferenceEquals(entry.Value.Owner, subscription))
+                {
+                    continue;
+                }
+                var handle = new AcknowledgementHandle(entry.Value, entry.Key.SequenceNumber);
+                m_acknowledgementScopes.Remove(entry.Key);
+                m_deferredTransferOutcomes.Remove(entry.Key);
+                m_outstandingHandles.Remove(handle);
+                handedOver.Add(entry.Key);
+                released.Add(new AcknowledgementHandover(
+                    handle,
+                    tracker?.Release(handle) ?? false));
+                m_republishReservedAcknowledgements.Remove(handle);
+            }
+            if (handedOver.Count != 0)
+            {
+                m_acknowledgementsToSend.RemoveAll(handedOver.Contains);
+            }
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null && ReferenceEquals(handle.Scope.Owner, subscription));
+            return released;
+        }
+
+        private void RetireAcknowledgementsOfLocked(
+            Subscription subscription,
+            bool includeCurrentLifetime,
+            ref List<AcknowledgementOutcome>? retired)
+        {
+            AcknowledgementScope current = subscription.GetAcknowledgementScope();
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null &&
+                ReferenceEquals(handle.Scope.Owner, subscription) &&
+                (includeCurrentLifetime || !handle.Scope.Equals(current)));
+            if (m_acknowledgementScopes.Count == 0)
+            {
+                return;
+            }
+            List<SubscriptionAcknowledgement>? ended = null;
+            foreach (KeyValuePair<SubscriptionAcknowledgement, AcknowledgementScope?> entry in
+                m_acknowledgementScopes)
+            {
+                if (entry.Value != null &&
+                    ReferenceEquals(entry.Value.Owner, subscription) &&
+                    (includeCurrentLifetime || !entry.Value.Equals(current)))
+                {
+                    (ended ??= []).Add(entry.Key);
+                }
+            }
+            if (ended == null)
+            {
+                return;
+            }
+            var removed = new HashSet<SubscriptionAcknowledgement>(
+                ended, IdentityComparer<SubscriptionAcknowledgement>.Instance);
+            foreach (SubscriptionAcknowledgement acknowledgement in ended)
+            {
+                EndAcknowledgementLocked(ref retired, acknowledgement,
+                    AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
+            }
+            m_endedRepublishHandles.RemoveWhere(handle =>
+                handle.Scope != null &&
+                ReferenceEquals(handle.Scope.Owner, subscription) &&
+                (includeCurrentLifetime || !handle.Scope.Equals(current)));
+            m_acknowledgementsToSend.RemoveAll(removed.Contains);
+        }
+
+        /// <summary>
+        /// Takes over the acknowledgements a subscription tracked in the session it came from.
+        /// Those whose message the server still holds are tracked again, keeping the
+        /// application's confirmation, and the others end as not retained, so every
+        /// acknowledgement ends exactly once. Outcomes go to this session's observer.
+        /// </summary>
+        /// <param name="subscription">The subscription that moved to this session.</param>
+        /// <param name="released">The acknowledgements released by the previous session.</param>
+        /// <param name="availableSequenceNumbers">The sequence numbers the server still holds.</param>
+        /// <param name="acknowledgementsToSend">The available sequence numbers not reserved for republish.</param>
+        internal void AdoptAcknowledgements(
+            Subscription subscription,
+            List<AcknowledgementHandover> released,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<uint> acknowledgementsToSend)
+        {
+            SessionAcknowledgements? acknowledgements = Acknowledgements;
+            if (acknowledgements == null || released.Count == 0)
+            {
+                return;
+            }
+            List<AcknowledgementOutcome>? outcomes = null;
+            lock (m_acknowledgementsToSendLock)
+            {
+                uint id = subscription.Id;
+                foreach (AcknowledgementHandover acknowledgement in released)
+                {
+                    uint sequenceNumber = acknowledgement.Handle.SequenceNumber;
+                    if (availableSequenceNumbers.Contains(sequenceNumber))
+                    {
+                        AcknowledgementScope? scope = AddAcknowledgementToSend(
+                            m_acknowledgementsToSend,
+                            id,
+                            sequenceNumber,
+                            enqueue: acknowledgementsToSend.Contains(sequenceNumber));
+                        if (acknowledgement.Confirmed && scope != null)
+                        {
+                            acknowledgements.Confirm(new AcknowledgementHandle(scope, sequenceNumber));
+                        }
+                    }
+                    else
+                    {
+                        (outcomes ??= []).Add(new AcknowledgementOutcome(
+                            acknowledgement.Handle,
+                            AcknowledgementDisposition.NotRetained,
+                            StatusCodes.BadMessageNotAvailable));
+                    }
+                }
+            }
+            ReportOutcomes(outcomes);
         }
 
         /// <summary>
@@ -1549,7 +1866,8 @@ namespace Opc.Ua.Client
         private AcknowledgementScope? AddAcknowledgementToSend(
             List<SubscriptionAcknowledgement> acknowledgementsToSend,
             uint subscriptionId,
-            uint sequenceNumber)
+            uint sequenceNumber,
+            bool enqueue = true)
         {
             if (acknowledgementsToSend == null)
             {
@@ -1571,17 +1889,35 @@ namespace Opc.Ua.Client
                 if (scope != null)
                 {
                     var handle = new AcknowledgementHandle(scope, sequenceNumber);
+                    if (m_endedRepublishHandles.Contains(handle))
+                    {
+                        return scope;
+                    }
                     if (!m_outstandingHandles.Add(handle))
                     {
                         // Already pending or in flight: a second entry would end twice.
+                        if (enqueue && m_republishReservedAcknowledgements.Remove(
+                                handle,
+                                out SubscriptionAcknowledgement? reserved))
+                        {
+                            acknowledgementsToSend.Add(reserved);
+                        }
                         return scope;
                     }
                     // Tracked before the message is delivered, so it can be confirmed.
                     (acknowledgements.Provider as IAcknowledgementTracker)?.Track(handle);
                 }
                 m_acknowledgementScopes[acknowledgement] = scope;
+                if (!enqueue && scope != null)
+                {
+                    m_republishReservedAcknowledgements[new AcknowledgementHandle(scope, sequenceNumber)] =
+                        acknowledgement;
+                }
             }
-            acknowledgementsToSend.Add(acknowledgement);
+            if (enqueue)
+            {
+                acknowledgementsToSend.Add(acknowledgement);
+            }
             return scope;
         }
 
@@ -1625,14 +1961,21 @@ namespace Opc.Ua.Client
         /// were dropped.</returns>
         internal int RemoveAcknowledgementsForSubscription(uint subscriptionId)
         {
+            List<AcknowledgementOutcome>? retired = null;
+            int before;
             lock (m_acknowledgementsToSendLock)
             {
-                int before = m_acknowledgementsToSend.Count;
+                List<SubscriptionAcknowledgement> reserved =
+                [
+                    .. m_republishReservedAcknowledgements.Values.Where(
+                        acknowledgement => acknowledgement.SubscriptionId == subscriptionId)
+                ];
+                before = m_acknowledgementsToSend.Count(
+                    acknowledgement => acknowledgement.SubscriptionId == subscriptionId) + reserved.Count;
                 if (before == 0)
                 {
                     return 0;
                 }
-                List<AcknowledgementOutcome>? retired = null;
                 foreach (SubscriptionAcknowledgement acknowledgement in m_acknowledgementsToSend)
                 {
                     if (acknowledgement.SubscriptionId == subscriptionId)
@@ -1641,11 +1984,16 @@ namespace Opc.Ua.Client
                             AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
                     }
                 }
+                foreach (SubscriptionAcknowledgement acknowledgement in reserved)
+                {
+                    EndAcknowledgementLocked(ref retired, acknowledgement,
+                        AcknowledgementDisposition.OwnerRetired, StatusCodes.BadSubscriptionIdInvalid);
+                }
                 m_acknowledgementsToSend.RemoveAll(
                     ack => ack.SubscriptionId == subscriptionId);
-                ReportOutcomes(retired);
-                return before - m_acknowledgementsToSend.Count;
             }
+            ReportOutcomes(retired);
+            return before;
         }
 
         /// <summary>
@@ -1790,6 +2138,32 @@ namespace Opc.Ua.Client
         /// <see cref="m_acknowledgementsToSendLock"/>.
         /// </summary>
         private readonly HashSet<AcknowledgementHandle> m_outstandingHandles = [];
+
+        /// <summary>
+        /// Tracked acknowledgements waiting for their republished message before they can be
+        /// queued. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<AcknowledgementHandle, SubscriptionAcknowledgement>
+            m_republishReservedAcknowledgements = [];
+
+        /// <summary>
+        /// Active transfer reservations by subscription. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<Subscription, int> m_acknowledgementTransferReservations =
+            new(IdentityComparer<Subscription>.Instance);
+
+        /// <summary>
+        /// Publish outcomes waiting for the corresponding transfer result. Guarded by
+        /// <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly Dictionary<SubscriptionAcknowledgement, (AcknowledgementDisposition Disposition, StatusCode Status)>
+            m_deferredTransferOutcomes = new(IdentityComparer<SubscriptionAcknowledgement>.Instance);
+
+        /// <summary>
+        /// Republish reservations that ended before their late replay response arrived.
+        /// Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// </summary>
+        private readonly HashSet<AcknowledgementHandle> m_endedRepublishHandles = [];
 
         /// <summary>
         /// A reserved provider decision and its candidates. The task is null while the

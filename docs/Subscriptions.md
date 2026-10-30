@@ -542,11 +542,14 @@ mode.
 - When a session is recreated in place (the managed session's reconnect path), in-flight
   acknowledgements are kept and validated again: a subscription transferred to the new
   session keeps its handles, while a recreated subscription retires them.
-- Known limitation: transferring a classic subscription to a *different* `Session` object
-  (`TransferSubscriptionsAsync` on another session) does not hand its tracked
-  acknowledgements over. The old session ends them when it is disposed and the new session
-  tracks the messages it still holds again, so an acknowledgement can be reported twice.
-  Tracked in [#4930](https://github.com/OPCFoundation/UA-.NETStandard/issues/4930).
+- Transferring a classic subscription to a *different* `Session` object
+  (`TransferSubscriptionsAsync` on another session) hands its tracked acknowledgements
+  over. The previous session reports no outcome for them. The new session tracks those whose
+  message the server still holds and keeps the confirmation the application already gave in
+  `AfterConfirmation` mode. It ends the others as `NotRetained`. The new session's
+  configuration governs: its observer receives the outcomes and confirmations carry over
+  only if it uses `AfterConfirmation`. If the new session has no acknowledgement
+  configuration, the previous session ends them as `OwnerRetired`.
 - Each acknowledgement has a single entry while it is pending or in flight: queuing it again
   (for example after a transfer) does not create a second entry, so it ends exactly once.
   Cancelling a local queue attempt preserves that outstanding lifecycle if the queue still
