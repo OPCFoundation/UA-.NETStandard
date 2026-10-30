@@ -47,6 +47,23 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public NodeId SessionId { get; set; } = new(1);
 
         /// <summary>
+        /// Number of times the session was abandoned before local adoption rollback.
+        /// </summary>
+        public int AbandonServerSessionCalls { get; private set; }
+
+        /// <summary>
+        /// Optional observer for session abandonment.
+        /// </summary>
+        public Action? OnAbandonServerSession { get; set; }
+
+        /// <inheritdoc/>
+        public void AbandonServerSession()
+        {
+            AbandonServerSessionCalls++;
+            OnAbandonServerSession?.Invoke();
+        }
+
+        /// <summary>
         /// Optional observer of recovery notifications from Publish workers.
         /// </summary>
         public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }

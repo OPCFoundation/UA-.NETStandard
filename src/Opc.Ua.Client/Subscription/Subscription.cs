@@ -278,7 +278,16 @@ namespace Opc.Ua.Client.Subscriptions
                 Options,
                 Id,
                 available.ToArrayOf(),
-                items.ToArrayOf());
+                items.ToArrayOf()) with
+            {
+                HasRevisedSettings = true,
+                RevisedPublishingInterval = CurrentPublishingInterval,
+                RevisedKeepAliveCount = CurrentKeepAliveCount,
+                RevisedLifetimeCount = CurrentLifetimeCount,
+                RevisedPriority = CurrentPriority,
+                RevisedMaxNotificationsPerPublish = CurrentMaxNotificationsPerPublish,
+                RevisedPublishingEnabled = CurrentPublishingEnabled
+            };
         }
 
         /// <inheritdoc/>
@@ -586,15 +595,48 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> TryCompleteTransferAsync(
+        public ValueTask<bool> TryCompleteTransferAsync(
             IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
+        {
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: false, null, ct);
+        }
+
+        /// <summary>
+        /// Binds this loaded subscription to the server subscription it was saved from, which
+        /// already belongs to the current server session because that session was taken over.
+        /// Unlike <see cref="TryCompleteTransferAsync"/> no TransferSubscriptions,
+        /// GetMonitoredItems or ModifySubscription request is sent: the saved item handles and
+        /// settings are used as they are. Messages the server still holds are republished.
+        /// </summary>
+        /// <param name="state">The saved subscription state, including server-revised settings.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns><c>true</c> when the subscription was bound.</returns>
+        internal ValueTask<bool> TryCompleteAdoptionAsync(
+            SubscriptionStateSnapshot state,
+            CancellationToken ct)
+        {
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+            IReadOnlyList<uint> availableSequenceNumbers = state.AvailableSequenceNumbers.IsNull
+                ? []
+                : [.. state.AvailableSequenceNumbers];
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: true, state, ct);
+        }
+
+        private async ValueTask<bool> CompleteBindingAsync(
+            IReadOnlyList<uint> availableSequenceNumbers,
+            bool adopt,
+            SubscriptionStateSnapshot? adoptionState,
+            CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 StopKeepAliveTimer();
                 bool success = await m_monitoredItems.TrySynchronizeHandlesAsync(
-                    ct).ConfigureAwait(false);
+                    adopt, ct).ConfigureAwait(false);
                 if (!success)
                 {
                     return false;
@@ -605,7 +647,40 @@ namespace Opc.Ua.Client.Subscriptions
 
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
-                await ModifyAsync(Options, ct).ConfigureAwait(false);
+                if (adopt)
+                {
+                    SubscriptionOptions options = Options;
+                    AdjustCounts(options, out uint keepAliveCount, out uint lifetimeCount);
+                    RememberRequestedSettings(
+                        options.PublishingInterval,
+                        keepAliveCount,
+                        lifetimeCount,
+                        options.Priority,
+                        options.MaxNotificationsPerPublish);
+                    OnSubscriptionUpdateComplete(false, 0,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPublishingInterval
+                            : options.PublishingInterval,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedKeepAliveCount
+                            : keepAliveCount,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedLifetimeCount
+                            : lifetimeCount,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPriority
+                            : options.Priority,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedMaxNotificationsPerPublish
+                            : options.MaxNotificationsPerPublish,
+                        adoptionState is { HasRevisedSettings: true }
+                            ? adoptionState.RevisedPublishingEnabled
+                            : options.PublishingEnabled);
+                }
+                else
+                {
+                    await ModifyAsync(Options, ct).ConfigureAwait(false);
+                }
                 StartKeepAliveTimer();
             }
             finally

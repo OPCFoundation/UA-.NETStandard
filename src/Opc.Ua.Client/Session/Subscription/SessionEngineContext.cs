@@ -43,7 +43,8 @@ namespace Opc.Ua.Client
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
         private sealed class SessionEngineContext : ISubscriptionEngineContext,
-            IAcknowledgementPolicyCapability
+            IAcknowledgementPolicyCapability,
+            ISessionTakeoverContext
         {
             public SessionEngineContext(Session session)
             {
@@ -54,6 +55,12 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public NodeId SessionId => m_session.SessionId;
+
+            /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                m_session.AbandonServerSession();
+            }
 
             /// <inheritdoc/>
             public bool Reconnecting => m_session.Reconnecting;

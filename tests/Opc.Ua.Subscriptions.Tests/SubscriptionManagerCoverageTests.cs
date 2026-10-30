@@ -585,6 +585,13 @@ namespace Opc.Ua.Subscriptions.Tests
             public NodeId SessionId => new(1);
 
             /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                throw new InvalidOperationException(
+                    "The coverage stub cannot abandon a server session.");
+            }
+
+            /// <inheritdoc/>
             public ValueTask<bool> OnPublishRecoveryErrorAsync(
                 NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
             {

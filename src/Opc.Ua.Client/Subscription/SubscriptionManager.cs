@@ -529,6 +529,10 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             continue;
                         }
+                        if (m_activeSubscriptionUpdates.Count == 0)
+                        {
+                            m_subscriptionUpdateDrainSignal.Reset();
+                        }
                         m_activeSubscriptionUpdates.Add(attempt);
                         break;
                     }
@@ -551,6 +555,10 @@ namespace Opc.Ua.Client.Subscriptions
                     lock (m_publishStateLock)
                     {
                         m_activeSubscriptionUpdates.Remove(attempt);
+                        if (m_activeSubscriptionUpdates.Count == 0)
+                        {
+                            m_subscriptionUpdateDrainSignal.Set();
+                        }
                     }
                 }
             }
@@ -1064,9 +1072,45 @@ namespace Opc.Ua.Client.Subscriptions
             }
             if (transferSubscriptions && state.ServerId != 0)
             {
-                return RestoreTransferAsync(handler, state, ct);
+                return RestoreTransferAsync(handler, state, adopt: false, ct);
             }
             return RestoreRecreateAsync(handler, state, ct);
+        }
+
+        /// <summary>
+        /// Adopts a logical subscription, saved as one or more partition snapshots, that
+        /// already belongs to the server session of this manager because the session was
+        /// taken over from its previous owner. The saved server-side identifiers are
+        /// registered locally so the publish loop dispatches their notifications; no
+        /// TransferSubscriptions or CreateSubscription request is sent. A partition that was
+        /// never created on the server (server id 0), or whose items cannot be bound, is
+        /// recreated instead.
+        /// </summary>
+        /// <param name="handler">The notification handler of the logical subscription.</param>
+        /// <param name="snapshots">The partition snapshots, primary first, sorted by
+        /// partition index.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The adopted logical subscription.</returns>
+        internal ValueTask<ISubscription> AdoptGroupAsync(
+            ISubscriptionNotificationHandler handler,
+            IReadOnlyList<SubscriptionStateSnapshot> snapshots,
+            CancellationToken ct)
+        {
+            return RestoreGroupCoreAsync(handler, snapshots, transferSubscriptions: false, adopt: true, ct);
+        }
+
+        private ValueTask<ISubscription> RestoreBindingAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            bool transferSubscriptions,
+            bool adopt,
+            CancellationToken ct)
+        {
+            if (adopt && state.ServerId != 0)
+            {
+                return RestoreTransferAsync(handler, state, adopt: true, ct);
+            }
+            return RestoreAsync(handler, state, transferSubscriptions && !adopt, ct);
         }
 
         private ValueTask<ISubscription> RestoreRecreateAsync(
@@ -1091,6 +1135,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask<ISubscription> RestoreTransferAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,
+            bool adopt,
             CancellationToken ct)
         {
             // Build the internal load-state record (decoupled from the
@@ -1109,7 +1154,11 @@ namespace Opc.Ua.Client.Subscriptions
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    triggeredBy));
+                    triggeredBy,
+                    item.HasRevisedSettings,
+                    item.RevisedSamplingInterval,
+                    item.RevisedQueueSize,
+                    item.RevisedFilterResult));
             }
             var loadState = new SubscriptionLoadState(
                 state.ServerId, itemLoadStates);
@@ -1196,41 +1245,57 @@ namespace Opc.Ua.Client.Subscriptions
                 bool transferred = false;
                 try
                 {
-                    TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
-                        null,
-                        subscriptionIds,
-                        sendInitialValues: options.SendInitialValuesOnTransfer,
-                        ct)
-                        .ConfigureAwait(false);
-
-                    ResponseHeader responseHeader = response.ResponseHeader;
-                    if (StatusCode.IsGood(responseHeader.ServiceResult))
+                    if (adopt)
                     {
-                        ArrayOf<TransferResult> results = response.Results;
-                        ClientBase.ValidateResponse(results, subscriptionIds);
-                        if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                        if (subscription is Subscription adopted)
                         {
-                            transferred = await subscription.TryCompleteTransferAsync(
-                                results[0].AvailableSequenceNumbers.IsNull
-                                    ? []
-                                    : [.. results[0].AvailableSequenceNumbers],
+                            transferred = await adopted.TryCompleteAdoptionAsync(
+                                state,
                                 ct).ConfigureAwait(false);
                         }
-                        else if (results.Count > 0)
-                        {
-                            m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
-                        }
-                    }
-                    else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
-                    {
-                        m_logger.ServerDoesNotSupportTransfer(subscription.Id);
                     }
                     else
                     {
-                        m_logger.TransferServiceLevelResultBad(
-                            subscription.Id,
-                            responseHeader.ServiceResult);
+                        TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
+                            null,
+                            subscriptionIds,
+                            sendInitialValues: options.SendInitialValuesOnTransfer,
+                            ct)
+                            .ConfigureAwait(false);
+
+                        ResponseHeader responseHeader = response.ResponseHeader;
+                        if (StatusCode.IsGood(responseHeader.ServiceResult))
+                        {
+                            ArrayOf<TransferResult> results = response.Results;
+                            ClientBase.ValidateResponse(results, subscriptionIds);
+                            if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                            {
+                                transferred = await subscription.TryCompleteTransferAsync(
+                                    results[0].AvailableSequenceNumbers.IsNull
+                                        ? []
+                                        : [.. results[0].AvailableSequenceNumbers],
+                                    ct).ConfigureAwait(false);
+                            }
+                            else if (results.Count > 0)
+                            {
+                                m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                            }
+                        }
+                        else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+                        {
+                            m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                        }
+                        else
+                        {
+                            m_logger.TransferServiceLevelResultBad(
+                                subscription.Id,
+                                responseHeader.ServiceResult);
+                        }
                     }
+                }
+                catch (ServiceResultException) when (adopt)
+                {
+                    throw;
                 }
                 catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
                 {
@@ -1243,31 +1308,44 @@ namespace Opc.Ua.Client.Subscriptions
                         ex.StatusCode);
                 }
 
-                if (!transferred && subscription is Subscription loaded)
+                if (!transferred)
                 {
-                    await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
-                    // Await re-creation under a bounded timeout so LoadAsync
-                    // only returns after the server has assigned a fresh
-                    // SubscriptionId. Items still need ApplyChangesAsync to
-                    // round-trip but that runs in the same state-manager
-                    // iteration as CreateAsync.
-                    using CancellationTokenSource timeoutCts = m_timeProvider
-                        .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
-                    using var linkedCts = CancellationTokenSource
-                        .CreateLinkedTokenSource(ct, timeoutCts.Token);
-                    try
+                    if (adopt)
                     {
-                        await loaded.WaitForCreatedAsync(linkedCts.Token)
-                            .ConfigureAwait(false);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSubscriptionIdInvalid,
+                            "The saved subscription state could not be adopted.");
                     }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    if (subscription is Subscription loaded)
                     {
-                        m_logger.ReCreationDidNotComplete(subscription.Id);
+                        await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                        // Await re-creation under a bounded timeout so LoadAsync
+                        // only returns after the server has assigned a fresh
+                        // SubscriptionId. Items still need ApplyChangesAsync to
+                        // round-trip but that runs in the same state-manager
+                        // iteration as CreateAsync.
+                        using CancellationTokenSource timeoutCts = m_timeProvider
+                            .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
+                        using var linkedCts = CancellationTokenSource
+                            .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                        try
+                        {
+                            await loaded.WaitForCreatedAsync(linkedCts.Token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                        {
+                            m_logger.ReCreationDidNotComplete(subscription.Id);
+                        }
                     }
                 }
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // The subscription and its wrapper are already registered.
                 // Leaving them behind on a failed transfer would register a
                 // zombie that the publish loop keeps dispatching to and that
@@ -1315,10 +1393,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        internal async ValueTask<ISubscription> RestoreGroupAsync(
+        internal ValueTask<ISubscription> RestoreGroupAsync(
             ISubscriptionNotificationHandler handler,
             IReadOnlyList<SubscriptionStateSnapshot> snapshots,
             bool transferSubscriptions,
+            CancellationToken ct)
+        {
+            return RestoreGroupCoreAsync(handler, snapshots, transferSubscriptions, adopt: false, ct);
+        }
+
+        private async ValueTask<ISubscription> RestoreGroupCoreAsync(
+            ISubscriptionNotificationHandler handler,
+            IReadOnlyList<SubscriptionStateSnapshot> snapshots,
+            bool transferSubscriptions,
+            bool adopt,
             CancellationToken ct)
         {
             if (handler == null)
@@ -1334,8 +1422,8 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Primary first — single-partition restore returns the
             // wrapper that owns all subsequent secondaries.
-            ISubscription primaryWrapper = await RestoreAsync(
-                handler, snapshots[0], transferSubscriptions, ct)
+            ISubscription primaryWrapper = await RestoreBindingAsync(
+                handler, snapshots[0], transferSubscriptions, adopt, ct)
                 .ConfigureAwait(false);
             if (snapshots.Count == 1)
             {
@@ -1363,12 +1451,16 @@ namespace Opc.Ua.Client.Subscriptions
                     ct.ThrowIfCancellationRequested();
                     await AttachSecondaryPartitionAsync(
                         wrapper, handler, optionsMonitor,
-                        snapshots[i], transferSubscriptions, ct)
+                        snapshots[i], transferSubscriptions, adopt, ct)
                         .ConfigureAwait(false);
                 }
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // The primary and any secondaries attached so far are
                 // registered, but the caller never receives the wrapper.
                 // Roll back like RestoreAsync does for a failed transfer so
@@ -1405,6 +1497,7 @@ namespace Opc.Ua.Client.Subscriptions
             OptionsMonitor<SubscriptionOptions> optionsMonitor,
             SubscriptionStateSnapshot snap,
             bool transferSubscriptions,
+            bool adopt,
             CancellationToken ct)
         {
             // Build the per-partition load state from the snapshot.
@@ -1419,7 +1512,11 @@ namespace Opc.Ua.Client.Subscriptions
                     item.ServerId,
                     item.TriggeredByNames.IsNull
                         ? []
-                        : item.TriggeredByNames.ToArray() ?? []));
+                        : item.TriggeredByNames.ToArray() ?? [],
+                    item.HasRevisedSettings,
+                    item.RevisedSamplingInterval,
+                    item.RevisedQueueSize,
+                    item.RevisedFilterResult));
             }
             var loadState = new SubscriptionLoadState(snap.ServerId, itemLoadStates);
 
@@ -1447,6 +1544,10 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // Not yet owned by the wrapper, so the group rollback would
                 // not find it.
                 lock (m_subscriptionLock)
@@ -1468,7 +1569,7 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
 
-            if (!transferSubscriptions || snap.ServerId == 0)
+            if ((!transferSubscriptions && !adopt) || snap.ServerId == 0)
             {
                 // Without a transfer the saved server-side subscription does
                 // not belong to this session: the partition would keep the
@@ -1481,29 +1582,42 @@ namespace Opc.Ua.Client.Subscriptions
             bool transferred = false;
             try
             {
-                TransferSubscriptionsResponse response =
-                    await m_session.TransferSubscriptionsAsync(
-                        null,
-                        new uint[] { snap.ServerId }.ToArrayOf(),
-                        sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
-                        ct).ConfigureAwait(false);
-                if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
-                    response.Results.Count > 0 &&
-                    StatusCode.IsGood(response.Results[0].StatusCode))
+                if (adopt)
                 {
-                    transferred = await concrete.TryCompleteTransferAsync(
-                        response.Results[0].AvailableSequenceNumbers.IsNull
-                            ? []
-                            : [.. response.Results[0].AvailableSequenceNumbers],
-                        ct).ConfigureAwait(false);
+                    transferred = await concrete.TryCompleteAdoptionAsync(snap, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    TransferSubscriptionsResponse response =
+                        await m_session.TransferSubscriptionsAsync(
+                            null,
+                            new uint[] { snap.ServerId }.ToArrayOf(),
+                            sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
+                            ct).ConfigureAwait(false);
+                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
+                        response.Results.Count > 0 &&
+                        StatusCode.IsGood(response.Results[0].StatusCode))
+                    {
+                        transferred = await concrete.TryCompleteTransferAsync(
+                            response.Results[0].AvailableSequenceNumbers.IsNull
+                                ? []
+                                : [.. response.Results[0].AvailableSequenceNumbers],
+                            ct).ConfigureAwait(false);
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!adopt)
             {
                 m_logger.TransferThrewSecondaryPartitionRestore(ex, partition.Id);
             }
             if (!transferred)
             {
+                if (adopt)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "The saved partition state could not be adopted.");
+                }
                 await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
             }
         }
@@ -1671,14 +1785,29 @@ namespace Opc.Ua.Client.Subscriptions
         /// publish ingress stays quiesced for the caller's operation.
         /// </remarks>
         /// <param name="ct">Cancellation token.</param>
-        internal Task DrainAsync(CancellationToken ct)
+        internal async Task DrainAsync(CancellationToken ct)
         {
-            if (Volatile.Read(ref m_activePublishRequests) == 0)
+            while (true)
             {
-                return Task.CompletedTask;
+                Task publishDrain;
+                Task updateDrain;
+                lock (m_publishStateLock)
+                {
+                    if (m_activePublishRequests == 0 && m_activeSubscriptionUpdates.Count == 0)
+                    {
+                        return;
+                    }
+
+                    publishDrain = m_activePublishRequests == 0
+                        ? Task.CompletedTask
+                        : m_drainSignal.WaitAsync(ct);
+                    updateDrain = m_activeSubscriptionUpdates.Count == 0
+                        ? Task.CompletedTask
+                        : m_subscriptionUpdateDrainSignal.WaitAsync(ct);
+                }
+                AbortActivePublishRequests();
+                await Task.WhenAll(publishDrain, updateDrain).ConfigureAwait(false);
             }
-            AbortActivePublishRequests();
-            return m_drainSignal.WaitAsync(ct);
         }
 
         /// <summary>
@@ -4046,6 +4175,7 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly AsyncManualResetEvent m_subscriptionUpdateDrainSignal = new(true);
         private readonly AsyncManualResetEvent m_sessionAvailable = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();

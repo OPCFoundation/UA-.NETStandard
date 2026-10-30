@@ -212,6 +212,7 @@ namespace Opc.Ua.Client
             Handle = template.Handle;
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
+            InheritSessionGeneration(template);
 
             // The keep alive timer is already created (in off state) by the
             // constructor this one chains to; creating a second one here would
@@ -231,6 +232,7 @@ namespace Opc.Ua.Client
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
+                SessionGenerationChanged = template.SessionGenerationChanged;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -563,7 +565,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected && CanReceiveResponses())
+                    if (Connected && CanReceiveResponses() && TryClaimServerSessionClose())
                     {
                         var request = new CloseSessionRequest
                         {
@@ -626,6 +628,7 @@ namespace Opc.Ua.Client
                 m_keepAliveTimer.Dispose();
 
                 // suppress spurious events
+                SessionGenerationChanged = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -1231,6 +1234,7 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -1578,6 +1582,18 @@ namespace Opc.Ua.Client
             SignatureData serverSignature = response.ServerSignature;
             ArrayOf<EndpointDescription> serverEndpoints = response.ServerEndpoints;
 
+            if (IsServerSessionRetained)
+            {
+                // The response arrived after the bound server session was retained for another
+                // owner. The new server session is not the retained one and nothing else can
+                // reach it, so it is closed past the fence instead of being leaked.
+                serverCertificate?.Dispose();
+                await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
 
@@ -1587,6 +1603,7 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
+            RaisePendingLifecycleEvents();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1783,8 +1800,18 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (IsServerSessionRetained)
+                    {
+                        // The fence blocks the regular close, but this attempt created the
+                        // server session, which is not the retained one.
+                        await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1796,6 +1823,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
                 }
                 if (closeChannel)
                 {
@@ -3526,11 +3554,14 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void AbandonServerSession()
         {
+            // Fence first: no teardown path may reach the server session from here on.
+            Volatile.Write(ref m_serverSessionFate, kServerSessionRetained);
             DeleteSubscriptionsOnClose = false;
             lock (m_lock)
             {
                 SessionCreated(default, default);
             }
+            RaisePendingLifecycleEvents();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3828,6 +3859,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
 
                     if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                     {
@@ -4159,12 +4191,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // close the session with the server.
+                // close the session with the server, unless it is retained for another owner.
                 if (connected)
                 {
                     try
                     {
-                        if (CanReceiveResponses())
+                        if (CanReceiveResponses() && TryClaimServerSessionClose())
                         {
                             using CancellationTokenSource timeoutCts =
                                 CreateCloseRequestCancellationTokenSource(timeout, ct);
@@ -4215,6 +4247,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
+                        RaisePendingLifecycleEvents();
                     }
                 }
 
@@ -4979,8 +5012,10 @@ namespace Opc.Ua.Client
                     m_hadSession = true;
                 }
                 m_requestContextGeneration++;
+                ObserveServerSession(sessionId);
                 RequestContextChanged?.Invoke();
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -4990,10 +5025,18 @@ namespace Opc.Ua.Client
         /// created, a request without token is not sent: after the Session
         /// was closed, it fails locally with Bad_SessionIdInvalid instead of
         /// reaching the Server as a session-less invocation. CreateSession
-        /// and ActivateSession are not affected.
+        /// and ActivateSession are not affected, unless the server session
+        /// was retained for another owner: then no request is sent at all.
         /// </remarks>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
+            if (IsServerSessionRetained)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             base.UpdateRequestHeader(request, useDefaults);
 
             if (m_hadSession &&
@@ -5121,7 +5164,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Stops the keep alive timer.
         /// </summary>
-        private async ValueTask StopKeepAliveTimerAsync()
+        internal async ValueTask StopKeepAliveTimerAsync()
         {
             Task? keepAliveWorker;
             CancellationTokenSource? keepAliveCancellation;

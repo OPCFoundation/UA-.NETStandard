@@ -46,6 +46,12 @@ namespace Opc.Ua.Client.Subscriptions
         NodeId SessionId { get; }
 
         /// <summary>
+        /// Abandons the session before rolling back failed subscription adoption, so
+        /// disposing local wrappers cannot delete server subscriptions owned by the handoff.
+        /// </summary>
+        void AbandonServerSession();
+
+        /// <summary>
         /// Reports a definitive failure of a Publish request from the specified session.
         /// The failed attempt has already rolled back acknowledgements and released its active count.
         /// Revalidate <paramref name="isCurrent"/> under session recovery admission before invoking callbacks.

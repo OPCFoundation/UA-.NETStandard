@@ -469,6 +469,8 @@ A transferred subscription needs a client-side owner on the backup session, othe
 
 OPC UA does not standardize how active and backup clients exchange `SessionId` or subscription ids. In this stack the client replica set coordinates through the registered client-side shared store (`AddRedundantClientSharedStore` / `AddRaftClientSharedStore` — a CRDT- or [Raft](https://raft.github.io/)-backed `ISharedKeyValueStore` that the `ClientReplicaCoordinator` consumes).
 
+Applications that run their own hand-over between client processes can use the `ISessionTakeover` capability of `ManagedSession` instead. The previous owner calls `RetireAsync`, which returns a `SessionHandoff` and leaves the server session open. The new owner builds a `ManagedSession` with `TakeOver(handoff)`, which activates that server session by reusing its token and attaches its subscriptions without creating or transferring anything. The application must make sure that only one new owner uses a handoff. See [Taking over a session](Sessions.md#taking-over-a-session-isessiontakeover).
+
 ## Network redundancy (as per Part 4 §6.6.4)
 
 Transparent network redundancy is handled below OPC UA by routers, virtual adapters, load balancers, or Kubernetes Services. Non-transparent network redundancy uses multiple endpoints for the same logical server; the client selects another endpoint and recreates only the SecureChannel while reusing the session and subscriptions.
@@ -917,7 +919,8 @@ BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks 
 It reuses the server's interfaces, shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
 
 - **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
-- **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.
+- **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. The leader publishes its session as a protected `SessionHandoff`. A follower promoted to leader creates its leader session as a takeover of that handoff, which reuses the token to `ActivateSession` and keeps the subscriptions. If the takeover fails, the follower's standby session becomes the leader and `ConfigureLeader` receives `fastActivated: false`. A demoted leader abandons its server session without closing it.
+- **Mirrored endpoint authorization.** When the promoted standby's endpoint URL differs from the endpoint in the handoff, `ValidateMirroredEndpoint` must authorize the pair and the standby's endpoint becomes the takeover target. The coordinator also rejects a change to an explicitly configured security mode or policy. Without approval, takeover is skipped and the standby remains the leader. The validator establishes mirror-set membership; it does not replace normal certificate trust.
 - **Standby modes** (`ClientStandbyMode`): Cold (elect only; connect+activate on promotion), Warm (keep a connected session, create subscriptions on promotion), Hot (keep a connected session with subscriptions sampling-only, enable publishing on promotion).
 
 For non-DI callers, `RedundantClientSessionBuilder` builds the same `RedundantClientSession` (an `ISession`) directly. The lower-level `ClientReplicaSetBuilder` / `ClientReplicaCoordinator` seam is still available when you want to hold and drive the leader `ManagedSession` yourself:
@@ -932,6 +935,9 @@ var coordinator = new ClientReplicaSetBuilder(telemetry)
         .WithServerRedundancy()
         .WithTokenReuseFailover()
         .ConnectAsync(ct))
+    // Required only when a promoted standby uses a different endpoint URL.
+    .ValidateMirroredEndpoint((saved, standby, ct) =>
+        ValidateMirroredMemberAsync(saved, standby, ct))
     .ConfigureLeader((session, fastActivated, ct) => ApplySubscriptionsAsync(session, ct))
     .Build();
 await coordinator.StartAsync(ct);

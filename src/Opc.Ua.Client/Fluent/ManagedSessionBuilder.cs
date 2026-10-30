@@ -836,6 +836,31 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Takes over the server session of <paramref name="handoff"/> when the session connects,
+        /// instead of creating a new one: the saved session is activated on a new secure channel
+        /// and its subscriptions continue on the new session. The endpoint of the handoff is used
+        /// unless an endpoint is configured.
+        /// </summary>
+        /// <param name="handoff">The handoff returned by <see cref="ManagedSession.RetireAsync"/>
+        /// of the previous owner.</param>
+        /// <param name="options">How to take over; by default the connect fails when the server
+        /// session cannot be taken over.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="handoff"/> is null.</exception>
+        public ManagedSessionBuilder TakeOver(SessionHandoff handoff, SessionTakeoverOptions? options = null)
+        {
+            if (handoff == null)
+            {
+                throw new ArgumentNullException(nameof(handoff));
+            }
+            m_options = m_options with
+            {
+                TakeoverFrom = handoff,
+                Takeover = options ?? new SessionTakeoverOptions()
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Returns the immutable options snapshot accumulated so far.
         /// </summary>
         public ManagedSessionOptions Build()
@@ -851,10 +876,14 @@ namespace Opc.Ua.Client
         public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
+            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint != null)
+            {
+                opts = opts with { Endpoint = CoreUtils.Clone(opts.TakeoverFrom.Session.ConfiguredEndpoint) };
+            }
             if (opts.Endpoint == null)
             {
                 throw new InvalidOperationException(
-                    "ManagedSessionBuilder.UseEndpoint must be called before ConnectAsync.");
+                    "ManagedSessionBuilder.UseEndpoint or TakeOver must be called before ConnectAsync.");
             }
 
             ISubscriptionEngineFactory engineFactory =
