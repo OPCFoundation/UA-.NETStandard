@@ -84,7 +84,7 @@ namespace Opc.Ua.Types.Tests.Utils
             long revision = serving.Version;
             staged.Append("urn:private");
             serving.Append("urn:concurrent");
-            Assert.Throws<InvalidOperationException>(() => serving.BeginPublication(staged, revision));
+            Assert.Throws<OptimisticPublicationConflictException>(() => serving.BeginPublication(staged, revision));
             Assert.That(serving.GetIndex("urn:private"), Is.EqualTo(-1));
             Assert.That(serving.GetString(2), Is.EqualTo("urn:concurrent"));
             Assert.That(staged.GetString(2), Is.EqualTo("urn:private"));

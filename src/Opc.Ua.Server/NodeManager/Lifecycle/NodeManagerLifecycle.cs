@@ -2665,6 +2665,11 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         failure.Message, new NodeManagerRoutingConflictException(failure, this));
                 }
+                catch (OptimisticPublicationConflictException failure)
+                {
+                    throw new InvalidOperationException(
+                        failure.Message, new NodeManagerPreparedConflictException(failure, this));
+                }
                 finally
                 {
                     if (IsCommitted)

@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Compatibility retries rebuild every aborted private candidate rather than imposing a conflict limit.
+        /// Compatibility retries rebuild aborted private candidates for repeated independent publications.
         /// </summary>
         [Test]
         public async Task CompatibilityAdditionRepreparesAfterRepeatedIndependentPublicationsAsync()
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(changes, token)
                         .ConfigureAwait(false);
                     candidates.Add(prepared);
-                    if (candidates.Count <= 3)
+                    if (candidates.Count <= 2)
                     {
                         independent.Add(await lifecycle.AddAsync(
                             new RuntimeNodeSetNodeManagerFactory(CreateOptions(
@@ -209,23 +209,183 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(candidates, Has.Count.EqualTo(4));
-                Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision + 4));
+                Assert.That(candidates, Has.Count.EqualTo(3));
+                Assert.That(lifecycle.Revision, Is.EqualTo(originalRevision + 3));
                 Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
                 foreach (NodeManagerRegistration addition in independent)
                 {
                     Assert.That(lifecycle.Registrations.ToList(), Does.Contain(addition));
                 }
-                for (int i = 0; i < 3; i++)
+                for (int i = 0; i < 2; i++)
                 {
                     Assert.That(candidates[i].IsCommitted, Is.False);
                     Assert.That(candidates[i].Registrations[0].Identity.Gate.State,
                         Is.EqualTo(NodeManagerGenerationState.Aborted));
                 }
-                Assert.That(candidates[3].IsCommitted, Is.True);
-                Assert.That(registration.Identity, Is.SameAs(candidates[3].Registrations[0].Identity));
+                Assert.That(candidates[2].IsCommitted, Is.True);
+                Assert.That(registration.Identity, Is.SameAs(candidates[2].Registrations[0].Identity));
             }
             await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A serving namespace revision change during candidate creation is retried by the compatibility API.
+        /// </summary>
+        [Test]
+        public async Task CompatibilityAdditionRetriesAfterServingNamespaceChangesDuringPreparationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            int factoryCalls = 0;
+            var innerFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((
+                    IServerInternal server,
+                    ApplicationConfiguration configuration,
+                    CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        _ = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(
+                            kSecondModelNamespaceUri + ":CompatibilityRetry");
+                    }
+                    return innerFactory.CreateAsync(server, configuration, token);
+                });
+
+            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
+                .ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(factoryCalls, Is.EqualTo(2));
+                Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(
+                    kSecondModelNamespaceUri + ":CompatibilityRetry"), Is.GreaterThanOrEqualTo(0));
+            }
+        }
+
+        /// <summary>
+        /// A bounded compatibility retry stops replaying a factory that repeatedly publishes nested changes.
+        /// </summary>
+        [Test]
+        public async Task CompatibilityAdditionStopsAfterRepeatedNestedPublicationsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            int registrationCount = lifecycle.Registrations.Count;
+            int factoryCalls = 0;
+            int nestedPublications = 0;
+            var innerFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(async (
+                    IServerInternal server,
+                    ApplicationConfiguration configuration,
+                    CancellationToken token) =>
+                {
+                    int attempt = Interlocked.Increment(ref factoryCalls);
+                    await lifecycle.AddAsync(
+                        new RuntimeNodeSetNodeManagerFactory(CreateOptions(
+                            kSecondModelNamespaceUri + ":Nested" + attempt,
+                            kSecondRegistrationValue)),
+                        token).ConfigureAwait(false);
+                    Interlocked.Increment(ref nestedPublications);
+                    return await innerFactory.CreateAsync(server, configuration, token).ConfigureAwait(false);
+                });
+
+            await Assert.ThatAsync(
+                () => lifecycle.AddAsync(factory.Object, timeout.Token).AsTask(),
+                Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo(
+                        "The compatibility mutation encountered 3 consecutive stale-publication conflicts."))
+                .ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(factoryCalls, Is.EqualTo(3));
+                Assert.That(nestedPublications, Is.EqualTo(3));
+                Assert.That(lifecycle.Registrations.Count, Is.EqualTo(registrationCount + 3));
+            }
+        }
+
+        /// <summary>
+        /// A serving type-tree revision change during candidate creation is retried by the compatibility API.
+        /// </summary>
+        [Test]
+        public async Task CompatibilityAdditionRetriesAfterServingTypeTreeChangesDuringPreparationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            int factoryCalls = 0;
+            var innerFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        m_server.CurrentInstance.TypeTree.AddSubtype(
+                            new NodeId(99001), ObjectTypeIds.BaseObjectType);
+                    }
+                    return innerFactory.CreateAsync(server, configuration, token);
+                });
+
+            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(factoryCalls, Is.EqualTo(2));
+            Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
+        }
+
+        /// <summary>
+        /// A serving encodeable-factory revision change during candidate creation is retried by the compatibility API.
+        /// </summary>
+        [Test]
+        public async Task CompatibilityAdditionRetriesAfterServingFactoryChangesDuringPreparationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            int factoryCalls = 0;
+            var innerFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(owner => owner.CreateAsync(
+                It.IsAny<IServerInternal>(),
+                It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken token) =>
+                {
+                    if (Interlocked.Increment(ref factoryCalls) == 1)
+                    {
+                        IEncodeableFactory servingFactory = m_server.CurrentInstance.Factory;
+                        if (!servingFactory.TryGetEncodeableType(
+                            DataTypeIds.Range, out IEncodeableType? rangeType) || rangeType is null)
+                        {
+                            throw new InvalidOperationException("The Range encodeable type is not registered.");
+                        }
+                        servingFactory.Builder.AddEncodeableType(new ExpandedNodeId(99002), rangeType).Commit();
+                    }
+                    return innerFactory.CreateAsync(server, configuration, token);
+                });
+
+            NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(factoryCalls, Is.EqualTo(2));
+            Assert.That(lifecycle.Registrations.ToList(), Does.Contain(registration));
         }
 
         /// <summary>

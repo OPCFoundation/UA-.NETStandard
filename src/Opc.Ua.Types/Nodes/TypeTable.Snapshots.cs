@@ -130,7 +130,7 @@ namespace Opc.Ua
             TypeTable merged = CaptureSnapshot(out TypeTable current, out long currentRevision);
             if (!ReferenceEquals(source, current) || revision != currentRevision)
             {
-                throw new InvalidOperationException("Serving types changed after the batch was prepared.");
+                throw new OptimisticPublicationConflictException("Serving types changed after the batch was prepared.");
             }
             if (additions.IsUnchangedCapture(source, revision))
             {
@@ -261,7 +261,7 @@ namespace Opc.Ua
             {
                 if (!ReferenceEquals(source, this) || revision != m_revision)
                 {
-                    throw new InvalidOperationException("Serving types changed after the batch was prepared.");
+                    throw new OptimisticPublicationConflictException("Serving types changed after the batch was prepared.");
                 }
                 EnsureMutable();
                 m_publicationPending = true;

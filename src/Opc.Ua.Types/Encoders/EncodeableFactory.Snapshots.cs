@@ -106,7 +106,8 @@ namespace Opc.Ua
             EncodeableFactory merged = CaptureSnapshot(out EncodeableFactory current, out long currentRevision);
             if (!ReferenceEquals(source, current) || revision != currentRevision)
             {
-                throw new InvalidOperationException("Serving factory registrations changed after preparation.");
+                throw new OptimisticPublicationConflictException(
+                    "Serving factory registrations changed after preparation.");
             }
             if (additions.IsUnchangedCapture(source, revision))
             {
@@ -180,7 +181,8 @@ namespace Opc.Ua
             {
                 if (!ReferenceEquals(source, this) || revision != m_revision)
                 {
-                    throw new InvalidOperationException("Serving factory registrations changed after preparation.");
+                    throw new OptimisticPublicationConflictException(
+                        "Serving factory registrations changed after preparation.");
                 }
                 EnsureMutable();
                 m_publicationPending = true;

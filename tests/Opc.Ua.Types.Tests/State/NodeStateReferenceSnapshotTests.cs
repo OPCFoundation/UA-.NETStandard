@@ -84,7 +84,7 @@ namespace Opc.Ua.Types.Tests.State
             using NodeState.ReferenceUpdate update = node.PrepareReferences(
                 [new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1000))], []);
             node.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(1001));
-            Assert.Throws<InvalidOperationException>(update.Reserve);
+            Assert.Throws<OptimisticPublicationConflictException>(update.Reserve);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(1000)), Is.False);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.HasComponent, false, new NodeId(1001)), Is.True);
         }
@@ -154,7 +154,7 @@ namespace Opc.Ua.Types.Tests.State
                 update.Remove();
                 update.Complete();
             }
-            Assert.That(prepared.Reserve, Throws.TypeOf<InvalidOperationException>()
+            Assert.That(prepared.Reserve, Throws.TypeOf<OptimisticPublicationConflictException>()
                 .With.Message.EqualTo("Serving references changed during preparation."));
             Assert.That(node.ReferenceExists(changed.ReferenceTypeId, changed.IsInverse, changed.TargetId),
                 Is.EqualTo(!removal));
@@ -196,6 +196,8 @@ namespace Opc.Ua.Types.Tests.State
             update.Reserve();
             Assert.Throws<InvalidOperationException>(update.Complete);
             update.Dispose();
+            Assert.That(update.Reserve, Throws.TypeOf<InvalidOperationException>()
+                .With.Message.EqualTo("The prepared reference update cannot be reserved in its current state."));
             Assert.Throws<InvalidOperationException>(update.Remove);
             Assert.Throws<InvalidOperationException>(update.Complete);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.False);

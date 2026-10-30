@@ -178,9 +178,15 @@ namespace Opc.Ua
             {
                 lock (owner.m_referencesLock)
                 {
-                    if (m_reserved || m_completed || m_disposed || owner.m_referenceRevision != revision)
+                    if (m_reserved || m_completed || m_disposed)
                     {
-                        throw new InvalidOperationException("Serving references changed during preparation.");
+                        throw new InvalidOperationException(
+                            "The prepared reference update cannot be reserved in its current state.");
+                    }
+                    if (owner.m_referenceRevision != revision)
+                    {
+                        throw new OptimisticPublicationConflictException(
+                            "Serving references changed during preparation.");
                     }
                     owner.EnsureReferencesMutable();
                     owner.m_referencePublicationPending = true;

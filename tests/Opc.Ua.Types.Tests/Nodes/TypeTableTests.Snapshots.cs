@@ -187,7 +187,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             {
                 source = new TypeTable(m_namespaceTable);
             }
-            Assert.Throws<InvalidOperationException>(() =>
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
                 m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
         }
 
@@ -380,6 +380,18 @@ namespace Opc.Ua.Types.Tests.Nodes
             Assert.That(m_typeTable.AddEncoding(s_dataTypeId, s_encodingId1), Is.True);
             Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.True);
             Assert.That(m_typeTable.FindDataTypeId(s_encodingId1), Is.EqualTo(s_dataTypeId));
+        }
+
+        /// <summary>
+        /// Verifies that publication rejects a stale serving revision before reserving it.
+        /// </summary>
+        [Test]
+        public void ChangedTypeTableCannotPublishAnEarlierCapture()
+        {
+            _ = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            m_typeTable.AddSubtype(new NodeId(6001), s_rootTypeId);
+            Assert.Throws<OptimisticPublicationConflictException>(
+                () => m_typeTable.BeginPublication(source, revision));
         }
 
         /// <summary>

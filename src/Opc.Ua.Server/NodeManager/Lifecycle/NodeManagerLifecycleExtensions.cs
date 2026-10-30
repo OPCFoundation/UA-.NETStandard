@@ -318,38 +318,73 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rebuilds an aborted compatibility change after an independent routing publication, before any decision.
+        /// Rebuilds an aborted compatibility change after a conflict owned by that candidate, before any decision.
         /// </summary>
         private static async ValueTask<NodeManagerBatchResult> CommitCompatibilityChangeAsync(
             INodeManagerLifecycle lifecycle,
             NodeManagerBatchChange change,
             CancellationToken ct)
         {
+            const int maxOptimisticConflicts = 3;
+            int conflictCount = 0;
+            InvalidOperationException? lastConflict = null;
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
                 IPreparedNodeManagerBatch prepared =
                     await lifecycle.PrepareAsync([change], ct).ConfigureAwait(false);
-                await using var preparedLifetime = prepared.ConfigureAwait(false);
-                bool decisionStarted = false;
-                try
+                await using (var preparedLifetime = prepared.ConfigureAwait(false))
                 {
-                    NodeManagerBatchResult result = await prepared.CommitAsync(
-                        _ =>
-                        {
-                            decisionStarted = true;
-                            return default;
-                        }, ct).ConfigureAwait(false);
-                    ObserveRetirement(result.Retirement);
-                    return result;
+                    bool decisionStarted = false;
+                    try
+                    {
+                        NodeManagerBatchResult result = await prepared.CommitAsync(
+                            _ =>
+                            {
+                                decisionStarted = true;
+                                return default;
+                            }, ct).ConfigureAwait(false);
+                        ObserveRetirement(result.Retirement);
+                        return result;
+                    }
+                    catch (InvalidOperationException failure) when (
+                        IsOwnCompatibilityConflict(failure.InnerException, prepared) &&
+                        !decisionStarted && !prepared.IsCommitted)
+                    {
+                        lastConflict = failure;
+                    }
                 }
-                catch (InvalidOperationException failure) when (
-                    failure.InnerException is NodeManagerRoutingConflictException conflict &&
-                    ReferenceEquals(conflict.Batch, prepared) && !decisionStarted && !prepared.IsCommitted)
+
+                if (++conflictCount < maxOptimisticConflicts)
                 {
-                    // Disposal aborts this private candidate before preparing against the current routing view.
+                    continue;
                 }
+
+                throw new InvalidOperationException(
+                    $"The compatibility mutation encountered {maxOptimisticConflicts} consecutive " +
+                    "stale-publication conflicts.",
+                    lastConflict);
             }
+        }
+
+        /// <summary>
+        /// Checks that a retryable conflict was raised by this exact prepared candidate.
+        /// </summary>
+        /// <param name="failure">The conflict wrapped by the compatibility extension.</param>
+        /// <param name="prepared">The candidate currently being committed.</param>
+        /// <returns>Whether the failure belongs to this candidate.</returns>
+        private static bool IsOwnCompatibilityConflict(
+            Exception? failure,
+            IPreparedNodeManagerBatch prepared)
+        {
+            return failure switch
+            {
+                NodeManagerRoutingConflictException { Batch: { } batch } =>
+                    ReferenceEquals(batch, prepared),
+                NodeManagerPreparedConflictException { Batch: { } batch } =>
+                    ReferenceEquals(batch, prepared),
+                _ => false
+            };
         }
 
         /// <summary>

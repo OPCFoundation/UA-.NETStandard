@@ -451,7 +451,7 @@ namespace Opc.Ua.Server
                         if (!ReferenceEquals(references.View, m_nodeManagers.Revision) ||
                             !ReferenceEquals(references.Previous, m_dynamicExternalReferences))
                         {
-                            throw new InvalidOperationException("The reference preparation is stale.");
+                            throw new OptimisticPublicationConflictException("The reference preparation is stale.");
                         }
                         var nextReferences = references.Next;
                         referenceAdditions = references.Additions;

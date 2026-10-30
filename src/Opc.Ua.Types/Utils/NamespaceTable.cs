@@ -463,7 +463,7 @@ namespace Opc.Ua
                 if (m_version != revision || proposed.Length < m_strings.Count ||
                     !m_strings.SequenceEqual(proposed.Take(m_strings.Count)))
                 {
-                    throw new InvalidOperationException("The string table changed after preparation.");
+                    throw new OptimisticPublicationConflictException("The string table changed after preparation.");
                 }
                 if (m_strings.Capacity < proposed.Length)
                 {

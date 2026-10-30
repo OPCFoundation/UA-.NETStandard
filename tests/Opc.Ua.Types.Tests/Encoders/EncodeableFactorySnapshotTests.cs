@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 source = new EncodeableFactory();
             }
-            Assert.Throws<InvalidOperationException>(() =>
+            Assert.Throws<OptimisticPublicationConflictException>(() =>
                 factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
         }
 
@@ -350,7 +350,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var factory = new EncodeableFactory();
             _ = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
             factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
-            Assert.Throws<InvalidOperationException>(() => factory.BeginPublication(source, revision));
+            Assert.Throws<OptimisticPublicationConflictException>(() => factory.BeginPublication(source, revision));
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
         }
 
