@@ -949,6 +949,8 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(fixture.Origin.Subscriptions.Contains(fixture.Subscription), Is.True);
                 Assert.That(finalSourceProvider.TrackedAcknowledgements, Is.EqualTo(1));
                 Assert.That(finalSourceProvider.PendingConfirmations, Is.Zero);
+                await fixture.SourceObserver.WaitForCompletionAsync()
+                    .WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(fixture.SourceObserver.Outcomes, Has.Length.EqualTo(1));
                 Assert.That(
                     fixture.SourceObserver.Outcomes[0].Disposition,
