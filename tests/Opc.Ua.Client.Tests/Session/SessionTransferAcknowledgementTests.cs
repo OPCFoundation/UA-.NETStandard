@@ -548,7 +548,7 @@ namespace Opc.Ua.Client.Tests
                     m_outcomes.Enqueue(outcomes[i]);
                 }
                 m_completed.TrySetResult(true);
-                return ValueTask.CompletedTask;
+                return default;
             }
 
             private readonly ConcurrentQueue<AcknowledgementOutcome> m_outcomes = new();
@@ -1136,10 +1136,10 @@ namespace Opc.Ua.Client.Tests
                 {
                     if (request is CreateSubscriptionRequest create)
                     {
-                        return ValueTask.FromResult<IServiceResponse>(
+                        return new ValueTask<IServiceResponse>(
                             CreateSubscriptionResponse(originChannel, create));
                     }
-                    return ValueTask.FromResult(originChannel.CreateResponse(request));
+                    return new ValueTask<IServiceResponse>(originChannel.CreateResponse(request));
                 };
                 targetChannel.RequestHandler = async (request, ct) =>
                 {
