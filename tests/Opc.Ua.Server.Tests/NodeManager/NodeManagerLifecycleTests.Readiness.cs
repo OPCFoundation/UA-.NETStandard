@@ -432,6 +432,66 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A readiness retry owns its pending registration until the callback attempt completes.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task ReadinessRetryRejectsRemovalWhileCallbackIsActiveAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var expected = new SentinelException("Published Add readiness failed before retry.");
+            var retryEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRetry = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int attempts = 0;
+            ReadinessLifecycleNodeManager? participant = null;
+            Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    participant = manager;
+                    manager.ReadinessCallback = async ct =>
+                    {
+                        if (Interlocked.Increment(ref attempts) == 1)
+                        {
+                            throw expected;
+                        }
+                        retryEntered.TrySetResult(true);
+                        await releaseRetry.Task.WaitAsync(ct).ConfigureAwait(false);
+                    };
+                },
+                timeout.Token);
+            NodeManagerAddCommittedException failure =
+                await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
+                    .ConfigureAwait(false);
+            NodeManagerBatchResult result = failure.Result ??
+                throw new AssertionException("The committed Add result was not retained.");
+
+            Task retry = result.RetryReconciliationAsync(timeout.Token).AsTask();
+            try
+            {
+                await retryEntered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                InvalidOperationException removeFailure =
+                    await ExpectReadinessExceptionAsync<InvalidOperationException>(
+                        m_server.NodeManagerLifecycle.RemoveAsync(
+                            failure.Registration, null, timeout.Token).AsTask()).ConfigureAwait(false);
+                Assert.That(removeFailure.Message, Does.Contain("completing readiness"));
+            }
+            finally
+            {
+                releaseRetry.TrySetResult(true);
+            }
+
+            await retry.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            Assert.That(result.Issues.ToArray(), Is.Empty);
+            await RemoveReadinessRegistrationAsync(failure.Registration, participant).ConfigureAwait(false);
+            Assert.That(participant!.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(participant.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Replacing a service-level owner revokes its writer before the replacement readiness callback claims it.
         /// </summary>
         [Test]

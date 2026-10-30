@@ -462,50 +462,87 @@ namespace Opc.Ua.Server
             CancellationToken ct,
             InitialPublication? initial = null)
         {
+            bool releaseReadiness = false;
             if (state.ReadinessPending)
             {
-                if (!NodeManagerReadiness.IsParticipant(state.Prepared.NodeManager) ||
-                    state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
+                lock (m_registrationLock)
                 {
-                    throw new InvalidOperationException(
-                        "A registration pending readiness does not expose a readiness callback.");
+                    if (state.ReadinessPending)
+                    {
+                        if (!m_registrations.TryGetValue(
+                            state.Registration.Id,
+                            out RegistrationState? current) ||
+                            !ReferenceEquals(current, state))
+                        {
+                            throw new InvalidOperationException(
+                                "The registration changed before its readiness operation started.");
+                        }
+                        if (!state.ReadinessInProgress)
+                        {
+                            state.ReadinessInProgress = true;
+                            releaseReadiness = true;
+                        }
+                    }
+                }
+            }
+
+            try
+            {
+                if (state.ReadinessPending)
+                {
+                    if (!NodeManagerReadiness.IsParticipant(state.Prepared.NodeManager) ||
+                        state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
+                    {
+                        throw new InvalidOperationException(
+                            "A registration pending readiness does not expose a readiness callback.");
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+                    using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
+                    string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
+                    await LifecycleWaitDiagnostics.WaitAsync(
+                        participant.OnServerReadyAsync(ct).AsTask(),
+                        m_timeProvider,
+                        LifecycleWaitDiagnostics.WarningThreshold,
+                        elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
+                            .LifecycleWaitExceeded(
+                                "NodeManager readiness callback",
+                                elapsed,
+                                readinessContext),
+                        ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+
+                    EnsurePublicationServer(server, host, initial);
+                    if (!IsCurrentRegistration(state.Registration))
+                    {
+                        throw new InvalidOperationException(
+                            "The registration changed while its readiness operation was completing.");
+                    }
+
+                    CompleteReadinessClaim(state);
                 }
 
-                ct.ThrowIfCancellationRequested();
-                using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
-                string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
                 await LifecycleWaitDiagnostics.WaitAsync(
-                    participant.OnServerReadyAsync(ct).AsTask(),
+                    state.Registration.Identity.FlushDeferredEventsAsync(),
                     m_timeProvider,
                     LifecycleWaitDiagnostics.WarningThreshold,
                     elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
                         .LifecycleWaitExceeded(
-                            "NodeManager readiness callback",
+                            "NodeManager readiness event flush",
                             elapsed,
-                            readinessContext),
-                    ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested();
-
-                EnsurePublicationServer(server, host, initial);
-                if (!IsCurrentRegistration(state.Registration))
-                {
-                    throw new InvalidOperationException(
-                        "The registration changed while its readiness operation was completing.");
-                }
-
-                CompleteReadinessClaim(state);
+                            state.Registration.Identity.GetQuiescenceWaitContext()))
+                    .ConfigureAwait(false);
             }
-
-            await LifecycleWaitDiagnostics.WaitAsync(
-                state.Registration.Identity.FlushDeferredEventsAsync(),
-                m_timeProvider,
-                LifecycleWaitDiagnostics.WarningThreshold,
-                elapsed => server.Telemetry.CreateLogger<NodeManagerLifecycle>()
-                    .LifecycleWaitExceeded(
-                        "NodeManager readiness event flush",
-                        elapsed,
-                        state.Registration.Identity.GetQuiescenceWaitContext()))
-                .ConfigureAwait(false);
+            finally
+            {
+                if (releaseReadiness)
+                {
+                    lock (m_registrationLock)
+                    {
+                        state.ReadinessInProgress = false;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -647,7 +684,8 @@ namespace Opc.Ua.Server
 
         private RegistrationState GetCurrentState(
             NodeManagerRegistration registration,
-            bool allowPendingReadiness = false)
+            bool allowPendingReadiness = false,
+            bool allowRemovalAfterFailedReadiness = false)
         {
             lock (m_registrationLock)
             {
@@ -662,7 +700,9 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "The registration is stale or is not owned by this lifecycle provider.");
                 }
-                if (state.ReadinessPending && !allowPendingReadiness)
+                if (state.ReadinessPending &&
+                    !allowPendingReadiness &&
+                    (!allowRemovalAfterFailedReadiness || state.ReadinessInProgress))
                 {
                     throw new InvalidOperationException(
                         "The NodeManager is completing readiness. Retry after its startup operation completes.");
@@ -1655,6 +1695,11 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Gets or sets whether the lifecycle operation currently owns readiness completion.
+            /// </summary>
+            public bool ReadinessInProgress { get; set; }
+
+            /// <summary>
             /// Gets or sets the shared producer-stop attempt for this registration.
             /// </summary>
             public Task? ShutdownPreparation { get; set; }
@@ -1721,7 +1766,10 @@ namespace Opc.Ua.Server
                     {
                         throw new ArgumentException("A registration occurs twice in the same unit.", nameof(changes));
                     }
-                    RegistrationState state = GetCurrentState(current, shutdown is not null);
+                    RegistrationState state = GetCurrentState(
+                        current,
+                        shutdown is not null,
+                        allowRemovalAfterFailedReadiness: change.Factory is null);
                     if (state.IsSystem && shutdown is null)
                     {
                         throw new InvalidOperationException("System slots can only be withdrawn by server shutdown.");
@@ -1771,7 +1819,10 @@ namespace Opc.Ua.Server
                         NodeManagerBatchChange change = changes[index];
                         RegistrationState? current = change.Current is null
                             ? null
-                            : GetCurrentState(change.Current, shutdown is not null);
+                            : GetCurrentState(
+                                change.Current,
+                                shutdown is not null,
+                                allowRemovalAfterFailedReadiness: change.Factory is null);
                         if (current is not null)
                         {
                             NodeManagerGeneration generation = current.Registration.Identity;
@@ -1932,6 +1983,8 @@ namespace Opc.Ua.Server
             var monitoredItemTransitions = new List<MonitoredItemTransition>();
             var semanticChanges = new List<SemanticChangeStructureDataType>();
             var preparationAdmissions = new List<(NodeManagerGeneration Generation, int Stripe)>(batch.Entries.Count);
+            List<RegistrationState>? readinessClaims = null;
+            bool readinessClaimed = false;
             long publishedRevision = 0;
             NodeManagerSlot[] publishedSlots = [];
             GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
@@ -1940,6 +1993,24 @@ namespace Opc.Ua.Server
             try
             {
                 EnsurePublicationServer(batch.Server, batch.Host, batch.Initial, batch.Shutdown);
+                foreach (BatchEntry entry in batch.Entries)
+                {
+                    if (entry.Next is { ReadinessPending: true } next)
+                    {
+                        (readinessClaims ??= []).Add(next);
+                    }
+                }
+                if (batch.Initial is { } systemPublication)
+                {
+                    foreach (NodeManagerRegistration registration in systemPublication.SystemRegistrations)
+                    {
+                        RegistrationState state = GetCurrentState(registration, allowPendingReadiness: true);
+                        if (state.ReadinessPending)
+                        {
+                            (readinessClaims ??= []).Add(state);
+                        }
+                    }
+                }
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
@@ -1950,7 +2021,10 @@ namespace Opc.Ua.Server
                 {
                     if (entry.Current is not null &&
                         !ReferenceEquals(
-                            GetCurrentState(entry.Current.Registration, batch.Shutdown is not null),
+                            GetCurrentState(
+                                entry.Current.Registration,
+                                batch.Shutdown is not null,
+                                allowRemovalAfterFailedReadiness: entry.Change.Factory is null),
                             entry.Current))
                     {
                         throw new InvalidOperationException("A registration changed while the batch was prepared.");
@@ -2137,6 +2211,14 @@ namespace Opc.Ua.Server
                                 batch.IsCommitted = true;
                                 m_reclaimer.Enqueue(retired);
                                 m_registrations = committedRegistrations;
+                                if (readinessClaims is { Count: > 0 })
+                                {
+                                    foreach (RegistrationState state in readinessClaims)
+                                    {
+                                        state.ReadinessInProgress = true;
+                                    }
+                                    readinessClaimed = true;
+                                }
                                 foreach (BatchEntry entry in batch.Entries)
                                 {
                                     if (entry.Current is not null)
@@ -2335,6 +2417,16 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (readinessClaimed && readinessClaims is { Count: > 0 })
+                {
+                    lock (m_registrationLock)
+                    {
+                        foreach (RegistrationState state in readinessClaims)
+                        {
+                            state.ReadinessInProgress = false;
+                        }
+                    }
+                }
                 foreach ((NodeManagerGeneration generation, int stripe) in preparationAdmissions)
                 {
                     generation.Gate.Exit(stripe);
