@@ -1585,16 +1585,23 @@ namespace Opc.Ua.Server
             Func<bool> CanDispose);
 
         /// <summary>
-        /// Waits for the durable lifecycle decision window to publish or abandon its prepared changes.
+        /// Acquires mutation admission without retaining it while a durable lifecycle decision is pending.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token for the waiting service operation.</param>
-        /// <returns>A task that completes when the decision window closes.</returns>
-        private ValueTask WaitForLifecycleDecisionAsync(CancellationToken cancellationToken)
+        /// <returns>A task that completes with mutation admission held and no decision window pending.</returns>
+        private async ValueTask AcquireDynamicMutationAdmissionAsync(CancellationToken cancellationToken)
         {
-            Task? pending = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
-            return pending is null
-                ? default
-                : new ValueTask(pending.WaitAsync(cancellationToken));
+            while (true)
+            {
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Task? pending = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
+                if (pending is null)
+                {
+                    return;
+                }
+                m_dynamicMutationSemaphore.Release();
+                await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

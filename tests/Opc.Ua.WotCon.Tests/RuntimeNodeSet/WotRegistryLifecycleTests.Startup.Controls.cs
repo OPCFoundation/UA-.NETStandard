@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -241,15 +243,66 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         /// <summary>
         /// Verifies that stored registry startup rejects concurrent native refresh.
         /// </summary>
-        [Test]
-        public async Task StoredRegistryStartupRejectsConcurrentNativeRefreshAsync()
+        /// <param name="coOwnedNamespace">Whether a ready manager shares the registry namespace.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StoredRegistryStartupRejectsConcurrentNativeRefreshAsync(bool coOwnedNamespace)
         {
             var runtime = new StartupRuntimeProbe();
             (_, DeadlineProjectionHost host, _) = await PrepareControlledStartupAsync(runtime).ConfigureAwait(false);
+            ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(
+                Opc.Ua.WotCon.Namespaces.WotCon);
+            var readyOwner = coOwnedNamespace
+                ? new CoreNodeManager(m_server.CurrentInstance, m_fixture.Config, namespaceIndex)
+                : null;
+            NodeId readyObjectId = NodeId.Null;
+            NodeId readyMethodId = NodeId.Null;
+            int readyCalls = 0;
+            if (readyOwner is not null)
+            {
+                var readyFactory = new Mock<IAsyncNodeManagerFactory>();
+                readyFactory.SetupGet(factory => factory.NamespacesUris).Returns([Opc.Ua.WotCon.Namespaces.WotCon]);
+                readyFactory.Setup(factory => factory.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>())).Returns(new ValueTask<IAsyncNodeManager>(readyOwner));
+                await m_server.NodeManagerLifecycle.AddAsync(readyFactory.Object, callerContext: null)
+                    .ConfigureAwait(false);
+                var readyObject = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ReadyCoOwner", namespaceIndex),
+                    BrowseName = new QualifiedName("ReadyCoOwner", namespaceIndex),
+                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+                };
+                var readyMethod = new MethodState(readyObject)
+                {
+                    NodeId = new NodeId("ReadyCoOwner.Call", namespaceIndex),
+                    BrowseName = new QualifiedName("Call", namespaceIndex),
+                    Executable = true,
+                    UserExecutable = true,
+                    OnCallMethod2Async = (_, _, _, _, _, _) =>
+                    {
+                        Interlocked.Increment(ref readyCalls);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    }
+                };
+                readyObject.AddChild(readyMethod);
+                await readyOwner.ImportNodesAsync(m_server.CurrentInstance.DefaultSystemContext, [readyObject])
+                    .ConfigureAwait(false);
+                readyObjectId = readyObject.NodeId;
+                readyMethodId = readyMethod.NodeId;
+                Assert.That(await readyOwner.GetManagerHandleAsync(readyObjectId).ConfigureAwait(false), Is.Not.Null);
+                Assert.That(await readyOwner.GetManagerHandleAsync(readyMethodId).ConfigureAwait(false), Is.Not.Null);
+                CallMethodResult ready = await CallAsync(readyObjectId, readyMethodId).ConfigureAwait(false);
+                Assert.That(ready.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(Interlocked.Exchange(ref readyCalls, 0), Is.EqualTo(1));
+            }
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             Task<NodeManagerRegistration> startup = AddStoredRegistryAsync(cancellation.Token);
             NodeId registryId = NodeId.Null;
             NodeId refreshId = NodeId.Null;
+            StatusCode startupCallStatus = StatusCodes.BadUnexpectedError;
+            StatusCode pendingUnknownCallStatus = StatusCodes.BadUnexpectedError;
             Variant[] inputs =
             [
                 new Variant(ArrayOf<ExtensionObject>.Empty),
@@ -262,17 +315,63 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 await runtime.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 registryId = ExpandedNodeId.ToNodeId(
                     Opc.Ua.WotCon.ObjectIds.WoTRegistry, m_server.CurrentInstance.NamespaceUris);
-                refreshId = await FindChildAsync(registryId, Opc.Ua.WotCon.BrowseNames.Refresh).ConfigureAwait(false);
+                refreshId = new NodeId(64601, registryId.NamespaceIndex);
                 using var requestCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(2));
                 using var requestLifetime = new RequestLifetime(requestCancellation.Token);
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 CallResponse response = await m_server.CallAsync(
                     m_secureChannelContext,
                     m_requestHeader,
-                    [new CallMethodRequest { ObjectId = registryId, MethodId = refreshId, InputArguments = inputs }],
+                    [
+                        new CallMethodRequest { ObjectId = registryId, MethodId = refreshId, InputArguments = inputs },
+                        new CallMethodRequest
+                        {
+                            ObjectId = new NodeId(999999, 0),
+                            MethodId = refreshId,
+                            InputArguments = inputs
+                        },
+                        new CallMethodRequest
+                        {
+                            ObjectId = new NodeId(64100, ushort.MaxValue),
+                            MethodId = refreshId,
+                            InputArguments = inputs
+                        },
+                        new CallMethodRequest
+                        {
+                            ObjectId = new NodeId(999999, registryId.NamespaceIndex),
+                            MethodId = refreshId,
+                            InputArguments = inputs
+                        }
+                    ],
                     requestLifetime).ConfigureAwait(false);
-                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy),
-                    "A tracked Refresh request must not wait on the coordinator while startup drains requests.");
+                Assert.That(response.Results.Count, Is.EqualTo(4));
+                startupCallStatus = response.Results[0].StatusCode;
+                pendingUnknownCallStatus = response.Results[3].StatusCode;
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(response.Results[2].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                if (coOwnedNamespace)
+                {
+                    m_requestHeader.Timestamp = DateTimeUtc.Now;
+                    CallResponse ready = await m_server.CallAsync(
+                        m_secureChannelContext,
+                        m_requestHeader,
+                        [new CallMethodRequest { ObjectId = readyObjectId, MethodId = readyMethodId }],
+                        requestLifetime).ConfigureAwait(false);
+                    Assert.That(ready.Results.Count, Is.EqualTo(1));
+                    Assert.That(ready.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(ready.Results[0].OutputArguments.Count, Is.Zero);
+                    Assert.That(Volatile.Read(ref readyCalls), Is.EqualTo(1),
+                        "A ready co-owner must remain callable while another namespace owner completes readiness.");
+                }
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                BrowseResponse browse = await m_server.BrowseAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    new ViewDescription(),
+                    0,
+                    [new BrowseDescription { NodeId = registryId, BrowseDirection = BrowseDirection.Forward }],
+                    requestLifetime).ConfigureAwait(false);
+                Assert.That(browse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(requestCancellation.IsCancellationRequested, Is.False);
                 Assert.That(startup.IsCompleted, Is.False);
             }
@@ -285,6 +384,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(host.DeadlineExpired, Is.False);
             Assert.That(host.AddCalls, Is.EqualTo(1));
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
+            Assert.That(
+                await FindChildAsync(registryId, Opc.Ua.WotCon.BrowseNames.Refresh).ConfigureAwait(false),
+                Is.EqualTo(refreshId));
             CallMethodResult refreshed = await CallAsync(registryId, refreshId, inputs).ConfigureAwait(false);
             Assert.That(refreshed.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(refreshed.OutputArguments.Count, Is.EqualTo(3));
@@ -293,6 +395,13 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(m_coordinator.Generation, Is.EqualTo(1),
                 "The admitted no-op Refresh must preserve the committed startup generation.");
             Assert.That(host.AddCalls, Is.EqualTo(1));
+            CallMethodResult unknown = await CallAsync(
+                new NodeId(999999, registryId.NamespaceIndex), refreshId, inputs).ConfigureAwait(false);
+            Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(startupCallStatus, Is.EqualTo(StatusCodes.BadServerTooBusy),
+                "A tracked Refresh request must not wait on the coordinator while startup drains requests.");
+            Assert.That(pendingUnknownCallStatus, Is.EqualTo(StatusCodes.BadServerTooBusy),
+                "Unresolved Calls cannot determine ownership until every visible namespace owner is ready.");
         }
 
         /// <summary>

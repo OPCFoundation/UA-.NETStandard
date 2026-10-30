@@ -57,9 +57,12 @@ namespace Opc.Ua.Types.Tests.Utils
             using (StringTable.Publication publication = serving.BeginPublication(staged, serving.Version))
             {
                 Assert.Throws<InvalidOperationException>(() => serving.Append("urn:conflict"));
+                Assert.Throws<InvalidOperationException>(() => serving.GetIndexOrAppend("urn:conflict"));
+                Assert.That(serving.GetIndexOrAppend("urn:base"), Is.EqualTo(1));
                 publication.Complete();
                 cached.BindTo(serving);
             }
+            Assert.That(serving.GetIndex("urn:conflict"), Is.EqualTo(-1));
             serving.Append("urn:second");
             Assert.That(cached.GetIndex("urn:second"), Is.EqualTo(3));
             cached.Detach();

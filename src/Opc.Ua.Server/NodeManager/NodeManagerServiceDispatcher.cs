@@ -2130,6 +2130,23 @@ namespace Opc.Ua.Server
                     false,
                     cancellationToken).ConfigureAwait(false);
 
+                if (errors[ii].StatusCode == StatusCodes.BadNodeIdUnknown)
+                {
+                    NodeManagerRoutingTable.RoutingSnapshot routing = GetRouting(context);
+                    if (routing.VisibleNamespaceManagers.TryGetValue(
+                        methodsToCall[ii].ObjectId.NamespaceIndex, out var namespaceManagers))
+                    {
+                        foreach (IAsyncNodeManager nodeManager in namespaceManagers)
+                        {
+                            if (!routing.CanDispatchTo(nodeManager))
+                            {
+                                errors[ii] = StatusCodes.BadServerTooBusy;
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     methodsToCall[ii].Processed = true;

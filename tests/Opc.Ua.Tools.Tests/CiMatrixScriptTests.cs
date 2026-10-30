@@ -503,6 +503,8 @@ namespace Opc.Ua.Tools.Tests
 
             string[] serverShards =
             [
+                "server-node-lifecycle-prepared",
+                "server-node-lifecycle",
                 "server-node-management",
                 "server-historian",
                 "server-subscriptions",
@@ -520,7 +522,15 @@ namespace Opc.Ua.Tools.Tests
 
             (string TestName, string ExpectedShard)[] testCases =
             [
-                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-management"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchDecisionAsync",
+                    "server-node-lifecycle-prepared"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-lifecycle"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.RejectsPreparedBatchAsync",
+                    "server-node-lifecycle"),
+                ("Opc.Ua.Server.Tests.Hosting.HostedNodeManagerLifecycleTests.PreparedBatchAsync",
+                    "server-node-management"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
+                    "server-node-management"),
                 ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
                 ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync", "server-historian"),
                 ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync", "server-subscriptions"),

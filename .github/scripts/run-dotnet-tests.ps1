@@ -405,6 +405,7 @@ foreach ($project in $projectList) {
             -Passed $results.Passed `
             -Failed $results.Failed `
             -FixtureFailures $results.FixtureFailures `
+            -RunFailures $results.RunFailures `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes

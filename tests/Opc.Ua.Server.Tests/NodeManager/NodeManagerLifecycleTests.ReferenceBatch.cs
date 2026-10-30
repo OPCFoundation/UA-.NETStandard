@@ -1266,6 +1266,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"),
                 SecurityPolicies.None).ConfigureAwait(false);
             NodeId addedNodeId = new(8405, targetNamespaceIndex);
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
+                nameof(ServerInternalData.NodeManager)) ??
+                throw new AssertionException("The bound master NodeManager property was not found.");
+            var addNodesEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
+                master, () => false, notifyBeforeFailure: false,
+                new InvalidOperationException("Unused publication failure."));
+            proxy.Setup(value => value.AddNodesAsync(
+                It.IsAny<OperationContext>(), It.IsAny<ArrayOf<AddNodesItem>>(), It.IsAny<CancellationToken>()))
+                .Returns<OperationContext, ArrayOf<AddNodesItem>, CancellationToken>((context, nodes, token) =>
+                {
+                    var response = master.AddNodesAsync(context, nodes, token);
+                    addNodesEntered.TrySetResult(true);
+                    return response;
+                });
             var batchLifecycle = (INodeManagerBatchLifecycle)lifecycle;
             await using IPreparedNodeManagerBatch prepared = await batchLifecycle.PrepareAsync(
                 [
@@ -1286,6 +1303,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? nestedRegistration = null;
             bool validAddNodesWaitedForDecision = false;
             bool nestedPublicationWaitedForWriter = false;
+            bool sessionClosingEnteredBeforeDecision = false;
 
             try
             {
@@ -1295,7 +1313,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseDecision.Task.WaitAsync(token).ConfigureAwait(false);
                 }, timeout.Token).AsTask();
                 await decisionEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-
+                nodeManagerProperty.SetValue(server, proxy.Object);
                 addNodes = clientSession.AddNodesAsync(
                     null,
                     [
@@ -1310,6 +1328,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     ],
                     timeout.Token).AsTask();
+                await addNodesEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                nodeManagerProperty.SetValue(server, master);
                 validAddNodesWaitedForDecision = !addNodes.IsCompleted;
 
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
@@ -1318,9 +1338,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     m_requestHeader,
                     true,
                     RequestLifetime.None).AsTask();
-                await sessionClosingEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await nestedPublicationStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                nestedPublicationWaitedForWriter = !nestedPublicationCompleted.Task.IsCompleted;
+                m_requestHeader = null!;
+                sessionClosingEnteredBeforeDecision = await Task.WhenAny(
+                    sessionClosingEntered.Task,
+                    Task.Delay(TimeSpan.FromSeconds(10), timeout.Token)).ConfigureAwait(false) ==
+                    sessionClosingEntered.Task;
+                if (sessionClosingEnteredBeforeDecision)
+                {
+                    await nestedPublicationStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    nestedPublicationWaitedForWriter = !nestedPublicationCompleted.Task.IsCompleted;
+                }
 
                 releaseDecision.TrySetResult(true);
                 commitResult = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -1331,6 +1358,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                nodeManagerProperty.SetValue(server, master);
                 releaseDecision.TrySetResult(true);
                 rescue.Cancel();
                 if (commit is not null)
@@ -1352,6 +1380,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             m_requestHeader = null!;
+            Assert.That(sessionClosingEnteredBeforeDecision, Is.True,
+                "A decision-blocked AddNodes request must not retain admission needed by SessionClosing.");
             Assert.That(validAddNodesWaitedForDecision, Is.True,
                 "A valid AddNodes request must wait until the durable decision is complete.");
             Assert.That(nestedPublicationWaitedForWriter, Is.True,

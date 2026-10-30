@@ -883,6 +883,11 @@ their materialization before accepting clients, so discovery by browsing sees th
   reads and nested Add calls run under a revocable readiness scope that does not depend on the request
   context. During readiness, an all-events subscription receives events from a pending source
   immediately only on items bound to that source's generation.
+- An unresolved Call returns `BadServerTooBusy` if any visible owner of the published namespace
+  identified by `ObjectId` is still completing readiness. This includes unknown ObjectIds and
+  namespaces shared with ready owners; it does not dispatch into the pending owner. Calls that
+  resolve through a ready co-owner remain available. Unresolved Calls in fully ready or unmapped
+  namespaces return `BadNodeIdUnknown`. Pending nodes remain hidden from Browse.
 - Delivery to other items is retained until the source's readiness completes.
   The retained queue holds at most 1024 events per generation and drops the oldest first, so
   an initializer that emits more than that loses the earliest events. Retained events can also reach

@@ -169,18 +169,29 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
+            while (true)
             {
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 Task? decisionWindow = Volatile.Read(ref m_lifecycleDecisionCompletion)?.Task;
-                if (decisionWindow is not null)
+                if (decisionWindow is null)
+                {
+                    break;
+                }
+                try
                 {
                     if (TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var preRoutingResponse))
                     {
                         return preRoutingResponse;
                     }
-                    await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
                 }
+                finally
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
+                await decisionWindow.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            try
+            {
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
                 var results = new AddNodesResult[nodesToAdd.Count];
@@ -240,10 +251,9 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
                 var results = new StatusCode[nodesToDelete.Count];
@@ -298,10 +308,9 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
@@ -359,10 +368,9 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await AcquireDynamicMutationAdmissionAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await WaitForLifecycleDecisionAsync(cancellationToken).ConfigureAwait(false);
                 using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
                 await using var callbackPermit = new NodeManagerCallbackPermit(
                     m_lifecycleCallbackPermit,
