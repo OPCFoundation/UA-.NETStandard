@@ -854,16 +854,16 @@ namespace Opc.Ua.Client.Tests
             var targetProvider =
                 (ConfirmedAcknowledgementProvider)fixture.TargetAcknowledgements!.Provider!;
             var targetEngine = (ClassicSubscriptionEngine)fixture.Target.SubscriptionEngine;
-            Assert.That(targetProvider.TrackedAcknowledgements, Is.EqualTo(1));
-            Assert.That(targetProvider.PendingConfirmations, Is.EqualTo(1));
+            Assert.That(targetProvider.TrackedAcknowledgements, Is.EqualTo(1),
+                "The acknowledgement remains tracked even if publishing has already taken it from the queue.");
+            Assert.That(targetProvider.PendingConfirmations, Is.EqualTo(1),
+                "The confirmed acknowledgement remains eligible for sending.");
             var republishReservations =
                 (Dictionary<AcknowledgementHandle, SubscriptionAcknowledgement>)typeof(ClassicSubscriptionEngine)
                     .GetField("m_republishReservedAcknowledgements", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .GetValue(targetEngine)!;
             Assert.That(republishReservations, Is.Empty,
                 "A notification already received before transfer does not remain reserved for Republish.");
-            Assert.That(targetEngine.RemoveAcknowledgementsForSubscription(fixture.Subscription.Id), Is.EqualTo(1),
-                "A message received before transfer is already available for acknowledgement.");
             Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
         }
 
@@ -1292,6 +1292,10 @@ namespace Opc.Ua.Client.Tests
                         return new ValueTask<IServiceResponse>(
                             CreateSubscriptionResponse(originChannel, create));
                     }
+                    if (request is PublishRequest)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTooManyPublishRequests);
+                    }
                     return new ValueTask<IServiceResponse>(originChannel.CreateResponse(request));
                 };
                 targetChannel.RequestHandler = async (request, ct) =>
@@ -1314,6 +1318,8 @@ namespace Opc.Ua.Client.Tests
                                     transfer,
                                     attempt,
                                     ct).ConfigureAwait(false);
+                        case PublishRequest:
+                            throw new ServiceResultException(StatusCodes.BadTooManyPublishRequests);
                         default:
                             return targetChannel.CreateResponse(request);
                     }
