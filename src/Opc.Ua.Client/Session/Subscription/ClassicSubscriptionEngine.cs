@@ -1438,10 +1438,10 @@ namespace Opc.Ua.Client
         /// <param name="subscription">The subscription that moved.</param>
         /// <returns>The released acknowledgements and whether the application confirmed
         /// each of them.</returns>
-        internal List<(uint SequenceNumber, bool Confirmed)> ReleaseAcknowledgementsOf(Subscription subscription)
+        internal List<AcknowledgementHandover> ReleaseAcknowledgementsOf(Subscription subscription)
         {
             RetireAcknowledgementsOf(subscription);
-            var released = new List<(uint, bool)>();
+            var released = new List<AcknowledgementHandover>();
             lock (m_acknowledgementsToSendLock)
             {
                 if (m_acknowledgementScopes.Count == 0)
@@ -1462,7 +1462,9 @@ namespace Opc.Ua.Client
                     m_acknowledgementScopes.Remove(entry.Key);
                     m_outstandingHandles.Remove(handle);
                     handedOver.Add(entry.Key);
-                    released.Add((entry.Key.SequenceNumber, tracker?.Release(handle) ?? false));
+                    released.Add(new AcknowledgementHandover(
+                        entry.Key.SequenceNumber,
+                        tracker?.Release(handle) ?? false));
                 }
                 if (handedOver.Count != 0)
                 {
@@ -1483,7 +1485,7 @@ namespace Opc.Ua.Client
         /// <param name="availableSequenceNumbers">The sequence numbers the server still holds.</param>
         internal void AdoptAcknowledgements(
             Subscription subscription,
-            List<(uint SequenceNumber, bool Confirmed)> released,
+            List<AcknowledgementHandover> released,
             ArrayOf<uint> availableSequenceNumbers)
         {
             SessionAcknowledgements? acknowledgements = Acknowledgements;
@@ -1495,13 +1497,14 @@ namespace Opc.Ua.Client
             lock (m_acknowledgementsToSendLock)
             {
                 uint id = subscription.Id;
-                foreach ((uint sequenceNumber, bool confirmed) in released)
+                foreach (AcknowledgementHandover acknowledgement in released)
                 {
+                    uint sequenceNumber = acknowledgement.SequenceNumber;
                     if (availableSequenceNumbers.Contains(sequenceNumber))
                     {
                         AcknowledgementScope? scope = AddAcknowledgementToSend(
                             m_acknowledgementsToSend, id, sequenceNumber);
-                        if (confirmed && scope != null)
+                        if (acknowledgement.Confirmed && scope != null)
                         {
                             acknowledgements.Confirm(new AcknowledgementHandle(scope, sequenceNumber));
                         }
