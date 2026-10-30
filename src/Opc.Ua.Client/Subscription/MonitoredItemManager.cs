@@ -843,7 +843,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 if (!success &&
                     (cachedOnly || GetMonitoredItemsFallback.IsMethodUnavailable(result.Status)) &&
-                    TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
+                    TryGetCachedHandles(
+                        out List<(uint serverHandle, uint clientHandle)> cachedHandles,
+                        allowPendingItems: cachedOnly))
                 {
                     //
                     // GetMonitoredItems is an optional method of ServerType
@@ -966,6 +968,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             missingOnServer.ClientHandle);
                         missingOnServer.Reset();
                     }
+                    else if (cachedOnly)
+                    {
+                        missingOnServer.TryRequeue();
+                    }
                     m_monitoredItems.Add(missingOnServer.ClientHandle, missingOnServer);
                 }
             }
@@ -1023,7 +1029,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// of them has a server id (e.g. a clone of a live subscription), as
         /// they then cannot be mapped. Must be called under the item lock.
         /// </summary>
-        private bool TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> handles)
+        private bool TryGetCachedHandles(
+            out List<(uint serverHandle, uint clientHandle)> handles,
+            bool allowPendingItems = false)
         {
             handles = [];
             foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -1033,7 +1041,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     handles.Add((monitoredItem.ServerId, monitoredItem.ClientHandle));
                 }
             }
-            return handles.Count > 0 || m_monitoredItems.Count == 0;
+            return handles.Count > 0 ||
+                m_monitoredItems.Count == 0 ||
+                (allowPendingItems && m_monitoredItems.Values.All(item => !item.Created));
         }
 
         /// <summary>

@@ -712,7 +712,25 @@ What happens when activation fails?
 
 The handoff contains the authentication token and the secrets of the secure
 session. Treat it as a credential. Protect it with `IRecordProtector` before
-storing it or sending it to another process.
+storing it or sending it to another process. The public `SessionHandoffCodec`
+encodes the complete handoff, including revised subscription and monitored-item
+settings, before protection. The application supplies the protector and context;
+key storage and ownership remain the application's responsibility.
+
+```csharp
+ByteString protectedHandoff = SessionHandoffCodec.Protect(
+    handoff, protector, context, messageContext);
+
+if (!SessionHandoffCodec.TryUnprotect(
+    protectedHandoff, protector, context, telemetry, out SessionHandoff? restoredHandoff))
+{
+    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+}
+```
+
+`TryUnprotect` returns `false` when the record cannot be unprotected or contains
+no payload. It throws `ServiceResultException` when the protected record is
+malformed.
 
 The API does not decide who owns the server session. Two owners that activate
 the same handoff take the server session away from each other, and the last

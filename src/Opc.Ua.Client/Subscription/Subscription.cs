@@ -615,7 +615,10 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionStateSnapshot state,
             CancellationToken ct)
         {
-            ArgumentNullException.ThrowIfNull(state);
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
             IReadOnlyList<uint> availableSequenceNumbers = state.AvailableSequenceNumbers.IsNull
                 ? []
                 : [.. state.AvailableSequenceNumbers];

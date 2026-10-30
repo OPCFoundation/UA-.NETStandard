@@ -404,24 +404,22 @@ namespace Opc.Ua.Client
                 CreateAcknowledgements(options),
                 options.TakeoverFrom,
                 options.Takeover,
-                ct).ConfigureAwait(false);
+                ct,
+                options.ModelChangeTracking,
+                options.LoadComplexTypes).ConfigureAwait(false);
             try
             {
-                if (options.ModelChangeTracking)
-                {
-                    await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
-                }
-                if (options.LoadComplexTypes)
-                {
-                    using ComplexTypeSystem complexTypes =
-                        ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, telemetry);
-                    await complexTypes.LoadAsync(ct: ct).ConfigureAwait(false);
-                }
+                await InitializeAfterConnectAsync(
+                    session,
+                    options.ModelChangeTracking,
+                    options.LoadComplexTypes,
+                    telemetry,
+                    ct).ConfigureAwait(false);
                 return session;
             }
             catch
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                await session.DisposeAfterInitializationFailureAsync().ConfigureAwait(false);
                 throw;
             }
         }
@@ -457,7 +455,9 @@ namespace Opc.Ua.Client
             SessionAcknowledgements? acknowledgements,
             SessionHandoff? takeoverFrom,
             SessionTakeoverOptions? takeoverOptions,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool modelChangeTracking = false,
+            bool loadComplexTypes = false)
         {
             if (sessionFactory == null)
             {
@@ -522,38 +522,58 @@ namespace Opc.Ua.Client
                     ? new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
                     : null
             };
-            managed.m_takeoverFactory = (handoff, options, token) => CreateCoreAsync(
-                configuration,
-                CoreUtils.Clone(handoff.Session.ConfiguredEndpoint)!,
-                sessionFactory,
-                identity,
-                reconnectPolicy,
-                redundancyHandler,
-                telemetry,
-                sessionName,
-                sessionTimeout,
-                preferredLocales,
-                checkDomain,
-                engineFactory,
-                transferSubscriptionsOnRecreate,
-                poolNotifications,
-                enableTokenReuseFailover,
-                identityProvider,
-                timeProvider,
-                channelManager,
-                networkRedundancy,
-                serverRedundancy,
-                reverseConnectManager,
-                reverseConnectionSource,
-                connectGate,
-                connection: null,
-                updateBeforeConnect: false,
-                channelReconnectTimeout,
-                rediscoveredEndpointValidator,
-                acknowledgements,
-                handoff,
-                options,
-                token);
+            managed.m_takeoverFactory = async (handoff, options, token) =>
+            {
+                ManagedSession successor = await CreateCoreAsync(
+                    configuration,
+                    CoreUtils.Clone(handoff.Session.ConfiguredEndpoint)!,
+                    sessionFactory,
+                    identity,
+                    reconnectPolicy,
+                    redundancyHandler,
+                    telemetry,
+                    sessionName,
+                    sessionTimeout,
+                    preferredLocales,
+                    checkDomain,
+                    engineFactory,
+                    transferSubscriptionsOnRecreate,
+                    poolNotifications,
+                    enableTokenReuseFailover,
+                    identityProvider,
+                    timeProvider,
+                    channelManager,
+                    networkRedundancy,
+                    serverRedundancy,
+                    reverseConnectManager,
+                    reverseConnectionSource,
+                    connectGate,
+                    connection: null,
+                    updateBeforeConnect: false,
+                    channelReconnectTimeout,
+                    rediscoveredEndpointValidator,
+                    acknowledgements,
+                    handoff,
+                    options,
+                    token,
+                    modelChangeTracking,
+                    loadComplexTypes).ConfigureAwait(false);
+                try
+                {
+                    await InitializeAfterConnectAsync(
+                        successor,
+                        modelChangeTracking,
+                        loadComplexTypes,
+                        telemetry,
+                        token).ConfigureAwait(false);
+                    return successor;
+                }
+                catch
+                {
+                    await successor.DisposeAfterInitializationFailureAsync().ConfigureAwait(false);
+                    throw;
+                }
+            };
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -590,6 +610,34 @@ namespace Opc.Ua.Client
             }
 
             return managed;
+        }
+
+        private static async Task InitializeAfterConnectAsync(
+            ManagedSession session,
+            bool modelChangeTracking,
+            bool loadComplexTypes,
+            ITelemetryContext telemetry,
+            CancellationToken ct)
+        {
+            if (modelChangeTracking)
+            {
+                await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
+            }
+            if (loadComplexTypes)
+            {
+                using ComplexTypeSystem complexTypes =
+                    ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, telemetry);
+                await complexTypes.LoadAsync(ct: ct).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask DisposeAfterInitializationFailureAsync()
+        {
+            if (Volatile.Read(ref m_serverSessionWasTakenOver) != 0)
+            {
+                InnerSession.AbandonServerSession();
+            }
+            await DisposeAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1902,6 +1950,9 @@ namespace Opc.Ua.Client
                 m_logger.ManagedSessionConnectedSessionIdSessionId(session.SessionId);
                 ObserveServerSession(session.SessionId);
 
+                m_takeoverRecreate = default;
+                Volatile.Write(ref m_takeoverFallbackIdentity, null);
+                Volatile.Write(ref m_serverSessionWasTakenOver, takenHandoff == null ? 0 : 1);
                 return ServiceResult.Good;
             }
             catch (Exception ex)

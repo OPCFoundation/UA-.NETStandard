@@ -334,9 +334,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="alternateEndpoint">
         /// An optional failover endpoint for managed-session recovery.
         /// </param>
+        /// <param name="modelChangeTracking">Whether to enable model-change tracking after connect.</param>
         public async Task ConnectAsync(
             bool transferSubscriptionsOnRecreate,
-            ConfiguredEndpoint? alternateEndpoint = null)
+            ConfiguredEndpoint? alternateEndpoint = null,
+            bool modelChangeTracking = false)
         {
             Session = await UaManagedSession.CreateAsync(
                 new ManagedSessionOptions
@@ -345,6 +347,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     SessionTimeout = RequestedSessionTimeout,
                     SubscriptionEngineFactory = EngineFactory,
                     TransferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate,
+                    ModelChangeTracking = modelChangeTracking,
                     TimeProvider = Clock,
                     ChannelReconnectTimeout = ChannelReconnectTimeout,
                     NetworkRedundancy = new NetworkRedundancyOptions
@@ -385,11 +388,19 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="handoff">The server session to take over.</param>
         /// <param name="options">The takeover options, or null to use the fixture's notification handler.</param>
         /// <param name="redundancyHandler">An optional server redundancy handler of the successor.</param>
+        /// <param name="loadComplexTypes">Whether to load complex types after the takeover connects.</param>
+        /// <param name="modelChangeTracking">Whether to enable model-change tracking after takeover.</param>
+        /// <param name="subscriptionEngineFactory">An optional subscription engine factory for the successor.</param>
+        /// <param name="preferredLocales">The preferred locales configured for the successor.</param>
         /// <returns>The connected successor session.</returns>
         public async Task<UaManagedSession> TakeOverAsync(
             SessionHandoff handoff,
             SessionTakeoverOptions? options = null,
-            IServerRedundancyHandler? redundancyHandler = null)
+            IServerRedundancyHandler? redundancyHandler = null,
+            bool loadComplexTypes = false,
+            bool modelChangeTracking = false,
+            ISubscriptionEngineFactory? subscriptionEngineFactory = null,
+            IReadOnlyList<string>? preferredLocales = null)
         {
             options ??= new SessionTakeoverOptions { SubscriptionHandlerFactory = _ => CreateNotificationHandler() };
             UaManagedSession successor = await UaManagedSession.CreateAsync(
@@ -397,9 +408,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 {
                     Endpoint = SessionChannelHarness.CreateEndpoint(),
                     SessionTimeout = RequestedSessionTimeout,
-                    SubscriptionEngineFactory = SuccessorEngineFactory,
+                    SubscriptionEngineFactory = subscriptionEngineFactory ?? SuccessorEngineFactory,
                     TimeProvider = Clock,
                     ChannelReconnectTimeout = ChannelReconnectTimeout,
+                    LoadComplexTypes = loadComplexTypes,
+                    ModelChangeTracking = modelChangeTracking,
+                    PreferredLocales = preferredLocales,
                     TakeoverFrom = handoff,
                     Takeover = options
                 },

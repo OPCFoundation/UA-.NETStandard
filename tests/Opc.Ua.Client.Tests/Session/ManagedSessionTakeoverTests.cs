@@ -357,6 +357,120 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// The takeover activation uses the preferred locales configured on the managed session.
+        /// </summary>
+        [Test]
+        public async Task TakeOverUsesConfiguredPreferredLocalesAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+
+            await harness.TakeOverAsync(
+                handoff,
+                preferredLocales: ["fr-FR", "en-US"]).ConfigureAwait(false);
+
+            ActivateSessionRequest activation = harness.Requests
+                .ToList()
+                .OfType<ActivateSessionRequest>()
+                .Last(request => request.RequestHeader.AuthenticationToken == TakeoverToken);
+            Assert.Multiple(() =>
+            {
+                Assert.That(activation.LocaleIds.Count, Is.EqualTo(2));
+                Assert.That(activation.LocaleIds[0], Is.EqualTo("fr-FR"));
+                Assert.That(activation.LocaleIds[1], Is.EqualTo("en-US"));
+            });
+        }
+
+        /// <summary>
+        /// A takeover created by a configured managed-session factory retains its model-change tracker.
+        /// </summary>
+        [Test]
+        public async Task FactoryTakeoverPreservesModelChangeTrackingAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false, modelChangeTracking: true).ConfigureAwait(false);
+            Assert.That(harness.Session.ModelChange, Is.Not.Null);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+
+            UaManagedSession successor = await harness.Session.CreateTakeoverSessionAsync(
+                handoff,
+                new SessionTakeoverOptions(),
+                harness.CancellationToken).WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            await using (successor.ConfigureAwait(false))
+            {
+                Assert.That(successor.ModelChange, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// If post-connect model-change tracking cannot start after takeover, initialization cleanup abandons
+        /// rather than closes the server session.
+        /// </summary>
+        [Test]
+        public async Task TakeOverInitializationFailureDoesNotCloseTheServerSessionAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            int mark = harness.Requests.Count;
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => harness.TakeOverAsync(
+                    handoff,
+                    modelChangeTracking: true,
+                    subscriptionEngineFactory: new ClassicSubscriptionEngineFactory()));
+
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(after, Has.Some.InstanceOf<ActivateSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<DeleteSubscriptionsRequest>());
+            });
+        }
+
+        /// <summary>
+        /// Fallback identity remains available across a failed connect setup, including when the handoff has no
+        /// subscriptions to recreate.
+        /// </summary>
+        [Test]
+        public async Task FallbackIdentityIsRetainedUntilConnectSetupSucceedsAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            var redundancy = new Mock<IServerRedundancyHandler>();
+            redundancy
+                .SetupSequence(handler => handler.FetchRedundancyInfoAsync(
+                    It.IsAny<ISession>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InsufficientMemoryException())
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadNotSupported));
+            harness.ReleaseAllGates();
+            var identity = new UserIdentity();
+
+            UaManagedSession successor = await harness.TakeOverAsync(
+                handoff,
+                new SessionTakeoverOptions
+                {
+                    Identity = identity,
+                    FailureMode = SessionTakeoverFailureMode.CreateNewSession
+                },
+                redundancy.Object).ConfigureAwait(false);
+
+            Assert.That(successor.Identity, Is.SameAs(identity));
+            redundancy.Verify(
+                handler => handler.FetchRedundancyInfoAsync(
+                    It.IsAny<ISession>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+
+        /// <summary>
         /// A handoff that cannot be taken over is rejected before anything reaches the server.
         /// </summary>
         [Test]

@@ -289,6 +289,13 @@ namespace Opc.Ua.Client
             Func<Session, CancellationToken, Task> activate,
             CancellationToken ct)
         {
+            if (connection == null && m_reverseConnectManager != null)
+            {
+                connection = await m_reverseConnectManager.WaitForConnectionAsync(
+                    endpoint.EndpointUrl!,
+                    endpoint.ReverseConnect?.ServerUri,
+                    ct).ConfigureAwait(false);
+            }
             ChannelManagerSessionFactory? channelFactory = CreateChannelManagerFactory() ??
                 SessionFactory as ChannelManagerSessionFactory;
             if (channelFactory != null)
@@ -299,13 +306,6 @@ namespace Opc.Ua.Client
                     endpoint,
                     m_checkDomain,
                     activate,
-                    ct).ConfigureAwait(false);
-            }
-            if (connection == null && m_reverseConnectManager != null)
-            {
-                connection = await m_reverseConnectManager.WaitForConnectionAsync(
-                    endpoint.EndpointUrl!,
-                    endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);
             }
             if (connection == null && SessionFactory is not DefaultSessionFactory)
@@ -379,6 +379,7 @@ namespace Opc.Ua.Client
                     handoff.Session,
                     handoff.RevisedSessionTimeout,
                     identity,
+                    m_preferredLocales,
                     () => activated.Value = RefreshHandoff(handoff, session),
                     ct).ConfigureAwait(false);
                 if (manager != null)
@@ -409,7 +410,6 @@ namespace Opc.Ua.Client
             ArrayOf<SubscriptionStateSnapshot> subscriptions = m_takeoverRecreate;
             if (subscriptions.IsEmpty)
             {
-                Volatile.Write(ref m_takeoverFallbackIdentity, null);
                 return;
             }
             await AttachSubscriptionsAsync(
@@ -418,8 +418,6 @@ namespace Opc.Ua.Client
                 m_takeoverOptions!.SubscriptionHandlerFactory!,
                 adopt: false,
                 ct).ConfigureAwait(false);
-            m_takeoverRecreate = default;
-            Volatile.Write(ref m_takeoverFallbackIdentity, null);
         }
 
         /// <summary>
@@ -606,6 +604,11 @@ namespace Opc.Ua.Client
         /// The identity resolved for takeover, used when that takeover falls back to a new session.
         /// </summary>
         private IUserIdentity? m_takeoverFallbackIdentity;
+
+        /// <summary>
+        /// Whether the current server session was bound by taking over a handoff.
+        /// </summary>
+        private int m_serverSessionWasTakenOver;
 
         /// <summary>
         /// Creates a managed session with the settings of this one that takes over a server session.

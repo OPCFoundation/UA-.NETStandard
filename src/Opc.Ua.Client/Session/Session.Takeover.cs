@@ -324,6 +324,7 @@ namespace Opc.Ua.Client
         /// <param name="revisedSessionTimeout">The session timeout the server revised, in
         /// milliseconds, or 0 when it is not known.</param>
         /// <param name="identity">The identity to activate the server session with.</param>
+        /// <param name="preferredLocales">The preferred locales configured for the session.</param>
         /// <param name="onActivated">Invoked as soon as ActivateSession succeeded, before the
         /// remaining setup, so the caller can capture the server nonce of that activation even
         /// when the setup fails afterwards.</param>
@@ -333,6 +334,7 @@ namespace Opc.Ua.Client
             SessionConfiguration saved,
             double revisedSessionTimeout,
             IUserIdentity identity,
+            ArrayOf<string> preferredLocales,
             Action? onActivated,
             CancellationToken ct)
         {
@@ -354,13 +356,14 @@ namespace Opc.Ua.Client
             lock (m_lock)
             {
                 m_identity = identity;
+                m_preferredLocales = preferredLocales;
                 if (revisedSessionTimeout > 0)
                 {
                     m_sessionTimeout = revisedSessionTimeout;
                 }
                 m_sessionClientCertificate = ByteString.From(m_instanceCertificateEntry?.Certificate.RawData);
             }
-            await ReactivateExistingSessionAsync(identity, m_preferredLocales, m_serverNonce, ct)
+            await ReactivateExistingSessionAsync(identity, preferredLocales, m_serverNonce, ct)
                 .ConfigureAwait(false);
             onActivated?.Invoke();
             await FetchNamespaceTablesAsync(this, ct).ConfigureAwait(false);

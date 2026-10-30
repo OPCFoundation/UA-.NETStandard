@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -42,7 +43,7 @@ namespace Opc.Ua.Client
     /// secrets of a server session, so it is only ever written through an
     /// <see cref="IRecordProtector"/>.
     /// </summary>
-    internal static class SessionHandoffCodec
+    public static class SessionHandoffCodec
     {
         /// <summary>
         /// Encodes and protects a handoff.
@@ -53,12 +54,26 @@ namespace Opc.Ua.Client
         /// <param name="messageContext">The message context whose namespace tables the
         /// subscriptions of the handoff refer to.</param>
         /// <returns>The protected record.</returns>
-        internal static ByteString Protect(
+        /// <exception cref="ArgumentNullException"><paramref name="handoff"/>,
+        /// <paramref name="protector"/> or <paramref name="messageContext"/> is <c>null</c>.</exception>
+        public static ByteString Protect(
             SessionHandoff handoff,
             IRecordProtector protector,
             ByteString context,
             IServiceMessageContext messageContext)
         {
+            if (handoff == null)
+            {
+                throw new ArgumentNullException(nameof(handoff));
+            }
+            if (protector == null)
+            {
+                throw new ArgumentNullException(nameof(protector));
+            }
+            if (messageContext == null)
+            {
+                throw new ArgumentNullException(nameof(messageContext));
+            }
             using var stream = new MemoryStream();
             using (var encoder = new BinaryEncoder(stream, messageContext, true))
             {
@@ -121,13 +136,23 @@ namespace Opc.Ua.Client
         /// <param name="handoff">The decoded handoff.</param>
         /// <returns>False when the record cannot be unprotected or is empty.</returns>
         /// <exception cref="ServiceResultException">The record is malformed.</exception>
-        internal static bool TryUnprotect(
+        /// <exception cref="ArgumentNullException"><paramref name="protector"/> or
+        /// <paramref name="telemetry"/> is <c>null</c>.</exception>
+        public static bool TryUnprotect(
             ByteString record,
             IRecordProtector protector,
             ByteString context,
             ITelemetryContext telemetry,
-            out SessionHandoff? handoff)
+            [NotNullWhen(true)] out SessionHandoff? handoff)
         {
+            if (protector == null)
+            {
+                throw new ArgumentNullException(nameof(protector));
+            }
+            if (telemetry == null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             handoff = null;
             if (!protector.TryUnprotect(context, record, out ByteString plaintext) || plaintext.IsEmpty)
             {
