@@ -4653,6 +4653,11 @@ namespace Opc.Ua.Client
                     // Never pass the caller token here: if it fired the session would
                     // stay Reconnecting forever and every later reconnect would fail.
                     await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (m_engine is DefaultSubscriptionEngine engine &&
+                        engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+                    {
+                        manager.OnSessionReactivated();
+                    }
                     Reconnecting = false;
                     resetReconnect = false;
                     m_reconnectLock.Release();
@@ -5010,8 +5015,8 @@ namespace Opc.Ua.Client
             StatusCode? sr = response?.ResponseHeader?.ServiceResult;
             if (sr != null && StatusCode.IsGood(sr.Value))
             {
-                // Any successful response proves the server is alive —
-                // reset keep-alive so we don't send a redundant read.
+                // Successful responses defer redundant keep-alive reads only while no error is latched.
+                // A latched error still needs an actual keep-alive response to clear it.
                 // The same response must also count as proof for the
                 // KeepAliveStopped freshness check, otherwise the timestamp goes
                 // stale while the keep alive read is perpetually deferred and the
@@ -5029,9 +5034,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
                 {
                     UpdateLastKeepAliveTime();
+                    DeferKeepAlive();
                 }
-
-                DeferKeepAlive();
             }
 
             base.RequestCompleted(request, response!, serviceName);
