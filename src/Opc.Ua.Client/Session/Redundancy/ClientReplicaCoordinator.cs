@@ -40,10 +40,11 @@ namespace Opc.Ua.Client.Redundancy
     /// processes elect a leader (via <see cref="ILeaderElection"/>) that holds the
     /// active <see cref="ManagedSession"/> and subscriptions; followers stand by per
     /// <see cref="ClientStandbyMode"/> and take over on leader loss. The leader
-    /// publishes its protected session secrets through an
-    /// <see cref="ISharedKeyValueStore"/> so a promoted follower can reuse the
-    /// AuthenticationToken to ActivateSession against a HotAndMirrored server, or
-    /// recreate the session and transfer subscriptions otherwise.
+    /// publishes a protected <see cref="SessionHandoff"/> of its server session through an
+    /// <see cref="ISharedKeyValueStore"/> so a promoted follower can create its leader
+    /// session as a takeover of that server session (reusing the AuthenticationToken to
+    /// ActivateSession against a HotAndMirrored server), or fall back to its standby session
+    /// and recreate or transfer the subscriptions otherwise.
     /// </summary>
     public sealed class ClientReplicaCoordinator : IAsyncDisposable
     {
@@ -281,103 +282,56 @@ namespace Opc.Ua.Client.Redundancy
             if (ReferenceEquals(m_session, m_adoptedSession))
             {
                 // A retry after a failed configure/publish step: this session already
-                // is the reactivated mirrored leader session. Closing it as the
-                // follower's own session would delete it with all its subscriptions.
+                // took over the leader's server session.
                 return true;
             }
 
-            bool mutatedForReuse = false;
-            bool parked = false;
             try
             {
                 (bool found, ByteString stored) = await m_store
                     .TryGetAsync(m_options.SessionRecordKey, ct).ConfigureAwait(false);
-                if (found &&
-                    m_protector.TryUnprotect(
-                        RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
+                if (!found ||
+                    !SessionHandoffCodec.TryUnprotect(
                         stored,
-                        out ByteString plaintext) &&
-                    !plaintext.IsNull)
+                        m_protector,
+                        RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
+                        m_telemetry,
+                        out SessionHandoff? handoff))
                 {
-                    using var stream = new System.IO.MemoryStream(plaintext.ToArray(), writable: false);
-                    var config = SessionConfiguration.Create(stream, m_telemetry);
-                    if (config == null)
-                    {
-                        return false;
-                    }
-                    if (config.IdentityToken is UserNameIdentityToken savedIdentity &&
-                        m_session.Identity?.TokenHandler?.Token is UserNameIdentityToken liveIdentity &&
-                        string.Equals(savedIdentity.UserName, liveIdentity.UserName, StringComparison.Ordinal))
-                    {
-                        config.Identity = m_session.Identity;
-                    }
+                    return false;
+                }
 
-                    // Adopting the mirrored configuration replaces this session's own
-                    // SessionId/AuthenticationToken; close that server session first so it
-                    // (and a Hot standby's sampling subscriptions) is not orphaned until it
-                    // times out. A connected standby is parked meanwhile, so a keep-alive or
-                    // channel failure cannot start a recovery that creates another session.
-                    parked = m_session.TryBeginMirroredSessionAdoption();
-                    await CloseOwnSessionQuietlyAsync(m_session, ct).ConfigureAwait(false);
-                    mutatedForReuse = true;
-                    if (!m_session.ApplySessionConfiguration(config))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadInvalidState,
-                            "The mirrored session configuration could not be applied.");
-                    }
-                    await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
-                        .ConfigureAwait(false);
-                    m_adoptedSession = m_session;
-                    if (parked)
-                    {
-                        parked = false;
-                        m_session.EndMirroredSessionAdoption(connected: true);
-                    }
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                m_logger.TokenReuseFastActivateFailedUsing(ex);
-                if (parked && !mutatedForReuse)
+                IUserIdentity? identity = null;
+                if (handoff!.Session.IdentityToken is UserNameIdentityToken savedIdentity &&
+                    m_session.Identity?.TokenHandler?.Token is UserNameIdentityToken liveIdentity &&
+                    string.Equals(savedIdentity.UserName, liveIdentity.UserName, StringComparison.Ordinal))
                 {
-                    // Nothing was adopted: the standby session is unchanged and usable again.
-                    m_session.EndMirroredSessionAdoption(connected: true);
+                    identity = m_session.Identity;
                 }
-                if (mutatedForReuse)
-                {
-                    // ApplySessionConfiguration already overwrote this session's identity with
-                    // the stored (now-unreactivatable) configuration; left as-is it points at a
-                    // SessionId the server will reject on every subsequent call. Discard it and
-                    // create a genuinely fresh, activated session rather than limping on with a
-                    // session that looks like the old leader's but was never reactivated as it.
-                    ManagedSession broken = m_session;
-                    m_session = null;
-                    await DisposeQuietlyAsync(broken).ConfigureAwait(false);
-                    m_session = await m_options.CreateSessionAsync!(ct).ConfigureAwait(false);
-                }
-            }
-            return false;
-        }
 
-        private async ValueTask CloseOwnSessionQuietlyAsync(ManagedSession session, CancellationToken ct)
-        {
-            if (session.SessionId.IsNull)
-            {
-                return;
-            }
-            try
-            {
-                // Straight to the inner session: the managed service gate waits for the
-                // connection state machine, which would stall promotion while the standby
-                // session is reconnecting. A failed close only leaves it to time out.
-                await session.InnerSession.CloseSessionAsync(null, deleteSubscriptions: true, ct)
-                    .ConfigureAwait(false);
+                // The leader session is a new session that takes the server session over; the
+                // standby session keeps its own server session until the takeover succeeded and
+                // is then closed like any other session.
+                ManagedSession standby = m_session;
+                ManagedSession leader = await standby.CreateTakeoverSessionAsync(
+                    handoff,
+                    new SessionTakeoverOptions { Identity = identity },
+                    ct).ConfigureAwait(false);
+                m_session = leader;
+                m_adoptedSession = leader;
+                standby.SessionConfigurationChanged -= OnSessionConfigurationChanged;
+                if (ReferenceEquals(m_publishedSession, standby))
+                {
+                    m_publishedSession = null;
+                }
+                await DisposeQuietlyAsync(standby).ConfigureAwait(false);
+                return true;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.ClosingStandbySessionBeforeTokenReuseFailed(ex);
+                // The standby session is untouched and serves as the fresh leader session.
+                m_logger.TokenReuseFastActivateFailedUsing(ex);
+                return false;
             }
         }
 
@@ -405,11 +359,11 @@ namespace Opc.Ua.Client.Redundancy
             {
                 return;
             }
-            using var stream = new System.IO.MemoryStream();
-            m_session.SaveSessionConfiguration(stream);
-            ByteString protectedRecord = m_protector.Protect(
+            ByteString protectedRecord = SessionHandoffCodec.Protect(
+                m_session.CaptureHandoff(),
+                m_protector,
                 RecordProtectionContext.Create("client-replica-session", m_options.SessionRecordKey),
-                new ByteString(stream.ToArray()));
+                m_session.MessageContext);
             await m_store.SetAsync(m_options.SessionRecordKey, protectedRecord, ct).ConfigureAwait(false);
         }
 
@@ -498,14 +452,8 @@ namespace Opc.Ua.Client.Redundancy
         public static partial void TokenReuseFastActivateFailedUsing(this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 3, Level = LogLevel.Information,
-            Message = "Disposing a token-reuse session that failed to reactivate threw; ignoring.")]
+            Message = "Disposing the standby session replaced by the taken-over leader session threw; ignoring.")]
         public static partial void DisposingTokenReuseSessionThatFailed(this ILogger logger, Exception? exception);
-
-        [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 4, Level = LogLevel.Information,
-            Message = "Closing the standby's own session before token reuse failed; it expires on the server.")]
-        public static partial void ClosingStandbySessionBeforeTokenReuseFailed(
-            this ILogger logger,
-            Exception? exception);
 
         [LoggerMessage(EventId = ClientEventIds.ClientReplicaCoordinator + 5, Level = LogLevel.Warning,
             Message = "Tearing down the demoted leader session failed; ignoring.")]

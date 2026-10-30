@@ -33,107 +33,143 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Optional session capability for handing a server session over between owners.
+    /// Capability of a session to hand its server session over to a new owner.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Raw and managed SDK sessions implement this capability; <see cref="ISession"/> itself is
-    /// unchanged, so other implementations need not. Event handlers must be short and must not
-    /// wait for session or subscription operations.
+    /// The previous owner calls <see cref="RetireAsync"/>, which returns a
+    /// <see cref="SessionHandoff"/>. The new owner creates a managed session from it with
+    /// <see cref="ManagedSessionOptions.TakeoverFrom"/> or
+    /// <see cref="ManagedSessionBuilder.TakeOver(SessionHandoff, SessionTakeoverOptions?)"/>; that
+    /// session reactivates the same server session on its own secure channel. The server session
+    /// and its subscriptions are never closed in between.
     /// </para>
     /// <para>
-    /// A takeover runs in two stages. <see cref="PrepareTakeoverAsync"/> closes this session's
-    /// own (helper) server session on its channel and loads the saved state of the session to
-    /// take over without activating it. A later
-    /// <see cref="ISession.ReconnectAsync(ITransportWaitingConnection, ITransportChannel, CancellationToken)"/>
-    /// activates exactly that saved session by reusing its authentication token; it never
-    /// creates another server session. The previous owner releases the session with
-    /// <see cref="RetireAndPreserveAsync"/>.
+    /// Event handlers must be short and must not wait for session or subscription operations.
     /// </para>
     /// </remarks>
     public interface ISessionTakeover
     {
         /// <summary>
-        /// Gets a counter that increments whenever the session becomes bound to a different
-        /// server session: on creation, on an in-place recreation and when saved session
-        /// state for another server session is loaded. It does not change when a reconnect
-        /// reactivates the same server session, and it is unrelated to subscription
-        /// generations: a successful subscription transfer keeps subscription state valid
-        /// even though the session generation changes.
+        /// Gets the number of distinct server sessions this client session has been bound to.
+        /// It is 0 before the first server session and increases whenever the bound server
+        /// session changes, for example when recovery creates a new server session.
         /// </summary>
         long SessionGeneration { get; }
 
         /// <summary>
-        /// Gets whether saved session state was loaded by <see cref="PrepareTakeoverAsync"/>
-        /// and is waiting for its activation. While prepared, no keep-alive, publishing,
-        /// recovery or service request runs, and a close or dispose leaves the saved server
-        /// session alive because its ownership was never committed.
-        /// </summary>
-        bool IsPrepared { get; }
-
-        /// <summary>
-        /// Raised after <see cref="SessionGeneration"/> changed. Raised outside the session lock.
+        /// Raised after the client session was bound to a different server session.
         /// </summary>
         event EventHandler<SessionGenerationChangedEventArgs>? SessionGenerationChanged;
 
         /// <summary>
-        /// Prepares this session to take over a saved server session. The saved state must
-        /// belong to the endpoint, security mode, security policy and server certificate of
-        /// this session; it is validated before anything changes. Keep-alive, publishing and
-        /// recovery stop, this session's own server session is closed on its channel, which is
-        /// kept, and the saved state is loaded without activating it. The server-revised
-        /// session timeout of this session is kept. Activate the saved session with
-        /// <see cref="ISession.ReconnectAsync(ITransportWaitingConnection, ITransportChannel, CancellationToken)"/>;
-        /// a failed or cancelled activation leaves the session prepared, so it may be retried.
+        /// Retires this session and hands its server session over to a new owner.
         /// </summary>
-        /// <param name="savedSession">The saved session state, for example from
-        /// <see cref="ISession.SaveSessionConfiguration"/> of the previous owner.</param>
-        /// <param name="options">The takeover options, or <c>null</c> for the defaults.</param>
+        /// <remarks>
+        /// <para>
+        /// In one operation, the session stops keep-alive, publishing and recovery, waits for
+        /// subscription work in flight, captures the server session and its subscriptions,
+        /// and fences the server session: no CloseSession or reconnect request is sent for it
+        /// afterwards. Then the session releases its local resources and is disposed. Every
+        /// later call on it fails.
+        /// </para>
+        /// <para>
+        /// The handoff is valid until the server session times out, which is
+        /// <see cref="SessionHandoff.RevisedSessionTimeout"/> after the last request the
+        /// previous owner sent.
+        /// </para>
+        /// </remarks>
         /// <param name="ct">The cancellation token.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="savedSession"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException">The saved state is invalid or does not match
-        /// this session (nothing changed), the session is recovering, retired or not connected,
-        /// or closing this session's own server session failed (the session stays usable).</exception>
-        ValueTask PrepareTakeoverAsync(
-            SessionConfiguration savedSession,
-            SessionTakeoverOptions? options = null,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Retires this owner but keeps the server session and its subscriptions alive, so
-        /// another client can take them over by reactivating the saved session. No further
-        /// service request is sent from this session, including CloseSession,
-        /// DeleteSubscriptions, CreateSession and ActivateSession; recovery and publishing stop
-        /// and local resources are released. Capture the session and subscription state
-        /// before calling this method. Graceful close and dispose keep their deletion semantics.
-        /// </summary>
-        /// <param name="ct">Cancels only before retirement starts; once started it completes.</param>
-        /// <exception cref="ServiceResultException"><see cref="StatusCodes.BadInvalidState"/> when
-        /// a close or dispose that does not retain the server session started first.</exception>
-        ValueTask RetireAndPreserveAsync(CancellationToken ct = default);
+        /// <returns>The state a new owner takes the server session over with.</returns>
+        /// <exception cref="ServiceResultException">The session is not connected, is
+        /// recovering, closing or already retired (<see cref="StatusCodes.BadNotConnected"/>
+        /// or <see cref="StatusCodes.BadInvalidState"/>), or it uses the classic subscription
+        /// engine (<see cref="StatusCodes.BadNotSupported"/>). When the operation fails before
+        /// the fence was installed, the session is closed normally.</exception>
+        ValueTask<SessionHandoff> RetireAsync(CancellationToken ct = default);
     }
 
     /// <summary>
-    /// Options of <see cref="ISessionTakeover.PrepareTakeoverAsync"/>.
+    /// The state a new owner takes a retired server session over with.
+    /// </summary>
+    /// <remarks>
+    /// The handoff contains the authentication token of the server session and secrets of the
+    /// secure session. Protect it like a credential when it is stored or sent to another process.
+    /// User credentials are not part of the handoff; supply them with
+    /// <see cref="SessionTakeoverOptions.Identity"/>.
+    /// </remarks>
+    public sealed record SessionHandoff
+    {
+        /// <summary>
+        /// Gets the saved server session, including the endpoint it was created on. A handoff
+        /// without a session is rejected.
+        /// </summary>
+        public SessionConfiguration Session { get; init; } = null!;
+
+        /// <summary>
+        /// Gets the subscriptions of the server session, one snapshot per partition. Only
+        /// subscriptions of the default subscription engine are captured; a session using the
+        /// classic engine cannot be handed over.
+        /// </summary>
+        public ArrayOf<SubscriptionStateSnapshot> Subscriptions { get; init; }
+
+        /// <summary>
+        /// Gets the session timeout, in milliseconds, the server revised for the session, or 0
+        /// when it is not known. A new owner uses it for its keep-alive and recovery instead of
+        /// the timeout it would request for a new session.
+        /// </summary>
+        public double RevisedSessionTimeout { get; init; }
+    }
+
+    /// <summary>
+    /// What a managed session does when the takeover of a server session fails.
+    /// </summary>
+    public enum SessionTakeoverFailureMode
+    {
+        /// <summary>
+        /// The connect fails with the activation error. No new server session is created.
+        /// </summary>
+        Throw,
+
+        /// <summary>
+        /// The session creates a new server session and recreates the subscriptions of the
+        /// handoff on it. Notifications the previous server session still held are lost.
+        /// </summary>
+        CreateNewSession
+    }
+
+    /// <summary>
+    /// Options of a managed session that takes a server session over from a
+    /// <see cref="SessionHandoff"/>.
     /// </summary>
     public sealed record SessionTakeoverOptions
     {
         /// <summary>
-        /// Gets the identity the saved session is activated with. Saved state does not carry
-        /// secrets; <c>null</c> keeps the identity of this session.
+        /// Gets the identity the server session is activated with. The handoff does not carry
+        /// credentials; <c>null</c> uses the identity of the managed session options, or
+        /// the identity token saved in the handoff when those have none.
         /// </summary>
         public IUserIdentity? Identity { get; init; }
 
         /// <summary>
-        /// Gets whether closing this session's own server session also deletes its
-        /// subscriptions on the server. Defaults to <c>true</c>.
+        /// Gets the factory that creates the notification handler of each taken-over
+        /// subscription. For a subscription with several partitions it is called once with
+        /// the snapshot of the primary partition. Required when the handoff contains
+        /// subscriptions.
         /// </summary>
-        public bool DeleteHelperSubscriptions { get; init; } = true;
+        public Func<SubscriptionStateSnapshot, ISubscriptionNotificationHandler>? SubscriptionHandlerFactory { get; init; }
+
+        /// <summary>
+        /// Gets what the managed session does when the server session cannot be taken over.
+        /// Defaults to <see cref="SessionTakeoverFailureMode.Throw"/>.
+        /// </summary>
+        public SessionTakeoverFailureMode FailureMode { get; init; } = SessionTakeoverFailureMode.Throw;
     }
 
     /// <summary>
@@ -170,371 +206,252 @@ namespace Opc.Ua.Client
         public NodeId SessionId { get; }
     }
 
-    public partial class Session : ISessionTakeover
+    public partial class Session
     {
-        /// <inheritdoc/>
+        /// <summary>
+        /// Gets the number of distinct server sessions this client session has been bound to.
+        /// </summary>
         /// <remarks>
         /// A session created through <see cref="RecreateAsync(CancellationToken)"/> continues
         /// the generation of the session it was cloned from.
         /// </remarks>
         public long SessionGeneration => Interlocked.Read(ref m_sessionGeneration);
 
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Unlike a managed session, a raw session keeps reporting <see cref="SessionClient.Connected"/>
-        /// while prepared, as it does after <see cref="ApplySessionConfiguration"/>.
-        /// </remarks>
-        public bool IsPrepared => Volatile.Read(ref m_takeoverState) == kTakeoverPrepared;
-
-        /// <inheritdoc/>
-        public event EventHandler<SessionGenerationChangedEventArgs>? SessionGenerationChanged;
-
         /// <summary>
-        /// Gets whether a takeover is being prepared or waits for its activation, so the
-        /// subscription engines must not publish.
+        /// Raised after the client session was bound to a different server session.
         /// </summary>
-        internal bool IsTakeoverStaged => Volatile.Read(ref m_takeoverState) != kTakeoverNone;
+        public event EventHandler<SessionGenerationChangedEventArgs>? SessionGenerationChanged;
 
         /// <summary>
         /// Gets whether the server session is retained for another owner.
         /// </summary>
         internal bool IsServerSessionRetained => Volatile.Read(ref m_serverSessionFate) == kServerSessionRetained;
 
-        /// <inheritdoc/>
-        public ValueTask PrepareTakeoverAsync(
-            SessionConfiguration savedSession,
-            SessionTakeoverOptions? options = null,
-            CancellationToken ct = default)
-        {
-            if (savedSession == null)
-            {
-                throw new ArgumentNullException(nameof(savedSession));
-            }
-            ThrowIfDisposed();
-            ValidateTakeoverState(savedSession);
-            return new ValueTask(PrepareTakeoverCoreAsync(savedSession, options ?? new SessionTakeoverOptions(), ct));
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask RetireAndPreserveAsync(CancellationToken ct = default)
-        {
-            ct.ThrowIfCancellationRequested();
-            if (Interlocked.CompareExchange(
-                ref m_serverSessionFate, kServerSessionRetained, kServerSessionOpen) == kServerSessionClosing)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidState,
-                    "The session is already closing; its server session was not retained.");
-            }
-            AbandonServerSession();
-            await DisposeAsync().ConfigureAwait(false);
-        }
-
         /// <summary>
-        /// Validates saved session state against the endpoint of this session before a
-        /// takeover changes anything.
+        /// Validates the saved server session of a handoff before anything is sent with it.
         /// </summary>
-        /// <exception cref="ServiceResultException">The state is incomplete or belongs to
-        /// another endpoint, security configuration or server certificate.</exception>
-        internal void ValidateTakeoverState(SessionConfiguration savedSession)
+        /// <param name="saved">The saved server session.</param>
+        /// <param name="configured">The endpoint the new owner is configured for, or null to
+        /// use the endpoint of the saved session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <exception cref="ServiceResultException">The state is incomplete, its server nonce
+        /// is invalid, or it belongs to another endpoint, security configuration or server
+        /// certificate.</exception>
+        internal static void ValidateHandoff(
+            SessionConfiguration saved,
+            EndpointDescription? configured,
+            ITelemetryContext telemetry)
         {
-            if (savedSession.SessionId.IsNull || savedSession.AuthenticationToken.IsNull)
+            if (saved.SessionId.IsNull || saved.AuthenticationToken.IsNull)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidArgument,
                     "The saved session state has no session id or authentication token.");
             }
-            EndpointDescription current = m_endpoint.Description;
-            EndpointDescription? saved = savedSession.ConfiguredEndpoint?.Description;
-            if (saved == null)
+            EndpointDescription? endpoint = saved.ConfiguredEndpoint?.Description;
+            if (endpoint == null || string.IsNullOrEmpty(endpoint.EndpointUrl))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadInvalidArgument,
                     "The saved session state has no endpoint.");
             }
-            if (!Uri.TryCreate(current.EndpointUrl, UriKind.Absolute, out Uri? currentUrl) ||
-                !Uri.TryCreate(saved.EndpointUrl, UriKind.Absolute, out Uri? savedUrl) ||
-                currentUrl != savedUrl)
+            if (configured != null)
+            {
+                if (!Uri.TryCreate(configured.EndpointUrl, UriKind.Absolute, out Uri? configuredUrl) ||
+                    !Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? savedUrl) ||
+                    configuredUrl != savedUrl)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The saved session belongs to another endpoint.");
+                }
+                ServiceResultException? mismatch =
+                    ManagedSession.GetSecurityConfigurationMismatch(configured, endpoint);
+                if (mismatch != null)
+                {
+                    throw mismatch;
+                }
+                if (!IsSameServerCertificate(configured.ServerCertificate, endpoint.ServerCertificate, telemetry))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The saved session belongs to another server certificate.");
+                }
+            }
+            if (endpoint.SecurityMode != MessageSecurityMode.None &&
+                !IsValidSavedServerNonce(saved.ServerNonce))
             {
                 throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "The saved session belongs to another endpoint.");
-            }
-            ServiceResultException? mismatch = ManagedSession.GetSecurityConfigurationMismatch(current, saved);
-            if (mismatch != null)
-            {
-                throw mismatch;
-            }
-            if (!IsSameServerCertificate(current.ServerCertificate, saved.ServerCertificate))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "The saved session belongs to another server certificate.");
-            }
-            if (current.SecurityMode != MessageSecurityMode.None && savedSession.ServerNonce.IsEmpty)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidArgument,
-                    "The saved session state has no server nonce.");
+                    StatusCodes.BadNonceInvalid,
+                    "The saved server nonce must contain 32 to 128 non-zero bytes.");
             }
         }
 
         /// <summary>
-        /// Quiesces the session, closes its own server session (unless a previous
-        /// preparation already did) and loads the saved state without activating it.
+        /// Returns whether two endpoint server certificate blobs identify the same server
+        /// certificate. Both must be empty, or both must be present with the same leaf
+        /// certificate; a certificate missing on one side only is a mismatch.
         /// </summary>
-        /// <exception cref="ServiceResultException">The session is retired or recovering, or
-        /// closing its own server session failed.</exception>
-        internal async Task PrepareTakeoverCoreAsync(
-            SessionConfiguration savedSession,
-            SessionTakeoverOptions options,
-            CancellationToken ct)
+        /// <param name="current">The certificate blob of the configured endpoint.</param>
+        /// <param name="saved">The certificate blob of the saved endpoint.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        internal static bool IsSameServerCertificate(
+            ByteString current,
+            ByteString saved,
+            ITelemetryContext telemetry)
         {
-            ThrowIfDisposed();
-            if (IsServerSessionRetained)
+            if (current.IsEmpty || saved.IsEmpty)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSessionClosed,
-                    "The server session was retained for another owner.");
+                return current.IsEmpty && saved.IsEmpty;
             }
-
-            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
-            if (Reconnecting || ChannelRecoveryInProgress)
-            {
-                m_reconnectLock.Release();
-                throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidState,
-                    "The session is reconnecting and cannot be prepared for a takeover.");
-            }
-            Reconnecting = true;
-            m_reconnectLock.Release();
-            try
-            {
-                if (!IsPrepared)
-                {
-                    await CloseOwnSessionForTakeoverAsync(options.DeleteHelperSubscriptions, ct)
-                        .ConfigureAwait(false);
-                }
-                IUserIdentity identity = options.Identity ?? m_identity;
-                Restore(savedSession);
-                m_identity = identity;
-            }
-            finally
-            {
-                await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-                Reconnecting = false;
-                m_reconnectLock.Release();
-            }
-        }
-
-        /// <summary>
-        /// Activates the prepared session by reusing its authentication token, on the supplied
-        /// channel or connection, or on the retained channel. A retained channel that lost its
-        /// transport is reconnected once. Never creates another server session.
-        /// </summary>
-        /// <exception cref="ServiceResultException">The session is not prepared, or the
-        /// activation failed; the session then stays prepared.</exception>
-        internal async Task ActivatePreparedSessionAsync(
-            ITransportWaitingConnection? connection,
-            ITransportChannel? channel,
-            CancellationToken ct)
-        {
-            ThrowIfDisposed();
-            if (!IsPrepared)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadInvalidState,
-                    "The session is not prepared for a takeover.");
-            }
-            try
-            {
-                Volatile.Write(ref m_activatingTakeover, true);
-                try
-                {
-                    await ActivatePreparedSessionOnChannelAsync(connection, channel, ct).ConfigureAwait(false);
-                }
-                catch (ServiceResultException sre) when (
-                    connection == null &&
-                    channel == null &&
-                    IsTransportFailure(sre.StatusCode) &&
-                    NullableTransportChannel is ITransportChannel retained &&
-                    (retained.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
-                {
-                    await retained.ReconnectAsync(ct: ct).ConfigureAwait(false);
-                    await ActivatePreparedSessionOnChannelAsync(null, null, ct).ConfigureAwait(false);
-                }
-            }
-            catch (Exception) when (!IsPrepared && !Disposed)
-            {
-                // The activation committed, but a later step (for example the caller's cancellation)
-                // ended the call before the session was started. Ownership moved, so finish starting it.
-                await StartKeepAliveTimerAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-                if (IsPrepared && !Disposed)
-                {
-                    // The failed activation may have resumed publishing; nothing may run until it succeeds.
-                    await QuiesceForTakeoverAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                throw;
-            }
-            finally
-            {
-                Volatile.Write(ref m_activatingTakeover, false);
-            }
-            if (m_engine is ClassicSubscriptionEngine)
-            {
-                StartPublishing(OperationTimeout, false);
-            }
-        }
-
-        /// <summary>
-        /// Claims the close of the bound server session.
-        /// </summary>
-        /// <returns><c>false</c> when the server session must not be closed: it is retained
-        /// for another owner, or it is prepared and its ownership was never committed.</returns>
-        private bool TryClaimServerSessionClose()
-        {
-            if (IsPrepared)
-            {
-                return false;
-            }
-            return Interlocked.CompareExchange(
-                ref m_serverSessionFate, kServerSessionClosing, kServerSessionOpen) != kServerSessionRetained;
-        }
-
-        /// <summary>
-        /// Ends a takeover stage after the session released its server session locally.
-        /// </summary>
-        private void ReleaseTakeoverStage()
-        {
-            Volatile.Write(ref m_takeoverState, kTakeoverNone);
-        }
-
-        /// <summary>
-        /// Marks a successful activation of the bound server session, which commits a
-        /// prepared takeover.
-        /// </summary>
-        private void CommitTakeoverActivation()
-        {
-            Interlocked.CompareExchange(ref m_takeoverState, kTakeoverNone, kTakeoverPrepared);
-        }
-
-        /// <summary>
-        /// Throws when the session is prepared for a takeover, unless the takeover activation itself
-        /// runs: only that activation may reach the saved session.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void ThrowIfPreparedForTakeover()
-        {
-            if (IsPrepared && !Volatile.Read(ref m_activatingTakeover))
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSessionNotActivated,
-                    "The session is prepared for a takeover; activate it with ReconnectAsync first.");
-            }
-        }
-
-        private Task ActivatePreparedSessionOnChannelAsync(
-            ITransportWaitingConnection? connection,
-            ITransportChannel? channel,
-            CancellationToken ct)
-        {
-            ITransportChannel? target = channel ?? (connection == null ? TransportChannel : null);
-            return RecreateInPlaceCoreAsync(
-                endpoint: null,
-                connection,
-                target,
-                budget: null,
-                ct,
-                recreateSubscriptions: false,
-                requireTokenReuse: true,
-                bindSuppliedChannel: channel != null);
-        }
-
-        private async Task CloseOwnSessionForTakeoverAsync(bool deleteSubscriptions, CancellationToken ct)
-        {
-            bool bound = Connected;
-            Volatile.Write(ref m_takeoverState, kTakeoverQuiesced);
-            try
-            {
-                await QuiesceForTakeoverAsync(ct).ConfigureAwait(false);
-                if (bound)
-                {
-                    await CloseSessionAsync(null, deleteSubscriptions, ct).ConfigureAwait(false);
-                    lock (m_lock)
-                    {
-                        SessionCreated(default, default);
-                    }
-                    RaisePendingLifecycleEvents();
-                }
-            }
-            catch
-            {
-                ReleaseTakeoverStage();
-                await ResumeAfterFailedTakeoverAsync(bound).ConfigureAwait(false);
-                throw;
-            }
-            Volatile.Write(ref m_takeoverState, kTakeoverPrepared);
-        }
-
-        private async Task QuiesceForTakeoverAsync(CancellationToken ct)
-        {
-            await StopKeepAliveTimerAsync().ConfigureAwait(false);
-            if (m_engine is DefaultSubscriptionEngine engine &&
-                engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
-            {
-                manager.SetSessionRecoveryPaused(true);
-                await manager.DrainAsync(ct).ConfigureAwait(false);
-            }
-            else
-            {
-                m_engine.PausePublishing();
-            }
-        }
-
-        private async Task ResumeAfterFailedTakeoverAsync(bool bound)
-        {
-            try
-            {
-                await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
-                if (bound && Connected && !Disposed)
-                {
-                    await StartKeepAliveTimerAsync().ConfigureAwait(false);
-                    if (m_engine is ClassicSubscriptionEngine)
-                    {
-                        StartPublishing(OperationTimeout, false);
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                m_logger.SessionTakeoverResumeFailed(ex);
-            }
-        }
-
-        private bool IsSameServerCertificate(ByteString current, ByteString saved)
-        {
-            if (current.IsEmpty || saved.IsEmpty || current == saved)
+            if (current == saved)
             {
                 return true;
             }
-            using CertificateCollection currentChain = Utils.ParseCertificateChainBlob(current, m_telemetry);
-            using CertificateCollection savedChain = Utils.ParseCertificateChainBlob(saved, m_telemetry);
+            using CertificateCollection currentChain = Utils.ParseCertificateChainBlob(current, telemetry);
+            using CertificateCollection savedChain = Utils.ParseCertificateChainBlob(saved, telemetry);
             return currentChain.Count > 0 &&
                 savedChain.Count > 0 &&
                 currentChain[0].RawData.AsSpan().SequenceEqual(savedChain[0].RawData);
         }
 
-        private static bool IsTransportFailure(StatusCode statusCode)
+        /// <summary>
+        /// Activates the saved server session of a handoff on this session, which was created
+        /// but never opened. No CreateSession request is sent: the saved authentication token is
+        /// reused. On failure the caller must abandon the server session, never close it.
+        /// </summary>
+        /// <param name="saved">The validated saved server session.</param>
+        /// <param name="revisedSessionTimeout">The session timeout the server revised, in
+        /// milliseconds, or 0 when it is not known.</param>
+        /// <param name="identity">The identity to activate the server session with.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">The activation failed.</exception>
+        internal async Task ActivateHandoffAsync(
+            SessionConfiguration saved,
+            double revisedSessionTimeout,
+            IUserIdentity identity,
+            CancellationToken ct)
         {
-            return statusCode == StatusCodes.BadSecureChannelClosed ||
-                statusCode == StatusCodes.BadConnectionClosed ||
-                statusCode == StatusCodes.BadNotConnected ||
-                statusCode == StatusCodes.BadCommunicationError ||
-                statusCode == StatusCodes.BadTcpInternalError ||
-                statusCode == StatusCodes.BadNoCommunication;
+            ThrowIfDisposed();
+            if (TransportChannel is ManagedTransportChannelLease lease)
+            {
+                await lease.Entry.WaitForTransportAsync(ct).ConfigureAwait(false);
+                using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
+                CertificateEntry? replacement = BuildInstanceCertificateEntry(
+                    certificates.Certificate,
+                    certificates.Chain);
+                CertificateEntry? previous = m_instanceCertificateEntry;
+                m_instanceCertificateEntry = replacement;
+                m_effectiveEndpoint = m_endpoint;
+                previous?.Dispose();
+            }
+            await LoadInstanceCertificateAsync(false, ct).ConfigureAwait(false);
+            Restore(saved);
+            lock (m_lock)
+            {
+                m_identity = identity;
+                if (revisedSessionTimeout > 0)
+                {
+                    m_sessionTimeout = revisedSessionTimeout;
+                }
+                m_sessionClientCertificate = ByteString.From(m_instanceCertificateEntry?.Certificate.RawData);
+            }
+            await ReactivateExistingSessionAsync(identity, m_preferredLocales, m_serverNonce, ct)
+                .ConfigureAwait(false);
+            await FetchNamespaceTablesAsync(this, ct).ConfigureAwait(false);
+            await FetchOperationLimitsAsync(this, ct).ConfigureAwait(false);
+            await StartKeepAliveTimerAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Captures the bound server session and fences it for another owner: afterwards no
+        /// request, in particular no CloseSession, is sent for it, and the client is no longer
+        /// bound to it.
+        /// </summary>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The captured server session, with an endpoint the caller owns.</returns>
+        /// <exception cref="ServiceResultException">The session is not connected, recovering
+        /// or closing; nothing was changed.</exception>
+        internal async Task<SessionConfiguration> RetainServerSessionAsync(CancellationToken ct)
+        {
+            ThrowIfDisposed();
+            await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
+            SessionConfiguration saved;
+            try
+            {
+                if (Reconnecting || ChannelRecoveryInProgress)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "The session is recovering and cannot be handed over.");
+                }
+                if (!Connected)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotConnected,
+                        "The session is not connected and cannot be handed over.");
+                }
+                Snapshot(out SessionConfiguration snapshot);
+                ConfiguredEndpoint endpoint = CoreUtils.Clone(m_endpoint)!;
+                saved = snapshot with { ConfiguredEndpoint = endpoint };
+                if (Interlocked.CompareExchange(
+                    ref m_serverSessionFate, kServerSessionRetained, kServerSessionOpen) == kServerSessionClosing)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "The session is already closing; its server session cannot be handed over.");
+                }
+            }
+            finally
+            {
+                m_reconnectLock.Release();
+            }
+            AbandonServerSession();
+            return saved;
+        }
+
+        /// <summary>
+        /// Claims the close of the bound server session.
+        /// </summary>
+        /// <returns><c>false</c> when the server session is retained for another owner and
+        /// must not be closed.</returns>
+        private bool TryClaimServerSessionClose()
+        {
+            return Interlocked.CompareExchange(
+                ref m_serverSessionFate, kServerSessionClosing, kServerSessionOpen) != kServerSessionRetained;
+        }
+
+        /// <summary>
+        /// Closes a server session that a create attempt opened after the bound server session
+        /// was retained for another owner. The request is sent on the channel of the attempt,
+        /// past the fence, because the attempt owns this server session and nobody else can
+        /// reach it.
+        /// </summary>
+        /// <param name="client">The client the attempt created the server session with.</param>
+        /// <param name="sessionId">The id of the late server session.</param>
+        /// <param name="authenticationToken">The authentication token of the late server session.</param>
+        private Task CloseLateServerSessionAsync(SessionClient client, NodeId sessionId, NodeId authenticationToken)
+        {
+            ITransportChannel? channel = client.TransportChannel;
+            if (channel == null || authenticationToken.IsNull)
+            {
+                return Task.CompletedTask;
+            }
+            return RetireServerSessionAsync(
+                new RetiredServerSession(sessionId, authenticationToken, channel),
+                disposeChannel: false);
+        }
+
+        /// <summary>
+        /// Returns whether a saved server nonce is usable for a secure activation: OPC 10000-4
+        /// requires 32 to 128 bytes, which must not all be zero.
+        /// </summary>
+        private static bool IsValidSavedServerNonce(ByteString serverNonce)
+        {
+            return !serverNonce.IsNull &&
+                serverNonce.Length >= 32 &&
+                serverNonce.Length <= 128 &&
+                Nonce.ValidateNonce(serverNonce.ToArray(), MessageSecurityMode.Sign, 32);
         }
 
         /// <summary>
@@ -614,21 +531,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// No takeover is staged.
-        /// </summary>
-        private const int kTakeoverNone = 0;
-
-        /// <summary>
-        /// Keep-alive and publishing stopped while the own server session is being closed.
-        /// </summary>
-        private const int kTakeoverQuiesced = 1;
-
-        /// <summary>
-        /// Saved state is loaded and waits for its activation.
-        /// </summary>
-        private const int kTakeoverPrepared = 2;
-
-        /// <summary>
         /// The bound server session may be closed or retained.
         /// </summary>
         private const int kServerSessionOpen = 0;
@@ -645,13 +547,7 @@ namespace Opc.Ua.Client
 
         private long m_sessionGeneration;
         private NodeId m_lastServerSessionId;
-        private int m_takeoverState;
         private int m_serverSessionFate;
-
-        /// <summary>
-        /// Set while the takeover activation runs, the only path allowed to reach a prepared session.
-        /// </summary>
-        private bool m_activatingTakeover;
         private readonly ConcurrentQueue<SessionGenerationChangedEventArgs> m_pendingSessionGenerationChanges = new();
     }
 
@@ -663,9 +559,5 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 73, Level = LogLevel.Error,
             Message = "Session: Session generation observer failed.")]
         public static partial void SessionGenerationObserverFailed(this ILogger logger, Exception exception);
-
-        [LoggerMessage(EventId = ClientEventIds.Session + 74, Level = LogLevel.Warning,
-            Message = "Resuming the session after a failed takeover preparation failed.")]
-        public static partial void SessionTakeoverResumeFailed(this ILogger logger, Exception exception);
     }
 }

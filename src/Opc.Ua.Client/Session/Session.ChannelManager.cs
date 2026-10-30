@@ -235,13 +235,6 @@ namespace Opc.Ua.Client
                 return ParticipantReconnectResult.Reactivated;
             }
 
-            if (IsTakeoverStaged)
-            {
-                // A staged takeover activates its session only through the explicit reconnect;
-                // the recovered transport is used by that activation.
-                return ParticipantReconnectResult.Reactivated;
-            }
-
             if (RequiresSessionRecreation(channel))
             {
                 return ParticipantReconnectResult.RequiresSessionRecreate;

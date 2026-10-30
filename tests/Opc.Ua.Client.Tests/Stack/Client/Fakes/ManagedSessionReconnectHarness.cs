@@ -62,6 +62,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
             EngineFactory = new ObservingSubscriptionEngineFactory(Clock);
+            SuccessorEngineFactory = new ObservingSubscriptionEngineFactory(Clock);
             OuterPolicy.Setup(policy => policy.GetNextDelay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns<int, CancellationToken>(GetOuterReconnectDelay);
             OuterPolicy.Setup(policy => policy.Reset()).Callback(m_outerPolicy.Reset);
@@ -131,6 +132,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// Gets the observable managed-session recovery policy, backed by a zero-delay policy allowing one retry.
         /// </summary>
         public Mock<IReconnectPolicy> OuterPolicy { get; } = new();
+
+        /// <summary>
+        /// Gets the immediate, single-retry reconnect policy of the successor session.
+        /// </summary>
+        public IReconnectPolicy SuccessorPolicy { get; } = new ReconnectPolicy(new ReconnectPolicyOptions
+        {
+            InitialDelay = TimeSpan.Zero,
+            MaxDelay = TimeSpan.Zero,
+            MaxRetries = 1,
+            JitterFactor = 0
+        });
 
         /// <summary>
         /// Gets the per-cycle channel-recovery timeout used when connecting; an infinite value disables the deadline.
@@ -210,6 +222,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// Gets the real managed session after <see cref="ConnectAsync"/> has completed.
         /// </summary>
         public UaManagedSession Session { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the session created by <see cref="TakeOverAsync"/>, if any.
+        /// </summary>
+        public UaManagedSession? Successor { get; private set; }
+
+        /// <summary>
+        /// Gets the subscription engine factory of the session created by <see cref="TakeOverAsync"/>.
+        /// </summary>
+        public ObservingSubscriptionEngineFactory SuccessorEngineFactory { get; }
 
         /// <summary>
         /// Gets the managed transport lease currently used by <see cref="Session"/>.
@@ -342,6 +364,46 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         }
 
         /// <summary>
+        /// Creates a second managed session over the same scripted channels that takes over the
+        /// server session of <paramref name="handoff"/>, and keeps it for disposal with the fixture.
+        /// </summary>
+        /// <param name="handoff">The server session to take over.</param>
+        /// <param name="options">The takeover options, or null to use the fixture's notification handler.</param>
+        /// <returns>The connected successor session.</returns>
+        public async Task<UaManagedSession> TakeOverAsync(SessionHandoff handoff, SessionTakeoverOptions? options = null)
+        {
+            options ??= new SessionTakeoverOptions { SubscriptionHandlerFactory = _ => CreateNotificationHandler() };
+            UaManagedSession successor = await UaManagedSession.CreateAsync(
+                new ManagedSessionOptions
+                {
+                    Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    SessionTimeout = RequestedSessionTimeout,
+                    SubscriptionEngineFactory = SuccessorEngineFactory,
+                    TimeProvider = Clock,
+                    ChannelReconnectTimeout = ChannelReconnectTimeout,
+                    TakeoverFrom = handoff,
+                    Takeover = options
+                },
+                Channels.Configuration,
+                new DefaultSessionFactory(Telemetry),
+                reconnectPolicy: SuccessorPolicy,
+                telemetry: Telemetry,
+                channelManager: Channels.Manager,
+                updateBeforeConnect: false,
+                ct: CancellationToken).WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            Successor = successor;
+            return successor;
+        }
+
+        /// <summary>
+        /// Creates a notification handler that queues data changes for <see cref="NextNotificationAsync"/>.
+        /// </summary>
+        public ISubscriptionNotificationHandler CreateNotificationHandler()
+        {
+            return new NotificationHandler(this);
+        }
+
+        /// <summary>
         /// Adds a real publishing subscription with one Value data-change item and a gated notification callback.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
@@ -457,7 +519,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             try
             {
                 Task sessionDisposal = Session?.DisposeAsync().AsTask() ?? Task.CompletedTask;
-                await Task.WhenAll(sessionDisposal, Channels.DisposeAsync().AsTask())
+                Task successorDisposal = Successor?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+                await Task.WhenAll(sessionDisposal, successorDisposal)
+                    .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+                await Channels.DisposeAsync().AsTask()
                     .WaitAsync(PhaseTimeout).ConfigureAwait(false);
                 if (Recovery != null)
                 {

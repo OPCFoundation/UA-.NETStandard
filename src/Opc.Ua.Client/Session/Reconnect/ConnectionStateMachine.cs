@@ -112,7 +112,6 @@ namespace Opc.Ua.Client
         private Task? m_worker;
         private int m_disposed;
         private bool m_hasConnected;
-        private bool m_parked;
         private readonly ITimer m_recoveryTimer;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
         private ConnectionStateBudgetOperation? m_requestedFailover;
@@ -352,7 +351,6 @@ namespace Opc.Ua.Client
             {
                 if (m_worker == null ||
                     m_disposed != 0 ||
-                    m_parked ||
                     (m_state == ConnectionState.Disconnected && !m_hasConnected))
                 {
                     return false;
@@ -428,70 +426,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Parks a connected machine in <see cref="ConnectionState.Disconnected"/>: no
-        /// automatic or explicit reconnect, connect or failover runs until
-        /// <see cref="Unpark"/>, and service waits fail fast with <paramref name="reason"/>.
-        /// A close is still accepted.
-        /// </summary>
-        /// <param name="reason">The error reported to waiting and new service calls.</param>
-        /// <returns><c>true</c> when the machine is parked; <c>false</c> when it is not
-        /// connected (for example while it is recovering) or is disposed.</returns>
-        internal bool TryPark(ServiceResult reason)
-        {
-            lock (m_lock)
-            {
-                if (m_disposed != 0)
-                {
-                    return false;
-                }
-                if (m_parked)
-                {
-                    return true;
-                }
-                if (m_state != ConnectionState.Connected)
-                {
-                    return false;
-                }
-                m_parked = true;
-                m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                m_requestedReconnect = null;
-                m_lastError = reason;
-                TransitionTo(ConnectionState.Disconnected, reason, reconnectAttempt: 0);
-                m_settled.Set();
-            }
-
-            DispatchStateChanges();
-            return true;
-        }
-
-        /// <summary>
-        /// Ends a park started by <see cref="TryPark"/>.
-        /// </summary>
-        /// <param name="connected">Whether the session is usable again, which moves a
-        /// parked machine back to <see cref="ConnectionState.Connected"/>.</param>
-        internal void Unpark(bool connected)
-        {
-            lock (m_lock)
-            {
-                if (!m_parked)
-                {
-                    return;
-                }
-                m_parked = false;
-                if (connected && m_state == ConnectionState.Disconnected)
-                {
-                    m_lastError = null;
-                    m_reconnectPolicy.Reset();
-                    ClearReconnectBudget();
-                    TransitionTo(ConnectionState.Connected, error: null, reconnectAttempt: 0);
-                    m_settled.Set();
-                }
-            }
-
-            DispatchStateChanges();
-        }
-
-        /// <summary>
         /// Request closing the session.
         /// </summary>
         public void RequestClose()
@@ -535,7 +469,7 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                if (m_state != ConnectionState.Disconnected || m_parked)
+                if (m_state != ConnectionState.Disconnected)
                 {
                     return;
                 }

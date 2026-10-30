@@ -337,7 +337,37 @@ namespace Opc.Ua.Client
             return m_innerFactory.RecreateAsync(sessionTemplate, transportChannel, ct);
         }
 
-        private async Task<ISession> CreateCoreAsync(
+        /// <summary>
+        /// Creates a session on a shared managed channel and lets <paramref name="activate"/> bind it to a
+        /// server session instead of opening a new one. Used to take over a saved server session.
+        /// </summary>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="connection">An optional reverse connection for the channel.</param>
+        /// <param name="endpoint">The endpoint of the server session.</param>
+        /// <param name="checkDomain">Whether the server certificate domain is checked.</param>
+        /// <param name="activate">Binds the created session to its server session. When it fails it must
+        /// leave the session in a state whose disposal does not close the server session.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The activated session.</returns>
+        internal async Task<Session> CreateActivatedAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection? connection,
+            ConfiguredEndpoint endpoint,
+            bool checkDomain,
+            Func<Session, CancellationToken, Task> activate,
+            CancellationToken ct)
+        {
+            return (Session)await CreateSessionAsync(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect: false,
+                checkDomain,
+                activate,
+                ct).ConfigureAwait(false);
+        }
+
+        private Task<ISession> CreateCoreAsync(
             ApplicationConfiguration configuration,
             ITransportWaitingConnection? connection,
             ConfiguredEndpoint endpoint,
@@ -347,6 +377,35 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity? identity,
             ArrayOf<string> preferredLocales,
+            CancellationToken ct)
+        {
+            return CreateSessionAsync(
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                async (session, token) =>
+                {
+                    UserIdentity? tempIdentity = identity == null ? new UserIdentity() : null;
+                    await session.OpenAsync(
+                        sessionName,
+                        sessionTimeout,
+                        identity ?? tempIdentity!,
+                        preferredLocales,
+                        checkDomain,
+                        token).ConfigureAwait(false);
+                },
+                ct);
+        }
+
+        private async Task<ISession> CreateSessionAsync(
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection? connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            Func<Session, CancellationToken, Task> open,
             CancellationToken ct)
         {
             await PrepareEndpointAndManagerAsync(
@@ -381,23 +440,7 @@ namespace Opc.Ua.Client
                 Session activeSession = session
                     ?? throw new InvalidOperationException("Participant factory did not create a session.");
                 activeSession.ReturnDiagnostics = ReturnDiagnostics;
-
-                UserIdentity? tempIdentity = identity == null ? new UserIdentity() : null;
-                try
-                {
-                    await activeSession.OpenAsync(
-                        sessionName,
-                        sessionTimeout,
-                        identity ?? tempIdentity!,
-                        preferredLocales,
-                        checkDomain,
-                        ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    tempIdentity = null;
-                }
-
+                await open(activeSession, ct).ConfigureAwait(false);
                 return activeSession;
             }
             catch

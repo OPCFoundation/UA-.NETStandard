@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
@@ -55,7 +57,7 @@ namespace Opc.Ua.Client.Tests
         {
             using TakeoverSession session = CreateSession();
             var changes = new List<(long Generation, NodeId Previous, NodeId Current)>();
-            ((ISessionTakeover)session).SessionGenerationChanged +=
+            session.SessionGenerationChanged +=
                 (_, args) => changes.Add((args.Generation, args.PreviousSessionId, args.SessionId));
             var first = new NodeId(1u);
             var second = new NodeId(2u);
@@ -126,42 +128,37 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Retirement releases the binding without closing the server session.
+        /// Retaining a connected session returns its server session and fences it: a later close
+        /// releases it locally without sending CloseSession.
         /// </summary>
         [Test]
-        public async Task RetireAndPreserveReleasesTheBindingAsync()
+        public async Task RetainReturnsTheBoundSessionAndSuppressesTheCloseAsync()
         {
-            using TakeoverSession session = CreateSession();
+            var requests = new List<IServiceRequest>();
+            using TakeoverSession session = CreateSession(requests);
             session.SessionCreated(new NodeId(1u), new NodeId(11u));
+            session.MarkServerAlive();
 
-            await session.RetireAndPreserveAsync().ConfigureAwait(false);
+            SessionConfiguration saved = await session.RetainServerSessionAsync(CancellationToken.None)
+                .ConfigureAwait(false);
 
-            Assert.That(session.SessionId.IsNull, Is.True);
-            Assert.That(session.SessionGeneration, Is.EqualTo(1), "Releasing the binding is not a new generation.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(saved.SessionId, Is.EqualTo(new NodeId(1u)));
+                Assert.That(saved.AuthenticationToken, Is.EqualTo(new NodeId(11u)));
+                Assert.That(saved.ConfiguredEndpoint, Is.Not.SameAs(session.ConfiguredEndpoint));
+                Assert.That(session.IsServerSessionRetained, Is.True);
+                Assert.That(session.SessionGeneration, Is.EqualTo(1), "Retaining is not a new generation.");
+            });
+            await session.CloseAsync(1000, closeChannel: false).ConfigureAwait(false);
+            Assert.That(requests, Has.None.InstanceOf<CloseSessionRequest>());
         }
 
         /// <summary>
-        /// A cancelled retirement does nothing.
+        /// A session that already sent its close cannot retain its server session.
         /// </summary>
         [Test]
-        public void CancelledRetirementDoesNotStart()
-        {
-            using TakeoverSession session = CreateSession();
-            session.SessionCreated(new NodeId(1u), new NodeId(11u));
-            using var cancellation = new System.Threading.CancellationTokenSource();
-            cancellation.Cancel();
-
-            Assert.That(async () => await session.RetireAndPreserveAsync(cancellation.Token).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
-            Assert.That(() => session.PrepareRequest(new ReadRequest()), Throws.Nothing);
-        }
-
-        /// <summary>
-        /// A retirement after a close was sent reports that the server session was not retained; once a
-        /// new server session is bound it can be retained again.
-        /// </summary>
-        [Test]
-        public async Task RetireAfterCloseReportsTheServerSessionWasNotRetainedAsync()
+        public async Task RetainAfterCloseFailsAsync()
         {
             var requests = new List<IServiceRequest>();
             using TakeoverSession session = CreateSession(requests);
@@ -170,99 +167,234 @@ namespace Opc.Ua.Client.Tests
             await session.CloseAsync(1000, closeChannel: false).ConfigureAwait(false);
             Assert.That(requests, Has.Some.InstanceOf<CloseSessionRequest>());
 
-            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await session.RetireAndPreserveAsync().ConfigureAwait(false));
-            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-
-            session.SessionCreated(new NodeId(2u), new NodeId(12u));
-            await session.RetireAndPreserveAsync().ConfigureAwait(false);
-            Assert.That(session.Disposed, Is.True);
-        }
-
-        /// <summary>
-        /// Preparing a raw session closes its own server session on the kept channel, loads the saved
-        /// state and keeps the server-revised timeout. Until its activation only ActivateSession passes the
-        /// request fence, and a close releases it locally without CloseSession.
-        /// </summary>
-        [Test]
-        public async Task PrepareClosesTheHelperAndFencesAllButActivationAsync()
-        {
-            var requests = new List<IServiceRequest>();
-            using TakeoverSession session = CreateSession(requests);
-            session.SessionCreated(new NodeId(1u), new NodeId(11u));
-            double timeout = session.SessionTimeout;
-            var saved = new SessionConfiguration
-            {
-                SessionId = new NodeId(2u),
-                AuthenticationToken = new NodeId(12u),
-                ConfiguredEndpoint = session.ConfiguredEndpoint
-            };
-
-            await session.PrepareTakeoverAsync(saved, new SessionTakeoverOptions { DeleteHelperSubscriptions = false })
-                .ConfigureAwait(false);
-
-            CloseSessionRequest close = requests.OfType<CloseSessionRequest>().Single();
-            Assert.Multiple(() =>
-            {
-                Assert.That(close.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId(11u)));
-                Assert.That(close.DeleteSubscriptions, Is.False);
-                Assert.That(session.IsPrepared, Is.True);
-                Assert.That(session.SessionId, Is.EqualTo(new NodeId(2u)));
-                Assert.That(session.SessionTimeout, Is.EqualTo(timeout));
-                Assert.That(session.SessionGeneration, Is.EqualTo(2));
-            });
-            ServiceResultException? fenced = Assert.Throws<ServiceResultException>(
-                () => session.PrepareRequest(new ReadRequest()));
-            Assert.That(fenced!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
-            ServiceResultException? activation = Assert.Throws<ServiceResultException>(
-                () => session.PrepareRequest(new ActivateSessionRequest()));
-            Assert.That(activation!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated),
-                "Only the takeover activation itself may activate the saved session.");
             Assert.That(
-                async () => await session.UpdateSessionAsync(null, default).ConfigureAwait(false),
-                Throws.InstanceOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode))
-                    .EqualTo(StatusCodes.BadSessionNotActivated));
-
-            requests.Clear();
-            session.MarkServerAlive();
-            await session.CloseAsync(1000, closeChannel: false).ConfigureAwait(false);
-            Assert.That(requests, Has.None.InstanceOf<CloseSessionRequest>());
-            Assert.That(session.IsPrepared, Is.False);
+                () => session.RetainServerSessionAsync(CancellationToken.None),
+                Throws.InstanceOf<ServiceResultException>());
+            Assert.That(session.IsServerSessionRetained, Is.False);
         }
 
         /// <summary>
-        /// Saved state without a session id or authentication token, or for another endpoint, is
-        /// rejected before anything is sent or changed.
+        /// Saved state without a session id or authentication token, without an endpoint, or for
+        /// another endpoint is rejected.
         /// </summary>
         /// <param name="defect">The defect of the saved state.</param>
         [TestCase("token")]
+        [TestCase("sessionId")]
         [TestCase("endpoint")]
         [TestCase("url")]
-        public void PrepareRejectsInvalidSavedStateBeforeAnyChange(string defect)
+        public void ValidateHandoffRejectsInvalidSavedState(string defect)
         {
-            var requests = new List<IServiceRequest>();
-            using TakeoverSession session = CreateSession(requests);
-            session.SessionCreated(new NodeId(1u), new NodeId(11u));
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configured = new EndpointDescription("opc.tcp://localhost:4840");
             var saved = new SessionConfiguration
             {
-                SessionId = new NodeId(2u),
+                SessionId = defect == "sessionId" ? NodeId.Null : new NodeId(2u),
                 AuthenticationToken = defect == "token" ? NodeId.Null : new NodeId(12u),
                 ConfiguredEndpoint = defect switch
                 {
                     "endpoint" => null,
-                    "url" => new ConfiguredEndpoint(
-                        null, new EndpointDescription("opc.tcp://otherhost:4840"), session.ConfiguredEndpoint.Configuration),
-                    _ => session.ConfiguredEndpoint
+                    "url" => new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://otherhost:4840"), null),
+                    _ => new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://localhost:4840"), null)
                 }
             };
 
             Assert.That(
-                async () => await session.PrepareTakeoverAsync(saved).ConfigureAwait(false),
+                () => Session.ValidateHandoff(saved, configured, telemetry),
                 Throws.InstanceOf<ServiceResultException>());
-            Assert.That(requests, Is.Empty);
-            Assert.That(session.IsPrepared, Is.False);
-            Assert.That(session.SessionId, Is.EqualTo(new NodeId(1u)));
+        }
+
+        /// <summary>
+        /// Valid saved state on the configured endpoint is accepted.
+        /// </summary>
+        [Test]
+        public void ValidateHandoffAcceptsValidSavedState()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var saved = new SessionConfiguration
+            {
+                SessionId = new NodeId(2u),
+                AuthenticationToken = new NodeId(12u),
+                ConfiguredEndpoint = new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://localhost:4840"), null)
+            };
+
+            Assert.That(
+                () => Session.ValidateHandoff(
+                    saved, new EndpointDescription("opc.tcp://localhost:4840"), telemetry),
+                Throws.Nothing);
+            Assert.That(() => Session.ValidateHandoff(saved, null, telemetry), Throws.Nothing);
+        }
+
+        /// <summary>
+        /// The saved server nonce of a secure session must be a valid nonce: 32 to 128 bytes
+        /// that are not all zero. A non-empty nonce alone is not enough.
+        /// </summary>
+        /// <param name="length">The length of the nonce.</param>
+        /// <param name="fill">The value of every byte of the nonce.</param>
+        /// <param name="valid">Whether the nonce is accepted.</param>
+        [TestCase(0, 1, false)]
+        [TestCase(4, 1, false)]
+        [TestCase(31, 1, false)]
+        [TestCase(32, 0, false)]
+        [TestCase(129, 1, false)]
+        [TestCase(32, 1, true)]
+        [TestCase(64, 7, true)]
+        public void ValidateHandoffChecksTheSavedServerNonceOfASecureSession(int length, int fill, bool valid)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            byte[] nonce = [.. Enumerable.Repeat((byte)fill, length)];
+            var saved = new SessionConfiguration
+            {
+                SessionId = new NodeId(2u),
+                AuthenticationToken = new NodeId(12u),
+                ServerNonce = ByteString.From(nonce),
+                ConfiguredEndpoint = new ConfiguredEndpoint(null, new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                }, null)
+            };
+
+            if (valid)
+            {
+                Assert.That(() => Session.ValidateHandoff(saved, null, telemetry), Throws.Nothing);
+            }
+            else
+            {
+                Assert.That(
+                    () => Session.ValidateHandoff(saved, null, telemetry),
+                    Throws.InstanceOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadNonceInvalid));
+            }
+        }
+
+        /// <summary>
+        /// Two server certificate blobs match only when both are empty or both carry the same
+        /// leaf certificate; a certificate that is missing on one side only is a mismatch.
+        /// </summary>
+        [Test]
+        public void IsSameServerCertificateRequiresBothSidesToMatch()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate issuer = CertificateBuilder.Create("CN=TakeoverIssuer")
+                .SetCAConstraint()
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=TakeoverLeaf")
+                .SetIssuer(issuer)
+                .CreateForRSA();
+            using Certificate other = CertificateBuilder.Create("CN=TakeoverOther").CreateForRSA();
+            ByteString leafOnly = ByteString.From(leaf.RawData);
+            ByteString chain = ByteString.From([.. leaf.RawData, .. issuer.RawData]);
+            ByteString otherOnly = ByteString.From(other.RawData);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Session.IsSameServerCertificate(default, default, telemetry), Is.True);
+                Assert.That(Session.IsSameServerCertificate(leafOnly, default, telemetry), Is.False);
+                Assert.That(Session.IsSameServerCertificate(default, leafOnly, telemetry), Is.False);
+                Assert.That(Session.IsSameServerCertificate(leafOnly, leafOnly, telemetry), Is.True);
+                Assert.That(Session.IsSameServerCertificate(leafOnly, chain, telemetry), Is.True);
+                Assert.That(Session.IsSameServerCertificate(leafOnly, otherOnly, telemetry), Is.False);
+            });
+        }
+
+        /// <summary>
+        /// A configured endpoint whose server certificate differs from the saved one, including a
+        /// certificate that only one of them has, rejects the handoff.
+        /// </summary>
+        [Test]
+        public void ValidateHandoffRejectsAOneSidedServerCertificate()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using Certificate leaf = CertificateBuilder.Create("CN=TakeoverOneSided").CreateForRSA();
+            var saved = new SessionConfiguration
+            {
+                SessionId = new NodeId(2u),
+                AuthenticationToken = new NodeId(12u),
+                ConfiguredEndpoint = new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://localhost:4840"), null)
+            };
+            var configured = new EndpointDescription("opc.tcp://localhost:4840")
+            {
+                ServerCertificate = ByteString.From(leaf.RawData)
+            };
+
+            Assert.That(
+                () => Session.ValidateHandoff(saved, configured, telemetry),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// A CreateSession response that arrives after the server session was retained for
+        /// another owner is not the retained session: it is closed past the fence instead of
+        /// leaking, and the open fails.
+        /// </summary>
+        [Test]
+        public async Task LateCreatedSessionIsClosedAfterRetentionAsync()
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                EndpointUrl = "opc.tcp://localhost:4840",
+                UserIdentityTokens = [new UserTokenPolicy()]
+            };
+            using var session = SessionMock.Create(endpoint);
+            var lateToken = NodeId.Parse("s=late");
+            var created = new TaskCompletionSource<IServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var closes = new List<CloseSessionRequest>();
+            session.Channel
+                .Setup(c => c.SendRequestAsync(It.IsAny<CreateSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    sent.TrySetResult(true);
+                    return new ValueTask<IServiceResponse>(created.Task);
+                });
+            session.Channel
+                .Setup(c => c.SendRequestAsync(It.IsAny<CloseSessionRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<IServiceRequest, CancellationToken>((request, _) =>
+                {
+                    lock (closes)
+                    {
+                        closes.Add((CloseSessionRequest)request);
+                    }
+                    return new ValueTask<IServiceResponse>(new CloseSessionResponse
+                    {
+                        ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                    });
+                });
+            session.Channel.Setup(c => c.CloseAsync(It.IsAny<CancellationToken>())).Returns(default(ValueTask));
+
+#pragma warning disable CA2025 // The open task is awaited below, before the session is disposed.
+            Task open = session.OpenAsync("late", new UserIdentity(), default);
+#pragma warning restore CA2025
+            await sent.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            session.AbandonServerSession();
+            created.SetResult(new CreateSessionResponse
+            {
+                ServerNonce = [1, 2, 3, 4],
+                SessionId = NodeId.Parse("s=late-session"),
+                AuthenticationToken = lateToken,
+                ServerEndpoints = [endpoint]
+            });
+
+            ServiceResultException? failure = null;
+            try
+            {
+                await open.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            catch (ServiceResultException ex)
+            {
+                failure = ex;
+            }
+            Assert.That(failure, Is.Not.Null);
+            lock (closes)
+            {
+                Assert.That(closes.Select(c => c.RequestHeader.AuthenticationToken), Is.EqualTo(new[] { lateToken }));
+            }
         }
 
         /// <summary>

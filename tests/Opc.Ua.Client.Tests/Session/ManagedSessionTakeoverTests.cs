@@ -34,14 +34,17 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using static Opc.Ua.Client.Tests.Stack.Client.Fakes.ManagedSessionReconnectHarness;
+using UaManagedSession = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
     /// <summary>
-    /// Covers the session takeover capability of the managed session against a scripted transport
-    /// that records every request reaching the wire.
+    /// Covers the hand-over of a server session from a retiring managed session to a managed
+    /// session that takes it over, against a scripted transport that records every request
+    /// reaching the wire.
     /// </summary>
     [TestFixture]
     [Category("Client")]
@@ -49,25 +52,27 @@ namespace Opc.Ua.Client.Tests.ManagedSession
     public sealed class ManagedSessionTakeoverTests
     {
         /// <summary>
-        /// Retirement keeps the server session and its subscriptions: neither CloseSession nor
-        /// DeleteSubscriptions reaches the server, and no recovery creates or activates another
-        /// session. A graceful dispose of the same setup does close the server session, which
-        /// shows the fixture observes the requests.
+        /// Retirement hands over the server session and its subscriptions without closing or
+        /// deleting anything, and no recovery creates or activates another session. A graceful
+        /// dispose of the same setup does close the server session, which shows the fixture
+        /// observes the requests.
         /// </summary>
         /// <param name="retire">Whether to retire instead of disposing.</param>
         [TestCase(true)]
         [TestCase(false)]
-        public async Task RetireAndPreserveSendsNoFurtherSessionRequestsAsync(bool retire)
+        public async Task RetireReturnsTheHandoffWithoutClosingTheServerSessionAsync(bool retire)
         {
             await using var harness = new ManagedSessionReconnectHarness();
             await harness.ConnectAsync(false).ConfigureAwait(false);
             harness.AddSubscription();
             await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            NodeId sessionId = harness.Session.SessionId;
             int mark = harness.Requests.Count;
 
+            SessionHandoff? handoff = null;
             if (retire)
             {
-                await harness.Session.RetireAndPreserveAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+                handoff = await harness.Session.RetireAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
             }
             else
             {
@@ -76,12 +81,20 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
             Assert.That(harness.Session.Disposed, Is.True);
-            if (retire)
+            if (handoff != null)
             {
-                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<DeleteSubscriptionsRequest>());
-                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
+                Assert.Multiple(() =>
+                {
+                    Assert.That(handoff.Session.SessionId, Is.EqualTo(sessionId));
+                    Assert.That(handoff.Session.AuthenticationToken, Is.EqualTo(new NodeId("token-1", 1)));
+                    Assert.That(handoff.Subscriptions.Count, Is.EqualTo(1));
+                    Assert.That(handoff.Subscriptions[0].ServerId, Is.EqualTo(SubscriptionId));
+                    Assert.That(handoff.Subscriptions[0].MonitoredItems.Count, Is.EqualTo(1));
+                    Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+                    Assert.That(after, Has.None.InstanceOf<DeleteSubscriptionsRequest>());
+                    Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                    Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
+                });
             }
             else
             {
@@ -90,24 +103,25 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// A retirement that loses the race against a graceful disposal or close reports the failure
-        /// instead of claiming the server session was retained, while a retirement that won stays
-        /// idempotent for a later dispose.
+        /// A retirement that races a disposal wins or loses as one operation: a retirement that
+        /// starts first never lets the disposal close the server session, and a retirement after a
+        /// disposal or close fails instead of claiming the server session was retained.
         /// </summary>
         /// <param name="first">The operation that starts first.</param>
         [TestCase("dispose")]
         [TestCase("close")]
         [TestCase("retire")]
-        public async Task RetireReportsWhetherTheServerSessionWasRetainedAsync(string first)
+        public async Task RetireAndDisposeAreSerializedAsync(string first)
         {
             await using var harness = new ManagedSessionReconnectHarness();
             await harness.ConnectAsync(false).ConfigureAwait(false);
 
             if (first == "retire")
             {
-                Task retirement = harness.Session.RetireAndPreserveAsync().AsTask();
-                await harness.Session.DisposeAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-                await retirement.WaitAsync(PhaseTimeout).ConfigureAwait(false);
+                Task<SessionHandoff> retirement = harness.Session.RetireAsync().AsTask();
+                Task disposal = harness.Session.DisposeAsync().AsTask();
+                await Task.WhenAll(retirement, disposal).WaitAsync(PhaseTimeout).ConfigureAwait(false);
+                Assert.That((await retirement.ConfigureAwait(false)).Session, Is.Not.Null);
                 Assert.That(harness.Requests.ToList(), Has.None.InstanceOf<CloseSessionRequest>());
                 return;
             }
@@ -117,42 +131,250 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 : harness.Session.CloseAsync(harness.CancellationToken);
             await closing.WaitAsync(PhaseTimeout).ConfigureAwait(false);
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                () => harness.Session.RetireAndPreserveAsync().AsTask().WaitAsync(PhaseTimeout));
-            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                () => harness.Session.RetireAsync().AsTask().WaitAsync(PhaseTimeout));
+            Assert.That(
+                failure.StatusCode,
+                Is.EqualTo(first == "dispose" ? StatusCodes.BadInvalidState : StatusCodes.BadNotConnected));
             Assert.That(harness.Requests.ToList(), Has.Some.InstanceOf<CloseSessionRequest>());
         }
 
         /// <summary>
-        /// A retirement while recovery is creating a replacement session neither lets the recovery reach
-        /// the retained server session nor move or restore its subscriptions on the replacement.
+        /// A session that is recovering cannot be retired: the retirement fails without
+        /// affecting the recovery.
         /// </summary>
         [Test]
-        public async Task RetireDuringRecoveryDoesNotReachTheRetainedSessionAsync()
+        public async Task RetireDuringRecoveryFailsAsync()
         {
-            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero);
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero);
             await harness.ConnectAsync(false).ConfigureAwait(false);
-            harness.AddSubscription();
-            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            NodeId retainedToken = new("token-1", 1);
             harness.TransportReconnect.Release();
             harness.RecoveryActivation.Release();
 
             Task recovery = harness.StartOuterRecoveryAsync();
             await harness.ReplacementSession.Entered.WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-            Task retirement = harness.Session.RetireAndPreserveAsync().AsTask();
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
+                () => harness.Session.RetireAsync().AsTask().WaitAsync(PhaseTimeout));
             harness.ReplacementSession.Release();
-            await retirement.WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            await Assert.ThatAsync(
-                () => recovery.WaitAsync(PhaseTimeout), Throws.InstanceOf<ServiceResultException>());
-            harness.Recovery = null;
+            await recovery.WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(harness.Session.Disposed, Is.False);
+            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+        }
+
+        /// <summary>
+        /// A session that takes over a retired one activates the saved authentication token on a
+        /// new channel, creates neither a session nor subscriptions, and dispatches the
+        /// notifications of the adopted subscription to the new handler.
+        /// </summary>
+        [Test]
+        public async Task TakeOverActivatesTheSavedSessionAndAdoptsItsSubscriptionsAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                RecoveryActivationStatus = StatusCodes.Good
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            ISubscription original = harness.AddSubscription();
+            CreateMonitoredItemsRequest items = await harness.NextMonitoredItemsAsync().AsTask()
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            uint clientHandle = items.ItemsToCreate[0].RequestedParameters.ClientHandle;
+            SessionHandoff handoff = await harness.Session.RetireAsync().AsTask()
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            harness.RecoveryActivation.Release();
+            int mark = harness.Requests.Count;
+
+            UaManagedSession successor = await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+
+            IServiceRequest[] takeover = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(takeover.OfType<ActivateSessionRequest>().First().RequestHeader.AuthenticationToken,
+                    Is.EqualTo(handoff.Session.AuthenticationToken));
+                Assert.That(takeover, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(takeover, Has.None.InstanceOf<CloseSessionRequest>());
+                Assert.That(takeover, Has.None.InstanceOf<CreateSubscriptionRequest>());
+                Assert.That(takeover, Has.None.InstanceOf<TransferSubscriptionsRequest>());
+                Assert.That(takeover, Has.None.InstanceOf<CreateMonitoredItemsRequest>());
+                Assert.That(successor.SessionId, Is.EqualTo(handoff.Session.SessionId));
+                Assert.That(successor.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            });
+
+            ReceivedData received = await ReceiveNotificationAsync(harness, original, clientHandle)
+                .ConfigureAwait(false);
+            Assert.That(received.Subscription, Is.Not.SameAs(original));
+            Assert.That(received.Change.Value.WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// A takeover whose activation is rejected fails the creation by default; the saved server
+        /// session is neither closed nor replaced by a new one.
+        /// </summary>
+        [Test]
+        public async Task TakeOverFailureThrowsWithoutClosingOrCreatingASessionAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            int mark = harness.Requests.Count;
+
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
+                () => harness.TakeOverAsync(handoff));
 
             IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.That(harness.Session.Disposed, Is.True);
-            Assert.That(after.Where(r => r.RequestHeader.AuthenticationToken == retainedToken), Is.Empty);
-            Assert.That(after, Has.None.InstanceOf<TransferSubscriptionsRequest>());
-            Assert.That(after, Has.None.InstanceOf<CreateSubscriptionRequest>());
-            Assert.That(after, Has.None.InstanceOf<CreateMonitoredItemsRequest>());
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That(after.OfType<ActivateSessionRequest>().Count(), Is.EqualTo(1));
+                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+            });
+        }
+
+        /// <summary>
+        /// With <see cref="SessionTakeoverFailureMode.CreateNewSession"/> a rejected takeover
+        /// creates a new server session and recreates the handed-over subscriptions on it, without
+        /// closing the saved server session.
+        /// </summary>
+        [Test]
+        public async Task TakeOverFailureCanCreateANewSessionAndRecreateSubscriptionsAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            harness.AddSubscription();
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            SessionHandoff retired = await harness.Session.RetireAsync().AsTask()
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            SessionHandoff handoff = retired with
+            {
+                Session = retired.Session with
+                {
+                    SessionId = TakeoverSessionId,
+                    AuthenticationToken = TakeoverToken
+                }
+            };
+            harness.ReleaseAllGates();
+            int mark = harness.Requests.Count;
+
+            UaManagedSession successor = await harness.TakeOverAsync(handoff, new SessionTakeoverOptions
+            {
+                SubscriptionHandlerFactory = _ => harness.CreateNotificationHandler(),
+                FailureMode = SessionTakeoverFailureMode.CreateNewSession
+            }).ConfigureAwait(false);
+            await harness.NextMonitoredItemsAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(after, Has.Some.InstanceOf<CreateSessionRequest>());
+                Assert.That(after, Has.Some.InstanceOf<CreateSubscriptionRequest>());
+                Assert.That(after, Has.Some.InstanceOf<CreateMonitoredItemsRequest>());
+                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+                Assert.That(successor.SessionId, Is.Not.EqualTo(TakeoverSessionId));
+                Assert.That(successor.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+                Assert.That(
+                    harness.Logs.Records.Any(r => r.Message.Contains("continuity", StringComparison.Ordinal)),
+                    Is.True);
+            });
+        }
+
+        /// <summary>
+        /// After a takeover the session behaves like any other: a reconnect reactivates the
+        /// taken-over server session, and when the server rejects it a new session is created.
+        /// </summary>
+        [Test]
+        public async Task ReconnectAfterTakeoverIsNormalRecoveryAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero);
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            await harness.Session.DisposeAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            UaManagedSession successor = await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+            long generation = successor.SessionGeneration;
+            harness.ReleaseAllGates();
+            int mark = harness.Requests.Count;
+
+            await successor.ReconnectAsync(null, null, harness.CancellationToken)
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            IServiceRequest[] reactivation = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(reactivation.OfType<ActivateSessionRequest>().Single().RequestHeader.AuthenticationToken,
+                    Is.EqualTo(TakeoverToken));
+                Assert.That(reactivation, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(successor.SessionId, Is.EqualTo(TakeoverSessionId));
+                Assert.That(successor.SessionGeneration, Is.EqualTo(generation));
+            });
+
+            harness.TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid;
+            mark = harness.Requests.Count;
+            await successor.ReconnectAsync(null, null, harness.CancellationToken)
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+
+            IServiceRequest[] recreation = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(recreation, Has.Some.InstanceOf<CreateSessionRequest>());
+                Assert.That(successor.SessionId, Is.Not.EqualTo(TakeoverSessionId));
+                Assert.That(successor.SessionGeneration, Is.EqualTo(generation + 1));
+                Assert.That(successor.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            });
+        }
+
+        /// <summary>
+        /// The session that takes over uses the revised session timeout of the handoff instead of
+        /// its own requested timeout.
+        /// </summary>
+        [Test]
+        public async Task TakeOverKeepsTheRevisedSessionTimeoutAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness
+            {
+                RevisedSessionTimeout = 1500
+            };
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            Assert.That(handoff.RevisedSessionTimeout, Is.EqualTo(1500));
+
+            UaManagedSession successor = await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+
+            Assert.That(successor.SessionTimeout, Is.EqualTo(1500));
+        }
+
+        /// <summary>
+        /// A handoff that cannot be taken over is rejected before anything reaches the server.
+        /// </summary>
+        [Test]
+        public async Task InvalidHandoffIsRejectedBeforeConnectingAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            int mark = harness.Requests.Count;
+
+            SessionHandoff noToken = handoff with
+            {
+                Session = handoff.Session with { AuthenticationToken = NodeId.Null }
+            };
+            await Assert.ThatAsync(() => harness.TakeOverAsync(noToken), Throws.InstanceOf<ServiceResultException>());
+
+            SessionHandoff withSubscriptions = handoff with
+            {
+                Subscriptions = [new SubscriptionStateSnapshot { ServerId = SubscriptionId }]
+            };
+            await Assert.ThatAsync(
+                () => harness.TakeOverAsync(withSubscriptions, new SessionTakeoverOptions()),
+                Throws.ArgumentException);
+
+            Assert.That(harness.Requests.Count, Is.EqualTo(mark));
         }
 
         /// <summary>
@@ -164,7 +386,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [TestCase(true)]
         public async Task SessionGenerationChangesOnlyWithTheServerSessionAsync(bool recreate)
         {
-            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero)
+            await using var harness = new ManagedSessionReconnectHarness(TimeSpan.Zero)
             {
                 RecoveryActivationStatus = recreate ? StatusCodes.BadSessionIdInvalid : StatusCodes.Good
             };
@@ -198,353 +420,64 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Preparing closes only the helper's own server session and loads the saved state without
-        /// activating it: the session reports prepared and disconnected, and service calls fail fast.
-        /// The explicit reconnect then activates exactly the saved session with its token, without
-        /// CreateSession or CloseSession, and normal service resumes on it.
+        /// Captures the server session of the harness session as the handoff of another owner's
+        /// server session, whose token the script answers with the takeover activation status.
         /// </summary>
-        [Test]
-        public async Task PrepareAndReconnectActivateExactlyTheSavedSessionAsync()
+        private static SessionHandoff CreateForeignHandoff(ManagedSessionReconnectHarness harness)
         {
-            await using var harness = new ManagedSessionReconnectHarness();
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            NodeId helperToken = new("token-1", 1);
-            int mark = harness.Requests.Count;
-
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-
-            IServiceRequest[] prepare = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.That(prepare.Select(request => request.GetType()), Is.EqualTo(new[] { typeof(CloseSessionRequest) }));
-            var close = (CloseSessionRequest)prepare[0];
-            Assert.Multiple(() =>
+            SessionHandoff handoff = harness.Session.CaptureHandoff();
+            return handoff with
             {
-                Assert.That(close.RequestHeader.AuthenticationToken, Is.EqualTo(helperToken));
-                Assert.That(close.DeleteSubscriptions, Is.True);
-                Assert.That(harness.Session.IsPrepared, Is.True);
-                Assert.That(harness.Session.Connected, Is.False);
-                Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
-                Assert.That(harness.Session.SessionId, Is.EqualTo(TakeoverSessionId));
-                Assert.That(harness.Session.SessionGeneration, Is.EqualTo(2));
-            });
-            using (var timeout = new CancellationTokenSource(PhaseTimeout))
-            {
-                ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await harness.Session.ReadValueAsync(
-                        VariableIds.Server_ServerStatus_State, timeout.Token).ConfigureAwait(false));
-                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
-            }
-
-            mark = harness.Requests.Count;
-            await harness.Session.ReconnectAsync(null, null, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-
-            IServiceRequest[] activation = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.Multiple(() =>
-            {
-                Assert.That(activation.OfType<ActivateSessionRequest>().Single().RequestHeader.AuthenticationToken,
-                    Is.EqualTo(TakeoverToken));
-                Assert.That(activation, Has.None.InstanceOf<CreateSessionRequest>());
-                Assert.That(activation, Has.None.InstanceOf<CloseSessionRequest>());
-                Assert.That(harness.Session.IsPrepared, Is.False);
-                Assert.That(harness.Session.Connected, Is.True);
-                Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-                Assert.That(harness.Session.SessionId, Is.EqualTo(TakeoverSessionId));
-                Assert.That(harness.Session.SessionGeneration, Is.EqualTo(2), "Activation keeps the generation.");
-            });
-            DataValue value = await harness.Session.ReadValueAsync(
-                VariableIds.Server_ServerStatus_State, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(harness.Requests.ToList().OfType<ReadRequest>().Last().RequestHeader.AuthenticationToken,
-                Is.EqualTo(TakeoverToken));
-        }
-
-        /// <summary>
-        /// Incomplete or mismatched saved state is rejected before anything changes: no request is sent
-        /// and the helper session stays connected and usable.
-        /// </summary>
-        /// <param name="mismatch">The defect of the saved state.</param>
-        [TestCase("token")]
-        [TestCase("endpoint")]
-        [TestCase("url")]
-        [TestCase("mode")]
-        [TestCase("policy")]
-        public async Task PrepareRejectsInvalidSavedStateWithoutChangesAsync(string mismatch)
-        {
-            await using var harness = new ManagedSessionReconnectHarness();
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            SessionConfiguration saved = CreateSavedSession(harness);
-            ConfiguredEndpoint other = SessionChannelHarness.CreateEndpoint(
-                mismatch == "url" ? "opc.tcp://otherhost:4840" : "opc.tcp://localhost:4840");
-            if (mismatch == "mode")
-            {
-                other.Description.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                other.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-            }
-            else if (mismatch == "policy")
-            {
-                other.Description.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-            }
-            saved = mismatch switch
-            {
-                "token" => saved with { AuthenticationToken = NodeId.Null },
-                "endpoint" => saved with { ConfiguredEndpoint = null },
-                _ => saved with { ConfiguredEndpoint = other }
+                Session = handoff.Session with
+                {
+                    SessionId = TakeoverSessionId,
+                    AuthenticationToken = TakeoverToken
+                }
             };
-            NodeId helper = harness.Session.SessionId;
-            int mark = harness.Requests.Count;
-
-            Assert.That(
-                async () => await harness.Session.PrepareTakeoverAsync(saved).ConfigureAwait(false),
-                Throws.InstanceOf<ServiceResultException>());
-
-            Assert.Multiple(() =>
-            {
-                IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
-                Assert.That(harness.Session.IsPrepared, Is.False);
-                Assert.That(harness.Session.Connected, Is.True);
-                Assert.That(harness.Session.SessionId, Is.EqualTo(helper));
-                Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-            });
-            DataValue value = await harness.Session.ReadValueAsync(
-                VariableIds.Server_ServerStatus_State, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
-        /// A rejected activation neither creates another session nor closes the saved one; the session
-        /// stays prepared and a retry activates it.
+        /// Answers publish requests with a value for <paramref name="clientHandle"/> until a
+        /// subscription other than <paramref name="exclude"/> dispatches a notification.
         /// </summary>
-        [Test]
-        public async Task FailedActivationStaysPreparedAndCanBeRetriedAsync()
+        private static async Task<ReceivedData> ReceiveNotificationAsync(
+            ManagedSessionReconnectHarness harness,
+            ISubscription exclude,
+            uint clientHandle)
         {
-            await using var harness = new ManagedSessionReconnectHarness
+            harness.FirstNotification.Release();
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(harness.CancellationToken);
+            timeout.CancelAfter(PhaseTimeout);
+            Task<ReceivedData> next = harness.NextNotificationAsync().AsTask();
+            Task<WirePublish> publish = harness.NextWirePublishAsync().AsTask();
+            uint sequenceNumber = 1;
+            while (true)
             {
-                TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid
-            };
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-
-            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                () => harness.Session.ReconnectAsync(null, null, harness.CancellationToken).WaitAsync(PhaseTimeout));
-
-            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.Multiple(() =>
-            {
-                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
-                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
-                Assert.That(harness.Session.IsPrepared, Is.True);
-                Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
-            });
-
-            harness.TakeoverActivationStatus = StatusCodes.Good;
-            await harness.Session.ReconnectAsync(null, null, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(harness.Session.IsPrepared, Is.False);
-            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-            Assert.That(harness.Requests.ToList().OfType<CreateSessionRequest>().Count(), Is.EqualTo(1),
-                "Only the helper session was ever created.");
-        }
-
-        /// <summary>
-        /// A prepared session never committed its ownership, so closing, disposing or retiring it leaves the
-        /// saved server session alive: nothing is sent with the saved session's token.
-        /// </summary>
-        /// <param name="operation">How the prepared session is released.</param>
-        [TestCase("dispose")]
-        [TestCase("close")]
-        [TestCase("retire")]
-        public async Task ReleasingAPreparedSessionKeepsTheSavedServerSessionAsync(string operation)
-        {
-            await using var harness = new ManagedSessionReconnectHarness();
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-
-            switch (operation)
-            {
-                case "dispose":
-                    await harness.Session.DisposeAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-                    break;
-                case "close":
-                    StatusCode status = await harness.Session.CloseAsync(harness.CancellationToken)
-                        .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-                    Assert.That(status, Is.EqualTo(StatusCodes.Good));
-                    break;
-                default:
-                    await harness.Session.RetireAndPreserveAsync().AsTask()
-                        .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-                    break;
+                Task completed = await Task.WhenAny(next, publish).WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (completed == next)
+                {
+                    ReceivedData received = await next.ConfigureAwait(false);
+                    if (!ReferenceEquals(received.Subscription, exclude))
+                    {
+                        return received;
+                    }
+                    next = harness.NextNotificationAsync().AsTask();
+                    continue;
+                }
+                WirePublish exchange = await publish.ConfigureAwait(false);
+                if (!exchange.Response.IsCompleted && !exchange.CancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        exchange.ReplyWithValue(clientHandle, 42, sequenceNumber++);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The publish was cancelled concurrently.
+                    }
+                }
+                publish = harness.NextWirePublishAsync().AsTask();
             }
-
-            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.That(after.Where(request => request.RequestHeader.AuthenticationToken == TakeoverToken), Is.Empty);
-            Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
-            Assert.That(after, Has.None.InstanceOf<DeleteSubscriptionsRequest>());
-        }
-
-        /// <summary>
-        /// Disposing the session while the activation is in flight cancels it and leaves the saved server
-        /// session alive, because its ownership never committed.
-        /// </summary>
-        [Test]
-        public async Task DisposeDuringActivationKeepsTheSavedServerSessionAsync()
-        {
-            var activation = new AsyncOperationGate();
-            await using var harness = new ManagedSessionReconnectHarness { TakeoverActivation = activation };
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-
-            Task reconnect = harness.Session.ReconnectAsync(null, null, harness.CancellationToken);
-            await activation.Entered.WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-            await harness.Session.DisposeAsync().AsTask().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-
-            Assert.That(async () => await reconnect.WaitAsync(PhaseTimeout).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>().Or.InstanceOf<ServiceResultException>());
-            Assert.That(activation.Cancelled.IsCompleted, Is.True);
-            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
-            Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
-        }
-
-        /// <summary>
-        /// While prepared, a channel recovery by the channel manager neither activates the saved session nor
-        /// starts the managed recovery; the explicit reconnect still activates it afterwards.
-        /// </summary>
-        [Test]
-        public async Task ChannelRecoveryWhilePreparedDoesNotActivateAsync()
-        {
-            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero);
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            harness.ReleaseAllGates();
-            int mark = harness.Requests.Count;
-
-            await harness.StartRecoveryAsync().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            harness.Recovery = null;
-
-            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
-            Assert.Multiple(() =>
-            {
-                Assert.That(after, Has.None.InstanceOf<ActivateSessionRequest>());
-                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
-                Assert.That(harness.Session.IsPrepared, Is.True);
-                Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
-            });
-
-            await harness.Session.ReconnectAsync(null, null, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-            Assert.That(harness.Requests.ToList().OfType<ActivateSessionRequest>().Last().RequestHeader
-                .AuthenticationToken, Is.EqualTo(TakeoverToken));
-        }
-
-        /// <summary>
-        /// The takeover keeps the helper's server-revised session timeout instead of the configured one,
-        /// through preparation and activation; a later recreation reports its newly revised timeout.
-        /// </summary>
-        [Test]
-        public async Task TakeoverKeepsTheServerRevisedSessionTimeoutAsync()
-        {
-            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero)
-            {
-                RequestedSessionTimeout = System.TimeSpan.FromSeconds(30),
-                RevisedSessionTimeout = 1500
-            };
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            Assert.That(harness.Session.SessionTimeout, Is.EqualTo(1500));
-
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(harness.Session.SessionTimeout, Is.EqualTo(1500));
-            await harness.Session.ReconnectAsync(null, null, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(harness.Session.SessionTimeout, Is.EqualTo(1500));
-
-            harness.RevisedSessionTimeout = 3000;
-            harness.TakeoverActivationStatus = StatusCodes.BadSessionIdInvalid;
-            harness.ReleaseAllGates();
-            await harness.StartOuterRecoveryAsync().WaitAsync(PhaseTimeout).ConfigureAwait(false);
-
-            Assert.That(harness.Session.SessionId, Is.Not.EqualTo(TakeoverSessionId));
-            Assert.That(harness.Session.SessionTimeout, Is.EqualTo(3000));
-            Assert.That(harness.Session.SessionGeneration, Is.EqualTo(3));
-        }
-
-        /// <summary>
-        /// The mirrored-session reactivation used by replica sets cannot bypass a prepared takeover: it is
-        /// rejected without sending anything, and the takeover still activates normally afterwards.
-        /// </summary>
-        [Test]
-        public async Task MirroredReactivationCannotActivateAPreparedSessionAsync()
-        {
-            await using var harness = new ManagedSessionReconnectHarness();
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            await harness.Session.PrepareTakeoverAsync(CreateSavedSession(harness)).AsTask()
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-
-            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.Session.ReactivateMirroredSessionAsync(
-                    harness.Session.ConfiguredEndpoint, harness.CancellationToken).ConfigureAwait(false));
-
-            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(harness.Requests.ToList().Skip(mark), Has.None.InstanceOf<ActivateSessionRequest>());
-            Assert.That(harness.Session.IsPrepared, Is.True);
-            await harness.Session.ReconnectAsync(null, null, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-        }
-
-        /// <summary>
-        /// While a replica coordinator adopts a mirrored session, the parked session rejects a
-        /// recovery that could create another server session; ending the adoption reports it
-        /// connected again. A session that is not connected is not parked.
-        /// </summary>
-        [Test]
-        public async Task MirroredSessionAdoptionParksRecoveryAsync()
-        {
-            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero);
-            await harness.ConnectAsync(false).ConfigureAwait(false);
-            int mark = harness.Requests.Count;
-
-            Assert.That(harness.Session.TryBeginMirroredSessionAdoption(), Is.True);
-            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
-            ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(
-                () => harness.Session.ReconnectAsync(null, null, harness.CancellationToken).WaitAsync(PhaseTimeout));
-            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(harness.Requests.ToList().Skip(mark), Has.None.InstanceOf<CreateSessionRequest>());
-
-            harness.Session.EndMirroredSessionAdoption(connected: true);
-            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
-            DataValue value = await harness.Session.ReadValueAsync(
-                VariableIds.Server_ServerStatus_State, harness.CancellationToken)
-                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
-            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
-        }
-
-        /// <summary>
-        /// Creates the saved state of another owner's server session on the harness endpoint.
-        /// </summary>
-        private static SessionConfiguration CreateSavedSession(ManagedSessionReconnectHarness harness)
-        {
-            return harness.Session.SaveSessionConfiguration() with
-            {
-                SessionId = TakeoverSessionId,
-                AuthenticationToken = TakeoverToken
-            };
         }
     }
 }

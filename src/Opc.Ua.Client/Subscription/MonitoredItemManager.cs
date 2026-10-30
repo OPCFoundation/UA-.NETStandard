@@ -813,10 +813,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        internal async ValueTask<bool> TrySynchronizeHandlesAsync(
+        internal ValueTask<bool> TrySynchronizeHandlesAsync(
             CancellationToken ct)
         {
-            MonitoredItemsHandles result = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            return TrySynchronizeHandlesAsync(cachedOnly: false, ct);
+        }
+
+        /// <summary>
+        /// Synchronizes the item handles with the server, or, when <paramref name="cachedOnly"/>
+        /// is set, binds the items to the handles this client already knows without asking
+        /// the server. The latter is used when the subscription is adopted together with the
+        /// server session that owns it, so the server items are exactly the saved ones.
+        /// </summary>
+        /// <param name="cachedOnly">Use only the cached handles; no service call is made.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns><c>true</c> when all items are bound to server items.</returns>
+        internal async ValueTask<bool> TrySynchronizeHandlesAsync(
+            bool cachedOnly,
+            CancellationToken ct)
+        {
+            MonitoredItemsHandles result = cachedOnly
+                ? new MonitoredItemsHandles(false, [], StatusCodes.BadNotSupported)
+                : await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
             bool success = result.Success;
             IReadOnlyList<(uint serverHandle, uint clientHandle)> serverHandleStateMap = result.Handles;
 
@@ -824,7 +842,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             lock (m_monitoredItemsLock)
             {
                 if (!success &&
-                    GetMonitoredItemsFallback.IsMethodUnavailable(result.Status) &&
+                    (cachedOnly || GetMonitoredItemsFallback.IsMethodUnavailable(result.Status)) &&
                     TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
                 {
                     //
@@ -899,7 +917,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     uint clientHandle = monitoredItem.Value.ClientHandle;
                     if (clientServerHandleMap.Remove(clientHandle, out uint serverHandle))
                     {
-                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
+                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle, !cachedOnly);
                         monitoredItems.Remove(monitoredItem.Key);
                         m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }
@@ -926,7 +944,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         // There should not be any more item with the same client handle
                         // in this subscription, they were updated before. TODO: Assert
                         //
-                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
+                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle, !cachedOnly);
                         monitoredItems.Remove(monitoredItem.Key);
                         m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }

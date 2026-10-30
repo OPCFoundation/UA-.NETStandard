@@ -586,15 +586,38 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public async ValueTask<bool> TryCompleteTransferAsync(
+        public ValueTask<bool> TryCompleteTransferAsync(
             IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
+        {
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: false, ct);
+        }
+
+        /// <summary>
+        /// Binds this loaded subscription to the server subscription it was saved from, which
+        /// already belongs to the current server session because that session was taken over.
+        /// Unlike <see cref="TryCompleteTransferAsync"/> no TransferSubscriptions,
+        /// GetMonitoredItems or ModifySubscription request is sent: the saved item handles and
+        /// settings are used as they are. Messages the server still holds are republished.
+        /// </summary>
+        /// <param name="availableSequenceNumbers">The saved sequence numbers available for
+        /// republishing.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns><c>true</c> when the subscription was bound.</returns>
+        internal ValueTask<bool> TryCompleteAdoptionAsync(
+            IReadOnlyList<uint> availableSequenceNumbers, CancellationToken ct)
+        {
+            return CompleteBindingAsync(availableSequenceNumbers, adopt: true, ct);
+        }
+
+        private async ValueTask<bool> CompleteBindingAsync(
+            IReadOnlyList<uint> availableSequenceNumbers, bool adopt, CancellationToken ct)
         {
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 StopKeepAliveTimer();
                 bool success = await m_monitoredItems.TrySynchronizeHandlesAsync(
-                    ct).ConfigureAwait(false);
+                    adopt, ct).ConfigureAwait(false);
                 if (!success)
                 {
                     return false;
@@ -605,7 +628,28 @@ namespace Opc.Ua.Client.Subscriptions
 
                 await m_monitoredItems.ApplyChangesAsync(true, false,
                     ct).ConfigureAwait(false);
-                await ModifyAsync(Options, ct).ConfigureAwait(false);
+                if (adopt)
+                {
+                    SubscriptionOptions options = Options;
+                    AdjustCounts(options, out uint keepAliveCount, out uint lifetimeCount);
+                    RememberRequestedSettings(
+                        options.PublishingInterval,
+                        keepAliveCount,
+                        lifetimeCount,
+                        options.Priority,
+                        options.MaxNotificationsPerPublish);
+                    OnSubscriptionUpdateComplete(false, 0,
+                        options.PublishingInterval,
+                        keepAliveCount,
+                        lifetimeCount,
+                        options.Priority,
+                        options.MaxNotificationsPerPublish,
+                        options.PublishingEnabled);
+                }
+                else
+                {
+                    await ModifyAsync(Options, ct).ConfigureAwait(false);
+                }
                 StartKeepAliveTimer();
             }
             finally

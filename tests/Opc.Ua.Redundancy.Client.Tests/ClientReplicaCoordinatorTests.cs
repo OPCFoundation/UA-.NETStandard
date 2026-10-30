@@ -31,6 +31,10 @@
 //   there is no cross-test resource leak. Suppressed file-level for the suite.
 #pragma warning disable CA2000 // Dispose objects before losing scope
 
+// CA2025: the fake takeover factories hand out sessions the coordinator owns and disposes;
+//   the tests never dispose them while such a task is pending.
+#pragma warning disable CA2025
+
 // CA2007: tests run without a SynchronizationContext; ConfigureAwait(false)
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
@@ -177,24 +181,25 @@ namespace Opc.Ua.Client.Redundancy.Tests
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
-            using var stream = new MemoryStream();
-            seedSession.SaveSessionConfiguration(stream);
-            await store.SetAsync(
-                "client-replica/session",
-                protector.Protect(
-                    RecordProtectionContext.Create("client-replica-session", "client-replica/session"),
-                    new ByteString(stream.ToArray()))).ConfigureAwait(false);
+            await store.SetAsync("client-replica/session", CreateHandoffRecord(protector, seedSession))
+                .ConfigureAwait(false);
 
             ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
-            var expectedAuthenticationToken = NodeId.Parse("s=auth");
-            ManagedSession managedSession = CreateManagedSessionForTokenReuse(expectedEndpoint, expectedAuthenticationToken);
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(expectedEndpoint, NodeId.Parse("s=auth"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(expectedEndpoint, NodeId.Parse("s=auth"));
+            var handoffs = new List<SessionHandoff>();
+            SetTakeoverFactory(standbySession, (handoff, _, _) =>
+            {
+                handoffs.Add(handoff);
+                return Task.FromResult(leaderSession);
+            });
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var options = new ClientReplicaOptions
             {
                 Mode = ClientStandbyMode.Cold,
                 EnableTokenReuse = true,
-                CreateSessionAsync = _ => new ValueTask<ManagedSession>(managedSession),
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(standbySession),
                 ConfigureLeaderAsync = (_, fastActivated, _) =>
                 {
                     configured.TrySetResult(fastActivated);
@@ -213,6 +218,10 @@ namespace Opc.Ua.Client.Redundancy.Tests
             bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(fastActivated, Is.True);
+            Assert.That(handoffs, Has.Count.EqualTo(1), "the leader session is created as a takeover");
+            Assert.That(handoffs[0].Session.SessionId, Is.EqualTo(seedSession.SessionId));
+            Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
+            Assert.That(standbySession.Disposed, Is.True, "the replaced standby session is closed");
         }
 
         [Test]
@@ -262,23 +271,28 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
-        public async Task LeaderPromotionRecoversWithFreshSessionWhenTokenReuseReactivationFailsAsync()
+        public async Task LeaderPromotionKeepsTheStandbySessionWhenTheTakeoverFailsAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
-            using var stream = new MemoryStream();
-            seedSession.SaveSessionConfiguration(stream);
-            // A stored config from a since-superseded leader: reactivating it fails
-            // (its server-side session no longer exists), exercising the
-            // failure-recovery path in EnsureLeaderSessionAsync.
-            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+            // A handoff from a since-superseded leader: taking it over fails because its
+            // server session no longer exists.
+            await store.SetAsync("client-replica/session", CreateHandoffRecord(NullRecordProtector.Instance, seedSession))
+                .ConfigureAwait(false);
 
             ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
-            ManagedSession brokenSession = CreateManagedSessionThatFailsReactivation(expectedEndpoint);
-            ManagedSession freshSession = CreateManagedSessionForTokenReuse(
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(
                 expectedEndpoint, NodeId.Parse("s=fresh-auth"));
+            int takeovers = 0;
+            SetTakeoverFactory(standbySession, (_, _, _) =>
+            {
+                takeovers++;
+                return Task.FromException<ManagedSession>(new ServiceResultException(
+                    StatusCodes.BadSessionIdInvalid,
+                    "simulated: the prior leader's session no longer exists on the failover server"));
+            });
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int created = 0;
 
@@ -289,7 +303,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 CreateSessionAsync = _ =>
                 {
                     created++;
-                    return new ValueTask<ManagedSession>(created == 1 ? brokenSession : freshSession);
+                    return new ValueTask<ManagedSession>(standbySession);
                 },
                 ConfigureLeaderAsync = (_, fastActivated, _) =>
                 {
@@ -308,12 +322,58 @@ namespace Opc.Ua.Client.Redundancy.Tests
 
             bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
-            Assert.That(created, Is.EqualTo(2), "a failed reactivation must fall back to creating a fresh session");
+            Assert.That(takeovers, Is.EqualTo(1));
+            Assert.That(created, Is.EqualTo(1), "the untouched standby session becomes the leader session");
             Assert.That(fastActivated, Is.False);
-            Assert.That(
-                coordinator.CurrentSession,
-                Is.SameAs(freshSession),
-                "the coordinator must not be left holding the broken, half-reactivated session");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
+            Assert.That(standbySession.Disposed, Is.False);
+        }
+
+        [Test]
+        public async Task LeaderPromotionIgnoresAHandoffRecordItCannotDecodeAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var seedSession = SessionMock.Create();
+            seedSession.SetConnected();
+            using var stream = new MemoryStream();
+            seedSession.SaveSessionConfiguration(stream);
+            // A plain session configuration is not a session handoff record.
+            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(
+                seedSession.ConfiguredEndpoint, NodeId.Parse("s=auth"));
+            int takeovers = 0;
+            SetTakeoverFactory(standbySession, (_, _, _) =>
+            {
+                takeovers++;
+                return Task.FromResult(standbySession);
+            });
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var options = new ClientReplicaOptions
+            {
+                Mode = ClientStandbyMode.Cold,
+                EnableTokenReuse = true,
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(standbySession),
+                ConfigureLeaderAsync = (_, fastActivated, _) =>
+                {
+                    configured.TrySetResult(fastActivated);
+                    return default;
+                }
+            };
+            await using var coordinator = new ClientReplicaCoordinator(
+                options,
+                new StaticLeaderElection(true),
+                store,
+                NullRecordProtector.Instance,
+                m_telemetry);
+
+            await coordinator.StartAsync().ConfigureAwait(false);
+
+            bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(fastActivated, Is.False);
+            Assert.That(takeovers, Is.Zero);
+            Assert.That(coordinator.CurrentSession, Is.SameAs(standbySession));
         }
 
         [TestCase(ClientStandbyMode.Warm)]
@@ -374,31 +434,36 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
-        public async Task TokenReusePromotionClosesTheFollowersOwnSessionBeforeAdoptingTheLeaderSessionAsync()
+        public async Task TokenReusePromotionClosesTheStandbySessionAfterTheTakeoverAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
-            using var stream = new MemoryStream();
-            seedSession.SaveSessionConfiguration(stream);
-            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+            await store.SetAsync("client-replica/session", CreateHandoffRecord(NullRecordProtector.Instance, seedSession))
+                .ConfigureAwait(false);
 
             ConfiguredEndpoint expectedEndpoint = seedSession.ConfiguredEndpoint;
-            var followerToken = NodeId.Parse("s=follower-auth");
-            var closedTokens = new List<(NodeId Token, bool DeleteSubscriptions)>();
-            ManagedSession followerSession = CreateManagedSessionForTokenReuse(
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(
                 expectedEndpoint,
                 NodeId.Parse("s=auth"),
-                followerToken,
-                closedTokens);
+                NodeId.Parse("s=follower-auth"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(expectedEndpoint, NodeId.Parse("s=auth"));
+            SetTakeoverFactory(standbySession, (_, _, _) =>
+            {
+                Assert.That(
+                    standbySession.Disposed,
+                    Is.False,
+                    "the standby session stays usable until the takeover succeeded");
+                return Task.FromResult(leaderSession);
+            });
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var options = new ClientReplicaOptions
             {
                 Mode = ClientStandbyMode.Warm,
                 EnableTokenReuse = true,
-                CreateSessionAsync = _ => new ValueTask<ManagedSession>(followerSession),
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(standbySession),
                 ConfigureLeaderAsync = (_, fastActivated, _) =>
                 {
                     configured.TrySetResult(fastActivated);
@@ -417,34 +482,36 @@ namespace Opc.Ua.Client.Redundancy.Tests
             bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(fastActivated, Is.True);
+            Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
             Assert.That(
-                closedTokens,
-                Has.Count.EqualTo(1),
-                "the follower's own server session must be closed, not orphaned");
-            Assert.That(closedTokens[0].Token, Is.EqualTo(followerToken));
-            Assert.That(closedTokens[0].DeleteSubscriptions, Is.True);
+                standbySession.Disposed,
+                Is.True,
+                "the replaced standby session is disposed normally, which closes its own server session");
         }
 
         [Test]
-        public async Task PromotionRetryKeepsTheAdoptedMirroredSessionAsync()
+        public async Task PromotionRetryKeepsTheTakenOverLeaderSessionAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
-            using var stream = new MemoryStream();
-            seedSession.SaveSessionConfiguration(stream);
-            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+            await store.SetAsync("client-replica/session", CreateHandoffRecord(NullRecordProtector.Instance, seedSession))
+                .ConfigureAwait(false);
 
             ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
-            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
             var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
-            ManagedSession followerSession = CreateManagedSessionForTokenReuse(
+            ManagedSession standbySession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+            ManagedSession leaderSession = CreateManagedSessionForTokenReuse(
                 endpoint,
                 NodeId.Parse("s=auth"),
-                NodeId.Parse("s=follower-auth"),
-                closedOnOwnChannel,
-                closedOnSharedChannel);
+                closedOnReactivatedChannel: closedOnSharedChannel);
+            int takeovers = 0;
+            SetTakeoverFactory(standbySession, (_, _, _) =>
+            {
+                takeovers++;
+                return Task.FromResult(leaderSession);
+            });
             int configureCalls = 0;
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -452,12 +519,12 @@ namespace Opc.Ua.Client.Redundancy.Tests
             {
                 Mode = ClientStandbyMode.Warm,
                 EnableTokenReuse = true,
-                CreateSessionAsync = _ => new ValueTask<ManagedSession>(followerSession),
+                CreateSessionAsync = _ => new ValueTask<ManagedSession>(standbySession),
                 ConfigureLeaderAsync = (_, fastActivated, _) =>
                 {
                     if (++configureCalls == 1)
                     {
-                        // A transient failure after the mirrored session was adopted.
+                        // A transient failure after the server session was taken over.
                         throw new ServiceResultException(StatusCodes.BadCommunicationError);
                     }
                     configured.TrySetResult(fastActivated);
@@ -476,14 +543,14 @@ namespace Opc.Ua.Client.Redundancy.Tests
             bool fastActivated = await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(configureCalls, Is.EqualTo(2));
-            Assert.That(fastActivated, Is.True, "the retry still runs on the adopted mirrored session");
-            Assert.That(coordinator.CurrentSession, Is.SameAs(followerSession));
-            Assert.That(followerSession.SessionId, Is.EqualTo(seedSession.SessionId));
+            Assert.That(takeovers, Is.EqualTo(1), "the retry does not take the server session over again");
+            Assert.That(fastActivated, Is.True, "the retry still runs on the taken-over leader session");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
+            Assert.That(leaderSession.Disposed, Is.False);
             Assert.That(
                 closedOnSharedChannel,
                 Is.Empty,
-                "the retry must not close the adopted mirrored leader session");
-            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
+                "the retry must not close the taken-over leader session");
         }
 
         [TestCase(false)]
@@ -560,20 +627,18 @@ namespace Opc.Ua.Client.Redundancy.Tests
             using var seedSession = SessionMock.Create();
             seedSession.SetConnected();
             SetServerNonce(seedSession, [1, 2, 3, 4]);
-            using var stream = new MemoryStream();
-            seedSession.SaveSessionConfiguration(stream);
-            await store.SetAsync("client-replica/session", new ByteString(stream.ToArray())).ConfigureAwait(false);
+            await store.SetAsync("client-replica/session", CreateHandoffRecord(NullRecordProtector.Instance, seedSession))
+                .ConfigureAwait(false);
 
             ConfiguredEndpoint endpoint = seedSession.ConfiguredEndpoint;
-            var closedOnOwnChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
             var closedOnSharedChannel = new List<(NodeId Token, bool DeleteSubscriptions)>();
+            ManagedSession firstStandby = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
             ManagedSession leaderSession = CreateManagedSessionForTokenReuse(
                 endpoint,
                 NodeId.Parse("s=auth"),
-                NodeId.Parse("s=follower-auth"),
-                closedOnOwnChannel,
-                closedOnSharedChannel);
-            ManagedSession standbySession = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
+                closedOnReactivatedChannel: closedOnSharedChannel);
+            SetTakeoverFactory(firstStandby, (_, _, _) => Task.FromResult(leaderSession));
+            ManagedSession secondStandby = CreateManagedSessionForTokenReuse(endpoint, NodeId.Parse("s=auth"));
             int created = 0;
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var demoted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -586,7 +651,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 CreateSessionAsync = _ =>
                 {
                     created++;
-                    return new ValueTask<ManagedSession>(created == 1 ? leaderSession : standbySession);
+                    return new ValueTask<ManagedSession>(created == 1 ? firstStandby : secondStandby);
                 },
                 ConfigureLeaderAsync = (_, fastActivated, _) =>
                 {
@@ -609,9 +674,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(
                 await configured.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
                 Is.True,
-                "the leader must have adopted the mirrored session");
-            NodeId sharedSessionId = leaderSession.SessionId;
-            Assert.That(sharedSessionId, Is.EqualTo(seedSession.SessionId));
+                "the leader session must have taken the server session over");
+            Assert.That(coordinator.CurrentSession, Is.SameAs(leaderSession));
 
             // The leader loses the lease while it can still reach the server.
             election.SetLeader(false);
@@ -621,8 +685,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             Assert.That(
                 closedOnSharedChannel,
                 Is.Empty,
-                "the ex-leader must not close the server session the new leader reactivates");
-            Assert.That(closedOnOwnChannel, Has.Count.EqualTo(1), "only the follower's own session is closed");
+                "the ex-leader must not close the server session the new leader takes over");
+            Assert.That(() => coordinator.CurrentSession, Is.SameAs(secondStandby).After(10000, 20));
         }
 
         private sealed class ControllableLeaderElection : ILeaderElection
@@ -790,69 +854,6 @@ namespace Opc.Ua.Client.Redundancy.Tests
             return managedSession;
         }
 
-        private static ManagedSession CreateManagedSessionThatFailsReactivation(ConfiguredEndpoint endpoint)
-        {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ApplicationConfiguration configuration = new(telemetry)
-            {
-                ApplicationName = "ClientReplicaCoordinatorTests",
-                ApplicationUri = "urn:localhost:ClientReplicaCoordinatorTests",
-                ProductUri = "urn:localhost:ClientReplicaCoordinatorTests",
-                ApplicationType = ApplicationType.Client,
-                ClientConfiguration = new ClientConfiguration(),
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = new CertificateIdentifier()
-                }
-            };
-            var innerSession = SessionMock.Create(new EndpointDescription
-            {
-                SecurityMode = endpoint.Description.SecurityMode,
-                SecurityPolicyUri = endpoint.Description.SecurityPolicyUri,
-                EndpointUrl = endpoint.Description.EndpointUrl,
-                UserIdentityTokens = [new UserTokenPolicy()]
-            });
-            IServiceMessageContext messageContext = configuration.CreateMessageContext();
-            var managedChannel = new Mock<IManagedTransportChannel>();
-            managedChannel.SetupGet(c => c.MessageContext).Returns(messageContext);
-            managedChannel.SetupGet(c => c.SupportedFeatures).Returns(TransportChannelFeatures.Reconnect);
-            managedChannel.SetupGet(c => c.EndpointDescription).Returns(endpoint.Description);
-            managedChannel.SetupGet(c => c.EndpointConfiguration).Returns(new EndpointConfiguration());
-            managedChannel.SetupGet(c => c.ChannelThumbprint).Returns([]);
-            managedChannel.SetupGet(c => c.ClientChannelCertificate).Returns([]);
-            managedChannel.SetupGet(c => c.ServerChannelCertificate).Returns([]);
-            // Simulate the prior leader's session no longer existing server-side:
-            // the failover server rejects the reactivation's ActivateSession call.
-            managedChannel
-                .Setup(c => c.SendRequestAsync(It.IsAny<ActivateSessionRequest>(), It.IsAny<CancellationToken>()))
-                .Throws(new ServiceResultException(
-                    StatusCodes.BadSessionIdInvalid,
-                    "simulated: the prior leader's session no longer exists on the failover server"));
-            var channelManager = new Mock<IClientChannelManager>();
-            // Match by URL: ManagedSession.ConfiguredEndpoint reports the inner
-            // session's endpoint, which is an equal but different instance.
-            channelManager
-                .Setup(m => m.GetAsync(
-                    It.Is<ConfiguredEndpoint>(e => e.EndpointUrl == endpoint.EndpointUrl),
-                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
-                    null,
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IManagedTransportChannel>(managedChannel.Object));
-            typeof(Session)
-                .GetMethod(
-                    "BindManagedChannel",
-                    BindingFlags.NonPublic | BindingFlags.Instance)!
-                .Invoke(innerSession, [channelManager.Object, managedChannel.Object]);
-
-            ManagedSession managedSession = CreateManagedSessionWithInner(
-                configuration,
-                endpoint,
-                innerSession,
-                telemetry);
-            managedSession.EnableTokenReuseFailover = true;
-            return managedSession;
-        }
-
         private static ManagedSession CreateManagedSessionWithInner(
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint,
@@ -921,6 +922,30 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 .GetField("m_session", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .SetValue(managedSession, innerSession);
             return managedSession;
+        }
+
+        private static ByteString CreateHandoffRecord(IRecordProtector protector, Session leader)
+        {
+            leader.Snapshot(out SessionConfiguration saved);
+            var handoff = new SessionHandoff
+            {
+                Session = saved,
+                RevisedSessionTimeout = leader.SessionTimeout
+            };
+            return SessionHandoffCodec.Protect(
+                handoff,
+                protector,
+                RecordProtectionContext.Create("client-replica-session", "client-replica/session"),
+                leader.MessageContext);
+        }
+
+        private static void SetTakeoverFactory(
+            ManagedSession standby,
+            Func<SessionHandoff, SessionTakeoverOptions, CancellationToken, Task<ManagedSession>> factory)
+        {
+            typeof(ManagedSession)
+                .GetField("m_takeoverFactory", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .SetValue(standby, factory);
         }
 
         private static void SetServerNonce(Session session, byte[] value)
