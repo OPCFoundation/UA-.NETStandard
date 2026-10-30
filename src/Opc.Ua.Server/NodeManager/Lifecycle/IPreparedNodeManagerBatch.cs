@@ -70,6 +70,9 @@ namespace Opc.Ua.Server
         /// Committed reconciliation releases operation ownership before this call completes,
         /// including when it returns a cleanup warning. Disposal is then optional and idempotent.
         /// An uncommitted unit must still be disposed after a failed commit attempt.
+        /// The callback must preserve <see cref="ExecutionContext"/> flow for work that can re-enter namespace
+        /// registration; the re-entry guard uses the callback's asynchronous execution context to reject mutations
+        /// that would wait on this commit's publication reservation.
         /// </summary>
         /// <param name="decideAsync">The callback performing the durable decision.</param>
         /// <param name="cancellationToken">The token to cancel the operation before the decision.</param>
@@ -88,6 +91,9 @@ namespace Opc.Ua.Server
         /// A callback failure occurs after commit and cannot make the batch uncommitted. The callback may
         /// have partially applied state; it must be idempotent when retried through the committed result,
         /// and must not overwrite a newer durable recovery decision.
+        /// The durable decision callback must preserve <see cref="ExecutionContext"/> flow for work that can
+        /// re-enter namespace registration; the re-entry guard uses the callback's asynchronous execution context
+        /// to reject mutations that would wait on this commit's publication reservation.
         /// </summary>
         /// <param name="decideAsync">The callback performing the durable decision.</param>
         /// <param name="publishCommittedState">The callback publishing the prepared in-memory state.</param>
