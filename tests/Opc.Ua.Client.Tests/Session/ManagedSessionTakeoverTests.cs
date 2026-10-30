@@ -31,8 +31,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
@@ -417,6 +419,92 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Assert.That(takeover.SessionGeneration, Is.EqualTo(1));
                 Assert.That(changes, Is.Empty);
             }
+        }
+
+        /// <summary>
+        /// A takeover whose setup fails after the server session was bound abandons that server
+        /// session instead of closing it, and the retry takes the same server session over again
+        /// instead of creating a new one.
+        /// </summary>
+        [Test]
+        public async Task TakeoverFailingAfterBindingRetriesTheTakeoverWithoutClosingAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            var redundancy = new Mock<IServerRedundancyHandler>();
+            redundancy
+                .SetupSequence(handler => handler.FetchRedundancyInfoAsync(
+                    It.IsAny<ISession>(),
+                    It.IsAny<CancellationToken>()))
+                // The only failure the best-effort redundancy refresh does not swallow.
+                .ThrowsAsync(new InsufficientMemoryException())
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadNotSupported));
+            // A regression that creates a new server session must reach the assertions.
+            harness.ReleaseAllGates();
+            int mark = harness.Requests.Count;
+
+            UaManagedSession successor = await harness.TakeOverAsync(handoff, null, redundancy.Object)
+                .ConfigureAwait(false);
+
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    after.OfType<ActivateSessionRequest>().Select(request => request.RequestHeader.AuthenticationToken),
+                    Is.EqualTo(new[] { TakeoverToken, TakeoverToken }));
+                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(successor.SessionId, Is.EqualTo(TakeoverSessionId));
+                Assert.That(successor.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            });
+            redundancy.Verify(
+                handler => handler.FetchRedundancyInfoAsync(It.IsAny<ISession>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// A takeover cancelled after its ActivateSession succeeded retries with the server nonce
+        /// that activation returned, which is the nonce the server expects next, not with the
+        /// stale nonce of the handoff.
+        /// </summary>
+        [Test]
+        public async Task TakeoverCancelledAfterActivationRetriesWithTheNewServerNonceAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness();
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            SessionHandoff handoff = CreateForeignHandoff(harness);
+            var nonces = new ConcurrentQueue<ByteString>();
+            harness.TakeoverServerNonce = () =>
+            {
+                var nonce = new ByteString(Enumerable.Repeat((byte)(nonces.Count + 1), 32).ToArray());
+                nonces.Enqueue(nonce);
+                return nonce;
+            };
+            harness.CancelNextTakeoverNamespaceRead();
+            int mark = harness.Requests.Count;
+
+            UaManagedSession successor = await harness.TakeOverAsync(handoff).ConfigureAwait(false);
+
+            IServiceRequest[] after = [.. harness.Requests.ToList().Skip(mark)];
+            // The activation request does not carry the nonce it was signed with when the
+            // endpoint uses no security, so the session's record of it is read instead.
+            var signed = (ByteString)typeof(global::Opc.Ua.Client.Session)
+                .GetField("m_previousServerNonce", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(successor.InnerSession)!;
+            ByteString[] returned = [.. nonces];
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    after.OfType<ActivateSessionRequest>().Select(request => request.RequestHeader.AuthenticationToken),
+                    Is.EqualTo(new[] { TakeoverToken, TakeoverToken }));
+                Assert.That(after, Has.None.InstanceOf<CloseSessionRequest>());
+                Assert.That(after, Has.None.InstanceOf<CreateSessionRequest>());
+                Assert.That(returned, Has.Length.EqualTo(2));
+                Assert.That(handoff.Session.ServerNonce, Is.Not.EqualTo(returned[0]));
+                Assert.That(signed, Is.EqualTo(returned[0]));
+                Assert.That(successor.SessionId, Is.EqualTo(TakeoverSessionId));
+            });
         }
 
         /// <summary>

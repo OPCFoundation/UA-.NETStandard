@@ -1545,6 +1545,7 @@ namespace Opc.Ua.Client
                 // A connection the session owns but no channel has adopted yet.
                 ITransportWaitingConnection? unadopted = null;
                 Session session;
+                SessionHandoff? takenHandoff = null;
                 try
                 {
                     if (m_connectGate != null)
@@ -1692,6 +1693,7 @@ namespace Opc.Ua.Client
                         if (taken != null)
                         {
                             unadopted = null;
+                            takenHandoff = handoff;
                         }
                         else if (waitingConnection != null)
                         {
@@ -1816,7 +1818,12 @@ namespace Opc.Ua.Client
                 if (GetRetirementFailure() is ServiceResult retiredAfterCreate)
                 {
                     // The new server session is not the retained one and nobody else can reach
-                    // it, so close it instead of keeping it bound to a retired facade.
+                    // it, so close it instead of keeping it bound to a retired facade. A
+                    // taken-over server session belongs to someone else and is only abandoned.
+                    if (takenHandoff != null)
+                    {
+                        session.AbandonServerSession();
+                    }
                     await DiscardIncompleteSessionAsync(session).ConfigureAwait(false);
                     return retiredAfterCreate;
                 }
@@ -1866,6 +1873,17 @@ namespace Opc.Ua.Client
                 }
                 catch
                 {
+                    if (takenHandoff != null)
+                    {
+                        // A taken-over server session is never closed: abandon it and let the
+                        // retry take it over again with the server nonce of this activation.
+                        Interlocked.CompareExchange(
+                            ref m_pendingHandoff,
+                            RefreshHandoff(takenHandoff, session),
+                            null);
+                        session.AbandonServerSession();
+                    }
+
                     // The inner session is already published but not fully set
                     // up (no identity, no refresh loop, no redundancy info).
                     // Retract it so the retry runs a complete connect instead

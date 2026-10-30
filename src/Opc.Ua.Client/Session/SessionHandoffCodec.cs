@@ -123,9 +123,13 @@ namespace Opc.Ua.Client
             double timeout = decoder.ReadDouble(null);
             ArrayOf<string?> namespaces = decoder.ReadStringArray(null);
             ArrayOf<string?> servers = decoder.ReadStringArray(null);
-            decoder.SetMappingTables(
-                namespaces.IsNull ? new NamespaceTable() : new NamespaceTable(namespaces.Memory.ToArray()!),
-                servers.IsNull ? new StringTable() : new StringTable(servers.Memory.ToArray()!));
+            // The subscriptions were encoded with these tables, so they are decoded with the
+            // same tables: a mapping onto the fresh context would map every namespace it does
+            // not know to an invalid index.
+            messageContext.NamespaceUris =
+                namespaces.IsNull ? new NamespaceTable() : new NamespaceTable(namespaces.Memory.ToArray()!);
+            messageContext.ServerUris =
+                servers.IsNull ? new StringTable() : new StringTable(servers.Memory.ToArray()!);
             int count = decoder.ReadInt32(null);
             if (count < 0 || (messageContext.MaxArrayLength > 0 && count > messageContext.MaxArrayLength))
             {

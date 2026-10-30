@@ -30,6 +30,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client.Subscriptions;
@@ -147,6 +148,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns <paramref name="handoff"/> with the server session state of
+        /// <paramref name="session"/>, which has just activated it, so a later takeover signs the
+        /// server nonce of that activation.
+        /// </summary>
+        private static SessionHandoff RefreshHandoff(SessionHandoff handoff, Session session)
+        {
+            session.Snapshot(out SessionConfiguration snapshot);
+            return handoff with
+            {
+                Session = snapshot with { ConfiguredEndpoint = handoff.Session.ConfiguredEndpoint }
+            };
+        }
+
+        /// <summary>
         /// Creates a managed session with the settings of this one that takes over the server
         /// session of <paramref name="handoff"/>. On success the new session also owns the
         /// transport resources this session owned.
@@ -230,13 +245,14 @@ namespace Opc.Ua.Client
                 initialIdentity ??
                 handoff.Session.Identity ??
                 new UserIdentity();
+            var activated = new StrongBox<SessionHandoff?>();
             try
             {
                 Session.ValidateHandoff(handoff.Session, endpoint.Description, SessionFactory.Telemetry);
                 return await OpenActivatedSessionAsync(
                     endpoint,
                     connection,
-                    (session, token) => ActivateHandoffAsync(session, handoff, options, identity, token),
+                    (session, token) => ActivateHandoffAsync(session, handoff, options, identity, activated, token),
                     ct).ConfigureAwait(false);
             }
             catch (Exception ex) when (
@@ -249,8 +265,9 @@ namespace Opc.Ua.Client
             }
             catch (OperationCanceledException)
             {
-                // The attempt was cancelled before it decided anything; the next one retries.
-                Interlocked.CompareExchange(ref m_pendingHandoff, handoff, null);
+                // The next attempt retries. Once ActivateSession succeeded, the server expects
+                // the nonce it returned then, so the retry uses the refreshed handoff.
+                Interlocked.CompareExchange(ref m_pendingHandoff, activated.Value ?? handoff, null);
                 throw;
             }
             catch (Exception ex)
@@ -348,6 +365,7 @@ namespace Opc.Ua.Client
             SessionHandoff handoff,
             SessionTakeoverOptions options,
             IUserIdentity identity,
+            StrongBox<SessionHandoff?> activated,
             CancellationToken ct)
         {
             // Checked before anything is sent: a session that cannot attach the subscriptions
@@ -355,8 +373,12 @@ namespace Opc.Ua.Client
             SubscriptionManager? manager = handoff.Subscriptions.IsEmpty ? null : GetSubscriptionManager(session);
             try
             {
-                await session.ActivateHandoffAsync(handoff.Session, handoff.RevisedSessionTimeout, identity, ct)
-                    .ConfigureAwait(false);
+                await session.ActivateHandoffAsync(
+                    handoff.Session,
+                    handoff.RevisedSessionTimeout,
+                    identity,
+                    () => activated.Value = RefreshHandoff(handoff, session),
+                    ct).ConfigureAwait(false);
                 if (manager != null)
                 {
                     await AttachSubscriptionsAsync(

@@ -324,12 +324,16 @@ namespace Opc.Ua.Client
         /// <param name="revisedSessionTimeout">The session timeout the server revised, in
         /// milliseconds, or 0 when it is not known.</param>
         /// <param name="identity">The identity to activate the server session with.</param>
+        /// <param name="onActivated">Invoked as soon as ActivateSession succeeded, before the
+        /// remaining setup, so the caller can capture the server nonce of that activation even
+        /// when the setup fails afterwards.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">The activation failed.</exception>
         internal async Task ActivateHandoffAsync(
             SessionConfiguration saved,
             double revisedSessionTimeout,
             IUserIdentity identity,
+            Action? onActivated,
             CancellationToken ct)
         {
             ThrowIfDisposed();
@@ -358,6 +362,7 @@ namespace Opc.Ua.Client
             }
             await ReactivateExistingSessionAsync(identity, m_preferredLocales, m_serverNonce, ct)
                 .ConfigureAwait(false);
+            onActivated?.Invoke();
             await FetchNamespaceTablesAsync(this, ct).ConfigureAwait(false);
             await FetchOperationLimitsAsync(this, ct).ConfigureAwait(false);
             await StartKeepAliveTimerAsync().ConfigureAwait(false);

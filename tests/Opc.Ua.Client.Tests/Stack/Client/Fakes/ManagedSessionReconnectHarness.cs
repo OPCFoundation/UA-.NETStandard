@@ -208,6 +208,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public AsyncOperationGate? TakeoverActivation { get; set; }
 
         /// <summary>
+        /// Gets or sets an optional source of the server nonce returned by each successful
+        /// activation of the saved takeover session; null returns no nonce.
+        /// </summary>
+        public Func<ByteString>? TakeoverServerNonce { get; set; }
+
+        /// <summary>
+        /// Makes the next namespace-table read on the saved takeover session throw an
+        /// <see cref="OperationCanceledException"/>, after its activation succeeded.
+        /// </summary>
+        public void CancelNextTakeoverNamespaceRead()
+        {
+            Volatile.Write(ref m_cancelTakeoverNamespaceRead, 1);
+        }
+
+        /// <summary>
         /// Gets or sets the session timeout the server revises CreateSession requests to, or null for the
         /// scripted default.
         /// </summary>
@@ -369,8 +384,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </summary>
         /// <param name="handoff">The server session to take over.</param>
         /// <param name="options">The takeover options, or null to use the fixture's notification handler.</param>
+        /// <param name="redundancyHandler">An optional server redundancy handler of the successor.</param>
         /// <returns>The connected successor session.</returns>
-        public async Task<UaManagedSession> TakeOverAsync(SessionHandoff handoff, SessionTakeoverOptions? options = null)
+        public async Task<UaManagedSession> TakeOverAsync(
+            SessionHandoff handoff,
+            SessionTakeoverOptions? options = null,
+            IServerRedundancyHandler? redundancyHandler = null)
         {
             options ??= new SessionTakeoverOptions { SubscriptionHandlerFactory = _ => CreateNotificationHandler() };
             UaManagedSession successor = await UaManagedSession.CreateAsync(
@@ -387,6 +406,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 Channels.Configuration,
                 new DefaultSessionFactory(Telemetry),
                 reconnectPolicy: SuccessorPolicy,
+                redundancyHandler: redundancyHandler,
                 telemetry: Telemetry,
                 channelManager: Channels.Manager,
                 updateBeforeConnect: false,
@@ -590,7 +610,12 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         {
                             throw new ServiceResultException(TakeoverActivationStatus);
                         }
-                        return channel.CreateResponse(request);
+                        var takeoverResponse = (ActivateSessionResponse)channel.CreateResponse(request);
+                        if (TakeoverServerNonce is Func<ByteString> nonce)
+                        {
+                            takeoverResponse.ServerNonce = nonce();
+                        }
+                        return takeoverResponse;
                     }
                     if (Interlocked.Increment(ref m_activationCount) > 1 &&
                         (activate.RequestHeader.AuthenticationToken == new NodeId("token-1", 1) ||
@@ -693,6 +718,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                                 StatusCode.IsBad(nextKeepAliveStatus) ? nextKeepAliveStatus : KeepAliveStatus)
                         ]
                     };
+                case ReadRequest read when read.RequestHeader.AuthenticationToken == TakeoverToken &&
+                    read.NodesToRead.ToList().Any(node => node.NodeId == VariableIds.Server_NamespaceArray) &&
+                    Interlocked.Exchange(ref m_cancelTakeoverNamespaceRead, 0) == 1:
+                    throw new OperationCanceledException("The scripted namespace read was cancelled.");
                 default:
                     return channel.CreateResponse(request);
             }
@@ -946,6 +975,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private long m_recoveryStartedAt;
         private int m_keepAliveReadCount;
         private int m_nextKeepAliveStatus = unchecked((int)StatusCodes.Good.Code);
+        private int m_cancelTakeoverNamespaceRead;
         private int m_channelCount;
         private int m_sessionCount;
         private int m_activationCount;
