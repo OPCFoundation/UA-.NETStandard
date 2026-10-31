@@ -64,6 +64,7 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Bridge\Opc.Ua.XRegistry.Bridge.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />

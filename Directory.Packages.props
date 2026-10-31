@@ -97,6 +97,7 @@
     <PackageVersion Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.7.37220.1" />
     <PackageVersion Include="Moq" Version="4.21.0" />
     <PackageVersion Include="TUnit" Version="1.75.0" />
+    <PackageVersion Include="XRegistry" Version="0.1.0-alpha.2" />
     <PackageVersion Include="Nerdbank.GitVersioning" Version="3.10.94" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <!--
