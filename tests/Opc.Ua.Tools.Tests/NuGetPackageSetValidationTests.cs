@@ -60,6 +60,13 @@ namespace Opc.Ua.Tools.Tests
             "OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID"
         ];
 
+        private static readonly string[] s_ladsPackages =
+        [
+            "OPCFoundation.NetStandard.Opc.Ua.LADS",
+            "OPCFoundation.NetStandard.Opc.Ua.LADS.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.LADS.Server"
+        ];
+
         /// <summary>
         /// The approved suite adds exactly twelve package identities and never a separate WMTP package.
         /// </summary>
@@ -121,6 +128,23 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(
                 actual,
                 Is.EquivalentTo(s_autoIdPackages));
+        }
+
+        /// <summary>
+        /// LADS ships the model, server and client packages without a registration-only package.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryContainsTheLadsPackagesAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(
+                    id => id.Contains("LADS", StringComparison.Ordinal))
+            ];
+
+            Assert.That(actual, Is.EquivalentTo(s_ladsPackages));
         }
 
         /// <summary>

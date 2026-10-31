@@ -52,6 +52,9 @@ OPCFoundation.NetStandard.Opc.Ua.IA
 OPCFoundation.NetStandard.Opc.Ua.ISA95
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Client
 OPCFoundation.NetStandard.Opc.Ua.ISA95.Server
+OPCFoundation.NetStandard.Opc.Ua.LADS
+OPCFoundation.NetStandard.Opc.Ua.LADS.Client
+OPCFoundation.NetStandard.Opc.Ua.LADS.Server
 OPCFoundation.NetStandard.Opc.Ua.Lds.Server
 OPCFoundation.NetStandard.Opc.Ua.Lens
 OPCFoundation.NetStandard.Opc.Ua.Lens.linux-x64

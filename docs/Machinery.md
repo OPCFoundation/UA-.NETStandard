@@ -5,6 +5,8 @@ manager through `AddVisionToMachinery()` and `ConfigureVisionFor<MachineryNodeMa
 This reuses the existing DI/Machinery owner; do not register a second asset-owning Vision manager.
 [AutoID readers (OPC 30010)](AutoID.md#coexisting-with-a-server-that-already-owns-di) compose
 the same way through `AddAutoIdModel()` and `ConfigureAutoIdFor<MachineryNodeManager>()`.
+[LADS devices (OPC 30500-1)](LADS.md#coexisting-with-a-server-that-already-owns-machinery)
+join an existing Machinery owner through `AddLadsToMachinery()`.
 
 The `Opc.Ua.Machinery*` packages implement the OPC 40001 specification series —
 the building blocks every machine shares, plus the four specialised parts that
