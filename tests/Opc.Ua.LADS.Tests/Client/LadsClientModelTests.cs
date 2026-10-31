@@ -448,6 +448,24 @@ namespace Opc.Ua.LADS.Tests.Client
             });
         }
 
+        [Test]
+        public void FileChunkSizeAcceptsTheMaximumSupportedValue()
+        {
+            var options = new LadsClientOptions { FileChunkSize = 1_048_576 };
+
+            Assert.That(options.Validate, Throws.Nothing);
+            Assert.That(options.FileChunkSize, Is.EqualTo(1_048_576));
+        }
+
+        [Test]
+        public void FileChunkSizeRejectsTheValueAboveTheMaximum()
+        {
+            var options = new LadsClientOptions { FileChunkSize = 1_048_577 };
+
+            Assert.That(options.Validate, Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(options.FileChunkSize, Is.EqualTo(1_048_577));
+        }
+
         private static int IndexOf(ArrayOf<LadsFunctionKind> kinds, LadsFunctionKind kind)
         {
             for (int ii = 0; ii < kinds.Count; ii++)

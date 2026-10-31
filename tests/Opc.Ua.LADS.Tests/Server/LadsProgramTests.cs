@@ -465,6 +465,99 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(result.Outcome, Is.EqualTo(LadsProgramOutcome.Stopped));
         }
 
+        [Test]
+        public async Task ProtocolCsvKeepsSpecialStepNameInOneFieldAndRecordAsync()
+        {
+            const string stepName = "Ramp; \"fast\"\nthen hold";
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(ProtocolCsvKeepsSpecialStepNameInOneFieldAndRecordAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            ILadsProgramManager programs = device.GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
+            var template = new LadsProgramTemplate("CsvEscaping")
+                .Step(stepName, TimeSpan.Zero);
+            await programs.AddTemplateAsync(template).ConfigureAwait(false);
+
+            string runId = await programs.StartProgramAsync(template.Id).ConfigureAwait(false);
+            ILadsResult result = await programs.WaitForResultAsync(runId).ConfigureAwait(false);
+            string protocol = Encoding.UTF8.GetString(result.Files[0].Content.ToArray());
+            List<string[]> records = ParseSemicolonCsv(protocol);
+
+            Assert.That(records, Has.Count.EqualTo(2));
+            Assert.That(records[0], Has.Length.EqualTo(4));
+            Assert.That(records[0][0], Is.EqualTo("step"));
+            Assert.That(records[0][1], Is.EqualTo("name"));
+            Assert.That(records[0][2], Is.EqualTo("started"));
+            Assert.That(records[0][3], Is.EqualTo("durationMs"));
+            Assert.That(records[1], Has.Length.EqualTo(4));
+            Assert.That(records[1][0], Is.EqualTo("1"));
+            Assert.That(records[1][1], Is.EqualTo(stepName));
+            Assert.That(records[1][2], Does.EndWith("Z"));
+            Assert.That(records[1][3], Is.EqualTo("0"));
+        }
+
+        private static List<string[]> ParseSemicolonCsv(string text)
+        {
+            var records = new List<string[]>();
+            var fields = new List<string>();
+            var field = new StringBuilder();
+            bool quoted = false;
+            for (int ii = 0; ii < text.Length; ii++)
+            {
+                char character = text[ii];
+                if (quoted)
+                {
+                    if (character == '"' && ii + 1 < text.Length && text[ii + 1] == '"')
+                    {
+                        field.Append('"');
+                        ii++;
+                    }
+                    else if (character == '"')
+                    {
+                        quoted = false;
+                    }
+                    else
+                    {
+                        field.Append(character);
+                    }
+                }
+                else if (character == '"' && field.Length == 0)
+                {
+                    quoted = true;
+                }
+                else if (character == ';')
+                {
+                    fields.Add(field.ToString());
+                    field.Clear();
+                }
+                else if (character is '\r' or '\n')
+                {
+                    if (character == '\r' && ii + 1 < text.Length && text[ii + 1] == '\n')
+                    {
+                        ii++;
+                    }
+                    fields.Add(field.ToString());
+                    field.Clear();
+                    records.Add(fields.ToArray());
+                    fields.Clear();
+                }
+                else
+                {
+                    field.Append(character);
+                }
+            }
+
+            if (quoted)
+            {
+                throw new FormatException("The CSV contains an unterminated quoted field.");
+            }
+            if (field.Length > 0 || fields.Count > 0)
+            {
+                fields.Add(field.ToString());
+                records.Add(fields.ToArray());
+            }
+            return records;
+        }
+
         private static async Task IgnoreInvalidStateAsync(ValueTask command)
         {
             try

@@ -69,7 +69,7 @@ namespace Opc.Ua.LADS.Client
         public long MaximumFileSize { get; init; } = 64L * 1024 * 1024;
 
         /// <summary>
-        /// Gets the chunk size in bytes used to read result files.
+        /// Gets the chunk size in bytes used to read result files, from 1 to 1 MiB.
         /// </summary>
         public int FileChunkSize { get; init; } = 64 * 1024;
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.LADS.Client
         /// <summary>
         /// Validates the options.
         /// </summary>
-        /// <exception cref="ArgumentOutOfRangeException">A limit is not positive.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">A limit is invalid.</exception>
         public void Validate()
         {
             if (MaximumBrowseReferences <= 0)
@@ -105,7 +105,7 @@ namespace Opc.Ua.LADS.Client
             {
                 throw new ArgumentOutOfRangeException(nameof(MaximumFileSize));
             }
-            if (FileChunkSize <= 0)
+            if (FileChunkSize is <= 0 or > 1_048_576)
             {
                 throw new ArgumentOutOfRangeException(nameof(FileChunkSize));
             }

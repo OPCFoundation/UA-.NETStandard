@@ -73,7 +73,7 @@ namespace Opc.Ua.LADS.Client
         /// <param name="destination">The stream to write the content to.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The number of bytes written.</returns>
-        public ValueTask<long> DownloadFileAsync(
+        public async ValueTask<long> DownloadFileAsync(
             NodeId fileId,
             Stream destination,
             CancellationToken cancellationToken = default)
@@ -83,9 +83,25 @@ namespace Opc.Ua.LADS.Client
             {
                 throw new ArgumentNullException(nameof(destination));
             }
+            if (Session is ManagedSession)
+            {
+                SessionRequestContext context = await SessionRequestContext.CaptureAsync(
+                    Session, cancellationToken).ConfigureAwait(false);
+                await using (context.ConfigureAwait(false))
+                {
+                    (long bytesTransferred, _) = await context.DownloadToStreamWithResultAsync(
+                        fileId,
+                        destination,
+                        Options.MaximumFileSize,
+                        Options.FileChunkSize,
+                        cancellationToken).ConfigureAwait(false);
+                    return bytesTransferred;
+                }
+            }
+
             var file = new FileTypeClient(Session, fileId, Telemetry);
-            return file.DownloadToStreamAsync(
-                destination, Options.MaximumFileSize, Options.FileChunkSize, cancellationToken);
+            return await file.DownloadToStreamAsync(
+                destination, Options.MaximumFileSize, Options.FileChunkSize, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

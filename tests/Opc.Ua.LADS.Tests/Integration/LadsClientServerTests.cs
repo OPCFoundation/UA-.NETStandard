@@ -459,6 +459,158 @@ namespace Opc.Ua.LADS.Tests.Integration
             Assert.That(serverTask.State, Is.EqualTo(LadsMaintenanceStateValue.Planned));
         }
 
+        [Test]
+        public async Task ClientReadsAndObservesMultiModeControllerValuesAsync()
+        {
+            await using LadsClientConnection connection = await LadsClientConnection.StartAsync(
+                nameof(ClientReadsAndObservesMultiModeControllerValuesAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit(
+                        "Aux",
+                        unit => unit.MultiModeAnalogControl(
+                            "Mode",
+                            options => options.Modes = s_modes.ToArrayOf()))))).ConfigureAwait(false);
+            ILadsDevice serverDevice = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            IMultiModeAnalogControlFunction serverMode = serverDevice
+                .GetFunctionalUnit("Aux")
+                .GetFunction<IMultiModeAnalogControlFunction>("Mode");
+            serverMode.SetTargetValue("Heat", 10.5);
+            serverMode.UpdateCurrentValue("Heat", 3.25);
+            serverMode.SetTargetValue("Cool", 20.25);
+            serverMode.UpdateCurrentValue("Cool", 6.75);
+
+            LadsDevice clientDevice = await connection.Client.GetDeviceAsync(LadsIncubator.DeviceName)
+                .ConfigureAwait(false);
+            LadsFunctionalUnit clientUnit = await clientDevice.GetFunctionalUnitAsync("Aux").ConfigureAwait(false);
+            LadsFunction clientMode = await clientUnit.GetFunctionAsync("Mode").ConfigureAwait(false);
+            LadsFunctionSnapshot snapshot = await clientMode.ReadAsync().ConfigureAwait(false);
+            string[] modeValuePaths =
+            [
+                "ControllerModeSet/Heat/CurrentValue",
+                "ControllerModeSet/Heat/TargetValue",
+                "ControllerModeSet/Cool/CurrentValue",
+                "ControllerModeSet/Cool/TargetValue"
+            ];
+            double[] expectedSnapshotValues = [3.25, 10.5, 6.75, 20.25];
+            for (int ii = 0; ii < modeValuePaths.Length; ii++)
+            {
+                Assert.That(snapshot.TryGetValue(modeValuePaths[ii], out DataValue value), Is.True, modeValuePaths[ii]);
+                Assert.That(value.WrappedValue.TryGetValue(out double actual), Is.True, modeValuePaths[ii]);
+                Assert.That(actual, Is.EqualTo(expectedSnapshotValues[ii]), modeValuePaths[ii]);
+            }
+
+            using var cts = new CancellationTokenSource(s_timeout);
+            var initialNames = new HashSet<string>(StringComparer.Ordinal);
+            var changedValues = new Dictionary<string, double>(StringComparer.Ordinal);
+            bool valuesChanged = false;
+            await foreach (LadsValueChange change in clientMode.ObserveAsync(cancellationToken: cts.Token)
+                .ConfigureAwait(false))
+            {
+                if (!valuesChanged)
+                {
+                    initialNames.Add(change.Name);
+                    if (modeValuePaths.All(initialNames.Contains))
+                    {
+                        valuesChanged = true;
+                        serverMode.UpdateCurrentValue("Cool", 7.25);
+                        serverMode.SetTargetValue("Cool", 21.25);
+                    }
+                    continue;
+                }
+
+                if ((change.Name == modeValuePaths[2] || change.Name == modeValuePaths[3]) &&
+                    change.Value.WrappedValue.TryGetValue(out double changedValue) &&
+                    changedValue == (change.Name == modeValuePaths[2] ? 7.25 : 21.25))
+                {
+                    changedValues[change.Name] = changedValue;
+                    if (changedValues.Count == 2)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            Assert.That(cts.IsCancellationRequested, Is.False, "The mode-specific value changes were not observed.");
+            Assert.That(initialNames, Is.SupersetOf(modeValuePaths));
+            Assert.That(changedValues, Is.EquivalentTo(new Dictionary<string, double>
+            {
+                [modeValuePaths[2]] = 7.25,
+                [modeValuePaths[3]] = 21.25
+            }));
+        }
+
+        [Test]
+        public async Task ClientFileDownloadDoesNotSwitchGenerationAfterReconnectAsync()
+        {
+            await using LadsClientConnection connection = await LadsClientConnection.StartIncubatorAsync(
+                nameof(ClientFileDownloadDoesNotSwitchGenerationAfterReconnectAsync)).ConfigureAwait(false);
+            LadsFunctionalUnit unit = await connection.ChamberAsync().ConfigureAwait(false);
+            string runId = await unit.StartProgramAsync(LadsProgramRequest.For(LadsIncubator.QuickTemplate))
+                .ConfigureAwait(false);
+            ILadsDevice serverDevice = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            await serverDevice.GetFunctionalUnit(LadsIncubator.UnitName).Programs!.WaitForResultAsync(runId)
+                .ConfigureAwait(false);
+            LadsResult? result = await unit.FindResultAsync(runId).ConfigureAwait(false);
+            Assert.That(result, Is.Not.Null);
+            LadsResultFile file = result!.Files[0];
+            var client = new LadsClient(
+                connection.Session,
+                connection.Telemetry,
+                new LadsClientOptions { FileChunkSize = 16 });
+            using var destination = new ReconnectOnFirstWriteStream(
+                () => Opc.Ua.Client.SessionExtensions.ReconnectAsync(connection.Session));
+
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.DownloadResultFileAsync(file, destination).ConfigureAwait(false)))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(destination.Reconnected, Is.True);
+                Assert.That(destination.Length, Is.EqualTo(16));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            });
+            Assert.That(
+                await connection.Client.GetDeviceAsync(LadsIncubator.DeviceName).ConfigureAwait(false),
+                Is.Not.Null,
+                "The reconnected ManagedSession should remain usable for a fresh LADS request.");
+        }
+
+        private sealed class ReconnectOnFirstWriteStream(Func<Task> reconnect) : MemoryStream
+        {
+            public bool Reconnected { get; private set; }
+
+#if NET6_0_OR_GREATER
+            public override async ValueTask WriteAsync(
+                ReadOnlyMemory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                await base.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
+                await ReconnectOnceAsync().ConfigureAwait(false);
+            }
+#else
+            public override async Task WriteAsync(
+                byte[] buffer,
+                int offset,
+                int count,
+                CancellationToken cancellationToken)
+            {
+                await base.WriteAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+                await ReconnectOnceAsync().ConfigureAwait(false);
+            }
+#endif
+
+            private async Task ReconnectOnceAsync()
+            {
+                if (!Reconnected)
+                {
+                    await reconnect().ConfigureAwait(false);
+                    Reconnected = true;
+                }
+            }
+        }
+
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
         private static readonly string[] s_chamberFunctions = ["Temperature", "ShakerSpeed", "CO2", "Door", "Timer"];
         private static readonly string[] s_composedNames = ["A", "B"];

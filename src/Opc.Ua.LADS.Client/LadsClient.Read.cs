@@ -317,6 +317,45 @@ namespace Opc.Ua.LADS.Client
                     resolved.Add((members[ii], nodes[ii]));
                 }
             }
+            NodeId controllerModeSet = await ResolveAsync(
+                functionId, cancellationToken, Lads(BrowseNames.ControllerModeSet)).ConfigureAwait(false);
+            if (!controllerModeSet.IsNull)
+            {
+                List<ReferenceDescription> modes = await BrowseAsync(
+                    controllerModeSet, NodeClass.Object, cancellationToken).ConfigureAwait(false);
+                var modePaths = new List<QualifiedName[]>(modes.Count * 2);
+                var modeNames = new List<string>(modes.Count * 2);
+                foreach (ReferenceDescription mode in modes)
+                {
+                    string modeName = mode.BrowseName.Name ?? string.Empty;
+                    if (modeName.Length == 0)
+                    {
+                        continue;
+                    }
+                    modePaths.Add(
+                    [
+                        Lads(BrowseNames.ControllerModeSet),
+                        mode.BrowseName,
+                        Lads(BrowseNames.CurrentValue)
+                    ]);
+                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.CurrentValue}");
+                    modePaths.Add(
+                    [
+                        Lads(BrowseNames.ControllerModeSet),
+                        mode.BrowseName,
+                        Lads(BrowseNames.TargetValue)
+                    ]);
+                    modeNames.Add($"{BrowseNames.ControllerModeSet}/{modeName}/{BrowseNames.TargetValue}");
+                }
+                NodeId[] modeNodes = await ResolveAsync(functionId, modePaths, cancellationToken).ConfigureAwait(false);
+                for (int ii = 0; ii < modeNodes.Length; ii++)
+                {
+                    if (!modeNodes[ii].IsNull)
+                    {
+                        resolved.Add((modeNames[ii], modeNodes[ii]));
+                    }
+                }
+            }
             return resolved;
         }
 

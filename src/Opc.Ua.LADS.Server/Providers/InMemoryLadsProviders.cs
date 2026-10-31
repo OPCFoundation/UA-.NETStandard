@@ -89,6 +89,12 @@ namespace Opc.Ua.LADS.Server
                     case IAnalogControlFunction analog when command.Value.TryGetValue(out double number):
                         analog.UpdateCurrentValue(number);
                         break;
+                    case IMultiModeAnalogControlFunction multiMode when
+                        command.Kind == LadsFunctionCommandKind.StartWithTargetValue &&
+                        command.Value.TryGetValue(out double multiModeTarget) &&
+                        multiMode.CurrentMode < (uint)multiMode.Modes.Count:
+                        multiMode.UpdateCurrentValue(multiMode.Modes[(int)multiMode.CurrentMode], multiModeTarget);
+                        break;
                     case ITwoStateDiscreteControlFunction twoState when command.Value.TryGetValue(out bool flag):
                         twoState.UpdateCurrentValue(flag);
                         break;
@@ -96,6 +102,12 @@ namespace Opc.Ua.LADS.Server
                         multiState.UpdateCurrentValue(index);
                         break;
                 }
+            }
+            else if (command.Kind == LadsFunctionCommandKind.ModifyTargetValueBy &&
+                command.Function is IAnalogControlFunction analog &&
+                command.Value.TryGetValue(out double delta))
+            {
+                analog.UpdateCurrentValue(analog.TargetValue + delta);
             }
             return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
@@ -128,10 +140,9 @@ namespace Opc.Ua.LADS.Server
                 {
                     await run.ApplySetpointAsync(setpoints[jj], cancellationToken).ConfigureAwait(false);
                 }
-                protocol.Append(number.ToString(CultureInfo.InvariantCulture))
-                    .Append(';')
-                    .Append(step.Name)
-                    .Append(';')
+                protocol.Append(number.ToString(CultureInfo.InvariantCulture)).Append(';');
+                AppendCsvField(protocol, step.Name);
+                protocol.Append(';')
                     .Append(run.TimeProvider.GetUtcNow().UtcDateTime.ToString("O", CultureInfo.InvariantCulture))
                     .Append(';')
                     .Append(((long)step.Duration.TotalMilliseconds).ToString(CultureInfo.InvariantCulture))
@@ -140,6 +151,37 @@ namespace Opc.Ua.LADS.Server
             }
             run.SetResultVariable("Steps", number.ToString(CultureInfo.InvariantCulture));
             run.AddResultFile("Protocol.csv", "text/csv", ByteString.From(Encoding.UTF8.GetBytes(protocol.ToString())));
+        }
+
+        private static void AppendCsvField(StringBuilder builder, string value)
+        {
+            bool needsQuotes = false;
+            foreach (char character in value)
+            {
+                if (character is ';' or '"' or '\r' or '\n')
+                {
+                    needsQuotes = true;
+                    break;
+                }
+            }
+            if (!needsQuotes)
+            {
+                builder.Append(value);
+                return;
+            }
+            builder.Append('"');
+            foreach (char character in value)
+            {
+                if (character == '"')
+                {
+                    builder.Append("\"\"");
+                }
+                else
+                {
+                    builder.Append(character);
+                }
+            }
+            builder.Append('"');
         }
     }
 }

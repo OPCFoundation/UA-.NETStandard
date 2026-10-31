@@ -58,12 +58,12 @@ namespace Opc.Ua.LADS.Client
         public const string CompensationValue = BrowseNames.CompensationValue;
 
         /// <summary>
-        /// <c>CurrentValue</c> of the control functions.
+        /// <c>CurrentValue</c> of single-mode control functions.
         /// </summary>
         public const string CurrentValue = BrowseNames.CurrentValue;
 
         /// <summary>
-        /// <c>TargetValue</c> of the control functions.
+        /// <c>TargetValue</c> of single-mode control functions.
         /// </summary>
         public const string TargetValue = BrowseNames.TargetValue;
 
@@ -93,7 +93,7 @@ namespace Opc.Ua.LADS.Client
         public const string CoverState = BrowseNames.CoverState + "/CurrentState";
 
         /// <summary>
-        /// Gets all paths in the order they are read.
+        /// Gets the standard paths in the order they are read.
         /// </summary>
         public static ArrayOf<string> All { get; } =
         [

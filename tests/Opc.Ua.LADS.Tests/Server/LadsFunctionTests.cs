@@ -461,5 +461,100 @@ namespace Opc.Ua.LADS.Tests.Server
                 commands,
                 Is.EqualTo(new[] { LadsFunctionCommandKind.Start, LadsFunctionCommandKind.StartWithTargetValue }));
         }
+
+        [Test]
+        public async Task RelativeTargetDeltaUpdatesCurrentValueFromThePreviousTargetAsync()
+        {
+            IAnalogControlFunction? relative = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(RelativeTargetDeltaUpdatesCurrentValueFromThePreviousTargetAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit.AnalogControl(
+                        "Relative",
+                        options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Relative;
+                            options.Range = new Range(100, 0);
+                            options.InitialTargetValue = 10;
+                            options.InitialCurrentValue = 2;
+                        },
+                        out relative))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            Assert.That(relative!.TargetValue, Is.EqualTo(10));
+            Assert.That(relative.CurrentValue, Is.EqualTo(2));
+            await relative.ModifyTargetValueByAsync(5).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(relative.TargetValue, Is.EqualTo(15));
+                Assert.That(relative.CurrentValue, Is.EqualTo(15));
+            });
+        }
+
+        [Test]
+        public async Task MultiModeStartWithTargetValueUpdatesSelectedModeCurrentValueAsync()
+        {
+            IMultiModeAnalogControlFunction? multiMode = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(MultiModeStartWithTargetValueUpdatesSelectedModeCurrentValueAsync),
+                builder => builder.AddLads().ConfigureLads(context => LadsIncubator.Configure(
+                    context,
+                    LadsIncubator.DeviceName,
+                    device => device.FunctionalUnit("Aux", unit => unit.MultiModeAnalogControl(
+                        "Mode",
+                        options => options.Modes = s_modes.ToArrayOf(),
+                        out multiMode))))).ConfigureAwait(false);
+            await server.DeviceAsync().ConfigureAwait(false);
+
+            multiMode!.SetTargetValue("Heat", 3.5);
+            multiMode.UpdateCurrentValue("Heat", 2.5);
+            multiMode.SetTargetValue("Cool", 12);
+            multiMode.UpdateCurrentValue("Cool", 1.5);
+            await multiMode.SetModeAsync(1).ConfigureAwait(false);
+            NodeId controlState = await server.ChildAsync(multiMode.NodeId, "ControlFunctionState")
+                .ConfigureAwait(false);
+            CallMethodResult start = await server.CallByNameAsync(
+                controlState, "StartWithTargetValue", Variant.From(8.5)).ConfigureAwait(false);
+
+            DataValue coolCurrent = await server.ReadAsync(await server.ChildAsync(
+                multiMode.NodeId,
+                "ControllerModeSet",
+                "Cool",
+                "CurrentValue").ConfigureAwait(false)).ConfigureAwait(false);
+            DataValue coolTarget = await server.ReadAsync(await server.ChildAsync(
+                multiMode.NodeId,
+                "ControllerModeSet",
+                "Cool",
+                "TargetValue").ConfigureAwait(false)).ConfigureAwait(false);
+            DataValue heatCurrent = await server.ReadAsync(await server.ChildAsync(
+                multiMode.NodeId,
+                "ControllerModeSet",
+                "Heat",
+                "CurrentValue").ConfigureAwait(false)).ConfigureAwait(false);
+            DataValue heatTarget = await server.ReadAsync(await server.ChildAsync(
+                multiMode.NodeId,
+                "ControllerModeSet",
+                "Heat",
+                "TargetValue").ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(StatusCode.IsGood(start.StatusCode), Is.True, start.StatusCode.ToString());
+                Assert.That(multiMode.CurrentMode, Is.EqualTo(1));
+                Assert.That(multiMode.GetTargetValue("Cool"), Is.EqualTo(8.5));
+                Assert.That(coolCurrent.WrappedValue.TryGetValue(out double coolCurrentValue), Is.True);
+                Assert.That(coolCurrentValue, Is.EqualTo(8.5));
+                Assert.That(coolTarget.WrappedValue.TryGetValue(out double coolTargetValue), Is.True);
+                Assert.That(coolTargetValue, Is.EqualTo(8.5));
+                Assert.That(multiMode.GetTargetValue("Heat"), Is.EqualTo(3.5));
+                Assert.That(heatCurrent.WrappedValue.TryGetValue(out double heatCurrentValue), Is.True);
+                Assert.That(heatCurrentValue, Is.EqualTo(2.5));
+                Assert.That(heatTarget.WrappedValue.TryGetValue(out double heatTargetValue), Is.True);
+                Assert.That(heatTargetValue, Is.EqualTo(3.5));
+            });
+        }
     }
 }
