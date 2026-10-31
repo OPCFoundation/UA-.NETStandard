@@ -490,6 +490,117 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A restored queue is handed over while the host clock is still below the sampling
+        /// interval. The first live sample after the restore must be queued behind the
+        /// restored value instead of overwriting it.
+        /// </summary>
+        [Test]
+        public void RestoredQueueKeepsValueWhenClockIsBelowSamplingInterval()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var clock = new MillisecondClock(500);
+            var restored = new DataChangeMonitoredItemQueue(false, 1, telemetry);
+            restored.ResetQueue(2, true);
+            restored.Enqueue(new DataValue(new Variant(7)), ServiceResult.Good);
+
+            using var handler = new DataChangeQueueHandler(
+                restored, true, 1_000_000, telemetry, timeProvider: clock);
+            handler.QueueValue(new DataValue(new Variant(2)), ServiceResult.Good);
+
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(2));
+            Assert.That(handler.PublishSingleValue(out DataValue first, out _), Is.True);
+            Assert.That(first.WrappedValue, Is.EqualTo(new Variant(7)));
+            Assert.That(handler.PublishSingleValue(out DataValue second, out _), Is.True);
+            Assert.That(second.WrappedValue, Is.EqualTo(new Variant(2)));
+        }
+
+        /// <summary>
+        /// A fresh handler coalesces a second sample relative to the first sample, not to
+        /// timestamp zero, even when the host clock is still below the sampling interval.
+        /// </summary>
+        [Test]
+        public void FreshHandlerCoalescesRelativeToFirstSampleWhenClockIsBelowInterval()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var clock = new MillisecondClock(100);
+            var queue = new DataChangeMonitoredItemQueue(false, 1, telemetry);
+
+            using var handler = new DataChangeQueueHandler(queue, false, 0, telemetry, timeProvider: clock);
+            handler.SetQueueSize(4, true, DiagnosticsMasks.All);
+            handler.SetSamplingInterval(1000);
+
+            handler.QueueValue(new DataValue(new Variant(1)), ServiceResult.Good);
+            clock.Advance(999);
+            handler.QueueValue(new DataValue(new Variant(2)), ServiceResult.Good);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(1));
+
+            clock.Advance(1);
+            handler.QueueValue(new DataValue(new Variant(3)), ServiceResult.Good);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(2));
+
+            Assert.That(handler.PublishSingleValue(out DataValue first, out _), Is.True);
+            Assert.That(first.WrappedValue, Is.EqualTo(new Variant(2)));
+            Assert.That(handler.PublishSingleValue(out DataValue second, out _), Is.True);
+            Assert.That(second.WrappedValue, Is.EqualTo(new Variant(3)));
+        }
+
+        /// <summary>
+        /// Changing the sampling interval after the first sample rebases the next sample time
+        /// from the last sample onto the new interval.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(10_000)]
+        public void SamplingIntervalChangeRebasesNextSampleTimeAfterFirstSample(long start)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var clock = new MillisecondClock(start);
+            var queue = new DataChangeMonitoredItemQueue(false, 1, telemetry);
+
+            using var handler = new DataChangeQueueHandler(queue, false, 0, telemetry, timeProvider: clock);
+            handler.SetQueueSize(4, true, DiagnosticsMasks.All);
+            handler.SetSamplingInterval(1000);
+            handler.QueueValue(new DataValue(new Variant(1)), ServiceResult.Good);
+
+            handler.SetSamplingInterval(200);
+            clock.Advance(199);
+            handler.QueueValue(new DataValue(new Variant(2)), ServiceResult.Good);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(1));
+
+            clock.Advance(1);
+            handler.QueueValue(new DataValue(new Variant(3)), ServiceResult.Good);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(2));
+
+            handler.SetSamplingInterval(0);
+            handler.QueueValue(new DataValue(new Variant(4)), ServiceResult.Good);
+            Assert.That(handler.ItemsInQueue, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// A monotonic clock with a millisecond frequency that starts at a chosen timestamp.
+        /// </summary>
+        private sealed class MillisecondClock : TimeProvider
+        {
+            public MillisecondClock(long start)
+            {
+                m_now = start;
+            }
+
+            public override long TimestampFrequency => 1000;
+
+            public override long GetTimestamp()
+            {
+                return m_now;
+            }
+
+            public void Advance(long milliseconds)
+            {
+                m_now += milliseconds;
+            }
+
+            private long m_now;
+        }
+
+        /// <summary>
         /// A durable queue transiently returns no event while it restores a persisted batch.
         /// Queued events are brought in line with a modification when they are published, so
         /// such a queue can neither reorder them nor leave some in the old layout.
