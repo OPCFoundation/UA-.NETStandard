@@ -63,36 +63,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 retryStarted.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
-            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration)], null, timeout.Token).ConfigureAwait(false);
-            NodeManagerBatchResult result = await removal.CommitAsync(_ => default, timeout.Token)
-                .ConfigureAwait(false);
-            Assert.That(result.CleanupFailure, Is.Null);
-            await Assert.ThatAsync(() => result.Retirement.WaitAsync(timeout.Token),
-                Throws.TypeOf<SentinelException>().With.Message.EqualTo("First retirement attempt failed."))
-                .ConfigureAwait(false);
-
-            Task<IPreparedNodeManagerBatch> preparing = lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
-                    303, _ => { }, kReadinessProbeNamespaceUri))], null, timeout.Token).AsTask();
+            NodeManagerBatchResult result;
             try
             {
+                await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration)], null, timeout.Token).ConfigureAwait(false);
+                result = await removal.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+
+                // The second attempt only starts after the first one failed; retirement stays pending
+                // until a retry reclaims the generation.
                 await retryStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await using IPreparedNodeManagerBatch candidate = await preparing
-                    .WaitAsync(TimeSpan.FromSeconds(5), timeout.Token).ConfigureAwait(false);
+                Assert.That(result.Retirement.IsCompleted, Is.False);
+
+                await using IPreparedNodeManagerBatch candidate = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                        303, _ => { }, kReadinessProbeNamespaceUri))], null, timeout.Token)
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(5), timeout.Token)
+                    .ConfigureAwait(false);
                 Assert.That(candidate.IsCommitted, Is.False);
                 Assert.That(RequireLifecycleValue(original).DisposeCount, Is.Zero);
                 Assert.That(attempts, Is.EqualTo(2));
             }
             finally
             {
+                // Never leave the retry blocked; server shutdown joins admitted cleanup callbacks.
                 release.TrySetResult(true);
-                await using IPreparedNodeManagerBatch candidate = await preparing.WaitAsync(timeout.Token)
-                    .ConfigureAwait(false);
             }
             await RequireLifecycleValue(original).DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.That(result.Retirement.IsFaulted, Is.True,
-                "Retrying cleanup must not replace the original publication's observable failure.");
+            await Assert.ThatAsync(() => result.Retirement.WaitAsync(timeout.Token),
+                Throws.TypeOf<SentinelException>().With.Message.EqualTo("First retirement attempt failed."),
+                "Retrying cleanup must not replace the original publication's observable failure.")
+                .ConfigureAwait(false);
             Assert.That(RequireLifecycleValue(original).DisposeCount, Is.EqualTo(1));
         }
 
