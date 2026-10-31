@@ -654,19 +654,27 @@ namespace Opc.Ua.Client.Subscriptions
             // they cannot fire against partitions we are tearing
             // down, and stop scheduling new idle deletes.
             m_monitoredItems.Dispose();
-            // Dispose partitions in reverse-add order; secondary partitions
-            // (added on demand) hold references back to the primary's
-            // notification handler in subsequent milestones, so removing
-            // them first avoids the secondary's dispatch worker observing
-            // a disposed primary handler.
+            // Start every shutdown before awaiting retirement: one partition can be
+            // waiting for the shared forwarding gate held by a sibling's handler.
+            var disposing = new Task[snapshot.Count];
             for (int i = snapshot.Count - 1; i >= 0; i--)
             {
-                await snapshot[i].DisposeAsync().ConfigureAwait(false);
+                disposing[i] = DisposePartitionAsync(snapshot[i]);
             }
+            await Task.WhenAll(disposing).ConfigureAwait(false);
             // Forwarding handler (if any) outlives the partitions so
             // their in-flight notification callbacks can run their
             // semaphore release before the primitive is freed.
             m_forwardingHandler?.Dispose();
+        }
+
+        /// <summary>
+        /// Captures a synchronous disposal failure in a task so the remaining partitions
+        /// still have their shutdown initiated.
+        /// </summary>
+        private static async Task DisposePartitionAsync(IManagedSubscription partition)
+        {
+            await partition.DisposeAsync().ConfigureAwait(false);
         }
 
         private static void ThrowIfDispatchingNotification(

@@ -194,8 +194,10 @@ namespace Opc.Ua.Client
                 // Clone rather than share: both sessions dispose their default
                 // subscription. Assigning through the property also disposes
                 // the instance the chained constructor created.
+#pragma warning disable CS0618 // clones the obsolete classic subscription template until it is removed
                 DefaultSubscription = template.m_defaultSubscription
                     .CloneSubscription(false);
+#pragma warning restore CS0618
             }
             DeleteSubscriptionsOnClose = template.DeleteSubscriptionsOnClose;
             TransferSubscriptionsOnReconnect = template.TransferSubscriptionsOnReconnect;
@@ -210,6 +212,7 @@ namespace Opc.Ua.Client
             Handle = template.Handle;
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
+            InheritSessionGeneration(template);
 
             // The keep alive timer is already created (in off state) by the
             // constructor this one chains to; creating a second one here would
@@ -229,6 +232,7 @@ namespace Opc.Ua.Client
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
+                SessionGenerationChanged = template.SessionGenerationChanged;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -318,8 +322,10 @@ namespace Opc.Ua.Client
             m_identity = new UserIdentity();
 
             // update the default subscription.
+#pragma warning disable CS0618 // initializes the obsolete classic subscription template until it is removed
             DefaultSubscription.MinLifetimeInterval = (uint)m_configuration.ClientConfiguration!
                 .MinSubscriptionLifetime;
+#pragma warning restore CS0618
 
             // initialize operation limits from client configuration.
             if (m_configuration.ClientConfiguration.OperationLimits != null)
@@ -559,7 +565,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected && CanReceiveResponses())
+                    if (Connected && CanReceiveResponses() && TryClaimServerSessionClose())
                     {
                         var request = new CloseSessionRequest
                         {
@@ -622,6 +628,7 @@ namespace Opc.Ua.Client
                 m_keepAliveTimer.Dispose();
 
                 // suppress spurious events
+                SessionGenerationChanged = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -679,6 +686,8 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
         {
             add => m_PublishSequenceNumbersToAcknowledge += value;
@@ -903,6 +912,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets or Sets the default subscription for the session.
         /// </summary>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         public Subscription DefaultSubscription
         {
             get => m_defaultSubscription ??= CreateSubscription(new SubscriptionOptions
@@ -1222,6 +1234,7 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -1569,6 +1582,18 @@ namespace Opc.Ua.Client
             SignatureData serverSignature = response.ServerSignature;
             ArrayOf<EndpointDescription> serverEndpoints = response.ServerEndpoints;
 
+            if (IsServerSessionRetained)
+            {
+                // The response arrived after the bound server session was retained for another
+                // owner. The new server session is not the retained one and nothing else can
+                // reach it, so it is closed past the fence instead of being leaked.
+                serverCertificate?.Dispose();
+                await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
 
@@ -1578,6 +1603,7 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
+            RaisePendingLifecycleEvents();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1654,11 +1680,12 @@ namespace Opc.Ua.Client
                     dataToSign);
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                    ? m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None
-                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                    : identityPolicy.SecurityPolicyUri!;
+                string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                    identity,
+                    identityPolicy,
+                    m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None,
+                    m_endpoint.Description.SecurityMode,
+                    m_securityPolicies);
 
                 // remember the policy actually used to encrypt the user token
                 m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
@@ -1773,8 +1800,18 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (IsServerSessionRetained)
+                    {
+                        // The fence blocks the regular close, but this attempt created the
+                        // server session, which is not the retained one.
+                        await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1786,6 +1823,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
                 }
                 if (closeChannel)
                 {
@@ -1904,6 +1942,30 @@ namespace Opc.Ua.Client
 
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, operationCt)
                     .ConfigureAwait(false);
+
+                if (identity.TokenType == UserTokenType.IssuedToken)
+                {
+                    string channelPolicyUri =
+                        m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
+                    UserTokenPolicy? selectedPolicy =
+                        m_endpoint.Description.FindUserTokenPolicy(
+                            identity.TokenHandler.Token.PolicyId!,
+                            channelPolicyUri) ??
+                        m_endpoint.Description.FindUserTokenPolicy(
+                            identity.TokenType,
+                            identity.IssuedTokenType,
+                            channelPolicyUri) ??
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenInvalid,
+                            "Endpoint does not support the user identity type provided.");
+
+                    ValidateIssuedTokenPolicy(
+                        identity,
+                        selectedPolicy,
+                        channelPolicyUri,
+                        m_endpoint.Description.SecurityMode,
+                        m_securityPolicies);
+                }
 
                 // The selector lets a policy with an empty SecurityPolicyUri
                 // through, as it inherits the channel policy. When the
@@ -2400,13 +2462,16 @@ namespace Opc.Ua.Client
                     "Endpoint does not support the user identity type provided.");
 
             // select the security policy for the user token.
-            string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                ? securityPolicyUri
-                // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                : identityPolicy.SecurityPolicyUri!;
+            string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                identity,
+                identityPolicy,
+                securityPolicyUri,
+                m_endpoint.Description.SecurityMode,
+                m_securityPolicies);
 
             bool requireEncryption = tokenSecurityPolicyUri != SecurityPolicies.None;
+
+            EnsureUnencryptedUserNameTokenAllowed(identity, tokenSecurityPolicyUri);
 
             // validate the server certificate before encrypting tokens.
             if (m_serverCertificate != null &&
@@ -2689,6 +2754,72 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Moves the tracked acknowledgements of a subscription from the session it left to
+        /// this session. When this session tracks no acknowledgements the previous session
+        /// ends them itself, so they still end exactly once.
+        /// </summary>
+        internal void HandOverAcknowledgements(
+            Session? previous,
+            Subscription subscription,
+            List<AcknowledgementHandover> released,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<uint> acknowledgementsToSend)
+        {
+            if (previous == null ||
+                ReferenceEquals(previous, this) ||
+                released.Count == 0 ||
+                previous.m_engine is not ClassicSubscriptionEngine previousEngine)
+            {
+                return;
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine && Acknowledgements != null)
+            {
+                engine.AdoptAcknowledgements(
+                    subscription,
+                    released,
+                    availableSequenceNumbers,
+                    acknowledgementsToSend);
+            }
+            else
+            {
+                previousEngine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        internal void RetireReleasedAcknowledgements(List<AcknowledgementHandover> released)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        /// <summary>
+        /// Defers source acknowledgement outcomes until the subscription transfer is resolved.
+        /// </summary>
+        /// <param name="subscription">The subscription being transferred.</param>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.BeginAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
+        /// Applies source acknowledgement outcomes deferred by an unsuccessful transfer.
+        /// </summary>
+        /// <param name="subscription">The subscription whose transfer was unsuccessful.</param>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.CancelAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
         /// Transfers the subscriptions to this session.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -2735,10 +2866,20 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
+                var acknowledgementTransferSources = new Dictionary<Subscription, Session>();
                 try
                 {
                     reconnecting = Reconnecting;
                     Reconnecting = true;
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        if (subscription.Session is Session source &&
+                            !ReferenceEquals(source, this) &&
+                            acknowledgementTransferSources.TryAdd(subscription, source))
+                        {
+                            source.BeginAcknowledgementTransfer(subscription);
+                        }
+                    }
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(
                             null,
@@ -2777,7 +2918,6 @@ namespace Opc.Ua.Client
                             if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
-
                                 // Messages claimed for republish are acknowledged only after receipt.
                                 foreach (uint sequenceNumber in acknowledgements)
                                 {
@@ -2841,6 +2981,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    foreach (KeyValuePair<Subscription, Session> transfer in acknowledgementTransferSources)
+                    {
+                        transfer.Value.CancelAcknowledgementTransfer(transfer.Key);
+                    }
                     ExitReconnectLockHolder(lockHolder);
                     foreach (Subscription subscription in subscriptions)
                     {
@@ -3489,11 +3633,14 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void AbandonServerSession()
         {
+            // Fence first: no teardown path may reach the server session from here on.
+            Volatile.Write(ref m_serverSessionFate, kServerSessionRetained);
             DeleteSubscriptionsOnClose = false;
             lock (m_lock)
             {
                 SessionCreated(default, default);
             }
+            RaisePendingLifecycleEvents();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3791,6 +3938,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
 
                     if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                     {
@@ -4122,12 +4270,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // close the session with the server.
+                // close the session with the server, unless it is retained for another owner.
                 if (connected)
                 {
                     try
                     {
-                        if (CanReceiveResponses())
+                        if (CanReceiveResponses() && TryClaimServerSessionClose())
                         {
                             using CancellationTokenSource timeoutCts =
                                 CreateCloseRequestCancellationTokenSource(timeout, ct);
@@ -4178,6 +4326,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
+                        RaisePendingLifecycleEvents();
                     }
                 }
 
@@ -4376,20 +4525,24 @@ namespace Opc.Ua.Client
                 }
 
                 // select the security policy for the user token.
-                string tokenSecurityPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                    ? endpoint.SecurityPolicyUri ?? SecurityPolicies.None
-                    // identityPolicy.SecurityPolicyUri is non-empty here; legacy BCL targets
-                    // lack [NotNullWhen(false)] on string.IsNullOrEmpty.
-                    : identityPolicy.SecurityPolicyUri!;
+                string tokenSecurityPolicyUri = ValidateIssuedTokenPolicy(
+                    m_identity,
+                    identityPolicy,
+                    endpoint.SecurityPolicyUri ?? SecurityPolicies.None,
+                    endpoint.SecurityMode,
+                    m_securityPolicies);
 
-                if (m_userTokenSecurityPolicyUri == null)
-                {
-                    m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
-                }
-                else
+                if (m_identity.TokenType != UserTokenType.IssuedToken &&
+                    m_userTokenSecurityPolicyUri != null)
                 {
                     tokenSecurityPolicyUri = m_userTokenSecurityPolicyUri;
                 }
+                else
+                {
+                    m_userTokenSecurityPolicyUri = tokenSecurityPolicyUri;
+                }
+
+                EnsureUnencryptedUserNameTokenAllowed(m_identity, tokenSecurityPolicyUri);
 
                 // validate server nonce and security parameters for user identity.
                 ValidateServerNonce(
@@ -4401,6 +4554,27 @@ namespace Opc.Ua.Client
                 // sign/encrypt with a disposable token handler copy to avoid mutating stored credentials.
                 IUserIdentityTokenHandler identityToken = m_identity.TokenHandler.Copy();
                 identityToken.UpdatePolicy(identityPolicy);
+
+                if (m_identity.TokenType == UserTokenType.IssuedToken &&
+                    tokenSecurityPolicyUri != SecurityPolicies.None &&
+                    endpoint.SecurityMode == MessageSecurityMode.None)
+                {
+                    if (m_serverCertificate == null)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "A trusted server certificate is required to encrypt an issued token.");
+                    }
+
+                    ICertificateValidatorEx validator = m_configuration.CertificateManager;
+                    CertificateValidationResult result = await validator
+                        .ValidateAsync(m_serverCertificate, ct: ct)
+                        .ConfigureAwait(false);
+                    if (!result.IsValid)
+                    {
+                        throw new ServiceResultException(result.StatusCode);
+                    }
+                }
 
                 m_logger.SessionREPLACINGChannelSessionId(SessionId);
 
@@ -4591,6 +4765,11 @@ namespace Opc.Ua.Client
                     // Never pass the caller token here: if it fired the session would
                     // stay Reconnecting forever and every later reconnect would fail.
                     await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (m_engine is DefaultSubscriptionEngine engine &&
+                        engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+                    {
+                        manager.OnSessionReactivated();
+                    }
                     Reconnecting = false;
                     resetReconnect = false;
                     m_reconnectLock.Release();
@@ -4822,6 +5001,77 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(subscription));
             }
 
+            bool removed = RemoveTransferredSubscriptionCore(subscription);
+            if (removed)
+            {
+                m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return removed;
+        }
+
+        internal bool RemoveTransferredSubscriptionForTransfer(
+            Subscription subscription,
+            out List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool removed = engine.ReleaseAcknowledgementsOf(
+                    subscription,
+                    () => RemoveTransferredSubscriptionCore(subscription),
+                    out released);
+                if (removed)
+                {
+                    try
+                    {
+                        m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch
+                    {
+                        engine.RetireReleasedAcknowledgements(released);
+                        throw;
+                    }
+                }
+                return removed;
+            }
+
+            released = [];
+            return RemoveTransferredSubscription(subscription);
+        }
+
+        internal bool RestoreTransferredSubscription(
+            Subscription subscription,
+            List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool restored = engine.RestoreAcknowledgementsOf(
+                    subscription,
+                    released,
+                    () => AddTransferredSubscriptionCore(subscription));
+                if (restored)
+                {
+                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return restored;
+            }
+
+            return AddSubscription(subscription);
+        }
+
+        private bool RemoveTransferredSubscriptionCore(Subscription subscription)
+        {
             if (subscription.Session != this)
             {
                 return false;
@@ -4836,9 +5086,21 @@ namespace Opc.Ua.Client
 
                 subscription.Session = null;
             }
+            return true;
+        }
 
-            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
-
+        private bool AddTransferredSubscriptionCore(Subscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Contains(subscription))
+                {
+                    return false;
+                }
+                subscription.Session = this;
+                subscription.Telemetry = m_telemetry;
+                m_subscriptions.Add(subscription);
+            }
             return true;
         }
 
@@ -4912,8 +5174,10 @@ namespace Opc.Ua.Client
                     m_hadSession = true;
                 }
                 m_requestContextGeneration++;
+                ObserveServerSession(sessionId);
                 RequestContextChanged?.Invoke();
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -4923,10 +5187,18 @@ namespace Opc.Ua.Client
         /// created, a request without token is not sent: after the Session
         /// was closed, it fails locally with Bad_SessionIdInvalid instead of
         /// reaching the Server as a session-less invocation. CreateSession
-        /// and ActivateSession are not affected.
+        /// and ActivateSession are not affected, unless the server session
+        /// was retained for another owner: then no request is sent at all.
         /// </remarks>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
+            if (IsServerSessionRetained)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             base.UpdateRequestHeader(request, useDefaults);
 
             if (m_hadSession &&
@@ -4948,8 +5220,8 @@ namespace Opc.Ua.Client
             StatusCode? sr = response?.ResponseHeader?.ServiceResult;
             if (sr != null && StatusCode.IsGood(sr.Value))
             {
-                // Any successful response proves the server is alive —
-                // reset keep-alive so we don't send a redundant read.
+                // Successful responses defer redundant keep-alive reads only while no error is latched.
+                // A latched error still needs an actual keep-alive response to clear it.
                 // The same response must also count as proof for the
                 // KeepAliveStopped freshness check, otherwise the timestamp goes
                 // stale while the keep alive read is perpetually deferred and the
@@ -4967,9 +5239,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
                 {
                     UpdateLastKeepAliveTime();
+                    DeferKeepAlive();
                 }
-
-                DeferKeepAlive();
             }
 
             base.RequestCompleted(request, response!, serviceName);
@@ -5055,7 +5326,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Stops the keep alive timer.
         /// </summary>
-        private async ValueTask StopKeepAliveTimerAsync()
+        internal async ValueTask StopKeepAliveTimerAsync()
         {
             Task? keepAliveWorker;
             CancellationTokenSource? keepAliveCancellation;
@@ -5796,6 +6067,70 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resolves the token policy and rejects issued tokens that would be sent without token
+        /// encryption over a channel that does not provide equivalent protection.
+        /// </summary>
+        /// <param name="identity">The identity being activated.</param>
+        /// <param name="tokenPolicy">The endpoint policy selected for the identity.</param>
+        /// <param name="channelSecurityPolicyUri">The channel security policy URI.</param>
+        /// <param name="channelSecurityMode">The negotiated channel security mode.</param>
+        /// <param name="securityPolicies">The security policy registry used by this session.</param>
+        /// <returns>The effective user-token security policy URI.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The issued-token profile changed, the effective token policy is unsupported, or the token
+        /// would not be encrypted over a sufficiently protected channel.
+        /// </exception>
+        internal static string ValidateIssuedTokenPolicy(
+            IUserIdentity identity,
+            UserTokenPolicy tokenPolicy,
+            string channelSecurityPolicyUri,
+            MessageSecurityMode channelSecurityMode,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            string effectivePolicyUri = string.IsNullOrEmpty(tokenPolicy.SecurityPolicyUri)
+                ? channelSecurityPolicyUri
+                : tokenPolicy.SecurityPolicyUri!;
+
+            if (identity.TokenType != UserTokenType.IssuedToken)
+            {
+                return effectivePolicyUri;
+            }
+
+            string? identityProfileUri = identity.IssuedTokenType?.Namespace;
+            if (!string.IsNullOrEmpty(identityProfileUri) &&
+                !string.Equals(
+                    identityProfileUri,
+                    tokenPolicy.IssuedTokenType,
+                    StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "The issued-token profile changed from '{0}' to '{1}'.",
+                    identityProfileUri,
+                    tokenPolicy.IssuedTokenType ?? "<unspecified>");
+            }
+
+            SecurityPolicyInfo? tokenSecurityPolicy = securityPolicies.GetInfo(effectivePolicyUri);
+            if (tokenSecurityPolicy == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The issued-token security policy '{0}' is not supported.",
+                    effectivePolicyUri);
+            }
+
+            if (tokenSecurityPolicy.Uri == SecurityPolicies.None &&
+                channelSecurityMode != MessageSecurityMode.SignAndEncrypt)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "An IssuedToken without token encryption requires a SignAndEncrypt channel.");
+            }
+
+            return effectivePolicyUri;
+        }
+
+        /// <summary>
         /// Validates the identity for an open call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -5834,31 +6169,28 @@ namespace Opc.Ua.Client
                 identity.TokenHandler.Token.PolicyId!,
                 securityPolicyUri!)!;
 
-            if (identityPolicy == null)
-            {
-                // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
-                    identity.TokenType,
-                    identity.IssuedTokenType,
-                    securityPolicyUri) ??
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadIdentityTokenInvalid,
-                        "Endpoint does not support the user identity type provided.");
+            bool updateIdentityPolicy = identityPolicy == null;
+            // try looking up by TokenType if the policy id was not found.
+            identityPolicy ??= m_endpoint.Description.FindUserTokenPolicy(
+                identity.TokenType,
+                identity.IssuedTokenType,
+                securityPolicyUri) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Endpoint does not support the user identity type provided.");
 
+            string effectiveTokenPolicyUri = ValidateIssuedTokenPolicy(
+                identity,
+                identityPolicy,
+                securityPolicyUri,
+                m_endpoint.Description.SecurityMode,
+                m_securityPolicies);
+            if (updateIdentityPolicy)
+            {
                 identity.TokenHandler.UpdatePolicy(identityPolicy);
             }
 
-            string effectiveTokenPolicyUri = string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri)
-                ? securityPolicyUri
-                : identityPolicy.SecurityPolicyUri!;
-            if (identity.TokenType == UserTokenType.UserName &&
-                effectiveTokenPolicyUri == SecurityPolicies.None &&
-                m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "A UserName identity token without token encryption requires a SignAndEncrypt channel.");
-            }
+            EnsureUnencryptedUserNameTokenAllowed(identity, effectiveTokenPolicyUri);
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
 
@@ -5868,6 +6200,50 @@ namespace Opc.Ua.Client
                     identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
                     !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
+        }
+
+        /// <summary>
+        /// Rejects a UserName identity token whose password would travel in
+        /// plain text, or logs a warning when the application opted in through
+        /// <see cref="SecurityConfiguration.AllowUnencryptedUserNameTokens"/>.
+        /// The password is unprotected when the effective user token security
+        /// policy is <see cref="SecurityPolicies.None"/> and the channel does
+        /// not encrypt either. Every path that submits an identity token calls
+        /// this before the token is encoded: the initial activation, a
+        /// re-activation with a changed identity and a reconnect.
+        /// </summary>
+        /// <param name="identity">The identity about to be activated.</param>
+        /// <param name="effectiveTokenPolicyUri">
+        /// The security policy the token is protected with, after an empty
+        /// user token policy was resolved to the channel security policy.
+        /// </param>
+        /// <exception cref="ServiceResultException"></exception>
+        private void EnsureUnencryptedUserNameTokenAllowed(
+            IUserIdentity identity,
+            string effectiveTokenPolicyUri)
+        {
+            if (identity.TokenType != UserTokenType.UserName ||
+                effectiveTokenPolicyUri != SecurityPolicies.None ||
+                m_endpoint.Description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                return;
+            }
+
+            // The password would be sent in plain text. Legacy devices which offer
+            // no encrypted user token policy can be allowed explicitly through
+            // SecurityConfiguration.AllowUnencryptedUserNameTokens.
+            if (!m_configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A UserName identity token without token encryption requires a SignAndEncrypt channel " +
+                    "(see OPC 10000-4 v1.05.07 7.40.4). " +
+                    "Set SecurityConfiguration.AllowUnencryptedUserNameTokens to allow sending the password in plain text.");
+            }
+
+            m_logger.SendingUnencryptedUserNameToken(
+                m_endpoint.Description.SecurityMode,
+                m_endpoint.EndpointUrl);
         }
 
         internal static IdentitySelectionContext CreateIdentitySelectionContext(
@@ -7677,5 +8053,16 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 72, Level = LogLevel.Information,
             Message = "Closed the replaced session {SessionId} on the Server it was created on.")]
         public static partial void SessionRetiredPreviousSession(this ILogger logger, NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 73, Level = LogLevel.Warning,
+            Message = "Sending a UserName identity token without encryption over a {SecurityMode} channel " +
+                "to {EndpointUrl}. The password is transmitted in plain text. The server offers a None " +
+                "user token policy on a channel that does not encrypt, which is not compliant with " +
+                "OPC 10000-4 v1.05.07 7.40.4. AllowUnencryptedUserNameTokens is enabled for legacy " +
+                "interoperability only.")]
+        public static partial void SendingUnencryptedUserNameToken(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

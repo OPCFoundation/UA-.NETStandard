@@ -79,7 +79,20 @@ namespace Opc.Ua.Pumps.Server
             ApplicationConfiguration configuration,
             IDiPostSetupRunner? postSetupRunner,
             IOptions<PumpsServerOptions>? options = null)
-            : base(server, configuration, postSetupRunner, ManagerNamespaceUris(options?.Value))
+            : this(server, configuration, postSetupRunner, options, default)
+        {
+        }
+
+        /// <summary>
+        /// Creates a Pumps owner with additional DI companion models.
+        /// </summary>
+        public PumpsNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            IDiPostSetupRunner? postSetupRunner,
+            IOptions<PumpsServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers)
+            : base(server, configuration, postSetupRunner, providers, ManagerNamespaceUris(options?.Value))
         {
             Runtime = new PumpsRuntime(this, options?.Value ?? new PumpsServerOptions());
         }

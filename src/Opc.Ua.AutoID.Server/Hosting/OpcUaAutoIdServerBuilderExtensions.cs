@@ -28,10 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Opc.Ua.AutoID.Server;
 using Opc.Ua.AutoID.Server.Hosting;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server.Hosting;
 
@@ -50,9 +53,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <remarks>
         /// The manager owns the Device Integration namespace, so this cannot be combined with
         /// <c>AddOpcUaDi</c>, <c>AddMachinery</c> or any other DI-owning registration on the same
-        /// server. To host readers next to machines or other Machinery-based companions, call
-        /// <see cref="OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery"/> after
-        /// <c>AddMachinery</c> instead: the readers are then created in the Machinery owner.
+        /// server. To host readers next to machines or other DI based companions, call
+        /// <see cref="OpcUaAutoIdCompositionExtensions.AddAutoIdModel"/> after the owner's
+        /// registration instead: the readers are then created in that owner. For Machinery use
+        /// <c>AddDiModel&lt;AutoIdModelProvider, TNodeManager&gt;</c> with a configuration callback.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the AutoID options.</param>
@@ -73,7 +77,12 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddAutoId),
+                "Compose the readers into the owner with AddAutoIdModel " +
+                "and ConfigureAutoIdFor<TNodeManager>(), or load the AutoID model into the existing manager " +
+                "with nodes.AddAutoIdTypeSystem(context) and create the readers with " +
+                "manager.CreateAutoIdRuntime().");
 
             builder.Services.AddOptions<AutoIdServerOptions>();
             if (configure != null)
@@ -81,7 +90,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.Services.Configure(configure);
             }
 
-            return builder.AddNodeManager<AutoIdNodeManagerFactory>();
+            builder.Services.AddSingleton(static services => new AutoIdNodeManagerFactory(
+                services.GetService<IDiPostSetupRunner>(),
+                services.GetService<IOptions<AutoIdServerOptions>>(),
+                services.GetServices<IDiModelProvider>().ToArray()));
+            builder.Services.AddSingleton(static services => new OpcUaServerNodeManagerRegistration(
+                services.GetRequiredService<AutoIdNodeManagerFactory>()));
+            return builder;
         }
 
         /// <summary>
@@ -139,43 +154,44 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. " +
-                        "AddAutoId cannot register a second DI-owning manager. Compose the readers into the " +
-                        "Machinery owner with AddAutoIdToMachinery and ConfigureAutoIdFor<TNodeManager>(), or " +
-                        "load the AutoID model into the existing manager with nodes.AddAutoIdTypeSystem(context) " +
-                        "and create the readers with manager.CreateAutoIdRuntime().");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddAutoId)));
-        }
-
+        /// <summary>
+        /// Exposes the standalone AutoID owner through the shared DI setup context.
+        /// </summary>
         private sealed class AutoIdSetupContext : IAutoIdSetupContext
         {
+            /// <summary>
+            /// Creates an AutoID context backed by the owner's DI context.
+            /// </summary>
             public AutoIdSetupContext(AutoIdNodeManager manager, IDiPostSetupContext context)
             {
                 Manager = manager;
                 DiContext = context;
             }
 
+            /// <summary>
+            /// Gets the standalone AutoID owner.
+            /// </summary>
             public AutoIdNodeManager Manager { get; }
 
+            /// <summary>
+            /// Gets the reader runtime owned by the node manager.
+            /// </summary>
             public AutoIdRuntime Runtime => Manager.Runtime;
 
+            /// <summary>
+            /// Gets the shared context used for DI configuration.
+            /// </summary>
             public IDiPostSetupContext DiContext { get; }
 
+            /// <summary>
+            /// Gets the owner's setup cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken => DiContext.CancellationToken;
 
+            /// <summary>
+            /// Resolves a required service from the owner's context.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return DiContext.GetRequiredService<T>();

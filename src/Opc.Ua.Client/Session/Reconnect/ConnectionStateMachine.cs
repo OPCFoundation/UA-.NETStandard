@@ -752,9 +752,15 @@ namespace Opc.Ua.Client
             using CancellationTokenSource closeAware = CreateCloseAwareTokenSource(ct);
             CancellationToken attemptCt = closeAware.Token;
 
-            StatusCode lastStatus = StatusCodes.Good;
-            string? lastAdditionalInfo = null;
-            string? lastMessage = null;
+            StatusCode lastStatus;
+            string? lastAdditionalInfo;
+            string? lastMessage;
+            lock (m_lock)
+            {
+                lastStatus = m_lastError?.StatusCode ?? StatusCodes.Good;
+                lastAdditionalInfo = m_lastError?.AdditionalInfo;
+                lastMessage = m_lastError?.LocalizedText.Text;
+            }
             try
             {
                 for (int attempt = 0; !attemptCt.IsCancellationRequested; attempt++)

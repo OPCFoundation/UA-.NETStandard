@@ -179,6 +179,9 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("The classic subscription template is deprecated. Use the managed " +
+            "subscription model (ISubscriptionManager.Add with SubscriptionOptions) instead. " +
+            "See docs/MigrationGuide.md.")]
         public Subscription DefaultSubscription
         {
             get => RequireCurrentSession().DefaultSubscription;
@@ -370,6 +373,8 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use an ISubscriptionAcknowledgementProvider (ManagedSessionOptions.AcknowledgementProvider) " +
+            "or AcknowledgementMode.AfterConfirmation instead. See docs/Subscriptions.md.")]
         public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
         {
             add
@@ -1392,7 +1397,9 @@ namespace Opc.Ua.Redundancy.Client
             s.KeepAlive += OnKeepAlive;
             s.Notification += OnNotification;
             s.PublishError += OnPublishError;
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
             s.PublishSequenceNumbersToAcknowledge += OnPublishSequenceNumbersToAcknowledge;
+#pragma warning restore CS0618
             s.SubscriptionsChanged += OnSubscriptionsChanged;
             s.SessionClosing += OnSessionClosing;
             s.SessionConfigurationChanged += OnSessionConfigurationChanged;
@@ -1408,7 +1415,9 @@ namespace Opc.Ua.Redundancy.Client
             s.KeepAlive -= OnKeepAlive;
             s.Notification -= OnNotification;
             s.PublishError -= OnPublishError;
+#pragma warning disable CS0618 // Forwards the obsolete acknowledgement event until it is removed.
             s.PublishSequenceNumbersToAcknowledge -= OnPublishSequenceNumbersToAcknowledge;
+#pragma warning restore CS0618
             s.SubscriptionsChanged -= OnSubscriptionsChanged;
             s.SessionClosing -= OnSessionClosing;
             s.SessionConfigurationChanged -= OnSessionConfigurationChanged;

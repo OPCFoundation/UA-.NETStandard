@@ -35,7 +35,6 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
-using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.AutoID.Server
@@ -82,12 +81,9 @@ namespace Opc.Ua.AutoID.Server
 
         /// <summary>
         /// Gets the namespace the node manager mints instance NodeIds in, for the reader browse
-        /// names: the Machinery instance namespace on a <see cref="MachineryNodeManager"/>, else the
-        /// instance namespace of the Device Integration node manager.
+        /// names: <see cref="DiNodeManager.CompanionInstanceNamespaceIndex"/> of the owner.
         /// </summary>
-        public ushort InstanceNamespaceIndex => Manager is MachineryNodeManager machinery
-            ? machinery.MachineryInstanceNamespaceIndex
-            : Manager.InstanceNamespaceIndex;
+        public ushort InstanceNamespaceIndex => Manager.CompanionInstanceNamespaceIndex;
 
         /// <summary>
         /// Gets the system context of the node manager.
@@ -271,7 +267,7 @@ namespace Opc.Ua.AutoID.Server
             }
             try
             {
-                Manager.RegisterMachineryResource(this);
+                Manager.RegisterResource(this);
             }
             catch
             {
@@ -344,7 +340,6 @@ namespace Opc.Ua.AutoID.Server
                 throw;
             }
             AutoIdReader? reader = null;
-            NodeState? organizedBy = null;
             try
             {
                 applyIdentification();
@@ -352,7 +347,6 @@ namespace Opc.Ua.AutoID.Server
                 {
                     await m_placement.AddComponentIdentificationAsync(device, cancellationToken).ConfigureAwait(false);
                 }
-                organizedBy = KeepReachableFromDeviceSet(parentNode, device);
                 reader = new AutoIdReader(
                     this,
                     device,
@@ -380,10 +374,6 @@ namespace Opc.Ua.AutoID.Server
                 {
                     // The reader never took ownership of the provider.
                     await DisposeProviderQuietlyAsync(builder.Provider, builder.BrowseName.Name).ConfigureAwait(false);
-                }
-                if (organizedBy != null)
-                {
-                    AutoIdReaderPlacement.RemoveOrganize(organizedBy, device);
                 }
                 await RemoveUnregisteredDeviceAsync(parentNode, device).ConfigureAwait(false);
                 throw;
@@ -461,28 +451,6 @@ namespace Opc.Ua.AutoID.Server
                 default:
                     throw new ArgumentOutOfRangeException(nameof(builder), kind, "Unknown reader kind.");
             }
-        }
-
-        /// <summary>
-        /// Keeps a reader placed below another parent reachable from the DI <c>DeviceSet</c>
-        /// (OPC 10000-100 4.9): when <c>DeviceSet</c> does not reach the parent, it organizes the
-        /// reader directly.
-        /// </summary>
-        /// <returns>The <c>DeviceSet</c> that now organizes the reader, else <see langword="null"/>.</returns>
-        /// <exception cref="ServiceResultException">The node manager publishes no <c>DeviceSet</c>.</exception>
-        private NodeState? KeepReachableFromDeviceSet(NodeState parent, AutoIdDeviceState device)
-        {
-            NodeState deviceSet = m_placement.FindDeviceSet() ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "The node manager publishes no DeviceSet to locate the reader '{0}' from.",
-                    device.BrowseName);
-            if (m_placement.IsReachableFrom(deviceSet, parent))
-            {
-                return null;
-            }
-            AutoIdReaderPlacement.Organize(deviceSet, device);
-            return deviceSet;
         }
 
         private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceAsync<TDevice>(

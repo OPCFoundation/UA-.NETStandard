@@ -39,14 +39,51 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface IMessageAckQueue
     {
         /// <summary>
-        /// Subscriptions queue acknoledgements for completed
-        /// notifications as soon as they are dispatched / handled.
+        /// Cancels ingress admission when the owning manager shuts down, before it joins
+        /// Publish workers. Ordinary publishing quiescence does not cancel this token.
         /// </summary>
-        /// <param name="ack"></param>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        ValueTask QueueAsync(SubscriptionAcknowledgement ack,
-            CancellationToken ct = default);
+        CancellationToken ShutdownToken { get; }
+
+        /// <summary>
+        /// Queues an acknowledgement stamped with the processor that
+        /// produced it and that processor's message generation. Before
+        /// the acknowledgement is sent, it is discarded if the owner was
+        /// removed, its server id changed, a more recently created
+        /// subscription now holds the id, its generation advanced, or the
+        /// server no longer holds the message.
+        /// </summary>
+        /// <param name="owner">The processor that produced the
+        /// acknowledgement.</param>
+        /// <param name="generation">The owner's message generation when
+        /// the acknowledged message was processed.</param>
+        /// <param name="ack">The acknowledgement.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct = default);
+
+        /// <summary>
+        /// Starts tracking the acknowledgement of a message before the message is
+        /// delivered, so that a confirmation the application makes while handling it
+        /// is accepted.
+        /// </summary>
+        /// <param name="owner">The processor that delivers the message.</param>
+        /// <param name="generation">The owner's message generation.</param>
+        /// <param name="sequenceNumber">The sequence number of the message.</param>
+        void TrackAcknowledgement(IMessageProcessor owner, long generation, uint sequenceNumber);
+
+        /// <summary>
+        /// Records that <paramref name="owner"/> was just assigned
+        /// <paramref name="subscriptionId"/> by the server. The most
+        /// recently created owner of an identifier takes precedence over
+        /// any other subscription still registered under it.
+        /// </summary>
+        /// <param name="owner">The created subscription.</param>
+        /// <param name="subscriptionId">The server-assigned id.</param>
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown. A message the server published
+        /// earlier belongs to the id's previous subscription.</param>
+        void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default);
 
         /// <summary>
         /// Complete subscription
@@ -84,18 +121,18 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
-        /// Drops every queued acknowledgement targeting the given
-        /// <paramref name="subscriptionId"/>. Used by the
-        /// recreate path after the old server-side subscription has
-        /// been retired and while publish ingress remains quiesced.
-        /// This prevents stale acknowledgements from crossing into a
-        /// replacement generation when a server reuses identifiers.
+        /// Retires the acknowledgement state <paramref name="owner"/> holds
+        /// under <paramref name="subscriptionId"/> and removes its deferred
+        /// acknowledgements. Used when a subscription is recreated, deleted
+        /// or completed. Queued and in-flight acknowledgements fail send-time
+        /// validation; when an observer receives outcomes, those of the retired
+        /// lifetime are reported as retired right away.
         /// </summary>
-        /// <param name="subscriptionId">The subscription id whose
-        /// queued acknowledgements should be dropped.</param>
-        /// <returns>The number of queued acknowledgements that
-        /// were dropped.</returns>
-        int DropPendingForSubscription(uint subscriptionId);
+        /// <param name="owner">The subscription retiring the id.</param>
+        /// <param name="subscriptionId">The retired server id.</param>
+        /// <returns>The number of deferred acknowledgements that were
+        /// dropped.</returns>
+        int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId);
 
         /// <summary>
         /// Whether <paramref name="subscriptionId"/> still resolves to

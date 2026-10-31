@@ -64,6 +64,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(names.Where(name => name.StartsWith("craneshoists_", StringComparison.Ordinal)),
                 Is.EquivalentTo(s_names));
             Assert.That(names, Does.Contain("Connect"));
+            Assert.That(names, Does.Contain("ConnectJwt"));
             Assert.That(names, Is.Unique);
         }
 
@@ -108,6 +109,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
             Assert.That(names, Is.Unique);
             Assert.That(names, Does.Contain("Connect"));
+            Assert.That(names, Does.Contain("ConnectJwt"));
             Assert.That(names.Where(name => name.StartsWith("craneshoists_", StringComparison.Ordinal)),
                 Is.EquivalentTo(s_names));
         }
@@ -154,6 +156,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
             Assert.That(names, Is.Unique);
             Assert.That(names.Count(name => name == "Connect"), Is.EqualTo(1));
+            Assert.That(names.Count(name => name == "ConnectJwt"), Is.EqualTo(1));
             Assert.That(names.Count(name => name.StartsWith("craneshoists_", StringComparison.Ordinal)),
                 Is.EqualTo(crane ? 6 : 0));
             Assert.That(provider.GetRequiredService<CranesHoistsClientAccessor>(), Is.Not.Null);

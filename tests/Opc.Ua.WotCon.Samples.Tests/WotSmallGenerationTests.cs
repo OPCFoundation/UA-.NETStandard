@@ -41,6 +41,8 @@ using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Client;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.WotCon.Samples.Tests
 {
     /// <summary>

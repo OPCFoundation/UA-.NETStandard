@@ -220,7 +220,6 @@ services.AddOpcUa()
         {
             EndpointUrl = "opc.tcp://client.example.com:65300",
             Timeout = 30000,
-            MaxSessionCount = 1,
             Enabled = true
         });
     });

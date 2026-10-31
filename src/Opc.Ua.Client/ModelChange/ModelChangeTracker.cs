@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.Subscriptions;
@@ -45,7 +46,9 @@ namespace Opc.Ua.Client.ModelChange
     /// </summary>
     public sealed class ModelChangeTracker : IModelChangeTracker
     {
-        private readonly IStreamingSubscription m_streaming;
+        private readonly IStreamingSubscription? m_streaming;
+        private readonly ISubscriptionManager? m_subscriptionManager;
+        private readonly ISessionAcknowledgements? m_acknowledgements;
         private readonly INodeCache? m_nodeCache;
         private readonly INamespaceTableRefresher? m_namespaceTables;
         private readonly ILogger m_logger;
@@ -98,6 +101,30 @@ namespace Opc.Ua.Client.ModelChange
             INamespaceTableRefresher? namespaceTables = null)
         {
             m_streaming = streaming ?? throw new ArgumentNullException(nameof(streaming));
+            m_nodeCache = nodeCache;
+            m_namespaceTables = namespaceTables;
+            m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+        }
+
+        /// <summary>
+        /// Creates a tracker with its own whole-message subscription. It confirms each
+        /// message only after all model-change events were processed, without sharing
+        /// acknowledgement ownership with application streams.
+        /// </summary>
+        /// <param name="subscriptionManager">The session's subscription manager.</param>
+        /// <param name="acknowledgements">The same session's acknowledgement facet.</param>
+        /// <param name="nodeCache">Optional node cache to invalidate.</param>
+        /// <param name="logger">Optional logger.</param>
+        /// <param name="namespaceTables">Optional namespace table refresher.</param>
+        public ModelChangeTracker(
+            ISubscriptionManager subscriptionManager,
+            ISessionAcknowledgements acknowledgements,
+            INodeCache? nodeCache = null,
+            ILogger? logger = null,
+            INamespaceTableRefresher? namespaceTables = null)
+        {
+            m_subscriptionManager = subscriptionManager ?? throw new ArgumentNullException(nameof(subscriptionManager));
+            m_acknowledgements = acknowledgements ?? throw new ArgumentNullException(nameof(acknowledgements));
             m_nodeCache = nodeCache;
             m_namespaceTables = namespaceTables;
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
@@ -287,6 +314,11 @@ namespace Opc.Ua.Client.ModelChange
         {
             try
             {
+                if (m_subscriptionManager != null)
+                {
+                    await PumpMessagesAsync(ready, ct).ConfigureAwait(false);
+                    return;
+                }
                 EventFilter filter = BuildModelChangeFilter();
                 var options = new MonitoringOptions
                 {
@@ -299,7 +331,7 @@ namespace Opc.Ua.Client.ModelChange
                     filter, options, ready, ct);
                 await foreach (EventNotification notification in source.ConfigureAwait(false))
                 {
-                    await HandleNotificationAsync(notification, ct).ConfigureAwait(false);
+                    _ = await HandleNotificationAsync(notification, ct).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -351,7 +383,85 @@ namespace Opc.Ua.Client.ModelChange
             }
 
             ready.TrySetResult(true);
-            return m_streaming.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+            return m_streaming!.SubscribeEventsAsync(ObjectIds.Server, filter, options, ct);
+        }
+
+        /// <summary>
+        /// Processes complete model-change messages on a dedicated, bounded subscription.
+        /// </summary>
+        private async Task PumpMessagesAsync(TaskCompletionSource<bool> ready, CancellationToken ct)
+        {
+            var messages = Channel.CreateBounded<SubscriptionNotificationMessage>(new BoundedChannelOptions(50)
+            {
+                SingleReader = true,
+                SingleWriter = true,
+                AllowSynchronousContinuations = false,
+                FullMode = BoundedChannelFullMode.Wait
+            });
+            ISubscription subscription = m_subscriptionManager!.Add(
+                new MessageHandler(messages.Writer, ct),
+                new OptionsMonitor<Subscriptions.SubscriptionOptions>(new Subscriptions.SubscriptionOptions
+                {
+                    PublishingEnabled = true,
+                    DisableUnboundedItemMode = true
+                }));
+            try
+            {
+                if (!subscription.MonitoredItems.TryAdd(
+                    "ModelChange",
+                    new OptionsMonitor<MonitoringOptions>(new MonitoringOptions
+                    {
+                        StartNodeId = ObjectIds.Server,
+                        AttributeId = Attributes.EventNotifier,
+                        Filter = BuildModelChangeFilter(),
+                        QueueSize = 50
+                    }),
+                    out Subscriptions.MonitoredItems.IMonitoredItem? item))
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
+                        "The model-change monitored item could not be registered.");
+                }
+                await item!.WaitForMonitoredItemCreatedAsync(ct).ConfigureAwait(false);
+                ready.TrySetResult(true);
+                await foreach (SubscriptionNotificationMessage message in messages.Reader.ReadAllAsync(ct)
+                    .ConfigureAwait(false))
+                {
+                    bool succeeded = true;
+                    for (int i = 0; i < message.Notifications.Count; i++)
+                    {
+                        ArrayOf<EventNotification> events = message.Notifications[i].Events;
+                        for (int j = 0; j < events.Count; j++)
+                        {
+                            succeeded &= await HandleNotificationAsync(events[j], ct).ConfigureAwait(false);
+                        }
+                    }
+                    if (succeeded)
+                    {
+                        m_acknowledgements!.Confirm(message.Acknowledgement);
+                    }
+                }
+            }
+            finally
+            {
+                messages.Writer.TryComplete();
+                await subscription.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Transfers complete messages to the tracker without dropping a partial message.
+        /// </summary>
+        private sealed class MessageHandler(
+            ChannelWriter<SubscriptionNotificationMessage> writer,
+            CancellationToken lifetime) : ISubscriptionNotificationMessageHandler
+        {
+            /// <inheritdoc/>
+            public async ValueTask OnNotificationMessageAsync(
+                SubscriptionNotificationMessage message, CancellationToken ct = default)
+            {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(lifetime, ct);
+                await writer.WriteAsync(message, linked.Token).ConfigureAwait(false);
+            }
         }
 
         private static EventFilter BuildModelChangeFilter()
@@ -370,14 +480,15 @@ namespace Opc.Ua.Client.ModelChange
             return filter;
         }
 
-        private async ValueTask HandleNotificationAsync(
+        private async ValueTask<bool> HandleNotificationAsync(
             EventNotification notification,
             CancellationToken ct)
         {
             Variant[] fields = notification.Fields.ToArray() ?? [];
             if (fields.Length < 3)
             {
-                return;
+                m_logger.ModelChangeTrackerInvalidNotification(fields.Length);
+                return false;
             }
 
             Variant changesVariant = fields[2];
@@ -408,7 +519,7 @@ namespace Opc.Ua.Client.ModelChange
             // subscribers that re-browse from the ModelChanged handler —
             // and the per-node cache invalidation below — see NodeIds
             // from namespaces the server has just added.
-            bool namespaceTableRefreshed = await TryRefreshNamespaceTablesAsync(
+            (bool namespaceTableRefreshed, bool succeeded) = await TryRefreshNamespaceTablesAsync(
                 changes, requiresFullInvalidation, ct).ConfigureAwait(false);
 
             try
@@ -427,6 +538,7 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (Exception ex)
             {
+                succeeded = false;
                 m_logger.ModelChangeTrackerFailedInvalidateCache(ex);
             }
 
@@ -438,8 +550,10 @@ namespace Opc.Ua.Client.ModelChange
             }
             catch (Exception ex)
             {
+                succeeded = false;
                 m_logger.ModelChangeTrackerSubscriberThrew(ex);
             }
+            return succeeded;
         }
 
         /// <summary>
@@ -448,8 +562,8 @@ namespace Opc.Ua.Client.ModelChange
         /// A failure is logged and swallowed: the model change itself
         /// must still be surfaced and the pump must keep running.
         /// </summary>
-        /// <returns><c>true</c> when the table was refreshed.</returns>
-        private async ValueTask<bool> TryRefreshNamespaceTablesAsync(
+        /// <returns>Whether a refresh occurred and whether the required work succeeded.</returns>
+        private async ValueTask<(bool Refreshed, bool Succeeded)> TryRefreshNamespaceTablesAsync(
             IReadOnlyList<ModelChange> changes,
             bool requiresFullInvalidation,
             CancellationToken ct)
@@ -459,13 +573,13 @@ namespace Opc.Ua.Client.ModelChange
                 !RequiresNamespaceTableRefresh(namespaceTables, changes,
                     requiresFullInvalidation))
             {
-                return false;
+                return (false, true);
             }
             try
             {
                 await namespaceTables.FetchNamespaceTablesAsync(ct)
                     .ConfigureAwait(false);
-                return true;
+                return (true, true);
             }
             catch (OperationCanceledException)
             {
@@ -474,7 +588,7 @@ namespace Opc.Ua.Client.ModelChange
             catch (Exception ex)
             {
                 m_logger.ModelChangeTrackerFailedRefreshNamespaceTables(ex);
-                return false;
+                return (false, false);
             }
         }
 
@@ -550,5 +664,9 @@ namespace Opc.Ua.Client.ModelChange
         public static partial void ModelChangeTrackerFailedRefreshNamespaceTables(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ModelChangeTracker + 4, Level = LogLevel.Warning,
+            Message = "ModelChangeTracker received an incomplete event with {FieldCount} fields")]
+        public static partial void ModelChangeTrackerInvalidNotification(this ILogger logger, int fieldCount);
     }
 }

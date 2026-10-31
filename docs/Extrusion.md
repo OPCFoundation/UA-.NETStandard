@@ -104,8 +104,8 @@ Do not also call `AddOpcUaDi` or register a second Machinery owner. Custom
 owners load `MachineryModelProvider(MachineryParts.BuildingBlocks)` and
 `ExtrusionModelProvider`, then use `ConfigureExtrusionFor<TManager>`.
 Outside dependency injection, use `ExtrusionRuntime.Create(existingManager)`.
-The same runtime is returned on subsequent calls. A custom owner releases its
-Machinery resources through `DisposeMachineryResourcesAsync`.
+The same runtime is returned on subsequent calls. Every DI owner releases the
+registered runtime automatically.
 
 Runtime disposal stops its commands, subscriptions' data sources, temporary
 file bindings and other owned resources. Device nodes themselves belong to the

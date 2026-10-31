@@ -60,6 +60,34 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .CreateLogger("ConnectionStateMachine");
         }
 
+        private sealed class RejectInitialAuthenticationReconnectPolicy : IReconnectPolicy
+        {
+            public ConcurrentQueue<StatusCode> CapturedStatuses { get; } = new();
+
+            public TimeSpan? GetNextDelay(int attempt, CancellationToken ct = default)
+            {
+                return TimeSpan.Zero;
+            }
+
+            public bool TryGetNextDelay(
+                int attempt,
+                StatusCode lastStatus,
+                TimeSpan? serverRetryAfter,
+                out TimeSpan? delay,
+                CancellationToken ct = default)
+            {
+                CapturedStatuses.Enqueue(lastStatus);
+                delay = lastStatus == StatusCodes.BadIdentityTokenRejected
+                    ? null
+                    : TimeSpan.Zero;
+                return true;
+            }
+
+            public void Reset()
+            {
+            }
+        }
+
         private ConnectionStateMachine CreateMachine(
             IReconnectPolicy? policy = null)
         {
@@ -375,6 +403,30 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(
                 sm.State,
                 Is.EqualTo(ConnectionState.Reconnecting));
+        }
+
+        [Test]
+        public async Task InitialAuthenticationFailureIsPassedToReconnectPolicyBeforeRetry()
+        {
+            var policy = new RejectInitialAuthenticationReconnectPolicy();
+            await using ConnectionStateMachine sm = CreateMachine(policy);
+            int reconnectAttempts = 0;
+            sm.ConnectAsync = _ => Task.FromResult(
+                new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            sm.ReconnectAsync = _ =>
+            {
+                Interlocked.Increment(ref reconnectAttempts);
+                return Task.FromResult(new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            };
+            sm.FailoverAsync = _ => Task.FromResult(new ServiceResult(StatusCodes.BadNotSupported));
+
+            StateTransitionRecorder recorder = AttachRecorder(sm);
+            sm.Start();
+            sm.RequestConnect();
+            await recorder.WaitForStateAsync(ConnectionState.Disconnected).ConfigureAwait(false);
+
+            Assert.That(policy.CapturedStatuses, Is.EqualTo([StatusCodes.BadIdentityTokenRejected]));
+            Assert.That(reconnectAttempts, Is.Zero);
         }
 
         [Test]

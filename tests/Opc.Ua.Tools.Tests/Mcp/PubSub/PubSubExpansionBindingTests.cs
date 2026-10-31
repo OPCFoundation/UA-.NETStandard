@@ -51,9 +51,9 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
     {
         [TestCase(McpToolProfile.PubSub, 14)]
         [TestCase(McpToolProfile.PubSubRuntime, 10)]
-        [TestCase(McpToolProfile.PubSubConfiguration, 25)]
-        [TestCase(McpToolProfile.PubSubBridge, 15)]
-        [TestCase(McpToolProfile.PubSubSecurity, 17)]
+        [TestCase(McpToolProfile.PubSubConfiguration, 26)]
+        [TestCase(McpToolProfile.PubSubBridge, 16)]
+        [TestCase(McpToolProfile.PubSubSecurity, 18)]
         public async Task ProfilesRemainBoundedAndDeduplicateMixedRegistrationAsync(McpToolProfile profile, int count)
         {
             var services = new ServiceCollection();
@@ -65,7 +65,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             Assert.That(names, Has.Length.EqualTo(count));
             Assert.That(names, Is.Unique);
-            Assert.That(names, Has.Length.LessThanOrEqualTo(25));
+            Assert.That(names, Has.Length.LessThanOrEqualTo(26));
         }
 
         [Test]

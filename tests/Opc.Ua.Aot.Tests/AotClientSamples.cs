@@ -30,6 +30,8 @@
 using System.Text;
 using Opc.Ua.Client;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Aot.Tests
 {
     /// <summary>

@@ -32,24 +32,13 @@ namespace Opc.Ua.Robotics.Server
     /// <summary>
     /// Contributes compiled predefined model nodes to a Robotics node manager.
     /// </summary>
-    public interface IRoboticsModelProvider
+    /// <remarks>
+    /// Providers run in ascending <see cref="Opc.Ua.Di.Server.IDiModelProvider.Order"/>
+    /// and the built-in core-model provider runs first. Providers that replace the
+    /// built-in core-model provider must advertise the IA and Robotics namespace URIs
+    /// through <see cref="Opc.Ua.Di.Server.IDiModelProvider.NamespaceUris"/>.
+    /// </remarks>
+    public interface IRoboticsModelProvider : Opc.Ua.Di.Server.IDiModelProvider
     {
-        /// <summary>
-        /// Gets the deterministic provider execution order. Providers run in
-        /// ascending order; the built-in core-model provider runs first.
-        /// </summary>
-        int Order { get; }
-
-        /// <summary>
-        /// Gets the model namespace URIs contributed by this provider. Providers
-        /// that replace the built-in core-model provider must advertise the IA
-        /// and Robotics namespace URIs.
-        /// </summary>
-        ArrayOf<string> NamespaceUris { get; }
-
-        /// <summary>
-        /// Adds compiled predefined nodes to <paramref name="nodes"/>.
-        /// </summary>
-        void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context);
     }
 }

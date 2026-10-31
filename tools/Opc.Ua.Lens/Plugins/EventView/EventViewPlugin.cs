@@ -653,8 +653,10 @@ internal sealed partial class EventViewPlugin : ObservableObject, IPlugin, IWork
             MinLifetimeInterval = 60_000
         })
         {
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
             FastEventCallback = OnFastEvent,
             FastKeepAliveCallback = OnFastKeepAlive
+#pragma warning restore CS0618
         };
         var creation = new UaLens.Subscriptions.ClassicSubscriptionLease(session, sub);
         await using (creation.ConfigureAwait(false))

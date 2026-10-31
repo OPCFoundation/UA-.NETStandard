@@ -63,8 +63,14 @@ namespace Opc.Ua.Robotics.Server
         }
     }
 
+    /// <summary>
+    /// Normalizes Robotics providers and validates their shared namespace configuration.
+    /// </summary>
     internal static class RoboticsModelProviderUtilities
     {
+        /// <summary>
+        /// Deduplicates provider instances and sorts them after built-in model dependencies.
+        /// </summary>
         public static ArrayOf<IRoboticsModelProvider> Normalize(
             ArrayOf<IRoboticsModelProvider> providers)
         {
@@ -86,7 +92,10 @@ namespace Opc.Ua.Robotics.Server
                     throw new ArgumentException(
                         "Robotics model providers must not contain null entries.",
                         nameof(providers));
-                entries.Add(new ProviderEntry(provider, ii));
+                if (!entries.Exists(entry => ReferenceEquals(entry.Provider, provider)))
+                {
+                    entries.Add(new ProviderEntry(provider, ii));
+                }
             }
 
             entries.Sort(static (left, right) =>
@@ -121,6 +130,9 @@ namespace Opc.Ua.Robotics.Server
             return result;
         }
 
+        /// <summary>
+        /// Gets provider and instance namespaces, excluding the DI namespace appended by the owner.
+        /// </summary>
         public static string[] GetManagerNamespaceUris(
             ArrayOf<IRoboticsModelProvider> providers,
             RoboticsServerOptions options)
@@ -136,6 +148,9 @@ namespace Opc.Ua.Robotics.Server
             return namespaceUris.ToArray();
         }
 
+        /// <summary>
+        /// Gets the provider, instance and DI namespaces announced by the factory.
+        /// </summary>
         public static ArrayOf<string> GetFactoryNamespaceUris(
             ArrayOf<IRoboticsModelProvider> providers,
             RoboticsServerOptions options)
@@ -150,6 +165,9 @@ namespace Opc.Ua.Robotics.Server
             return namespaceUris;
         }
 
+        /// <summary>
+        /// Validates the configured Robotics instance namespace.
+        /// </summary>
         public static RoboticsServerOptions ValidateOptions(RoboticsServerOptions options)
         {
             if (options == null)
@@ -160,6 +178,9 @@ namespace Opc.Ua.Robotics.Server
             return options;
         }
 
+        /// <summary>
+        /// Validates that options do not reuse a model namespace for instances.
+        /// </summary>
         public static RoboticsServerOptions ValidateOptions(
             RoboticsServerOptions options,
             ArrayOf<IRoboticsModelProvider> providers)
@@ -272,10 +293,13 @@ namespace Opc.Ua.Robotics.Server
 
         private static string GetStableTypeName(IRoboticsModelProvider provider)
         {
-            Type type = provider.GetType();
+            Type type = provider is DiModelProviderAdapter adapter ? adapter.ProviderType : provider.GetType();
             return type.FullName ?? type.Name;
         }
 
+        /// <summary>
+        /// Associates a provider with its original registration position.
+        /// </summary>
         private readonly record struct ProviderEntry(
             IRoboticsModelProvider Provider,
             int OriginalIndex);

@@ -280,7 +280,7 @@ namespace Opc.Ua.Bindings
                 }
                 else
                 {
-                    await transport.ConnectAsync(url, ct).ConfigureAwait(false);
+                    await ConnectTransportAsync(transport, url, operation, ct).ConfigureAwait(false);
 
                     m_logger
                         .UaSCClientLog2(
@@ -324,6 +324,71 @@ namespace Opc.Ua.Bindings
             finally
             {
                 OperationCompleted(operation);
+            }
+        }
+
+        /// <summary>
+        /// Connects the transport within the deadline of the handshake
+        /// <paramref name="operation"/>. A connect the network silently drops
+        /// would otherwise stay pending until the operating system gives up,
+        /// long after the operation timed out.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// BadRequestTimeout when the deadline passes before the transport is
+        /// connected; caller cancellation surfaces as before.
+        /// </exception>
+        private async ValueTask ConnectTransportAsync(
+            IUaSCByteTransport transport,
+            Uri url,
+            WriteOperation operation,
+            CancellationToken ct)
+        {
+            // no deadline (int.MaxValue): only the caller cancels.
+            if (operation.TimeoutDeadline == long.MaxValue)
+            {
+                await transport.ConnectAsync(url, ct).ConfigureAwait(false);
+                return;
+            }
+
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            TimeSpan dueTime = TimeProvider.GetElapsedTime(
+                TimeProvider.GetTimestamp(),
+                operation.TimeoutDeadline);
+            // rounded up like the timeout scan: a timer that fires early would
+            // report a timeout before the deadline.
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
+            using ITimer timer = TimeProvider.CreateTimer(
+                static state =>
+                {
+                    try
+                    {
+                        ((CancellationTokenSource)state!).Cancel();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // the connect completed while the timer fired.
+                    }
+                },
+                deadline,
+                dueTime,
+                Timeout.InfiniteTimeSpan);
+            try
+            {
+                await transport.ConnectAsync(url, deadline.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException e) when (ct.IsCancellationRequested)
+            {
+                // report the caller's token, not the linked one.
+                throw new OperationCanceledException(e.Message, e, ct);
+            }
+            catch (Exception e) when (deadline.IsCancellationRequested && !ct.IsCancellationRequested)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadRequestTimeout,
+                    "The connection to the remote endpoint was not established within the operation timeout.",
+                    e);
             }
         }
 

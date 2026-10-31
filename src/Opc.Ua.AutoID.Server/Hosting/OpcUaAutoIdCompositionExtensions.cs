@@ -34,58 +34,33 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.AutoID.Server;
 using Opc.Ua.AutoID.Server.Hosting;
 using Opc.Ua.Di.Server;
-using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server.Hosting;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// Composes OPC 30010 AutoID readers into the Machinery node manager, which owns the Device
-    /// Integration address space, instead of registering a node manager of their own.
+    /// Composes OPC 30010 AutoID readers into any Device Integration based node manager that
+    /// owns the address space, instead of registering a node manager of their own.
     /// </summary>
     public static class OpcUaAutoIdCompositionExtensions
     {
         /// <summary>
-        /// Adds the AutoID model to an existing <c>AddMachinery</c> registration, so readers and
-        /// machines share one <c>DeviceSet</c>.
+        /// Adds the AutoID model to the existing DI owner through the legacy Machinery entry point.
         /// </summary>
         /// <remarks>
-        /// The Machinery owner loads Device Integration; this adds only the AutoID model and the
-        /// configured additional namespaces. Create the readers with
-        /// <see cref="ConfigureAutoIdFor{TNodeManager}"/>. Repeated calls register the model once.
+        /// Register the owner and its configuration before dependent AutoID callbacks.
+        /// This compatibility alias does not register a Machinery server or another DI owner.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the AutoID options.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="InvalidOperationException">
-        /// <c>AddMachinery</c> was not registered before.
-        /// </exception>
+        /// <returns>The same builder, for chaining.</returns>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        [Obsolete("Use AddAutoIdModel instead. Register owner configuration before dependent AutoID callbacks.")]
         public static IOpcUaServerBuilder AddAutoIdToMachinery(
             this IOpcUaServerBuilder builder,
             Action<AutoIdServerOptions>? configure = null)
         {
-            if (builder == null)
-            {
-                throw new ArgumentNullException(nameof(builder));
-            }
-            bool owner = false;
-            foreach (ServiceDescriptor descriptor in builder.Services)
-            {
-                owner |= descriptor.ServiceType == typeof(MachineryNodeManagerFactory);
-            }
-            if (!owner)
-            {
-                throw new InvalidOperationException("Register AddMachinery before AddAutoIdToMachinery.");
-            }
-            var options = new AutoIdServerOptions();
-            configure?.Invoke(options);
-            options.Validate();
-            builder.Services.AddOptions<AutoIdServerOptions>();
-            if (configure != null)
-            {
-                builder.Services.Configure(configure);
-            }
-            return builder.AddMachineryModel<AutoIdMachineryModelProvider>();
+            return builder.AddAutoIdModel(configure);
         }
 
         /// <summary>
@@ -95,10 +70,11 @@ namespace Microsoft.Extensions.DependencyInjection
         /// startup.
         /// </summary>
         /// <remarks>
-        /// On a <see cref="MachineryNodeManager"/> or another composed owner the delegates run in
-        /// the Machinery configuration pipeline, before its builder is sealed. For
-        /// <see cref="AutoIdNodeManager"/> they receive the stand-alone manager's runtime, like
-        /// <c>ConfigureAutoId</c>.
+        /// The delegates run as a Device Integration post-setup step, in registration order with
+        /// the other <c>ConfigureDevicesFor</c> registrations. Register the owner's own
+        /// configuration, such as the Machinery configuration, first: it then runs before the
+        /// readers are created. For <see cref="AutoIdNodeManager"/> the delegates receive the
+        /// stand-alone manager's runtime, like <c>ConfigureAutoId</c>.
         /// </remarks>
         /// <typeparam name="TNodeManager">The exact Device Integration owner type.</typeparam>
         /// <param name="builder">The server builder.</param>
@@ -127,13 +103,46 @@ namespace Microsoft.Extensions.DependencyInjection
                         context.CancellationToken),
                     context.CancellationToken));
             }
-            return builder.ConfigureMachineryFor<TNodeManager>((machinery, ct) => configure(
-                new AutoIdBuildContext(
-                    machinery.Manager.CreateAutoIdRuntime(
-                        machinery.GetRequiredService<IOptions<AutoIdServerOptions>>().Value),
-                    machinery.GetRequiredService<IServiceProvider>(),
-                    ct),
-                ct));
+            return builder.ConfigureDevicesFor<TNodeManager>(context =>
+            {
+                if (context.Manager.GetType() != typeof(TNodeManager))
+                {
+                    return default;
+                }
+                return configure(
+                    new AutoIdBuildContext(
+                        context.Manager.CreateAutoIdRuntime(
+                            context.GetRequiredService<IOptions<AutoIdServerOptions>>().Value),
+                        context.GetRequiredService<IServiceProvider>(),
+                        context.CancellationToken),
+                    context.CancellationToken);
+            });
+        }
+
+        /// <summary>
+        /// Adds the AutoID model to any Device Integration based owner, so readers share its
+        /// <c>DeviceSet</c>.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Configures the AutoID options.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddAutoIdModel(
+            this IOpcUaServerBuilder builder,
+            Action<AutoIdServerOptions>? configure = null)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            var options = new AutoIdServerOptions();
+            configure?.Invoke(options);
+            options.Validate();
+            builder.Services.AddOptions<AutoIdServerOptions>();
+            if (configure != null)
+            {
+                builder.Services.Configure(configure);
+            }
+            return builder.AddDiModel<AutoIdModelProvider>();
         }
 
         /// <summary>
@@ -155,16 +164,25 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken = cancellationToken;
             }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the reader runtime shared by callbacks for this owner.
+            /// </summary>
             public AutoIdRuntime Runtime { get; }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the DI owner hosting the reader runtime.
+            /// </summary>
             public DiNodeManager Manager => Runtime.Manager;
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Gets the current configuration cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken { get; }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Resolves a required service from the hosting container.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return m_services.GetRequiredService<T>();

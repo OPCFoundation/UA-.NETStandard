@@ -51,6 +51,8 @@ using UaLens.Workspace;
 using V2MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using V2SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace UaLens.Tests.Subscriptions;
 
 [TestFixture]

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua.Di.Server;
 using Opc.Ua.RobotIntent;
 
 namespace Opc.Ua.Robotics.Server
@@ -35,22 +36,8 @@ namespace Opc.Ua.Robotics.Server
     /// <summary>
     /// Provides compiled Robot Intent model nodes.
     /// </summary>
-    public interface IRobotIntentModelProvider
+    public interface IRobotIntentModelProvider : IDiModelProvider
     {
-        /// <summary>
-        /// Gets the ordering key for provider composition.
-        /// </summary>
-        int Order { get; }
-
-        /// <summary>
-        /// Gets the namespaces supplied by the provider.
-        /// </summary>
-        ArrayOf<string> NamespaceUris { get; }
-
-        /// <summary>
-        /// Adds predefined nodes supplied by the provider.
-        /// </summary>
-        void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context);
     }
 
     /// <summary>

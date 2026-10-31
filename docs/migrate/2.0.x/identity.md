@@ -10,6 +10,7 @@
 - [User Identity Providers](#user-identity-providers)
   - [`SessionManager.ImpersonateUser` → registry authenticators](#sessionmanagerimpersonateuser--registry-authenticators)
   - [`ManagedSessionOptions.Identity` → `IdentityProvider`](#managedsessionoptionsidentity--identityprovider)
+  - [Unencrypted UserName tokens are rejected by default](#unencrypted-username-tokens-are-rejected-by-default)
 - [Secrets — caller-supplied passwords go through a secret registry](#secrets--caller-supplied-passwords-go-through-a-secret-registry)
 
 ## User Identity Token Handlers
@@ -177,6 +178,36 @@ var options = new ManagedSessionOptions
     IdentityProvider = provider
 };
 ```
+
+### Unencrypted UserName tokens are rejected by default
+
+A 1.5.x client sent a `UserName` token to any endpoint, including one whose
+user token security policy is `None`, where the password travels in plain
+text. [OPC 10000-4 v1.05.07 §7.40.4](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/7.40.4)
+says such a configuration "should not be used unless the network traffic is
+encrypted in some other manner such as a VPN". A 2.0.x client refuses to open
+a session with such a token unless the channel is `SignAndEncrypt`. The open
+fails with `Bad_SecurityChecksFailed` before anything is sent to the server.
+`UpdateSessionAsync` applies the same check when it switches an open session
+to such a token, and so does a reconnect.
+
+Prefer an endpoint whose `UserName` policy encrypts the password. A server
+that offers a `None` `UserName` policy on a channel that is not
+`SignAndEncrypt` does not follow §7.40.4, which expects it to specify an
+encrypting `SecurityPolicy` for the token in that case. If a legacy device
+does so anyway and offers no encrypted policy, opt in explicitly:
+
+```csharp
+configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+```
+
+The configuration builder exposes the same switch as
+`SetAllowUnencryptedUserNameTokens(true)`, and an XML configuration accepts
+`<AllowUnencryptedUserNameTokens>true</AllowUnencryptedUserNameTokens>` in the
+`SecurityConfiguration` element. The flag is for interoperability with such
+legacy devices only. The session logs a warning each time it sends an
+unencrypted password. Use this only where the network traffic is encrypted in
+some other manner, such as a VPN.
 
 ## Secrets — caller-supplied passwords go through a secret registry
 

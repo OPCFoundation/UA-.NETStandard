@@ -60,7 +60,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 field!.SetValue(this, ServiceMessageContext.Create(NUnitTelemetryContext.Create(true)));
                 FieldInfo queueField = typeof(ServerBase).GetField(
                     "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
-                ((IDisposable)queueField!.GetValue(this)!).Dispose();
                 m_queue = new RequestQueue(this, 1, 1, 10);
                 queueField.SetValue(this, m_queue);
             }
@@ -142,6 +141,19 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 var req = (EndpointIncomingRequest)incomingRequest;
                 req.OperationCompleted(response, error);
+            }
+
+            /// <summary>
+            /// Moves the receipt of a request into the past, as if it had waited that long.
+            /// </summary>
+            public static void SetAge(object incomingRequest, TimeSpan age)
+            {
+                FieldInfo field = typeof(EndpointIncomingRequest).GetField(
+                    "m_receivedTimestamp", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                field.SetValue(
+                    incomingRequest,
+                    System.Diagnostics.Stopwatch.GetTimestamp() -
+                        (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency));
             }
 
             public void TestEquality(IServiceRequest req1, IServiceRequest req2, IServiceRequest req3)
@@ -470,6 +482,191 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             IServiceResponse response = await responseTask.ConfigureAwait(false);
 
             Assert.That(response, Is.SameAs(expectedResponse));
+        }
+
+        /// <summary>
+        /// A request whose timeout hint ran out while it was queued is faulted with
+        /// BadTimeout at dequeue and its service never runs.
+        /// </summary>
+        [Test]
+        public async Task ExpiredQueuedRequestTimesOutWithoutInvokingServiceAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = 1000 } };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            int serviceCalls = 0;
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (_, _, _) =>
+            {
+                Interlocked.Increment(ref serviceCalls);
+                return new ValueTask<IServiceResponse>(new ReadResponse());
+            });
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            TestEndpointBase.SetAge(incoming, TimeSpan.FromSeconds(5));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            IServiceResponse response = await TestEndpointBase.ProcessAsyncLocal(incoming).AsTask()
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(serviceCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// A request whose budget runs out after dequeue but before its call starts is faulted
+        /// with BadTimeout without invoking its service.
+        /// </summary>
+        [Test]
+        public async Task CallAsync_WhenBudgetSpent_ReturnsTimeoutWithoutInvokingServiceAsync()
+        {
+            using var server = new TestServer();
+            server.OnScheduleIncomingRequest = (r) => { };
+
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = 1000 } };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            int serviceCalls = 0;
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest), (_, _, _) =>
+            {
+                Interlocked.Increment(ref serviceCalls);
+                return new ValueTask<IServiceResponse>(new ReadResponse());
+            });
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            ValueTask<IServiceResponse> responseTask = TestEndpointBase.ProcessAsyncLocal(incoming);
+            TestEndpointBase.SetAge(incoming, TimeSpan.FromSeconds(5));
+
+            await TestEndpointBase.CallAsyncLocal(incoming).ConfigureAwait(false);
+            IServiceResponse response = await responseTask.ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(serviceCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// A request that is still within its timeout hint at dequeue only gets what is left
+        /// of the hint, not the full hint again.
+        /// </summary>
+        [Test]
+        public async Task QueuedRequestRunsWithRemainingTimeoutBudgetAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var req = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = 60_000 } };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            endpoint.AddServiceLocal(req.TypeId, typeof(ReadRequest),
+                async (_, _, lifetime) =>
+                {
+                    started.TrySetResult(true);
+                    await Task.Delay(Timeout.InfiniteTimeSpan, lifetime.CancellationToken).ConfigureAwait(false);
+                    return new ReadResponse();
+                });
+
+            // 59.5 of the 60 s are spent: the full hint would outlast the test deadline
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            TestEndpointBase.SetAge(incoming, TimeSpan.FromMilliseconds(59_500));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            IServiceResponse response = await TestEndpointBase.ProcessAsyncLocal(incoming).AsTask()
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(started.Task.IsCompleted, Is.True, "The service runs with the remaining budget.");
+            Assert.That(response, Is.InstanceOf<ServiceFault>());
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        /// <summary>
+        /// A held Publish keeps its full timeout hint: the subscription layer applies it from
+        /// when the request is handled, so queue time is not charged at dequeue.
+        /// </summary>
+        [Test]
+        public async Task QueuedPublishIsNotExpiredAtDequeueAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var req = new PublishRequest { RequestHeader = new RequestHeader { TimeoutHint = 1000 } };
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            endpoint.AddServiceLocal(req.TypeId, typeof(PublishRequest),
+                (_, _, _) => new ValueTask<IServiceResponse>(new PublishResponse()));
+
+            object incoming = endpoint.CreateIncomingRequest(req, ctx);
+            TestEndpointBase.SetAge(incoming, TimeSpan.FromSeconds(5));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            IServiceResponse response = await TestEndpointBase.ProcessAsyncLocal(incoming).AsTask()
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(response, Is.InstanceOf<PublishResponse>());
+        }
+
+        /// <summary>
+        /// A request rejected because the queue is full is faulted with a retry-after hint
+        /// in the response header, which the client surfaces on the exception it throws.
+        /// </summary>
+        [Test]
+        public async Task QueueFullFaultCarriesRetryAfterAsync()
+        {
+            using var server = new TestServer();
+            var endpoint = new TestEndpointBase(server);
+            var ctx = new SecureChannelContext("1", new EndpointDescription(), RequestEncoding.Binary);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            endpoint.AddServiceLocal(new ReadRequest().TypeId, typeof(ReadRequest),
+                async (_, _, lifetime) =>
+                {
+                    started.TrySetResult(true);
+                    await release.Task.WaitAsync(lifetime.CancellationToken).ConfigureAwait(false);
+                    return new ReadResponse();
+                });
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+            // one request occupies the single worker, ten fill the queue
+            var accepted = new Task<IServiceResponse>[11];
+            accepted[0] = TestEndpointBase.ProcessAsyncLocal(endpoint.CreateIncomingRequest(
+                new ReadRequest { RequestHeader = new RequestHeader() }, ctx)).AsTask();
+            await started.Task.WaitAsync(deadline.Token).ConfigureAwait(false);
+            for (int ii = 1; ii < accepted.Length; ii++)
+            {
+                accepted[ii] = TestEndpointBase.ProcessAsyncLocal(endpoint.CreateIncomingRequest(
+                    new ReadRequest { RequestHeader = new RequestHeader() }, ctx)).AsTask();
+            }
+            IServiceResponse rejected = await TestEndpointBase.ProcessAsyncLocal(endpoint.CreateIncomingRequest(
+                new ReadRequest { RequestHeader = new RequestHeader() }, ctx)).AsTask()
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            release.TrySetResult(true);
+            await Task.WhenAll(accepted).WaitAsync(deadline.Token).ConfigureAwait(false);
+
+            Assert.That(rejected, Is.InstanceOf<ServiceFault>());
+            Assert.That(rejected.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            TimeSpan? retryAfter = RetryAfterHeader.Read(rejected.ResponseHeader);
+            Assert.That(retryAfter, Is.Not.Null);
+            Assert.That(retryAfter!.Value, Is.InRange(
+                RequestQueueBudget.MinQueueFullRetryAfter, RequestQueueBudget.MaxQueueFullRetryAfter));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => ResponseValidator.Validate(rejected.ResponseHeader))!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(
+                ex.AdditionalInfo,
+                Does.Contain(Utils.Format("RetryAfterMs={0}", (long)retryAfter.Value.TotalMilliseconds)));
+        }
+
+        /// <summary>
+        /// Exposes the client's response validation, which turns a retry-after header into
+        /// the token its reconnect policy reads.
+        /// </summary>
+        private abstract class ResponseValidator : ClientBase
+        {
+            protected ResponseValidator(ITransportChannel channel, ITelemetryContext telemetry)
+                : base(channel, telemetry)
+            {
+            }
+
+            public static void Validate(ResponseHeader header)
+            {
+                ValidateResponse(header);
+            }
         }
     }
 }

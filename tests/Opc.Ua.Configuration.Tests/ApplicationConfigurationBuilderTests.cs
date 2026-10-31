@@ -342,6 +342,7 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(secConfig.RejectSHA1SignedCertificates, Is.True);
                 Assert.That(secConfig.RejectUnknownRevocationStatus, Is.True);
                 Assert.That(secConfig.SuppressNonceValidationErrors, Is.False);
+                Assert.That(secConfig.AllowUnencryptedUserNameTokens, Is.False);
                 Assert.That(secConfig.SendCertificateChain, Is.True);
                 Assert.That(secConfig.MinimumCertificateKeySize, Is.EqualTo(CertificateFactory.DefaultKeySize));
                 Assert.That(secConfig.MaxRejectedCertificates, Is.EqualTo(5));
@@ -777,6 +778,24 @@ namespace Opc.Ua.Configuration.Tests
 
                 Assert.That(
                     appInstance.ApplicationConfiguration!.SecurityConfiguration.SuppressNonceValidationErrors,
+                    Is.True);
+            }
+        }
+
+        [Test]
+        public async Task SecurityOptionsSetAllowUnencryptedUserNameTokensAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var appInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName };
+            await using (appInstance.ConfigureAwait(false))
+            {
+                appInstance.Build(ApplicationUri, ProductUri)
+                    .AsClient()
+                    .AddSecurityConfiguration(SubjectName, m_pkiRoot)
+                    .SetAllowUnencryptedUserNameTokens(true);
+
+                Assert.That(
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.AllowUnencryptedUserNameTokens,
                     Is.True);
             }
         }
@@ -2227,6 +2246,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetRejectUnknownRevocationStatus(false)
                     .SetSendCertificateChain(true)
                     .SetSuppressNonceValidationErrors(true)
+                    .SetAllowUnencryptedUserNameTokens(true)
                     .SetMaxRejectedCertificates(10)
                     .SetUseValidatedCertificates(true)
                     .SetHiResClockDisabled(false)

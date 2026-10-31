@@ -106,8 +106,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                         options.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
                         {
                             EndpointUrl = clientUrl.AbsoluteUri,
-                            Timeout = 10000,
-                            MaxSessionCount = 1
+                            Timeout = 10000
                         });
                     });
                 }
@@ -237,7 +236,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                             {
                                 EndpointUrl = clientUrl.AbsoluteUri,
                                 Timeout = 10000,
-                                MaxSessionCount = 1,
                                 Enabled = true
                             }
                         ]

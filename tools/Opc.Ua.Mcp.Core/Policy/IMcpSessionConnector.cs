@@ -46,5 +46,16 @@ namespace Opc.Ua.Mcp
             string name, string endpointUrl, string? securityMode, string? securityPolicy, string authType,
             string? username, string? password, bool autoAcceptCertificates, string? certificateIdentity,
             CancellationToken ct);
+
+        /// <summary>
+        /// Creates a JWT-authenticated session without repurposing another credential argument.
+        /// </summary>
+        ValueTask<ISession> ConnectJwtAsync(
+            string name, string endpointUrl, string jwt, string? securityMode, string? securityPolicy,
+            CancellationToken ct)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported,
+                "The injected connector does not support JWT authentication.");
+        }
     }
 }

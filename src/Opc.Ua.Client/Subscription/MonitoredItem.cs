@@ -349,7 +349,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// The caller is responsible for binding the (possibly
         /// freshly-revised) server-side state via the
         /// <c>TransferSubscriptions</c> / <c>GetMonitoredItems</c> path
-        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync"/>.
+        /// that runs in <see cref="MonitoredItemManager.TrySynchronizeHandlesAsync(CancellationToken)"/>.
         /// </summary>
         internal void ApplyLoadState(MonitoredItemLoadState state)
         {
@@ -375,6 +375,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // collision throws out of Dictionary.Add in MonitoredItemManager.
             Utils.SetIdentifierToAtLeast(ref GlobalClientHandleUint, state.ClientHandle);
             ServerId = state.ServerId;
+            if (state.HasRevisedSettings)
+            {
+                CurrentSamplingInterval = state.RevisedSamplingInterval;
+                CurrentQueueSize = state.RevisedQueueSize;
+                FilterResult = state.RevisedFilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)state.RevisedFilterResult.Clone();
+            }
             // Install the saved desired triggering set as the runtime
             // canonical state. For TransferSubscriptions this restores
             // the local view without re-issuing SetTriggering (the
@@ -454,7 +462,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_options.CurrentValue,
                 ClientHandle,
                 ServerId,
-                DesiredTriggeredByNames);
+                DesiredTriggeredByNames) with
+            {
+                HasRevisedSettings = true,
+                RevisedSamplingInterval = CurrentSamplingInterval,
+                RevisedQueueSize = CurrentQueueSize,
+                RevisedFilterResult = FilterResult == null
+                    ? null
+                    : (MonitoringFilterResult)FilterResult.Clone()
+            };
         }
 
         /// <inheritdoc/>
@@ -612,8 +628,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="clientHandle"></param>
         /// <param name="serverHandle"></param>
+        /// <param name="refreshParameters">Whether to reapply the saved parameters on the
+        /// server. An adopted item keeps the parameters the server already has.</param>
         /// <exception cref="ObjectDisposedException"></exception>
-        internal void SetTransferResult(uint clientHandle, uint serverHandle)
+        internal void SetTransferResult(uint clientHandle, uint serverHandle, bool refreshParameters = true)
         {
             if (m_disposedValue)
             {
@@ -641,7 +659,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
                 ServerId = serverHandle;
             }
-            while (m_refreshParametersAfterTransfer && Volatile.Read(ref m_currentOptions) is { } options)
+            if (!refreshParameters)
+            {
+                lock (m_pendingChangesLock)
+                {
+                    m_refreshParametersAfterTransfer = false;
+                }
+                return;
+            }
+            while (m_refreshParametersAfterTransfer &&  Volatile.Read(ref m_currentOptions) is { } options)
             {
                 // GetMonitoredItems supplies handles, not revised parameters. Reapply
                 // the saved parameters without recreating the item or changing its mode.

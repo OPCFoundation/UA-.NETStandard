@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.ISA95.Server.Hosting;
@@ -72,7 +73,11 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddMachinery),
+                "Load the Machinery models into the existing manager with " +
+                "nodes.AddMachineryTypeSystem(context, parts) and configure them " +
+                "with ConfigureMachineryFor<TNodeManager>().");
             if (options.Parts.HasFlag(MachineryParts.Jobs))
             {
                 // OPC 40001-3 loads the ISA-95 Job Control V2 model into this
@@ -99,9 +104,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 MachineryServerOptions resolved = services
                     .GetRequiredService<IOptions<MachineryServerOptions>>()
                     .Value;
-                IMachineryModelProvider[] providers = services
-                    .GetServices<IMachineryModelProvider>()
-                    .ToArray();
+                ArrayOf<IMachineryModelProvider> providers = services
+                    .GetDiModelProviders<IMachineryModelProvider>(
+                        static plain => new DiModelProviderAdapter(plain));
                 IDiPostSetupRunner? runner = services.GetService<IDiPostSetupRunner>();
                 return new MachineryNodeManagerFactory(providers, resolved, runner);
             });
@@ -219,9 +224,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers a synchronous configurator for an exact custom manager type.
         /// </summary>
         /// <remarks>
-        /// The custom manager releases the resources of the machines it hosts
-        /// with <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/>
-        /// from its <c>DisposeAsyncCore</c>.
+        /// The DI owner releases the resources of the machines it hosts automatically.
         /// </remarks>
         /// <typeparam name="TNodeManager">The exact custom DI node manager type.</typeparam>
         public static IOpcUaServerBuilder ConfigureMachineryFor<TNodeManager>(
@@ -362,39 +365,33 @@ namespace Microsoft.Extensions.DependencyInjection
             await context.SealAsync(postSetupContext.CancellationToken).ConfigureAwait(false);
         }
 
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by " +
-                        $"'{ownerName}'. AddMachinery cannot register a second DI-owning " +
-                        $"manager. Load the Machinery models into the existing manager with " +
-                        $"nodes.AddMachineryTypeSystem(context, parts) and configure them " +
-                        $"with ConfigureMachineryFor<TNodeManager>().");
-                }
-            }
-
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddMachinery)));
-        }
-
+        /// <summary>
+        /// Associates Machinery configuration with its exact DI owner type.
+        /// </summary>
         private interface IMachineryConfigurationRegistration
         {
+            /// <summary>
+            /// Gets the exact DI owner type for this registration.
+            /// </summary>
             Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Applies the registration to the owner's Machinery build context.
+            /// </summary>
             ValueTask ConfigureAsync(IMachineryBuildContext context);
         }
 
+        /// <summary>
+        /// Invokes a delegate in the Machinery configuration pipeline.
+        /// </summary>
         private sealed class DelegateMachineryConfigurationRegistration
             : IMachineryConfigurationRegistration
         {
             private readonly Func<IMachineryBuildContext, CancellationToken, ValueTask> m_configure;
 
+            /// <summary>
+            /// Creates a callback registration for the specified DI owner type.
+            /// </summary>
             public DelegateMachineryConfigurationRegistration(
                 Type targetManagerType,
                 Func<IMachineryBuildContext, CancellationToken, ValueTask> configure)
@@ -403,25 +400,44 @@ namespace Microsoft.Extensions.DependencyInjection
                 m_configure = configure;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this callback.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Invokes the callback with the build context and its cancellation token.
+            /// </summary>
             public ValueTask ConfigureAsync(IMachineryBuildContext context)
             {
                 return m_configure(context, context.CancellationToken);
             }
         }
 
+        /// <summary>
+        /// Resolves a service-based Machinery configurator for the specified owner type.
+        /// </summary>
+        /// <typeparam name="TConfigurator">The registered configurator service type.</typeparam>
         private sealed class ClassMachineryConfigurationRegistration<TConfigurator>
             : IMachineryConfigurationRegistration
             where TConfigurator : class, IMachineryConfigurator
         {
+            /// <summary>
+            /// Creates a configurator registration for the specified DI owner type.
+            /// </summary>
             public ClassMachineryConfigurationRegistration(Type targetManagerType)
             {
                 TargetManagerType = targetManagerType;
             }
 
+            /// <summary>
+            /// Gets the exact DI owner type for this configurator.
+            /// </summary>
             public Type TargetManagerType { get; }
 
+            /// <summary>
+            /// Resolves and invokes the configurator with the owner's build context.
+            /// </summary>
             public ValueTask ConfigureAsync(IMachineryBuildContext context)
             {
                 return context.GetRequiredService<TConfigurator>().ConfigureAsync(
@@ -430,6 +446,10 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Records that the Machinery pipeline is registered once for this DI owner type.
+        /// </summary>
+        /// <typeparam name="TNodeManager">The DI owner type.</typeparam>
         private sealed class MachineryPipelineMarker<TNodeManager>
             where TNodeManager : DiNodeManager;
     }

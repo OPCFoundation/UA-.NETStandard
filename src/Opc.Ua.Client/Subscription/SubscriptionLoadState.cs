@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Options;
 
@@ -61,10 +62,18 @@ namespace Opc.Ua.Client.Subscriptions
     /// <c>DesiredTriggeredByNames</c> on the recreated
     /// <see cref="MonitoredItems.MonitoredItem"/>.
     /// </param>
+    /// <param name="HasRevisedSettings">Whether server-revised runtime values were captured.</param>
+    /// <param name="RevisedSamplingInterval">The server-revised sampling interval.</param>
+    /// <param name="RevisedQueueSize">The server-revised queue size.</param>
+    /// <param name="RevisedFilterResult">The server filter result.</param>
     internal sealed record MonitoredItemLoadState(
         string Name,
         IOptionsMonitor<MonitoredItems.MonitoredItemOptions> Options,
         uint ClientHandle,
         uint ServerId,
-        IReadOnlyList<string> TriggeredByNames);
+        IReadOnlyList<string> TriggeredByNames,
+        bool HasRevisedSettings = false,
+        TimeSpan RevisedSamplingInterval = default,
+        uint RevisedQueueSize = 0,
+        MonitoringFilterResult? RevisedFilterResult = null);
 }

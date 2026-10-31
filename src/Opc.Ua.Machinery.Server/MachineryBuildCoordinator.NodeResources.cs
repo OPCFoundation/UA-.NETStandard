@@ -35,6 +35,9 @@ using Opc.Ua.Di.Server;
 
 namespace Opc.Ua.Machinery.Server
 {
+    /// <summary>
+    /// Coordinates node-bound Machinery resource ownership with DI owner cleanup.
+    /// </summary>
     internal sealed partial class MachineryBuildCoordinator
     {
         /// <summary>
@@ -51,12 +54,13 @@ namespace Opc.Ua.Machinery.Server
                 return;
             }
             var lifetime = new MachineResourceLifetime(this, resources);
-            lock (m_lock)
-            {
-                m_resources.Add(lifetime);
-            }
             try
             {
+                lock (m_lock)
+                {
+                    manager.RegisterResource(GetCleanup(manager));
+                    m_resources.Add(lifetime);
+                }
                 manager.RegisterNodeResource(root, lifetime);
                 if (!ReferenceEquals(manager.FindPredefinedNode(root.NodeId), root))
                 {
@@ -94,7 +98,9 @@ namespace Opc.Ua.Machinery.Server
                 m_resources = resources;
             }
 
-            /// <inheritdoc/>
+            /// <summary>
+            /// Joins one shared cleanup task across node removal and owner shutdown.
+            /// </summary>
             public ValueTask DisposeAsync()
             {
                 TaskCompletionSource<bool> completion;

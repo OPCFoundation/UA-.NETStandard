@@ -86,6 +86,24 @@ namespace Opc.Ua.Di.Server
 
         private NodeManagerBuilder? m_builder;
         private readonly string m_instanceNamespaceUri;
+
+        /// <summary>Additional providers in model loading order.</summary>
+        private readonly ArrayOf<IDiModelProvider> m_providers;
+
+        /// <summary>Protects resource registration and batch removal.</summary>
+        private readonly System.Threading.Lock m_resourceGate = new();
+
+        /// <summary>Resources retained until the next explicit drain or manager disposal.</summary>
+        private readonly List<IAsyncDisposable> m_resources = [];
+
+        /// <summary>The latest resource drain, joined by overlapping drains and shutdown.</summary>
+        private Task m_resourceDrain = Task.CompletedTask;
+
+        /// <summary>Whether final shutdown has closed resource registration.</summary>
+        private bool m_resourceRegistrationClosed;
+
+        /// <summary>Distinguishes runtime registration from initial model loading.</summary>
+        private bool m_modelsLoaded;
         private readonly HashSet<SoftwareLoadingMode> m_softwareUpdateLoadingModes = [];
 
         /// <summary>
@@ -163,6 +181,27 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
+        /// Initialises a new <see cref="DiNodeManager"/> that loads the
+        /// supplied <see cref="IDiModelProvider"/> models after DI. The
+        /// namespaces of the providers are registered with the server.
+        /// </summary>
+        /// <param name="server">The hosting server.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="postSetupRunner">The optional post-setup runner.</param>
+        /// <param name="providers">
+        /// The model providers, normally resolved from the container by
+        /// <see cref="DiNodeManagerFactory"/>.
+        /// </param>
+        public DiNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            Hosting.IDiPostSetupRunner? postSetupRunner,
+            ArrayOf<IDiModelProvider> providers)
+            : this(server, configuration, postSetupRunner, providers, ArrayOf<string>.Empty)
+        {
+        }
+
+        /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> that registers
         /// additional namespaces in addition to DI. Used by subclasses
         /// (e.g. machinery/pump managers) that own the same namespace
@@ -193,19 +232,29 @@ namespace Opc.Ua.Di.Server
             ApplicationConfiguration configuration,
             Hosting.IDiPostSetupRunner? postSetupRunner,
             params string[] additionalNamespaceUris)
+            : this(server, configuration, postSetupRunner, default, (ArrayOf<string>)additionalNamespaceUris)
+        {
+        }
+
+        /// <summary>
+        /// Creates a companion owner with its own namespaces and additional DI model providers.
+        /// Providers are loaded after the owner's predefined model collection.
+        /// </summary>
+        protected DiNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            Hosting.IDiPostSetupRunner? postSetupRunner,
+            ArrayOf<IDiModelProvider> providers,
+            ArrayOf<string> additionalNamespaceUris)
             : base(
                   server,
                   configuration,
                   server.Telemetry.CreateLogger<DiNodeManager>(),
-                  CombineNamespaces(configuration, additionalNamespaceUris))
+                  CombineNamespaces(
+                      configuration, DiModelProviderUtilities.GetNamespaceUris(providers, additionalNamespaceUris)))
         {
             m_instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
-
-            // devices live in the server's own instance namespace. Their
-            // parents - DeviceSet and the type declarations below it - come
-            // from the DI model, and a subclass registers its own model
-            // namespaces ahead of the instance one, so neither the first
-            // namespace nor the parent's is the right place to mint into.
+            m_providers = DiModelProviderUtilities.Normalize(providers);
             NodeIdFactory = NodeIdFactory.WithDefaultNamespaceIndex(InstanceNamespaceIndex);
             PostSetupRunner = postSetupRunner;
         }
@@ -239,7 +288,7 @@ namespace Opc.Ua.Di.Server
 
         private static string[] CombineNamespaces(
             ApplicationConfiguration configuration,
-            string[]? additional = null)
+            IEnumerable<string>? additional = null)
         {
             string instanceNamespaceUri = GetInstanceNamespaceUri(configuration);
             var combined = new List<string>();
@@ -278,6 +327,13 @@ namespace Opc.Ua.Di.Server
         /// </summary>
         public ushort InstanceNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(m_instanceNamespaceUri);
+
+        /// <summary>
+        /// The namespace index companion runtimes composed into this manager create their
+        /// instances in. It is <see cref="InstanceNamespaceIndex"/> unless a derived owner, such
+        /// as the Machinery manager, defines an application-owned instance namespace.
+        /// </summary>
+        public virtual ushort CompanionInstanceNamespaceIndex => InstanceNamespaceIndex;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -318,34 +374,326 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
-        /// References an instance node from the Machinery <c>Machines</c> folder
-        /// if it is present in the address space. Returns <see langword="true"/>
-        /// when the folder was found and the reference was added.
+        /// Gives a companion runtime the lifetime of this manager: it is disposed, newest first,
+        /// when the manager is disposed. A failing resource does not keep the others from being
+        /// released. A resource registered twice is disposed once.
         /// </summary>
-        protected internal bool TryAddToMachinesFolder(BaseInstanceState instance)
+        /// <param name="resource">The resource to release with the manager.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ObjectDisposedException">Final manager shutdown has started.</exception>
+        public void RegisterResource(IAsyncDisposable resource)
         {
-            // The well-known Machines folder BrowseName defined by the
-            // Machinery companion specification (OPC 40001).
-            const string machinesFolderBrowseName = "Machines";
-
-            foreach (NodeState root in PredefinedNodes.Values)
+            if (resource == null)
             {
-                if (root.BrowseName.Name == machinesFolderBrowseName &&
-                    root is BaseObjectState folder)
+                throw new ArgumentNullException(nameof(resource));
+            }
+            lock (m_resourceGate)
+            {
+                if (m_resourceRegistrationClosed)
                 {
-                    folder.AddReference(
-                        Opc.Ua.Types.ReferenceTypeIds.Organizes,
-                        false,
-                        instance.NodeId);
-                    instance.AddReference(
-                        Opc.Ua.Types.ReferenceTypeIds.Organizes,
-                        true,
-                        folder.NodeId);
-                    return true;
+                    throw new ObjectDisposedException(nameof(DiNodeManager));
+                }
+                if (!m_resources.Exists(registered => ReferenceEquals(registered, resource)))
+                {
+                    m_resources.Add(resource);
                 }
             }
+        }
 
+        /// <summary>
+        /// Adds an <c>Organizes</c> reference from the predefined node
+        /// <paramref name="targetId"/> to <paramref name="instance"/>, for example from the
+        /// Machinery <c>Machines</c> folder. Returns <see langword="true"/> when the target was
+        /// found and the reference was added.
+        /// </summary>
+        /// <param name="targetId">The NodeId of the organizing node.</param>
+        /// <param name="instance">The node to organize.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public bool TryOrganizeUnder(NodeId targetId, BaseInstanceState instance)
+        {
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (targetId.IsNull || FindPredefinedNode(targetId) is not BaseObjectState folder)
+            {
+                return false;
+            }
+            folder.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, instance.NodeId);
+            instance.AddReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, folder.NodeId);
+            return true;
+        }
+
+        /// <summary>
+        /// References an instance from the Machinery Machines folder when it is loaded.
+        /// </summary>
+        /// <remarks>
+        /// Retained for derived managers. New callers should resolve their model's generated
+        /// folder identifier and call <see cref="TryOrganizeUnder"/>.
+        /// </remarks>
+        protected internal bool TryAddToMachinesFolder(BaseInstanceState instance)
+        {
+            return TryOrganizeUnder(NodeId.Create(
+                1001u, "http://opcfoundation.org/UA/Machinery/", Server.NamespaceUris), instance);
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="root"/> reaches <paramref name="target"/> through
+        /// forward hierarchical references within this manager, including child relationships.
+        /// </summary>
+        /// <param name="root">The starting node.</param>
+        /// <param name="target">The node to locate.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public bool IsReachableFrom(NodeState root, NodeState target)
+        {
+            if (root == null)
+            {
+                throw new ArgumentNullException(nameof(root));
+            }
+            if (target == null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            var visited = new HashSet<NodeId> { root.NodeId };
+            var pending = new Queue<NodeState>();
+            pending.Enqueue(root);
+            var children = new List<BaseInstanceState>();
+            var references = new List<IReference>();
+            while (pending.Count > 0)
+            {
+                NodeState node = pending.Dequeue();
+                if (ReferenceEquals(node, target))
+                {
+                    return true;
+                }
+                children.Clear();
+                node.GetChildren(SystemContext, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (Server.TypeTree.IsTypeOf(
+                        child.ReferenceTypeId, Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences))
+                    {
+                        if (ReferenceEquals(child, target))
+                        {
+                            return true;
+                        }
+                        if (visited.Add(child.NodeId))
+                        {
+                            pending.Enqueue(child);
+                        }
+                    }
+                }
+                references.Clear();
+                node.GetReferences(SystemContext, references);
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse || reference.TargetId.IsAbsolute ||
+                        !Server.TypeTree.IsTypeOf(
+                            reference.ReferenceTypeId, Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences))
+                    {
+                        continue;
+                    }
+                    NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, SystemContext.NamespaceUris);
+                    NodeState? next = FindPredefinedNode(targetId);
+                    if (next != null)
+                    {
+                        if (ReferenceEquals(next, target))
+                        {
+                            return true;
+                        }
+                        if (visited.Add(next.NodeId))
+                        {
+                            pending.Enqueue(next);
+                        }
+                    }
+                }
+            }
             return false;
+        }
+
+        /// <summary>
+        /// Keeps a device reachable from the DI DeviceSet (OPC 10000-100 4.9). When no hierarchical
+        /// path exists, DeviceSet organizes the outermost component in its parent chain rather than
+        /// each nested device of a composed device.
+        /// </summary>
+        /// <param name="device">The device or component to locate.</param>
+        /// <returns>
+        /// <see langword="true"/> if the device is reachable; <see langword="false"/> if this manager
+        /// has no DeviceSet. Repeated calls do not add duplicate references.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public bool TryEnsureDeviceSetReachability(BaseInstanceState device)
+        {
+            if (device == null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
+            NodeState? deviceSet = FindPredefinedNode(NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet, DiNamespaceUri, Server.NamespaceUris));
+            if (deviceSet == null)
+            {
+                return false;
+            }
+            BaseInstanceState root = device;
+            NodeState ancestor = device;
+            var visited = new HashSet<NodeState>();
+            while (ancestor is BaseInstanceState instance && instance.Parent != null &&
+                Server.TypeTree.IsTypeOf(
+                    instance.ReferenceTypeId, Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences) &&
+                visited.Add(ancestor))
+            {
+                ancestor = instance.Parent;
+                if (ReferenceEquals(ancestor, deviceSet) ||
+                    (ancestor.ReferenceExists(
+                        Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId) &&
+                    deviceSet.ReferenceExists(
+                        Opc.Ua.Types.ReferenceTypeIds.Organizes, false, ancestor.NodeId)))
+                {
+                    return true;
+                }
+                if (ancestor is BaseInstanceState component && IsDiComponent(component))
+                {
+                    root = component;
+                }
+            }
+            if (!IsReachableFrom(deviceSet, root))
+            {
+                return TryOrganizeUnder(deviceSet.NodeId, root);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Recognizes both generated states and generic states carrying a DI component type.
+        /// </summary>
+        private bool IsDiComponent(BaseInstanceState instance)
+        {
+            return instance is ComponentState || Server.TypeTree.IsTypeOf(
+                instance.TypeDefinitionId,
+                NodeId.Create(Opc.Ua.Di.ObjectTypes.ComponentType, DiNamespaceUri, Server.NamespaceUris));
+        }
+
+        /// <summary>
+        /// Releases the registered resources, newest first. Repeated calls release only resources
+        /// registered since the previous call, and a failure does not prevent the remaining releases.
+        /// Overlapping drains await the preceding batch and include its failures.
+        /// </summary>
+        /// <exception cref="AggregateException">One or more resources failed to release.</exception>
+        public ValueTask DisposeResourcesAsync()
+        {
+            return DrainResourcesAsync(closeRegistration: false);
+        }
+
+        /// <summary>
+        /// Releases companion resources before the manager itself, even if a resource fails.
+        /// Closes registration atomically with the final snapshot and joins pending explicit drains.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            try
+            {
+                await DrainResourcesAsync(closeRegistration: true).ConfigureAwait(false);
+            }
+            finally
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Captures a batch and publishes its completion before invoking any resource callbacks.
+        /// </summary>
+        private ValueTask DrainResourcesAsync(bool closeRegistration)
+        {
+            IAsyncDisposable[] resources;
+            Task preceding;
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (m_resourceGate)
+            {
+                m_resourceRegistrationClosed |= closeRegistration;
+                preceding = m_resourceDrain.IsCompleted ? Task.CompletedTask : m_resourceDrain;
+                resources = [.. m_resources];
+                m_resources.Clear();
+                m_resourceDrain = completion.Task;
+            }
+            _ = CompleteResourceDrainAsync(preceding, resources, completion);
+            return new ValueTask(completion.Task);
+        }
+
+        /// <summary>
+        /// Awaits the previous batch, attempts every resource, and shares the combined result.
+        /// </summary>
+        private static async Task CompleteResourceDrainAsync(
+            Task preceding,
+            IAsyncDisposable[] resources,
+            TaskCompletionSource<bool> completion)
+        {
+            List<Exception>? errors = null;
+            try
+            {
+                await preceding.ConfigureAwait(false);
+            }
+            catch (AggregateException ex)
+            {
+                errors = [.. ex.InnerExceptions];
+            }
+            for (int ii = resources.Length - 1; ii >= 0; ii--)
+            {
+                try
+                {
+                    await resources[ii].DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    (errors ??= []).Add(ex);
+                }
+            }
+            if (errors != null)
+            {
+                completion.TrySetException(
+                    new AggregateException("Releasing the resources of the node manager failed.", errors));
+            }
+            else
+            {
+                completion.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Keeps runtime-created DI components reachable from DeviceSet without reorganizing
+        /// model declarations or the predefined instances loaded during startup.
+        /// </summary>
+        protected override async ValueTask AddPredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken = default)
+        {
+            await base.AddPredefinedNodeAsync(context, node, cancellationToken).ConfigureAwait(false);
+            if (m_modelsLoaded && !node.IsPartOfTypeHierarchy &&
+                node is BaseInstanceState component && IsDiComponent(component))
+            {
+                TryEnsureDeviceSetReachability(component);
+            }
+        }
+
+        /// <summary>
+        /// Removes the local DeviceSet link even when this owner is used outside master-manager routing.
+        /// </summary>
+        protected override async ValueTask RemovePredefinedNodeAsync(
+            ISystemContext context,
+            NodeState node,
+            List<LocalReference> referencesToRemove,
+            CancellationToken cancellationToken = default)
+        {
+            NodeState? deviceSet = FindPredefinedNode(NodeId.Create(
+                Opc.Ua.Di.Objects.DeviceSet, DiNamespaceUri, Server.NamespaceUris));
+            if (deviceSet != null)
+            {
+                deviceSet.RemoveReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, node.NodeId);
+                node.RemoveReference(Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId);
+            }
+            await base.RemovePredefinedNodeAsync(context, node, referencesToRemove, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -353,8 +701,30 @@ namespace Opc.Ua.Di.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            return new ValueTask<NodeStateCollection>(
-                new NodeStateCollection().AddOpcUaDi(context));
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUaDi(context);
+            return new ValueTask<NodeStateCollection>(nodes);
+        }
+
+        /// <summary>
+        /// Appends neutral providers to the owner's model collection before indexing any nodes.
+        /// </summary>
+        protected override async ValueTask LoadPredefinedNodesAsync(
+            ISystemContext context,
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            NodeStateCollection nodes = await LoadPredefinedNodesAsync(context, cancellationToken)
+                .ConfigureAwait(false);
+            for (int ii = 0; ii < m_providers.Count; ii++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_providers[ii].AddPredefinedNodes(nodes, context);
+            }
+            for (int ii = 0; ii < nodes.Count; ii++)
+            {
+                await AddPredefinedNodeAsync(context, nodes[ii], cancellationToken).ConfigureAwait(false);
+            }
+            await AddReverseReferencesAsync(externalReferences, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -398,6 +768,7 @@ namespace Opc.Ua.Di.Server
         {
             await LoadPredefinedNodesAsync(
                 SystemContext, externalReferences, cancellationToken).ConfigureAwait(false);
+            m_modelsLoaded = true;
 
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
 
@@ -910,7 +1281,7 @@ namespace Opc.Ua.Di.Server
         /// </summary>
         /// <param name="notifier">The event source owned by this node manager.</param>
         /// <param name="cancellationToken">Cancels notifier registration.</param>
-        internal ValueTask RegisterRootNotifierAsync(
+        public ValueTask RegisterRootNotifierAsync(
             NodeState notifier,
             CancellationToken cancellationToken = default)
         {
@@ -1151,6 +1522,9 @@ namespace Opc.Ua.Di.Server
     /// </summary>
     internal static partial class DiNodeManagerLog
     {
+        /// <summary>
+        /// Reports a failure to remove a device during creation rollback.
+        /// </summary>
         [LoggerMessage(EventId = DiServerEventIds.DiNodeManager + 0, Level = LogLevel.Error,
             Message = "Could not remove device '{Name}' after its creation failed.")]
         public static partial void DeviceRollbackFailed(this ILogger logger, Exception ex, string? name);

@@ -40,6 +40,8 @@ using Opc.Ua.Client;
 using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
     /// <summary>

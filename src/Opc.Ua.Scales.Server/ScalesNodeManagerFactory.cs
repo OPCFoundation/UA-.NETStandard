@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.NodeManager;
@@ -66,9 +67,21 @@ namespace Opc.Ua.Scales.Server
         public ScalesNodeManagerFactory(
             IDiPostSetupRunner? runner,
             IOptions<ScalesServerOptions>? options = null)
+            : this(runner, options, default)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that also loads neutral companion model providers.
+        /// </summary>
+        public ScalesNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            IOptions<ScalesServerOptions>? options,
+            ArrayOf<IDiModelProvider> providers)
         {
             m_runner = runner;
             m_options = options;
+            m_providers = providers;
         }
 
         /// <inheritdoc/>
@@ -89,6 +102,16 @@ namespace Opc.Ua.Scales.Server
                 {
                     uris.Add(uri);
                 }
+                for (int ii = 0; ii < m_providers.Count; ii++)
+                {
+                    foreach (string uri in m_providers[ii].NamespaceUris)
+                    {
+                        if (!uris.Contains(uri))
+                        {
+                            uris.Add(uri);
+                        }
+                    }
+                }
                 return uris.ToArray().ToArrayOf();
             }
         }
@@ -100,12 +123,15 @@ namespace Opc.Ua.Scales.Server
             CancellationToken cancellationToken = default)
         {
 #pragma warning disable CA2000 // ownership transferred to the server
-            IAsyncNodeManager manager = new ScalesNodeManager(server, configuration, m_runner, m_options);
+            IAsyncNodeManager manager = new ScalesNodeManager(server, configuration, m_runner, m_options, m_providers);
 #pragma warning restore CA2000
             return new ValueTask<IAsyncNodeManager>(manager);
         }
 
         private readonly IDiPostSetupRunner? m_runner;
         private readonly IOptions<ScalesServerOptions>? m_options;
+
+        /// <summary>Additional companion model providers.</summary>
+        private readonly ArrayOf<IDiModelProvider> m_providers;
     }
 }

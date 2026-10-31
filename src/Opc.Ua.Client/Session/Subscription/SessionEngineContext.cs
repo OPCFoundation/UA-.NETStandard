@@ -42,7 +42,9 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext : ISubscriptionEngineContext
+        private sealed class SessionEngineContext : ISubscriptionEngineContext,
+            IAcknowledgementPolicyCapability,
+            ISessionTakeoverContext
         {
             public SessionEngineContext(Session session)
             {
@@ -55,6 +57,12 @@ namespace Opc.Ua.Client
             public NodeId SessionId => m_session.SessionId;
 
             /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                m_session.AbandonServerSession();
+            }
+
+            /// <inheritdoc/>
             public bool Reconnecting => m_session.Reconnecting;
 
             /// <inheritdoc/>
@@ -65,6 +73,13 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public bool KeepAliveStopped => m_session.KeepAliveStopped;
+
+            /// <inheritdoc/>
+            public bool HasAcknowledgementPolicy =>
+                m_session.m_PublishSequenceNumbersToAcknowledge != null;
+
+            /// <inheritdoc/>
+            public SessionAcknowledgements? Acknowledgements => m_session.Acknowledgements;
 
             /// <inheritdoc/>
             public DateTime LastKeepAliveTime => m_session.LastKeepAliveTime;
@@ -270,6 +285,10 @@ namespace Opc.Ua.Client
 
                 if (callback != null)
                 {
+                    // A handler can move entries and then throw; restore the original set
+                    // so falling back to sending all acknowledgements loses none of them.
+                    var snapshot = new List<SubscriptionAcknowledgement>(
+                        currentAcknowledgements);
                     try
                     {
                         var deferred =
@@ -286,6 +305,8 @@ namespace Opc.Ua.Client
                     catch (Exception e)
                     {
                         m_session.m_logger.PublishSequenceNumbersToAcknowledgeHandlerError(e);
+                        currentAcknowledgements.Clear();
+                        currentAcknowledgements.AddRange(snapshot);
                     }
                 }
 

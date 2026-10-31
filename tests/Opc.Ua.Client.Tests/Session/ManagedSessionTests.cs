@@ -1288,7 +1288,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Callback<ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string, uint,
                     IUserIdentity?, ArrayOf<string>, CancellationToken>(
                     (_, _, _, _, _, _, identity, _, _) => observed = identity)
-                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+                .Returns(() => Task.FromException<ISession>(
+                    new ServiceResultException(StatusCodes.BadCertificateUntrusted)));
 
             var provider = new Mock<IClientIdentityProvider>();
 
@@ -1339,7 +1340,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Callback<ApplicationConfiguration, ConfiguredEndpoint, bool, bool, string, uint,
                     IUserIdentity?, ArrayOf<string>, CancellationToken>(
                     (_, _, _, _, _, _, identity, _, _) => observed = identity)
-                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+                .Returns(() => Task.FromException<ISession>(
+                    new ServiceResultException(StatusCodes.BadCertificateUntrusted)));
 
             var provider = new Mock<IClientIdentityProvider>(MockBehavior.Strict);
 
@@ -1365,11 +1367,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
         private static ReconnectPolicy NoRetryPolicy()
         {
+            // MaxRetries = 0 means unlimited: the connect would retry every
+            // millisecond until MaxTotalReconnectTime and flood the log.
             return new ReconnectPolicy
             {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromMilliseconds(1),
-                MaxRetries = 0,
+                MaxRetries = 1,
                 JitterFactor = 0.0,
                 MaxTotalReconnectTime = TimeSpan.FromSeconds(5)
             };
@@ -1483,13 +1487,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     It.IsAny<IUserIdentity?>(),
                     It.IsAny<ArrayOf<string>>(),
                     It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+                .Returns(() => Task.FromException<ISession>(
+                    new ServiceResultException(StatusCodes.BadCertificateUntrusted)));
 
             var reconnectPolicy = new ReconnectPolicy
             {
                 Strategy = BackoffStrategy.Constant,
                 InitialDelay = TimeSpan.FromMilliseconds(5),
-                MaxRetries = 0,
+                MaxRetries = 1,
                 JitterFactor = 0.0,
                 MaxTotalReconnectTime = TimeSpan.FromSeconds(10)
             };

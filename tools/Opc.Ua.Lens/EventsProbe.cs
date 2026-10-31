@@ -109,6 +109,7 @@ internal static class EventsProbe
                 using (sub)
                 {
                 int evCount = 0;
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
                 sub.FastEventCallback = (s, notif, st) =>
                 {
                     if (notif?.Events is null)
@@ -121,6 +122,7 @@ internal static class EventsProbe
                         Console.WriteLine($"[event] handle={ev.ClientHandle} fields={ev.EventFields.Count}");
                     }
                 };
+#pragma warning restore CS0618
                 session.AddSubscription(sub);
                 await sub.CreateAsync(CancellationToken.None).ConfigureAwait(false);
                 Console.WriteLine($"  subscription created: Id={sub.Id}");
@@ -142,7 +144,9 @@ internal static class EventsProbe
                 // if DataChange ticks but EventNotifier never fires, the
                 // pipeline routes data but not events.
                 int dcCount = 0;
+#pragma warning disable CS0618 // TODO: migrate to the managed subscription model
                 sub.FastDataChangeCallback = (s, dc, st) => Interlocked.Add(ref dcCount, dc.MonitoredItems.Count);
+#pragma warning restore CS0618
                 var miTime = new MonitoredItem(session.MessageContext.Telemetry, new MonitoredItemOptions
                 {
                     DisplayName = "data:CurrentTime",

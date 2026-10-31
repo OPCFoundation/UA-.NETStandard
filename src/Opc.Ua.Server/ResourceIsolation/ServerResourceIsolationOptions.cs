@@ -281,7 +281,9 @@ namespace Opc.Ua.Server
                 ? rateLimits.MaxConcurrentSessionEstablishment
                 : ServerRateLimitOptions.DefaultMaxConcurrentSessionEstablishment;
             int queuedCapacity = Math.Max(100, server.MaxQueuedRequestCount);
-            int executionCapacity = Math.Max(100, Math.Max(server.MinRequestThreadCount, server.MaxRequestThreadCount));
+            // the request queue starts at most this many workers, so the execution stage cannot
+            // promise protected classes more than the workers can run
+            int executionCapacity = Math.Max(1, Math.Max(server.MinRequestThreadCount, server.MaxRequestThreadCount));
             long retainedRequestSlots = 2L * queuedCapacity + executionCapacity;
             if (retainedRequestSlots > long.MaxValue / quotas.MaxMessageSize)
             {
@@ -381,6 +383,13 @@ namespace Opc.Ua.Server
                     }
                     SubtractFloor(ref remaining, owner.Floors[ii]);
                     trustedTotal += owner.Floors[ii];
+                }
+                if (remaining < unit && ii == (int)ResourceIsolationStage.RequestExecution && item?.Capacity == null)
+                {
+                    throw new ArgumentException(
+                        $"MaxRequestThreadCount ({executionCapacity}) must exceed the requests reserved for " +
+                        "bootstrap, reconnect, control and trusted owners. Increase MaxRequestThreadCount or " +
+                        "reduce the RequestExecution reservations.");
                 }
                 if (remaining < unit || hardLimit < Math.Max(Math.Max(bootstrapFloor, reconnectFloor), controlFloor))
                 {

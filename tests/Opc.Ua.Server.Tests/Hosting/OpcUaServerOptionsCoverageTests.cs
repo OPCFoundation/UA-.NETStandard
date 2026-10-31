@@ -89,7 +89,6 @@ namespace Opc.Ua.Server.Tests.Hosting
                 {
                     EndpointUrl = "opc.tcp://client.local:4841",
                     Timeout = 7000,
-                    MaxSessionCount = 2,
                     Enabled = true
                 });
             });
@@ -104,7 +103,6 @@ namespace Opc.Ua.Server.Tests.Hosting
             ServerReverseConnectClientOptions client = opts.ReverseConnect.Clients[0];
             Assert.That(client.EndpointUrl, Is.EqualTo("opc.tcp://client.local:4841"));
             Assert.That(client.Timeout, Is.EqualTo(7000));
-            Assert.That(client.MaxSessionCount, Is.EqualTo(2));
             Assert.That(client.Enabled, Is.True);
         }
 

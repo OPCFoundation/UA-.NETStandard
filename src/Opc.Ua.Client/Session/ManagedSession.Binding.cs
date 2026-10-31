@@ -61,6 +61,11 @@ namespace Opc.Ua.Client
         private void SetBindingSession(Session? session)
         {
             Interlocked.Increment(ref m_bindingGeneration);
+            if (session != null && m_acknowledgements != null)
+            {
+                // The inner session's engines consult the managed session's configuration.
+                session.Acknowledgements = m_acknowledgements;
+            }
             m_session = session;
         }
 

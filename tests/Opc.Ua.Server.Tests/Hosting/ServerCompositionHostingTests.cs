@@ -1424,8 +1424,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     options.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
                     {
                         EndpointUrl = enabled.ToString(),
-                        Timeout = 3210,
-                        MaxSessionCount = 0
+                        Timeout = 3210
                     });
                     options.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
                     {
@@ -2132,8 +2131,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     options.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
                     {
                         EndpointUrl = client.ToString(),
-                        Timeout = 1456,
-                        MaxSessionCount = 0
+                        Timeout = 1456
                     });
                 });
             await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
@@ -2236,13 +2234,11 @@ namespace Opc.Ua.Server.Tests.Hosting
                     <ReverseConnectClient>
                       <EndpointUrl>opc.tcp://localhost:0/xml-enabled</EndpointUrl>
                       <Timeout>1234</Timeout>
-                      <MaxSessionCount>0</MaxSessionCount>
                       <Enabled>true</Enabled>
                     </ReverseConnectClient>
                     <ReverseConnectClient>
                       <EndpointUrl>opc.tcp://localhost:0/xml-disabled</EndpointUrl>
                       <Timeout>4321</Timeout>
-                      <MaxSessionCount>0</MaxSessionCount>
                       <Enabled>false</Enabled>
                     </ReverseConnectClient>
                   </Clients>

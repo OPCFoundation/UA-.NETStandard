@@ -388,6 +388,44 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Acknowledge notifications only after the application confirmed them through
+        /// <see cref="ISessionAcknowledgements.Confirm"/> (at-least-once delivery).
+        /// </summary>
+        public ManagedSessionBuilder AcknowledgeAfterConfirmation()
+        {
+            m_options = m_options with { AcknowledgementMode = AcknowledgementMode.AfterConfirmation };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the provider that decides which acknowledgements are sent and which are deferred.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementProvider(ISubscriptionAcknowledgementProvider provider)
+        {
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            m_options = m_options with { AcknowledgementProvider = provider };
+            return this;
+        }
+
+        /// <summary>
+        /// Set the observer that is told how every acknowledgement ended.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="observer"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithAcknowledgementObserver(ISubscriptionAcknowledgementObserver observer)
+        {
+            if (observer == null)
+            {
+                throw new ArgumentNullException(nameof(observer));
+            }
+            m_options = m_options with { AcknowledgementObserver = observer };
+            return this;
+        }
+
+        /// <summary>
         /// Set the time provider used by proactive identity refresh.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="timeProvider"/> is <c>null</c>.</exception>
@@ -798,6 +836,31 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Takes over the server session of <paramref name="handoff"/> when the session connects,
+        /// instead of creating a new one: the saved session is activated on a new secure channel
+        /// and its subscriptions continue on the new session. The endpoint of the handoff is used
+        /// unless an endpoint is configured.
+        /// </summary>
+        /// <param name="handoff">The handoff returned by <see cref="ManagedSession.RetireAsync"/>
+        /// of the previous owner.</param>
+        /// <param name="options">How to take over; by default the connect fails when the server
+        /// session cannot be taken over.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="handoff"/> is null.</exception>
+        public ManagedSessionBuilder TakeOver(SessionHandoff handoff, SessionTakeoverOptions? options = null)
+        {
+            if (handoff == null)
+            {
+                throw new ArgumentNullException(nameof(handoff));
+            }
+            m_options = m_options with
+            {
+                TakeoverFrom = handoff,
+                Takeover = options ?? new SessionTakeoverOptions()
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Returns the immutable options snapshot accumulated so far.
         /// </summary>
         public ManagedSessionOptions Build()
@@ -813,10 +876,14 @@ namespace Opc.Ua.Client
         public async Task<ManagedSession> ConnectAsync(CancellationToken ct = default)
         {
             ManagedSessionOptions opts = m_options;
+            if (opts.Endpoint == null && opts.TakeoverFrom?.Session.ConfiguredEndpoint != null)
+            {
+                opts = opts with { Endpoint = CoreUtils.Clone(opts.TakeoverFrom.Session.ConfiguredEndpoint) };
+            }
             if (opts.Endpoint == null)
             {
                 throw new InvalidOperationException(
-                    "ManagedSessionBuilder.UseEndpoint must be called before ConnectAsync.");
+                    "ManagedSessionBuilder.UseEndpoint or TakeOver must be called before ConnectAsync.");
             }
 
             ISubscriptionEngineFactory engineFactory =

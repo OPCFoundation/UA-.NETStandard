@@ -214,7 +214,12 @@ await session.EnableModelChangeTrackingAsync(ct);
 await session.DisableModelChangeTrackingAsync(ct);
 ```
 
-Disposing the session disposes the tracker.
+Disposing the session disposes the tracker. Managed tracking owns a dedicated
+whole-message subscription, separate from `DefaultStreaming`. With delivery-confirmed
+acknowledgements, it confirms a message only after all model-change events in that
+message were processed. Application streams never share that acknowledgement ownership.
+Failures in namespace refresh, cache invalidation or event subscribers are still logged
+without stopping the tracker, but that message is not confirmed as successfully processed.
 
 ### Manual construction
 
@@ -223,9 +228,14 @@ a raw `Session` that has the V2 engine enabled — construct it
 yourself:
 
 ```csharp
-var streaming = new StreamingSubscription(session.SubscriptionManager);
+if (!session.TryGetSubscriptionManager(out ISubscriptionManager? manager) ||
+    !session.TryGetAcknowledgements(out ISessionAcknowledgements? acknowledgements))
+{
+    throw new InvalidOperationException("A V2 session with acknowledgement support is required.");
+}
 var tracker = new ModelChangeTracker(
-    streaming,
+    manager,
+    acknowledgements,
     nodeCache: session.NodeCache,
     logger: logger,
     namespaceTables: session);
@@ -233,7 +243,10 @@ var tracker = new ModelChangeTracker(
 await tracker.StartTrackingAsync(ct);
 ```
 
-The tracker takes an `IStreamingSubscription`, an optional `INodeCache`
+The whole-message constructor takes an `ISubscriptionManager` and the same session's
+`ISessionAcknowledgements` facet, and owns its subscription's lifetime. The existing
+`IStreamingSubscription` constructor remains available for externally managed streams;
+it does not assume ownership of their message acknowledgements. Both accept an optional `INodeCache`
 to invalidate, an optional `ILogger`, and an optional
 `INamespaceTableRefresher` (see
 [Namespace table refresh](#namespace-table-refresh)). It subscribes to

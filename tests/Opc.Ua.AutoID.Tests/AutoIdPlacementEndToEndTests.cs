@@ -72,7 +72,7 @@ namespace Opc.Ua.AutoID.Tests
                     options.Parts = MachineryParts.BuildingBlocks;
                     options.InstanceNamespaceUri = InstanceNamespaceUri;
                 })
-                .AddAutoIdToMachinery()
+                .AddAutoIdModel()
                 .ConfigureMachinery(async (machinery, ct) =>
                     m_press = await machinery
                         .AddMachine(new QualifiedName(PressName, machinery.InstanceNamespaceIndex))

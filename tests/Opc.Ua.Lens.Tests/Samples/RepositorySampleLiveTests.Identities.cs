@@ -120,8 +120,7 @@ namespace UaLens.Tests.Samples
                         options.ReverseConnect.Clients.Add(new ServerReverseConnectClientOptions
                         {
                             EndpointUrl = listenerUrl,
-                            Timeout = 10000,
-                            MaxSessionCount = 1
+                            Timeout = 10000
                         });
                     }
                 }).AddCertificateManager(manager);

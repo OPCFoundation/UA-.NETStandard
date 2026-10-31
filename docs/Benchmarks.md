@@ -844,7 +844,8 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
   once, not the total number of open sessions. In these measurements,
   100–200 workers served thousands of sessions. A very large pool
   oversubscribes cores during connection bursts and slows establishment.
-  `MinRequestThreadCount` prewarms the pool to avoid thread-pool cold start.
+  `MinRequestThreadCount` workers are started with the server; the
+  server does not change the thread pool's limits.
   See [Request workers and the request queue](ServerScalability.md#request-workers-and-the-request-queue)
   for the current behaviour of these settings and of `MaxQueuedRequestCount`.
 

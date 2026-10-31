@@ -309,6 +309,9 @@ namespace Opc.Ua.Robotics.Server
             PublishServerProfiles();
         }
 
+        /// <summary>
+        /// Deduplicates family provider instances and applies deterministic loading order.
+        /// </summary>
         internal static ArrayOf<IRobotIntentModelProvider> NormalizeProviders(
             ArrayOf<IRobotIntentModelProvider> providers)
         {
@@ -316,13 +319,30 @@ namespace Opc.Ua.Robotics.Server
             {
                 return new IRobotIntentModelProvider[] { new RobotIntentModelProvider() };
             }
-            var sorted = new List<IRobotIntentModelProvider>();
+            var sorted = new List<(IRobotIntentModelProvider Provider, int Index)>();
             for (int ii = 0; ii < providers.Count; ii++)
             {
-                sorted.Add(providers[ii]);
+                IRobotIntentModelProvider provider = providers[ii];
+                if (!sorted.Exists(entry => ReferenceEquals(entry.Provider, provider)))
+                {
+                    sorted.Add((provider, ii));
+                }
             }
-            sorted.Sort(static (left, right) => left.Order.CompareTo(right.Order));
-            return sorted.ToArray().ToArrayOf();
+            sorted.Sort(static (left, right) =>
+            {
+                int result = left.Provider.Order.CompareTo(right.Provider.Order);
+                if (result == 0)
+                {
+                    result = string.CompareOrdinal(left.Provider.GetType().FullName, right.Provider.GetType().FullName);
+                }
+                return result != 0 ? result : left.Index.CompareTo(right.Index);
+            });
+            var normalized = new IRobotIntentModelProvider[sorted.Count];
+            for (int ii = 0; ii < sorted.Count; ii++)
+            {
+                normalized[ii] = sorted[ii].Provider;
+            }
+            return normalized;
         }
 
         internal static string[] GetNamespaceUris(

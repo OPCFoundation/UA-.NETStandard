@@ -105,7 +105,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The AutoID companion ships as exactly the model, server, client and MCP packages.
+        /// AutoID ships the model, server, client and MCP packages without a registration-only package.
         /// </summary>
         [Test]
         public async Task ExpectedPackageInventoryContainsTheFourAutoIdPackagesAsync()

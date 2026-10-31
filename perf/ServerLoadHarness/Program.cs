@@ -318,6 +318,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 : contract
                 ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
                 : new ReferenceServer(telemetry);
+            if (Arg("isolation", "default") == "sharedonly")
+            {
+                server.ResourceIsolationOptions.Mode = Opc.Ua.Server.ServerResourceIsolationMode.SharedOnly;
+            }
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
@@ -391,7 +395,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 };
             (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"),
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -1309,6 +1313,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return;
             }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
+#pragma warning disable CS0618 // the harness intentionally benchmarks the classic engine and its fast callbacks
             var subscription = new Subscription(session.DefaultSubscription)
             {
                 PublishingInterval = m_publishingInterval,
@@ -1320,6 +1325,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 subscription.FastDataChangeCallback = OnDataChange;
             }
+#pragma warning restore CS0618
             try
             {
                 foreach (NodeId nodeId in m_nodeIds)

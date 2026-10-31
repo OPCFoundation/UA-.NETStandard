@@ -638,7 +638,6 @@ namespace Opc.Ua.Gds.Server.Hosting
                 {
                     EndpointUrl = c.EndpointUrl,
                     Timeout = c.Timeout,
-                    MaxSessionCount = c.MaxSessionCount,
                     Enabled = c.Enabled
                 };
             }
