@@ -197,10 +197,33 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "Queue is full and no discarding of old values is allowed");
                 }
-                m_eventQueue.Dequeue(out _);
+                m_eventQueue.Dequeue(out EventFieldList discarded);
+                TrackDiscardedEvent(discarded?.Handle);
             }
             // queue the event.
             m_eventQueue.Enqueue(fields);
+        }
+
+        /// <summary>
+        /// Classifies the handle of an event as a Condition event.
+        /// </summary>
+        internal Func<object, bool> IsConditionEvent { get; set; }
+
+        /// <summary>
+        /// True if a Condition event was discarded because of a queue overflow and no
+        /// RefreshRequired event was sent for it yet (OPC 10000-9 5.11.4).
+        /// </summary>
+        internal bool ConditionEventsLost { get; set; }
+
+        /// <summary>
+        /// Records an event that was discarded because the queue overflowed.
+        /// </summary>
+        internal void TrackDiscardedEvent(object handle)
+        {
+            if (handle != null && IsConditionEvent != null && IsConditionEvent(handle))
+            {
+                ConditionEventsLost = true;
+            }
         }
 
         /// <summary>
