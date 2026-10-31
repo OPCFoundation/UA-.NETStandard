@@ -311,8 +311,8 @@ namespace Opc.Ua.Client.Tests
             await using UaManagedSession session = await set.ConnectAsync(options, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
-            var states = new ConcurrentQueue<ConnectionState>();
-            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            var stateChanges = new ConcurrentQueue<ConnectionStateChangedEventArgs>();
+            session.ConnectionStateChanged += (_, e) => stateChanges.Enqueue(e);
 
             var recorder = new DataChangeRecorder();
             ISubscriptionManager manager = session.RequireSubscriptionManager();
@@ -335,9 +335,18 @@ namespace Opc.Ua.Client.Tests
                 }),
                 out _), Is.True);
             await WaitUntilAsync(() => recorder.Count >= 3, timeout.Token).ConfigureAwait(false);
-            Assert.That(states, Is.Empty);
+            Assert.That(
+                stateChanges.ToArray().Where(static change =>
+                    change.PreviousState == ConnectionState.Connected),
+                Is.Empty,
+                "The connected session must not transition before the primary is degraded.");
 
             set.Primary.SetServiceLevel(150);
+            await WaitUntilAsync(
+                () => stateChanges.ToArray().Any(static change =>
+                    change.PreviousState == ConnectionState.Failover &&
+                    change.NewState == ConnectionState.Connected),
+                timeout.Token).ConfigureAwait(false);
             await WaitUntilAsync(
                 () => ServerUriOf(session) == set.Backup.ApplicationUri &&
                     session.StateMachine.State == ConnectionState.Connected,
@@ -348,7 +357,12 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+                Assert.That(
+                    stateChanges.ToArray()
+                        .Where(static change =>
+                            change.PreviousState is ConnectionState.Connected or ConnectionState.Failover)
+                        .Select(static change => change.NewState),
+                    Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
                 Assert.That(manager.Items.Single(), Is.SameAs(subscription));
                 Assert.That(session.RedundancyInfo?.ServiceLevel, Is.EqualTo(230));
                 Assert.That(recorder.Errors, Is.Empty);
