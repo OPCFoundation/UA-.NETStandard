@@ -36,6 +36,8 @@ client that drives an incubation program end to end.
 - [Conformance](#conformance)
 - [Client](#client)
 - [Sample](#sample)
+- [MCP tools](#mcp-tools)
+- [UA Lens](#ua-lens)
 - [Provenance](#provenance)
 
 ## Model and dependencies
@@ -463,6 +465,39 @@ passed. The monitored items live as long as the enumeration.
 `Func<CancellationToken, Task<LadsClient>>` on the managed session of the
 client builder. The overloads take explicit options or a function that
 modifies the defaults.
+
+## MCP tools
+
+The `OPCFoundation.NetStandard.Opc.Ua.Mcp.LADS` package adds the `lads` tool
+profile to the aggregate MCP host. It discovers devices and reads device,
+functional-unit, function, program-template, result and maintenance snapshots.
+Separate tools can request device, functional-unit, function and maintenance
+state-machine commands, start a published program template, and download a
+result file beneath the host's configured transfer root.
+
+For an embedded host, register the stack services and LADS catalog explicitly:
+
+```csharp
+services.AddOpcUaMcpCore()
+    .AddOpcUaMcpLads();
+
+services.AddMcpServer()
+    .WithOpcUaLadsTools(McpToolProfile.Lads);
+```
+
+Commands are explicit requests; server authorization and state-machine
+preconditions apply, and acceptance does not mean that a physical operation
+has completed. File downloads use the MCP host's configured transfer policy.
+See the [MCP LADS catalog](McpServer.md#lads-tools) for the complete tool list.
+
+## UA Lens
+
+The UaLens showcase includes an **LADS** companion view. It discovers LADS
+devices, displays device and functional-unit state, function identities,
+active-program progress and maintenance state, and exposes read-only program
+template and maintenance tasks. Program starts and control-function commands
+are prepared with typed inputs and require a separate run action. Result files
+can be exported to a new local file; existing files are not overwritten.
 
 ## Sample
 

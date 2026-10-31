@@ -470,6 +470,7 @@
     <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.GMS/Opc.Ua.Mcp.GMS.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.ISA95/Opc.Ua.Mcp.ISA95.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.LADS/Opc.Ua.Mcp.LADS.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Machinery/Opc.Ua.Mcp.Machinery.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.MachineTool/Opc.Ua.Mcp.MachineTool.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Positioning/Opc.Ua.Mcp.Positioning.csproj" />

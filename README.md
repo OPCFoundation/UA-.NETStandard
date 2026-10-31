@@ -138,7 +138,7 @@ the companion
   exposing OPC UA client operations to LLMs and Copilot. Embeddable libraries
   provide Part 4 services, PubSub, diagnostics, Robotics and Vision, plus
   [industrial companion profiles](docs/McpServer.md#industrial-companion-tools) for AMB, Machinery,
-  Scales, Pumps, AutoID, Device Integration, ISA-95 and Positioning. The
+  Scales, Pumps, AutoID, LADS, Device Integration, ISA-95 and Positioning. The
   [WoT and xRegistry profiles](docs/McpServer.md#wot-and-registry-tools) add
   asset/registry management and bounded document validation, planning and
   NodeSet conversion. [Stack workflow profiles](docs/McpServer.md#stack-workflow-tools)

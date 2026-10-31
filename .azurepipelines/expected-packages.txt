@@ -76,6 +76,7 @@ OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB
 OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID
+OPCFoundation.NetStandard.Opc.Ua.Mcp.LADS
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core
 OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Di
