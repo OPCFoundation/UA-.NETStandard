@@ -43,6 +43,12 @@ inputs:
   artifact-name:
     description: Name of the artifact that receives the results of this batch.
     required: true
+  macos-native-loader-diagnostics:
+    description: >-
+      Disabled, control, or trace. Trace enables bounded dyld diagnostics only
+      for the PKCS#11 test host on macOS.
+    required: false
+    default: disabled
 
 runs:
   using: composite
@@ -225,6 +231,9 @@ runs:
       CI_HANG_TIMEOUT: ${{ inputs.hang-timeout }}
       CI_PER_PROJECT_TIMEOUT: ${{ inputs.per-project-timeout }}
       CI_COVERAGE: ${{ inputs.coverage }}
+      CI_MACOS_NATIVE_LOADER_DIAGNOSTICS: ${{ inputs.macos-native-loader-diagnostics }}
+      OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS: >-
+        ${{ inputs.macos-native-loader-diagnostics == 'trace' && 'true' || 'false' }}
       # Record an allocation stack (and the owning fixture) per Certificate
       # handle, so a teardown "Certificate leak detected" failure names the
       # leaked handle's origin. The rare one-certificate Sessions.Tests leak on
@@ -259,6 +268,7 @@ runs:
         -HangTimeout $env:CI_HANG_TIMEOUT `
         -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
         -ResultsDirectory 'TestResults' `
+        -QuietOutput:($env:CI_MACOS_NATIVE_LOADER_DIAGNOSTICS -ne 'disabled') `
         -Coverage:($env:CI_COVERAGE -eq 'true')
 
   # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)
@@ -446,6 +456,19 @@ runs:
       done
 
       ls -la "$dst"
+
+  - name: Capture macOS native loader diagnostics
+    if: >-
+      ${{ always() && runner.os == 'macOS' &&
+          inputs.macos-native-loader-diagnostics != 'disabled' &&
+          contains(inputs.projects, 'Opc.Ua.Security.Pkcs11.Tests') }}
+    shell: pwsh
+    env:
+      CI_MACOS_NATIVE_LOADER_DIAGNOSTICS: ${{ inputs.macos-native-loader-diagnostics }}
+    run: |
+      ./.github/scripts/capture-macos-native-loader-diagnostics.ps1 `
+        -ResultsDirectory 'TestResults' `
+        -Mode $env:CI_MACOS_NATIVE_LOADER_DIAGNOSTICS
 
   - name: Upload test results
     # always(): the results of a failed run are the reason to keep them.

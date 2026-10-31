@@ -1,0 +1,35 @@
+name: macOS PKCS#11 Native Loader Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    name: ${{ matrix.mode }} PKCS#11 run
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: ./tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.402'
+        filter: ''
+        hang-timeout: 10m
+        per-project-timeout: '30'
+        coverage: 'false'
+        artifact-name: macos-pkcs11-native-loader-${{ matrix.mode }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}

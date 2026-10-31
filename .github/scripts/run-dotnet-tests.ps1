@@ -138,6 +138,13 @@ function New-DotnetStartInfo(
         }
         $startInfo.Environment['LD_LIBRARY_PATH'] = $directories -join ':'
     }
+    if ($IsMacOS -and $env:OPCUA_CAPTURE_MACOS_NATIVE_LOADER_DIAGNOSTICS -eq 'true' -and
+        $arguments.Count -ge 2 -and $arguments[0] -eq 'test' -and
+        [System.IO.Path]::GetFileName($arguments[1]) -eq 'Opc.Ua.Security.Pkcs11.Tests.csproj') {
+        $startInfo.Environment['DYLD_PRINT_LIBRARIES'] = '1'
+        $startInfo.Environment['DYLD_PRINT_SEGMENTS'] = '1'
+        $startInfo.Environment['DYLD_PRINT_APIS'] = '1'
+    }
     foreach ($argument in $arguments) {
         $startInfo.ArgumentList.Add($argument)
     }
