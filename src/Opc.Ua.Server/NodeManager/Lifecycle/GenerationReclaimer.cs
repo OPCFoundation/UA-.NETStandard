@@ -382,6 +382,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
+                retired.RecordRetirementFailure(failure);
                 retired.Server.Telemetry.CreateLogger<GenerationReclaimer>().RetiredGenerationCleanupFailed(failure);
                 lock (m_sync)
                 {
@@ -800,10 +801,27 @@ namespace Opc.Ua.Server
             public void CompleteRetirement()
             {
                 MigrateLateMonitoredItemsAsync = null;
-                m_retirementCompletion.TrySetResult(true);
+                Exception? failure = Volatile.Read(ref m_retirementFailure);
+                if (failure is null)
+                {
+                    m_retirementCompletion.TrySetResult(true);
+                }
+                else
+                {
+                    m_retirementCompletion.TrySetException(failure);
+                }
+            }
+
+            /// <summary>
+            /// Retains the first cleanup failure for the eventual retirement result.
+            /// </summary>
+            public void RecordRetirementFailure(Exception failure)
+            {
+                Interlocked.CompareExchange(ref m_retirementFailure, failure, null);
             }
 
             /// <summary>The durable retirement outcome.</summary>
+            private Exception? m_retirementFailure;
             private readonly TaskCompletionSource<bool> m_retirementCompletion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

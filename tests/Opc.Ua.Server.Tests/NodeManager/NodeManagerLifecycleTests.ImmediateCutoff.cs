@@ -620,8 +620,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(healthy);
             AssertLifecycleValue(survivor);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
+            // The retry can outlive the default subscription's 10-second lifetime.
             (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
-                services, ObjectIds.Server).ConfigureAwait(false);
+                services, ObjectIds.Server, requestedLifetimeCount: 1000).ConfigureAwait(false);
             await ModifyEventMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
             Assert.That(survivor.SubscribedAllEventIds.ToList(), Does.Contain(itemId));
             await survivor.ReportOwnedEmissionAsync("pre-cutoff-fence", timeout.Token).ConfigureAwait(false);
@@ -631,22 +632,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .TryGetValue(out LocalizedText baselineMessage), Is.True);
             Assert.That(baselineMessage.Text, Is.EqualTo("pre-cutoff-fence"));
             var failure = new IOException("The retired source rejected its first unsubscribe.");
-            if (badStatus)
+            var cleanupAttempted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int failuresRemaining = 1;
+            failing.AllEventsCallback = (_, unsubscribe, _) =>
             {
-                failing.AllEventsUnsubscribeResult = StatusCodes.BadUnexpectedError;
-            }
-            else
-            {
-                int failuresRemaining = 1;
-                failing.AllEventsCallback = (_, unsubscribe, _) =>
+                if (unsubscribe)
                 {
-                    if (unsubscribe && Interlocked.Exchange(ref failuresRemaining, 0) != 0)
+                    cleanupAttempted.TrySetResult(true);
+                    if (Interlocked.Exchange(ref failuresRemaining, 0) != 0)
                     {
+                        if (badStatus)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                        }
                         throw failure;
                     }
-                    return default;
-                };
-            }
+                }
+                return default;
+            };
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             ReadinessLifecycleNodeManager? candidate = null;
@@ -701,18 +704,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 try
                 {
                     result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    if (badStatus)
-                    {
-                        await Assert.ThatAsync(
-                            () => result.Retirement.WaitAsync(timeout.Token),
-                            Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
-                    }
-                    else
-                    {
-                        await Assert.ThatAsync(
-                            () => result.Retirement.WaitAsync(timeout.Token),
-                            Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-                    }
+                    await cleanupAttempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -727,6 +719,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(result);
             Assert.That(result.CleanupFailure, Is.Null);
+            TrackingLifecycleNodeManager? retryTrigger = null;
+            NodeManagerRegistration retryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(
+                    404,
+                    manager => retryTrigger = manager,
+                    "urn:opcfoundation.org:Tests:CutoffFailureRetryTrigger"),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(retryTrigger);
+            if (badStatus)
+            {
+                await Assert.ThatAsync(
+                    () => result.Retirement.WaitAsync(timeout.Token),
+                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    () => result.Retirement.WaitAsync(timeout.Token),
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+            }
             var failures = RequireLifecycleValue(result.Retirement.Exception).Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(1));
             if (badStatus)
@@ -739,15 +752,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(failures[0], Is.SameAs(failure));
             }
-            TrackingLifecycleNodeManager? retryTrigger = null;
-            NodeManagerRegistration retryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
-                CreateTrackingNodeManagementFactory(
-                    404,
-                    manager => retryTrigger = manager,
-                    "urn:opcfoundation.org:Tests:CutoffFailureRetryTrigger"),
-                null,
-                timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(retryTrigger);
             await failing.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             await healthy.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())

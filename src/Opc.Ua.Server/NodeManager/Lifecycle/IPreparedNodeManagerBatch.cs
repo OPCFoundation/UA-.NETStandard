@@ -409,8 +409,8 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
-        /// Gets a task that completes when every generation retired by this batch has been fully cleaned up,
-        /// including after a failed cleanup attempt has been logged and retried.
+        /// Gets a task that completes after every generation retired by this batch has been cleaned up, including
+        /// retries. The task faults if an earlier cleanup attempt failed, even when a later retry succeeds.
         /// </summary>
         public Task Retirement { get; }
 

@@ -917,7 +917,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
             }
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            if (failReadiness)
+            {
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            }
+            else
+            {
+                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            }
         }
 
         [Test]

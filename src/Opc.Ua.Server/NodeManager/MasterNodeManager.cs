@@ -1687,7 +1687,12 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ThrowIfNodeManagementFromDecision()
         {
-            if (m_currentLifecycleDecision.Value is { IsCompleted: false })
+            ThrowIfNodeManagementFromDecision(m_currentLifecycleDecision.Value is { IsCompleted: false });
+        }
+
+        private static void ThrowIfNodeManagementFromDecision(bool isLifecycleDecision)
+        {
+            if (isLifecycleDecision)
             {
                 throw new InvalidOperationException(
                     "Node management cannot modify serving routes from the durable decision callback.");

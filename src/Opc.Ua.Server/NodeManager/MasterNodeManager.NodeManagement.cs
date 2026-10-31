@@ -169,7 +169,13 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            ThrowIfNodeManagementFromDecision();
+            bool isLifecycleDecision = m_currentLifecycleDecision.Value is { IsCompleted: false };
+            if (isLifecycleDecision &&
+                TryCreatePreRoutingAddNodesResponse(context, nodesToAdd, out var decisionResponse))
+            {
+                return decisionResponse;
+            }
+            ThrowIfNodeManagementFromDecision(isLifecycleDecision);
             bool mutationAdmissionHeld = false;
             if (HasActiveCallbackPermit(
                     CaptureLifecycleCallbackPermit(),
@@ -434,6 +440,12 @@ namespace Opc.Ua.Server
             ArrayOf<AddNodesItem> nodesToAdd,
             out (ArrayOf<AddNodesResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) response)
         {
+            if (nodesToAdd.Count == 0)
+            {
+                response = default;
+                return false;
+            }
+
             for (int index = 0; index < nodesToAdd.Count; index++)
             {
                 if (GetPreRoutingAddNodeStatus(nodesToAdd[index]) == StatusCodes.Good)

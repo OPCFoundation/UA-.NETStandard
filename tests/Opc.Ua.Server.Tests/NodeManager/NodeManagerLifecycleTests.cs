@@ -7353,15 +7353,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Creates a subscription with one reporting event monitored item on the supplied
         /// event notifier and returns both server-assigned identifiers.
         /// </summary>
+        /// <param name="requestedLifetimeCount">The requested subscription lifetime count.</param>
         private async Task<(uint SubscriptionId, uint MonitoredItemId)>
             CreateSubscriptionAndEventMonitoredItemAsync(
                 ServerTestServices services,
-                NodeId nodeId)
+                NodeId nodeId,
+                uint requestedLifetimeCount = 100)
         {
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             CreateSubscriptionResponse subscriptionResponse = await services
-                .CreateSubscriptionAsync(requestHeader, 100, 100, 10, 0, true, 0)
+                .CreateSubscriptionAsync(requestHeader, 100, requestedLifetimeCount, 10, 0, true, 0)
                 .ConfigureAwait(false);
             uint subscriptionId = subscriptionResponse.SubscriptionId;
 
