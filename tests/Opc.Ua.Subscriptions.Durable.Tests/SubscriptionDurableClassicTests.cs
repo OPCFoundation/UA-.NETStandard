@@ -860,7 +860,12 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
                 if (revisedLifetime != uint.MaxValue)
                 {
-                    Assert.Warn($"Server revised lifetimeInHours from UInt32.MaxValue to {revisedLifetime}.");
+                    // A revision is the server's configured maximum: any larger request
+                    // must be capped at the same value.
+                    uint cappedLifetime = await SetSubscriptionDurableAsync(
+                        subId, revisedLifetime + 1).ConfigureAwait(false);
+                    Assert.That(cappedLifetime, Is.EqualTo(revisedLifetime),
+                        "An over-limit lifetime must be capped at the server maximum.");
                 }
             }
             finally
