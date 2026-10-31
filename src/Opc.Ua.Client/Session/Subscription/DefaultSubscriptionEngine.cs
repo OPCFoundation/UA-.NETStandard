@@ -217,7 +217,9 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter :
+            ISubscriptionManagerContext,
+            ISessionTakeoverContext
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -225,6 +227,20 @@ namespace Opc.Ua.Client
             {
                 m_context = context;
                 m_timeProvider = timeProvider;
+            }
+
+            /// <inheritdoc/>
+            public NodeId SessionId => m_context.SessionId;
+
+            /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                if (m_context is not ISessionTakeoverContext takeoverContext)
+                {
+                    throw new InvalidOperationException(
+                        "The subscription engine context cannot abandon a server session.");
+                }
+                takeoverContext.AbandonServerSession();
             }
 
             /// <inheritdoc/>
@@ -283,6 +299,41 @@ namespace Opc.Ua.Client
                 (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
                     m_context.PrepareAcknowledgementsToSend(acknowledgements);
                 return new AcknowledgementSelection(toSend, deferred);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask<bool> OnPublishRecoveryErrorAsync(
+                NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
+            {
+                SemaphoreSlim reconnect = m_context.ReconnectLock;
+                try
+                {
+                    await reconnect.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    return false;
+                }
+                try
+                {
+                    if (ct.IsCancellationRequested ||
+                        m_context.Disposed ||
+                        m_context.Closing ||
+                        m_context.Reconnecting ||
+                        !m_context.Connected ||
+                        sessionId != m_context.SessionId ||
+                        !isCurrent())
+                    {
+                        return false;
+                    }
+
+                    m_context.OnKeepAliveError(error);
+                    return true;
+                }
+                finally
+                {
+                    reconnect.Release();
+                }
             }
 
             /// <inheritdoc/>

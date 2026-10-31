@@ -542,11 +542,14 @@ mode.
 - When a session is recreated in place (the managed session's reconnect path), in-flight
   acknowledgements are kept and validated again: a subscription transferred to the new
   session keeps its handles, while a recreated subscription retires them.
-- Known limitation: transferring a classic subscription to a *different* `Session` object
-  (`TransferSubscriptionsAsync` on another session) does not hand its tracked
-  acknowledgements over. The old session ends them when it is disposed and the new session
-  tracks the messages it still holds again, so an acknowledgement can be reported twice.
-  Tracked in [#4930](https://github.com/OPCFoundation/UA-.NETStandard/issues/4930).
+- Transferring a classic subscription to a *different* `Session` object
+  (`TransferSubscriptionsAsync` on another session) hands its tracked acknowledgements
+  over. The previous session reports no outcome for them. The new session tracks those whose
+  message the server still holds and keeps the confirmation the application already gave in
+  `AfterConfirmation` mode. It ends the others as `NotRetained`. The new session's
+  configuration governs: its observer receives the outcomes and confirmations carry over
+  only if it uses `AfterConfirmation`. If the new session has no acknowledgement
+  configuration, the previous session ends them as `OwnerRetired`.
 - Each acknowledgement has a single entry while it is pending or in flight: queuing it again
   (for example after a transfer) does not create a second entry, so it ends exactly once.
   Cancelling a local queue attempt preserves that outstanding lifecycle if the queue still
@@ -583,6 +586,37 @@ sent (fail-open). When more than 1000 acknowledgements are deferred, a warning i
 once until the backlog drains.
 
 ## Publishing during session recovery
+
+The V2 Publish pipeline reports `BadSessionIdInvalid`, `BadSecureChannelIdInvalid`,
+`BadSecureChannelClosed`, `BadNotConnected`, and `BadConnectionClosed` through the
+session's keep-alive error callback. A managed session can therefore initiate recovery
+from a failed Publish without waiting for the next keep-alive Read. The worker rolls
+back its acknowledgements and releases its active request count before reporting the
+error; it does not await the recovery operation that may need to drain other workers.
+Transport-down throttling remains in effect. Publish is not retried as an idempotent
+transport request.
+
+Concurrent failures from one outage share a recovery notification. Pausing and resuming
+publishing retires the previous attempts for recovery reporting, even when the session
+identifier is unchanged. A successful attempt begun after a reported outage also
+rearms notification for a subsequent failure; an older in-flight response does not.
+A failure from an attempt older than the successful retry cannot report that outage
+again. Successful session reactivation retires recovery signals from all previous
+Publish attempts, including when recovery started before any Publish failure was reported.
+Recovery callbacks revalidate the attempt after acquiring session recovery admission,
+so a callback delayed across reactivation cannot start another reconnect. Recovery
+ordering is assigned after acknowledgement preparation, immediately before dispatch.
+If a pool resize cancels the reporting worker before the session accepts its notification,
+the manager releases that notification reservation so a surviving worker can report the
+outage. Releasing a reservation does not overwrite a newer success or reactivation.
+Cancelled attempts and errors from closing, disposed, disconnected, or replaced
+sessions do not initiate recovery. When a channel manager is already recovering the
+session, the managed session leaves recovery with that owner instead of starting a
+competing outer reconnect.
+
+After a reported error, successful service responses do not defer the keep-alive Read
+that clears the latched error. Publishing can therefore recover without leaving a plain
+session marked as stopped while notifications continue.
 
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an

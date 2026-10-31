@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -277,6 +278,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logicals.Clear();
                     registered = [.. m_subscriptions];
                     m_subscriptions.Clear();
+                    OwnershipChangedLocked();
                     m_establishedSubscriptions.Clear();
                 }
 
@@ -344,6 +346,7 @@ namespace Opc.Ua.Client.Subscriptions
                             StatusCodes.BadShutdown);
                     }
                     m_deferredAcknowledgements.Clear();
+                    UpdateDeferredWarning();
                 }
                 foreach (AcknowledgementHandle handle in m_outstandingAcknowledgements.Keys)
                 {
@@ -356,6 +359,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_claims.Clear();
                     m_superseded.Clear();
+                    OwnershipChangedLocked();
                     m_windows.Clear();
                 }
                 GC.SuppressFinalize(this);
@@ -452,6 +456,7 @@ namespace Opc.Ua.Client.Subscriptions
                         m_superseded.Add(registered);
                     }
                 }
+                OwnershipChangedLocked();
                 m_superseded.Remove(owner);
                 m_claims[subscriptionId] = new SubscriptionClaim(
                     owner, Interlocked.Increment(ref m_claimSequence), createdAt);
@@ -524,6 +529,10 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             continue;
                         }
+                        if (m_activeSubscriptionUpdates.Count == 0)
+                        {
+                            m_subscriptionUpdateDrainSignal.Reset();
+                        }
                         m_activeSubscriptionUpdates.Add(attempt);
                         break;
                     }
@@ -546,6 +555,10 @@ namespace Opc.Ua.Client.Subscriptions
                     lock (m_publishStateLock)
                     {
                         m_activeSubscriptionUpdates.Remove(attempt);
+                        if (m_activeSubscriptionUpdates.Count == 0)
+                        {
+                            m_subscriptionUpdateDrainSignal.Set();
+                        }
                     }
                 }
             }
@@ -645,6 +658,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // reference — never by identifier, because every
                 // subscription that is not created (yet) shares id 0.
                 registered = m_subscriptions.Remove(partition);
+                OwnershipChangedLocked();
                 if (registered)
                 {
                     m_establishedSubscriptions.Remove(partition);
@@ -800,6 +814,7 @@ namespace Opc.Ua.Client.Subscriptions
                     // Roll the primary back out so we do not leak
                     // a partition with no logical wrapper.
                     m_subscriptions.Remove(primary);
+                    OwnershipChangedLocked();
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register logical subscription.");
                 }
@@ -883,6 +898,7 @@ namespace Opc.Ua.Client.Subscriptions
             lock (m_subscriptionLock)
             {
                 m_subscriptions.Remove(partition);
+                OwnershipChangedLocked();
                 // Retire the identifier under the registry lock so a
                 // publish worker cannot observe the partition as removed
                 // before the identifier is known to be retired.
@@ -1056,9 +1072,45 @@ namespace Opc.Ua.Client.Subscriptions
             }
             if (transferSubscriptions && state.ServerId != 0)
             {
-                return RestoreTransferAsync(handler, state, ct);
+                return RestoreTransferAsync(handler, state, adopt: false, ct);
             }
             return RestoreRecreateAsync(handler, state, ct);
+        }
+
+        /// <summary>
+        /// Adopts a logical subscription, saved as one or more partition snapshots, that
+        /// already belongs to the server session of this manager because the session was
+        /// taken over from its previous owner. The saved server-side identifiers are
+        /// registered locally so the publish loop dispatches their notifications; no
+        /// TransferSubscriptions or CreateSubscription request is sent. A partition that was
+        /// never created on the server (server id 0), or whose items cannot be bound, is
+        /// recreated instead.
+        /// </summary>
+        /// <param name="handler">The notification handler of the logical subscription.</param>
+        /// <param name="snapshots">The partition snapshots, primary first, sorted by
+        /// partition index.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>The adopted logical subscription.</returns>
+        internal ValueTask<ISubscription> AdoptGroupAsync(
+            ISubscriptionNotificationHandler handler,
+            IReadOnlyList<SubscriptionStateSnapshot> snapshots,
+            CancellationToken ct)
+        {
+            return RestoreGroupCoreAsync(handler, snapshots, transferSubscriptions: false, adopt: true, ct);
+        }
+
+        private ValueTask<ISubscription> RestoreBindingAsync(
+            ISubscriptionNotificationHandler handler,
+            SubscriptionStateSnapshot state,
+            bool transferSubscriptions,
+            bool adopt,
+            CancellationToken ct)
+        {
+            if (adopt && state.ServerId != 0)
+            {
+                return RestoreTransferAsync(handler, state, adopt: true, ct);
+            }
+            return RestoreAsync(handler, state, transferSubscriptions && !adopt, ct);
         }
 
         private ValueTask<ISubscription> RestoreRecreateAsync(
@@ -1083,6 +1135,7 @@ namespace Opc.Ua.Client.Subscriptions
         private async ValueTask<ISubscription> RestoreTransferAsync(
             ISubscriptionNotificationHandler handler,
             SubscriptionStateSnapshot state,
+            bool adopt,
             CancellationToken ct)
         {
             // Build the internal load-state record (decoupled from the
@@ -1101,7 +1154,11 @@ namespace Opc.Ua.Client.Subscriptions
                     new OptionsMonitor<MonitoredItems.MonitoredItemOptions>(item.ToOptions()),
                     item.ClientHandle,
                     item.ServerId,
-                    triggeredBy));
+                    triggeredBy,
+                    item.HasRevisedSettings,
+                    item.RevisedSamplingInterval,
+                    item.RevisedQueueSize,
+                    item.RevisedFilterResult));
             }
             var loadState = new SubscriptionLoadState(
                 state.ServerId, itemLoadStates);
@@ -1169,6 +1226,7 @@ namespace Opc.Ua.Client.Subscriptions
                 if (!m_logicals.Add(wrapper))
                 {
                     m_subscriptions.Remove(subscription);
+                    OwnershipChangedLocked();
                     throw ServiceResultException.Create(StatusCodes.BadAlreadyExists,
                         "Failed to register restored logical subscription.");
                 }
@@ -1187,41 +1245,57 @@ namespace Opc.Ua.Client.Subscriptions
                 bool transferred = false;
                 try
                 {
-                    TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
-                        null,
-                        subscriptionIds,
-                        sendInitialValues: options.SendInitialValuesOnTransfer,
-                        ct)
-                        .ConfigureAwait(false);
-
-                    ResponseHeader responseHeader = response.ResponseHeader;
-                    if (StatusCode.IsGood(responseHeader.ServiceResult))
+                    if (adopt)
                     {
-                        ArrayOf<TransferResult> results = response.Results;
-                        ClientBase.ValidateResponse(results, subscriptionIds);
-                        if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                        if (subscription is Subscription adopted)
                         {
-                            transferred = await subscription.TryCompleteTransferAsync(
-                                results[0].AvailableSequenceNumbers.IsNull
-                                    ? []
-                                    : [.. results[0].AvailableSequenceNumbers],
+                            transferred = await adopted.TryCompleteAdoptionAsync(
+                                state,
                                 ct).ConfigureAwait(false);
                         }
-                        else if (results.Count > 0)
-                        {
-                            m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
-                        }
-                    }
-                    else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
-                    {
-                        m_logger.ServerDoesNotSupportTransfer(subscription.Id);
                     }
                     else
                     {
-                        m_logger.TransferServiceLevelResultBad(
-                            subscription.Id,
-                            responseHeader.ServiceResult);
+                        TransferSubscriptionsResponse response = await m_session.TransferSubscriptionsAsync(
+                            null,
+                            subscriptionIds,
+                            sendInitialValues: options.SendInitialValuesOnTransfer,
+                            ct)
+                            .ConfigureAwait(false);
+
+                        ResponseHeader responseHeader = response.ResponseHeader;
+                        if (StatusCode.IsGood(responseHeader.ServiceResult))
+                        {
+                            ArrayOf<TransferResult> results = response.Results;
+                            ClientBase.ValidateResponse(results, subscriptionIds);
+                            if (results.Count > 0 && StatusCode.IsGood(results[0].StatusCode))
+                            {
+                                transferred = await subscription.TryCompleteTransferAsync(
+                                    results[0].AvailableSequenceNumbers.IsNull
+                                        ? []
+                                        : [.. results[0].AvailableSequenceNumbers],
+                                    ct).ConfigureAwait(false);
+                            }
+                            else if (results.Count > 0)
+                            {
+                                m_logger.TransferPerItemResultBad(subscription.Id, results[0].StatusCode);
+                            }
+                        }
+                        else if (responseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+                        {
+                            m_logger.ServerDoesNotSupportTransfer(subscription.Id);
+                        }
+                        else
+                        {
+                            m_logger.TransferServiceLevelResultBad(
+                                subscription.Id,
+                                responseHeader.ServiceResult);
+                        }
                     }
+                }
+                catch (ServiceResultException) when (adopt)
+                {
+                    throw;
                 }
                 catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadServiceUnsupported)
                 {
@@ -1234,31 +1308,44 @@ namespace Opc.Ua.Client.Subscriptions
                         ex.StatusCode);
                 }
 
-                if (!transferred && subscription is Subscription loaded)
+                if (!transferred)
                 {
-                    await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
-                    // Await re-creation under a bounded timeout so LoadAsync
-                    // only returns after the server has assigned a fresh
-                    // SubscriptionId. Items still need ApplyChangesAsync to
-                    // round-trip but that runs in the same state-manager
-                    // iteration as CreateAsync.
-                    using CancellationTokenSource timeoutCts = m_timeProvider
-                        .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
-                    using var linkedCts = CancellationTokenSource
-                        .CreateLinkedTokenSource(ct, timeoutCts.Token);
-                    try
+                    if (adopt)
                     {
-                        await loaded.WaitForCreatedAsync(linkedCts.Token)
-                            .ConfigureAwait(false);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadSubscriptionIdInvalid,
+                            "The saved subscription state could not be adopted.");
                     }
-                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    if (subscription is Subscription loaded)
                     {
-                        m_logger.ReCreationDidNotComplete(subscription.Id);
+                        await loaded.ResetToRecreateAsync(ct).ConfigureAwait(false);
+                        // Await re-creation under a bounded timeout so LoadAsync
+                        // only returns after the server has assigned a fresh
+                        // SubscriptionId. Items still need ApplyChangesAsync to
+                        // round-trip but that runs in the same state-manager
+                        // iteration as CreateAsync.
+                        using CancellationTokenSource timeoutCts = m_timeProvider
+                            .CreateCancellationTokenSource(TimeSpan.FromSeconds(15));
+                        using var linkedCts = CancellationTokenSource
+                            .CreateLinkedTokenSource(ct, timeoutCts.Token);
+                        try
+                        {
+                            await loaded.WaitForCreatedAsync(linkedCts.Token)
+                                .ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                        {
+                            m_logger.ReCreationDidNotComplete(subscription.Id);
+                        }
                     }
                 }
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // The subscription and its wrapper are already registered.
                 // Leaving them behind on a failed transfer would register a
                 // zombie that the publish loop keeps dispatching to and that
@@ -1267,6 +1354,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     m_logicals.Remove(wrapper);
                     m_subscriptions.Remove(subscription);
+                    OwnershipChangedLocked();
                 }
                 try
                 {
@@ -1305,10 +1393,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// <exception cref="ArgumentNullException"><paramref name="handler"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        internal async ValueTask<ISubscription> RestoreGroupAsync(
+        internal ValueTask<ISubscription> RestoreGroupAsync(
             ISubscriptionNotificationHandler handler,
             IReadOnlyList<SubscriptionStateSnapshot> snapshots,
             bool transferSubscriptions,
+            CancellationToken ct)
+        {
+            return RestoreGroupCoreAsync(handler, snapshots, transferSubscriptions, adopt: false, ct);
+        }
+
+        private async ValueTask<ISubscription> RestoreGroupCoreAsync(
+            ISubscriptionNotificationHandler handler,
+            IReadOnlyList<SubscriptionStateSnapshot> snapshots,
+            bool transferSubscriptions,
+            bool adopt,
             CancellationToken ct)
         {
             if (handler == null)
@@ -1324,8 +1422,8 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Primary first — single-partition restore returns the
             // wrapper that owns all subsequent secondaries.
-            ISubscription primaryWrapper = await RestoreAsync(
-                handler, snapshots[0], transferSubscriptions, ct)
+            ISubscription primaryWrapper = await RestoreBindingAsync(
+                handler, snapshots[0], transferSubscriptions, adopt, ct)
                 .ConfigureAwait(false);
             if (snapshots.Count == 1)
             {
@@ -1353,12 +1451,16 @@ namespace Opc.Ua.Client.Subscriptions
                     ct.ThrowIfCancellationRequested();
                     await AttachSecondaryPartitionAsync(
                         wrapper, handler, optionsMonitor,
-                        snapshots[i], transferSubscriptions, ct)
+                        snapshots[i], transferSubscriptions, adopt, ct)
                         .ConfigureAwait(false);
                 }
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // The primary and any secondaries attached so far are
                 // registered, but the caller never receives the wrapper.
                 // Roll back like RestoreAsync does for a failed transfer so
@@ -1371,6 +1473,7 @@ namespace Opc.Ua.Client.Subscriptions
                     foreach (IManagedSubscription partition in partitions)
                     {
                         m_subscriptions.Remove(partition);
+                        OwnershipChangedLocked();
                     }
                 }
                 try
@@ -1394,6 +1497,7 @@ namespace Opc.Ua.Client.Subscriptions
             OptionsMonitor<SubscriptionOptions> optionsMonitor,
             SubscriptionStateSnapshot snap,
             bool transferSubscriptions,
+            bool adopt,
             CancellationToken ct)
         {
             // Build the per-partition load state from the snapshot.
@@ -1408,7 +1512,11 @@ namespace Opc.Ua.Client.Subscriptions
                     item.ServerId,
                     item.TriggeredByNames.IsNull
                         ? []
-                        : item.TriggeredByNames.ToArray() ?? []));
+                        : item.TriggeredByNames.ToArray() ?? [],
+                    item.HasRevisedSettings,
+                    item.RevisedSamplingInterval,
+                    item.RevisedQueueSize,
+                    item.RevisedFilterResult));
             }
             var loadState = new SubscriptionLoadState(snap.ServerId, itemLoadStates);
 
@@ -1436,11 +1544,16 @@ namespace Opc.Ua.Client.Subscriptions
             }
             catch
             {
+                if (adopt)
+                {
+                    m_session.AbandonServerSession();
+                }
                 // Not yet owned by the wrapper, so the group rollback would
                 // not find it.
                 lock (m_subscriptionLock)
                 {
                     m_subscriptions.Remove(partition);
+                    OwnershipChangedLocked();
                 }
                 await partition.DisposeAsync().ConfigureAwait(false);
                 throw;
@@ -1456,7 +1569,7 @@ namespace Opc.Ua.Client.Subscriptions
                 return;
             }
 
-            if (!transferSubscriptions || snap.ServerId == 0)
+            if ((!transferSubscriptions && !adopt) || snap.ServerId == 0)
             {
                 // Without a transfer the saved server-side subscription does
                 // not belong to this session: the partition would keep the
@@ -1469,29 +1582,42 @@ namespace Opc.Ua.Client.Subscriptions
             bool transferred = false;
             try
             {
-                TransferSubscriptionsResponse response =
-                    await m_session.TransferSubscriptionsAsync(
-                        null,
-                        new uint[] { snap.ServerId }.ToArrayOf(),
-                        sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
-                        ct).ConfigureAwait(false);
-                if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
-                    response.Results.Count > 0 &&
-                    StatusCode.IsGood(response.Results[0].StatusCode))
+                if (adopt)
                 {
-                    transferred = await concrete.TryCompleteTransferAsync(
-                        response.Results[0].AvailableSequenceNumbers.IsNull
-                            ? []
-                            : [.. response.Results[0].AvailableSequenceNumbers],
-                        ct).ConfigureAwait(false);
+                    transferred = await concrete.TryCompleteAdoptionAsync(snap, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    TransferSubscriptionsResponse response =
+                        await m_session.TransferSubscriptionsAsync(
+                            null,
+                            new uint[] { snap.ServerId }.ToArrayOf(),
+                            sendInitialValues: optionsMonitor.CurrentValue.SendInitialValuesOnTransfer,
+                            ct).ConfigureAwait(false);
+                    if (StatusCode.IsGood(response.ResponseHeader.ServiceResult) &&
+                        response.Results.Count > 0 &&
+                        StatusCode.IsGood(response.Results[0].StatusCode))
+                    {
+                        transferred = await concrete.TryCompleteTransferAsync(
+                            response.Results[0].AvailableSequenceNumbers.IsNull
+                                ? []
+                                : [.. response.Results[0].AvailableSequenceNumbers],
+                            ct).ConfigureAwait(false);
+                    }
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!adopt)
             {
                 m_logger.TransferThrewSecondaryPartitionRestore(ex, partition.Id);
             }
             if (!transferred)
             {
+                if (adopt)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSubscriptionIdInvalid,
+                        "The saved partition state could not be adopted.");
+                }
                 await concrete.ResetToRecreateAsync(ct).ConfigureAwait(false);
             }
         }
@@ -1602,6 +1728,9 @@ namespace Opc.Ua.Client.Subscriptions
             m_publishControl.Set();
         }
 
+        /// <summary>
+        /// Updates publishing availability and retires error notifications from the previous lifecycle epoch.
+        /// </summary>
         private bool? UpdatePublishingState()
         {
             bool shouldRun = m_publishingRequested &&
@@ -1612,6 +1741,8 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return null;
             }
+            m_publishEpoch++;
+            m_publishRecoveryReported = false;
             if (shouldRun)
             {
                 m_publishingPaused.Reset();
@@ -1654,14 +1785,29 @@ namespace Opc.Ua.Client.Subscriptions
         /// publish ingress stays quiesced for the caller's operation.
         /// </remarks>
         /// <param name="ct">Cancellation token.</param>
-        internal Task DrainAsync(CancellationToken ct)
+        internal async Task DrainAsync(CancellationToken ct)
         {
-            if (Volatile.Read(ref m_activePublishRequests) == 0)
+            while (true)
             {
-                return Task.CompletedTask;
+                Task publishDrain;
+                Task updateDrain;
+                lock (m_publishStateLock)
+                {
+                    if (m_activePublishRequests == 0 && m_activeSubscriptionUpdates.Count == 0)
+                    {
+                        return;
+                    }
+
+                    publishDrain = m_activePublishRequests == 0
+                        ? Task.CompletedTask
+                        : m_drainSignal.WaitAsync(ct);
+                    updateDrain = m_activeSubscriptionUpdates.Count == 0
+                        ? Task.CompletedTask
+                        : m_subscriptionUpdateDrainSignal.WaitAsync(ct);
+                }
+                AbortActivePublishRequests();
+                await Task.WhenAll(publishDrain, updateDrain).ConfigureAwait(false);
             }
-            AbortActivePublishRequests();
-            return m_drainSignal.WaitAsync(ct);
         }
 
         /// <summary>
@@ -1719,6 +1865,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Reserves an active request before acknowledgement preparation so recovery can drain it.
+        /// </summary>
         private bool TryBeginPublishRequest()
         {
             lock (m_publishStateLock)
@@ -1732,6 +1881,115 @@ namespace Opc.Ua.Client.Subscriptions
                     m_drainSignal.Reset();
                 }
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// Captures recovery ordering after preparation, immediately before sending Publish.
+        /// </summary>
+        private bool TryCapturePublishDispatch(out long epoch, out long requestSequence)
+        {
+            lock (m_publishStateLock)
+            {
+                epoch = m_publishEpoch;
+                requestSequence = 0;
+                if (!m_running.IsSet || Volatile.Read(ref m_disposed) != 0)
+                {
+                    return false;
+                }
+                requestSequence = ++m_publishRequestSequence;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Retires Publish recovery signals from the transport preceding successful session reactivation.
+        /// </summary>
+        internal void OnSessionReactivated()
+        {
+            lock (m_publishStateLock)
+            {
+                m_publishEpoch++;
+                m_publishRecoveryWatermark = m_publishRequestSequence;
+                m_publishRecoveryReported = false;
+            }
+        }
+
+        /// <summary>
+        /// Rearms failure reporting only for success from an attempt begun after the reported outage.
+        /// An older in-flight response cannot clear a newer failure's notification state.
+        /// </summary>
+        private void RecordPublishSuccess(long epoch, long requestSequence)
+        {
+            lock (m_publishStateLock)
+            {
+                if (epoch == m_publishEpoch && requestSequence > m_publishRecoveryWatermark)
+                {
+                    m_publishRecoveryWatermark = requestSequence;
+                    m_publishRecoveryReported = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Coalesces current Publish failures before notifying the session outside the state lock.
+        /// A failure from an attempt begun before the last reported outage belongs to that outage
+        /// and is ignored, even after a newer success has rearmed reporting in the same epoch.
+        /// </summary>
+        private async ValueTask ReportPublishRecoveryErrorAsync(
+            long epoch, long requestSequence, NodeId sessionId, ServiceResult error, CancellationToken ct)
+        {
+            long recoveryWatermark;
+            long previousWatermark;
+            lock (m_publishStateLock)
+            {
+                if (epoch != m_publishEpoch ||
+                    !m_running.IsSet ||
+                    Volatile.Read(ref m_disposed) != 0 ||
+                    m_publishRecoveryReported ||
+                    requestSequence <= m_publishRecoveryWatermark)
+                {
+                    return;
+                }
+                m_publishRecoveryReported = true;
+                previousWatermark = m_publishRecoveryWatermark;
+                m_publishRecoveryWatermark = m_publishRequestSequence;
+                recoveryWatermark = m_publishRecoveryWatermark;
+            }
+
+            bool accepted = false;
+            try
+            {
+                accepted = await m_session.OnPublishRecoveryErrorAsync(sessionId, error, IsCurrent, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                if (!accepted)
+                {
+                    lock (m_publishStateLock)
+                    {
+                        if (epoch == m_publishEpoch &&
+                            m_publishRecoveryReported &&
+                            m_publishRecoveryWatermark == recoveryWatermark)
+                        {
+                            m_publishRecoveryReported = false;
+                            m_publishRecoveryWatermark = previousWatermark;
+                        }
+                    }
+                }
+            }
+
+            bool IsCurrent()
+            {
+                lock (m_publishStateLock)
+                {
+                    return epoch == m_publishEpoch &&
+                        m_running.IsSet &&
+                        Volatile.Read(ref m_disposed) == 0 &&
+                        m_publishRecoveryReported &&
+                        m_publishRecoveryWatermark == recoveryWatermark;
+                }
             }
         }
 
@@ -2094,6 +2352,14 @@ namespace Opc.Ua.Client.Subscriptions
         private List<PendingAcknowledgement> PrepareAcknowledgementsToSend(
             List<PendingAcknowledgement> acknowledgements)
         {
+            if (Volatile.Read(ref m_deferredCount) == 0 && !m_session.HasAcknowledgementPolicy)
+            {
+                // Without a deferral policy or a deferred backlog the batch is only validated:
+                // the policy lock is not taken, nothing is copied or presented, and no callback
+                // can change ownership before it is sent.
+                RemoveStaleAcknowledgements(acknowledgements);
+                return acknowledgements;
+            }
             lock (m_acknowledgementPolicyLock)
             {
                 int deferredCount = m_deferredAcknowledgements.Count;
@@ -2103,8 +2369,6 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 if (deferredCount == 0 && !m_session.HasAcknowledgementPolicy)
                 {
-                    // Without a deferral policy the batch is only validated: nothing is copied
-                    // or presented, and no callback can change ownership before it is sent.
                     RemoveStaleAcknowledgements(acknowledgements);
                     return acknowledgements;
                 }
@@ -2252,25 +2516,35 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             List<PendingAcknowledgement> candidates = acknowledgements;
-            lock (m_acknowledgementPolicyLock)
-            {
-                if (m_deferredAcknowledgements.Count != 0)
-                {
-                    // Merged into the worker's batch, so an abandoned attempt requeues them as well.
-                    candidates.AddRange(m_deferredAcknowledgements);
-                    m_deferredAcknowledgements.Clear();
-                }
-            }
-            RemoveStaleAcknowledgements(candidates);
-            if (candidates.Count == 0)
+            bool movedDeferred = false;
+            if (Volatile.Read(ref m_deferredCount) != 0)
             {
                 lock (m_acknowledgementPolicyLock)
                 {
-                    UpdateDeferredWarning();
+                    if (m_deferredAcknowledgements.Count != 0)
+                    {
+                        // Merged into the worker's batch, so an abandoned attempt requeues them as well.
+                        candidates.AddRange(m_deferredAcknowledgements);
+                        m_deferredAcknowledgements.Clear();
+                        Volatile.Write(ref m_deferredCount, 0);
+                        movedDeferred = true;
+                    }
+                }
+            }
+            long version = RemoveStaleAcknowledgements(candidates);
+            if (candidates.Count == 0)
+            {
+                if (movedDeferred)
+                {
+                    lock (m_acknowledgementPolicyLock)
+                    {
+                        UpdateDeferredWarning();
+                    }
                 }
                 return candidates;
             }
 
+            // A fresh array per decision: the provider may keep the batch it was given.
             var handles = new AcknowledgementHandle[candidates.Count];
             for (int i = 0; i < handles.Length; i++)
             {
@@ -2295,30 +2569,102 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             ArrayOf<int> deferredIndices = decision.Deferred;
-            if (deferredIndices.Count == 0)
+            if (deferredIndices.Count != 0)
             {
-                // Validated again: a subscription can retire while the provider decides.
-                RemoveStaleAcknowledgements(candidates);
-                return candidates;
+                DeferSelected(candidates, deferredIndices);
             }
-            bool[] deferred = new bool[candidates.Count];
-            for (int i = 0; i < deferredIndices.Count; i++)
+            else if (movedDeferred)
             {
-                int index = deferredIndices[i];
-                if ((uint)index < (uint)deferred.Length)
+                lock (m_acknowledgementPolicyLock)
                 {
-                    deferred[index] = true;
+                    UpdateDeferredWarning();
                 }
             }
-            var toSend = new List<PendingAcknowledgement>(candidates.Count);
-            var toDefer = new List<PendingAcknowledgement>(deferredIndices.Count);
-            for (int i = 0; i < candidates.Count; i++)
+            // Validated again, since a subscription can retire while the provider decides.
+            RevalidateAcknowledgements(candidates, version);
+            return candidates;
+        }
+
+        /// <summary>
+        /// Moves the candidates at the deferred indices to the deferred list and compacts
+        /// the remaining candidates in place. Indices out of range or repeated are ignored.
+        /// </summary>
+        /// <param name="candidates">The presented acknowledgements; on return the ones to send.</param>
+        /// <param name="deferredIndices">The indices the provider deferred.</param>
+        private void DeferSelected(List<PendingAcknowledgement> candidates, ArrayOf<int> deferredIndices)
+        {
+            int count = candidates.Count;
+            bool[]? rented = null;
+            Span<bool> deferred = count <= kStackAllocThreshold
+                ? stackalloc bool[kStackAllocThreshold]
+                : (rented = ArrayPool<bool>.Shared.Rent(count));
+            deferred = deferred[..count];
+            deferred.Clear();
+            try
             {
-                (deferred[i] ? toDefer : toSend).Add(candidates[i]);
+                for (int i = 0; i < deferredIndices.Count; i++)
+                {
+                    int index = deferredIndices[i];
+                    if ((uint)index < (uint)count)
+                    {
+                        deferred[index] = true;
+                    }
+                }
+                int kept = 0;
+                lock (m_acknowledgementPolicyLock)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (deferred[i])
+                        {
+                            m_deferredAcknowledgements.Add(candidates[i]);
+                        }
+                        else
+                        {
+                            candidates[kept++] = candidates[i];
+                        }
+                    }
+                    UpdateDeferredWarning();
+                }
+                candidates.RemoveRange(kept, count - kept);
             }
-            DeferAcknowledgements(toDefer);
-            RemoveStaleAcknowledgements(toSend);
-            return toSend;
+            finally
+            {
+                if (rented != null)
+                {
+                    ArrayPool<bool>.Shared.Return(rented);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates a batch again after an unlocked step. When no ownership changed since
+        /// <paramref name="version"/> was captured, only the per-owner state that changes
+        /// without the registry lock (server id and message generation) is checked, without
+        /// taking the registry lock. A change of the server's availability window is then not
+        /// rechecked: the server answers such an acknowledgement with
+        /// <c>Bad_SequenceNumberUnknown</c>, which is reported as not retained as well.
+        /// </summary>
+        /// <param name="acknowledgements">The batch; stale entries are removed in place.</param>
+        /// <param name="version">The ownership version of the first validation.</param>
+        private void RevalidateAcknowledgements(List<PendingAcknowledgement> acknowledgements, long version)
+        {
+            if (Interlocked.Read(ref m_ownershipVersion) != version)
+            {
+                RemoveStaleAcknowledgements(acknowledgements);
+                return;
+            }
+            for (int i = 0; i < acknowledgements.Count; i++)
+            {
+                PendingAcknowledgement pending = acknowledgements[i];
+                IMessageProcessor owner = pending.Owner;
+                if (owner.Id != pending.Acknowledgement.SubscriptionId ||
+                    owner.MessageGeneration != pending.Generation)
+                {
+                    RemoveStaleAcknowledgements(acknowledgements);
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -2513,13 +2859,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// Removes acknowledgements that must not be sent anymore. Each entry is
         /// validated in constant time under a single registry lock acquisition.
         /// </summary>
-        private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        /// <returns>The ownership version the batch was validated against.</returns>
+        private long RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
         {
+            if (acknowledgements.Count == 0)
+            {
+                return Interlocked.Read(ref m_ownershipVersion);
+            }
             int kept = 0;
+            long version;
             bool observed = RequiresAcknowledgementTracking;
             List<AcknowledgementOutcome>? outcomes = null;
             lock (m_subscriptionLock)
             {
+                version = Interlocked.Read(ref m_ownershipVersion);
                 for (int i = 0; i < acknowledgements.Count; i++)
                 {
                     PendingAcknowledgement pending = acknowledgements[i];
@@ -2550,6 +2903,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_logger.StaleAcknowledgementsDiscarded(removed);
             }
             ReportOutcomes(outcomes);
+            return version;
         }
 
         /// <summary>
@@ -2706,12 +3060,22 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Records a change of subscription ownership, so acknowledgements validated before
+        /// it are fully validated again. Requires the registry lock.
+        /// </summary>
+        private void OwnershipChangedLocked()
+        {
+            Interlocked.Increment(ref m_ownershipVersion);
+        }
+
+        /// <summary>
         /// Forgets the retransmission view of a retiring owner, and its claim on
         /// <paramref name="subscriptionId"/> unless a live subscription created later holds it.
         /// Requires the registry lock.
         /// </summary>
         private void ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId)
         {
+            OwnershipChangedLocked();
             m_windows.Remove(owner);
             m_superseded.Remove(owner);
             if (subscriptionId != 0 &&
@@ -2748,11 +3112,13 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Warns once when deferred acknowledgements accumulate, and re-arms when the
-        /// backlog has drained. Must be called with the policy lock held.
+        /// backlog has drained, and publishes the backlog size for lock-free reads. Must be
+        /// called with the policy lock held after every change of the deferred list.
         /// </summary>
         private void UpdateDeferredWarning()
         {
             int count = m_deferredAcknowledgements.Count;
+            Volatile.Write(ref m_deferredCount, count);
             if (!m_deferredWarningRaised && count >= kDeferredAcknowledgementWarningThreshold)
             {
                 m_deferredWarningRaised = true;
@@ -3089,10 +3455,14 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         continue;
                     }
-                    List<PendingAcknowledgement> batch = [];
+                    List<PendingAcknowledgement> batch = ResetBatch();
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
+                    bool publishPending = false;
+                    long epoch = 0;
+                    long requestSequence = 0;
+                    NodeId publishSessionId = NodeId.Null;
                     // A quiesce can abort this attempt without stopping the worker.
                     var attempt = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     CancellationToken attemptToken = attempt.Token;
@@ -3125,6 +3495,13 @@ namespace Opc.Ua.Client.Subscriptions
                         long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
+                        publishSessionId = m_outer.m_session.SessionId;
+                        if (!m_outer.TryCapturePublishDispatch(out epoch, out requestSequence))
+                        {
+                            m_outer.RequeueAcknowledgements(batch);
+                            continue;
+                        }
+                        publishPending = true;
                         PublishResponse response = await m_outer.m_session.PublishAsync(
                             new RequestHeader
                             {
@@ -3132,6 +3509,7 @@ namespace Opc.Ua.Client.Subscriptions
                                 ReturnDiagnostics = (uint)(int)m_outer.ReturnDiagnostics,
                                 RequestHandle = handle
                             }, acks, attemptToken).ConfigureAwait(false);
+                        publishPending = false;
 
                         moreNotifications = response.MoreNotifications;
                         uint subscriptionId = response.SubscriptionId;
@@ -3146,6 +3524,7 @@ namespace Opc.Ua.Client.Subscriptions
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                         m_outer.LogAcknowledgementResults(acknowledgeResults);
                         m_outer.ReportAcknowledgementResults(batch, acknowledgeResults);
+                        m_outer.RecordPublishSuccess(epoch, requestSequence);
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -3335,6 +3714,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }
 
                         Interlocked.Increment(ref m_outer.m_badPublishRequestCount);
+                        bool requestFailed = publishActive && publishPending;
                         if (publishActive)
                         {
                             // Only a failed service request needs acknowledgement rollback.
@@ -3367,8 +3747,8 @@ namespace Opc.Ua.Client.Subscriptions
                             // ignore
                         }
                         // Transport is down or the session/channel is no longer
-                        // valid. The session-level reconnect/failover logic owns
-                        // recovery; throttle so the worker does not spin issuing
+                        // valid. Notify the session-level reconnect/failover owner
+                        // and throttle so the worker does not spin issuing
                         // Publish requests that fail instantly (for example
                         // BadNotConnected while the channel is being rebuilt).
                         else if (statusCode == StatusCodes.BadSessionIdInvalid ||
@@ -3378,6 +3758,12 @@ namespace Opc.Ua.Client.Subscriptions
                             statusCode == StatusCodes.BadConnectionClosed)
                         {
                             moreNotifications = false; // throttle
+                            if (requestFailed && !attemptToken.IsCancellationRequested)
+                            {
+                                await m_outer.ReportPublishRecoveryErrorAsync(
+                                    epoch, requestSequence, publishSessionId, error, attemptToken)
+                                    .ConfigureAwait(false);
+                            }
                             // Log the transport-down transition once per status
                             // rather than a full stack trace every iteration.
                             if (m_lastLoggedErrorStatus != statusCode)
@@ -3535,7 +3921,7 @@ namespace Opc.Ua.Client.Subscriptions
                             // Throws when the wait timed out or was cancelled;
                             // the finally below still rescues a racing ack.
                             await pausedTask.ConfigureAwait(false);
-                            return [];
+                            return ResetBatch();
                         }
                         firstAck = await readTask.ConfigureAwait(false);
                         readConsumed = true;
@@ -3569,8 +3955,7 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (OperationCanceledException)
                     {
                     }
-                    List<PendingAcknowledgement> acks = GetAcksReadyToSend();
-                    acks.Insert(0, firstAck);
+                    List<PendingAcknowledgement> acks = GetAcksReadyToSend(firstAck);
                     if (m_logger.IsEnabled(LogLevel.Debug))
                     {
                         m_logger.PublishWorkerPublishAcksAfterPausing(
@@ -3588,7 +3973,7 @@ namespace Opc.Ua.Client.Subscriptions
                             Index,
                             m_outer.m_timeProvider.GetElapsedTime(swStart));
                     }
-                    return [];
+                    return ResetBatch();
                 }
                 finally
                 {
@@ -3598,12 +3983,18 @@ namespace Opc.Ua.Client.Subscriptions
             }
 
             /// <summary>
-            /// Get acks that are ready to send
+            /// Get acks that are ready to send. The worker's batch list is reused for every
+            /// Publish request; nothing retains it beyond the request.
             /// </summary>
-            /// <returns></returns>
-            private List<PendingAcknowledgement> GetAcksReadyToSend()
+            /// <param name="first">An acknowledgement already read that goes first.</param>
+            private List<PendingAcknowledgement> GetAcksReadyToSend(
+                PendingAcknowledgement? first = null)
             {
-                var acks = new List<PendingAcknowledgement>();
+                List<PendingAcknowledgement> acks = ResetBatch();
+                if (first.HasValue)
+                {
+                    acks.Add(first.Value);
+                }
 
                 // TODO: Is this something that we can get from ops limit?
                 int available = m_outer.m_acks.Reader.Count;
@@ -3620,6 +4011,20 @@ namespace Opc.Ua.Client.Subscriptions
                     m_logger.PublishWorkerAcknowledging(Index, acks.Count, available);
                 }
                 return acks;
+            }
+
+            /// <summary>
+            /// Empties the reused batch list, releasing its storage after an unusually
+            /// large burst.
+            /// </summary>
+            private List<PendingAcknowledgement> ResetBatch()
+            {
+                m_batch.Clear();
+                if (m_batch.Capacity > kMaxRetainedBatchCapacity)
+                {
+                    m_batch.Capacity = 0;
+                }
+                return m_batch;
             }
 
             /// <summary>
@@ -3689,6 +4094,8 @@ namespace Opc.Ua.Client.Subscriptions
                 return minPublishInterval - (int)latency;
             }
 
+            private const int kMaxRetainedBatchCapacity = 4096;
+            private readonly List<PendingAcknowledgement> m_batch = [];
             private readonly ILogger m_logger;
             private readonly SubscriptionManager m_outer;
             private readonly CancellationTokenSource m_cts;
@@ -3706,6 +4113,7 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
         private const int kDeferredAcknowledgementWarningThreshold = 1000;
+        private const int kStackAllocThreshold = 256;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
@@ -3726,6 +4134,19 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private readonly List<SubscriptionAcknowledgement> m_presentedAcknowledgements = [];
         private bool m_deferredWarningRaised;
+        /// <summary>
+        /// Number of <see cref="m_deferredAcknowledgements"/>, written under
+        /// <see cref="m_acknowledgementPolicyLock"/> and read without it, so a Publish
+        /// worker skips the lock while nothing is deferred. An entry deferred
+        /// concurrently with such a read is picked up by the next Publish request.
+        /// </summary>
+        private int m_deferredCount;
+        /// <summary>
+        /// Incremented under <see cref="m_subscriptionLock"/> whenever subscription
+        /// ownership changes (registration, removal, supersession or claims), so a batch
+        /// validated before an unlocked step only needs a full revalidation when it moved.
+        /// </summary>
+        private long m_ownershipVersion;
         private readonly AcknowledgementOutcomeDispatcher m_outcomeDispatcher;
         /// <summary>
         /// Acknowledgements that are queued, deferred or in flight and have not ended yet.
@@ -3754,9 +4175,22 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
         private readonly AsyncManualResetEvent m_drainSignal = new(true);
+        private readonly AsyncManualResetEvent m_subscriptionUpdateDrainSignal = new(true);
         private readonly AsyncManualResetEvent m_sessionAvailable = new(true);
         private readonly SemaphoreSlim m_publishQuiescenceGate = new(1, 1);
         private readonly Lock m_publishStateLock = new();
+
+        /// <summary>Publishing lifecycle epoch, guarded by <see cref="m_publishStateLock"/>.</summary>
+        private long m_publishEpoch;
+
+        /// <summary>Attempt sequence, guarded by <see cref="m_publishStateLock"/>.</summary>
+        private long m_publishRequestSequence;
+
+        /// <summary>Recovery or success ordering boundary, guarded by <see cref="m_publishStateLock"/>.</summary>
+        private long m_publishRecoveryWatermark;
+
+        /// <summary>Whether this outage was reported, guarded by <see cref="m_publishStateLock"/>.</summary>
+        private bool m_publishRecoveryReported;
         private readonly HashSet<CancellationTokenSource> m_activePublishAttempts = [];
         private readonly HashSet<CancellationTokenSource> m_activeSubscriptionUpdates = [];
         private readonly CancellationToken m_disposeToken;

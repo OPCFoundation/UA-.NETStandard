@@ -688,21 +688,31 @@ namespace Opc.Ua.Client.Subscriptions
         /// A growing deferred backlog is reported once, not on every Publish.
         /// </summary>
         /// <param name="testCt">Test cancellation token.</param>
-        [Test]
+        [TestCase(false)]
+        [TestCase(true)]
         [CancelAfter(10_000)]
-        public async Task DeferredBacklogWarningIsLoggedOnceAsync(CancellationToken testCt)
+        public async Task DeferredBacklogWarningIsLoggedOnceAsync(
+            bool useAcknowledgementProvider,
+            CancellationToken testCt)
         {
             var provider = new CapturingLoggerProvider();
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(provider));
             var context = new FakeSubscriptionManagerContext();
             List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            if (useAcknowledgementProvider)
+            {
+                context.AcknowledgementProvider = new TestAcknowledgementProvider { Defer = _ => true };
+            }
+            else
+            {
+                context.OnPrepareAcknowledgements = acknowledgements => ([], acknowledgements);
+            }
             await using var manager = new SubscriptionManager(context, loggerFactory, DiagnosticsMasks.None)
             {
                 MinPublishWorkerCount = 1,
                 MaxPublishWorkerCount = 1
             };
             int publishes = 0;
-            context.OnPrepareAcknowledgements = acknowledgements => ([], acknowledgements);
             context.OnPublishAsync = async (_, acknowledgements, ct) =>
             {
                 Interlocked.Increment(ref publishes);
@@ -1481,6 +1491,243 @@ namespace Opc.Ua.Client.Subscriptions
 
             await WaitUntilAsync(() => sent.Contains(9u), testCt).ConfigureAwait(false);
             Assert.That(provider.Cancelled, Is.True, "The decision was cancelled with the attempt.");
+        }
+
+        /// <summary>
+        /// A provider decision that defers one acknowledgement with repeated and out-of-range
+        /// indices defers it once, sends the others, and sends it with a later request.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task PartialProviderDeferralIgnoresInvalidIndicesAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            int deferrals = 0;
+            var provider = new CallbackAcknowledgementProvider
+            {
+                OnDecide = handles =>
+                {
+                    for (int i = 0; i < handles.Count; i++)
+                    {
+                        if (handles[i].SequenceNumber == 2 && Interlocked.Exchange(ref deferrals, 1) == 0)
+                        {
+                            return new ValueTask<int[]>([i, i, handles.Count, -1]);
+                        }
+                    }
+                    return new ValueTask<int[]>([]);
+                }
+            };
+            context.AcknowledgementProvider = provider;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var publishBatches = new ConcurrentQueue<uint[]>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                var batch = new List<uint>(acknowledgements.Count);
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    batch.Add(acknowledgement.SequenceNumber);
+                }
+                publishBatches.Enqueue(batch.ToArray());
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            for (uint sequenceNumber = 1; sequenceNumber <= 3; sequenceNumber++)
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = sequenceNumber },
+                    testCt).ConfigureAwait(false);
+            }
+            manager.Resume();
+
+            await WaitUntilAsync(
+                () => publishBatches.Any(batch => batch.Contains(2u)),
+                testCt)
+                .ConfigureAwait(false);
+            await manager.RunWithPublishingQuiescedAsync(_ => default, testCt).ConfigureAwait(false);
+            uint[][] batches = publishBatches.ToArray();
+            int firstNonEmptyBatch = Array.FindIndex(batches, batch => batch.Length != 0);
+            int deferredBatch = Array.FindIndex(batches, batch => batch.Contains(2u));
+
+            Assert.That(firstNonEmptyBatch, Is.GreaterThanOrEqualTo(0));
+            Assert.That(batches[firstNonEmptyBatch], Does.Contain(1u));
+            Assert.That(batches[firstNonEmptyBatch], Does.Contain(3u));
+            Assert.That(batches[firstNonEmptyBatch], Does.Not.Contain(2u),
+                "The initial Publish request must send the non-deferred acknowledgements only.");
+            Assert.That(deferredBatch, Is.GreaterThan(firstNonEmptyBatch),
+                "The deferred acknowledgement must appear in a later Publish request.");
+            Assert.That(Volatile.Read(ref deferrals), Is.EqualTo(1));
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 1u)), Is.EqualTo(1));
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 2u)), Is.EqualTo(1),
+                "A repeated index defers the acknowledgement once.");
+            Assert.That(batches.Sum(batch => batch.Count(sequenceNumber => sequenceNumber == 3u)), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// An acknowledgement whose owner was recreated while the provider decided is not sent,
+        /// and is reported as retired, although no registration changed meanwhile.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task OwnerRecreatedWhileTheProviderDecidesIsNotSentAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var observer = new TestAcknowledgementObserver();
+            context.AcknowledgementObserver = observer;
+            int recreated = 0;
+            context.AcknowledgementProvider = new CallbackAcknowledgementProvider
+            {
+                OnDecide = handles =>
+                {
+                    for (int i = 0; i < handles.Count; i++)
+                    {
+                        if (handles[i].SequenceNumber == 7 && Interlocked.Exchange(ref recreated, 1) == 0)
+                        {
+                            partitions[0].MessageGeneration++;
+                        }
+                    }
+                    return new ValueTask<int[]>([]);
+                }
+            };
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription owner = partitions[0];
+            FakeManagedSubscription control = partitions[1];
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            long generation = owner.MessageGeneration;
+            manager.TrackAcknowledgement(owner, generation, 7);
+            manager.Resume();
+
+            await manager.QueueAsync(owner, generation,
+                new SubscriptionAcknowledgement { SubscriptionId = owner.Id, SequenceNumber = 7 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => Volatile.Read(ref recreated) != 0, testCt).ConfigureAwait(false);
+            manager.TrackAcknowledgement(control, control.MessageGeneration, 9);
+            await manager.QueueAsync(control, control.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = control.Id, SequenceNumber = 9 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SubscriptionId == control.Id) &&
+                observer.CountBySequenceNumber(7) == 1, testCt).ConfigureAwait(false);
+            Assert.That(sent.Any(ack => ack.SubscriptionId == owner.Id), Is.False,
+                "An acknowledgement of a recreated owner must not be sent.");
+            Assert.That(observer.All.Single(outcome => outcome.Handle.SequenceNumber == 7).Disposition,
+                Is.EqualTo(AcknowledgementDisposition.OwnerRetired));
+        }
+
+        /// <summary>
+        /// An acknowledgement whose owner was removed while the provider decided is not sent,
+        /// although the owner kept its server id and message generation.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task OwnerRemovedWhileTheProviderDecidesIsNotSentAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription owner = partitions[0];
+            FakeManagedSubscription control = partitions[1];
+            int removed = 0;
+            context.AcknowledgementProvider = new CallbackAcknowledgementProvider
+            {
+                OnDecide = async handles =>
+                {
+                    for (int i = 0; i < handles.Count; i++)
+                    {
+                        if (handles[i].SequenceNumber == 7 && Interlocked.Exchange(ref removed, 1) == 0)
+                        {
+                            await manager.CompleteAsync(owner, owner.Id, CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    return [];
+                }
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            uint ownerId = owner.Id;
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = ownerId, SequenceNumber = 7 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => Volatile.Read(ref removed) != 0, testCt).ConfigureAwait(false);
+            await manager.QueueAsync(control, control.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = control.Id, SequenceNumber = 9 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SubscriptionId == control.Id), testCt)
+                .ConfigureAwait(false);
+            Assert.That(owner.Id, Is.EqualTo(ownerId), "The owner kept its server id.");
+            Assert.That(sent.Any(ack => ack.SubscriptionId == ownerId), Is.False,
+                "An acknowledgement of a removed owner must not be sent.");
+        }
+
+        /// <summary>
+        /// Acknowledgement provider that delegates its decision to a callback which returns
+        /// the deferred indices.
+        /// </summary>
+        private sealed class CallbackAcknowledgementProvider : ISubscriptionAcknowledgementProvider
+        {
+            public Func<ArrayOf<AcknowledgementHandle>, ValueTask<int[]>> OnDecide { get; set; } =
+                _ => new ValueTask<int[]>([]);
+
+            public async ValueTask<AcknowledgementDecision> DecideAsync(
+                ArrayOf<AcknowledgementHandle> acknowledgements,
+                CancellationToken ct = default)
+            {
+                int[] deferred = await OnDecide(acknowledgements).ConfigureAwait(false);
+                return new AcknowledgementDecision(deferred);
+            }
         }
 
         /// <summary>
@@ -2589,6 +2836,86 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 await sut.DisposeAsync().ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Drain does not complete while a subscription update can still mutate server state.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task DrainAsyncWaitsForInFlightSubscriptionUpdateAsync(CancellationToken testCt)
+        {
+            var sut = new SubscriptionManager(
+                new FakeSubscriptionManagerContext(),
+                m_telemetry.LoggerFactory,
+                DiagnosticsMasks.None);
+            var updateEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseUpdate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                Task update = sut.RunWithSessionAvailableAsync(async ct =>
+                {
+                    updateEntered.TrySetResult(true);
+                    await releaseUpdate.Task.WaitAsync(ct).ConfigureAwait(false);
+                }, testCt).AsTask();
+
+                await updateEntered.Task.WaitAsync(testCt).ConfigureAwait(false);
+                using var drainCts = CancellationTokenSource.CreateLinkedTokenSource(testCt);
+                drainCts.CancelAfter(TimeSpan.FromMilliseconds(300));
+                Assert.That(
+                    async () => await sut.DrainAsync(drainCts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                releaseUpdate.TrySetResult(true);
+                await update.WaitAsync(testCt).ConfigureAwait(false);
+                await sut.DrainAsync(testCt).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseUpdate.TrySetResult(true);
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Failed adoption fences the server session before local wrapper disposal can delete
+        /// subscriptions that still belong to the handoff.
+        /// </summary>
+        [Test]
+        public async Task FailedAdoptionAbandonsServerSessionBeforeDisposingSubscriptionAsync()
+        {
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 42,
+                Created = true
+            };
+            subscription.OnDisposeAsync = () =>
+            {
+                Assert.That(m_session.AbandonServerSessionCalls, Is.EqualTo(1));
+                return default;
+            };
+            m_session.CreateSubscriptionFactory = (_, _, _) => subscription;
+            SubscriptionStateSnapshot snapshot = SubscriptionStateSnapshot.AsOptions(
+                new SubscriptionOptions { DisableUnboundedItemMode = true },
+                42,
+                [],
+                []);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_subscriptionManager.AdoptGroupAsync(
+                    m_mockNotificationDataHandler.Object,
+                    [snapshot],
+                    CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure?.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+                Assert.That(m_session.AbandonServerSessionCalls, Is.EqualTo(1));
+                Assert.That(m_session.DeleteCallsCount, Is.Zero);
+                Assert.That(subscription.DisposeAsyncCalls, Is.EqualTo(1));
+            });
         }
 
         /// <summary>

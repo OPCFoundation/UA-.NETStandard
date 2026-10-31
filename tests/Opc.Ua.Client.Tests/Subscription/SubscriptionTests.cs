@@ -555,6 +555,300 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Verifies stop detection follows the threshold and recovers on a subsequent publish.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldReportStoppedAfterThresholdAndRecoverAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(TimeSpan.FromSeconds(5));
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                clock.Advance(TimeSpan.FromMilliseconds(6500));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+
+                clock.Advance(TimeSpan.FromMilliseconds(5500));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(2), null, [])
+                    .ConfigureAwait(false);
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Recovered));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a slow stopped-state handler does not delay the next watchdog notification.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldScheduleBeforeStoppedStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                int handlerCalls = 0;
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped && Interlocked.Increment(ref handlerCalls) == 1)
+                    {
+                        clock.Advance(TimeSpan.FromSeconds(2));
+                    }
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+
+                clock.Advance(TimeSpan.FromMilliseconds(3500));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+            }
+        }
+
+        /// <summary>
+        /// Verifies recovery refreshes the watchdog before invoking a synchronous state-change handler.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldRearmBeforeRecoveredStateHandlerAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                var states = new List<PublishState>();
+                bool recoveryHandlerCompleted = false;
+                var messageDispatched = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    states.Add(state);
+                    if (state == PublishState.Recovered)
+                    {
+                        clock.Advance(TimeSpan.FromMilliseconds(100));
+                        recoveryHandlerCompleted = true;
+                    }
+                };
+                sut.OnKeepAliveAsync = () =>
+                {
+                    messageDispatched.TrySetResult(recoveryHandlerCompleted);
+                    return default;
+                };
+
+                clock.Advance(TimeSpan.FromMilliseconds(6501));
+                clock.Advance(TimeSpan.FromMilliseconds(5499));
+                await sut.OnPublishReceivedAsync(BuildKeepAliveMessage(1), null, [])
+                    .ConfigureAwait(false);
+
+                Assert.That(await messageDispatched.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+                Assert.That(states, Is.EqualTo(new[] { PublishState.Stopped, PublishState.Recovered }));
+                Assert.That(sut.PublishingStopped, Is.False);
+
+                clock.Advance(TimeSpan.FromMilliseconds(6400));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(2));
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(3));
+            }
+        }
+
+        /// <summary>
+        /// Verifies early callbacks never schedule a sub-millisecond timer delay.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(5000)]
+        [TestCase(9999)]
+        public async Task KeepAliveTimerShouldClampFractionalMillisecondRechecksAsync(long remainingTicks)
+        {
+            var clock = new Mock<FakeTimeProvider> { CallBase = true };
+            var timer = new Mock<ITimer>();
+            TimerCallback? watchdogCallback = null;
+            clock.Setup(provider => provider.CreateTimer(
+                    It.IsAny<TimerCallback>(), It.IsAny<object>(),
+                    It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
+                .Callback<TimerCallback, object?, TimeSpan, TimeSpan>((callback, _, _, _) =>
+                    watchdogCallback = callback)
+                .Returns(timer.Object);
+            clock.Object.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock.Object);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                timer.Invocations.Clear();
+
+                clock.Object.Advance(TimeSpan.FromMilliseconds(6500) - TimeSpan.FromTicks(remainingTicks));
+                Assert.That(watchdogCallback, Is.Not.Null);
+                watchdogCallback!(null);
+
+                timer.Verify(value => value.Change(
+                    TimeSpan.FromMilliseconds(1), Timeout.InfiniteTimeSpan), Times.Once);
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// Verifies a callback cannot restart the watchdog after transfer pauses it.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldNotRestartWhileTransferPausesItAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            using var handlerEntered = new ManualResetEventSlim();
+            using var releaseHandler = new ManualResetEventSlim();
+            var transferCallEntered = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var transferResponse = new TaskCompletionSource<CallResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<bool>? transferTask = null;
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.FromMilliseconds(500), 10, 30, 3, 10, false);
+                sut.ResetPublishStateForTest();
+                sut.OnPublishStateChangedAction = state =>
+                {
+                    if (state == PublishState.Stopped)
+                    {
+                        handlerEntered.Set();
+                        releaseHandler.Wait();
+                    }
+                };
+                m_mockMethodServices
+                    .Setup(service => service.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.Is<ArrayOf<CallMethodRequest>>(requests =>
+                            requests.Count == 1 &&
+                            requests[0].MethodId == MethodIds.Server_GetMonitoredItems),
+                        It.IsAny<CancellationToken>()))
+                    .Callback(() => transferCallEntered.TrySetResult(true))
+                    .Returns(() => new ValueTask<CallResponse>(transferResponse.Task));
+
+                Task timerCallback = Task.Run(() =>
+                    clock.Advance(TimeSpan.FromMilliseconds(6501)));
+                try
+                {
+                    Assert.That(handlerEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+                    transferTask = sut.TryCompleteTransferAsync([], CancellationToken.None).AsTask();
+                    await transferCallEntered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                        .ConfigureAwait(false);
+                    releaseHandler.Set();
+                    await timerCallback.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    clock.Advance(TimeSpan.FromMilliseconds(5500));
+                    Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+                }
+                finally
+                {
+                    releaseHandler.Set();
+                    transferResponse.TrySetResult(new CallResponse
+                    {
+                        Results =
+                        [
+                            new CallMethodResult
+                            {
+                                StatusCode = StatusCodes.BadMethodInvalid,
+                                OutputArguments = []
+                            }
+                        ]
+                    });
+                }
+
+                Assert.That(await transferTask!.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies an initial publishing silence is detected at the minimum watchdog interval.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldDetectInitialSilenceAtMinimumIntervalAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                sut.SetOptionsForTest(TestSubscription.SubscriptionOptions with
+                {
+                    PublishingInterval = TimeSpan.Zero,
+                    KeepAliveCount = 1
+                });
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    TimeSpan.Zero, 1, 3, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(TimeSpan.FromSeconds(2));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Verifies a maximum watchdog interval is checked in timer-supported segments.
+        /// </summary>
+        [Test]
+        public async Task KeepAliveTimerShouldSegmentMaximumIntervalThresholdAsync()
+        {
+            var clock = new FakeTimeProvider();
+            clock.Advance(TimeSpan.FromTicks(1));
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22, timeProvider: clock);
+            await using (sut.ConfigureAwait(false))
+            {
+                TimeSpan maximumInterval = TimeSpan.FromMilliseconds(uint.MaxValue - 1u);
+                sut.OnSubscriptionUpdateComplete(false, 22,
+                    maximumInterval, 0, 3, 3, 10, false);
+                sut.ResetPublishStateForTest();
+
+                clock.Advance(maximumInterval);
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromSeconds(1));
+                Assert.That(sut.PublishStateChangedCount, Is.Zero);
+
+                clock.Advance(TimeSpan.FromMilliseconds(1));
+                Assert.That(sut.LastPublishState, Is.EqualTo(PublishState.Stopped));
+                Assert.That(sut.PublishStateChangedCount, Is.EqualTo(1));
+            }
+        }
+
         private static async Task<bool> WaitForSignalAsync(
             AsyncManualResetEvent signal,
             TimeSpan timeout)
@@ -3332,6 +3626,10 @@ namespace Opc.Ua.Client.Subscriptions
             public AsyncManualResetEvent SubscriptionStateChanged { get; } = new();
             public AsyncManualResetEvent PublishStateChanged { get; } = new();
             public PublishState LastPublishState { get; private set; }
+            /// <summary>
+            /// Gets the number of publish-state notifications observed by the test subscription.
+            /// </summary>
+            public int PublishStateChangedCount { get; private set; }
             public uint LastSequenceNumberForTest => LastSequenceNumberProcessed;
             public uint LastDataSequenceNumberForTest => LastDataSequenceNumberProcessed;
 
@@ -3346,6 +3644,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             public Func<ValueTask>? OnKeepAliveAsync { get; set; }
             public Func<uint, ValueTask>? OnDataChangeAsync { get; set; }
+            public Action<PublishState>? OnPublishStateChangedAction { get; set; }
 
             /// <summary>
             /// Observes an actual asynchronous admission wait, not merely receipt of a response.
@@ -3383,7 +3682,17 @@ namespace Opc.Ua.Client.Subscriptions
             public void ResetPublishStateForTest()
             {
                 LastPublishState = default;
+                PublishStateChangedCount = 0;
                 PublishStateChanged.Reset();
+            }
+
+            /// <summary>
+            /// Sets the options used for the watchdog fallback calculation.
+            /// </summary>
+            /// <param name="options">The options to apply.</param>
+            public void SetOptionsForTest(SubscriptionOptions options)
+            {
+                Options = options;
             }
 
             protected override void OnSubscriptionStateChanged(SubscriptionState state)
@@ -3398,7 +3707,9 @@ namespace Opc.Ua.Client.Subscriptions
             protected override void OnPublishStateChanged(PublishState stateMask)
             {
                 LastPublishState = stateMask;
+                PublishStateChangedCount++;
                 PublishStateChanged.Set();
+                OnPublishStateChangedAction?.Invoke(stateMask);
                 base.OnPublishStateChanged(stateMask);
             }
 

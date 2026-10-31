@@ -298,6 +298,26 @@ namespace Opc.Ua.Client
         public bool LoadComplexTypes { get; init; }
 
         /// <summary>
+        /// <para>
+        /// The server session to take over when the session connects, as returned by
+        /// <see cref="ManagedSession.RetireAsync"/> of its previous owner. The session then
+        /// activates the saved server session on a new secure channel instead of creating a new
+        /// one and keeps the subscriptions of the handoff, without any subscription service call.
+        /// </para>
+        /// <para>
+        /// When <see cref="Endpoint"/> is null the endpoint of the handoff is used. Taking over
+        /// requires the default subscription engine. After the session connected it recovers like
+        /// any other session.
+        /// </para>
+        /// </summary>
+        public SessionHandoff? TakeoverFrom { get; init; }
+
+        /// <summary>
+        /// How the session takes over <see cref="TakeoverFrom"/>; ignored without a handoff.
+        /// </summary>
+        public SessionTakeoverOptions? Takeover { get; init; }
+
+        /// <summary>
         /// Checks whether a timeout selects automatic recovery, opts out,
         /// or specifies a positive duration within the supported timer range.
         /// </summary>

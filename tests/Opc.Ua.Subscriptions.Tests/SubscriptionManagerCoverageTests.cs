@@ -581,6 +581,23 @@ namespace Opc.Ua.Subscriptions.Tests
         /// </summary>
         private sealed class StubSubscriptionManagerContext : ISubscriptionManagerContext
         {
+            /// <inheritdoc/>
+            public NodeId SessionId => new(1);
+
+            /// <inheritdoc/>
+            public void AbandonServerSession()
+            {
+                throw new InvalidOperationException(
+                    "The coverage stub cannot abandon a server session.");
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<bool> OnPublishRecoveryErrorAsync(
+                NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
+            {
+                throw new InvalidOperationException("The quiescent manager must not request recovery.");
+            }
+
             public int SessionSubscriptionCount => 0;
 
             public int CreateSubscriptionCallCount { get; private set; }

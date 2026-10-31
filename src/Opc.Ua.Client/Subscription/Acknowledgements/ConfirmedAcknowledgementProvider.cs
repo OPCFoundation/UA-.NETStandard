@@ -84,6 +84,12 @@ namespace Opc.Ua.Client
             m_tracked.TryRemove(handle, out _);
         }
 
+        /// <inheritdoc/>
+        public bool Release(AcknowledgementHandle handle)
+        {
+            return m_tracked.TryRemove(handle, out bool confirmed) && confirmed;
+        }
+
         /// <summary>
         /// Records that the application processed a notification. Has no effect unless the
         /// acknowledgement is tracked and has not ended.

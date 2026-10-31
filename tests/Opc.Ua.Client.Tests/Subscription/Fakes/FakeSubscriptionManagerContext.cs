@@ -43,6 +43,53 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// </summary>
     internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
     {
+        /// <inheritdoc/>
+        public NodeId SessionId { get; set; } = new(1);
+
+        /// <summary>
+        /// Number of times the session was abandoned before local adoption rollback.
+        /// </summary>
+        public int AbandonServerSessionCalls { get; private set; }
+
+        /// <summary>
+        /// Optional observer for session abandonment.
+        /// </summary>
+        public Action? OnAbandonServerSession { get; set; }
+
+        /// <inheritdoc/>
+        public void AbandonServerSession()
+        {
+            AbandonServerSessionCalls++;
+            OnAbandonServerSession?.Invoke();
+        }
+
+        /// <summary>
+        /// Optional observer of recovery notifications from Publish workers.
+        /// </summary>
+        public Action<NodeId, ServiceResult>? OnRecoveryError { get; set; }
+
+        /// <summary>
+        /// Optional gate controlling whether a recovery notification is accepted.
+        /// </summary>
+        public Func<CancellationToken, ValueTask<bool>>? RecoveryAdmissionAsync { get; set; }
+
+        /// <inheritdoc/>
+        public async ValueTask<bool> OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct)
+        {
+            if (RecoveryAdmissionAsync != null &&
+                !await RecoveryAdmissionAsync(ct).ConfigureAwait(false))
+            {
+                return false;
+            }
+            if (isCurrent())
+            {
+                OnRecoveryError?.Invoke(sessionId, error);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);

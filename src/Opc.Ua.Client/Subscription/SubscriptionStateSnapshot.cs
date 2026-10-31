@@ -211,6 +211,41 @@ namespace Opc.Ua.Client.Subscriptions
         public partial ArrayOf<MonitoredItemStateSnapshot> MonitoredItems { get; init; }
 
         /// <summary>
+        /// Whether the snapshot carries server-revised runtime values for session takeover.
+        /// </summary>
+        internal bool HasRevisedSettings { get; init; }
+
+        /// <summary>
+        /// The server-revised publishing interval captured for session takeover.
+        /// </summary>
+        internal TimeSpan RevisedPublishingInterval { get; init; }
+
+        /// <summary>
+        /// The server-revised keep-alive count captured for session takeover.
+        /// </summary>
+        internal uint RevisedKeepAliveCount { get; init; }
+
+        /// <summary>
+        /// The server-revised lifetime count captured for session takeover.
+        /// </summary>
+        internal uint RevisedLifetimeCount { get; init; }
+
+        /// <summary>
+        /// The server-revised priority captured for session takeover.
+        /// </summary>
+        internal byte RevisedPriority { get; init; }
+
+        /// <summary>
+        /// The server-revised maximum notifications per publish captured for session takeover.
+        /// </summary>
+        internal uint RevisedMaxNotificationsPerPublish { get; init; }
+
+        /// <summary>
+        /// The server-revised publishing state captured for session takeover.
+        /// </summary>
+        internal bool RevisedPublishingEnabled { get; init; }
+
+        /// <summary>
         /// Project the encoded surrogate fields back into a live
         /// <see cref="SubscriptionOptions"/>. Not serialized.
         /// </summary>

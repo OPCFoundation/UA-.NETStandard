@@ -41,6 +41,26 @@ namespace Opc.Ua.Client.Subscriptions
     internal interface ISubscriptionManagerContext
     {
         /// <summary>
+        /// Gets the session identity associated with a Publish attempt.
+        /// </summary>
+        NodeId SessionId { get; }
+
+        /// <summary>
+        /// Abandons the session before rolling back failed subscription adoption, so
+        /// disposing local wrappers cannot delete server subscriptions owned by the handoff.
+        /// </summary>
+        void AbandonServerSession();
+
+        /// <summary>
+        /// Reports a definitive failure of a Publish request from the specified session.
+        /// The failed attempt has already rolled back acknowledgements and released its active count.
+        /// Revalidate <paramref name="isCurrent"/> under session recovery admission before invoking callbacks.
+        /// </summary>
+        /// <returns>Whether the session accepted the recovery notification.</returns>
+        ValueTask<bool> OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct);
+
+        /// <summary>
         /// Gets the number of created subscriptions the session owns outside this
         /// manager's registry, for example through the classic
         /// <c>Session.AddSubscription</c> API.

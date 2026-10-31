@@ -47,5 +47,12 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="handle">The acknowledgement that ended.</param>
         void Complete(AcknowledgementHandle handle);
+
+        /// <summary>
+        /// Stops tracking an acknowledgement that moves to another session, without an outcome.
+        /// </summary>
+        /// <param name="handle">The acknowledgement that moves.</param>
+        /// <returns><c>true</c> if the application had confirmed the notification.</returns>
+        bool Release(AcknowledgementHandle handle);
     }
 }

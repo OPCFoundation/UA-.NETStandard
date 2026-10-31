@@ -301,6 +301,35 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(invocations, Is.Zero);
         }
 
+        /// <summary>
+        /// Publish recovery errors use the existing keep-alive trigger without competing with channel recovery.
+        /// </summary>
+        [TestCase(ChannelState.Ready, 1)]
+        [TestCase(ChannelState.TransportReconnecting, 0)]
+        [TestCase(ChannelState.TransportConnectedSessionReactivating, 0)]
+        public async Task PublishRecoveryKeepAliveRespectsChannelOwnerAsync(
+            ChannelState state, int expectedOuterRecoveries)
+        {
+            using var innerSession = SessionMock.Create();
+            innerSession.SetConnected();
+            Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(out _);
+            channel.SetupGet(value => value.State).Returns(state);
+            await using ManagedSessionClass session = await CreateManagedSessionWithInnerAsync(
+                innerSession, channel.Object).ConfigureAwait(false);
+            int outerRecoveries = 0;
+            session.ConnectionStateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Reconnecting)
+                {
+                    Interlocked.Increment(ref outerRecoveries);
+                }
+            };
+
+            RaiseKeepAliveOnInner(innerSession, new ServiceResult(StatusCodes.BadSecureChannelClosed));
+
+            Assert.That(Volatile.Read(ref outerRecoveries), Is.EqualTo(expectedOuterRecoveries));
+        }
+
         [Test]
         public async Task ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
         {

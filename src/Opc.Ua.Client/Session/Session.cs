@@ -212,6 +212,7 @@ namespace Opc.Ua.Client
             Handle = template.Handle;
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
+            InheritSessionGeneration(template);
 
             // The keep alive timer is already created (in off state) by the
             // constructor this one chains to; creating a second one here would
@@ -231,6 +232,7 @@ namespace Opc.Ua.Client
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
+                SessionGenerationChanged = template.SessionGenerationChanged;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -563,7 +565,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected && CanReceiveResponses())
+                    if (Connected && CanReceiveResponses() && TryClaimServerSessionClose())
                     {
                         var request = new CloseSessionRequest
                         {
@@ -626,6 +628,7 @@ namespace Opc.Ua.Client
                 m_keepAliveTimer.Dispose();
 
                 // suppress spurious events
+                SessionGenerationChanged = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -1231,6 +1234,7 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -1578,6 +1582,18 @@ namespace Opc.Ua.Client
             SignatureData serverSignature = response.ServerSignature;
             ArrayOf<EndpointDescription> serverEndpoints = response.ServerEndpoints;
 
+            if (IsServerSessionRetained)
+            {
+                // The response arrived after the bound server session was retained for another
+                // owner. The new server session is not the retained one and nothing else can
+                // reach it, so it is closed past the fence instead of being leaked.
+                serverCertificate?.Dispose();
+                await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie).ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             m_sessionTimeout = response.RevisedSessionTimeout;
             m_maxRequestMessageSize = response.MaxRequestMessageSize;
 
@@ -1587,6 +1603,7 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
+            RaisePendingLifecycleEvents();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1783,8 +1800,18 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
-                        .ConfigureAwait(false);
+                    if (IsServerSessionRetained)
+                    {
+                        // The fence blocks the regular close, but this attempt created the
+                        // server session, which is not the retained one.
+                        await CloseLateServerSessionAsync(serviceClient, sessionId, sessionCookie)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await serviceClient.CloseSessionAsync(null, false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -1796,6 +1823,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
                 }
                 if (closeChannel)
                 {
@@ -2726,6 +2754,72 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Moves the tracked acknowledgements of a subscription from the session it left to
+        /// this session. When this session tracks no acknowledgements the previous session
+        /// ends them itself, so they still end exactly once.
+        /// </summary>
+        internal void HandOverAcknowledgements(
+            Session? previous,
+            Subscription subscription,
+            List<AcknowledgementHandover> released,
+            ArrayOf<uint> availableSequenceNumbers,
+            ArrayOf<uint> acknowledgementsToSend)
+        {
+            if (previous == null ||
+                ReferenceEquals(previous, this) ||
+                released.Count == 0 ||
+                previous.m_engine is not ClassicSubscriptionEngine previousEngine)
+            {
+                return;
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine && Acknowledgements != null)
+            {
+                engine.AdoptAcknowledgements(
+                    subscription,
+                    released,
+                    availableSequenceNumbers,
+                    acknowledgementsToSend);
+            }
+            else
+            {
+                previousEngine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        internal void RetireReleasedAcknowledgements(List<AcknowledgementHandover> released)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.RetireReleasedAcknowledgements(released);
+            }
+        }
+
+        /// <summary>
+        /// Defers source acknowledgement outcomes until the subscription transfer is resolved.
+        /// </summary>
+        /// <param name="subscription">The subscription being transferred.</param>
+        internal void BeginAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.BeginAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
+        /// Applies source acknowledgement outcomes deferred by an unsuccessful transfer.
+        /// </summary>
+        /// <param name="subscription">The subscription whose transfer was unsuccessful.</param>
+        internal void CancelAcknowledgementTransfer(Subscription subscription)
+        {
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                engine.CancelAcknowledgementTransfer(subscription);
+            }
+        }
+
+        /// <summary>
         /// Transfers the subscriptions to this session.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to transfer.</param>
@@ -2772,10 +2866,20 @@ namespace Opc.Ua.Client
                 {
                     subscription.OnTransferStarting();
                 }
+                var acknowledgementTransferSources = new Dictionary<Subscription, Session>();
                 try
                 {
                     reconnecting = Reconnecting;
                     Reconnecting = true;
+                    foreach (Subscription subscription in subscriptions)
+                    {
+                        if (subscription.Session is Session source &&
+                            !ReferenceEquals(source, this) &&
+                            acknowledgementTransferSources.TryAdd(subscription, source))
+                        {
+                            source.BeginAcknowledgementTransfer(subscription);
+                        }
+                    }
 
                     TransferSubscriptionsResponse response = await base.TransferSubscriptionsAsync(
                             null,
@@ -2814,7 +2918,6 @@ namespace Opc.Ua.Client
                             if (transferredSubscription)
                             {
                                 transferred.Add(subscriptions[ii]);
-
                                 // Messages claimed for republish are acknowledged only after receipt.
                                 foreach (uint sequenceNumber in acknowledgements)
                                 {
@@ -2878,6 +2981,10 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    foreach (KeyValuePair<Subscription, Session> transfer in acknowledgementTransferSources)
+                    {
+                        transfer.Value.CancelAcknowledgementTransfer(transfer.Key);
+                    }
                     ExitReconnectLockHolder(lockHolder);
                     foreach (Subscription subscription in subscriptions)
                     {
@@ -3526,11 +3633,14 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void AbandonServerSession()
         {
+            // Fence first: no teardown path may reach the server session from here on.
+            Volatile.Write(ref m_serverSessionFate, kServerSessionRetained);
             DeleteSubscriptionsOnClose = false;
             lock (m_lock)
             {
                 SessionCreated(default, default);
             }
+            RaisePendingLifecycleEvents();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3828,6 +3938,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingLifecycleEvents();
 
                     if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                     {
@@ -4159,12 +4270,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // close the session with the server.
+                // close the session with the server, unless it is retained for another owner.
                 if (connected)
                 {
                     try
                     {
-                        if (CanReceiveResponses())
+                        if (CanReceiveResponses() && TryClaimServerSessionClose())
                         {
                             using CancellationTokenSource timeoutCts =
                                 CreateCloseRequestCancellationTokenSource(timeout, ct);
@@ -4215,6 +4326,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
+                        RaisePendingLifecycleEvents();
                     }
                 }
 
@@ -4653,6 +4765,11 @@ namespace Opc.Ua.Client
                     // Never pass the caller token here: if it fired the session would
                     // stay Reconnecting forever and every later reconnect would fail.
                     await m_reconnectLock.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (m_engine is DefaultSubscriptionEngine engine &&
+                        engine.SubscriptionManager is Subscriptions.SubscriptionManager manager)
+                    {
+                        manager.OnSessionReactivated();
+                    }
                     Reconnecting = false;
                     resetReconnect = false;
                     m_reconnectLock.Release();
@@ -4884,6 +5001,77 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(subscription));
             }
 
+            bool removed = RemoveTransferredSubscriptionCore(subscription);
+            if (removed)
+            {
+                m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+            }
+            return removed;
+        }
+
+        internal bool RemoveTransferredSubscriptionForTransfer(
+            Subscription subscription,
+            out List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool removed = engine.ReleaseAcknowledgementsOf(
+                    subscription,
+                    () => RemoveTransferredSubscriptionCore(subscription),
+                    out released);
+                if (removed)
+                {
+                    try
+                    {
+                        m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                    }
+                    catch
+                    {
+                        engine.RetireReleasedAcknowledgements(released);
+                        throw;
+                    }
+                }
+                return removed;
+            }
+
+            released = [];
+            return RemoveTransferredSubscription(subscription);
+        }
+
+        internal bool RestoreTransferredSubscription(
+            Subscription subscription,
+            List<AcknowledgementHandover> released)
+        {
+            ThrowIfDisposed();
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
+
+            if (m_engine is ClassicSubscriptionEngine engine)
+            {
+                bool restored = engine.RestoreAcknowledgementsOf(
+                    subscription,
+                    released,
+                    () => AddTransferredSubscriptionCore(subscription));
+                if (restored)
+                {
+                    m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return restored;
+            }
+
+            return AddSubscription(subscription);
+        }
+
+        private bool RemoveTransferredSubscriptionCore(Subscription subscription)
+        {
             if (subscription.Session != this)
             {
                 return false;
@@ -4898,9 +5086,21 @@ namespace Opc.Ua.Client
 
                 subscription.Session = null;
             }
+            return true;
+        }
 
-            m_SubscriptionsChanged?.Invoke(this, EventArgs.Empty);
-
+        private bool AddTransferredSubscriptionCore(Subscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (m_subscriptions.Contains(subscription))
+                {
+                    return false;
+                }
+                subscription.Session = this;
+                subscription.Telemetry = m_telemetry;
+                m_subscriptions.Add(subscription);
+            }
             return true;
         }
 
@@ -4974,8 +5174,10 @@ namespace Opc.Ua.Client
                     m_hadSession = true;
                 }
                 m_requestContextGeneration++;
+                ObserveServerSession(sessionId);
                 RequestContextChanged?.Invoke();
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -4985,10 +5187,18 @@ namespace Opc.Ua.Client
         /// created, a request without token is not sent: after the Session
         /// was closed, it fails locally with Bad_SessionIdInvalid instead of
         /// reaching the Server as a session-less invocation. CreateSession
-        /// and ActivateSession are not affected.
+        /// and ActivateSession are not affected, unless the server session
+        /// was retained for another owner: then no request is sent at all.
         /// </remarks>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
+            if (IsServerSessionRetained)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+
             base.UpdateRequestHeader(request, useDefaults);
 
             if (m_hadSession &&
@@ -5010,8 +5220,8 @@ namespace Opc.Ua.Client
             StatusCode? sr = response?.ResponseHeader?.ServiceResult;
             if (sr != null && StatusCode.IsGood(sr.Value))
             {
-                // Any successful response proves the server is alive —
-                // reset keep-alive so we don't send a redundant read.
+                // Successful responses defer redundant keep-alive reads only while no error is latched.
+                // A latched error still needs an actual keep-alive response to clear it.
                 // The same response must also count as proof for the
                 // KeepAliveStopped freshness check, otherwise the timestamp goes
                 // stale while the keep alive read is perpetually deferred and the
@@ -5029,9 +5239,8 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsGood(m_lastKeepAliveErrorStatusCode))
                 {
                     UpdateLastKeepAliveTime();
+                    DeferKeepAlive();
                 }
-
-                DeferKeepAlive();
             }
 
             base.RequestCompleted(request, response!, serviceName);
@@ -5117,7 +5326,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Stops the keep alive timer.
         /// </summary>
-        private async ValueTask StopKeepAliveTimerAsync()
+        internal async ValueTask StopKeepAliveTimerAsync()
         {
             Task? keepAliveWorker;
             CancellationTokenSource? keepAliveCancellation;
