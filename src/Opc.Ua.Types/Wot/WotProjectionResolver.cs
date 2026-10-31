@@ -214,6 +214,21 @@ namespace Opc.Ua.Wot
                 for (int ii = 0; ii < count; ii++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    string? floor = null;
+                    foreach (WotProjectionReference reference in projection.References)
+                    {
+                        if (FindSourceIndex(projection.Sources, SplitDocumentPart(reference.Reference), projectionBase) != ii)
+                        {
+                            continue;
+                        }
+                        string? candidate = WotVersionedReference.GetRequiredVersion(
+                            projectionDocument, reference.Annotations, "ref");
+                        if (candidate is not null && (floor is null ||
+                            WotSemanticVersion.Parse(candidate).CompareTo(WotSemanticVersion.Parse(floor)) > 0))
+                        {
+                            floor = candidate;
+                        }
+                    }
                     sources[ii] = await ResolveSourceAsync(
                         projection.Sources[ii],
                         ResolveHref(projectionBase, projection.Sources[ii].Href),
@@ -221,6 +236,7 @@ namespace Opc.Ua.Wot
                         context,
                         diagnostics,
                         openDocuments,
+                        floor,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -423,6 +439,11 @@ namespace Opc.Ua.Wot
                 }
                 return Serialize(root);
             }
+            catch (WotVersionException exception)
+            {
+                AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved, exception.Code);
+                return null;
+            }
             finally
             {
                 for (int ii = 0; ii < openDocuments.Count; ii++)
@@ -497,6 +518,7 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
+            string? requiredVersion,
             CancellationToken cancellationToken)
         {
             // Every source counts against the conversion's own bounds, not only
@@ -517,7 +539,7 @@ namespace Opc.Ua.Wot
             try
             {
                 return await ResolveSourceBoundedAsync(
-                    source, href, resolving, context, diagnostics, openDocuments, cancellationToken)
+                    source, href, resolving, context, diagnostics, openDocuments, requiredVersion, cancellationToken)
                     .ConfigureAwait(false);
             }
             finally
@@ -533,10 +555,12 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             List<WotDocument> openDocuments,
+            string? requiredVersion,
             CancellationToken cancellationToken)
         {
-            WotResolverResult result = await m_thingResolver.ResolveThingAsync(
-                href, context, cancellationToken).ConfigureAwait(false);
+            WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                m_thingResolver, new WotReferenceRequest("ref", href, requiredVersion),
+                context, cancellationToken).ConfigureAwait(false);
             if (!result.Found)
             {
                 AddError(
@@ -1220,7 +1244,7 @@ namespace Opc.Ua.Wot
             }
             foreach (JsonProperty member in annotations.EnumerateObject())
             {
-                if (string.Equals(member.Name, "tm:ref", StringComparison.Ordinal) ||
+                if (member.Name is "tm:ref" or "tm:minVersion" ||
                     !WotProjection.IsPermittedAnnotation(member.Name))
                 {
                     continue;

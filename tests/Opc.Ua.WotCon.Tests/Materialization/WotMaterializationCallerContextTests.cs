@@ -253,7 +253,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await LoadTmAsync().ConfigureAwait(false);
 
             await m_registry.DeleteVersionAsync(
-                WotRegistryGroups.ThingModels, "tm-a", "v1", null, context, CancellationToken.None)
+                WotRegistryGroups.ThingModels, "tm-a", "1.0.0", null, context, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(Phases("begin"), Is.Not.Empty);
@@ -268,7 +268,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await LoadTmAsync().ConfigureAwait(false);
 
-            await m_registry.DeleteVersionAsync(WotRegistryGroups.ThingModels, "tm-a", "v1").ConfigureAwait(false);
+            await m_registry.DeleteVersionAsync(WotRegistryGroups.ThingModels, "tm-a", "1.0.0").ConfigureAwait(false);
 
             Assert.That(Phases("begin"), Is.Not.Empty);
             Assert.That(Phases("begin"), Has.All.Null);
@@ -286,7 +286,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await LoadTmAsync().ConfigureAwait(false);
 
             await m_registry.DeleteProjectedEntityAsync(
-                WotRegistryGroups.ThingModels, "tm-a", "v1", logical, null, context, CancellationToken.None)
+                WotRegistryGroups.ThingModels, "tm-a", "1.0.0", logical, null, context, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(Phases("begin"), Is.Not.Empty);
@@ -302,7 +302,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await LoadTmAsync().ConfigureAwait(false);
 
-            await m_registry.DeleteProjectedEntityAsync(WotRegistryGroups.ThingModels, "tm-a", "v1", logical)
+            await m_registry.DeleteProjectedEntityAsync(WotRegistryGroups.ThingModels, "tm-a", "1.0.0", logical)
                 .ConfigureAwait(false);
 
             Assert.That(Phases("begin"), Is.Not.Empty);
@@ -338,7 +338,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = resourceId,
-                VersionId = "v1",
+                VersionId = "1.0.0",
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(TestMaterialization.Tm("urn:" + resourceId))
             }).AsTask();

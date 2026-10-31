@@ -1,0 +1,32 @@
+{
+  "description": "Generated-shaped floors are rejected even when no such Version is present.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1",
+    "minVersion": "0.0.0-8"
+  },
+  "expect": {
+    "error": "invalid-version"
+  }
+}

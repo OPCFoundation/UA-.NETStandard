@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -67,6 +68,16 @@ namespace Opc.Ua.WotCon.Tests
             AppendLinks(builder, extendsHrefs);
             builder.Append('}');
             return Encoding.UTF8.GetBytes(builder.ToString());
+        }
+
+        /// <summary>
+        /// Assigns an authored model version independently of a content-change marker.
+        /// </summary>
+        public static byte[] WithModelVersion(byte[] content, string version)
+        {
+            JsonObject document = JsonNode.Parse(content)!.AsObject();
+            document["version"] = new JsonObject { ["model"] = version };
+            return Encoding.UTF8.GetBytes(document.ToJsonString());
         }
 
         /// <summary>

@@ -1,0 +1,55 @@
+{
+  "description": "An effective release floor excludes prereleases even when the explicit multi-link floor is a prerelease.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        },
+        {
+          "versionid": "1.2.0-rc.1",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+          "version.model": "1.2.0-rc.1"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "type",
+    "target": "urn:example:pump:v1",
+    "minVersion": "1.0.0-rc.1"
+  },
+  "document": {
+    "typeLinks": [
+      {
+        "target": "urn:example:pump:v1",
+        "minVersion": "1.0.0-rc.1"
+      },
+      {
+        "target": "urn:example:device:v1",
+        "minVersion": "1.0.0"
+      }
+    ],
+    "version.model": "1.1.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.1.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+    }
+  }
+}

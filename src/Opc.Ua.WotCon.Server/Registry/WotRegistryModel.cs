@@ -273,6 +273,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ModelVersion { get; init; }
 
         /// <summary>
+        /// Gets the Thing Description <c>version.instance</c> value parsed from this Version.
+        /// </summary>
+        public string? InstanceVersion { get; init; }
+
+        /// <summary>
         /// Gets the immutable semantic dependency index for these exact bytes.
         /// Null denotes an older provider that has not supplied the index.
         /// </summary>
@@ -351,6 +356,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = Title,
                 BaseUri = BaseUri,
                 ModelVersion = ModelVersion,
+                InstanceVersion = InstanceVersion,
                 Dependencies = Dependencies,
                 DependencySnapshot = dependencySnapshot ?? DependencySnapshot,
                 LastDependencyAttempt = lastDependencyAttempt ?? LastDependencyAttempt
@@ -365,12 +371,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="baseUri">The base URI.</param>
         /// <param name="modelVersion">The model version.</param>
         /// <param name="dependencies">The WoT resource dependencies.</param>
+        /// <param name="instanceVersion">The Thing Description instance version.</param>
         internal WotResourceVersion WithDocumentMetadata(
             string? documentId,
             string? title,
             string? baseUri,
             string? modelVersion,
-            WotResourceDependencies? dependencies = null)
+            WotResourceDependencies? dependencies = null,
+            string? instanceVersion = null)
         {
             return new WotResourceVersion(
                 VersionId,
@@ -390,6 +398,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = title,
                 BaseUri = baseUri,
                 ModelVersion = modelVersion,
+                InstanceVersion = instanceVersion,
                 Dependencies = dependencies ?? Dependencies,
                 DependencySnapshot = DependencySnapshot,
                 LastDependencyAttempt = LastDependencyAttempt
@@ -527,6 +536,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the versionid marked as default (the projected version).
         /// </summary>
         public string? DefaultVersionId { get; }
+
+        /// <summary>
+        /// Gets whether an operator pinned the logical default.
+        /// </summary>
+        public bool DefaultVersionSticky { get; init; }
 
         /// <summary>
         /// Gets the versionid the operator wants active.
@@ -775,12 +789,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title ?? Title,
                 labels ?? Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
                 CommittedVersion = clearActiveVersion ||
                     (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion,
                 CommittedInputs = clearActiveVersion ||
                     (activeVersionId is not null && activeVersionId != ActiveVersionId) ? default : CommittedInputs
+            };
+        }
+
+        /// <summary>
+        /// Creates a copy with the operator's default-version policy changed.
+        /// </summary>
+        public WotResource WithDefaultVersionSticky(bool sticky)
+        {
+            return new WotResource(GroupId, ResourceId, Kind, Versions, DefaultVersionId, DesiredVersionId,
+                ActiveVersionId, Enabled, LoadState, Validation, Diagnostics, Epoch, RefreshGeneration,
+                LastRefreshTime, MaterializedNodeCount, RootNodeId, Name, Description, ThingId, Title, Labels)
+            {
+                DefaultVersionSticky = sticky,
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = CommittedVersion,
+                CommittedInputs = CommittedInputs
             };
         }
 
@@ -819,6 +851,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 updated.Title,
                 updated.Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = modifiedAt ?? MetaModifiedAt,
                 CommittedVersion = updated.CommittedVersion,
@@ -858,6 +891,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title,
                 Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
                 CommittedVersion = CommittedVersion,

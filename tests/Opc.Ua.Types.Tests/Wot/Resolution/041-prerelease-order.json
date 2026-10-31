@@ -1,0 +1,36 @@
+{
+  "description": "Numeric prerelease identifiers sort below nonnumeric ones.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.2.0-alpha",
+      "versions": [
+        {
+          "versionid": "1.2.0-10",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.2.0-10"
+        },
+        {
+          "versionid": "1.2.0-alpha",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+          "version.model": "1.2.0-alpha"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "allowPrerelease": true,
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.2.0-alpha",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"
+    }
+  }
+}

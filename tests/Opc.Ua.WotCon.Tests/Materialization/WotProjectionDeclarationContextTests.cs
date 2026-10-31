@@ -812,6 +812,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                   "@context": { "uav": "http://opcfoundation.org/UA/WoT-Binding/" },
                   "@type": ["tm:ThingModel", "uav:objectType"],
+                  "version": {"model": "1.0.0"},
                   "id": "urn:model",
                   "uav:id": "nsu=urn:native-ownership;i=1000",
                   "title": "Type"

@@ -1,0 +1,18 @@
+{
+  "description": "A supplied id must match the generated assignment for an unversioned TM.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": null,
+      "versions": []
+    }
+  ],
+  "publish": {
+    "target": "urn:example:pump:v1",
+    "versionid": "0.0.0-2"
+  },
+  "expect": {
+    "error": "version-mismatch"
+  }
+}

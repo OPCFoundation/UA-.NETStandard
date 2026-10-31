@@ -7,8 +7,7 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingDescription",
+  "@type": ["Thing", "uav:projection"],
   "id": "urn:dev:opcua:asset:pump-01:alarms",
   "title": "Alarms",
   "description": "An event group: the two conditions an operator is alerted to. It selects events by predicate rather than by name, so an event added to the pump enters the group without the group being edited.",

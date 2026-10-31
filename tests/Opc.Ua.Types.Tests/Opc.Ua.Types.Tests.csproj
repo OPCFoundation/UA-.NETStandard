@@ -48,9 +48,8 @@
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- Local WoT regression fixtures, not authoritative specification
-         examples or conformance evidence. Their hashes and the separate
-         official baseline coordinates are recorded in the manifest. -->
+    <!-- Canonical WoT Binding examples with byte-level provenance. -->
+    <Content Include="Wot\Resolution\*" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="Wot\Assets\*.jsonld" />
     <EmbeddedResource Include="Wot\Assets\spec-examples.manifest.json" />
     <EmbeddedResource Include="Wot\Assets\wot-binding-traceability.json" />

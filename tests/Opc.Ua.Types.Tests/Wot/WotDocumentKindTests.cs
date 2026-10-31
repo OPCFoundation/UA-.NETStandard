@@ -158,6 +158,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void StandardTdContextSuppliesImplicitThingType()
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",\"title\":\"Pump\"}"));
+            Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingDescription));
+        }
+
+        [Test]
         public void KindIsUnknownWhenTypeMemberIsAbsent()
         {
             byte[] json = Encoding.UTF8.GetBytes("{\"title\":\"no-type-at-all\"}");

@@ -8,8 +8,7 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingModel",
+  "@type": ["tm:ThingModel", "uav:projection"],
   "id": "urn:example:model:pump-asset",
   "title": "Pump asset model",
   "description": "A type-level asset plan over the pump Thing Model. It resolves to a Thing Model and has one canonical type-level View. The four group plans retain their canonical Views and are organized through separate occurrence Objects with ProjectionRoot Properties.",
@@ -32,25 +31,25 @@
       "rel": "ua:Organizes",
       "href": "./16-model-group-process-data.jsonld",
       "uav:refName": "ProcessData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./17-model-group-condition-data.jsonld",
       "uav:refName": "ConditionData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./18-model-group-alarms.jsonld",
       "uav:refName": "Alarms",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./19-model-group-management.jsonld",
       "uav:refName": "Management",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     }
   ]
 }

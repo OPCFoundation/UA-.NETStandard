@@ -371,3 +371,5 @@ WoTDocumentType_EventBindings_EventBinding,64660,Object
 WoTProjectionGroupType,64053,ObjectType
 WoTProjectionGroupType_ProjectionRoot,64661,Variable
 WoTDocumentType_ProjectionMembershipDigest,64662,Variable
+WoTDocumentType_DocumentVersion,64663,Variable
+WoTDocumentType_VersionOrigin,64664,Variable

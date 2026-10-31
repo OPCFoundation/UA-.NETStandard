@@ -1,0 +1,42 @@
+{
+  "description": "A td:extends floor selects the highest eligible target revision.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:boiler",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0",
+      "versions": [
+        {
+          "versionid": "1.3.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000049",
+          "version.instance": "1.3.0"
+        },
+        {
+          "versionid": "1.5.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000004a",
+          "version.instance": "1.5.0"
+        },
+        {
+          "versionid": "2.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000004b",
+          "version.instance": "2.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-extends",
+    "target": "urn:example:thing:boiler",
+    "minVersion": "1.3.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:boiler",
+      "versionid": "1.5.0",
+      "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000004a"
+    }
+  }
+}

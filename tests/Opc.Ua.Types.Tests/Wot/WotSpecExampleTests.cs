@@ -49,9 +49,7 @@ namespace Opc.Ua.Types.Tests.Wot
     /// the implementation.
     /// </summary>
     /// <remarks>
-    /// The fixtures are not authoritative copies of the current specification
-    /// examples or evidence of current conformance. Retired projection
-    /// annotations are retained only to verify their rejection. The resolver
+    /// The fixtures mirror the pinned specification examples byte-for-byte. The resolver
     /// uses a local context fixture and performs no network context loading.
     /// </remarks>
     [TestFixture]
@@ -395,11 +393,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static byte[] ReadCurrentProjectionExample()
         {
-            using JsonDocument fixture = JsonDocument.Parse(ReadExample(ProjectionExample));
-            JsonObject projection = JsonNode.Parse(fixture.RootElement.GetRawText())!.AsObject();
-            projection["@type"] = new JsonArray("Thing", "uav:projection");
-            projection.Remove("uav:projectionKind");
-            return Encoding.UTF8.GetBytes(projection.ToJsonString());
+            return ReadExample(ProjectionExample);
         }
 
         private static string DescribeErrors(IReadOnlyList<WotDiagnostic> diagnostics)
@@ -889,20 +883,7 @@ namespace Opc.Ua.Types.Tests.Wot
             "q:s:identity:opcua_channel_sc"
         ];
 
-        private static readonly string[] s_retiredProjectionFixtures =
-        [
-            "07-projection-predictive-maintenance.jsonld",
-            "09-asset-instance.jsonld",
-            "10-group-process-data.jsonld",
-            "11-group-condition-data.jsonld",
-            "12-group-alarms.jsonld",
-            "13-group-management.jsonld",
-            "15-asset-model.jsonld",
-            "16-model-group-process-data.jsonld",
-            "17-model-group-condition-data.jsonld",
-            "18-model-group-alarms.jsonld",
-            "19-model-group-management.jsonld"
-        ];
+        private static readonly string[] s_retiredProjectionFixtures = [];
         private static readonly string[] s_standaloneExamples =
         [
             "03-nodeset-preservation-envelope.jsonld",

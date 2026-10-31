@@ -11,38 +11,38 @@
   "@type": ["Thing"],
   "id": "urn:dev:opcua:asset:pump-01",
   "title": "Pump 01 asset",
-  "description": "An asset authored as projections. It selects its own identity and organizes four groups, each of which is a projection that selects its members from the pump Thing Description. Nothing is copied and the pump is unaware that it is grouped.",
+  "description": "An asset view combining device identity with process, condition, alarm and management groups. The groups select their affordances from the pump Thing Description without changing that source.",
   "uav:scenario": "http://example.com/scenario/AssetManagement",
-  "security": ["q:p:bm9zZWNfc2M"],
+  "security": ["q:p:nosec_sc"],
   "links": [
     {
       "rel": "ua:Organizes",
       "href": "./10-group-process-data.jsonld",
       "uav:refName": "ProcessData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./11-group-condition-data.jsonld",
       "uav:refName": "ConditionData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./12-group-alarms.jsonld",
       "uav:refName": "Alarms",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./13-group-management.jsonld",
       "uav:refName": "Management",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/td+json"
     }
   ],
   "securityDefinitions": {
-    "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
-    "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+    "q:p:nosec_sc": { "scheme": "nosec" },
+    "q:s:identity:opcua_channel_sc": {
       "@context": [{"@base": "./06-anchored-paths-and-device-identity.jsonld", "pump": {"@id": "http://example.com/demo/pump"}}],
       "scheme": "uav:channelsec",
       "uav:securityMode": "SignAndEncrypt",
@@ -68,7 +68,7 @@
           "href": "opc.tcp://opcuademo.com:4840/UA/Factory?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.SerialNumber",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+          "security": ["q:s:identity:opcua_channel_sc"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -91,7 +91,7 @@
           "href": "opc.tcp://opcuademo.com:4840/UA/Factory",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+          "security": ["q:s:identity:opcua_channel_sc"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -114,7 +114,7 @@
           "href": "opc.tcp://opcuademo.com:4840/UA/Factory?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump07.DeviceManual",
           "contentType": "application/octet-stream",
           "op": ["readproperty"],
-          "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+          "security": ["q:s:identity:opcua_channel_sc"]
         }
       ],
       "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"

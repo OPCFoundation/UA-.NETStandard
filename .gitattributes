@@ -78,3 +78,8 @@ src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeIds.csv -text whitespace=c
 # git must never normalize them.
 fuzzing/*.Fuzz.Corpus/** binary
 fuzzing/*.Fuzz.Tests/Assets/** binary
+
+# Canonical WoT reference resolution vectors are hashed as committed bytes.
+tests/Opc.Ua.Types.Tests/Wot/Resolution/** text eol=lf
+src/Opc.Ua.WotCon/Design/Opc.Ua.WotCon.NodeSet2.xml -text
+src/Opc.Ua.WotCon/Design/Opc.Ua.WotCon.NodeSet2.csv -text

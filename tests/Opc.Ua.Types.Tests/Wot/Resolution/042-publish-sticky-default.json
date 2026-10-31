@@ -1,0 +1,35 @@
+{
+  "description": "Publishing a higher SemVer must preserve an operator sticky default.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": true,
+      "defaultversionid": "1.0.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "publish": {
+    "target": "urn:example:pump:v1",
+    "version.model": "1.2.0"
+  },
+  "expect": {
+    "assigned": {
+      "versionid": "1.2.0",
+      "versionorigin": "authored",
+      "defaultversionid": "1.0.0"
+    }
+  }
+}

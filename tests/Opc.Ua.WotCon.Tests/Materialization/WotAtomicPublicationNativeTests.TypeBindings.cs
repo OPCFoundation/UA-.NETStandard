@@ -71,13 +71,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     GroupId = WotRegistryGroups.ThingModels,
                     ResourceId = "a-native-predecessor",
-                    VersionId = "v1",
+                    VersionId = "1.0.0",
                     Kind = WoTDocumentKindEnum.ThingModel,
                     Content = ByteString.From(Encoding.UTF8.GetBytes("""
                         {
                           "@type":"tm:ThingModel",
                           "id":"urn:r30:native-predecessor",
-                          "title":"GeneratedType"
+                          "title":"GeneratedType",
+                          "version":{"model":"1.0.0"}
                         }
                         """))
                 }).ConfigureAwait(false);

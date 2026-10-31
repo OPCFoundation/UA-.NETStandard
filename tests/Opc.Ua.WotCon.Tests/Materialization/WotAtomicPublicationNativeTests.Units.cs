@@ -99,7 +99,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             for (int i = 0; i < images.Count; i++)
             {
                 Assert.That(images[i].RefreshGeneration, Is.EqualTo((uint)i + 1));
-                Assert.That(images[i].AllResources().Count(resource => resource.ActiveVersionId == "v1"),
+                Assert.That(images[i].AllResources().Count(resource => resource.ActiveVersionId ==
+                    (resource.Kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1")),
                     Is.EqualTo(unitCount == 1 ? 2 : i + 1));
                 Assert.That(images[i].FindResource(unrelated.GroupId, unrelated.ResourceId), Is.SameAs(unrelated));
             }
@@ -119,7 +120,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
             Assert.That(durable.RefreshGeneration, Is.EqualTo((uint)unitCount));
             Assert.That(durable.Generation, Is.EqualTo(before.Generation + unitCount));
-            Assert.That(durable.AllResources().Count(resource => resource.ActiveVersionId == "v1"), Is.EqualTo(2));
+            Assert.That(durable.AllResources().Count(resource => resource.ActiveVersionId ==
+                    (resource.Kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1")), Is.EqualTo(2));
         }
 
         /// <summary>
@@ -159,7 +161,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Summary.Succeeded, Is.EqualTo(2u));
             Assert.That(images, Has.Count.EqualTo(unitCount));
             Assert.That(images[0].FindResource(dependency.GroupId, dependency.ResourceId)!.ActiveVersionId,
-                Is.EqualTo("v1"));
+                Is.EqualTo("1.0.0"));
             Assert.That(images[0].FindResource(dependent.GroupId, dependent.ResourceId)!.ActiveVersionId,
                 unitCount == 1 ? Is.EqualTo("v1") : Is.Null);
             Assert.That((await ReadNodeClassAsync(Root(dependency)).ConfigureAwait(false)).StatusCode,
@@ -362,7 +364,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = id,
-                VersionId = "v1",
+                VersionId = "1.0.0",
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(TestMaterialization.Tm("urn:" + id))
             }).ConfigureAwait(false);

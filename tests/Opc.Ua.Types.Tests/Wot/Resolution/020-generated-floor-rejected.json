@@ -1,0 +1,31 @@
+{
+  "description": "A generated id cannot express a compatibility floor.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "0.0.0-1",
+          "versionorigin": "generated",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000005"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1",
+    "minVersion": "0.0.0-1"
+  },
+  "expect": {
+    "error": "invalid-version"
+  }
+}

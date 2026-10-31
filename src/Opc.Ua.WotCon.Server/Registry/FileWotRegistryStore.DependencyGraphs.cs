@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     WotDependency b = rightEdges[index];
                     if (!ReferenceEquals(a, b) &&
                         (a.SourceXid != b.SourceXid || a.TargetHref != b.TargetHref ||
-                         a.TargetXid != b.TargetXid || a.RefType != b.RefType || a.Resolved != b.Resolved))
+                         a.TargetXid != b.TargetXid || a.RefType != b.RefType || a.Resolved != b.Resolved || a.RequiredVersion != b.RequiredVersion))
                     {
                         return false;
                     }
@@ -180,7 +180,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     edge.TargetHref ?? throw new InvalidDataException("Missing dependency target."),
                     edge.TargetXid,
                     edge.RefType ?? throw new InvalidDataException("Missing dependency relation."),
-                    edge.Resolved)).ToArrayOf(), targets.Select(FromDto).ToArrayOf());
+                    edge.Resolved) { RequiredVersion = edge.RequiredVersion }).ToArrayOf(), targets.Select(FromDto).ToArrayOf());
             }
 
             private readonly Dictionary<int, WotDependencySnapshot.ValidatedGraph> m_cache = [];

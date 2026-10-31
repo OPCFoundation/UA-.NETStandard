@@ -203,7 +203,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotResourceGroup group = await legacy.GetOrCreateGroupAsync(
                     "legacy-catalog", WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
                 await legacy.UpsertResourceAsync(WotRegistryIdentityTests.Request(
-                    group, "old-model-id", "urn:Model:Authority", "v1")).ConfigureAwait(false);
+                    group, "old-model-id", "urn:Model:Authority", "1.0.0")).ConfigureAwait(false);
             }
             var bindings = new WotRegistryIdentityBindings
             {
@@ -216,7 +216,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotDocumentGroupResult bound = await service.GetOrCreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingModel, "urn:catalogue").ConfigureAwait(false);
             WotDocumentResourceResult resource = await service.GetOrCreateDocumentResourceAsync(
-                bound.Group.GroupId, bound.Group.Kind, "urn:Model:Authority", "v1").ConfigureAwait(false);
+                bound.Group.GroupId, bound.Group.Kind, "urn:Model:Authority", "1.0.0").ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

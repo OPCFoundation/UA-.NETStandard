@@ -1,0 +1,21 @@
+{
+  "description": "A model without version.model receives the first generated id.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": null,
+      "versions": []
+    }
+  ],
+  "publish": {
+    "target": "urn:example:pump:v1"
+  },
+  "expect": {
+    "assigned": {
+      "versionid": "0.0.0-1",
+      "versionorigin": "generated",
+      "defaultversionid": "0.0.0-1"
+    }
+  }
+}

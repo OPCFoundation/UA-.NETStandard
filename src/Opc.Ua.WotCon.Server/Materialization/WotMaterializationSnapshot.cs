@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Registry;
 
+using Opc.Ua.Wot;
+
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
@@ -608,7 +610,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             continue;
                         }
                         if (metadata.References.Contains(reference =>
-                            ResolveReference(snapshot, resource, reference) is { } target &&
+                            ResolveReferenceTarget(snapshot, resource, reference) is { } target &&
                             selected.ContainsKey(target.Xid)))
                         {
                             selected.Add(resource.Xid, new WotSelectedResource(
@@ -642,13 +644,53 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private static WotResource PinVersion(WotResource resource, WotResourceVersion version)
         {
-            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId);
+            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId)
+                .WithDefaultVersionSticky(true);
         }
 
-        private static WotResource? ResolveReference(
+        internal static WotResourceSnapshot VersionSnapshot(WotResource resource)
+        {
+            return new WotResourceSnapshot(resource.SourceId ?? resource.Xid,
+                resource.DefaultVersionSticky, resource.DefaultVersionId,
+                resource.Versions.Select(version => new WotVersionSnapshot(version.VersionId,
+                    resource.Kind == WoTDocumentKindEnum.ThingDescription
+                        ? version.InstanceVersion == version.VersionId ? "authored" : "generated"
+                        : version.ModelVersion == version.VersionId ? "authored" : "generated",
+                    "sha256:" + version.DigestHex, version.ModelVersion, version.InstanceVersion)).ToArrayOf());
+        }
+
+        /// <summary>
+        /// Finds the Resource a stored reference names, without selecting a Version of it.
+        /// </summary>
+        /// <remarks>
+        /// Dependency walks ask which Resource an edge points at. Whether a Version of that
+        /// Resource satisfies the edge's floor is a separate question, and a floor that no
+        /// stored Version meets does not change which Resource the edge names.
+        /// </remarks>
+        private static WotResource? ResolveReferenceTarget(
             WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
             HashSet<string>? excluded = null)
         {
+            return ResolveReference(snapshot, source, reference, out _, excluded, selectVersion: false);
+        }
+
+        /// <summary>
+        /// Resolves a stored reference to a Resource pinned to the Version that satisfies it.
+        /// </summary>
+        /// <param name="snapshot">The registry snapshot.</param>
+        /// <param name="source">The Resource that carries the reference.</param>
+        /// <param name="reference">The stored reference.</param>
+        /// <param name="versionError">
+        /// Receives the version-domain error code when the Resource is found but no Version of
+        /// it satisfies the reference; the method then returns <c>null</c>.
+        /// </param>
+        /// <param name="excluded">Resources treated as absent.</param>
+        /// <param name="selectVersion">Whether to apply floors and select a Version.</param>
+        private static WotResource? ResolveReference(
+            WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
+            out string? versionError, HashSet<string>? excluded = null, bool selectVersion = true)
+        {
+            versionError = null;
             string raw = TrimFragment(reference.TargetUri);
             WotResource? target;
             if (reference.Lookup != WotResourceReferenceLookup.Document)
@@ -682,6 +724,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (exact is not null)
                 {
                     return PinVersion(target, exact);
+                }
+                if (!selectVersion ||
+                    IsLocalFragmentReference(source, reference.TargetUri, reference.RefType, target))
+                {
+                    return target;
+                }
+                bool isThingModelReference = target.Kind == WoTDocumentKindEnum.ThingModel &&
+                    (reference.RequiredVersion is not null ||
+                        reference.RefType is "tm:extends" or "tm:submodel" or "tm:ref" or "type");
+                bool isThingDescriptionReference = target.Kind == WoTDocumentKindEnum.ThingDescription &&
+                    reference.RefType is "td:extends" or "td:subthing" or "td:ref";
+                if ((isThingModelReference || isThingDescriptionReference) &&
+                    (reference.RequiredVersion is not null ||
+                        target.Versions.All(version => WotSemanticVersion.TryParse(version.VersionId, out _))))
+                {
+                    WotResourceSnapshot resource = VersionSnapshot(target);
+                    try
+                    {
+                        WotResolutionResult selected = WotVersionResolver.Resolve([resource],
+                            new WotReferenceRequest(
+                                reference.RefType,
+                                resource.WotId,
+                                reference.RequiredVersion,
+                                reference.RequiredVersion is null
+                                    ? null
+                                    : isThingDescriptionReference ? "td:minVersion" : "tm:minVersion"),
+                            "urn:opcua:registry-snapshot");
+                        return PinVersion(target, target.FindVersion(selected.VersionId)!);
+                    }
+                    catch (WotVersionException exception)
+                    {
+                        versionError = exception.Code;
+                        return null;
+                    }
                 }
             }
             return target;

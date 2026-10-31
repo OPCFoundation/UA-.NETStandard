@@ -1,0 +1,36 @@
+{
+  "description": "A td:ref floor selects its target TD within one major.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:lamp-defs",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0",
+      "versions": [
+        {
+          "versionid": "1.2.3",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003f",
+          "version.instance": "1.2.3"
+        },
+        {
+          "versionid": "2.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000040",
+          "version.instance": "2.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-ref",
+    "target": "urn:example:thing:lamp-defs",
+    "minVersion": "1.2.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:lamp-defs",
+      "versionid": "1.2.3",
+      "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003f"
+    }
+  }
+}

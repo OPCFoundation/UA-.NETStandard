@@ -396,8 +396,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 await registry.InitializeAsync().ConfigureAwait(false);
                 WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = WotRegistryGroups.ThingModels, ResourceId = "definitions",
-                    Kind = WoTDocumentKindEnum.ThingModel, VersionId = "v1",
+                    GroupId = WotRegistryGroups.ThingModels,
+                    ResourceId = "definitions",
+                    Kind = WoTDocumentKindEnum.ThingModel,
+                    VersionId = "1.0.0",
                     Content = ByteString.From(Encoding.UTF8.GetBytes("""
                         {
                           "@context": {
@@ -405,6 +407,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                             "types": "urn:r30:index:"
                           },
                           "@type": "tm:ThingModel",
+                          "version": {"model": "1.0.0"},
                           "id": "urn:r30:index:owner",
                           "title": "Definitions",
                           "uav:dataTypeDefinitions": [{
@@ -418,8 +421,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 }).ConfigureAwait(false);
                 WotRegistryMutationResult source = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "consumer",
-                    Kind = WoTDocumentKindEnum.ThingDescription, VersionId = "v1",
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "consumer",
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    VersionId = "v1",
                     Content = ByteString.From(Encoding.UTF8.GetBytes("""
                         {
                           "@context": {

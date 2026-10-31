@@ -7,8 +7,7 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingModel",
+  "@type": ["tm:ThingModel", "uav:projection"],
   "id": "urn:example:model:pump-asset:process-data",
   "title": "Process data",
   "description": "A type-level data set selecting existing member declarations of the pump Thing Model. Its canonical View is independent of the occurrence Objects through which parent projections organize it.",
