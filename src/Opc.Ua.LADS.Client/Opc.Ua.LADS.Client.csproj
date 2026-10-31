@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).LADS.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.LADS.Client</PackageId>
+    <RootNamespace>Opc.Ua.LADS.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Client-side helpers for OPC 30500-1 Laboratory and Analytical Device Standard (LADS): discover LADS devices below the DI DeviceSet and the Machinery Machines folder, read device, functional unit, function, program, result and maintenance snapshots, observe function values and states, drive the LADS state machines, start programs and download result files through a fluent API.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.LADS.Tests" />
+  </ItemGroup>
+  <!-- LADS devices are DI devices (OPC 30500-1 builds on OPC 10000-100 and
+       OPC 40001-1), so the client references the DI client for its hosting
+       extension and the LADS model for the proxies and data types. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.LADS\Opc.Ua.LADS.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
