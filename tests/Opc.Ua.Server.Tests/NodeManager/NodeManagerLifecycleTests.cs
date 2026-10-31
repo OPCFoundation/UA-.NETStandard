@@ -5134,66 +5134,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 releaseDelete.TrySetResult(true);
             }
 
+            // Retirement completes only after the automatic backoff retry succeeds, reporting the first failure.
             await Assert.ThatAsync(
-                () => removalResult.Retirement.WaitAsync(TimeSpan.FromSeconds(5)),
+                () => removalResult.Retirement.WaitAsync(TimeSpan.FromSeconds(30)),
                 Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
             Assert.That(removalResult.Retirement.IsFaulted, Is.True);
+            Assert.That(disposalCompleted.Task.IsCompleted, Is.True);
 
             Assert.That(
                 master.AsyncNodeManagers.Count(m => ReferenceEquals(m, nodeManager.Object)),
                 Is.Zero);
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
-
             Assert.That(
-                CountMatches(GetNonStartupRegistrations(), item => item.Id == registration.Id),
+                CountMatches(m_server.NodeManagerLifecycle.Registrations, item => item.Id == registration.Id),
                 Is.Zero);
-            nodeManager.Verify(
-                m => m.DeleteAddressSpaceAsync(CancellationToken.None),
-                Times.Once);
-            nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Never);
-
-            const string RecoveryNamespaceUri =
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DeleteFailureRecovery";
-            var recoveryManager = new Mock<IAsyncNodeManager>();
-            recoveryManager
-                .Setup(m => m.NamespaceUris)
-                .Returns([RecoveryNamespaceUri]);
-            recoveryManager
-                .Setup(m => m.SyncNodeManager)
-                .Returns(new Mock<INodeManager>().Object);
-            recoveryManager
-                .Setup(m => m.CreateAddressSpaceAsync(
-                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask());
-            recoveryManager
-                .Setup(m => m.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask());
-            var recoveryFactory = new Mock<IAsyncNodeManagerFactory>();
-            recoveryFactory
-                .Setup(f => f.CreateAsync(
-                    It.IsAny<IServerInternal>(),
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync(recoveryManager.Object);
-
-            NodeManagerRegistration recoveryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(recoveryFactory.Object, null)
-                .ConfigureAwait(false);
-            await disposalCompleted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             nodeManager.Verify(
                 m => m.DeleteAddressSpaceAsync(CancellationToken.None),
                 Times.Exactly(2));
             nodeManagerAsDisposable.Verify(d => d.Dispose(), Times.Once);
-            Assert.That(
-                CountMatches(m_server.NodeManagerLifecycle.Registrations, item => item.Id == registration.Id),
-                Is.Zero);
-            Assert.That(
-                master.AsyncNodeManagers.Count(m => ReferenceEquals(m, nodeManager.Object)),
-                Is.Zero);
-            Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
-
-            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, recoveryRegistration).ConfigureAwait(false);
         }
 
         [Test]
@@ -5273,27 +5231,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchResult removal = await CommitChangeAsync(
                 m_server.NodeManagerLifecycle, NodeManagerBatchChange.Remove(removedRegistration))
                 .ConfigureAwait(false);
+            // The automatic retry resumes at the failed external callback before retirement reports the failure.
             await Assert.ThatAsync(
-                () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(10)),
+                () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(30)),
                 Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
-            Assert.That(removedManager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(removedManager.DisposeCount, Is.Zero);
-            Assert.That(deleteReferenceCalls, Is.EqualTo(2));
-            Assert.That(
-                m_server.NodeManagerLifecycle.Registrations.Find(candidate =>
-                    candidate.Id == removedRegistration.Id),
-                Is.Null);
-
-            const string RecoveryNamespaceUri =
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RemoveReferenceRecovery";
-            NodeManagerRegistration recoveryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    809,
-                    static _ => { },
-                    RecoveryNamespaceUri), null)
-                .ConfigureAwait(false);
-
-            await removedManager.DisposalCompleted.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             Assert.That(
                 removedManager.DeleteAddressSpaceCount,
                 Is.EqualTo(1),
@@ -5305,7 +5246,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     candidate.Id == removedRegistration.Id),
                 Is.Null);
 
-            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, recoveryRegistration).ConfigureAwait(false);
             await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, ownerRegistration).ConfigureAwait(false);
             ownerDisposable.Verify(value => value.Dispose(), Times.Once);
         }
@@ -5357,14 +5297,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     m_server.NodeManagerLifecycle, NodeManagerBatchChange.Remove(registration))
                     .ConfigureAwait(false);
                 await Assert.ThatAsync(
-                    () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(10)),
+                    () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(30)),
                     Throws.TypeOf<SentinelException>().With.Message.EqualTo("Dispose failed.")).ConfigureAwait(false);
 
-                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(manager.DisposeCount, Is.EqualTo(1));
-                int unsubscribeCountAfterFailure =
-                    manager.AllEventsUnsubscribeCount;
-                Assert.That(unsubscribeCountAfterFailure, Is.EqualTo(1));
+                // Retirement reports the first failure only after the automatic retry disposed the manager.
+                Assert.That(manager.DisposalCompleted.IsCompleted, Is.True);
+                Assert.That(
+                    manager.DeleteAddressSpaceCount,
+                    Is.EqualTo(1),
+                    "A completed destroy stage must not run again on retry.");
+                Assert.That(manager.DisposeCount, Is.EqualTo(2));
+                Assert.That(
+                    manager.AllEventsUnsubscribeCount,
+                    Is.EqualTo(1),
+                    "A removal retry must not repeat all-events unsubscription.");
                 Assert.That(
                     master.AsyncNodeManagers.Any(candidate =>
                         ReferenceEquals(candidate, manager)),
@@ -5387,7 +5333,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         RecoveryNamespaceUri), null)
                     .ConfigureAwait(false);
 
-                await manager.DisposalCompleted.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 EventFieldList? addEvent;
                 (addEvent, acknowledgements) = await PublishForModelChangeEventAsync(
                         services,
@@ -5395,15 +5340,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         acknowledgements).ConfigureAwait(false);
                 AssertModelChangeEvent(addEvent!, "A live NodeManager was added.");
 
-                Assert.That(
-                        manager.DeleteAddressSpaceCount,
-                        Is.EqualTo(1),
-                    "A completed destroy stage must not run again on Remove retry.");
-                Assert.That(manager.DisposeCount, Is.EqualTo(2));
-                Assert.That(
-                    manager.AllEventsUnsubscribeCount,
-                    Is.EqualTo(unsubscribeCountAfterFailure),
-                    "A removal retry must not repeat all-events unsubscription.");
                 Assert.That(GetNonStartupRegistrations(), Has.Count.EqualTo(1));
                 Assert.That(
                     GetNonStartupRegistrations().Find(candidate =>
@@ -5505,6 +5441,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:UnbindingFailure";
             const string ExpectedMessage = "SessionClosingAsync failed.";
             bool failSessionClosing = false;
+            var sessionClosingFailed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var disposalCompleted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -5516,10 +5454,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     false,
                     It.IsAny<CancellationToken>()))
                 .Returns<OperationContext, NodeId, bool, CancellationToken>(
-                    (_, _, _, _) => failSessionClosing
-                        ? new ValueTask(Task.FromException(
-                            new SentinelException(ExpectedMessage)))
-                        : default);
+                    (_, _, _, _) =>
+                    {
+                        if (!Volatile.Read(ref failSessionClosing))
+                        {
+                            return default;
+                        }
+                        sessionClosingFailed.TrySetResult(true);
+                        return new ValueTask(Task.FromException(new SentinelException(ExpectedMessage)));
+                    });
             Mock<IDisposable> disposable = nodeManager.As<IDisposable>();
             disposable.Setup(manager => manager.Dispose())
                 .Callback(() => disposalCompleted.TrySetResult(true));
@@ -5554,51 +5497,48 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var master = (MasterNodeManager)server.NodeManager;
             int namespaceIndex = server.NamespaceUris.GetIndex(NamespaceUri);
             failSessionClosing = true;
+            try
+            {
+                NodeManagerBatchResult removal = await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle, NodeManagerBatchChange.Remove(registration)).ConfigureAwait(false);
+                await sessionClosingFailed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
-            NodeManagerBatchResult removal = await CommitChangeAsync(
-                m_server.NodeManagerLifecycle, NodeManagerBatchChange.Remove(registration)).ConfigureAwait(false);
-            await Assert.ThatAsync(
-                () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(10)),
-                Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
+                // A persistent failure keeps retirement pending; the committed removal stays visible.
+                Assert.That(removal.Retirement.IsCompleted, Is.False);
+                Assert.That(
+                    GetNonStartupRegistrations(),
+                    Has.Count.EqualTo(1));
+                Assert.That(
+                    GetNonStartupRegistrations().Find(candidate =>
+                        candidate.Id == registration.Id),
+                    Is.Null);
+                Assert.That(
+                    IndexOfReference(master.AsyncNodeManagers, nodeManager.Object),
+                    Is.EqualTo(-1));
+                Assert.That(
+                    IndexOfReference(
+                        master.NamespaceManagers[namespaceIndex],
+                        nodeManager.Object),
+                    Is.EqualTo(-1));
+                Assert.That(master.NamespaceManagers[namespaceIndex]
+                    .Any(manager => ReferenceEquals(manager, peerManager.Object)), Is.True);
+                nodeManager.Verify(
+                    manager => manager.DeleteAddressSpaceAsync(
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                disposable.Verify(manager => manager.Dispose(), Times.Never);
 
-            Assert.That(
-                GetNonStartupRegistrations(),
-                Has.Count.EqualTo(1));
-            Assert.That(
-                GetNonStartupRegistrations().Find(candidate =>
-                    candidate.Id == registration.Id),
-                Is.Null);
-            Assert.That(
-                IndexOfReference(master.AsyncNodeManagers, nodeManager.Object),
-                Is.EqualTo(-1));
-            Assert.That(
-                IndexOfReference(
-                    master.NamespaceManagers[namespaceIndex],
-                    nodeManager.Object),
-                Is.EqualTo(-1));
-            Assert.That(
-                master.AsyncNodeManagers.Count(manager =>
-                    ReferenceEquals(manager, nodeManager.Object)),
-                Is.Zero);
-            Assert.That(master.NamespaceManagers[namespaceIndex]
-                .Any(manager => ReferenceEquals(manager, peerManager.Object)), Is.True);
-            nodeManager.Verify(
-                manager => manager.DeleteAddressSpaceAsync(
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-            disposable.Verify(manager => manager.Dispose(), Times.Never);
+                Volatile.Write(ref failSessionClosing, false);
+                await Assert.ThatAsync(
+                    () => removal.Retirement.WaitAsync(TimeSpan.FromSeconds(60)),
+                    Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref failSessionClosing, false);
+            }
 
-            failSessionClosing = false;
-            const string RecoveryNamespaceUri =
-                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:UnbindingRecovery";
-            NodeManagerRegistration recoveryRegistration = await m_server.NodeManagerLifecycle
-                .AddAsync(CreateTrackingNodeManagementFactory(
-                    811,
-                    static _ => { },
-                    RecoveryNamespaceUri), null)
-                .ConfigureAwait(false);
-
-            await disposalCompleted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(disposalCompleted.Task.IsCompleted, Is.True);
             Assert.That(
                 master.AsyncNodeManagers.Any(manager =>
                     ReferenceEquals(manager, nodeManager.Object)),
@@ -5613,7 +5553,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
             disposable.Verify(manager => manager.Dispose(), Times.Once);
 
-            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, recoveryRegistration).ConfigureAwait(false);
             await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, peerRegistration).ConfigureAwait(false);
             Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.NamespaceManagers.ContainsKey(namespaceIndex), Is.False);
@@ -5626,6 +5565,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:RetiredCleanupFailure";
             const string ExpectedMessage = "Retired SessionClosingAsync failed.";
             bool failRetiredSessionClosing = false;
+            var retiredSessionClosingFailed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var disposalCompleted = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -5644,10 +5585,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     false,
                     It.IsAny<CancellationToken>()))
                 .Returns<OperationContext, NodeId, bool, CancellationToken>(
-                    (_, _, _, _) => failRetiredSessionClosing
-                        ? new ValueTask(Task.FromException(
-                            new SentinelException(ExpectedMessage)))
-                        : default);
+                    (_, _, _, _) =>
+                    {
+                        if (!Volatile.Read(ref failRetiredSessionClosing))
+                        {
+                            return default;
+                        }
+                        retiredSessionClosingFailed.TrySetResult(true);
+                        return new ValueTask(Task.FromException(new SentinelException(ExpectedMessage)));
+                    });
             Mock<IDisposable> originalDisposable = originalManager.As<IDisposable>();
             originalDisposable.Setup(manager => manager.Dispose())
                 .Callback(() => disposalCompleted.TrySetResult(true));
@@ -5677,55 +5623,70 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             failRetiredSessionClosing = true;
-            NodeManagerBatchResult result = await CommitChangeAsync(
-                m_server.NodeManagerLifecycle, NodeManagerBatchChange.Replace(original, replacementFactory.Object))
-                .ConfigureAwait(false);
-            await Assert.ThatAsync(
-                () => result.Retirement.WaitAsync(TimeSpan.FromSeconds(10)),
-                Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
-            Assert.That(result.Registrations[0].Id, Is.EqualTo(original.Id));
-            Assert.That(result.Registrations[0].Generation, Is.EqualTo(original.Generation + 1));
-
-            ArrayOf<NodeManagerRegistration> registrations =
-                GetNonStartupRegistrations();
-            Assert.That(registrations, Has.Count.EqualTo(1));
-            NodeManagerRegistration replacement = registrations[0];
-            Assert.That(replacement, Is.SameAs(result.Registrations[0]));
-            Assert.That(replacement.Id, Is.EqualTo(original.Id));
-            Assert.That(replacement.Generation, Is.EqualTo(original.Generation + 1));
-            Assert.That(replacement.NodeManager, Is.SameAs(replacementManager.Object));
-
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             int namespaceIndex = server.NamespaceUris.GetIndex(NamespaceUri);
-            Assert.That(
-                master.AsyncNodeManagers.Any(manager =>
-                    ReferenceEquals(manager, originalManager.Object)),
-                Is.False);
-            Assert.That(
-                master.AsyncNodeManagers.Count(manager =>
-                    ReferenceEquals(manager, replacementManager.Object)),
-                Is.EqualTo(1));
-            Assert.That(
-                master.NamespaceManagers[namespaceIndex].Any(manager =>
-                    ReferenceEquals(manager, replacementManager.Object)),
-                Is.True);
-            originalManager.Verify(
-                manager => manager.DeleteAddressSpaceAsync(
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-            originalDisposable.Verify(manager => manager.Dispose(), Times.Never);
-            replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+            NodeManagerRegistration replacement;
+            NodeManagerBatchResult result;
+            try
+            {
+                result = await CommitChangeAsync(
+                    m_server.NodeManagerLifecycle,
+                    NodeManagerBatchChange.Replace(original, replacementFactory.Object))
+                    .ConfigureAwait(false);
+                await retiredSessionClosingFailed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(result.Retirement.IsCompleted, Is.False);
+                Assert.That(result.Registrations[0].Id, Is.EqualTo(original.Id));
+                Assert.That(result.Registrations[0].Generation, Is.EqualTo(original.Generation + 1));
 
-            failRetiredSessionClosing = false;
-            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, replacement).ConfigureAwait(false);
-            await disposalCompleted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                ArrayOf<NodeManagerRegistration> registrations =
+                    GetNonStartupRegistrations();
+                Assert.That(registrations, Has.Count.EqualTo(1));
+                replacement = registrations[0];
+                Assert.That(replacement, Is.SameAs(result.Registrations[0]));
+                Assert.That(replacement.Id, Is.EqualTo(original.Id));
+                Assert.That(replacement.Generation, Is.EqualTo(original.Generation + 1));
+                Assert.That(replacement.NodeManager, Is.SameAs(replacementManager.Object));
 
+                Assert.That(
+                    master.AsyncNodeManagers.Any(manager =>
+                        ReferenceEquals(manager, originalManager.Object)),
+                    Is.False);
+                Assert.That(
+                    master.AsyncNodeManagers.Count(manager =>
+                        ReferenceEquals(manager, replacementManager.Object)),
+                    Is.EqualTo(1));
+                Assert.That(
+                    master.NamespaceManagers[namespaceIndex].Any(manager =>
+                        ReferenceEquals(manager, replacementManager.Object)),
+                    Is.True);
+                originalManager.Verify(
+                    manager => manager.DeleteAddressSpaceAsync(
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
+                originalDisposable.Verify(manager => manager.Dispose(), Times.Never);
+                replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+                // Clearing the failure lets the automatic retry finish and report the first failure.
+                Volatile.Write(ref failRetiredSessionClosing, false);
+                await Assert.ThatAsync(
+                    () => result.Retirement.WaitAsync(TimeSpan.FromSeconds(60)),
+                    Throws.TypeOf<SentinelException>().With.Message.EqualTo(ExpectedMessage)).ConfigureAwait(false);
+            }
+            finally
+            {
+                Volatile.Write(ref failRetiredSessionClosing, false);
+            }
+
+            Assert.That(disposalCompleted.Task.IsCompleted, Is.True);
             originalManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
                     CancellationToken.None),
                 Times.Once);
             originalDisposable.Verify(manager => manager.Dispose(), Times.Once);
+            replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
+
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, replacement).ConfigureAwait(false);
             replacementManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
                     CancellationToken.None),

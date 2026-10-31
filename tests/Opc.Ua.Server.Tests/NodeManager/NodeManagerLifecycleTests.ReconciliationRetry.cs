@@ -167,11 +167,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A newer removal or replacement invalidates retry ownership without invoking a disposed manager.
+        /// A newer removal invalidates retry ownership without invoking a disposed manager.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task SupersededReconciliationDoesNotInvokeOldGenerationAsync(bool replace)
+        [Test]
+        public async Task SupersededReconciliationDoesNotInvokeOldGenerationAsync()
         {
             ReadinessLifecycleNodeManager? participant = null;
             await using IPreparedNodeManagerBatch prepared =
@@ -183,12 +182,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             new ValueTask(Task.FromException(new InvalidOperationException("Readiness failed.")));
                     }))]).ConfigureAwait(false);
             NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
-            NodeManagerBatchChange change = replace
-                ? NodeManagerBatchChange.Replace(result.Registrations[0],
-                    CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }))
-                : NodeManagerBatchChange.Remove(result.Registrations[0]);
             await using IPreparedNodeManagerBatch next =
-                await m_server.NodeManagerLifecycle.PrepareAsync([change]).ConfigureAwait(false);
+                await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(result.Registrations[0])]).ConfigureAwait(false);
             NodeManagerBatchResult newer = await next.CommitAsync(static _ => default).ConfigureAwait(false);
             await newer.Retirement.ConfigureAwait(false);
             await result.RetryReconciliationAsync().ConfigureAwait(false);
@@ -201,6 +197,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(RequireLifecycleValue(participant).DisposeCount, Is.EqualTo(1));
                 Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(newer.Revision));
             }
+        }
+
+        /// <summary>
+        /// A registration whose readiness failed cannot be replaced; it remains live until removed.
+        /// </summary>
+        [Test]
+        public async Task FailedReadinessRejectsReplacementUntilRemovedAsync()
+        {
+            ReadinessLifecycleNodeManager? participant = null;
+            await using IPreparedNodeManagerBatch prepared =
+                await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Add(CreateRetryReadinessFactory(manager =>
+                    {
+                        participant = manager;
+                        manager.ReadinessCallback = _ =>
+                            new ValueTask(Task.FromException(new InvalidOperationException("Readiness failed.")));
+                    }))]).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            NodeManagerRegistration failed = result.Registrations[0];
+            long revision = m_server.NodeManagerLifecycle.Revision;
+
+            await Assert.ThatAsync(
+                async () => await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(failed,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }))])
+                    .ConfigureAwait(false),
+                Throws.InvalidOperationException).ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m_server.NodeManagerLifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(
+                    m_server.NodeManagerLifecycle.Registrations.Find(candidate =>
+                        candidate.Id == failed.Id && candidate.Generation == failed.Generation),
+                    Is.SameAs(failed));
+                Assert.That(RequireLifecycleValue(participant).ReadinessCount, Is.EqualTo(1));
+                Assert.That(RequireLifecycleValue(participant).DisposeCount, Is.Zero);
+            }
+
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, failed).ConfigureAwait(false);
+            Assert.That(RequireLifecycleValue(participant).DisposeCount, Is.EqualTo(1));
         }
 
         /// <summary>

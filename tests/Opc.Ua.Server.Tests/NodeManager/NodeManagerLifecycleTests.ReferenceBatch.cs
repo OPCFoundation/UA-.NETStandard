@@ -145,10 +145,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Retains failed reciprocal observers and owner admissions without replaying successful observers.
+        /// Reports a derived owner's reciprocal observer failure once and releases its admissions after retry.
         /// </summary>
         [Test]
-        public async Task RetiredCleanupRetriesOnlyFailedReferenceObserversAsync()
+        public async Task RetiredCleanupReportsDerivedOwnerObserverFailureOnceAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             NodeManagerRegistration source = await m_server.NodeManagerLifecycle.AddAsync(
@@ -199,22 +199,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [NodeManagerBatchChange.Remove(original)], null, timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
-                AggregateException? notificationFailure = await Assert.ThrowsAsync<AggregateException>(
-                    async () => await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false))
-                    .ConfigureAwait(false);
-                Assert.That(notificationFailure!.InnerExceptions, Is.EqualTo(new[] { failure }));
+                // A derived owner deletes through its virtual DeleteReference, which commits storage before
+                // notifying; the automatic retry finds the reference absent, so retirement completes with the
+                // first failure and no observer is replayed.
+                Assert.That(
+                    () => result.Retirement.WaitAsync(timeout.Token),
+                    Throws.Exception.SameAs(failure));
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.HasComponent, false, rootId), Is.False);
                 Assert.That(successful, Is.EqualTo(1));
                 Assert.That(attempts, Is.EqualTo(1));
-                Assert.That(owner.Gate.ActiveCount, Is.EqualTo(originalAdmissions + 1));
-                fail = false;
-                var host = (IDynamicNodeManagerHost)m_server.CurrentInstance.NodeManager;
-                await host.RemoveDestroyedExternalReferencesAsync(original.NodeManager, timeout.Token)
-                    .ConfigureAwait(false);
-                await host.RemoveDestroyedExternalReferencesAsync(original.NodeManager, timeout.Token)
-                    .ConfigureAwait(false);
-                Assert.That(successful, Is.EqualTo(1));
-                Assert.That(attempts, Is.EqualTo(2));
                 Assert.That(owner.Gate.ActiveCount, Is.EqualTo(originalAdmissions));
             }
             finally
