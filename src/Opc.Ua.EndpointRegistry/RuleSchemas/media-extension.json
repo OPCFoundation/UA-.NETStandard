@@ -1,0 +1,85 @@
+{
+  "id": "urn:opcfoundation:epreg:media",
+  "version": "0.1.0",
+  "registryProfile": "http://opcfoundation.org/UA-Profile/EndpointRegistry/Media",
+  "sourceRevision": "9613f002c82c9568fbefc5f1f0cf0490d6df572a",
+  "baseRevision": "989efc6cd81fd408fdb1c7a85b2419d199936c35",
+  "semanticRules": ["one-media-role", "no-message-associations", "no-envelope", "producer-input-only", "effective-defaults", "open-case-sensitive-codecs", "native-session-boundary"],
+  "claims": ["static-catalog-validation", "no-automatic-media-session"],
+  "nativeDependencies": [
+    "SRT v1.5.4 Stream ID documentation",
+    "RFC 8834", "RFC 8835", "RFC 8827", "RFC 9725",
+    "draft-ietf-wish-whep-03 (expired 2026-02-19)",
+    "RFC 2326", "RFC 7826", "RFC 3550", "RFC 3711", "RFC 8866", "RFC 2250",
+    "RFC 6184", "RFC 7798", "RFC 7741", "RFC 9628", "AV1 RTP v1.0.0",
+    "RFC 3640", "RFC 7587", "RFC 3551", "Opus MPEG-TS draft v0.1.3",
+    "ITU-T H.222.0 (06/2021)", "RTMP 1.0 (2012-12-21)", "FLV 10.1",
+    "RFC 8216", "ISO/IEC 23009-1:2022", "VSF TR-06-1:2020", "VSF TR-06-2:2024", "RFC 9110"
+  ],
+  "protocols": {
+    "SRT": {
+      "usage": ["producer", "consumer"], "schemes": ["srt"], "explicitPort": true,
+      "formats": ["mpegts"], "defaults": {"streamformat": "mpegts", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {"streamid": {"type": "string"}},
+      "native": ["caller-live", "native-security", "receiving-path-admission"]
+    },
+    "WebRTC": {
+      "usage": ["producer", "consumer"], "schemes": ["https"],
+      "formats": ["srtp"], "defaults": {"streamformat": "srtp", "videocodec": "H264", "audiocodec": "Opus"},
+      "options": {
+        "signaling": {"type": "string", "required": true, "enum": ["WHIP/RFC9725", "WHEP/draft-ietf-wish-whep-03", "external"]},
+        "signalingreference": {"type": "uri"}
+      },
+      "native": ["offer-answer", "ICE", "DTLS-SRTP", "session-lifecycle"]
+    },
+    "RTSP/1.0": {
+      "usage": ["producer", "consumer"], "schemes": ["rtsp"],
+      "formats": ["rtp", "rtp-mpegts"], "defaults": {"streamformat": "rtp", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {}, "native": ["DESCRIBE-or-ANNOUNCE", "SETUP", "PLAY-or-RECORD", "native-security"]
+    },
+    "RTSP/2.0": {
+      "usage": ["consumer"], "schemes": ["rtsp", "rtsps"],
+      "formats": [], "defaults": {}, "options": {},
+      "native": ["DESCRIBE", "SETUP", "PLAY", "no-recording-mapping"]
+    },
+    "RTP/2": {
+      "usage": ["producer", "consumer"], "schemes": ["udp"], "explicitPort": true,
+      "formats": ["rtp", "rtp-mpegts"], "defaults": {"streamformat": "rtp", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {"sessiondescription": {"type": "uri"}},
+      "native": ["SDP-payload-mappings", "RTCP", "multicast-source-selection", "SRTP-key-management"]
+    },
+    "MPEGTS-UDP": {
+      "usage": ["producer", "consumer"], "schemes": ["udp"], "explicitPort": true,
+      "formats": ["mpegts"], "defaults": {"streamformat": "mpegts", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {}, "native": ["configured-destination", "multicast-policy", "MTU"]
+    },
+    "RTMP/1.0": {
+      "usage": ["producer", "consumer"], "schemes": ["rtmp", "rtmps"],
+      "formats": ["flv"], "defaults": {"streamformat": "flv", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {"application": {"type": "string", "required": true}, "streamname": {"type": "string", "required": true}},
+      "native": ["connect-app", "publish-live-or-play", "sequence-headers", "native-security", "source-review"]
+    },
+    "HLS": {
+      "usage": ["consumer"], "schemes": ["http", "https"], "formats": [], "defaults": {}, "options": {},
+      "native": ["playlist-selection", "media-and-key-fetch-policy"]
+    },
+    "DASH": {
+      "usage": ["consumer"], "schemes": ["http", "https"], "formats": [], "defaults": {}, "options": {},
+      "native": ["MPD-selection", "content-protection", "source-review"]
+    },
+    "RIST-Simple/2020": {
+      "usage": ["producer", "consumer"], "schemes": [],
+      "formats": ["rtp-mpegts"], "defaults": {"streamformat": "rtp-mpegts", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {}, "native": ["source-review", "incomplete-address-and-session-mapping"]
+    },
+    "RIST-Main/2024": {
+      "usage": ["producer", "consumer"], "schemes": [],
+      "formats": ["rtp-mpegts"], "defaults": {"streamformat": "rtp-mpegts", "videocodec": "H264", "audiocodec": "AAC"},
+      "options": {}, "native": ["source-review", "incomplete-address-and-session-mapping"]
+    },
+    "HTTP": {
+      "usage": ["consumer"], "schemes": ["http", "https"], "formats": [], "defaults": {}, "options": {},
+      "inherit": "HTTP", "native": ["response-content-type", "native-media-headers", "HTTP-policy"]
+    }
+  }
+}

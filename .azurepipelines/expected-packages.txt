@@ -39,6 +39,12 @@ OPCFoundation.NetStandard.Opc.Ua.Di
 OPCFoundation.NetStandard.Opc.Ua.Di.Client
 OPCFoundation.NetStandard.Opc.Ua.Di.Server
 OPCFoundation.NetStandard.Opc.Ua.ECM
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry.Client
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry.Federation
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry.Federation.Server
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry.PubSub
+OPCFoundation.NetStandard.Opc.Ua.EndpointRegistry.Server
 OPCFoundation.NetStandard.Opc.Ua.Extrusion
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Client
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Server
@@ -131,6 +137,10 @@ OPCFoundation.NetStandard.Opc.Ua.Robotics.Server
 OPCFoundation.NetStandard.Opc.Ua.Scales
 OPCFoundation.NetStandard.Opc.Ua.Scales.Client
 OPCFoundation.NetStandard.Opc.Ua.Scales.Server
+OPCFoundation.NetStandard.Opc.Ua.SchemaRegistry
+OPCFoundation.NetStandard.Opc.Ua.SchemaRegistry.Client
+OPCFoundation.NetStandard.Opc.Ua.SchemaRegistry.Formats
+OPCFoundation.NetStandard.Opc.Ua.SchemaRegistry.Server
 OPCFoundation.NetStandard.Opc.Ua.Security.Certificates
 OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11
 OPCFoundation.NetStandard.Opc.Ua.Server

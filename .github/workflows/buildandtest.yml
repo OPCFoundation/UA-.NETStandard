@@ -394,6 +394,7 @@ jobs:
       # binary is published and run on every AOT platform.
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
+      AOTPROJECT_REGISTRY: './tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj'
       DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
@@ -434,6 +435,14 @@ jobs:
       run: >-
         ./tests/Opc.Ua.Aot.Tests.Mcp/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Aot.Tests.Mcp
         --results-directory ./TestResults/aot-mcp
+
+    - name: Publish NativeAOT (Registry)
+      run: dotnet publish ${{ env.AOTPROJECT_REGISTRY }} --configuration ${{ env.CONFIGURATION }}
+
+    - name: Run NativeAOT Tests (Registry)
+      run: >-
+        ./tests/Opc.Ua.Registry.Aot.Tests/bin/${{ env.CONFIGURATION }}/net10.0/${{ matrix.rid }}/publish/Opc.Ua.Registry.Aot.Tests
+        --results-directory ./TestResults/aot-registry
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

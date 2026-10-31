@@ -187,7 +187,7 @@ jobs:
       shell: pwsh
       run: ./.azurepipelines/set-version.ps1
 
-    # The three AOT binaries are separate projects to bound the native linker's
+    # The four AOT binaries are separate projects to bound the native linker's
     # input, and every one of them is published and run on every AOT platform.
     - name: Publish and run the NativeAOT tests
       shell: pwsh
@@ -198,7 +198,8 @@ jobs:
         $projects = @(
             'tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj',
             'tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj',
-            'tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj')
+            'tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj',
+            'tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj')
         $failed = @()
         foreach ($project in $projects) {
             $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
