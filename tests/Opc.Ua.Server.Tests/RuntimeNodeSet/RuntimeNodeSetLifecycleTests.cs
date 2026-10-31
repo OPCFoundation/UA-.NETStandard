@@ -95,16 +95,36 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private HashSet<Guid> m_startupRegistrationIds;
 
         /// <summary>
-        /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
+        /// Creates one PKI root for the fixture so that application certificates are
+        /// generated once rather than for every test; servers stay per test.
         /// </summary>
-        [SetUp]
-        public async Task SetUpAsync()
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
         {
             m_pkiRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
                 nameof(RuntimeNodeSetLifecycleTests),
                 Guid.NewGuid().ToString("N"));
+        }
 
+        /// <summary>
+        /// Deletes the fixture PKI root.
+        /// </summary>
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
+            {
+                Directory.Delete(m_pkiRoot, recursive: true);
+            }
+        }
+
+        /// <summary>
+        /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
+        /// </summary>
+        [SetUp]
+        public async Task SetUpAsync()
+        {
             m_fixture = new ServerFixture<ReferenceServer>(t => new ReferenceServer(t))
             {
                 UriScheme = Utils.UriSchemeOpcTcp,
@@ -125,7 +145,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
-        /// Closes the session, stops the server, and cleans up PKI artefacts.
+        /// Closes the session and stops the server.
         /// </summary>
         [TearDown]
         public async Task TearDownAsync()
@@ -143,11 +163,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             if (m_fixture is not null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
-            }
-
-            if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
-            {
-                Directory.Delete(m_pkiRoot, recursive: true);
             }
         }
 
