@@ -102,7 +102,80 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 opt.Configure(configure);
             }
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
+            return builder;
+        }
+
+        /// <summary>
+        /// Enables the schema lifecycle observer so that when a PubSub encoder produces a new
+        /// per-DataSet schema (a fingerprint change) the publisher advances that DataSet's
+        /// ConfigurationVersion and, when an <see cref="ISchemaRegistrationSink"/> is also
+        /// registered, registers the schema (Avro Part 6 §6.4 / Part 14 §8.4.5, §8.4.8). Opt-in:
+        /// without this call the ConfigurationVersion stays under explicit configuration control.
+        /// </summary>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddSchemaLifecycleObserver(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.TryAddSingleton<ISchemaLifecycleObserver>(sp =>
+                new SchemaLifecycleObserver(
+                    sp.GetRequiredService<IDataSetMetaDataRegistry>(),
+                    sp.GetService<ISchemaRegistrationSink>(),
+                    sp.GetService<TimeProvider>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a <see cref="Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySink"/> so that a schema
+        /// produced by a PubSub encoder is also published into the Schema Registry, in addition to
+        /// being announced on the wire (Avro Part 14 §8.4.5). Combine with
+        /// <see cref="AddSchemaLifecycleObserver"/>, which resolves the sink and invokes it on every
+        /// schema change. Opt-in: without this call the encoder announcement remains the sole
+        /// publish channel.
+        /// </summary>
+        /// <remarks>
+        /// The registry client is session-bound, so the application supplies it — register a
+        /// <see cref="Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient"/> built over the connected
+        /// session, and configure the SchemaGroup NodeId resolved once from that registry's topology.
+        /// </remarks>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <param name="configure">Callback that supplies the SchemaGroup NodeId.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddSchemaRegistrySink(
+            this IOpcUaBuilder builder,
+            Action<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions> configure)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (configure is null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            builder.Services.Configure(configure);
+            builder.Services.TryAddSingleton<ISchemaRegistrationSink>(sp =>
+            {
+                Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions options = sp
+                    .GetRequiredService<IOptions<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySinkOptions>>()
+                    .Value;
+                if (!options.IsComplete)
+                {
+                    throw new InvalidOperationException(
+                        "SchemaRegistrySinkOptions is incomplete: a SchemaGroupNodeId and a " +
+                        "positive ChunkSize are required.");
+                }
+                return new Opc.Ua.PubSub.SchemaRegistry.SchemaRegistrySink(
+                    sp.GetRequiredService<Opc.Ua.PubSub.SchemaRegistry.SchemaRegistryClient>(),
+                    options.SchemaGroupNodeId,
+                    options.ChunkSize);
+            });
             return builder;
         }
 
@@ -148,7 +221,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(section));
             }
             builder.Services.AddOptions<PubSubApplicationOptions>().Bind(section);
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
             return builder;
         }
 
@@ -177,7 +250,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(configure));
             }
             builder.Services.AddOptions<PubSubApplicationOptions>();
-            RegisterCoreServices(builder.Services);
+            RegisterCoreServices(builder);
             var pubSubBuilder = new PubSubBuilder(builder);
             configure(pubSubBuilder);
             pubSubBuilder.Build();
@@ -210,8 +283,39 @@ namespace Microsoft.Extensions.DependencyInjection
             return builder.AddPubSub(configure);
         }
 
-        private static void RegisterCoreServices(IServiceCollection services)
+        /// <summary>
+        /// Registers and enables the experimental JSON schema-exchange provider used by JSON NetworkMessage encoders.
+        /// </summary>
+        /// <param name="builder">OPC UA root builder.</param>
+        /// <param name="configure">Optional JSON schema-exchange options callback.</param>
+        /// <returns>The original <paramref name="builder"/>.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaBuilder AddJsonSchemaExchange(
+            this IOpcUaBuilder builder,
+            Action<JsonSchemaExchangeOptions>? configure = null)
         {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.AddSchemaGeneration();
+            RegisterJsonSchemaExchangeServices(builder.Services);
+            if (configure is not null)
+            {
+                builder.Services.Configure(configure);
+            }
+            builder.Services.Configure<PubSubApplicationOptions>(options =>
+            {
+                options.JsonSchemaExchange = JsonSchemaExchangeMode.Compact;
+            });
+            return builder;
+        }
+
+        private static void RegisterCoreServices(IOpcUaBuilder builder)
+        {
+            builder.AddSchemaGeneration();
+            IServiceCollection services = builder.Services;
             services.TryAddSingleton(TimeProvider.System);
             services.TryAddSingleton<ITelemetryContext>(
                 sp => new ServiceProviderTelemetryContext(sp));
@@ -231,10 +335,19 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetService<TimeProvider>()));
 
             // Standard encoders / decoders — opt-in via options.
+            RegisterJsonSchemaExchangeServices(services);
             services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder());
-            services.AddSingleton<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonEncoder());
+            services.AddSingleton<INetworkMessageEncoder>(CreateJsonEncoder);
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder());
             services.AddSingleton<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.Json.JsonDecoder());
+
+            // Experimental Avro NetworkMessage encoder/decoder (Part 14 draft) so routes can
+            // transcode to and from the Avro mapping alongside UADP and JSON. Registered transient so
+            // each transcoding bridge gets its own progressive-schema state, which resets naturally
+            // when a route is reloaded (the bridge is recreated); SchemaCache.Reset provides an
+            // explicit reset, and a DataSet MetaData version change re-announces automatically.
+            services.AddTransient<INetworkMessageEncoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageEncoder());
+            services.AddTransient<INetworkMessageDecoder>(_ => new Opc.Ua.PubSub.Encoding.AvroNetworkMessageDecoder());
 
             // Security policies. A symmetric crypto provider bound to
             // CryptoPurpose.ChannelSymmetric performs the per-message AES-CTR and
@@ -325,10 +438,35 @@ namespace Microsoft.Extensions.DependencyInjection
                     activationCoordinator:
                         sp.GetRequiredService<IPubSubActivationCoordinator>(),
                     writerCheckpointStore:
-                        sp.GetRequiredService<IPubSubWriterCheckpointStore>());
+                        sp.GetRequiredService<IPubSubWriterCheckpointStore>(),
+                    schemaObserver: sp.GetService<ISchemaLifecycleObserver>());
             });
 
             services.AddSingleton<IHostedService, PubSubApplicationHostedService>();
+        }
+
+        private static Opc.Ua.PubSub.Encoding.Json.JsonEncoder CreateJsonEncoder(IServiceProvider sp)
+        {
+            var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
+            PubSubApplicationOptions options =
+                sp.GetRequiredService<IOptions<PubSubApplicationOptions>>().Value;
+            if (options.JsonSchemaExchange == JsonSchemaExchangeMode.Disabled)
+            {
+                return encoder;
+            }
+
+            JsonSchemaExchangeOptions jsonOptions =
+                sp.GetService<IOptions<JsonSchemaExchangeOptions>>()?.Value ?? new JsonSchemaExchangeOptions();
+            encoder.EnableSchemaExchange = true;
+            encoder.SchemaProvider = sp.GetRequiredService<IDataSetJsonSchemaProvider>();
+            encoder.SchemaVerbose = options.JsonSchemaExchange == JsonSchemaExchangeMode.Verbose || jsonOptions.Verbose;
+            encoder.DestinationId = jsonOptions.DestinationId ?? options.ApplicationId ?? "pubsub-json-schema-exchange";
+            return encoder;
+        }
+
+        private static void RegisterJsonSchemaExchangeServices(IServiceCollection services)
+        {
+            services.TryAddSingleton<IDataSetJsonSchemaProvider, DataSetJsonSchemaProvider>();
         }
 
         /// <summary>

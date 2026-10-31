@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPC UA Avro DataEncoding companion namespace: the Part 14 configuration model additions for
+     the Avro message mapping (Avro companion specification §9).
+
+     PROVISIONAL NodeIds - the OPC Foundation assigns the final identifiers when the namespace is
+     registered, so every numeric id below is a draft.
+
+     This model adds configuration only. There is deliberately no DataTypeEncoding Object and no
+     HasEncoding reference for "Default Avro": §4.2 of the companion specification states that the
+     encoding has no AddressSpace representation and is named only for symmetry with Default Binary,
+     Default XML and Default JSON. An Avro payload is identified by its SchemaId (§6.3), not by an
+     encoding NodeId. -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/Avro/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/Avro/" Version="0.1.0" PublicationDate="2026-07-30T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+
+  <!-- §9.2 Content mask DataTypes. Both mirror their JSON counterparts (i=15654, i=15658) so a
+       configuration tool that already understands the JSON mapping needs no new concepts. Fields
+       that are not selected remain present in the envelope schema and are null on the wire, which
+       is what keeps the envelope schema stable across content-mask changes. -->
+  <UADataType NodeId="ns=1;i=64000" BrowseName="1:AvroNetworkMessageContentMask">
+    <DisplayName>AvroNetworkMessageContentMask</DisplayName>
+    <Description>Selects which fields of the fixed Avro NetworkMessage envelope are populated (Avro companion specification §8.1, §9.2).</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
+    </References>
+    <Definition Name="AvroNetworkMessageContentMask" IsOptionSet="true">
+      <Field Name="NetworkMessageHeader" Value="0" />
+      <Field Name="DataSetMessageHeader" Value="1" />
+      <Field Name="SingleDataSetMessage" Value="2" />
+      <Field Name="PublisherId" Value="3" />
+      <Field Name="DataSetClassId" Value="4" />
+      <Field Name="GroupHeader" Value="5" />
+      <Field Name="WriterGroupId" Value="6" />
+      <Field Name="GroupVersion" Value="7" />
+      <Field Name="NetworkMessageNumber" Value="8" />
+      <Field Name="SequenceNumber" Value="9" />
+      <Field Name="Timestamp" Value="10" />
+      <Field Name="PicoSeconds" Value="11" />
+      <Field Name="PromotedFields" Value="12" />
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=64001" BrowseName="1:AvroDataSetMessageContentMask">
+    <DisplayName>AvroDataSetMessageContentMask</DisplayName>
+    <Description>Selects which DataSetMessage header fields are populated (Avro companion specification §8.2, §9.2). DataSetWriterId and MessageType are always required because they select the DataSetMetaData and the frame interpretation.</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=7</Reference>
+    </References>
+    <Definition Name="AvroDataSetMessageContentMask" IsOptionSet="true">
+      <Field Name="DataSetWriterId" Value="0" />
+      <Field Name="MessageType" Value="1" />
+      <Field Name="MajorVersion" Value="2" />
+      <Field Name="MinorVersion" Value="3" />
+      <Field Name="SequenceNumber" Value="4" />
+      <Field Name="Timestamp" Value="5" />
+      <Field Name="PicoSeconds" Value="6" />
+      <Field Name="Status" Value="7" />
+      <Field Name="SchemaId" Value="8" />
+    </Definition>
+  </UADataType>
+
+  <!-- §9.3 MessageSettings DataTypes. Each subtypes the abstract Part 14 base so that a
+       WriterGroup, DataSetWriter or DataSetReader selects the Avro mapping simply by carrying one
+       of these in its MessageSettings ExtensionObject, exactly as the UADP and JSON mappings do. -->
+  <UADataType NodeId="ns=1;i=64010" BrowseName="1:AvroWriterGroupMessageDataType">
+    <DisplayName>AvroWriterGroupMessageDataType</DisplayName>
+    <Description>WriterGroup MessageSettings for the Avro message mapping. A WriterGroup uses the Avro mapping if and only if its MessageSettings is of this DataType.</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15616</Reference>
+    </References>
+    <Definition Name="AvroWriterGroupMessageDataType">
+      <Field Name="NetworkMessageContentMask" DataType="ns=1;i=64000">
+        <Description>Envelope fields to populate (§9.2).</Description>
+      </Field>
+      <Field Name="AvroSchemaUri" DataType="i=12">
+        <Description>Optional URI of the schema registry or catalog serving this group's schemas (§8.4).</Description>
+      </Field>
+      <Field Name="AvroUseObjectContainerFile" DataType="i=1">
+        <Description>False for PubSub network payloads by default; true only for transports that explicitly carry Avro object container files.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=64011" BrowseName="1:AvroDataSetWriterMessageDataType">
+    <DisplayName>AvroDataSetWriterMessageDataType</DisplayName>
+    <Description>DataSetWriter MessageSettings for the Avro message mapping.</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15605</Reference>
+    </References>
+    <Definition Name="AvroDataSetWriterMessageDataType">
+      <Field Name="DataSetMessageContentMask" DataType="ns=1;i=64001">
+        <Description>DataSetMessage header fields to populate (§9.2).</Description>
+      </Field>
+      <Field Name="AvroSchemaId" DataType="i=12">
+        <Description>SchemaId of the DataSet schema currently published by this writer (§6.3), in little-endian hexadecimal. It identifies the schema and does not replace the ConfigurationVersion.</Description>
+      </Field>
+      <Field Name="AvroSchemaHash" DataType="i=15">
+        <Description>Optional copy of the little-endian CRC-64-AVRO SchemaId bytes for mismatch detection.</Description>
+      </Field>
+      <Field Name="AvroRawDataAllowed" DataType="i=1">
+        <Description>Whether RawData fields may be emitted for this writer (§8.2).</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <UADataType NodeId="ns=1;i=64012" BrowseName="1:AvroDataSetReaderMessageDataType">
+    <DisplayName>AvroDataSetReaderMessageDataType</DisplayName>
+    <Description>DataSetReader MessageSettings for the Avro message mapping.</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=15629</Reference>
+    </References>
+    <Definition Name="AvroDataSetReaderMessageDataType">
+      <Field Name="NetworkMessageContentMask" DataType="ns=1;i=64000">
+        <Description>Envelope fields the reader expects.</Description>
+      </Field>
+      <Field Name="DataSetMessageContentMask" DataType="ns=1;i=64001">
+        <Description>DataSetMessage header fields the reader expects.</Description>
+      </Field>
+      <Field Name="AvroSchemaUri" DataType="i=12">
+        <Description>Optional URI from which the reader resolves schemas by SchemaId (§7).</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+
+  <!-- §9.4 ObjectTypes, mirroring the JSON message mapping ObjectTypes. -->
+  <UAObjectType NodeId="ns=1;i=64020" BrowseName="1:AvroWriterGroupMessageType">
+    <DisplayName>AvroWriterGroupMessageType</DisplayName>
+    <Description>The Avro message mapping options of a WriterGroup (§9.4).</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=17998</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=64030</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=64030" BrowseName="1:NetworkMessageContentMask" ParentNodeId="ns=1;i=64020" DataType="ns=1;i=64000">
+    <DisplayName>NetworkMessageContentMask</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=64020</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=64021" BrowseName="1:AvroDataSetWriterMessageType">
+    <DisplayName>AvroDataSetWriterMessageType</DisplayName>
+    <Description>The Avro message mapping options of a DataSetWriter (§9.4).</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=21096</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=64031</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=64031" BrowseName="1:DataSetMessageContentMask" ParentNodeId="ns=1;i=64021" DataType="ns=1;i=64001">
+    <DisplayName>DataSetMessageContentMask</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=64021</Reference>
+    </References>
+  </UAVariable>
+
+  <UAObjectType NodeId="ns=1;i=64022" BrowseName="1:AvroDataSetReaderMessageType">
+    <DisplayName>AvroDataSetReaderMessageType</DisplayName>
+    <Description>The Avro message mapping options of a DataSetReader (§9.4).</Description>
+    <Category>PubSub Parameters Avro</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=21104</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=64032</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=64033</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=64032" BrowseName="1:NetworkMessageContentMask" ParentNodeId="ns=1;i=64022" DataType="ns=1;i=64000">
+    <DisplayName>NetworkMessageContentMask</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=64022</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=64033" BrowseName="1:DataSetMessageContentMask" ParentNodeId="ns=1;i=64022" DataType="ns=1;i=64001">
+    <DisplayName>DataSetMessageContentMask</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=64022</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>
