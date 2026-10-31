@@ -71,6 +71,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public NamespaceTable Namespaces => m_server.CurrentInstance.NamespaceUris;
 
         /// <summary>
+        /// Gets the serving state used to verify candidate routing isolation.
+        /// </summary>
+        public IServerInternal Server => m_server.CurrentInstance;
+
+        /// <summary>
         /// Gets the lifecycle for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
@@ -333,8 +338,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private sealed class ObservedUnit(
             IWotPreparedProjectionPublication inner,
             ArrayOf<WotProjectionChange> changes,
-            Action<ArrayOf<WotProjectionChange>> published) : IWotPreparedProjectionPublication
+            Action<ArrayOf<WotProjectionChange>> published)
+            : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
         {
+            /// <inheritdoc/>
+            public ArrayOf<string> CapturedNamespaceUris =>
+                (inner as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? [];
+
             /// <summary>
             /// Gets the projections for <c>ObservedUnit</c>.
             /// </summary>

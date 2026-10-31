@@ -46,27 +46,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reports whether the exact manager is the source or a captured dependency of this point.
-        /// Session ownership trackers must use this query rather than compare only <see cref="Manager"/>.
-        /// </summary>
-        /// <param name="nodeManager">The node manager to look for.</param>
-        /// <returns><c>true</c> if the manager is the source or a captured dependency.</returns>
-        public bool RequiresManager(IAsyncNodeManager nodeManager)
-        {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-            if (MatchesManager(Manager, nodeManager))
-            {
-                return true;
-            }
-            IAsyncNodeManager[]? dependencies = Volatile.Read(ref m_dependencyOwners);
-            return dependencies is not null && Array.Exists(
-                dependencies, owner => MatchesManager(owner, nodeManager));
-        }
-
-        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -93,7 +72,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    RoutingSnapshot = null;
+                    Generation = null;
                     owner?.Invoke();
                 }
             }
@@ -129,30 +108,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the continuation point.
         /// </summary>
-        public IAsyncNodeManager Manager { get; set; } = null!;
-
-        /// <summary>
-        /// Gets or sets the routing snapshot captured when the continuation was created, used to resume against the
-        /// same node manager generations.
-        /// </summary>
-        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; set; }
-
-        /// <summary>
-        /// Gets whether the node managers the continuation depends on have been captured.
-        /// </summary>
-        internal bool HasCapturedDependencies => Volatile.Read(ref m_dependencyOwners) is not null;
-
-        /// <summary>
-        /// Captures the node managers the continuation depends on. This can be done only once.
-        /// </summary>
-        /// <param name="owners">The node managers retained for the lifetime of the continuation point.</param>
-        internal void SetDependencyOwners(ArrayOf<IAsyncNodeManager> owners)
+        public IAsyncNodeManager Manager
         {
-            if (Interlocked.CompareExchange(ref m_dependencyOwners, owners.ToArray(), null) is not null)
+            get => Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                generation is not null
+                ? generation.NodeManager
+                : null!;
+            set
             {
-                throw new InvalidOperationException("The Browse dependencies have already been captured.");
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
             }
         }
+
+        /// <summary>
+        /// Gets or sets the weak identity of the generation that issued this continuation.
+        /// It does not keep the generation or its manager alive.
+        /// </summary>
+        internal NodeManagerGenerationReference? Generation { get; set; }
 
         /// <summary>
         /// The view being browsed.
@@ -212,8 +188,6 @@ namespace Opc.Ua.Server
         /// If this is the case then the object stored here must implement the Idispose
         /// interface. This will ensure the unmanaged resources are freed if the continuation
         /// point expires.
-        /// For pagination, the data must also implement <see cref="IBrowseContinuationDependencies"/>
-        /// and declare every remaining dependency before the point is saved.
         /// </remarks>
         public object? Data { get; set; }
 
@@ -276,22 +250,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Determines whether a node manager is the same owner as, or the synchronous node manager behind, the
-        /// specified candidate.
-        /// </summary>
-        /// <param name="owner">The retained owner, or null.</param>
-        /// <param name="candidate">The node manager to compare against.</param>
-        /// <returns>True if both refer to the same node manager.</returns>
-        private static bool MatchesManager(IAsyncNodeManager? owner, IAsyncNodeManager candidate)
-        {
-            return ReferenceEquals(owner, candidate) ||
-                (owner?.SyncNodeManager is { } syncManager &&
-                    ReferenceEquals(syncManager, candidate.SyncNodeManager));
-        }
-
         private static readonly Action s_disposedOwner = static () => { };
         private Action? m_ownerRelease;
-        private IAsyncNodeManager[]? m_dependencyOwners;
     }
 }

@@ -37,16 +37,18 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Hosts NodeManagers that are added, replaced, or retired while the server is running.
     /// <para>
-    /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
-    /// address space. A NodeManager is first prepared, which builds its address space without
-    /// making it reachable. It is then published or swapped in for the NodeManager it replaces,
-    /// and finally committed, which is the point at which Clients observe the change.
-    /// Preparation and staging failures use the matching rollback. A failure after
-    /// client-visible commit may retain the live generation for recovery or removal.
+    /// Candidates are prepared privately and published by the unified batch host.
+    /// Failed preparation can only abort private candidates; committed generations are
+    /// reconciled or removed through another transaction, never structurally rolled back.
     /// </para>
     /// </summary>
-    internal interface IDynamicNodeManagerHost
+    internal interface IDynamicNodeManagerHost : IDynamicNodeManagerBatchHost
     {
+        /// <summary>
+        /// Gets the server-owned reconciler for exact generation binding records.
+        /// </summary>
+        GenerationReconciler GenerationReconciler { get; }
+
         /// <summary>
         /// Builds the address space of <paramref name="nodeManager"/> without making it reachable,
         /// and collects the references it wants to add to Nodes owned by other NodeManagers.
@@ -56,70 +58,6 @@ namespace Opc.Ua.Server
         /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Adds a prepared NodeManager to the routing table without making it visible, so its
-        /// Nodes can be resolved by the lifecycle operation but not yet by Clients.
-        /// </summary>
-        /// <param name="prepared">The prepared NodeManager.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask PublishAsync(
-            PreparedNodeManager prepared,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Stages <paramref name="replacement"/> in place of <paramref name="current"/> so that
-        /// the replaced NodeManager can be restored if a later stage fails.
-        /// </summary>
-        /// <param name="current">The NodeManager that is being replaced.</param>
-        /// <param name="replacement">The prepared replacement.</param>
-        /// <param name="allowActiveMonitoredItems">
-        /// <c>true</c> to allow the replacement even when the current generation still owns
-        /// active monitored items, as a shadow or immediate reload does; <c>false</c> to fail
-        /// closed before any routing change, as an ordinary reload does.
-        /// </param>
-        /// <param name="retainReplacedNotifications">
-        /// <c>true</c> to keep the replaced generation in session and existing all-events
-        /// notification fan-out while its active MonitoredItems drain.
-        /// </param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask ReplaceAsync(
-            IAsyncNodeManager current,
-            PreparedNodeManager replacement,
-            bool allowActiveMonitoredItems = false,
-            bool retainReplacedNotifications = false,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Makes a published NodeManager visible to Clients. The callbacks run inside the commit
-        /// so that work which must not be observed in a half applied state, such as detaching and
-        /// reattaching MonitoredItems, is ordered around the visibility boundary.
-        /// </summary>
-        /// <param name="prepared">The prepared NodeManager to commit.</param>
-        /// <param name="beforeCommit">Runs while the change is still invisible to Clients.</param>
-        /// <param name="afterCommit">Runs once the change is visible to Clients.</param>
-        /// <param name="rollbackCommit">Undoes <paramref name="beforeCommit"/> when the commit fails.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask CommitAsync(
-            PreparedNodeManager prepared,
-            Func<ValueTask>? beforeCommit = null,
-            Func<ValueTask>? afterCommit = null,
-            Func<ValueTask>? rollbackCommit = null,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Hides a committed NodeManager from Clients while keeping it registered, so that it can
-        /// be made visible again if the removal cannot be completed.
-        /// </summary>
-        /// <param name="nodeManager">The NodeManager to hide.</param>
-        /// <param name="beforeUnpublish">Runs while the NodeManager is still visible.</param>
-        /// <param name="rollbackUnpublish">Undoes <paramref name="beforeUnpublish"/> on failure.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask UnpublishAsync(
-            IAsyncNodeManager nodeManager,
-            Func<ValueTask>? beforeUnpublish = null,
-            Func<ValueTask>? rollbackUnpublish = null,
             CancellationToken ct = default);
 
         /// <summary>
@@ -148,24 +86,34 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Undoes a prepared, published, or staged NodeManager after a failed lifecycle operation
-        /// and returns the address space to the state it had before the operation started.
+        /// Destroys a private candidate after preparation fails or its transaction is abandoned.
+        /// A candidate that has already been published cannot be aborted.
         /// </summary>
         /// <param name="prepared">The prepared NodeManager to undo.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask RollbackAsync(
+        ValueTask AbortAsync(
             PreparedNodeManager prepared,
             CancellationToken ct = default);
 
         /// <summary>
-        /// Transfers the application NodeManagers created during server startup into the
-        /// live lifecycle bookkeeping. Built-in configuration, diagnostics, and core
-        /// NodeManagers are not included.
+        /// Gets application factories to publish through initial Add changes.
         /// </summary>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        /// <returns>The already-published startup NodeManagers and their external references.</returns>
-        ValueTask<ArrayOf<PreparedNodeManager>> TakeStartupNodeManagersAsync(
-            CancellationToken ct = default);
+        ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; }
+
+        /// <summary>
+        /// Gets the stable slots supplying the server's protected system roles.
+        /// </summary>
+        ArrayOf<NodeManagerSlot> SystemSlots { get; }
+
+        /// <summary>
+        /// Routes hosted shutdown and disposal admission through the canonical generation owner.
+        /// </summary>
+        void SetLifetimeOwner(Func<CancellationToken, ValueTask> shutdown, Func<bool> canDispose);
+
+        /// <summary>
+        /// Rejects preconstructed applications that cannot participate in private initial preparation.
+        /// </summary>
+        void ValidateStartupFactories();
 
         /// <summary>
         /// Drops the host bookkeeping for a NodeManager that the caller has taken over, without
@@ -183,46 +131,22 @@ namespace Opc.Ua.Server
         void SetRetiredGenerationDrainObserver(Action? observer);
 
         /// <summary>
-        /// Reattaches MonitoredItems that were detached because their Node disappeared, once a
-        /// compatible Node with the same NodeId is visible again.
+        /// Resolves nonterminal monitored-item source bindings when compatible Nodes become available
+        /// on their stable slot again.
         /// </summary>
         /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
         /// <param name="nodeIds">The Nodes that became available, or <c>null</c> for all.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        ValueTask RecoverDetachedMonitoredItemsAsync(
+        ValueTask ResolveUnresolvedSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Enables or suspends session and existing all-events notifications for a
-        /// shadow-retired generation. Suspending notifications establishes the cutoff
-        /// used before its final request drain and destruction.
+        /// Closes generation admission, waits for admitted callbacks to drain, and releases
+        /// the generation's remaining exact all-events binding records.
         /// </summary>
-        /// <param name="nodeManager">The shadow-retired generation.</param>
-        /// <param name="enabled"><c>true</c> to enable notifications; otherwise <c>false</c>.</param>
-        void SetRetiredGenerationNotifications(
-            IAsyncNodeManager nodeManager,
-            bool enabled);
-
-        /// <summary>
-        /// Disables new lifecycle-protected notifications and waits for dispatches that already
-        /// captured <paramref name="nodeManager"/> to finish, without changing its retained
-        /// all-events subscription snapshot.
-        /// </summary>
-        /// <param name="nodeManager">The generation whose dispatches must drain.</param>
-        /// <param name="ct">The token used to cancel the wait.</param>
-        ValueTask WaitForNotificationDispatchesAsync(
-            IAsyncNodeManager nodeManager,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Unsubscribes a shadow-retired generation from the exact all-events monitored
-        /// items captured when it was retired. Items already handled by an in-flight
-        /// deletion are absent, while deletions excluded after notification suspension
-        /// remain in the snapshot and are finalized here.
-        /// </summary>
-        /// <param name="nodeManager">The shadow-retired generation.</param>
+        /// <param name="nodeManager">The NodeManager whose generation is being finalized.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask FinalizeRetiredGenerationNotificationsAsync(
             IAsyncNodeManager nodeManager,
@@ -231,7 +155,7 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Carries a NodeManager and the bookkeeping a lifecycle operation needs to move it through
-    /// the prepare, publish, commit, and rollback stages of <see cref="IDynamicNodeManagerHost"/>.
+    /// private preparation, batch publication, and abort cleanup.
     /// </summary>
     internal sealed class PreparedNodeManager
     {
@@ -256,52 +180,29 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
+        /// Gets or sets the explicit metadata preparation, if this is a runtime candidate.
+        /// </summary>
+        public ChangePreparer? Preparation { get; set; }
+
+        /// <summary>
+        /// Gets or sets the exact generation identity assigned to this prepared NodeManager.
+        /// </summary>
+        public NodeManagerGeneration? Generation { get; set; }
+
+        /// <summary>
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
 
         /// <summary>
-        /// Gets or sets whether lifecycle operations initiated from an OPC UA request callback
-        /// are allowed for this NodeManager.
-        /// </summary>
-        public bool AllowLifecycleFromRequestCallback { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether the NodeManager was added to the routing table and therefore has
-        /// to be removed again by a rollback.
+        /// Gets or sets whether the candidate crossed the routing-view commit point.
         /// </summary>
         public bool Published { get; set; }
 
         /// <summary>
-        /// Gets or sets whether the NodeManager was staged in place of another one and therefore
-        /// has to be swapped back by a rollback.
-        /// </summary>
-        public bool Staged { get; set; }
-
-        /// <summary>
-        /// Gets or sets the NodeManager this one replaces, which a rollback restores.
+        /// Gets or sets the exact predecessor withdrawn by this candidate's publication.
         /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager { get; set; }
 
-        /// <summary>
-        /// Gets or sets the external references of the replaced NodeManager, which a rollback
-        /// restores together with it.
-        /// </summary>
-        public Dictionary<NodeId, IList<IReference>>? ReplacedExternalReferences { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether <see cref="ReplacedNodeManager"/> may still own active
-        /// monitored items when this replacement is committed. Set by
-        /// <see cref="IDynamicNodeManagerHost.ReplaceAsync"/> for a shadow reload; the
-        /// replaced generation is preserved for its existing monitored items and is torn
-        /// down only after they drain.
-        /// </summary>
-        public bool AllowActiveMonitoredItems { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether the replaced generation remains in session and existing
-        /// all-events notification fan-out after the routing swap.
-        /// </summary>
-        public bool RetainReplacedNotifications { get; set; }
     }
 }

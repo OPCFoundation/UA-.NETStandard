@@ -280,6 +280,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 item.SetupGet(m => m.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
                 item.SetupGet(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
                 item.SetupGet(m => m.SamplingInterval).Returns(kInterval);
+                item.SetupGet(m => m.ManagerHandle).Returns(new object());
                 item.SetupGet(m => m.Session).Returns(session);
                 item.Setup(m => m.GetReadValueId()).Returns(() => new ReadValueId
                 {

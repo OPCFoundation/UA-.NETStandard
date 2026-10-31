@@ -137,6 +137,24 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             CancellationToken cancellationToken = default)
         {
+            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            try
+            {
+                return await RefreshAliasNameSourceCoreAsync(applicationId, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes one source while its caller owns an alias operation.
+        /// </summary>
+        private async ValueTask<bool> RefreshAliasNameSourceCoreAsync(
+            NodeId applicationId,
+            CancellationToken cancellationToken)
+        {
             AliasNameAggregator? aggregator = m_aliasAggregator;
             if (aggregator == null)
             {
@@ -165,7 +183,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     snapshot = await reader.ReadAsync(application!, timeout.Token).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+                catch (Exception ex) when (ex is not OutOfMemoryException && !cancellationToken.IsCancellationRequested)
                 {
                     m_logger.AliasNameSourceNotRead(application!.ApplicationUri, ex.Message);
                     return false;
@@ -199,7 +217,7 @@ namespace Opc.Ua.Gds.Server
 
         private long NextAliasReadVersion(NodeId applicationId)
         {
-            lock (m_aliasReadVersions)
+            lock (m_aliasWorkLock)
             {
                 long version = ++m_aliasReadCounter;
                 m_aliasReadVersions[applicationId] = version;
@@ -209,7 +227,7 @@ namespace Opc.Ua.Gds.Server
 
         private bool IsCurrentAliasRead(NodeId applicationId, long version)
         {
-            lock (m_aliasReadVersions)
+            lock (m_aliasWorkLock)
             {
                 return m_aliasReadVersions.TryGetValue(applicationId, out long current) && current == version;
             }
@@ -219,25 +237,33 @@ namespace Opc.Ua.Gds.Server
         /// Runs <see cref="RefreshAliasNameSourceAsync"/> in the background.
         /// The returned task never faults.
         /// </summary>
-        private Task RefreshAliasNameSourceInBackground(NodeId applicationId)
+        private async Task RefreshAliasNameSourceInBackground(NodeId applicationId)
         {
-            return Task.Run(async () =>
+            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            CancellationToken cancellationToken = m_aliasShutdown.Token;
+            try
             {
-                try
+                await Task.Run(async () =>
                 {
-                    await RefreshAliasNameSourceAsync(applicationId, m_aliasShutdown.Token).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.AliasNameRefreshFailed(ex.Message);
-                }
-            });
+                    try
+                    {
+                        await RefreshAliasNameSourceCoreAsync(applicationId, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        m_logger.AliasNameRefreshFailed(ex.Message);
+                    }
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
+            }
         }
 
         /// <summary>
         /// Creates the aggregator and registers it with the server's
-        /// alias-name store registry. Called while the address space is
-        /// configured.
+        /// alias-name store registry after the generation is published and runtime services are ready.
         /// </summary>
         private void InitializeAliasNameAggregation()
         {
@@ -246,20 +272,24 @@ namespace Opc.Ua.Gds.Server
                 return;
             }
 
-            m_aliasAggregator = new AliasNameAggregator(
+            IAliasNameStoreRegistry? registry =
+                (Server as IAliasNameStoreRegistryProvider)?.AliasNameStoreRegistry;
+            var aggregator = new AliasNameAggregator(
                 ApplicationsNamespaceIndex,
                 Server.NamespaceUris,
                 Server.ServerUris);
-            m_aliasRegistry = (Server as IAliasNameStoreRegistryProvider)?.AliasNameStoreRegistry;
-            m_aliasRegistry?.RegisterContributor(m_aliasAggregator);
+            registry?.RegisterContributor(aggregator);
+            m_aliasRegistry = registry;
+            m_aliasAggregator = aggregator;
 
             // Records restored from a persistent database are read once the
             // server runs; nodes cannot be added while the address space is
             // still being built.
             int refreshInterval = m_globalDiscoveryServerConfiguration.AliasNameRefreshInterval;
-            _ = Task.Run(() => RunAliasNameRefreshAsync(
+            CancellationToken cancellationToken = m_aliasShutdown.Token;
+            m_aliasRefreshTask = Task.Run(() => RunAliasNameRefreshAsync(
                 refreshInterval > 0 ? TimeSpan.FromSeconds(refreshInterval) : Timeout.InfiniteTimeSpan,
-                m_aliasShutdown.Token));
+                cancellationToken));
         }
 
         private async Task RunAliasNameRefreshAsync(TimeSpan interval, CancellationToken ct)
@@ -286,7 +316,7 @@ namespace Opc.Ua.Gds.Server
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 m_logger.AliasNameRefreshFailed(ex.Message);
             }
@@ -377,7 +407,7 @@ namespace Opc.Ua.Gds.Server
             if (m_aliasAggregator != null)
             {
                 // Discards reads still in flight for the record.
-                lock (m_aliasReadVersions)
+                lock (m_aliasWorkLock)
                 {
                     m_aliasReadVersions.Remove(applicationId);
                 }
@@ -630,23 +660,103 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <summary>
-        /// Stops the refresh and detaches the aggregator from the registry.
+        /// Admits a source operation before it can be scheduled or access disposable alias state.
         /// </summary>
-        private void DisposeAliasNameAggregation()
+        private TaskCompletionSource<bool> BeginAliasNameOperation()
         {
-            // Dispose(bool) runs on every Dispose call.
-            if (Interlocked.Exchange(ref m_aliasDisposed, 1) != 0)
+            lock (m_aliasWorkLock)
             {
-                return;
+                if (m_aliasStopping)
+                {
+                    throw new ObjectDisposedException(nameof(ApplicationsNodeManager));
+                }
+                var operation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_aliasOperations.Add(operation.Task);
+                return operation;
             }
-            m_aliasShutdown.Cancel();
-            if (m_aliasAggregator != null)
+        }
+
+        /// <summary>
+        /// Signals quiescence independently of the source operation's result or exception.
+        /// </summary>
+        private void CompleteAliasNameOperation(TaskCompletionSource<bool> operation)
+        {
+            lock (m_aliasWorkLock)
             {
-                m_aliasRegistry?.UnregisterContributor(m_aliasAggregator);
+                m_aliasOperations.Remove(operation.Task);
+            }
+            operation.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Closes admission and joins every source operation before releasing shared alias resources.
+        /// </summary>
+        private Task StopAliasNameAggregationAsync()
+        {
+            TaskCompletionSource<bool> start;
+            Task shutdown;
+            lock (m_aliasWorkLock)
+            {
+                if (m_aliasStopTask is not null)
+                {
+                    return m_aliasStopTask;
+                }
+                start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_aliasStopping = true;
+                m_aliasStopTask = CompleteAliasNameShutdownAsync(start.Task, [.. m_aliasOperations]);
+                shutdown = m_aliasStopTask;
+            }
+            start.TrySetResult(true);
+            return shutdown;
+        }
+
+        /// <summary>
+        /// Runs cancellation and resource callbacks outside the operation registry lock.
+        /// </summary>
+        private async Task CompleteAliasNameShutdownAsync(
+            Task start,
+            Task[] operations)
+        {
+            await start.ConfigureAwait(false);
+            var failures = new List<Exception>();
+            try
+            {
+                try
+                {
+                    m_aliasShutdown.Cancel();
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
+                await Task.WhenAll(operations).ConfigureAwait(false);
+                if (m_aliasRefreshTask is { } refresh)
+                {
+                    await refresh.ConfigureAwait(false);
+                }
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                if (m_aliasAggregator is { } aggregator)
+                {
+                    m_aliasRegistry?.UnregisterContributor(aggregator);
+                }
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
             }
             m_aliasRegistry = null;
             m_aliasShutdown.Dispose();
             m_aliasSync.Dispose();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("Alias-name shutdown failed.", failures);
+            }
         }
 
         private sealed record AliasNameNodeEntry(BaseObjectState Node, NodeId ParentId, bool IsCategory);
@@ -662,8 +772,22 @@ namespace Opc.Ua.Gds.Server
         private readonly CancellationTokenSource m_aliasShutdown = new();
         private readonly SemaphoreSlim m_aliasSync = new(1, 1);
         private readonly Dictionary<NodeId, long> m_aliasReadVersions = [];
+
+        /// <summary>Serializes source versions and operation ownership; never held across I/O or callbacks.</summary>
+        private readonly System.Threading.Lock m_aliasWorkLock = new();
+
+        /// <summary>Tracks admitted source operations until all accesses to their owned resources finish.</summary>
+        private readonly HashSet<Task> m_aliasOperations = [];
+
+        /// <summary>Owns the periodic refresh through cancellation and asynchronous completion.</summary>
+        private Task? m_aliasRefreshTask;
+
+        /// <summary>Shares one stop completion between address-space removal and asynchronous disposal.</summary>
+        private Task? m_aliasStopTask;
+
+        /// <summary>Rejects new source work once teardown has captured admitted operations.</summary>
+        private bool m_aliasStopping;
         private long m_aliasReadCounter;
-        private int m_aliasDisposed;
 
         /// <summary>
         /// The aggregated nodes in creation order (parents before children);

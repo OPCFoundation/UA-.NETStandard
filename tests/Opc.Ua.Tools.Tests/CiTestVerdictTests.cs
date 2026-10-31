@@ -46,10 +46,8 @@ namespace Opc.Ua.Tools.Tests
     /// Contract tests for Get-TestRunVerdict in .github/scripts/get-test-verdict.ps1,
     /// the rule that decides whether a continuous integration test leg reports
     /// green. It deliberately tolerates a non-zero test-host exit after a fully
-    /// green run, because the host can stall or crash during process exit once
-    /// every test and teardown has already completed. That tolerance has to stay
-    /// narrow: if it widened to cover a run that recorded real failures, a broken
-    /// suite would merge silently. Both directions are asserted here.
+    /// green run with no test-host error. Error RunInfo messages reject a crash
+    /// even when the counters record only passing tests.
     /// </summary>
     [TestFixture]
     [NonParallelizable]
@@ -210,9 +208,8 @@ namespace Opc.Ua.Tools.Tests
 
         /// <summary>
         /// Other run messages are not fixture failures. A host that crashes at
-        /// exit leaves "Test host process crashed" behind, and test output that
-        /// merely mentions a teardown must not count either; otherwise the
-        /// at-exit tolerance would no longer apply to the case it exists for.
+        /// exit is a run failure, not a fixture failure. Warning test output that
+        /// merely mentions a teardown must not count as either.
         /// </summary>
         [Test]
         public async Task OtherRunMessagesAreNotFixtureFailuresAsync()
@@ -227,6 +224,85 @@ namespace Opc.Ua.Tools.Tests
                     ])).ConfigureAwait(false);
 
             Assert.That(results.FixtureFailures, Is.Empty);
+            Assert.That(results.RunFailures, Has.Length.EqualTo(1));
+            Assert.That(results.RunFailures[0], Does.Contain("Test host process crashed"));
+        }
+
+        /// <summary>
+        /// A host-crash run error must fail even when every reported counter is passing.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task HostCrashRunErrorIsRejectedAsync(int exitCode)
+        {
+            const string crash = "The active test run was aborted. Reason: Test host process crashed";
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "crash.trx",
+                    new Dictionary<string, int> { ["total"] = 133, ["passed"] = 132 },
+                    [("Error", crash)])).ConfigureAwait(false);
+
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.FixtureFailures, Is.Empty);
+                Assert.That(results.RunFailures, Is.EqualTo(new[] { crash }));
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("Test host process crashed"));
+            });
+        }
+
+        /// <summary>
+        /// Warning test output remains distinct from an error reported by the test host.
+        /// </summary>
+        [Test]
+        public async Task WarningRunMessageDoesNotFailTheRunAsync()
+        {
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "warning.trx",
+                    new Dictionary<string, int> { ["total"] = 10, ["passed"] = 10 },
+                    [("Warning", "Expected failure-path test output")])).ConfigureAwait(false);
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode: 1, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.RunFailures, Is.Empty);
+                Assert.That(verdict.Passed, Is.True);
+                Assert.That(verdict.Tolerated, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Run errors remain failures even when the host omits the diagnostic message.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("Data collector failed")]
+        public async Task EveryErrorRunMessageIsRejectedAsync(string message)
+        {
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "error.trx",
+                    new Dictionary<string, int> { ["total"] = 10, ["passed"] = 10 },
+                    [("Error", message)])).ConfigureAwait(false);
+            Verdict verdict = await InvokeAsync(
+                results.Files, results.Total, results.Passed, results.Failed, exitCode: 0, timedOut: false,
+                runFailures: results.RunFailures).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.RunFailures, Has.Length.EqualTo(1));
+                Assert.That(results.RunFailures[0], Is.Not.Empty);
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain(results.RunFailures[0]));
+            });
         }
 
         /// <summary>
@@ -266,6 +342,7 @@ namespace Opc.Ua.Tools.Tests
             string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
 
             Assert.That(source, Does.Contain("-FixtureFailures $results.FixtureFailures"));
+            Assert.That(source, Does.Contain("-RunFailures $results.RunFailures"));
         }
 
         /// <summary>
@@ -414,7 +491,8 @@ namespace Opc.Ua.Tools.Tests
             int exitCode,
             bool timedOut,
             int timeoutMinutes = 30,
-            string[]? fixtureFailures = null)
+            string[]? fixtureFailures = null,
+            string[]? runFailures = null)
         {
             string script = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "get-test-verdict.ps1");
 
@@ -423,7 +501,7 @@ namespace Opc.Ua.Tools.Tests
             string command = string.Format(
                 CultureInfo.InvariantCulture,
                 ". {0}; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
-                "-TimedOut ${6} -TimeoutMinutes {7}{8} | ConvertTo-Json -Compress",
+                "-TimedOut ${6} -TimeoutMinutes {7}{8}{9} | ConvertTo-Json -Compress",
                 Quote(script),
                 trxFileCount,
                 total,
@@ -434,7 +512,10 @@ namespace Opc.Ua.Tools.Tests
                 timeoutMinutes,
                 fixtureFailures == null
                     ? string.Empty
-                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")");
+                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")",
+                runFailures == null
+                    ? string.Empty
+                    : " -RunFailures @(" + string.Join(",", runFailures.Select(Quote)) + ")");
 
             string output = await RunPowerShellAsync(command, "Get-TestRunVerdict").ConfigureAwait(false);
             Verdict? verdict = JsonSerializer.Deserialize<Verdict>(output.Trim(), s_json);
@@ -582,7 +663,13 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// The result of Measure-TestResults. Deserialized by reflection, hence public.
         /// </summary>
-        public sealed record TrxResults(int Files, int Total, int Passed, int Failed, string[] FixtureFailures);
+        public sealed record TrxResults(
+            int Files,
+            int Total,
+            int Passed,
+            int Failed,
+            string[] FixtureFailures,
+            string[] RunFailures);
 
         private static readonly JsonSerializerOptions s_json = new()
         {

@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -37,6 +39,74 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerRoutingTableTests
     {
+        /// <summary>
+        /// Contention waits for the full decision and requires a fresh image after publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompetingCleanupReservationWaitsForPublicationOrAbandonmentAsync(bool publish)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using NodeManagerRoutingTable.PreparedRoutes first = PrepareRoutingCandidate(table, CreateManager());
+            using NodeManagerRoutingTable.PreparedRoutes second = PrepareRoutingCandidate(table, CreateManager());
+            first.Reserve();
+            Assert.That(second.TryReserve(out Task ready), Is.False);
+            Assert.That(ready.IsCompleted, Is.False);
+            Assert.That(table.GetPublicationChange(table.Revision), Is.SameAs(ready));
+            if (publish)
+            {
+                first.Publish();
+                Assert.That(ready.IsCompleted, Is.False, "Visible routes do not finish publication bookkeeping.");
+            }
+            first.Dispose();
+            await ready.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(second.TryReserve(out Task changed), Is.EqualTo(!publish));
+            Assert.That(changed.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            if (publish)
+            {
+                using NodeManagerRoutingTable.PreparedRoutes fresh = PrepareRoutingCandidate(table, CreateManager());
+                Assert.That(fresh.TryReserve(out Task available), Is.True);
+                Assert.That(available.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            }
+        }
+
+        /// <summary>
+        /// Cancelling a wait cannot release the independent publication or lose its later completion.
+        /// </summary>
+        [Test]
+        public async Task CancellingReservationWaitDoesNotReleasePublicationAsync()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using NodeManagerRoutingTable.PreparedRoutes first = PrepareRoutingCandidate(table, CreateManager());
+            using NodeManagerRoutingTable.PreparedRoutes second = PrepareRoutingCandidate(table, CreateManager());
+            first.Reserve();
+            Assert.That(second.TryReserve(out Task ready), Is.False);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(() => ready.WaitAsync(cancellation.Token),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(ready.IsCompleted, Is.False);
+            Assert.That(second.TryReserve(out Task stillPending), Is.False);
+            Assert.That(stillPending, Is.SameAs(ready));
+            first.Dispose();
+            await ready.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(second.TryReserve(out _), Is.True);
+        }
+
+        /// <summary>
+        /// Only an observable route change or pending decision can justify retrying failed admission.
+        /// </summary>
+        [Test]
+        public void UnchangedRoutingImageCannotInventAdmissionRetry()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
+            Assert.That(() => table.GetPublicationChange(previous), Throws.TypeOf<InvalidOperationException>()
+                .With.Message.EqualTo("An unchanged serving routing image cannot admit its owner."));
+            table.Add(CreateManager(), InitialNamespaceIndexes);
+            Assert.That(table.GetPublicationChange(previous).Status, Is.EqualTo(TaskStatus.RanToCompletion));
+        }
+
         [TestCase("AddInitial", false)]
         [TestCase("AddInitial", true)]
         [TestCase("Initialize", false)]
@@ -79,6 +149,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var readImage = new TestReadImage(firstPermanent, 1);
             PublishReadImage(table, readImage);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
             var initializedTypes = new TypeTable(new NamespaceTable());
             var initializedFactory = (EncodeableFactory)EncodeableFactory.Create();
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, candidate);
@@ -159,13 +232,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Neither publication nor a later write may reveal an unrelated hidden owner.");
             Assert.That(table.GetReadImage(firstPermanent),
                 mutation == "Clear" ? Is.Null : Is.SameAs(readImage));
-            using (table.Capture(previous))
+            using (context.CaptureRouting(table))
             {
-                Assert.That(table.GetReadImage(firstPermanent), Is.SameAs(readImage));
-                Assert.That(table.ToArray(), Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
-                AssertSingleManagerRoute(table.NamespaceManagers, 2, original);
-                AssertSingleManagerRoute(table.NamespaceManagers, 3, original);
-                Assert.That(table.NamespaceManagers.ContainsKey(9), Is.False);
+                Assert.That(CreateReadImageSource(table, firstPermanent).Object.GetReadImage(context, firstPermanent),
+                    Is.SameAs(readImage));
+                var routing = table.GetDispatchView(previous);
+                Assert.That(routing.NodeManagers, Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
+                AssertSingleManagerRoute(routing.NamespaceManagers, 2, original);
+                AssertSingleManagerRoute(routing.NamespaceManagers, 3, original);
+                Assert.That(routing.NamespaceManagers.ContainsKey(9), Is.False);
             }
 
             void Mutate()
@@ -218,26 +293,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public void PreparedReservationRejectsReferencePreparationBeforeOwnershipEffects(bool publish)
+        public void RoutingReservationDoesNotSelectNodeOwnedReferences(bool publish)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
-            NodeManagerRoutingTable other = CreateTable(out _, out _);
-            IAsyncNodeManager owner = CreateManager();
-            IAsyncNodeManager otherOwner = CreateManager();
             var node = new BaseObjectState(null);
             ExpandedNodeId original = new(9101, 2);
             ExpandedNodeId addition = new(9102, 2);
             node.AddReference(ReferenceTypeIds.Organizes, false, original);
             ArrayOf<IReference> additions = [new NodeStateReference(ReferenceTypeIds.Organizes, false, addition)];
-            var next = new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, CreateManager());
             routes.Reserve();
-            Assert.Throws<InvalidOperationException>(() => table.PrepareReferences(owner, node, additions, [], next));
-            Assert.That(next, Is.Empty);
-            using (other.PrepareReferences(otherOwner, node, [], [], []))
-            {
-                other.ReleaseReferences(otherOwner);
-            }
+            using NodeState.ReferenceUpdate accepted = node.PrepareReferences(additions, []);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, original), Is.True);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.False);
             if (publish)
@@ -246,83 +312,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             routes.Dispose();
 
-            using NodeState.ReferenceUpdate accepted = table.PrepareReferences(owner, node, additions, [], next);
-            Assert.That(next[node], Is.SameAs(accepted.Next));
-            NodeState.ReferenceSnapshot acceptedSnapshot = accepted.Next;
-            var acceptedReferences = acceptedSnapshot.References ??
-                throw new AssertionException("The accepted reference snapshot did not contain its required references.");
-            Assert.That(acceptedReferences.Keys.Select(reference => reference.TargetId),
-                Is.EquivalentTo(new[] { original, addition }));
+            accepted.Reserve();
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.False,
-                "Preparing the private image must not install its references.");
-            Assert.Throws<InvalidOperationException>(() => other.PrepareReferences(otherOwner, node, [], [], []));
-            table.ReleaseReferences(owner);
-            using (other.PrepareReferences(otherOwner, node, [], [], []))
-            {
-                other.ReleaseReferences(otherOwner);
-            }
+                "Preparing edits must not install references.");
+            accepted.Remove();
+            accepted.Complete();
+            Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.True);
+            Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, original), Is.True);
         }
 
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public void PreparedReservationRejectsReferenceReleaseBeforeEffects(bool clear, bool publish)
+        public void ClearingRoutesDoesNotDetachNodeOwnedReferenceStorage(bool clear, bool publish)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
-            NodeManagerRoutingTable other = CreateTable(out _, out _);
-            IAsyncNodeManager owner = CreateManager();
             var node = new BaseObjectState(null);
             ExpandedNodeId target = new(9201, 2);
-            var images = new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
-            using (NodeState.ReferenceUpdate update = table.PrepareReferences(owner, node,
-                [new NodeStateReference(ReferenceTypeIds.Organizes, false, target)], [], images))
-            {
-                using NodeManagerRoutingTable.PreparedRoutes initial = table.PrepareBatch(
-                    [], [], table.Revision, _ => BatchNamespaceIndexes,
-                    new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(), images);
-                update.Reserve();
-                initial.Reserve();
-                initial.Publish();
-                update.Complete();
-            }
+            node.AddReference(ReferenceTypeIds.Organizes, false, target);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, CreateManager());
             routes.Reserve();
-            Assert.Throws<InvalidOperationException>(Release);
+            Assert.Throws<InvalidOperationException>(table.Clear);
             Assert.That(table.Revision, Is.SameAs(previous));
-            Assert.That(table.Revision.References[node], Is.SameAs(images[node]));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
-            Assert.Throws<InvalidOperationException>(() => other.PrepareReferences(owner, node, [], [], []),
-                "A rejected release or clear must not detach the node's existing reference-view owner.");
             if (publish)
             {
                 routes.Publish();
             }
             routes.Dispose();
-            Release();
-            Assert.That(table.Revision.References.ContainsKey(node), Is.False);
+            if (clear)
+            {
+                table.Clear();
+            }
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
-            using (other.PrepareReferences(owner, node, [], [], []))
-            {
-                table.ReleaseReferences(owner);
-                Assert.Throws<InvalidOperationException>(() => table.PrepareReferences(owner, node, [], [], []),
-                    "Repeated old-owner cleanup must not detach a later reference-view owner.");
-                other.ReleaseReferences(owner);
-            }
-
-            void Release()
-            {
-                if (clear)
-                {
-                    table.Clear();
-                }
-                else
-                {
-                    table.ReleaseReferences(owner);
-                }
-            }
+            Assert.That(node.RemoveReference(ReferenceTypeIds.Organizes, false, target), Is.True);
         }
 
         [TestCase(false)]
@@ -384,7 +410,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void PreparedRoutingReservationRejectsChangedRevisionBeforeOwnership()
+        public void PreparedRoutingReservationRebasesOverChangedNamespaceRoutes()
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager candidate = CreateManager();
@@ -392,9 +418,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
             using NodeManagerRoutingTable.PreparedRoutes stale = PrepareRoutingCandidate(table, candidate);
             table.RegisterNamespace(9, writer);
-            Assert.Throws<InvalidOperationException>(() => table.PrepareBatch(
-                [], [], previous, _ => BatchNamespaceIndexes,
-                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create()));
             Assert.Throws<InvalidOperationException>(stale.Reserve);
             using NodeManagerRoutingTable.PreparedRoutes current = PrepareRoutingCandidate(table, candidate);
             current.Reserve();
@@ -409,12 +432,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(previous.NamespaceManagers.ContainsKey(9), Is.False);
         }
 
+        [Test]
+        public void PreparedRoutesRejectInvalidGenerationBeforeReservation()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager candidate = CreateManager();
+            using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, candidate);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            generation.Gate.Abort();
+
+            Assert.Throws<InvalidOperationException>(routes.Reserve);
+            Assert.That(table.Contains(candidate), Is.False);
+
+            IAsyncNodeManager writer = CreateManager();
+            table.RegisterNamespace(9, writer);
+            AssertSingleManagerRoute(table.NamespaceManagers, 9, writer);
+        }
+
         private static NodeManagerRoutingTable.PreparedRoutes PrepareRoutingCandidate(
             NodeManagerRoutingTable table,
             IAsyncNodeManager candidate)
         {
-            var prepared = new PreparedNodeManager(candidate, []) { Staged = true };
-            return table.PrepareBatch([prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+            var prepared = new PreparedNodeManager(candidate, []);
+            return table.PrepareBatch([prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
         }
     }

@@ -45,6 +45,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
+using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
@@ -84,9 +85,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 AllowAnonymous = true,
                 RequiredRoleId = ObjectIds.WellKnownRole_Anonymous
             };
-            await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(
-                new WotConnectivityServerOptions { ManagementAccess = policy }), callerContext: null)
-                .ConfigureAwait(false);
+            await using (IPreparedNodeManagerBatch connectivity = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new ConnectivityFactory(
+                    new WotConnectivityServerOptions { ManagementAccess = policy }))]).ConfigureAwait(false))
+            {
+                NodeManagerBatchResult result = await connectivity.CommitAsync(static _ => default)
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+            }
             var identities = new WotRegistryIdentityBindings
             {
                 Groups =
@@ -109,18 +115,23 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 null, identities);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
-            await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
-                new WotRegistryServerOptions
-                {
-                    AutoRefresh = false,
-                    IdentityBindings = identities,
-                    ManagementAccess = policy,
-                    XRegistryEvents = new XRegistryServerOptions
+            await using (IPreparedNodeManagerBatch registry = await m_server.NodeManagerLifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new WotRegistryNodeManagerFactory(
+                    new WotRegistryServerOptions
                     {
-                        EventsEnabled = true,
-                        EventSourceUrl = "https://wot-mcp.example.test"
-                    }
-                }, m_registry, m_coordinator), callerContext: null).ConfigureAwait(false);
+                        AutoRefresh = false,
+                        IdentityBindings = identities,
+                        ManagementAccess = policy,
+                        XRegistryEvents = new XRegistryServerOptions
+                        {
+                            EventsEnabled = true,
+                            EventSourceUrl = "https://wot-mcp.example.test"
+                        }
+                    }, m_registry, m_coordinator))]).ConfigureAwait(false))
+            {
+                NodeManagerBatchResult result = await registry.CommitAsync(static _ => default).ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+            }
 
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore(new OpcUaMcpOptions
@@ -451,6 +462,25 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         {
             return fields.EnumerateObject().Single(field =>
                 field.Name == name || field.Name.EndsWith(":" + name, StringComparison.Ordinal)).Value;
+        }
+
+        /// <summary>
+        /// Creates the native async manager without invoking the legacy synchronous factory contract.
+        /// </summary>
+        private sealed class ConnectivityFactory(WotConnectivityServerOptions options) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => [options.AssetNamespaceUri, WotCon.Namespaces.WotCon];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<IAsyncNodeManager>(new WotConnectivityNodeManager(server, configuration, options));
+            }
         }
 
         private string? m_root;

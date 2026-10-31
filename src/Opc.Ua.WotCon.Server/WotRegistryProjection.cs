@@ -306,9 +306,9 @@ namespace Opc.Ua.WotCon.Server
             ISystemContext context, NodeId resourceNodeId, string resourceXid, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (context is ServerSystemContext { OperationContext: not null })
+            if (context is ServerSystemContext { OperationContext: { } operation })
             {
-                foreach (IAsyncNodeManager manager in m_manager.Server.NodeManager.AsyncNodeManagers)
+                foreach (IAsyncNodeManager manager in m_manager.Server.NodeManager.GetNodeManagers(operation))
                 {
                     if (manager is IWotCanonicalViewReadImage image &&
                         image.TryGetMembershipDigest(resourceNodeId, out ByteString capturedDigest))

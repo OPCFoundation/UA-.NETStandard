@@ -254,6 +254,11 @@ namespace Opc.Ua.Client.Subscriptions
 
             public bool HasAcknowledgementPolicy => m_policy == AcknowledgementPolicy.LegacyHandler;
 
+            public void AbandonServerSession()
+            {
+                throw new InvalidOperationException("The benchmark context cannot abandon a server session.");
+            }
+
             /// <summary>
             /// Completes the returned task once <paramref name="count"/> more
             /// acknowledgements were sent.

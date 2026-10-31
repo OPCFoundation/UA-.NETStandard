@@ -8,8 +8,8 @@
  * files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use,
  * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom
- * the Software is furnished to do so, subject to the following
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
  * conditions:
  *
  * The above copyright notice and this permission notice shall be
@@ -28,28 +28,34 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Represents a suspension of monitored item binding admission that is lifted when disposed.
+    /// Commits native source ownership under the base manager's existing mutation gate.
+    /// Subscription ownership and unresolved policy remain outside the native item manager.
     /// </summary>
-    /// <param name="resume">The callback that restores admission, or null for an empty suspension.</param>
-    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
+    internal interface IMonitoredItemSourceManager
     {
         /// <summary>
-        /// Gets a suspension that does nothing when disposed.
+        /// Releases native registration without disposing the subscription item.
         /// </summary>
-        internal static BindingAdmissionSuspension Empty { get; } = new(null);
+        (ServiceResult Result, bool Changed) ReleaseSource(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            long sourceRevision,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
 
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
-        {
-            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
-        }
-
-        private Func<ValueTask>? m_resume = resume;
+        /// <summary>
+        /// Adopts an item only while the caller's captured source incarnation is still current.
+        /// </summary>
+        (ServiceResult Result, bool Changed) AdoptSource(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
+            long sourceRevision,
+            MonitoredItemAdoption? adoption = null);
     }
 }

@@ -54,6 +54,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
     internal sealed class WotPreparedSourceImage
     {
         /// <summary>
+        /// Gets the namespace mapping shared by the prepared source candidates.
+        /// </summary>
+        internal NamespaceTable? NamespaceUris => m_server?.NamespaceUris;
+
+        /// <summary>
         /// Marks a node manager as removed so it is not considered an owner when resolving live handles.
         /// </summary>
         /// <param name="owner">The async node manager.</param>
@@ -115,7 +120,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         internal async ValueTask<(object? Handle, IAsyncNodeManager? Owner)> FindAsync(
             IServerInternal server, NodeId nodeId, CancellationToken cancellationToken)
         {
-            if (m_server is not null && !ReferenceEquals(m_server, server))
+            if (m_server is not null && !ReferenceEquals(m_server.NodeManager, server.NodeManager))
             {
                 throw new ArgumentException("The prepared source image belongs to another server.");
             }
@@ -146,14 +151,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed class SourceFactory(WotPreparedSourceImage image, IAsyncNodeManagerFactory inner)
-            : IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory
+            : IAsyncNodeManagerFactory
         {
             /// <summary>
             /// Gets the namespaces URIs for <c>SourceFactory</c>.
             /// </summary>
             public ArrayOf<string> NamespacesUris => inner.NamespacesUris;
-            public bool AllowLifecycleFromRequestCallback =>
-                inner is IRequestCallbackSafeNodeManagerFactory { AllowLifecycleFromRequestCallback: true };
 
             /// <summary>
             /// Creates the wrapped node manager and records it as a candidate owner in the prepared image.
@@ -165,7 +168,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IServerInternal server, ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                if (image.m_server is not null && !ReferenceEquals(image.m_server, server))
+                if (image.m_server is not null &&
+                    !ReferenceEquals(image.m_server.NodeManager, server.NodeManager))
                 {
                     throw new ArgumentException("The source factories do not share one server.");
                 }

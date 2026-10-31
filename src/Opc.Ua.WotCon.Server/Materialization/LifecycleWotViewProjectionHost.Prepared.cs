@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets whether the host can retain private View candidates and participate in one lifecycle batch.
         /// </summary>
         /// <inheritdoc/>
-        public bool SupportsPreparedPublication => m_lifecycle is INodeManagerBatchLifecycle;
+        public bool SupportsPreparedPublication => m_lifecycle.SupportsPreparedPublication;
 
         /// <summary>
         /// Plans the complete remaining View graph from a captured committed image and requested changes.
@@ -201,20 +201,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotViewProjectionRequest> updates,
             ArrayOf<string> removals,
             WotCanonicalViewState? recovered = null)
-            : IWotPreparedViewPublication, IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory,
+            : IWotPreparedViewPublication, IAsyncNodeManagerFactory,
                 IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
             public ArrayOf<NodeManagerBatchChange> Changes => previous is null
                 ? [NodeManagerBatchChange.Add(this)]
                 : [NodeManagerBatchChange.Replace(previous.Registration, this,
-                    owner.m_retirementPolicy == WotProjectionRetirementPolicy.Immediate)];
+                    owner.m_retirementPolicy == WotProjectionRetirementPolicy.Invalidate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)];
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
 
-            /// <summary>
-            /// Gets the allow lifecycle from request callback for <c>PreparedViewPublication</c>.
-            /// </summary>
-            public bool AllowLifecycleFromRequestCallback => true;
             public NodeManagerRegistration? ExpectedRegistration => previous?.Registration;
 
             /// <summary>

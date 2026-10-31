@@ -432,7 +432,11 @@ namespace Opc.Ua.Server
                     EndValuePublications();
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        monitoredItemKVP.Value?.Value?.Dispose();
+                        if (monitoredItemKVP.Value?.Value is { } monitoredItem)
+                        {
+                            ReleaseMonitoredItemOwnership(monitoredItem);
+                            monitoredItem.Dispose();
+                        }
                     }
 
                     m_monitoredItems.Clear();
@@ -604,71 +608,11 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return m_monitoredItems.Values.Any(monitoredItem =>
-                    monitoredItem.Value is not IDetachableMonitoredItem
+                    monitoredItem.Value is not IMonitoredItemGenerationBinding
                     {
-                        IsDetached: true
+                        IsSourceUnavailable: true
                     } &&
                     IsOwnedBy(monitoredItem.Value, nodeManager));
-            }
-        }
-
-        /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetMonitoredItemsSnapshot(
-                IAsyncNodeManager nodeManager)
-        {
-            lock (m_lock)
-            {
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                            monitoredItem is not IDetachableMonitoredItem
-                            {
-                                IsDetached: true
-                            } &&
-                            IsOwnedBy(monitoredItem, nodeManager))
-                ];
-            }
-        }
-
-        /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem>
-            ISubscriptionMonitoredItemLifecycle.GetRecoverableMonitoredItemsSnapshot(
-                IReadOnlyCollection<NodeId>? nodeIds)
-        {
-            lock (m_lock)
-            {
-                if (nodeIds == null)
-                {
-                    return
-                    [
-                        .. m_monitoredItems.Values
-                            .Select(entry => entry.Value)
-                            .Where(monitoredItem =>
-                                monitoredItem is IDetachableMonitoredItem lifecycle &&
-                                (lifecycle.IsDetached || lifecycle.IsDeleted))
-                    ];
-                }
-
-                if (nodeIds.Count == 0)
-                {
-                    return [];
-                }
-
-                var requestedNodeIds = new HashSet<NodeId>(
-                    nodeIds,
-                    NodeIdComparer.Default);
-                return
-                [
-                    .. m_monitoredItems.Values
-                        .Select(entry => entry.Value)
-                        .Where(monitoredItem =>
-                        monitoredItem is IDetachableMonitoredItem lifecycle &&
-                        (lifecycle.IsDetached || lifecycle.IsDeleted) &&
-                        requestedNodeIds.Contains(monitoredItem.NodeId))
-                ];
             }
         }
 
@@ -764,6 +708,10 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        ReleaseMonitoredItemOwnership(monitoredItem);
+                    }
                     m_monitoredItems.Clear();
                     m_itemsToTrigger.Clear();
                     m_itemsToCheck.Clear();
@@ -781,19 +729,16 @@ namespace Opc.Ua.Server
 
                 if (monitoredItems.Count > 0)
                 {
-                    // the context may be null if the server is cleaning up expired subscriptions.
-                    // in this case we create a context with a dummy request and use the current session.
-                    if (context == null)
-                    {
-                        var requestHeader = new RequestHeader
-                        {
-                            ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
-                        };
-                        // The context tracks no request, so there is nothing to release when this scope ends.
-#pragma warning disable CA2000
-                        context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
-#pragma warning restore CA2000
-                    }
+                    using OperationContext? ownedContext = context is null
+                        ? new OperationContext(
+                            new RequestHeader
+                            {
+                                ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
+                            },
+                            null,
+                            RequestType.Unknown,
+                            RequestLifetime.None)
+                        : null;
 
                     var errors = new List<ServiceResult>(monitoredItems.Count);
                     for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -804,7 +749,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         await m_server.NodeManager
-                            .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
+                            .DeleteMonitoredItemsAsync(
+                                context ?? ownedContext!, Id, monitoredItems, errors, CancellationToken.None)
                             .ConfigureAwait(false);
                     }
                     finally
@@ -1152,6 +1098,23 @@ namespace Opc.Ua.Server
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void OnMonitoredItemAdded(IMonitoredItem monitoredItem)
         {
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.BindSubscription(this);
+            }
+            else
+            {
+                NodeManagerGeneration? generation = monitoredItem.NodeManager is { } nodeManager
+                    ? NodeManagerGenerationRegistry.GetOrCreate(nodeManager)
+                    : null;
+                m_foreignItemGenerations ??= new Dictionary<IMonitoredItem, NodeManagerGeneration?>(
+                    MonitoredItemReferenceComparer.Instance);
+                m_foreignItemGenerations.Add(monitoredItem, generation);
+                if (generation is not null)
+                {
+                    generation.MonitoredItems[monitoredItem] = this;
+                }
+            }
             CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
@@ -1160,6 +1123,32 @@ namespace Opc.Ua.Server
                 // a value queued before the item was attached to the subscription was not
                 // signalled to it.
                 MarkReadyCandidate(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Removes the subscription's claim without changing the callback needed during manager cleanup.
+        /// </summary>
+        /// <param name="monitoredItem">The item leaving this subscription.</param>
+        private void ReleaseMonitoredItemOwnership(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.UnbindSubscription(this);
+            }
+            else
+            {
+                if (m_foreignItemGenerations?.TryGetValue(
+                    monitoredItem, out NodeManagerGeneration? generation) != true)
+                {
+                    throw new InvalidOperationException("The monitored item's subscription claim is unavailable.");
+                }
+                generation?.MonitoredItems.TryRemove(monitoredItem, out _);
+                m_foreignItemGenerations.Remove(monitoredItem);
+                if (m_foreignItemGenerations.Count == 0)
+                {
+                    m_foreignItemGenerations = null;
+                }
             }
         }
 
@@ -1402,12 +1391,14 @@ namespace Opc.Ua.Server
             {
                 if ((item.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
                     item is not IEventMonitoredItem ||
-                    item is IDetachableMonitoredItem { IsDetached: true })
+                    item is IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     continue;
                 }
-                IAsyncNodeManager owner = item.NodeManager;
-                object handle = item.ManagerHandle;
+                if (item.NodeManager is not { } owner || item.ManagerHandle is not { } handle)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
                 NodeMetadata? metadata = await owner.GetNodeMetadataAsync(
                     context, handle, BrowseResultMask.All, cancellationToken).ConfigureAwait(false);
                 if (metadata == null || !ReferenceEquals(owner, item.NodeManager) ||
@@ -3446,6 +3437,7 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    ReleaseMonitoredItemOwnership(monitoredItem);
                     if (monitoredItem is IReadySignalingMonitoredItem)
                     {
                         m_signalingItemCount--;
@@ -4339,6 +4331,10 @@ namespace Opc.Ua.Server
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
+
+        /// <summary>Exact generation claims for items that do not manage their own generation binding.</summary>
+        private Dictionary<IMonitoredItem, NodeManagerGeneration?>? m_foreignItemGenerations;
+
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
         private readonly Lock m_readyIntakeLock = new();

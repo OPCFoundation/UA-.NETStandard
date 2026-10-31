@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -468,6 +469,13 @@ namespace Opc.Ua.Tools.Tests
             /// </summary>
             internal RuntimeServer(ITelemetryContext telemetry) : base(telemetry)
             {
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(MachineToolParts.Wmtp)],
+                    options));
             }
 
             /// <summary>
@@ -482,14 +490,16 @@ namespace Opc.Ua.Tools.Tests
             {
                 server.NamespaceUris.GetIndexOrAppend("urn:wmtp-mcp:unrelated:first");
                 server.NamespaceUris.GetIndexOrAppend(Opc.Ua.MachineTool.WMTP.Namespaces.WMTP);
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues
-                };
-                Manager = new MachineryNodeManager(server, configuration,
-                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(MachineToolParts.Wmtp)],
-                    options);
-                return new ValueTask<IMasterNodeManager>(new MasterNodeManager(server, configuration, null, [Manager]));
+                return base.CreateMasterNodeManagerAsync(server, configuration, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
             }
         }
 

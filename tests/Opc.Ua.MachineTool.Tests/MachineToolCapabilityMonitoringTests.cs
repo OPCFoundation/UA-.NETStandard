@@ -146,13 +146,67 @@ namespace Opc.Ua.MachineTool.Tests
         }
 
         /// <summary>
+        /// Basic and BasicSecure are claimed only when the running server publishes the matching secure endpoints.
+        /// </summary>
+        [TestCase(false, false, false, false)]
+        [TestCase(true, false, true, false)]
+        [TestCase(true, true, true, true)]
+        public async Task SecureProfilesFollowPublishedEndpointsAsync(
+            bool basic256, bool aes128WithCertificate, bool basic, bool basicSecure)
+        {
+            var policies = new List<ServerSecurityPolicy>
+            {
+                new() { SecurityMode = MessageSecurityMode.None, SecurityPolicyUri = SecurityPolicies.None }
+            };
+            var tokens = new List<UserTokenPolicy> { new(UserTokenType.Anonymous) };
+            if (basic256)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                });
+            }
+            if (aes128WithCertificate)
+            {
+                policies.Add(new ServerSecurityPolicy
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
+                });
+                tokens.Add(new UserTokenPolicy(UserTokenType.Certificate));
+            }
+            await using var fixture = new CapacityFixture(1000, 10000, policies.ToArrayOf(), tokens.ToArrayOf());
+            await fixture.StartAsync().ConfigureAwait(false);
+            await using MachineToolRuntime<MachineToolState> runtime = await BuildAsync(
+                fixture.Context, null, MachineToolFeatures.Channels | MachineToolFeatures.Stacklights)
+                .ConfigureAwait(false);
+            string[] profiles = runtime.Capabilities.ServerProfiles.ToArray()!;
+            Assert.That(profiles.Any(p => p.EndsWith("/Basic", StringComparison.Ordinal)), Is.EqualTo(basic));
+            Assert.That(profiles.Any(p => p.EndsWith("/BasicSecure", StringComparison.Ordinal)),
+                Is.EqualTo(basicSecure));
+        }
+
+        /// <summary>
         /// Builds a real mandatory machine with explicit deployment requirements.
         /// </summary>
         private static ValueTask<MachineToolRuntime<MachineToolState>> BuildAsync(
-            IMachineryBuildContext context, MachineToolMonitoringRequirements? requirements = null)
+            IMachineryBuildContext context, MachineToolMonitoringRequirements? requirements = null,
+            MachineToolFeatures features = default)
         {
             return context.AddMachineTool("Capacity")
-                .WithProvider(new InMemoryMachineToolProvider(new MachineToolSnapshot()))
+                .WithProvider(new InMemoryMachineToolProvider(new MachineToolSnapshot
+                {
+                    Stacklights =
+                    [
+                        new MachineToolStacklight("Main",
+                        [
+                            new MachineToolLight(true, IA.SignalColor.Red, IA.SignalModeLight.Continuous,
+                                new MachineToolSampleInfo(DateTime.UtcNow, StatusCodes.Good))
+                        ])
+                    ]
+                }))
+                .WithFeatures(features)
                 .WithMonitoringRequirements(requirements ?? new())
                 .WithIdentification(identity =>
                 {
@@ -232,7 +286,11 @@ namespace Opc.Ua.MachineTool.Tests
         /// <summary>
         /// Reuses the existing Machinery runtime server while configuring actual quotas before startup.
         /// </summary>
-        private sealed class CapacityFixture(int maximumPerSubscription, int maximumItems) : IAsyncDisposable
+        private sealed class CapacityFixture(
+            int maximumPerSubscription,
+            int maximumItems,
+            ArrayOf<ServerSecurityPolicy> securityPolicies = default,
+            ArrayOf<UserTokenPolicy> userTokenPolicies = default) : IAsyncDisposable
         {
             /// <summary>
             /// Gets the fixture-owned certificate-store root.
@@ -267,14 +325,15 @@ namespace Opc.Ua.MachineTool.Tests
                 configuration.MaxSubscriptionCount = 16;
                 configuration.MaxMonitoredItemsPerSubscription = maximumPerSubscription;
                 configuration.MaxMonitoredItemCount = maximumItems;
-                configuration.SecurityPolicies =
+                configuration.SecurityPolicies = securityPolicies.IsEmpty ?
                 [
                     new ServerSecurityPolicy
                     {
                         SecurityMode = MessageSecurityMode.None, SecurityPolicyUri = SecurityPolicies.None
                     }
-                ];
-                configuration.UserTokenPolicies = [new UserTokenPolicy(UserTokenType.Anonymous)];
+                ] : securityPolicies;
+                configuration.UserTokenPolicies = userTokenPolicies.IsEmpty ?
+                    [new UserTokenPolicy(UserTokenType.Anonymous)] : userTokenPolicies;
                 MachineToolRuntimeFixture.RuntimeServer server = await m_fixture.StartAsync().ConfigureAwait(false);
                 Context = server.Manager.CreateMachineryBuildContext();
             }

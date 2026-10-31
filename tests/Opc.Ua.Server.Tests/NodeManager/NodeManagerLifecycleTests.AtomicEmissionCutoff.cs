@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// Verifies that prepared batch publication stops every immediate data source.
+        /// Verifies that retiring sources stop at publication and replacement items use the new generation.
         /// </summary>
         /// <param name="reverse">The reverse flag for this test case.</param>
         /// <param name="replace">The replace flag for this test case.</param>
@@ -125,11 +125,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchChange firstChange = replace
                 ? NodeManagerBatchChange.Replace(firstRegistration,
                     CreateTrackingNodeManagementFactory(301, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
+                : NodeManagerBatchChange.Remove(firstRegistration);
             NodeManagerBatchChange secondChange = replace
                 ? NodeManagerBatchChange.Replace(secondRegistration,
                     CreateTrackingNodeManagementFactory(302, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
+                : NodeManagerBatchChange.Remove(secondRegistration);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
@@ -165,16 +165,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, subscriptionId, initial.Acknowledgements, timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
+                    bool migrated = replace && !immediate;
                     foreach (uint handle in new uint[] { 1, 2, 3 })
                     {
                         DataValue value = delivered.Values[handle];
                         Assert.That(value.StatusCode,
-                            Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
-                            $"Source for client handle {handle} sampled after the joint publication while A was held.");
-                        if (!immediate)
+                            Is.EqualTo(migrated ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown),
+                            $"Retired-source data for client handle {handle} crossed the publication boundary.");
+                        if (migrated)
                         {
-                            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(handle == 1 ? 501 : 602)));
-                            Assert.That(value.SourceTimestamp, Is.EqualTo(producedAt));
+                            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(handle == 1 ? 301 : 302)),
+                                "A migrated item must report the replacement generation, not an old sample.");
                         }
                     }
                     Assert.That(dispatch.IsCompleted, Is.False);
@@ -196,15 +197,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that a node-wide change notification after an immediate cutoff retires only the cut-off
-        /// Value items with BadNodeIdUnknown and without any pre-poll. A surviving source keeps delivering, a
-        /// change whose mask does not reach the Value attribute retires nothing, a Disabled item queues nothing
-        /// until it is re-enabled, and a non-immediate removal keeps delivering the value.
+        /// Verifies that removal invalidates its Value items once with BadNodeIdUnknown while a surviving source
+        /// continues delivering. A Disabled item queues nothing until it is re-enabled.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync(bool immediate)
+        [Test]
+        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
@@ -263,7 +260,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
@@ -287,36 +284,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await source.OnMonitoredNodeChangedAsync(
                     server.DefaultSystemContext, node, NodeStateChangeMasks.NonValue, timeout.Token)
                     .ConfigureAwait(false);
-                // The helper requires exactly the expected handles, so a retired item 1 or 3 would fail here.
-                (Dictionary<uint, DataValue> survivorOnly, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
+                // Publication invalidates the reporting item once with BadNodeIdUnknown; the retired source's
+                // own change after the swap delivers nothing. The helper requires exactly the expected handles.
+                (Dictionary<uint, DataValue> first1, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
                     await PublishEmissionDataAsync(
-                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [2])
+                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [1, 2])
                         .ConfigureAwait(false);
-                Assert.That(survivorOnly[2].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(702)));
+                Assert.That(first1[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(first1[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(first1[2].WrappedValue, Is.EqualTo(new Variant(702)));
                 await source.OnMonitoredNodeChangedAsync(
                     server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
                     .ConfigureAwait(false);
-                (Dictionary<uint, DataValue> delivered, acknowledgements) = await PublishEmissionDataAsync(
-                    services, subscriptionId, acknowledgements, timeout.Token, [1]).ConfigureAwait(false);
-                DataValue value = delivered[1];
-                Assert.That(value.StatusCode,
-                    Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good));
-                if (!immediate)
-                {
-                    Assert.That(value.WrappedValue, Is.EqualTo(new Variant(501)));
-                }
-                else
-                {
-                    header.Timestamp = DateTimeUtc.Now;
-                    SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
-                        header, subscriptionId, MonitoringMode.Reporting, [disabledItemId], timeout.Token)
-                        .ConfigureAwait(false);
-                    Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
-                    (Dictionary<uint, DataValue> reenabled, _) = await PublishEmissionDataAsync(
-                        services, subscriptionId, acknowledgements, timeout.Token, [3]).ConfigureAwait(false);
-                    Assert.That(reenabled[3].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                }
+                survivorNode.Value = 703;
+                survivorNode.Timestamp = DateTimeUtc.Now;
+                await survivorSource.OnMonitoredNodeChangedAsync(
+                    server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
+                    .ConfigureAwait(false);
+                (Dictionary<uint, DataValue> survivorOnly, acknowledgements) = await PublishEmissionDataAsync(
+                    services, subscriptionId, acknowledgements, timeout.Token, [2]).ConfigureAwait(false);
+                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(703)));
+                header.Timestamp = DateTimeUtc.Now;
+                SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
+                    header, subscriptionId, MonitoringMode.Reporting, [disabledItemId], timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
+                (Dictionary<uint, DataValue> reenabled, _) = await PublishEmissionDataAsync(
+                    services, subscriptionId, acknowledgements, timeout.Token, [3]).ConfigureAwait(false);
+                Assert.That(reenabled[3].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             }
             finally
             {
@@ -331,7 +326,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that prepared batch publication stops every immediate event source.
+        /// Verifies that prepared batch publication prevents retired generations from delivering events.
         /// </summary>
         /// <param name="reverse">The reverse flag for this test case.</param>
         /// <param name="replace">The replace flag for this test case.</param>
@@ -402,11 +397,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchChange firstChange = replace
                 ? NodeManagerBatchChange.Replace(firstRegistration,
                     CreateTrackingNodeManagementFactory(401, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
+                : NodeManagerBatchChange.Remove(firstRegistration);
             NodeManagerBatchChange secondChange = replace
                 ? NodeManagerBatchChange.Replace(secondRegistration,
                     CreateTrackingNodeManagementFactory(402, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
+                : NodeManagerBatchChange.Remove(secondRegistration);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
@@ -449,13 +444,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     }
                 }
-                string[] expectedGlobal = immediate
-                    ? ["before-A", "before-B", "survivor-fence-804"]
-                    : ["before-A", "before-B", "after-B-602", "after-A-501", "survivor-fence-804"];
-                string[] expectedLocal = immediate ? ["before-local"] : ["before-local", "after-local-703"];
+                string[] expectedGlobal = ["before-A", "before-B", "survivor-fence-804"];
+                string[] expectedLocal = replace && !immediate
+                    ? ["before-local", "after-local-703"]
+                    : ["before-local"];
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(messages[1], Is.EqualTo(expectedGlobal));
+                    Assert.That(messages[1]
+                        .Where(message => message != "A live NodeManager was batch."),
+                        Is.EqualTo(expectedGlobal));
+                    Assert.That(
+                        messages[1].Count(message => message == "A live NodeManager was batch."),
+                        Is.EqualTo(1));
                     Assert.That(messages[2], Is.EqualTo(expectedLocal));
                     Assert.That(dispatch.IsCompleted, Is.False);
                     Assert.That(first.AllEventsUnsubscribeCount, Is.Zero);
@@ -468,11 +468,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                context.Dispose();
                 if (commit is not null)
                 {
                     NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
+                await Task.WhenAll(first.DisposalCompleted, second.DisposalCompleted)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(first.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                Assert.That(second.AllEventsUnsubscribeCount, Is.EqualTo(1));
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
 

@@ -1002,11 +1002,13 @@ QualifiedName dataEncoding,
                 factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>())).Returns(coreManager.Object);
                 server.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
                 var nodeManager = new AuthorizationNodeManager(server.Object);
+#pragma warning disable CS0618 // Standalone fixture; TODO: replace when the compatibility constructor is removed.
                 m_dispatcher = new MasterNodeManager(
                     server.Object,
                     new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
                     null,
                     [nodeManager]);
+#pragma warning restore CS0618
                 server.Setup(value => value.NodeManager).Returns(m_dispatcher);
                 Space = ((ILocalAddressSpaceSource)nodeManager).CreateLocalAddressSpace();
             }

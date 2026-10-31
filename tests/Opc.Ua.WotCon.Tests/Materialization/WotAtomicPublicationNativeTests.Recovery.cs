@@ -162,7 +162,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await Assert.ThatAsync(async () => await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions { AutoRefresh = false }, registry, coordinator),
                 callerContext: null).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Throws.InstanceOf<Opc.Ua.Server.NodeManagerAddCommittedException>()).ConfigureAwait(false);
 
             Assert.That(restarted.Lifecycle.Registrations.Count, Is.EqualTo(owners + 1),
                 "Only the already-committed parent registry remains; recovery candidates must be aborted.");

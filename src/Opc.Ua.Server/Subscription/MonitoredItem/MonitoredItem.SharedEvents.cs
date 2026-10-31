@@ -90,17 +90,21 @@ namespace Opc.Ua.Server
         internal void QueueSharedEvent(
             IFilterTarget instance,
             SharedEventFilterKey key,
-            SharedEventEvaluation evaluation)
+            SharedEventEvaluation evaluation,
+            NodeManagerGeneration? admittedGeneration = null)
         {
-            SharedEventScope previous = t_sharedEvent;
-            t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
-            try
+            lock (m_lock)
             {
-                QueueEvent(instance);
-            }
-            finally
-            {
-                t_sharedEvent = previous;
+                SharedEventScope previous = t_sharedEvent;
+                t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
+                try
+                {
+                    QueueAdmittedEvent(instance, admittedGeneration);
+                }
+                finally
+                {
+                    t_sharedEvent = previous;
+                }
             }
         }
 
@@ -152,6 +156,11 @@ namespace Opc.Ua.Server
 
         [ThreadStatic]
         private static SharedEventScope t_sharedEvent;
+
+        /// <summary>
+        /// This item's source admission, carried through virtual queue calls while its lock is held.
+        /// </summary>
+        private NodeManagerGeneration? m_admittedSourceGeneration;
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>

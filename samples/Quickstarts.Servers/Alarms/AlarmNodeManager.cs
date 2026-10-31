@@ -1177,13 +1177,14 @@ namespace Alarms
                 else
                 {
                     // check if monitored Item is managed by this node manager
-                    if (!MonitoredItems.ContainsKey(monitoredItem.Id))
+                    if (!MonitoredItems.ContainsKey(monitoredItem.Id) ||
+                        monitoredItem.ManagerHandle is not NodeHandle handle)
                     {
                         continue;
                     }
 
                     // get the refresh events.
-                    nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
+                    nodesToRefresh.Add(handle.Node);
                 }
 
                 // block and wait for the refresh.

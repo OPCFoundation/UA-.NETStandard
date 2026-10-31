@@ -299,8 +299,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         private sealed class Prepared(
             IWotPreparedProjectionPublication inner,
-            PausableWotProjectionHost owner) : IWotPreparedProjectionPublication
+            PausableWotProjectionHost owner)
+            : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
         {
+            /// <inheritdoc />
+            public ArrayOf<string> CapturedNamespaceUris =>
+                (inner as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? [];
+
             /// <inheritdoc />
             public ArrayOf<WotProjectionHandle> Projections => inner.Projections;
 

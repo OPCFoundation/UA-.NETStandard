@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 else
                 {
                     replaced = true;
-                    if (change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    if (change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate)
                     {
                         ImmediateCount++;
                         Operations.Add(new HostOperation("immediate", change.Document));

@@ -64,6 +64,7 @@ namespace Opc.Ua.Di.Tests
             m_manager = new PumpNodeManager(m_server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            await m_manager.OnServerReadyAsync().ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -163,13 +164,14 @@ namespace Opc.Ua.Di.Tests
                 ResultMask = BrowseResultMask.All
             };
             var references = new List<ReferenceDescription>();
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Browse,
+                RequestLifetime.None);
 
             ContinuationPoint? result = await m_manager.BrowseAsync(
-                new OperationContext(
-                    new RequestHeader(),
-                    null,
-                    RequestType.Browse,
-                    RequestLifetime.None),
+                context,
                 continuationPoint,
                 references).ConfigureAwait(false);
 
@@ -322,13 +324,14 @@ namespace Opc.Ua.Di.Tests
             ];
             var values = new List<DataValue> { default, default, default, default };
             var errors = new List<ServiceResult> { null!, null!, null!, null! };
+            using var context = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Read,
+                RequestLifetime.None);
 
             await m_manager.ReadAsync(
-                new OperationContext(
-                    new RequestHeader(),
-                    null,
-                    RequestType.Read,
-                    RequestLifetime.None),
+                context,
                 0,
                 nodesToRead,
                 values,

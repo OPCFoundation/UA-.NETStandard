@@ -46,12 +46,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// Verifies that unsupported source provider rejects immediate cutoff before decision.
+        /// Verifies that generation retirement does not require a source-provider cutoff protocol.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task UnsupportedSourceProviderRejectsImmediateCutoffBeforeDecisionAsync(bool immediate)
+        [Test]
+        public async Task RemovalWithoutSourceProviderCutoffCommitsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
@@ -63,43 +61,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, null, timeout.Token)
                 .ConfigureAwait(false);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             int decisions = 0;
-            if (immediate)
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
             {
-                await Assert.ThatAsync(async () => await prepared.CommitAsync(_ =>
-                {
-                    decisions++;
-                    return default;
-                }, timeout.Token).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>())
-                    .ConfigureAwait(false);
-                Assert.That(decisions, Is.Zero);
-                Assert.That(prepared.IsCommitted, Is.False);
-                Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
-                Assert.That(GetBranchRegistration(lifecycle, registration.Id), Is.SameAs(registration));
-                manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
-            }
-            else
-            {
-                NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
-                {
-                    decisions++;
-                    return default;
-                }, timeout.Token).ConfigureAwait(false);
-                Assert.That(result.CleanupFailure, Is.Null);
-                Assert.That(prepared.IsCommitted, Is.True);
-                Assert.That(decisions, Is.EqualTo(1));
-                Assert.That(GetBranchRegistrations(lifecycle).Count, Is.Zero);
-            }
+                decisions++;
+                return default;
+            }, timeout.Token).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.Zero);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
         /// <summary>
-        /// Verifies that rejected cutoff restores custom source creation admission.
+        /// Verifies that a generation stays live for custom source creation until the remove is published,
+        /// and that a rejected decision leaves the created sources on the live generation.
         /// </summary>
         /// <param name="cancel">The cancel flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task RejectedCutoffRestoresCustomSourceCreationAdmissionAsync(bool cancel)
+        public async Task RejectedRemoveDecisionKeepsCustomSourceCreationLiveAsync(bool cancel)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var decision = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
@@ -120,7 +104,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return context.CreatePushMonitoredItem();
             });
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, true)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
@@ -132,10 +116,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                // The sole commit point is the view swap: until then the generation is live and its gate admits
+                // custom source creation; a published remove would retire these sources with the generation.
                 CreateMonitoredItemsResponse during = await CreateAsync().ConfigureAwait(false);
-                Assert.That(during.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-                Assert.That(factoryCalls, Is.Zero, "Unknown custom source effects cannot escape the prepared cutoff.");
-                Assert.That(manager.GetEmissionSource(valueId).DataChangeMonitoredItems, Has.Count.EqualTo(1));
+                Assert.That(during.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(factoryCalls, Is.EqualTo(1));
+                Assert.That(manager.GetEmissionSource(valueId).DataChangeMonitoredItems, Has.Count.EqualTo(2));
                 if (cancel)
                 {
                     decision.Cancel();
@@ -150,8 +136,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 CreateMonitoredItemsResponse after = await CreateAsync().ConfigureAwait(false);
                 Assert.That(after.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(factoryCalls, Is.EqualTo(1));
-                Assert.That(manager.GetEmissionSource(valueId).DataChangeMonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(factoryCalls, Is.EqualTo(2));
+                Assert.That(manager.GetEmissionSource(valueId).DataChangeMonitoredItems, Has.Count.EqualTo(3));
                 Assert.That(prepared.IsCommitted, Is.False);
             }
             finally
@@ -173,10 +159,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verifies that source sampling callback completes nested lifecycle during retirement.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task SourceSamplingCallbackCompletesNestedLifecycleDuringRetirementAsync(bool immediate)
+        [Test]
+        public async Task SourceSamplingCallbackCompletesNestedLifecycleDuringRetirementAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var abortCallback = new CancellationTokenSource();
@@ -196,7 +180,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseVariableState variable = RequireLifecycleValue(original.Find(valueId) as BaseVariableState);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, manager => nested = manager, kSecondModelNamespaceUri);
-            var factory = new CallbackSafeNodeManagerFactory([kSecondModelNamespaceUri], inner.CreateAsync);
+            var factory = new CountingNodeManagerFactory([kSecondModelNamespaceUri], inner.CreateAsync);
             var deciding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -216,7 +200,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return new AttributeReadResult(ServiceResult.Good, new Variant(404), StatusCodes.Good, DateTimeUtc.Now);
             };
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
             {
                 deciding.TrySetResult(true);
@@ -279,8 +263,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 services, valueId, 1).ConfigureAwait(false);
             MonitoredNode2 source = original.GetEmissionSource(valueId);
             BaseVariableState variable = RequireLifecycleValue(original.Find(valueId) as BaseVariableState);
-            await lifecycle.ShadowReloadAsync(
-                registration, CreateNodeManagementFactory(202, false), timeout.Token).ConfigureAwait(false);
+            IDataChangeMonitoredItem2 item = source.DataChangeMonitoredItems[itemId];
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             variable.OnReadValueAsync = async (_, _, _, _, token) =>
@@ -289,16 +272,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 return new AttributeReadResult(ServiceResult.Good, new Variant(505), StatusCodes.Good, DateTimeUtc.Now);
             };
-            Task sample = source.QueueValueAsync(
-                server.DefaultSystemContext, variable, source.DataChangeMonitoredItems[itemId], timeout.Token)
+            Task sample = source.QueueValueAsync(server.DefaultSystemContext, variable, item, timeout.Token)
                 .AsTask();
             Task? shutdown = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                // Migrating reload returns once the replacement is live; the captured sample keeps the retired
+                // generation draining in the background.
+                await RunWithoutExecutionContext(() => lifecycle.ShadowReloadAsync(
+                    registration, CreateNodeManagementFactory(202, false), timeout.Token).AsTask())
+                    .ConfigureAwait(false);
                 await lifecycle.BeginShutdownAsync(server, timeout.Token).ConfigureAwait(false);
                 await DeleteMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
-                shutdown = lifecycle.CompleteShutdownAsync(server, timeout.Token).AsTask();
+                shutdown = RunWithoutExecutionContext(
+                    () => lifecycle.CompleteShutdownAsync(server, timeout.Token).AsTask());
+                await Task.Delay(100, timeout.Token).ConfigureAwait(false);
                 Assert.That(shutdown.IsCompleted, Is.False);
                 Assert.That(original.DisposeCount, Is.Zero);
                 release.TrySetResult(true);

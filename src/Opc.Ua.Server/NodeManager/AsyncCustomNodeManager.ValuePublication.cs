@@ -102,43 +102,32 @@ namespace Opc.Ua.Server
                         subtree.AddRange(children);
                     }
 
-                    if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                    foreach (IMonitoredItem item in m_monitoredItemManager.CaptureMonitoredItems(nodeIds))
                     {
-                        if (!MonitoredItems.IsEmpty)
+                        if ((item.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
+                            item.MonitoringMode != MonitoringMode.Reporting ||
+                            item.Session is not ISession session ||
+                            session.IsClosing)
+                        {
+                            continue;
+                        }
+                        if (item is not IDataChangeMonitoredItem2 dataItem)
+                        {
+                            throw new NotSupportedException("A data-change item does not expose its attribute.");
+                        }
+                        if (dataItem.AttributeId != Attributes.Value)
+                        {
+                            continue;
+                        }
+                        if (item is not IMonitoredItemValuePublication)
                         {
                             throw new NotSupportedException(
-                                "The monitored-item manager cannot capture publication membership.");
+                                "A reporting item does not support final-value publication.");
                         }
-                    }
-                    else
-                    {
-                        foreach (IMonitoredItem item in lifecycle.GetMonitoredItemsSnapshot(nodeIds))
+                        items.Add((dataItem, session));
+                        if (item.ManagerHandle is NodeHandle { MonitoredNode: not null } handle)
                         {
-                            if ((item.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
-                                item.MonitoringMode != MonitoringMode.Reporting ||
-                                item.Session is not ISession session ||
-                                session.IsClosing)
-                            {
-                                continue;
-                            }
-                            if (item is not IDataChangeMonitoredItem2 dataItem)
-                            {
-                                throw new NotSupportedException("A data-change item does not expose its attribute.");
-                            }
-                            if (dataItem.AttributeId != Attributes.Value)
-                            {
-                                continue;
-                            }
-                            if (item is not IMonitoredItemValuePublication)
-                            {
-                                throw new NotSupportedException(
-                                    "A reporting item does not support final-value publication.");
-                            }
-                            items.Add((dataItem, session));
-                            if (item.ManagerHandle is NodeHandle { MonitoredNode: not null } handle)
-                            {
-                                monitoredNodes.Add(handle.MonitoredNode);
-                            }
+                            monitoredNodes.Add(handle.MonitoredNode);
                         }
                     }
                 }

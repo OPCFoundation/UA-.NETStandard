@@ -283,17 +283,17 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     timeout.Token).ConfigureAwait(false);
             Assert.That(initial.StatusCode, Is.EqualTo(StatusCodes.Good));
             AssertDataValue(initial, environment.SourceAValues.DifferentialPressure);
-            using var retiredPublishLifetime =
+            using var migratedPublishLifetime =
                 CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
             // CA2025 cannot see that the finally block cancels and awaits this task before
             // the subscription connection is disposed. TODO: Remove when flow analysis supports it.
 #pragma warning disable CA2025
             Task<(DataValue Value, ArrayOf<SubscriptionAcknowledgement> Acknowledgements)>
-                retiredGenerationPublish = PublishDataChangeAsync(
+                migratedGenerationPublish = PublishDataChangeAsync(
                     subscriptionSession,
                     acknowledgements,
                     TimeSpan.FromMinutes(45),
-                    retiredPublishLifetime.Token);
+                    migratedPublishLifetime.Token);
 #pragma warning restore CA2025
 
             try
@@ -359,25 +359,25 @@ namespace Opc.Ua.WotCon.Samples.Tests
                         monitoredItemIds,
                         timeout.Token).ConfigureAwait(false);
                 Assert.That(reporting.Results[0], Is.EqualTo(StatusCodes.Good));
-                (DataValue retiredGenerationNotification, _) =
-                    await retiredGenerationPublish.ConfigureAwait(false);
-                Assert.That(retiredGenerationNotification.StatusCode, Is.EqualTo(StatusCodes.Good));
+                (DataValue migratedGenerationNotification, _) =
+                    await migratedGenerationPublish.ConfigureAwait(false);
+                Assert.That(migratedGenerationNotification.StatusCode, Is.EqualTo(StatusCodes.Good));
                 AssertDataValue(
-                    retiredGenerationNotification,
-                    environment.SourceAValues.DifferentialPressure);
+                    migratedGenerationNotification,
+                    environment.SourceBValues.BearingTemperature);
             }
             finally
             {
-                retiredPublishLifetime.Cancel();
+                migratedPublishLifetime.Cancel();
                 try
                 {
-                    _ = await retiredGenerationPublish.ConfigureAwait(false);
+                    _ = await migratedGenerationPublish.ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (retiredPublishLifetime.IsCancellationRequested)
+                catch (OperationCanceledException) when (migratedPublishLifetime.IsCancellationRequested)
                 {
                 }
                 catch (ServiceResultException ex)
-                    when (retiredPublishLifetime.IsCancellationRequested &&
+                    when (migratedPublishLifetime.IsCancellationRequested &&
                         ex.StatusCode == StatusCodes.BadRequestInterrupted)
                 {
                 }

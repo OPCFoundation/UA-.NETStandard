@@ -124,7 +124,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         StatusCodes.BadNodeIdInvalid, "The authored View namespace is not registered.");
                 var namespaces = new List<string>(NamespaceUris) { namespaceUri };
                 SetNamespaces(namespaces.ToArray());
-                Server.NodeManager.RegisterNamespaceManager(namespaceUri, this);
+                await Server.NodeManager.RegisterNamespaceManagerAsync(namespaceUri, this, cancellationToken)
+                    .ConfigureAwait(false);
             }
             if (Find(request.ViewNodeId) is not null)
             {

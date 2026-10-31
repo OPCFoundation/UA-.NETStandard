@@ -354,21 +354,27 @@ namespace Opc.Ua.Server.Tests.AliasNames
             AliasNameNodeManager manager = CreateManager(mockServer, store, true);
             try
             {
+                Assert.That(registry.Stores, Does.Not.Contain(store));
                 var externalReferences = new Dictionary<NodeId, IList<IReference>>();
                 await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(registry.Stores, Does.Not.Contain(store));
 
-                Assert.That(registry.Stores, Does.Contain(store));
+                await manager.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+                await manager.OnServerReadyAsync(CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(registry.Stores, Is.EqualTo(new[] { store }));
             }
             finally
             {
                 manager.Dispose();
+                await manager.DisposeAsync().ConfigureAwait(false);
             }
 
             Assert.That(registry.Stores, Does.Not.Contain(store));
         }
 
         [Test]
-        public Task RegistryRegistrationConflictIsSwallowedAsync()
+        public async Task RegistryRegistrationConflictIsSwallowedAsync()
         {
             var categoryId = new NodeId("SharedCategory", 1);
             var descriptor = new AliasNameCategoryDescriptor(
@@ -382,19 +388,18 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             using var store = new InMemoryAliasNameStore([descriptor]);
             Mock<IServerInternal> mockServer = CreateMockServer(registry);
-            using AliasNameNodeManager manager = CreateManager(mockServer, store, true);
+            await using AliasNameNodeManager manager = CreateManager(mockServer, store, true);
 
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
-            Assert.That(
-                async () => await manager.CreateAddressSpaceAsync(
-                    externalReferences, CancellationToken.None).ConfigureAwait(false),
-                Throws.Nothing);
+            await manager.CreateAddressSpaceAsync(externalReferences, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(registry.Stores, Is.EqualTo(new[] { blocker }));
+            await Assert.ThatAsync(() => manager.OnServerReadyAsync(CancellationToken.None).AsTask(), Throws.Nothing)
+                .ConfigureAwait(false);
 
             // Registration was rejected, so only the pre-existing blocker
             // store remains registered.
             Assert.That(registry.Stores, Does.Not.Contain(store));
             Assert.That(registry.Stores, Does.Contain(blocker));
-            return Task.CompletedTask;
         }
     }
 }

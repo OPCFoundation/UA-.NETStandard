@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 
 namespace Boiler
@@ -64,7 +65,7 @@ namespace Boiler
     /// </para>
     /// </remarks>
     [NodeManager(NamespaceUri = "http://opcfoundation.org/UA/Boiler/")]
-    public partial class BoilerNodeManager
+    public partial class BoilerNodeManager : INodeManagerReadinessNotification
     {
         private long m_drumLevelTicks;
         private long m_pipeFlowTicks;
@@ -140,15 +141,8 @@ namespace Boiler
             // is reached via generated accessors with no string paths or
             // NodeIds in sight. The Func<double> handler is the same shape
             // as wiring (3) but the resolution is fully type-checked.
-            // The trailing .Historize() opts this variable in to Part 11
-            // historical access; with no prior UseHistorian() call the
-            // fluent surface lazily installs an in-memory engine and
-            // registers it as the server-wide default. Subsequent
-            // .Historize() calls in this manager would reuse the same
-            // binding.
             builder.Boilers.Boiler__1.LCX001.Measurement
-                .OnRead(GenerateLevelControlMeasurement)
-                .Historize();
+                .OnRead(GenerateLevelControlMeasurement);
 
             // (7) Typed traversal of a method node — the Halt method is
             // bound to an async lambda. The generator emits the typed
@@ -168,8 +162,25 @@ namespace Boiler
             // the last interested monitored item disappears. The
             // registry auto-populates EventId/EventType/Time/SourceNode
             // so the iterator only fills the user-meaningful fields.
-            builder.Boilers.Boiler__1.DrumX001
-                .Publish(GenerateDrumHeartbeatAsync);
+            DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+            {
+                var typed = new BoilerNodeManagerTypedBuilder(published);
+                // Historian and event-source registration require the published server registries.
+                typed.Boilers.Boiler__1.LCX001.Measurement.Historize();
+                return default;
+            });
+            DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+            {
+                var typed = new BoilerNodeManagerTypedBuilder(published);
+                typed.Boilers.Boiler__1.DrumX001.Publish(GenerateDrumHeartbeatAsync);
+                return default;
+            });
+        }
+
+        /// <inheritdoc/>
+        ValueTask INodeManagerReadinessNotification.OnServerReadyAsync(CancellationToken cancellationToken)
+        {
+            return CompletePublishedConfigurationAsync(cancellationToken);
         }
 
         private long m_levelMeasurementTicks;

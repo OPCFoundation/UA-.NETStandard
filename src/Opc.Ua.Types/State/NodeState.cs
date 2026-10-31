@@ -1945,20 +1945,11 @@ namespace Opc.Ua
             {
                 lock (m_referencesLock)
                 {
-                    ReferenceSnapshot image = CurrentReferenceSnapshot;
-                    image.EnsureMutable();
-                    if (ReferenceEquals(image, s_emptyReferenceSnapshot))
+                    EnsureReferencesMutable();
+                    m_referenceRevision++;
+                    if (m_references is not null || references.Count != 0)
                     {
-                        if (references.Count == 0)
-                        {
-                            return;
-                        }
-                        image = GetMutableReferenceSnapshot();
-                    }
-                    image.Revision++;
-                    if (image.References is not null || references.Count != 0)
-                    {
-                        image.References = references;
+                        m_references = references;
                         m_changeMasks |= NodeStateChangeMasks.References;
                     }
                 }
@@ -4046,7 +4037,7 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // index any references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -4107,10 +4098,9 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
+                EnsureReferencesMutable();
                 // check if there are references to update.
-                if (image.References is { } table)
+                if (m_references is { } table)
                 {
                     var referencesToAdd = new List<IReference>();
                     var referencesToRemove = new List<IReference>();
@@ -4141,7 +4131,7 @@ namespace Opc.Ua
 
                     if (referencesToRemove.Count != 0)
                     {
-                        image.Revision++;
+                        m_referenceRevision++;
                     }
 
                     // remove old references.
@@ -4263,7 +4253,7 @@ namespace Opc.Ua
             lock (m_referencesLock)
             {
                 // add any arbitrary references.
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     if (referenceTypeId.IsNull)
                     {
@@ -6144,7 +6134,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                ReferenceDictionary<object?>? references = CurrentReferenceSnapshot.References;
+                ReferenceDictionary<object?>? references = m_references;
                 if (references == null || referenceTypeId.IsNull || targetId.IsNull)
                 {
                     return false;
@@ -6260,13 +6250,12 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                removed = image.References?.Remove(
+                EnsureReferencesMutable();
+                removed = m_references?.Remove(
                     new NodeStateReference(referenceTypeId, isInverse, targetId)) == true;
                 if (removed)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                 }
             }
 
@@ -6343,9 +6332,8 @@ namespace Opc.Ua
 
             lock (m_referencesLock)
             {
-                ReferenceSnapshot image = CurrentReferenceSnapshot;
-                image.EnsureMutable();
-                if (image.References is not { } references)
+                EnsureReferencesMutable();
+                if (m_references is not { } references)
                 {
                     return false;
                 }
@@ -6363,7 +6351,7 @@ namespace Opc.Ua
                 }
                 if (refsToRemove.Count != 0)
                 {
-                    image.Revision++;
+                    m_referenceRevision++;
                     m_changeMasks |= NodeStateChangeMasks.References;
                 }
             }
@@ -6418,7 +6406,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {
@@ -6443,7 +6431,7 @@ namespace Opc.Ua
         {
             lock (m_referencesLock)
             {
-                if (CurrentReferenceSnapshot.References is { } table)
+                if (m_references is { } table)
                 {
                     foreach (IReference reference in table.Keys)
                     {

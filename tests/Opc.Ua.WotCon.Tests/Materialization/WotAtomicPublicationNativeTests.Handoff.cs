@@ -593,6 +593,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     runtime.Setup(owner => owner.DisposeAsync()).Returns(() =>
                     {
                         probe.RuntimeDisposedCount++;
+                        probe.OnRuntimeDisposed?.Invoke();
                         return default;
                     });
                     probe.OnRuntimeCreated?.Invoke();
@@ -605,6 +606,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 probe.Changes.Add(changes);
                 probe.Publications.Add(prepared);
                 var publication = new Mock<IWotPreparedProjectionPublication>(MockBehavior.Strict);
+                publication.As<IWotPreparedProjectionNamespaceSource>()
+                    .SetupGet(value => value.CapturedNamespaceUris)
+                    .Returns(() => (prepared as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? []);
                 publication.SetupGet(value => value.Projections).Returns(prepared.Projections);
                 publication.SetupGet(value => value.ViewGraph).Returns(prepared.ViewGraph);
                 publication.SetupGet(value => value.IsCommitted).Returns(() => prepared.IsCommitted);
@@ -656,6 +660,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             var host = new Mock<IWotPreparedProjectionHost>(MockBehavior.Strict);
             host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(() => inner.SupportsPreparedPublication);
+            host.Setup(owner => owner.RemoveAsync(
+                    It.IsAny<WotProjectionHandle>(), It.IsAny<CancellationToken>()))
+                .Returns((WotProjectionHandle handle, CancellationToken token) => inner.RemoveAsync(handle, token));
             host.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<WotProjectionChange>>(), It.IsAny<IWotPreparedViewPublication?>(),
                 It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>())).Returns(async (
@@ -683,7 +690,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             It.IsAny<CancellationToken>())).Returns(async (
                                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views,
                                 CancellationToken ct) =>
-                            Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes));
+                        {
+                            if (probe.BeforePrepareAsync is { } before)
+                            {
+                                await before(ct).ConfigureAwait(false);
+                            }
+                            return Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes);
+                        });
                         invocation.Setup(value => value.PrepareReadImagesAsync(
                             It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
                             .Returns((ArrayOf<INodeManagerReadImage> images, CancellationToken ct) =>
@@ -717,6 +730,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class HandoffProbe
         {
+            /// <summary>
+            /// Gets or sets the callback before an invocation prepares its next publication unit.
+            /// </summary>
+            public Func<CancellationToken, ValueTask>? BeforePrepareAsync { get; set; }
+
             /// <summary>
             /// Gets or sets the before decision async for <c>HandoffProbe</c>.
             /// </summary>
@@ -781,6 +799,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the runtime disposed count for <c>HandoffProbe</c>.
             /// </summary>
             public int RuntimeDisposedCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the callback observing completion of a runtime's asynchronous retirement.
+            /// </summary>
+            public Action? OnRuntimeDisposed { get; set; }
         }
     }
 }

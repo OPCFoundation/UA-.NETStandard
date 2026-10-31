@@ -45,6 +45,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -185,7 +186,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await child.WaitForExitAsync().ConfigureAwait(false);
             return child.ExitCode;
         }
-        internal static bool TryGetArg(string name, out string? value)
+        internal static bool TryGetArg(string name, [NotNullWhen(true)] out string? value)
         {
             return s_args.TryGetValue(name, out value);
         }

@@ -530,7 +530,18 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                 )
             }
 
+            $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
             $groups = @(
+                @{
+                    id = 'server-node-lifecycle-prepared'
+                    name = 'server-node-lifecycle-prepared'
+                    terms = @("${nativeLifecycle}Prepared")
+                }
+                @{
+                    id = 'server-node-lifecycle'
+                    name = 'server-node-lifecycle'
+                    terms = @($nativeLifecycle)
+                }
                 @{
                     id = 'server-node-management'
                     name = 'server-node-management'

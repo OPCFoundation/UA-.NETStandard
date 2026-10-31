@@ -212,6 +212,53 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
+        /// Verifies that hosted shutdown keeps lifecycle forwarding attached until manager cleanup finishes.
+        /// </summary>
+        [Test]
+        public async Task HostedShutdownKeepsLifecycleAttachedThroughManagerCleanupAsync()
+        {
+            RegistryCaptureServer.Reset();
+            INodeManagerLifecycle? lifecycle = null;
+            CleanupLifecycleNodeManager? manager = null;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            factory.SetupGet(value => value.NamespacesUris).Returns(["urn:hosting:cleanup-lifecycle"]);
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
+                {
+                    manager = new CleanupLifecycleNodeManager(server, configuration, lifecycle!);
+                    return new ValueTask<IAsyncNodeManager>(manager);
+                });
+            HostedServerFixture fixture = await HostedServerFixture.StartAsync(services =>
+            {
+                services.AddLogging();
+                services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                services.AddOpcUa()
+                    .AddServer<RegistryCaptureServer>(options => ConfigureHostedOptions(options, "CleanupLifecycle"))
+                    .AddNodeManagers((provider, _) =>
+                    {
+                        lifecycle = provider.GetRequiredService<INodeManagerLifecycle>();
+                        return [factory.Object];
+                    });
+            }).ConfigureAwait(false);
+            await using (fixture.ConfigureAwait(false))
+            {
+                Assert.That(await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer is not null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false), Is.True);
+            }
+
+            Assert.That(manager, Is.Not.Null);
+            Assert.That(manager!.CleanupCalls, Is.EqualTo(1));
+            Assert.That(manager.CleanupObservedShutdown, Is.True);
+            Assert.Throws<InvalidOperationException>(() => _ = lifecycle!.IsShuttingDown);
+            factory.Verify(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that matching certificate and issued-token policies do not produce unmatched-authenticator
         /// warnings.
         /// </summary>
@@ -621,6 +668,35 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 StartedServer = server;
                 base.OnServerStarted(server);
+            }
+        }
+
+        /// <summary>
+        /// Observes the injected lifecycle while the server reclaims its owned manager.
+        /// </summary>
+        /// <param name="server">The owning server.</param>
+        /// <param name="configuration">The server configuration.</param>
+        /// <param name="lifecycle">The injected hosted lifecycle.</param>
+        private sealed class CleanupLifecycleNodeManager(
+            IServerInternal server, ApplicationConfiguration configuration, INodeManagerLifecycle lifecycle)
+            : AsyncCustomNodeManager(server, configuration, NullLogger.Instance, "urn:hosting:cleanup-lifecycle")
+        {
+            /// <summary>
+            /// Gets the number of cleanup attempts.
+            /// </summary>
+            public int CleanupCalls { get; private set; }
+
+            /// <summary>
+            /// Gets whether cleanup observed the attached server's shutdown state.
+            /// </summary>
+            public bool CleanupObservedShutdown { get; private set; }
+
+            /// <inheritdoc/>
+            public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+            {
+                CleanupCalls++;
+                CleanupObservedShutdown = lifecycle.IsShuttingDown;
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 

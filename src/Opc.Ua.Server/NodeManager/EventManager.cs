@@ -315,10 +315,22 @@ namespace Opc.Ua.Server
                     handle,
                     storedMonitoredItem);
 
-                // save the monitored item.
-                m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
-
-                return monitoredItem;
+                try
+                {
+                    var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+                    if (!binding.TryBindSource(binding.SourceRevision, nodeManager, handle, out _))
+                    {
+                        throw new InvalidOperationException(
+                            "The restored event source binding changed before registration.");
+                    }
+                    m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
+                    return monitoredItem;
+                }
+                catch
+                {
+                    monitoredItem.Dispose();
+                    throw;
+                }
             }
         }
 
@@ -421,6 +433,20 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return [.. m_monitoredItems.Values.Where(item => item != null)];
+            }
+        }
+
+        /// <summary>
+        /// Gets whether exactly this monitored item is still registered.
+        /// </summary>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <returns><c>true</c> when the item is registered.</returns>
+        internal bool Contains(IEventMonitoredItem monitoredItem)
+        {
+            lock (m_lock)
+            {
+                return m_monitoredItems.TryGetValue(monitoredItem.Id, out IEventMonitoredItem? current) &&
+                    ReferenceEquals(current, monitoredItem);
             }
         }
 

@@ -95,11 +95,12 @@ namespace Opc.Ua.MachineTool.Server
         /// </summary>
         private ValueTask PublishConformanceAsync(CancellationToken cancellationToken)
         {
-            return m_context.Manager.Server is ServerInternalData
+            return m_context.Manager.Server is IConformanceUnitsManagerProvider
             {
-                ConformanceUnitsManager: { } catalog,
-                CurrentState: not ServerState.Shutdown
-            } ? catalog.PublishAsync(cancellationToken) : default;
+                ConformanceUnitsManager: { } catalog
+            } && m_context.Manager.Server.CurrentState != ServerState.Shutdown
+                ? catalog.PublishAsync(cancellationToken)
+                : default;
         }
 
         /// <summary>
