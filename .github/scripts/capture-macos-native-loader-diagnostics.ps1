@@ -76,15 +76,50 @@ if (-not [string]::IsNullOrWhiteSpace($env:OPCUA_PKCS11_MODULE)) {
 }
 
 $tracePathPattern = '(?<path>/(?:[^\s"():\[\]]+/)*[^\s"():\[\]]+\.(?:dylib|so)(?:\.\d+)*)'
+$traceRangePattern = '0x(?<start>[0-9A-Fa-f]+)\s*->\s*0x(?<end>[0-9A-Fa-f]+)'
+$segmentRanges = [System.Collections.Generic.List[object]]::new()
+$missingTestHostTrace = $false
+$unloadLines = [System.Collections.Generic.List[string]]::new()
 if ($Mode -eq 'trace') {
+    if (Test-Path -LiteralPath $projectResultsPath -PathType Container) {
+        $traceFiles += @(Get-ChildItem -LiteralPath $projectResultsPath -Recurse -File -Filter 'dyld-testhost.log')
+    }
+    $testhostTraces = @($traceFiles | Where-Object { $_.Name -eq 'dyld-testhost.log' -and $_.Length -gt 0 })
+    if ($testhostTraces.Count -eq 0) {
+        $missingTestHostTrace = $true
+        $metadata.Add('testhost_loader_trace=missing; the test host wrote no dyld trace file')
+    }
     foreach ($traceFile in $traceFiles) {
         $metadata.Add("process_output=$($traceFile.FullName)")
+        # dyld4 prints 'Mapping <path>' and then one segment range per line, so
+        # a range belongs to the most recent image header.
+        $currentImage = $null
         foreach ($line in Get-Content -LiteralPath $traceFile.FullName) {
-            foreach ($match in [regex]::Matches($line, $tracePathPattern)) {
+            $paths = [regex]::Matches($line, $tracePathPattern)
+            foreach ($match in $paths) {
                 $null = $modulePaths.Add($match.Groups['path'].Value)
+            }
+            if ($line -match 'dlclose') {
+                $unloadLines.Add("$($traceFile.Name): $line")
+            }
+            $range = [regex]::Match($line, $traceRangePattern)
+            if ($paths.Count -gt 0) {
+                $currentImage = $paths[0].Groups['path'].Value
+            }
+            elseif (-not $range.Success) {
+                $currentImage = $null
+            }
+            if ($range.Success -and $null -ne $currentImage) {
+                $segmentRanges.Add([pscustomobject]@{
+                    Start = [UInt64]::Parse($range.Groups['start'].Value, 'AllowHexSpecifier')
+                    End = [UInt64]::Parse($range.Groups['end'].Value, 'AllowHexSpecifier')
+                    Line = "$($traceFile.Name): image=$currentImage; $($line.Trim())"
+                })
             }
         }
     }
+    $metadata.Add("traced_segment_ranges=$($segmentRanges.Count)")
+    $metadata.Add("traced_dlclose_calls=$($unloadLines.Count)")
 }
 else {
     $metadata.Add('native_loader_trace=disabled for control')
@@ -106,8 +141,21 @@ foreach ($ipsFile in $ipsFiles) {
 
     $rawCodes = @($crash.exception.rawCodes)
     if ($rawCodes.Count -gt 1) {
-        $faultAddress = ([UInt64]$rawCodes[1]).ToString('X')
+        $faultValue = [UInt64]$rawCodes[1]
+        $faultAddress = $faultValue.ToString('X')
         $crashSummaries.Add("fault_pc=0x$faultAddress")
+        $containing = @($segmentRanges | Where-Object { $faultValue -ge $_.Start -and $faultValue -lt $_.End })
+        if ($Mode -ne 'trace') {
+            $crashSummaries.Add('fault_segment=not attributed; control run has no loader trace')
+        }
+        elseif ($containing.Count -eq 0) {
+            $crashSummaries.Add('fault_segment=no traced segment range contains the fault address')
+        }
+        foreach ($segment in $containing) {
+            # A traced range only shows the address was mapped by that image at
+            # some point; pair it with the dlclose lines before claiming causation.
+            $crashSummaries.Add("fault_segment=$($segment.Line)")
+        }
     }
 
     $threadIndex = [int]$crash.faultingThread
@@ -154,6 +202,14 @@ if ($crashSummaries.Count -eq 0) {
 }
 else {
     $crashSummaries | Out-File -LiteralPath $crashSummaryPath -Encoding utf8
+}
+
+$unloadPath = Join-Path $diagnosticsPath 'traced-dlclose-calls.txt'
+if ($unloadLines.Count -eq 0) {
+    'No dlclose call was traced.' | Out-File -LiteralPath $unloadPath -Encoding utf8
+}
+else {
+    $unloadLines | Out-File -LiteralPath $unloadPath -Encoding utf8
 }
 
 $identityLines = [System.Collections.Generic.List[string]]::new()
@@ -203,3 +259,9 @@ $identityLines | Out-File -LiteralPath $identityPath -Encoding utf8
 Write-Host "Wrote native diagnostic metadata to '$metadataPath'."
 Write-Host "Wrote module identities to '$identityPath'."
 Write-Host "Wrote native crash summary to '$crashSummaryPath'."
+
+if ($missingTestHostTrace) {
+    # Fail after writing the files above, so the upload step still keeps them.
+    Write-Host '::error title=macOS native loader diagnostics::The PKCS#11 test host wrote no dyld trace.'
+    exit 1
+}
