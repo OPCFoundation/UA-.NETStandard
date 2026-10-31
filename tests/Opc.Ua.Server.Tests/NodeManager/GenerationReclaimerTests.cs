@@ -101,8 +101,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(reclaimer.Contains(retired), Is.True);
             }
             await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
-            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            await AssertRetirementOutcomeAsync(retired.Retirement, failFirst ? failure : null, timeout.Token)
+                .ConfigureAwait(false);
             Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.False);
             completedResource.Verify(value => value.Dispose(), Times.Once);
             resource.Verify(value => value.Dispose(), Times.Exactly(failFirst ? 2 : 1));
@@ -290,9 +290,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 failure, It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
 
             await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
-            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await AssertRetirementOutcomeAsync(retired.Retirement, failure, timeout.Token).ConfigureAwait(false);
             Assert.That(reclaimer.Count, Is.Zero);
-            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(retired.PendingReferences, Is.Empty);
             Assert.That(calls, Is.EqualTo(2));
             context.Host.Verify(value => value.FinalizeRetiredGenerationNotificationsAsync(
@@ -311,7 +310,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// A transient cleanup failure is retried after backoff and eventually completes retirement.
+        /// A transient cleanup failure is retried after backoff; retirement completes after the retry
+        /// and surfaces the first failure.
         /// </summary>
         [Test]
         public async Task CleanupFailureSchedulesDelayedRetryAndCompletesRetirementAsync()
@@ -338,10 +338,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(observed, Is.SameAs(failure));
             Assert.That(retired.Retirement.IsCompleted, Is.False);
             clock.Advance(TimeSpan.FromSeconds(1));
-            await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await AssertRetirementOutcomeAsync(retired.Retirement, failure, timeout.Token).ConfigureAwait(false);
 
             Assert.That(attempts, Is.EqualTo(2));
-            Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(reclaimer.Count, Is.Zero);
         }
 
@@ -509,7 +508,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Select(_ => Task.Run(() => reclaimer.Activate([retired]))))
                     .WaitAsync(timeout.Token).ConfigureAwait(false);
                 await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
-                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await Assert.ThatAsync(
+                    () => retired.Retirement.WaitAsync(timeout.Token),
+                    Throws.Exception).ConfigureAwait(false);
+                Assert.That(retired.Retirement.IsFaulted, Is.True);
             }
             else
             {
@@ -571,6 +573,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             Assert.That(reclaimer.Count, Is.Zero);
             disposal.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// Asserts that retirement completed and surfaced the first cleanup failure, if any, even after a
+        /// successful retry.
+        /// </summary>
+        private static async Task AssertRetirementOutcomeAsync(
+            Task retirement,
+            Exception? firstFailure,
+            CancellationToken cancellationToken)
+        {
+            if (firstFailure is null)
+            {
+                await retirement.WaitAsync(cancellationToken).ConfigureAwait(false);
+                Assert.That(retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+                return;
+            }
+            await Assert.ThatAsync(
+                () => retirement.WaitAsync(cancellationToken),
+                Throws.Exception.SameAs(firstFailure)).ConfigureAwait(false);
+            Assert.That(retirement.IsFaulted, Is.True);
         }
 
         /// <summary>
