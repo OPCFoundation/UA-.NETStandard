@@ -248,6 +248,13 @@ namespace Opc.Ua.Client.Subscriptions
 
             public int SessionSubscriptionCount => 0;
 
+            /// <summary>
+            /// The benchmark context has no server session to abandon.
+            /// </summary>
+            public void AbandonServerSession()
+            {
+            }
+
             public ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; }
 
             public ISubscriptionAcknowledgementObserver? AcknowledgementObserver => null;
