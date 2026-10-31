@@ -1083,6 +1083,220 @@ namespace Opc.Ua.Server.Tests
             await m_server.CloseSessionAsync(resendDataSecurityContext, resendDataRequestHeader, true, CancellationToken.None).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Change one monitored value and let a publishing cycle pass without a
+        /// Publish request, so the changed item already waits for publishing.
+        /// ResendData must still return the values of all monitored items in
+        /// the next Publish response, not only the item that changed.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task ResendDataAfterLatePublishingCycleAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic
+                .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
+
+            // creates the subscription and consumes the initial values
+            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                serverTestServices,
+                m_requestHeader,
+                testSet,
+                kQueueSize,
+                0).ConfigureAwait(false);
+
+            try
+            {
+                // change a single value, then wait past the 1 s publishing interval
+                await WriteChangedValuesAsync([testSet[2]]).ConfigureAwait(false);
+                Thread.Sleep(1500);
+
+                await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var acknowledgements = new SubscriptionAcknowledgementCollection();
+                PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(subscriptionIds[0], publishResponse.SubscriptionId);
+                Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+                var dataChanges = (DataChangeNotification)publishResponse.NotificationMessage.NotificationData[0].Body;
+                Assert.AreEqual(testSet.Length, dataChanges.MonitoredItems.Count,
+                    "ResendData shall return a value for each monitored item in the next Publish response");
+            }
+            finally
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                await serverTestServices.DeleteSubscriptionsAsync(m_requestHeader, subscriptionIds).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// ResendData must not skip the triggering of linked items: a sampling item that is
+        /// triggered by a changed item is reported in the next Publish response, whether
+        /// the items change before or after the ResendData call.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResendDataKeepsTriggeredItemsAsync(bool resendBeforeChange)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var serverTestServices = new ServerTestServices(m_server, m_secureChannelContext, telemetry);
+
+            NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
+            NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic
+                .Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
+
+            // creates the subscription and consumes the initial values
+            UInt32Collection subscriptionIds = await CommonTestWorkers.CreateSubscriptionForTransferAsync(
+                serverTestServices,
+                m_requestHeader,
+                testSet,
+                kQueueSize,
+                0).ConfigureAwait(false);
+
+            try
+            {
+                // the client handles are the 1-based indexes into testSet
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                CallResponse callResponse = await m_server.CallAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = ObjectIds.Server,
+                            MethodId = MethodIds.Server_GetMonitoredItems,
+                            InputArguments = [new Variant(subscriptionIds[0])]
+                        }
+                    ],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, callResponse.Results[0].StatusCode);
+                uint[] serverHandles = (uint[])callResponse.Results[0].OutputArguments[0].Value;
+                uint[] clientHandles = (uint[])callResponse.Results[0].OutputArguments[1].Value;
+                uint triggeringItemId = serverHandles[Array.IndexOf(clientHandles, 3u)];
+                uint triggeredItemId = serverHandles[Array.IndexOf(clientHandles, 2u)];
+
+                // Scalar_Static_Int32 triggers Scalar_Static_Int16, which is only sampled
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                SetMonitoringModeResponse setMonitoringModeResponse = await serverTestServices.SetMonitoringModeAsync(
+                    m_requestHeader,
+                    subscriptionIds[0],
+                    MonitoringMode.Sampling,
+                    [triggeredItemId]).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, setMonitoringModeResponse.Results[0]);
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                SetTriggeringResponse setTriggeringResponse = await m_server.SetTriggeringAsync(
+                    m_secureChannelContext,
+                    m_requestHeader,
+                    subscriptionIds[0],
+                    triggeringItemId,
+                    [triggeredItemId],
+                    [],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, setTriggeringResponse.AddResults[0]);
+
+                // a change of the triggering item alone is published at the next publishing
+                // cycle; the next steps then run right after a cycle, well before the next one
+                await WriteChangedValuesAsync([testSet[2]]).ConfigureAwait(false);
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                var acknowledgements = new SubscriptionAcknowledgementCollection();
+                PublishResponse publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+
+                // both items change and ResendData is called before the next publishing cycle
+                if (resendBeforeChange)
+                {
+                    await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+                    await WriteChangedValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
+                }
+                else
+                {
+                    await WriteChangedValuesAsync([testSet[2], testSet[1]]).ConfigureAwait(false);
+                    await ResendDataCallAsync(StatusCodes.Good, subscriptionIds).ConfigureAwait(false);
+                }
+
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                acknowledgements.Add(new SubscriptionAcknowledgement
+                {
+                    SubscriptionId = subscriptionIds[0],
+                    SequenceNumber = publishResponse.NotificationMessage.SequenceNumber
+                });
+                publishResponse = await serverTestServices.PublishAsync(
+                    m_requestHeader,
+                    acknowledgements).ConfigureAwait(false);
+
+                Assert.AreEqual((StatusCode)StatusCodes.Good, publishResponse.ResponseHeader.ServiceResult);
+                Assert.AreEqual(1, publishResponse.NotificationMessage.NotificationData.Count);
+                var dataChanges = (DataChangeNotification)publishResponse.NotificationMessage.NotificationData[0].Body;
+                Assert.That(dataChanges.MonitoredItems.Select(n => n.ClientHandle), Does.Contain(2u),
+                    "The triggered sampling item shall be reported with its triggering item");
+                Assert.That(dataChanges.MonitoredItems.Select(n => n.ClientHandle),
+                    Is.SupersetOf(Enumerable.Range(1, testSet.Length).Select(n => (uint)n)),
+                    "ResendData shall return a value for each monitored item");
+            }
+            finally
+            {
+                m_requestHeader.Timestamp = DateTime.UtcNow;
+                await serverTestServices.DeleteSubscriptionsAsync(m_requestHeader, subscriptionIds).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Writes a value to each Int16 or Int32 node that differs from its current value,
+        /// so every write is a data change.
+        /// </summary>
+        private async Task WriteChangedValuesAsync(NodeId[] nodeIds)
+        {
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            var nodesToRead = new ReadValueIdCollection(
+                nodeIds.Select(n => new ReadValueId { NodeId = n, AttributeId = Attributes.Value }));
+            ReadResponse readResponse = await m_server.ReadAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                kMaxAge,
+                TimestampsToReturn.Neither,
+                nodesToRead, CancellationToken.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(readResponse.ResponseHeader, readResponse.Results, nodesToRead);
+
+            var nodesToWrite = new WriteValueCollection();
+            for (int ii = 0; ii < nodeIds.Length; ii++)
+            {
+                object value = readResponse.Results[ii].Value switch
+                {
+                    short s => (object)(short)~s,
+                    int i => (object)~i,
+                    object other => throw new NotSupportedException($"Unexpected type {other.GetType()}.")
+                };
+                nodesToWrite.Add(new WriteValue
+                {
+                    NodeId = nodeIds[ii],
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue { WrappedValue = new Variant(value) }
+                });
+            }
+
+            m_requestHeader.Timestamp = DateTime.UtcNow;
+            WriteResponse writeResponse = await m_server.WriteAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                nodesToWrite, CancellationToken.None).ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(writeResponse.ResponseHeader, writeResponse.Results, nodesToWrite);
+            Assert.That(writeResponse.Results.Select(r => r.Code), Is.All.EqualTo(StatusCodes.Good));
+        }
+
         private async Task<CallMethodRequestCollection> ResendDataCallAsync(
             StatusCode expectedStatus,
             UInt32Collection subscriptionIds)
