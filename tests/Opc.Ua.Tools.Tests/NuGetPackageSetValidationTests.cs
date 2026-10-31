@@ -64,7 +64,8 @@ namespace Opc.Ua.Tools.Tests
         [
             "OPCFoundation.NetStandard.Opc.Ua.LADS",
             "OPCFoundation.NetStandard.Opc.Ua.LADS.Client",
-            "OPCFoundation.NetStandard.Opc.Ua.LADS.Server"
+            "OPCFoundation.NetStandard.Opc.Ua.LADS.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.LADS"
         ];
 
         /// <summary>

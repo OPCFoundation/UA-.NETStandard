@@ -190,7 +190,7 @@ namespace Opc.Ua.Tools.Tests
         {
             string[] packages = File.ReadAllLines(
                 Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt"));
-            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning"];
+            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning", "LADS"];
             foreach (string family in families)
             {
                 string id = $"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}";
@@ -1587,6 +1587,7 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.LADS", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.LADS.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.LADS.Client", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.LADS", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Server", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Client", true),

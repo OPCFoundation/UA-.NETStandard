@@ -348,6 +348,7 @@ dnx OPCFoundation.NetStandard.Opc.Ua.Mcp -- --profile scales,di
 | `scales` | Weights and units, products, recipes, scale-specific operations and PackML | [Scales](Scales.md) |
 | `pumps` | Pump identity, configuration, operational measurements, supervision and maintenance | [Pumps](Pumps.md) |
 | `autoid` | RFID, OCR, optical, verifier and RTLS reader discovery, snapshots, scans, tag reads and location queries | [AutoID Devices](AutoID.md) |
+| `lads` | Laboratory device, functional-unit and function snapshots, programs, results, result files and maintenance | [LADS](LADS.md) |
 | `di` | Device topology and identity, locking, parameter transfer and software update | [Device Integration](DeviceIntegration.md) |
 | `isa95` | Common objects and V1/V2 job order control, responses and status | [ISA-95](ISA95.md) |
 | `positioning` | Relative spatial frames, global positions, zones and coordinate conversion | [Positioning](Positioning.md) |
@@ -364,6 +365,26 @@ remain outside this set. See [companion workflows](#companion-workflows)
 for cross-family handoffs, [file transfers](#companion-file-transfers) for host
 policy, and [embedding industrial companions](#embedding-industrial-companions)
 for library registration.
+
+#### LADS tools
+
+LADS tools use the existing typed `LadsClient` and the selected named session.
+Discovery and snapshot tools read devices, functional units, functions,
+program templates, results, result-file metadata and maintenance tasks.
+
+| Tools | What they do |
+| --- | --- |
+| `lads_list_devices`, `lads_read_device` | Discover LADS devices and read identification, health and state snapshots. |
+| `lads_read_functional_unit`, `lads_read_function` | Read unit state, active-program progress, nested functions and published values. |
+| `lads_list_program_templates`, `lads_start_program` | List a unit's published templates and explicitly request a program start. |
+| `lads_command` | Send a named device, functional-unit or control-function state-machine command. |
+| `lads_read_results`, `lads_list_result_files`, `lads_download_result_file` | Read results and file metadata, then download a selected file beneath the host transfer root. |
+| `lads_read_maintenance_tasks`, `lads_maintenance_command` | Read maintenance state and explicitly start, stop or reset a task. |
+
+Commands are requests to the server, not confirmation that equipment completed
+the requested action. OPC UA access checks and state-machine preconditions
+remain authoritative. Result downloads use the configured host transfer root,
+reject existing destinations and obey the host byte limit.
 
 #### AMB tools
 

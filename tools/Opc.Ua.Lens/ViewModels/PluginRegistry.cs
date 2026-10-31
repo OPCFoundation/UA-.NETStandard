@@ -409,6 +409,18 @@ namespace UaLens.ViewModels
                 ConnectionScope = ToolConnectionScope.Primary,
                 Factory = host => new Plugins.Companions.CompanionPluginFactory().CreateSpecification(
                     host, PluginKind.Positioning, new Plugins.Companions.Providers.PositioningCompanionProvider())
+            },
+            new PluginRegistration
+            {
+                CommandId = "tool.open.lads",
+                Kind = PluginKind.Lads,
+                Group = ToolGroup.ExploreConnect,
+                DisplayName = "LADS",
+                Glyph = "LD",
+                Description = "Inspect laboratory devices, control functions, programs and result files.",
+                ConnectionScope = ToolConnectionScope.Primary,
+                Factory = host => new Plugins.Companions.CompanionPluginFactory().CreateSpecification(
+                    host, PluginKind.Lads, new Plugins.Companions.Providers.LadsCompanionProvider())
             }
         ];
 

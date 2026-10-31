@@ -69,7 +69,7 @@ namespace UaLens.Plugins.Companions
             IRenderedVisionCameraSource? visionCameraSource = null)
         {
             if (kind is not (PluginKind.Companions or PluginKind.AssetManagement or PluginKind.Machinery
-                or PluginKind.Pumps or PluginKind.Weighing or PluginKind.PackML or PluginKind.Positioning))
+                or PluginKind.Pumps or PluginKind.Weighing or PluginKind.PackML or PluginKind.Positioning or PluginKind.Lads))
             {
                 throw new ArgumentOutOfRangeException(nameof(kind));
             }
