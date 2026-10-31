@@ -42,6 +42,11 @@ namespace LadsSample.Server
         public const string UnitName = "Chamber";
 
         /// <summary>
+        /// The ambient temperature of the simulated chamber in degrees Celsius.
+        /// </summary>
+        public const double AmbientTemperature = 22;
+
+        /// <summary>
         /// Adds the incubator device with one functional unit and two incubation programs.
         /// </summary>
         public static void Configure(ILadsSetupContext context)
@@ -65,8 +70,8 @@ namespace LadsSample.Server
                     {
                         options.EngineeringUnits = LadsUnits.Celsius;
                         options.Range = new Opc.Ua.Range(60, 4);
-                        options.InitialTargetValue = 22;
-                        options.InitialCurrentValue = 22;
+                        options.InitialTargetValue = AmbientTemperature;
+                        options.InitialCurrentValue = AmbientTemperature;
                     })
                     .AnalogControl("ShakerSpeed", options =>
                     {
@@ -80,7 +85,7 @@ namespace LadsSample.Server
                         options.InitialValue = 0.04;
                     })
                     .Cover("Door")
-                    .Timer("Timer", options => options.EngineeringUnits = LadsUnits.Second)
+                    .Timer("Timer")
                     .SupportedProperty("Volume")
                     .Programs(programs => programs
                         .Template("Incubation", template => template

@@ -205,7 +205,6 @@ namespace UaLens.Plugins.Companions
     {
         ReadOnly,
         LocalFile,
-        RemoteMutation,
         SampleMutation,
         DeploymentMutation
     }

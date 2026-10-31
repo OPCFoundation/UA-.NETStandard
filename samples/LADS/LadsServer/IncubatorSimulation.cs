@@ -37,8 +37,7 @@ using Opc.Ua.LADS.Server;
 namespace LadsSample.Server
 {
     /// <summary>
-    /// Moves temperature and shaker speed towards their targets, lets the CO2 level follow the
-    /// temperature and runs the timer while a program is active.
+    /// Simulates temperature, shaker speed and CO2, and runs the timer while a program is active.
     /// </summary>
     public sealed class IncubatorSimulation : BackgroundService
     {
@@ -69,27 +68,45 @@ namespace LadsSample.Server
                 while (true)
                 {
                     await Task.Delay(s_tick, stoppingToken).ConfigureAwait(false);
-                    temperature.UpdateCurrentValue(Approach(temperature.CurrentValue, temperature.TargetValue, 2));
-                    shaker.UpdateCurrentValue(Approach(shaker.CurrentValue, shaker.TargetValue, 50));
-                    double co2Target = temperature.CurrentValue > 30 ? 5 : 0.04;
-                    co2.UpdateValue(Math.Round(Approach(co2.SensorValue, co2Target, 0.5), 2));
-
-                    LadsProgramRun? run = chamber.Programs?.ActiveRun;
-                    if (run?.RunId != runId)
-                    {
-                        runId = run?.RunId;
-                        timer.UpdateCurrentValue(0);
-                    }
-                    else if (run is not null)
-                    {
-                        timer.UpdateCurrentValue(timer.CurrentValue + s_tick.TotalSeconds);
-                    }
+                    runId = Advance(
+                        temperature, shaker, co2, timer, chamber.Programs?.ActiveRun?.RunId, runId);
                 }
             }
             catch (OperationCanceledException)
             {
                 // Shutdown.
             }
+        }
+
+        /// <summary>
+        /// Advances the simulated measurements and returns the active run identifier.
+        /// </summary>
+        internal static string? Advance(
+            IAnalogControlFunction temperature,
+            IAnalogControlFunction shaker,
+            IAnalogScalarSensorFunction co2,
+            ITimerFunction timer,
+            string? activeRunId,
+            string? previousRunId)
+        {
+            double temperatureTarget = temperature.State == LadsFunctionalStateValue.Running
+                ? temperature.TargetValue
+                : ShakingIncubator.AmbientTemperature;
+            double shakerTarget = shaker.State == LadsFunctionalStateValue.Running ? shaker.TargetValue : 0;
+            temperature.UpdateCurrentValue(Approach(temperature.CurrentValue, temperatureTarget, 2));
+            shaker.UpdateCurrentValue(Approach(shaker.CurrentValue, shakerTarget, 50));
+            double co2Target = temperature.CurrentValue > 30 ? 5 : 0.04;
+            co2.UpdateValue(Math.Round(Approach(co2.SensorValue, co2Target, 0.5), 2));
+
+            if (activeRunId != previousRunId)
+            {
+                timer.UpdateCurrentValue(0);
+            }
+            else if (activeRunId is not null)
+            {
+                timer.UpdateCurrentValue(timer.CurrentValue + s_tick.TotalMilliseconds);
+            }
+            return activeRunId;
         }
 
         private static double Approach(double current, double target, double maxStep)

@@ -668,35 +668,35 @@ namespace Opc.Ua.LADS.Server
     }
 
     /// <summary>
-    /// A timer control function.
+    /// A timer control function whose values are OPC UA durations in milliseconds.
     /// </summary>
     public interface ITimerFunction : ILadsControlFunction
     {
         /// <summary>
-        /// The elapsed time.
+        /// The elapsed time in milliseconds.
         /// </summary>
         double CurrentValue { get; }
 
         /// <summary>
-        /// The duration of the timer.
+        /// The duration of the timer in milliseconds.
         /// </summary>
         double TargetValue { get; }
 
         /// <summary>
-        /// The remaining time.
+        /// The remaining time in milliseconds.
         /// </summary>
         double DifferenceValue { get; }
 
         /// <summary>
         /// Publishes the elapsed time; the remaining time follows.
         /// </summary>
-        /// <param name="value">The elapsed time.</param>
+        /// <param name="value">The elapsed time in milliseconds.</param>
         void UpdateCurrentValue(double value);
 
         /// <summary>
         /// Writes the duration through the function provider.
         /// </summary>
-        /// <param name="value">The duration.</param>
+        /// <param name="value">The duration in milliseconds.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes when the duration was applied.</returns>
         ValueTask SetTargetValueAsync(double value, CancellationToken cancellationToken = default);

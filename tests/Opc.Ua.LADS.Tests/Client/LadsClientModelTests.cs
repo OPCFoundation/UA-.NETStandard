@@ -258,6 +258,43 @@ namespace Opc.Ua.LADS.Tests.Client
             });
         }
 
+        /// <summary>
+        /// Convenience values reject bad quality while raw and uncertain values remain available.
+        /// </summary>
+        [Test]
+        public void FunctionSnapshotKeepsBadQualityValuesOutOfConvenienceProperties()
+        {
+            var snapshot = new LadsFunctionSnapshot(
+                new NodeId(1u, 2),
+                "Temperature",
+                LadsFunctionKind.AnalogControl,
+                [
+                    new LadsFunctionValue(LadsFunctionMembers.IsEnabled, new NodeId(2u, 2),
+                        new DataValue(Variant.From(true), StatusCodes.BadNoData)),
+                    new LadsFunctionValue(LadsFunctionMembers.CurrentValue, new NodeId(3u, 2),
+                        new DataValue(Variant.From(36.5), StatusCodes.BadOutOfRange)),
+                    new LadsFunctionValue(LadsFunctionMembers.TargetValue, new NodeId(4u, 2),
+                        new DataValue(Variant.From(37.0), StatusCodes.Uncertain))
+                ]);
+            var uncertain = new LadsFunctionSnapshot(
+                new NodeId(5u, 2), "Uncertain", LadsFunctionKind.AnalogControl,
+                [
+                    new LadsFunctionValue(LadsFunctionMembers.IsEnabled, new NodeId(6u, 2),
+                        new DataValue(Variant.From(true), StatusCodes.Uncertain))
+                ]);
+
+            Assert.That(snapshot.IsEnabled, Is.Null);
+            Assert.That(uncertain.IsEnabled, Is.True);
+            Assert.That(snapshot.CurrentValue.IsNull, Is.True);
+            Assert.That(snapshot.ValueOf(LadsFunctionMembers.CurrentValue).IsNull, Is.True);
+            Assert.That(snapshot.TargetValue.TryGetValue(out double target), Is.True);
+            Assert.That(target, Is.EqualTo(37.0));
+            Assert.That(snapshot.TryGetValue(LadsFunctionMembers.CurrentValue, out DataValue raw), Is.True);
+            Assert.That(raw.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(raw.WrappedValue.TryGetValue(out double rawValue), Is.True);
+            Assert.That(rawValue, Is.EqualTo(36.5));
+        }
+
         [Test]
         public void FunctionMembersAreReadInADefinedOrder()
         {

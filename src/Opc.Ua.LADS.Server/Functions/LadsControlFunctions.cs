@@ -117,10 +117,14 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Rejects a value outside of the range.
+        /// Rejects a non-finite value or a value outside of the range.
         /// </summary>
         protected static void CheckRange(Range? range, double value)
         {
+            if (double.IsNaN(value) || double.IsInfinity(value))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadOutOfRange, "The value must be finite.");
+            }
             if (range != null && (value < range.Low || value > range.High))
             {
                 throw ServiceResultException.Create(
@@ -1025,7 +1029,7 @@ namespace Opc.Ua.LADS.Server
             m_options = options;
             ISystemContext context = Runtime.Context;
             node.AddCurrentValue(context).AddTargetValue(context).AddDifferenceValue(context);
-            EUInformation units = options.EngineeringUnits ?? LadsUnits.Second;
+            EUInformation units = options.EngineeringUnits ?? LadsUnits.Millisecond;
             ConfigureAnalog(node.CurrentValue, units, options.Range);
             ConfigureAnalog(node.TargetValue, units, options.Range);
             ConfigureAnalog(node.DifferenceValue, units, null);

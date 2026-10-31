@@ -28,6 +28,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <ProjectReference Include="..\..\samples\LADS\LadsServer\LadsServer.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.LADS\Opc.Ua.LADS.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.LADS.Client\Opc.Ua.LADS.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.LADS.Server\Opc.Ua.LADS.Server.csproj" />

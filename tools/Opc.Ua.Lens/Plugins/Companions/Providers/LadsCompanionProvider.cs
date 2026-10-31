@@ -228,7 +228,7 @@ namespace UaLens.Plugins.Companions.Providers
             using CancellationTokenSource lifetime = Begin(context, cancellationToken);
             await RequireTargetAsync(context, target, lifetime.Token).ConfigureAwait(false);
             NodeId first = ParseNode(ReadText(inputs, operation.Inputs[0].Name));
-            NodeId second = operationId == "start-program" || operationId == "export-result-file"
+            NodeId second = operationId == "export-result-file"
                 ? ParseNode(ReadText(inputs, operation.Inputs[1].Name))
                 : NodeId.Null;
             string command = operationId == "function-control" ? ReadText(inputs, "command") : string.Empty;
@@ -598,7 +598,7 @@ namespace UaLens.Plugins.Companions.Providers
             "maintenance", "Read maintenance tasks", CompanionOperationSafety.ReadOnly);
 
         private static readonly CompanionOperation s_startProgram = new(
-            "start-program", "Start a program", CompanionOperationSafety.RemoteMutation,
+            "start-program", "Start a program", CompanionOperationSafety.DeploymentMutation,
             "Select a functional unit and a published template ID.")
         {
             Inputs =
@@ -611,7 +611,7 @@ namespace UaLens.Plugins.Companions.Providers
         };
 
         private static readonly CompanionOperation s_functionControl = new(
-            "function-control", "Control a function", CompanionOperationSafety.RemoteMutation,
+            "function-control", "Control a function", CompanionOperationSafety.DeploymentMutation,
             "Commands are explicit; the selected function must be a control function or cover.")
         {
             Inputs =

@@ -7,13 +7,18 @@ the chamber and downloads the result file.
 
 | Sample | What it does |
 | --- | --- |
-| [LadsServer](LadsServer/) | Describes the incubator with `AddLads().ConfigureLads(...)`: one functional unit `Chamber` with the `Temperature` and `ShakerSpeed` analog controls, a `CO2` analog sensor, a `Door` cover, a `Timer` and the program templates `Incubation` and `Overnight`. `IncubatorHardware` accepts setpoints without applying them; `IncubatorSimulation` moves the measured values towards their targets every 500 ms |
+| [LadsServer](LadsServer/) | Describes the incubator with `AddLads().ConfigureLads(...)`: one functional unit `Chamber` with the `Temperature` and `ShakerSpeed` analog controls, a `CO2` analog sensor, a `Door` cover, a `Timer` and the program templates `Incubation` and `Overnight`. `IncubatorHardware` accepts setpoints without applying them; `IncubatorSimulation` updates the measured values every 500 ms |
 | [LadsClient](LadsClient/) | Connects with `AddClient().AddDiscoveryAndConnect(...).AddLadsClient()`, prints the device and its functions, locks the door, starts `Incubation`, prints temperature, shaker speed and CO2 changes until the unit stops, unlocks the door and prints the result file |
 
 The server uses the default `InMemoryLadsProgramExecutor`. It applies the
 setpoints of each step, waits for the step duration and adds `Protocol.csv` to
 the result. The `Incubation` template takes 13 seconds: `WarmUp` (37 °C,
 150 rpm, 5 s), `Shake` (250 rpm, 5 s) and `CoolDown` (25 °C, 0 rpm, 3 s).
+
+The timer reports elapsed program time in milliseconds. When the temperature
+control stops or aborts, the temperature returns toward ambient (22 °C). When
+the shaker control stops or aborts, its speed returns toward zero. Restarting
+either control resumes its retained target.
 
 ## Run
 

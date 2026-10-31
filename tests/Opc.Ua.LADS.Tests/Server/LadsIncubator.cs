@@ -97,7 +97,7 @@ namespace Opc.Ua.LADS.Tests.Server
                             options.InitialValue = 5;
                         })
                         .Cover("Door")
-                        .Timer("Timer", options => options.EngineeringUnits = LadsUnits.Second)
+                        .Timer("Timer")
                         .SupportedProperty("Volume")
                         .Programs(programs => programs
                             .Template(QuickTemplate, template => template

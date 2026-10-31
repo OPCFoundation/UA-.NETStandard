@@ -223,7 +223,7 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTimerOptions
     {
         /// <summary>
-        /// Gets or sets the engineering units, seconds by default.
+        /// Gets or sets the engineering units, milliseconds by default.
         /// </summary>
         public EUInformation? EngineeringUnits { get; set; }
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.LADS.Server
         public Range? Range { get; set; }
 
         /// <summary>
-        /// Gets or sets the initial target value.
+        /// Gets or sets the initial target duration in milliseconds.
         /// </summary>
         public double InitialTargetValue { get; set; }
     }

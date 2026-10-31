@@ -43,7 +43,7 @@ namespace Opc.Ua.LADS
     {
         /// <summary>
         /// Adds the DI, IA, Machinery, AMB and LADS node states, registering missing namespaces.
-        /// Existing roots with the same NodeId are retained, making repeated and composed loading idempotent.
+        /// Existing roots are retained and types follow their supertypes in the collection.
         /// </summary>
         /// <param name="nodes">The destination predefined-node collection.</param>
         /// <param name="context">The context that owns the namespace table.</param>
@@ -73,17 +73,36 @@ namespace Opc.Ua.LADS
                 .AddOpcUaAMB(context)
                 .AddOpcUaLADS(context);
 
-            var existing = new HashSet<NodeId>();
-            foreach (NodeState node in nodes)
+            var pending = new List<NodeState>(nodes);
+            var indexes = new Dictionary<NodeId, int>();
+            for (int index = 0; index < pending.Count; index++)
             {
-                existing.Add(node.NodeId);
+                indexes.TryAdd(pending[index].NodeId, index);
             }
             foreach (NodeState node in additions)
             {
-                if (existing.Add(node.NodeId))
+                if (indexes.TryAdd(node.NodeId, pending.Count))
                 {
-                    nodes.Add(node);
+                    pending.Add(node);
                 }
+            }
+
+
+            var ordered = new List<NodeState>(pending.Count);
+            var marks = new byte[pending.Count];
+            for (int index = 0; index < pending.Count; index++)
+            {
+                AddAfterSupertype(index, pending, indexes, marks, ordered);
+            }
+            bool changed = nodes.Count != ordered.Count;
+            for (int index = 0; !changed && index < nodes.Count; index++)
+            {
+                changed = !ReferenceEquals(nodes[index], ordered[index]);
+            }
+            if (changed)
+            {
+                nodes.Clear();
+                nodes.AddRange(ordered);
             }
             return nodes;
         }
@@ -128,6 +147,36 @@ namespace Opc.Ua.LADS
                 .AddOpcUaMachinery()
                 .AddOpcUaAMB()
                 .AddOpcUaLADS();
+        }
+
+        /// <summary>
+        /// Adds a root after its supertype, retaining the original node instance.
+        /// </summary>
+        private static void AddAfterSupertype(
+            int index,
+            List<NodeState> pending,
+            Dictionary<NodeId, int> indexes,
+            byte[] marks,
+            List<NodeState> ordered)
+        {
+            if (marks[index] == 2)
+            {
+                return;
+            }
+            if (marks[index] == 1)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The type hierarchy contains a cycle.");
+            }
+            marks[index] = 1;
+            if (pending[index] is BaseTypeState type &&
+                !type.SuperTypeId.IsNull &&
+                indexes.TryGetValue(type.SuperTypeId, out int supertypeIndex))
+            {
+                AddAfterSupertype(supertypeIndex, pending, indexes, marks, ordered);
+            }
+            marks[index] = 2;
+            ordered.Add(pending[index]);
         }
     }
 }

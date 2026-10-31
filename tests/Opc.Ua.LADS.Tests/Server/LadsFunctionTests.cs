@@ -315,6 +315,60 @@ namespace Opc.Ua.LADS.Tests.Server
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Non-finite targets are rejected by ranged and unrestricted controls.
+        /// </summary>
+        [Test]
+        public async Task ControlsRejectNonFiniteTargetsAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(ControlsRejectNonFiniteTargetsAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(LadsIncubator.UnitName);
+            IAnalogControlFunction temperature = unit.GetFunction<IAnalogControlFunction>("Temperature");
+            ITimerFunction timer = unit.GetFunction<ITimerFunction>("Timer");
+            double[] invalid = [double.NaN, double.PositiveInfinity, double.NegativeInfinity];
+
+            foreach (double value in invalid)
+            {
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadOutOfRange, () => temperature.SetTargetValueAsync(value)).ConfigureAwait(false);
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadOutOfRange, () => temperature.StartWithTargetValueAsync(value))
+                    .ConfigureAwait(false);
+                await LadsAssert.ThrowsStatusAsync(
+                    StatusCodes.BadOutOfRange, () => timer.SetTargetValueAsync(value)).ConfigureAwait(false);
+            }
+
+            NodeId state = await server.ChildAsync(temperature.NodeId, "ControlFunctionState").ConfigureAwait(false);
+            CallMethodResult result = await server.CallByNameAsync(
+                state, "StartWithTargetValue", Variant.From(double.NaN)).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(temperature.TargetValue, Is.EqualTo(37));
+            Assert.That(temperature.State, Is.EqualTo(LadsFunctionalStateValue.Stopped));
+            Assert.That(timer.TargetValue, Is.Zero);
+        }
+
+        /// <summary>
+        /// Timer values publish millisecond units when none are configured.
+        /// </summary>
+        [Test]
+        public async Task TimerDefaultsToMillisecondUnitsAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(TimerDefaultsToMillisecondUnitsAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            ITimerFunction timer = device.GetFunctionalUnit(LadsIncubator.UnitName)
+                .GetFunction<ITimerFunction>("Timer");
+            NodeId current = await server.ChildAsync(timer.NodeId, "CurrentValue").ConfigureAwait(false);
+            NodeId unitsNode = await server.ChildAsync(current, "EngineeringUnits").ConfigureAwait(false);
+            DataValue units = await server.ReadAsync(unitsNode).ConfigureAwait(false);
+
+            Assert.That(units.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out EUInformation? information), Is.True);
+            Assert.That(information?.UnitId, Is.EqualTo(LadsUnits.Millisecond.UnitId));
+        }
+
         [Test]
         public async Task EveryFunctionTypeIsCreatedAsync()
         {

@@ -106,6 +106,63 @@ namespace Opc.Ua.LADS.Tests.Model
         }
 
         /// <summary>
+        /// Type roots are ordered after any supertypes in the same collection.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LoaderPlacesSupertypesBeforeSubtypes(bool preloadDi)
+        {
+            SystemContext context = LadsTestContext.CreateSystemContext(registerModel: false);
+            context.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi);
+            var roots = new NodeStateCollection();
+            if (preloadDi)
+            {
+                roots.AddOpcUaDi(context);
+            }
+            NodeState[] existing = [.. roots];
+
+            roots.AddLadsTypeSystem(context);
+
+            var indexes = new Dictionary<NodeId, int>();
+            for (int index = 0; index < roots.Count; index++)
+            {
+                indexes.Add(roots[index].NodeId, index);
+            }
+            foreach (NodeState node in existing)
+            {
+                Assert.That(roots[indexes[node.NodeId]], Is.SameAs(node));
+            }
+            for (int index = 0; index < roots.Count; index++)
+            {
+                if (roots[index] is BaseTypeState type &&
+                    !type.SuperTypeId.IsNull &&
+                    indexes.TryGetValue(type.SuperTypeId, out int supertypeIndex))
+                {
+                    Assert.That(supertypeIndex, Is.LessThan(index), $"{type.NodeId} derives from {type.SuperTypeId}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// A cyclic type hierarchy is rejected without changing existing roots.
+        /// </summary>
+        [Test]
+        public void LoaderRejectsCyclicTypeRootsWithoutMutatingTheCollection()
+        {
+            SystemContext context = LadsTestContext.CreateSystemContext(registerModel: false);
+            var first = new BaseObjectTypeState { NodeId = new NodeId(1u, 2), SuperTypeId = new NodeId(2u, 2) };
+            var second = new BaseObjectTypeState { NodeId = new NodeId(2u, 2), SuperTypeId = first.NodeId };
+            var roots = new NodeStateCollection { first, second };
+
+            ServiceResultException? exception = Assert.Throws<ServiceResultException>(
+                () => roots.AddLadsTypeSystem(context));
+            Assert.That(exception?.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(roots, Has.Count.EqualTo(2));
+            Assert.That(roots[0], Is.SameAs(first));
+            Assert.That(roots[1], Is.SameAs(second));
+        }
+
+        /// <summary>
         /// The registration helpers reject null arguments.
         /// </summary>
         [Test]

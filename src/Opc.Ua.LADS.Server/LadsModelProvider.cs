@@ -106,43 +106,14 @@ namespace Opc.Ua.LADS.Server
             {
                 existing.Add(node.NodeId);
             }
-            var selected = new Dictionary<NodeId, NodeState>();
             foreach (NodeState node in model)
             {
                 if (node.NodeId.NamespaceIndex != ambIndex && existing.Add(node.NodeId))
                 {
-                    selected.Add(node.NodeId, node);
+                    nodes.Add(node);
                 }
             }
-            var added = new HashSet<NodeId>();
-            foreach (NodeState node in model)
-            {
-                AddAfterSupertype(node, selected, added, nodes);
-            }
             context.EncodeableFactory.Builder.AddLadsTypeSystem().Commit();
-        }
-
-        /// <summary>
-        /// Adds a node after its supertype. The LADS NodeSet declares some types, such as
-        /// <c>SetType</c>, after their subtypes, while the server indexes the types in order.
-        /// </summary>
-        private static void AddAfterSupertype(
-            NodeState node,
-            Dictionary<NodeId, NodeState> selected,
-            HashSet<NodeId> added,
-            NodeStateCollection nodes)
-        {
-            if (!selected.ContainsKey(node.NodeId) || !added.Add(node.NodeId))
-            {
-                return;
-            }
-            if (node is BaseTypeState type &&
-                !type.SuperTypeId.IsNull &&
-                selected.TryGetValue(type.SuperTypeId, out NodeState? superType))
-            {
-                AddAfterSupertype(superType, selected, added, nodes);
-            }
-            nodes.Add(node);
         }
     }
 }

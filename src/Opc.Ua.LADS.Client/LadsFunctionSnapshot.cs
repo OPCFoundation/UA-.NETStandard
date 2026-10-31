@@ -45,11 +45,10 @@ namespace Opc.Ua.LADS.Client
         ArrayOf<LadsFunctionValue> Values)
     {
         /// <summary>
-        /// Gets the <c>IsEnabled</c> flag, or <c>null</c> when absent.
+        /// Gets the <c>IsEnabled</c> flag, or <c>null</c> when absent or bad.
         /// </summary>
         public bool? IsEnabled =>
-            TryGetValue(LadsFunctionMembers.IsEnabled, out DataValue value) &&
-            value.WrappedValue.TryGetValue(out bool enabled)
+            ValueOf(LadsFunctionMembers.IsEnabled).TryGetValue(out bool enabled)
                 ? enabled
                 : null;
 
@@ -106,12 +105,12 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
-        /// Gets the value of a variable, or a null variant when absent.
+        /// Gets the value of a variable, or a null variant when absent or bad.
         /// </summary>
         /// <param name="name">The relative path, for example <c>RawValue</c>.</param>
         public Variant ValueOf(string name)
         {
-            return TryGetValue(name, out DataValue value) ? value.WrappedValue : Variant.Null;
+            return TryGetValue(name, out DataValue value) ? LadsClient.AsVariant(value) : Variant.Null;
         }
     }
 }

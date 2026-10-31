@@ -87,9 +87,10 @@ predefinedNodes.AddLadsTypeSystem(systemContext);
 nodeStateFactory.AddLadsTypeSystem();
 ```
 
-`AddLadsTypeSystem` loads DI, IA, Machinery, AMB and LADS in that order. It
-registers missing namespaces and skips roots that are already present, so it
-can be combined with other models that load the same dependencies.
+`AddLadsTypeSystem` registers DI, IA, Machinery, AMB and LADS, then places each
+type after any supertype present in the collection. It registers missing
+namespaces and retains existing roots, so it can be combined with other models
+that load the same dependencies.
 
 ## Hosting devices
 
@@ -230,6 +231,10 @@ returns the typed handle:
 `LadsUnits` has the UNECE units used in the sample (`Celsius`,
 `RevolutionsPerMinute`, `Percent`, `Second`, `Millisecond`, `PartsPerMillion`)
 and `Create(code, symbol, description)` for others.
+
+`TimerControlFunctionType` values are OPC UA `Duration` values in milliseconds.
+The default engineering unit is `LadsUnits.Millisecond`. `CurrentValue`,
+`TargetValue` and `DifferenceValue` use the same scale.
 
 ### Programs
 
@@ -496,8 +501,10 @@ The UaLens showcase includes an **LADS** companion view. It discovers LADS
 devices, displays device and functional-unit state, function identities,
 active-program progress and maintenance state, and exposes read-only program
 template and maintenance tasks. Program starts and control-function commands
-are prepared with typed inputs and require a separate run action. Result files
-can be exported to a new local file; existing files are not overwritten.
+are prepared with typed inputs. They require a signed and encrypted connection,
+an authorizing deployment policy, and confirmation before the separate run
+action. Result files can be exported to a new local file; existing files are
+not overwritten.
 
 ## Sample
 
