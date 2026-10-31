@@ -727,7 +727,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await originalManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            // The replacement is live but never completed readiness, so external reads stay hidden.
+            await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? rejectedManager = null;
+            using var rejectTimeout = new CancellationTokenSource(s_readinessTimeout);
+            Assert.That(
+                () => lifecycle.ReloadAsync(
+                    failure.Registration,
+                    CreateTrackingNodeManagementFactory(
+                        kFirstRegistrationValue,
+                        manager => rejectedManager = manager),
+                    rejectTimeout.Token).AsTask().WaitAsync(s_readinessTimeout),
+                Throws.InvalidOperationException);
+            Assert.That(rejectedManager, Is.Null);
             await AssertReadinessCleanupAndRecoveryAsync(failure.Registration, participant).ConfigureAwait(false);
         }
 

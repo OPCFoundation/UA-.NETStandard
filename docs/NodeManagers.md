@@ -903,7 +903,9 @@ their materialization before accepting clients, so discovery by browsing sees th
   initialization so the server can shut down the published managers and their dependencies.
 - A readiness failure after publication leaves the registration live and is reported in the committed
   result's `CleanupFailure`. Its `Registrations`, `Revision`, and `Slots` remain authoritative;
-  do not retry an addition as a new registration. A startup failure is reported after
+  do not retry an addition as a new registration. Because its readiness never completed, the
+  generation stays unreadable to external clients; remove the registration to recover, since a reload
+  of it is rejected. A startup failure is reported after
   `StandardServer` shuts everything down.
 - Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
   the host runs outside the lifecycle operation, so it can await those removals during runtime
