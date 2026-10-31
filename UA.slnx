@@ -48,6 +48,10 @@
     <Project Path="samples/AutoID/AutoIdServer/AutoIdServer.csproj" />
     <Project Path="samples/AutoID/AutoIdClient/AutoIdClient.csproj" />
   </Folder>
+  <Folder Name="/samples/LADS/">
+    <Project Path="samples/LADS/LadsServer/LadsServer.csproj" />
+    <Project Path="samples/LADS/LadsClient/LadsClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Machinery/">
     <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
     <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />

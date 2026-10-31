@@ -1,8 +1,9 @@
-# Opc.Ua.LADS.Client
+# OPC UA LADS client
 
-Typed client for **OPC 30500-1 — Laboratory and Analytical Device Standard
-(LADS)**. The client discovers LADS devices, reads functional units and their
-functions, starts programs and downloads the result files they produce. Every
+`OPCFoundation.NetStandard.Opc.Ua.LADS.Client` is the typed client for OPC
+30500-1 Laboratory and Analytical Device Standard (LADS). The client discovers
+LADS devices, reads functional units and their functions, starts programs and
+downloads the result files they produce. Every
 method call goes through the source-generated LADS ObjectType proxies, so a
 client does not depend on the method NodeIds of a particular server.
 

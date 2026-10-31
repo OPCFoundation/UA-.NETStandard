@@ -159,6 +159,44 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Downloads the content of a program template.
+        /// </summary>
+        /// <param name="templateId">The identifier of the program template.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The additional parameters and the template content.</returns>
+        public ValueTask<(ArrayOf<KeyValueType> AdditionalParameters, ByteString Data)> DownloadProgramTemplateAsync(
+            string templateId,
+            CancellationToken cancellationToken = default)
+        {
+            return Client.DownloadProgramTemplateAsync(NodeId, templateId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Uploads a program template.
+        /// </summary>
+        /// <param name="data">The template content.</param>
+        /// <param name="additionalParameters">Additional parameters, for example a <c>TemplateId</c>.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The identifier the device assigned to the template.</returns>
+        public ValueTask<string> UploadProgramTemplateAsync(
+            ByteString data,
+            ArrayOf<KeyValueType> additionalParameters = default,
+            CancellationToken cancellationToken = default)
+        {
+            return Client.UploadProgramTemplateAsync(NodeId, data, additionalParameters, cancellationToken);
+        }
+
+        /// <summary>
+        /// Removes a program template.
+        /// </summary>
+        /// <param name="templateId">The identifier of the program template.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public ValueTask RemoveProgramTemplateAsync(string templateId, CancellationToken cancellationToken = default)
+        {
+            return Client.RemoveProgramTemplateAsync(NodeId, templateId, cancellationToken);
+        }
+
+        /// <summary>
         /// Reads the progress of the active program.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>

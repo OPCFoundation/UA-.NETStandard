@@ -245,6 +245,86 @@ namespace Opc.Ua.LADS.Client
         }
 
         /// <summary>
+        /// Downloads the content of a program template through the <c>Download</c>
+        /// method of the functional unit's program manager.
+        /// </summary>
+        /// <param name="functionalUnitId">The NodeId of the functional unit.</param>
+        /// <param name="templateId">The identifier of the program template.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The additional parameters and the template content.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The unit has no program manager or the template is unknown.
+        /// </exception>
+        public async ValueTask<(ArrayOf<KeyValueType> AdditionalParameters, ByteString Data)>
+            DownloadProgramTemplateAsync(
+                NodeId functionalUnitId,
+                string templateId,
+                CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(functionalUnitId, nameof(functionalUnitId));
+            if (string.IsNullOrEmpty(templateId))
+            {
+                throw new System.ArgumentException("A template id is required.", nameof(templateId));
+            }
+            ProgramManagerTypeClient manager = await ProgramManagerAsync(functionalUnitId, cancellationToken)
+                .ConfigureAwait(false);
+            (ArrayOf<KeyValueType> parameters, ByteString data) = await manager
+                .DownloadAsync(templateId, cancellationToken).ConfigureAwait(false);
+            return (parameters, data);
+        }
+
+        /// <summary>
+        /// Uploads a program template through the <c>Upload</c> method of the
+        /// functional unit's program manager.
+        /// </summary>
+        /// <param name="functionalUnitId">The NodeId of the functional unit.</param>
+        /// <param name="data">The template content.</param>
+        /// <param name="additionalParameters">Additional parameters, for example a <c>TemplateId</c>.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The identifier the device assigned to the template.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The unit has no program manager or the content is invalid.
+        /// </exception>
+        public async ValueTask<string> UploadProgramTemplateAsync(
+            NodeId functionalUnitId,
+            ByteString data,
+            ArrayOf<KeyValueType> additionalParameters = default,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(functionalUnitId, nameof(functionalUnitId));
+            ProgramManagerTypeClient manager = await ProgramManagerAsync(functionalUnitId, cancellationToken)
+                .ConfigureAwait(false);
+            string? templateId = await manager.UploadAsync(additionalParameters, data, cancellationToken)
+                .ConfigureAwait(false);
+            return templateId ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Removes a program template through the <c>Remove</c> method of the
+        /// functional unit's program manager.
+        /// </summary>
+        /// <param name="functionalUnitId">The NodeId of the functional unit.</param>
+        /// <param name="templateId">The identifier of the program template.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// The unit has no program manager or the template is unknown.
+        /// </exception>
+        public async ValueTask RemoveProgramTemplateAsync(
+            NodeId functionalUnitId,
+            string templateId,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(functionalUnitId, nameof(functionalUnitId));
+            if (string.IsNullOrEmpty(templateId))
+            {
+                throw new System.ArgumentException("A template id is required.", nameof(templateId));
+            }
+            ProgramManagerTypeClient manager = await ProgramManagerAsync(functionalUnitId, cancellationToken)
+                .ConfigureAwait(false);
+            await manager.RemoveAsync(templateId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Decodes a <see cref="NameNodeIdDataType"/> value.
         /// </summary>
         internal NameNodeIdDataType? AsNameNodeId(DataValue value)
@@ -387,6 +467,15 @@ namespace Opc.Ua.LADS.Client
             NodeId state = await RequireAsync(
                 functionalUnitId, cancellationToken, Lads(BrowseNames.FunctionalUnitState)).ConfigureAwait(false);
             return new FunctionalUnitStateMachineTypeClient(Session, state, Telemetry);
+        }
+
+        private async ValueTask<ProgramManagerTypeClient> ProgramManagerAsync(
+            NodeId functionalUnitId,
+            CancellationToken cancellationToken)
+        {
+            NodeId manager = await RequireAsync(
+                functionalUnitId, cancellationToken, Lads(BrowseNames.ProgramManager)).ConfigureAwait(false);
+            return new ProgramManagerTypeClient(Session, manager, Telemetry);
         }
     }
 }

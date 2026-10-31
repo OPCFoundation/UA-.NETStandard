@@ -88,6 +88,7 @@ namespace Opc.Ua.LADS.Server
 
             MachineryItemState_StateMachineState itemState = AddBlock(
                 blocks,
+                Objects.LADSDeviceType_MachineryBuildingBlocks_MachineryItemState,
                 context.CreateInstanceOfMachineryItemState_StateMachineType(
                     blocks,
                     new QualifiedName(global::Opc.Ua.Machinery.BrowseNames.MachineryItemState, machinery)));
@@ -99,6 +100,7 @@ namespace Opc.Ua.LADS.Server
 
             LADSOperationModeStateMachineState operationMode = AddBlock(
                 blocks,
+                Objects.LADSDeviceType_MachineryBuildingBlocks_MachineryOperationMode,
                 context.CreateInstanceOfLADSOperationModeStateMachineType(
                     blocks,
                     new QualifiedName(global::Opc.Ua.Machinery.BrowseNames.MachineryOperationMode, machinery)));
@@ -128,6 +130,7 @@ namespace Opc.Ua.LADS.Server
 
             Counters = AddBlock(
                 blocks,
+                Objects.LADSDeviceType_MachineryBuildingBlocks_OperationCounters,
                 context.CreateInstanceOfLADSOperationCountersType(
                     blocks,
                     new QualifiedName(global::Opc.Ua.Machinery.BrowseNames.OperationCounters, di)));
@@ -694,12 +697,25 @@ namespace Opc.Ua.LADS.Server
         /// Attaches a building block to the MachineryBuildingBlocks folder.
         /// </summary>
         /// <typeparam name="T">The node type.</typeparam>
-        private static T AddBlock<T>(FolderState folder, T block)
+        /// <summary>
+        /// Adds a building block to the folder and points the device's <c>HasAddIn</c> reference,
+        /// which the type declares next to the folder, at the instance instead of the declaration.
+        /// </summary>
+        private T AddBlock<T>(FolderState folder, uint declarationId, T block)
             where T : BaseInstanceState
         {
             block.DisplayName = new LocalizedText(block.BrowseName.Name);
             block.ReferenceTypeId = global::Opc.Ua.Types.ReferenceTypeIds.HasAddIn;
             folder.AddChild(block);
+            Node.RemoveReference(
+                global::Opc.Ua.Types.ReferenceTypeIds.HasAddIn,
+                false,
+                new NodeId(declarationId, Runtime.LadsNamespaceIndex));
+            if (!Node.ReferenceExists(global::Opc.Ua.Types.ReferenceTypeIds.HasAddIn, false, block.NodeId))
+            {
+                Node.AddReference(global::Opc.Ua.Types.ReferenceTypeIds.HasAddIn, false, block.NodeId);
+                block.AddReference(global::Opc.Ua.Types.ReferenceTypeIds.HasAddIn, true, Node.NodeId);
+            }
             return block;
         }
 

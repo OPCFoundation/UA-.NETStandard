@@ -305,5 +305,24 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(duration.WrappedValue.TryGetValue(out double ms), Is.True, duration.WrappedValue.ToString());
             Assert.That(ms, Is.GreaterThan(0));
         }
+
+        [Test]
+        public async Task DeviceAddInsReferenceBuildingBlockInstancesAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(DeviceAddInsReferenceBuildingBlockInstancesAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+
+            foreach (string block in s_buildingBlocks)
+            {
+                NodeId direct = await server.ChildAsync(device.NodeId, block).ConfigureAwait(false);
+                NodeId nested = await server.ChildAsync(device.NodeId, "MachineryBuildingBlocks", block)
+                    .ConfigureAwait(false);
+                Assert.That(direct, Is.EqualTo(nested), block);
+            }
+        }
+
+        private static readonly string[] s_buildingBlocks =
+            ["MachineryItemState", "MachineryOperationMode", "OperationCounters"];
     }
 }
