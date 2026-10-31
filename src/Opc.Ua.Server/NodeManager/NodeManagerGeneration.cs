@@ -379,10 +379,12 @@ namespace Opc.Ua.Server
                 if (count > 1)
                 {
                     m_sourceEmissionCounts[eventId] = count - 1;
-                    return;
                 }
-                m_sourceEmissionCounts.Remove(eventId);
-                m_droppedDeferredEventIds?.Remove(eventId);
+                else
+                {
+                    m_sourceEmissionCounts.Remove(eventId);
+                    m_droppedDeferredEventIds?.Remove(eventId);
+                }
                 if (--m_activeSourceEmissions == 0)
                 {
                     drained = m_sourceEmissionsDrained;

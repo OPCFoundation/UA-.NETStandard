@@ -124,6 +124,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             generation.ReadinessPending = true;
             Assert.That(generation.CaptureSourceEmission(1, out bool readinessPending), Is.True);
             Assert.That(readinessPending, Is.True);
+            Assert.That(generation.CaptureSourceEmission(1, out readinessPending), Is.True);
+            Assert.That(readinessPending, Is.True);
             Assert.That(generation.TryDeferEvent(1, () => Task.CompletedTask, 1, out _), Is.True);
 
             InvalidOperationException? notReady = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -135,6 +137,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Task flush = generation.FlushDeferredEventsAsync();
 
+            Assert.That(flush.IsCompleted, Is.False);
+            generation.ReleaseSourceEmission(1);
             Assert.That(flush.IsCompleted, Is.False);
             generation.ReleaseSourceEmission(1);
             await flush.ConfigureAwait(false);
