@@ -139,8 +139,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await ProduceAsync(772).ConfigureAwait(false);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                     [
-                        NodeManagerBatchChange.Remove(firstRegistration, true),
-                        NodeManagerBatchChange.Remove(secondRegistration, true)
+                        NodeManagerBatchChange.Remove(firstRegistration),
+                        NodeManagerBatchChange.Remove(secondRegistration)
                     ], timeout.Token).ConfigureAwait(false);
                 ISession session = RequireLifecycleValue(
                     server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
@@ -324,7 +324,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             MonitoredNode2 source = manager.GetEmissionSource(valueId);
             IDataChangeMonitoredItem2 item = source.DataChangeMonitoredItems[itemId];
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, true)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
@@ -445,7 +445,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     server.DefaultSystemContext, variable, occurrence, failureCancellation.Token).ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration, true)], timeout.Token).ConfigureAwait(false);
+                    [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);

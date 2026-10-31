@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(secondPoint.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     [first.Registration, second.Registration, targetRegistration, unrelatedRegistration],
-                    false, timeout.Token).ConfigureAwait(false);
+                    timeout.Token).ConfigureAwait(false);
                 await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(retired.CleanupFailure, Is.Null);
                 Assert.That(unrelated.DisposeCount, Is.EqualTo(1));
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(requestPinMatchesView, Is.True);
                     Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
                     retirement = RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token);
+                        [source.Registration, target.Registration], timeout.Token);
                     BrowseResult current = default!;
                     for (int attempt = 0; attempt < 30; attempt++)
                     {
@@ -392,7 +392,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
                     Assert.That(pending.IsCompleted, Is.False);
                     retirement = RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token);
+                        [source.Registration, target.Registration], timeout.Token);
                     BrowseResult current = default!;
                     for (int attempt = 0; attempt < 30; attempt++)
                     {
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? [source.Registration, target.Registration, evicting]
                         : [source.Registration, target.Registration];
                     NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        registrations, false, timeout.Token).ConfigureAwait(false);
+                        registrations, timeout.Token).ConfigureAwait(false);
                     await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     retireSource ? [source.Registration, target.Registration] : [target.Registration],
-                    true, timeout.Token).ConfigureAwait(false);
+                    timeout.Token).ConfigureAwait(false);
                 await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(retireSource ? 1 : 0));
@@ -664,7 +664,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                    [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
+                    [source.Registration, target.Registration], timeout.Token).ConfigureAwait(false);
                 await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -717,7 +717,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     session, sourceNamespace, 1, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                    [target.Registration], false, timeout.Token).ConfigureAwait(false);
+                    [target.Registration], timeout.Token).ConfigureAwait(false);
                 await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 List<ReferenceDescription> references = await DrainBrowsePointAsync(
@@ -734,14 +734,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private async Task<NodeManagerBatchResult> RetireBrowseDependenciesAsync(
             ArrayOf<NodeManagerRegistration> registrations,
-            bool immediate,
             CancellationToken cancellationToken)
         {
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             var changes = new List<NodeManagerBatchChange>();
             foreach (NodeManagerRegistration registration in registrations)
             {
-                changes.Add(NodeManagerBatchChange.Remove(registration, immediate));
+                changes.Add(NodeManagerBatchChange.Remove(registration));
             }
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [.. changes], null, cancellationToken).ConfigureAwait(false);

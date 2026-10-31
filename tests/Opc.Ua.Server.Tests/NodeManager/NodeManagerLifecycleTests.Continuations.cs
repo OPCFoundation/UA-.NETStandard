@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
             NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
-                owner.Registration, false, timeout.Token).ConfigureAwait(false);
+                owner.Registration, timeout.Token).ConfigureAwait(false);
             // An idle continuation point does not retain its issuing generation; it is validated against that
             // generation on use and rejected once the generation is retired.
             await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -317,7 +317,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 NodeManagerBatchResult retirement = await RetireContinuationOwnerAsync(
-                    owner.Registration, false, timeout.Token).ConfigureAwait(false);
+                    owner.Registration, timeout.Token).ConfigureAwait(false);
                 Assert.That(retirement.Retired, Is.Zero);
                 Assert.That(owner.Manager.DisposeCount, Is.Zero);
                 if (cancel)
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return default;
             };
             NodeManagerBatchResult retirement = await RetireContinuationOwnerAsync(
-                owner.Registration, false, timeout.Token).ConfigureAwait(false);
+                owner.Registration, timeout.Token).ConfigureAwait(false);
             await retirement.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
 
@@ -407,7 +407,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(owner.Registration,
                             CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
-                        : NodeManagerBatchChange.Remove(owner.Registration, true)
+                        : NodeManagerBatchChange.Remove(owner.Registration)
                 ], null, timeout.Token).ConfigureAwait(false))
             {
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
@@ -470,7 +470,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
             NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
-                owner.Registration, false, timeout.Token).ConfigureAwait(false);
+                owner.Registration, timeout.Token).ConfigureAwait(false);
             await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
@@ -495,12 +495,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private async Task<NodeManagerBatchResult> RetireContinuationOwnerAsync(
             NodeManagerRegistration registration,
-            bool immediate,
             CancellationToken cancellationToken)
         {
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], null, cancellationToken)
+                [NodeManagerBatchChange.Remove(registration)], null, cancellationToken)
                 .ConfigureAwait(false);
             NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, cancellationToken)
                 .ConfigureAwait(false);

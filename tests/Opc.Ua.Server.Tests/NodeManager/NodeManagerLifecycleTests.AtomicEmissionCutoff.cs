@@ -125,11 +125,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchChange firstChange = replace
                 ? NodeManagerBatchChange.Replace(firstRegistration,
                     CreateTrackingNodeManagementFactory(301, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
+                : NodeManagerBatchChange.Remove(firstRegistration);
             NodeManagerBatchChange secondChange = replace
                 ? NodeManagerBatchChange.Replace(secondRegistration,
                     CreateTrackingNodeManagementFactory(302, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
+                : NodeManagerBatchChange.Remove(secondRegistration);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
@@ -200,10 +200,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Verifies that removal invalidates its Value items once with BadNodeIdUnknown while a surviving source
         /// continues delivering. A Disabled item queues nothing until it is re-enabled.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync(bool immediate)
+        [Test]
+        public async Task NodeWideChangeAfterCutoffRetiresDataItemAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
@@ -262,7 +260,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
@@ -399,11 +397,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchChange firstChange = replace
                 ? NodeManagerBatchChange.Replace(firstRegistration,
                     CreateTrackingNodeManagementFactory(401, _ => { }), immediate)
-                : NodeManagerBatchChange.Remove(firstRegistration, immediate);
+                : NodeManagerBatchChange.Remove(firstRegistration);
             NodeManagerBatchChange secondChange = replace
                 ? NodeManagerBatchChange.Replace(secondRegistration,
                     CreateTrackingNodeManagementFactory(402, _ => { }, kSecondModelNamespaceUri), immediate)
-                : NodeManagerBatchChange.Remove(secondRegistration, immediate);
+                : NodeManagerBatchChange.Remove(secondRegistration);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);

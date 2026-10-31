@@ -48,10 +48,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verifies that generation retirement does not require a source-provider cutoff protocol.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task RemovalWithoutSourceProviderCutoffCommitsAsync(bool immediate)
+        [Test]
+        public async Task RemovalWithoutSourceProviderCutoffCommitsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
@@ -63,7 +61,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration registration = await lifecycle.AddAsync(factory.Object, null, timeout.Token)
                 .ConfigureAwait(false);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             int decisions = 0;
             NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
             {
@@ -106,7 +104,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return context.CreatePushMonitoredItem();
             });
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, true)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
@@ -161,10 +159,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// <summary>
         /// Verifies that source sampling callback completes nested lifecycle during retirement.
         /// </summary>
-        /// <param name="immediate">The immediate flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task SourceSamplingCallbackCompletesNestedLifecycleDuringRetirementAsync(bool immediate)
+        [Test]
+        public async Task SourceSamplingCallbackCompletesNestedLifecycleDuringRetirementAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var abortCallback = new CancellationTokenSource();
@@ -204,7 +200,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return new AttributeReadResult(ServiceResult.Good, new Variant(404), StatusCodes.Good, DateTimeUtc.Now);
             };
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(registration, immediate)], timeout.Token).ConfigureAwait(false);
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
             {
                 deciding.TrySetResult(true);

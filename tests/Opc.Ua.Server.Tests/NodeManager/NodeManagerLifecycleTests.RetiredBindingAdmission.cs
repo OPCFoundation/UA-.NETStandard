@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerBatchChange change = replace
                 ? NodeManagerBatchChange.Replace(registration,
                     CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
-                : NodeManagerBatchChange.Remove(registration, true);
+                : NodeManagerBatchChange.Remove(registration);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [change], null, timeout.Token).ConfigureAwait(false);
             Task<NodeManagerBatchResult> publication = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration, true)], null, timeout.Token).ConfigureAwait(false);
+                    [NodeManagerBatchChange.Remove(registration)], null, timeout.Token).ConfigureAwait(false);
                 removal = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
                 Assert.That(removal.CleanupFailure, Is.Null);
                 Assert.That(removal.Retirement.IsCompleted, Is.False);

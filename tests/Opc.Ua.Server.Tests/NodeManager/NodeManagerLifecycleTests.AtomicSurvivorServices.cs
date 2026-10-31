@@ -88,7 +88,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(registration,
                             CreateTrackingNodeManagementFactory(202, _ => { }), true)
-                        : NodeManagerBatchChange.Remove(registration, true)
+                        : NodeManagerBatchChange.Remove(registration)
                 ], null, timeout.Token).ConfigureAwait(false);
             try
             {
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await CheckFiltersAsync().ConfigureAwait(false);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration, true)], null, timeout.Token)
+                    [NodeManagerBatchChange.Remove(registration)], null, timeout.Token)
                     .ConfigureAwait(false);
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);

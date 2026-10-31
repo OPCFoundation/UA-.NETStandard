@@ -97,7 +97,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), immediate)
-                        : NodeManagerBatchChange.Remove(original, immediate)
+                        : NodeManagerBatchChange.Remove(original)
                 ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), immediate)
-                        : NodeManagerBatchChange.Remove(original, immediate)
+                        : NodeManagerBatchChange.Remove(original)
                 ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     replace
                         ? NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), true)
-                        : NodeManagerBatchChange.Remove(original, true)
+                        : NodeManagerBatchChange.Remove(original)
                 ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             if (replace)
@@ -473,7 +473,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             ready.TrySetResult(true);
                             await releaseReadiness.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         })),
-                    NodeManagerBatchChange.Remove(original, true)
+                    NodeManagerBatchChange.Remove(original)
                 ], timeout.Token).ConfigureAwait(false);
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
@@ -665,8 +665,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         };
                     })),
-                    NodeManagerBatchChange.Remove(first, true),
-                    NodeManagerBatchChange.Remove(second, true)
+                    NodeManagerBatchChange.Remove(first),
+                    NodeManagerBatchChange.Remove(second)
                 ], timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(candidate);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();

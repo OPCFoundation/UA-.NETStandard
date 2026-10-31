@@ -85,6 +85,15 @@ These APIs were not present in the 1.5.378 compatibility baseline; custom implem
 of the newer interface must now implement or set up `PrepareAsync` rather than convenience methods.
 Extension methods cannot be intercepted by mocking libraries.
 
+Assemblies compiled against 2.0.0 or 2.0.1 must be rebuilt. Those releases declared the convenience
+operations on `INodeManagerLifecycle`; a binary compiled against them still calls the interface
+method, which no longer exists, and fails at run time with `MissingMethodException`. Recompiling
+binds the same source call to the obsolete extension method without code changes. Custom
+`INodeManagerLifecycle` implementations do not compile until they implement the new members.
+The nullable annotations on `IMonitoredItem.NodeManager` and `ManagerHandle` described below are
+metadata only and do not break binaries; callers that dereference these properties without a check
+get nullable warnings.
+
 | Previous call | Prepared change |
 | --- | --- |
 | `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |

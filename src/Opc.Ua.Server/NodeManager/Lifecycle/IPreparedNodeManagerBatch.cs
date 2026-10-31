@@ -226,17 +226,6 @@ namespace Opc.Ua.Server
                 null,
                 NodeManagerMonitoredItemTransitionMode.Invalidate);
         }
-
-        /// <summary>
-        /// Retires an exact registration using the legacy immediate flag.
-        /// </summary>
-        /// <param name="current">The exact registration being retired.</param>
-        /// <param name="immediate">Ignored. Retiring a NodeManager always invalidates its monitored items.</param>
-        /// <returns>The retirement change.</returns>
-        public static NodeManagerBatchChange Remove(NodeManagerRegistration current, bool immediate)
-        {
-            return Remove(current);
-        }
     }
 
     /// <summary>
