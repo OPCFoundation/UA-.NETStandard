@@ -519,18 +519,24 @@ function Get-TestProjectShards([string] $project, [string] $framework)
             )
         }
         'Opc.Ua.Server.Tests' {
+            $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
             if ($framework -ne 'net48') {
                 return @(
                     @{
-                        id = 'all'
-                        name = 'all'
-                        filter = ''
+                        id = 'server-node-lifecycle'
+                        name = 'server-node-lifecycle'
+                        filter = "FullyQualifiedName~$nativeLifecycle"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'server-other'
+                        name = 'server-other'
+                        filter = "FullyQualifiedName!~$nativeLifecycle"
                         hangTimeout = ''
                     }
                 )
             }
 
-            $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
             $groups = @(
                 @{
                     id = 'server-node-lifecycle-prepared'

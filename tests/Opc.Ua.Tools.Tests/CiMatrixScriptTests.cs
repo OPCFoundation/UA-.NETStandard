@@ -489,12 +489,12 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The oversized net48 server suite is split into exclusive filters,
-        /// while the other frameworks retain their existing single workload.
+        /// Server shards cover every test exactly once, including names that
+        /// resemble the lifecycle fixture but belong to another fixture.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task ServerNet48FiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
+        public async Task ServerFiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
             MatrixEntry[] server = matrix.Tests.Where(entry =>
@@ -516,8 +516,11 @@ namespace Opc.Ua.Tools.Tests
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                string[] expectedShards = profile.First().Framework == "net48" ? serverShards : ["all"];
+                string[] expectedShards = profile.First().Framework == "net48"
+                    ? serverShards
+                    : ["server-node-lifecycle", "server-other"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
+                Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
             }
 
             (string TestName, string ExpectedShard)[] testCases =
@@ -540,9 +543,7 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
                 ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
             ];
-            foreach (IGrouping<string, MatrixEntry> profile in server
-                .Where(entry => entry.Framework == "net48")
-                .GroupBy(entry => entry.Profile))
+            foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
                 foreach ((string testName, string expectedShard) in testCases)
                 {
@@ -550,9 +551,16 @@ namespace Opc.Ua.Tools.Tests
                         .Where(entry => MatchesServerFilter(entry.Filter, testName))
                         .Select(entry => entry.Shard)
                         .ToArray();
+                    string shard = profile.First().Framework == "net48"
+                        ? expectedShard
+                        : testName.StartsWith(
+                            "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
+                            StringComparison.Ordinal)
+                            ? "server-node-lifecycle"
+                            : "server-other";
                     Assert.That(
                         matches,
-                        Is.EqualTo(new[] { expectedShard }),
+                        Is.EqualTo(new[] { shard }),
                         $"Profile '{profile.Key}', test '{testName}'.");
                 }
             }
