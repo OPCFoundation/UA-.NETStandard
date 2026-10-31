@@ -19,6 +19,10 @@ on:
         description: 'Include macOS runners in the test / AoT matrix'
         type: boolean
         default: true
+      pkcs11_native_loader_diagnostics:
+        description: 'Run only paired macOS PKCS#11 control and loader-trace tests'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -91,6 +95,7 @@ jobs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         INCLUDE_MACOS: ${{ github.event.inputs.include_macos }}
+        PKCS11_NATIVE_LOADER_DIAGNOSTICS: ${{ github.event.inputs.pkcs11_native_loader_diagnostics }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
       run: |
         # macOS is included by default on pull_request, push, and schedule events
@@ -112,8 +117,13 @@ jobs:
         # can be tested: getting it wrong in the "irrelevant" direction skips
         # the build, test and AOT jobs while the required summary still reports
         # success. See CiPathRelevanceTests.
-        $relevantChanges = $true
-        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+        $diagnosticMode = $env:EVENT_NAME -eq 'workflow_dispatch' -and
+            $env:PKCS11_NATIVE_LOADER_DIAGNOSTICS -eq 'true'
+        $relevantChanges = -not $diagnosticMode
+        if ($diagnosticMode) {
+            Write-Host 'Native-loader diagnostic selected; skipping the general test/build matrices.'
+        }
+        elseif ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head. A two-dot diff would also report commits that landed
             # on the base branch after this one was cut, which would make an
@@ -199,6 +209,36 @@ jobs:
         coverage: ${{ matrix.entry.coverage }}
         # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
+
+  macos-pkcs11-native-loader-diagnostics:
+    name: ${{ matrix.mode }} PKCS#11 run
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' &&
+          github.event.inputs.pkcs11_native_loader_diagnostics == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [control, trace]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: ./tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.402'
+        filter: ''
+        hang-timeout: 10m
+        per-project-timeout: '30'
+        coverage: 'false'
+        artifact-name: macos-pkcs11-native-loader-${{ matrix.mode }}
+        macos-native-loader-diagnostics: ${{ matrix.mode }}
 
   code-coverage:
     name: code coverage
