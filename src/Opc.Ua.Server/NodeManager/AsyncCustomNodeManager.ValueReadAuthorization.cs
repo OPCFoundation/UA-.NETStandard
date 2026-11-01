@@ -413,7 +413,9 @@ namespace Opc.Ua.Server
                 }
                 // CA2000: the shared context is owned by the item's entry and never disposed by callers.
 #pragma warning disable CA2000
-                var created = new SubscriberContext(identity, null, 0, null, null, new OperationContext(item));
+                var operationContext = new OperationContext(item);
+                operationContext.EnableWeakSystemContextCache();
+                var created = new SubscriberContext(identity, null, 0, null, null, operationContext);
 #pragma warning restore CA2000
                 Volatile.Write(ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).Current, created);
                 return created.Context;
@@ -439,6 +441,7 @@ namespace Opc.Ua.Server
                 return current.Context;
             }
             OperationContext context = CreateContext(session);
+            context.EnableWeakSystemContextCache();
             // the constructor captured identity and epoch together; key the entry on what it captured.
             current = new SubscriberContext(
                 context.UserIdentity, context.NotificationAuthorization, generation, endpoint, secureChannelId, context);

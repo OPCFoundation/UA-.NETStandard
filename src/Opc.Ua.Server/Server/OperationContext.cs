@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -424,7 +425,15 @@ namespace Opc.Ua.Server
                         {
                             RoutingSnapshot = null;
                         }
-                        System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                        try
+                        {
+                            System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                        }
+                        finally
+                        {
+                            System.Threading.Interlocked.Exchange(ref m_firstSystemContext, null);
+                            System.Threading.Interlocked.Exchange(ref m_systemContextCache, null);
+                        }
                     }
                 }
             }
@@ -643,6 +652,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Uses weakly keyed system-context copies for a subscriber context retained by a session
+        /// or monitored item.
+        /// </summary>
+        internal void EnableWeakSystemContextCache()
+        {
+            Interlocked.Exchange(ref m_weakSystemContextCache, 1);
+            Interlocked.Exchange(ref m_firstSystemContext, null);
+        }
+
+        /// <summary>
         /// Returns a copy of a node manager's system context bound to this operation,
         /// reusing the copy made for the previous call with the same template.
         /// </summary>
@@ -651,55 +670,62 @@ namespace Opc.Ua.Server
         /// metadata, reference descriptions) otherwise clone the system context once for
         /// every call or node of a request. The copies are equal for one request and
         /// node manager, so one copy is kept per template. A request that touches several
-        /// node managers keeps one copy for each of them, so they do not evict each
-        /// other.
+        /// node managers keeps one copy for each live template, so they do not evict each
+        /// other. Ordinary operations retain the first copy directly and weakly key the rest;
+        /// shared subscriber operations weakly key every copy so retired templates can be
+        /// collected while the operation remains live. Disposing releases the cache.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
         {
-            // The copy of the first node manager is kept on its own; it knows its template,
-            // so a request served by one node manager allocates no cache entry.
-            ServerSystemContext? first = m_firstSystemContext;
-            if (first != null && ReferenceEquals(first.CopiedFrom, template))
+            if (Volatile.Read(ref m_weakSystemContextCache) == 0)
             {
-                return first;
-            }
-
-            if (first == null)
-            {
-                ServerSystemContext firstCopy = template.Copy(this);
-                firstCopy.CopiedFrom = template;
-
-                // a concurrent caller may have published a copy for another template.
-                first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
-                if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                // Ordinary request contexts keep their first copy directly, avoiding a cache entry
+                // on the single-manager hot path. Shared subscriber contexts use weak keys instead.
+                ServerSystemContext? first = m_firstSystemContext;
+                if (first != null && ReferenceEquals(first.CopiedFrom, template))
                 {
-                    return first ?? firstCopy;
+                    return first;
+                }
+
+                if (first == null)
+                {
+                    ServerSystemContext firstCopy = template.Copy(this);
+                    firstCopy.CopiedFrom = template;
+
+                    // a concurrent caller may have published a copy for another template.
+                    first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                    if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                    {
+                        return first ?? firstCopy;
+                    }
                 }
             }
 
-            SystemContextCacheEntry? head = m_systemContextCache;
-            int count = 0;
-            for (SystemContextCacheEntry? entry = head; entry != null; entry = entry.Next)
+            SystemContextCache? cache = Volatile.Read(ref m_systemContextCache);
+            if (cache != null && cache.Contexts.TryGetValue(template, out ServerSystemContext? cachedCopy))
             {
-                if (ReferenceEquals(entry.Template, template))
-                {
-                    return entry.Copy;
-                }
-
-                count++;
+                return cachedCopy;
             }
 
-            ServerSystemContext copy = template.Copy(this);
+            if (cache is null)
+            {
+                SystemContextCache candidate = new();
+                cache = Interlocked.CompareExchange(ref m_systemContextCache, candidate, null) ?? candidate;
+            }
 
-            // Entries are immutable and published as one reference. A concurrent caller
-            // that loses the race only costs one more copy later. A request touches few
-            // node managers; past the bound the list restarts instead of growing.
-            m_systemContextCache = new SystemContextCacheEntry(
-                template,
-                copy,
-                count < kMaxSystemContextCacheEntries ? head : null);
-            return copy;
+            lock (cache.Lock)
+            {
+                if (cache.Contexts.TryGetValue(template, out cachedCopy))
+                {
+                    return cachedCopy;
+                }
+
+                ServerSystemContext copy = template.Copy(this);
+                copy.CopiedFrom = template;
+                cache.Contexts.Add(template, copy);
+                return copy;
+            }
         }
 
         /// <inheritdoc/>
@@ -720,11 +746,7 @@ namespace Opc.Ua.Server
         }
 
         private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
-
-        /// <summary>
-        /// The most node managers after the first whose system context copies a request keeps.
-        /// </summary>
-        private const int kMaxSystemContextCacheEntries = 8;
+        private int m_weakSystemContextCache;
 
         /// <summary>
         /// The system context copy of the first node manager the request called.
@@ -732,24 +754,21 @@ namespace Opc.Ua.Server
         private ServerSystemContext? m_firstSystemContext;
 
         /// <summary>
-        /// A system context copy and the template it was made from, published as one
-        /// reference so concurrent readers never pair a copy with the wrong template.
+        /// Holds weakly keyed system-context copies beyond the first request copy, or all copies
+        /// for a shared subscriber context.
         /// </summary>
-        private sealed class SystemContextCacheEntry
+        private sealed class SystemContextCache
         {
-            public SystemContextCacheEntry(
-                ServerSystemContext template,
-                ServerSystemContext copy,
-                SystemContextCacheEntry? next)
-            {
-                Template = template;
-                Copy = copy;
-                Next = next;
-            }
+            /// <summary>
+            /// Synchronizes cache misses so concurrent calls create one copy per template.
+            /// </summary>
+            public System.Threading.Lock Lock { get; } = new();
 
-            public ServerSystemContext Template { get; }
-            public ServerSystemContext Copy { get; }
-            public SystemContextCacheEntry? Next { get; }
+            /// <summary>
+            /// Stores copies without keeping retired templates alive, even though each copy points back
+            /// to its template.
+            /// </summary>
+            public ConditionalWeakTable<ServerSystemContext, ServerSystemContext> Contexts { get; } = new();
         }
 
         /// <summary>
@@ -1014,7 +1033,7 @@ namespace Opc.Ua.Server
         private int m_routingPinSlot = -1;
         private int m_routingPinState;
         private RoutingCohort? m_routingCohort;
-        private SystemContextCacheEntry? m_systemContextCache;
+        private SystemContextCache? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
