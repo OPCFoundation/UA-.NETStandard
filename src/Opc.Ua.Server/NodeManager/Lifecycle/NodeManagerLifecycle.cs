@@ -499,7 +499,8 @@ namespace Opc.Ua.Server
 
                     ct.ThrowIfCancellationRequested();
                     using var readiness = new NodeManagerReadinessScope(server, state.Registration.Identity);
-                    string readinessContext = state.Registration.Identity.GetQuiescenceWaitContext();
+                    string readinessContext = $"{state.Registration.Identity.GetQuiescenceWaitContext()}; " +
+                        GetLifecycleWaitContext();
                     await LifecycleWaitDiagnostics.WaitAsync(
                         participant.OnServerReadyAsync(ct).AsTask(),
                         m_timeProvider,
@@ -552,20 +553,34 @@ namespace Opc.Ua.Server
         private string GetLifecycleWaitContext()
         {
             RegistrationState[] registrations;
+            string[] pendingReadiness;
+            int pendingReadinessCount;
             lock (m_registrationLock)
             {
                 registrations = [.. m_registrations.Values];
+                pendingReadinessCount = registrations.Count(static state => state.ReadinessPending);
+                pendingReadiness = registrations
+                    .Where(static state => state.ReadinessPending)
+                    .Take(8)
+                    .Select(static state =>
+                        $"slot={state.Registration.Slot.Id}; generation={state.Registration.Generation}; " +
+                        $"manager={state.Prepared.NodeManager.GetType().FullName}; " +
+                        $"callbackInProgress={state.ReadinessInProgress}")
+                    .ToArray();
             }
-            string[] generations = registrations
+            RegistrationState[] blockedRegistrations = registrations
+                .Where(static state => state.Registration.Identity.HasActiveQuiescenceBlockers)
+                .ToArray();
+            string[] generations = blockedRegistrations
                 .Select(static state => state.Registration.Identity)
-                .Where(static generation => generation.HasActiveQuiescenceBlockers)
                 .Take(8)
                 .Select(static generation => generation.GetQuiescenceWaitContext())
                 .ToArray();
             return $"activeLifecycleOperations={m_writer.ActiveOperationCount}; " +
-                (generations.Length == 0
-                    ? "no active generation pin snapshot"
-                    : string.Join("; ", generations));
+                $"pendingReadinessCount={pendingReadinessCount}; " +
+                $"pendingReadiness=[{string.Join("; ", pendingReadiness)}]; " +
+                $"blockedGenerationCount={blockedRegistrations.Length}; " +
+                $"blockedGenerations=[{string.Join("; ", generations)}]";
         }
 
         /// <summary>

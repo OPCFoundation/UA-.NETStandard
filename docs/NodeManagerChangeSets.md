@@ -271,6 +271,33 @@ new server-level concurrent capture and preparation tests passed 2/2 on net10.0
 and 2/2 on net48. These results do not include a full-project test run or the
 separate #4869 benchmark.
 
+## Readiness and discovery registration
+
+`StandardServer` now reports itself online to the Local Discovery Server (LDS)
+only after initial publication reconciliation and all initial NodeManager
+readiness callbacks complete. Startup prepares registration data offline and
+starts the registration timer after readiness succeeds and the server state is
+updated. If readiness fails, startup stops before scheduling discovery
+registration. Shutdown still stops the timer and sends an offline update only
+when the server had successfully registered online. This server-wide status
+covers initial startup; readiness retries for later dynamic registrations remain
+per-generation and do not change the LDS status of the whole server.
+
+`DeferConfigurationUntilReady` and `DeferPublishedAuthoringUntilReady` now
+reject a manager during configuration if it does not participate in readiness.
+The error names `INodeManagerReadinessNotification.OnServerReadyAsync` and
+`CompletePublishedConfigurationAsync`, so a missing forwarding callback fails
+before the host publishes an unsealed address space.
+
+Lifecycle wait warnings retain elapsed time and now report the total pending
+readiness participants, up to eight slot/generation/manager identities, active
+lifecycle operations, blocked generations, active admissions and pinned view
+epoch counts. Canceling a caller's wait does not cancel the underlying shared
+operation. The LDS ordering regression passed 1/1 on net10.0, the deferred
+configuration readiness tests passed 13/13, and the lifecycle wait diagnostics
+and discovery-registration selections passed 11/11. The focused run is not a
+full server or DI test-suite qualification.
+
 ## Candidate state and cleanup ownership
 
 `PreparedNodeManager` receives its generation identity and exact predecessor at
