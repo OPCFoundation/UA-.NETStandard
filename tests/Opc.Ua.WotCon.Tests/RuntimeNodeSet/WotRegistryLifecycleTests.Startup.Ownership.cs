@@ -143,7 +143,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     "The initial sweep must still await each static manager exactly once.");
                 Assert.That(runtime.ReadinessCalls, Is.EqualTo(1),
                     "Runtime Add owns readiness; the initial sweep must not repeat it for that generation.");
-                Assert.That(runtime.ReadinessToken, Is.EqualTo(cancellation.Token));
+                Assert.That(initial.ReadinessToken.CanBeCanceled, Is.True);
+                Assert.That(runtime.ReadinessToken.CanBeCanceled, Is.False);
             }
             finally
             {

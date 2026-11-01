@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -120,9 +121,21 @@ namespace Opc.Ua.Subscriptions.Tests
                 await DrainPublishAsync().ConfigureAwait(false);
 
                 Variant testValue = GetTestValueForIndex(index);
+                if (index == 0)
+                {
+                    DataValue current = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(current.StatusCode), Is.True);
+                    Assert.That(current.WrappedValue.TryGetValue(out bool currentValue), Is.True);
+                    testValue = new Variant(!currentValue);
+                }
+
                 bool writeOk =
                     await TryWriteVariantAsync(nodeId, testValue)
                         .ConfigureAwait(false);
+                if (index == 0)
+                {
+                    Assert.That(writeOk, Is.True, "The Boolean value must be writable.");
+                }
 
                 if (!writeOk)
                 {
@@ -139,16 +152,23 @@ namespace Opc.Ua.Subscriptions.Tests
                         500 + (attempt * 300)).ConfigureAwait(false);
                 }
 
-                if (dcn == null)
+                if (dcn == null && index != 0)
                 {
-                    Assert.Ignore(
-                        $"No DCN received for index {index} after retries.");
+                    Assert.Ignore($"No DCN received for index {index} after retries.");
                 }
 
-                Assert.That(dcn.MonitoredItems.Count, Is.GreaterThan(0),
+                Assert.That(dcn, Is.Not.Null, $"No DCN received for index {index} after retries.");
+                DataChangeNotification notification = dcn!;
+                Assert.That(notification.MonitoredItems.Count, Is.GreaterThan(0),
                     $"DCN has no items for index {index}");
+                if (index == 0)
+                {
+                    Assert.That(notification.MonitoredItems.Count, Is.EqualTo(1));
+                    Assert.That(notification.MonitoredItems[0].ClientHandle, Is.EqualTo(1u));
+                    Assert.That(notification.MonitoredItems[0].Value.WrappedValue, Is.EqualTo(testValue));
+                }
             }
-            catch (ServiceResultException sre) when (IsTransientCiTimeoutStatus(sre.StatusCode))
+            catch (ServiceResultException sre) when (index != 0 && IsTransientCiTimeoutStatus(sre.StatusCode))
             {
                 Assert.Ignore(
                     $"Timing-sensitive: scalar data-change roundtrip interrupted by CI runner load ({sre.StatusCode}).");

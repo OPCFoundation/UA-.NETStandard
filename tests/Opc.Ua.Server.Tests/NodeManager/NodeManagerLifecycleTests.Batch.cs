@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -44,11 +45,103 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
-        [TestCase(false)]
-        [TestCase(true)]
+        [Test]
+        public async Task RegistrationSlotTracksReplacementAndRemovalAsync()
+        {
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? replacement = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager), null)
+                .ConfigureAwait(false);
+            NodeManagerSlot slot = registration.Slot;
+            Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot initial), Is.True);
+            Assert.That(initial.NodeManager, Is.SameAs(original));
+            Assert.That(initial.Generation, Is.EqualTo(registration.Generation));
+
+            NodeManagerRegistration next = await m_server.NodeManagerLifecycle.ReloadAsync(
+                registration,
+                CreateTrackingNodeManagementFactory(kGeneration2Value, manager => replacement = manager),
+                null).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(next.Slot, Is.SameAs(slot));
+                Assert.That(slot.Id, Is.EqualTo(registration.Id));
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(replacement));
+                Assert.That(current.Generation, Is.EqualTo(next.Generation));
+            }
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(next, null).ConfigureAwait(false);
+            Assert.That(slot.TryGetCurrent(out _), Is.False);
+        }
+
+        [Test]
+        public async Task RegistrationSlotSnapshotsKeepManagerAndGenerationTogetherAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var knownGenerations = new ConcurrentDictionary<IAsyncNodeManager, long>();
+            TrackingLifecycleNodeManager? initial = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager =>
+                {
+                    initial = manager;
+                    knownGenerations[manager] = 1;
+                }), null, timeout.Token).ConfigureAwait(false);
+            NodeManagerSlot slot = registration.Slot;
+            var inconsistent = new ConcurrentQueue<(long Generation, long Expected)>();
+
+            Task reloads = Task.Run(async () =>
+            {
+                for (int index = 0; index < 6; index++)
+                {
+                    long expectedGeneration = registration.Generation + 1;
+                    NodeManagerRegistration next = await m_server.NodeManagerLifecycle.ReloadAsync(
+                        registration,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value + index, manager =>
+                        {
+                            knownGenerations[manager] = expectedGeneration;
+                        }),
+                        null,
+                        timeout.Token).ConfigureAwait(false);
+                    registration = next;
+                }
+            }, timeout.Token);
+
+            do
+            {
+                if (slot.TryGetCurrent(out NodeManagerSlotSnapshot snapshot) &&
+                    knownGenerations.TryGetValue(snapshot.NodeManager, out long expectedGeneration) &&
+                    snapshot.Generation != expectedGeneration)
+                {
+                    inconsistent.Enqueue((snapshot.Generation, expectedGeneration));
+                }
+                await Task.Yield();
+            }
+            while (!reloads.IsCompleted);
+
+            await reloads.ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(initial, Is.Not.Null);
+                Assert.That(inconsistent, Is.Empty);
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot final), Is.True);
+                Assert.That(final.Generation, Is.EqualTo(7));
+                Assert.That(knownGenerations.TryGetValue(final.NodeManager, out long expected), Is.True);
+                Assert.That(final.Generation, Is.EqualTo(expected));
+            }
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token)
+                .ConfigureAwait(false);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task PreparedBatchRevealsSelfRegisteredNamespaceOnlyOnCommitAsync(bool publish)
+        public async Task PreparedBatchRevealsSelfRegisteredNamespaceOnlyOnCommitAsync(
+            bool publish, bool registerDuringFactory)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IAsyncNodeManager? candidate = null;
@@ -57,8 +150,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             options.Configure = builder =>
             {
                 configure?.Invoke(builder);
-                m_server.CurrentInstance.NodeManager.RegisterNamespaceManager(
-                    kModelNamespaceUri, RequireLifecycleValue(candidate));
+                if (!registerDuringFactory)
+                {
+                    m_server.CurrentInstance.NodeManager.RegisterNamespaceManager(
+                        kModelNamespaceUri, RequireLifecycleValue(candidate));
+                }
             };
             var runtimeFactory = new RuntimeNodeSetNodeManagerFactory(options);
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -77,7 +173,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [NodeManagerBatchChange.Add(factory.Object)], null, timeout.Token).ConfigureAwait(false))
             {
                 valueId = new NodeId(kValueNodeId,
-                    (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+                    (ushort)ChangePreparer.GetServer(RequireLifecycleValue(candidate))!
+                        .NamespaceUris.GetIndex(kModelNamespaceUri));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
                 ReadResponse hidden = await ReadAsync(valueId).ConfigureAwait(false);
                 Assert.That(hidden.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 if (publish)
@@ -104,6 +202,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 IServerInternal server, ApplicationConfiguration configuration, CancellationToken token)
             {
                 candidate = await runtimeFactory.CreateAsync(server, configuration, token).ConfigureAwait(false);
+                if (registerDuringFactory)
+                {
+                    server.NodeManager.RegisterNamespaceManager(kModelNamespaceUri, candidate);
+                }
                 return candidate;
             }
 
@@ -205,6 +307,82 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that concurrent namespace additions invalidate preparation before the durable decision.
+        /// </summary>
+        [Test]
+        public async Task PreparedBatchRejectsChangedNamespacePrefixBeforeDecisionAsync()
+        {
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null).ConfigureAwait(false);
+            NamespaceTable namespaces = m_server.CurrentInstance.NamespaceUris;
+            Assert.That(namespaces.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
+            ushort concurrent = namespaces.GetIndexOrAppend("urn:opcfoundation.org:Tests:ConcurrentNamespace");
+            int decisions = 0;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(decisions, Is.Zero);
+            Assert.That(prepared.IsCommitted, Is.False);
+            Assert.That(namespaces.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
+            Assert.That(namespaces.GetString(concurrent),
+                Is.EqualTo("urn:opcfoundation.org:Tests:ConcurrentNamespace"));
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that cached manager contexts and builders follow canonical additive metadata across later commits.
+        /// </summary>
+        [Test]
+        public async Task PublishedManagerCachesObserveLaterMetadataAndDetachBeforeRetirementAsync()
+        {
+            TrackingLifecycleNodeManager? firstManager = null;
+            NodeManagerRegistration first = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, manager => firstManager = manager), null)
+                .ConfigureAwait(false);
+            TrackingLifecycleNodeManager firstOwner = RequireLifecycleValue(firstManager);
+            var cachedTypes = (TypeTable)firstOwner.SystemContext.TypeTable;
+            NamespaceTable cachedNamespaces = firstOwner.SystemContext.NamespaceUris;
+            IEncodeableFactory cachedFactory = firstOwner.SystemContext.EncodeableFactory;
+            IEncodeableFactoryBuilder cachedBuilder = cachedFactory.Builder;
+            ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
+            NodeId added = new(8410, ns);
+            ExpandedNodeId alias = new(8411, kSecondModelNamespaceUri);
+            Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(
+                DataTypeIds.Range, out IEncodeableType? activator), Is.True);
+            IEncodeableType structure = RequireLifecycleValue(activator);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(kSecondRegistrationValue, manager =>
+                {
+                    manager.Server.TypeTree.AddSubtype(added, Ua.ObjectTypeIds.BaseObjectType);
+                    manager.Server.Factory.Builder.AddEncodeableType(alias, structure).Commit();
+                }, kSecondModelNamespaceUri))], null).ConfigureAwait(false);
+            Assert.That(cachedTypes.IsKnown(added), Is.False);
+            Assert.That(cachedFactory.TryGetEncodeableType(alias, out _), Is.False);
+            await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+            Assert.That(cachedTypes.FindSuperType(added), Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+            Assert.That(cachedNamespaces.GetString(ns), Is.EqualTo(kSecondModelNamespaceUri));
+            Assert.That(cachedFactory.TryGetEncodeableType(alias, out IEncodeableType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(structure));
+            ExpandedNodeId cachedAlias = new(8412, kSecondModelNamespaceUri);
+            cachedBuilder.AddEncodeableType(cachedAlias, structure).Commit();
+            Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(cachedAlias, out _), Is.True);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, first).ConfigureAwait(false);
+            cachedTypes.Remove(added);
+            cachedNamespaces.Append("urn:opcfoundation.org:Tests:DetachedCleanup");
+            Assert.That(m_server.CurrentInstance.TypeTree.IsKnown(added), Is.True);
+            Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(
+                "urn:opcfoundation.org:Tests:DetachedCleanup"), Is.EqualTo(-1));
+            Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(alias, out _), Is.True);
+            await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task PreparedBatchRejectsChangedTypeInputsBeforeDecisionAsync()
         {
@@ -240,13 +418,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeId unrelated = new(8302, 0);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async token =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             }, timeout.Token).AsTask();
-            NodeId unrelated = new(8302,
-                m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
             bool accepted = false;
             try
             {
@@ -283,6 +460,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const uint typeIdentifier = 8100;
             ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(modelUri);
             NodeId typeId = new(typeIdentifier, namespaceIndex);
+            NodeId addedTypeId = new(typeIdentifier + 1, namespaceIndex);
             NodeManagerRegistration? previous = null;
             if (replace)
             {
@@ -291,7 +469,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             NodeId originalParent = replace ? Ua.ObjectTypeIds.BaseObjectType : NodeId.Null;
             Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId), Is.EqualTo(originalParent));
-            var factory = new RuntimeNodeSetNodeManagerFactory(Options(Ua.ObjectTypeIds.FolderType));
+            NodeId proposedParent = replace ? originalParent : Ua.ObjectTypeIds.FolderType;
+            var factory = new RuntimeNodeSetNodeManagerFactory(Options(proposedParent, includeChild: true));
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             NodeId whilePrepared;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
@@ -301,6 +480,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false))
             {
                 whilePrepared = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
+                Assert.That(m_server.CurrentInstance.TypeTree.IsKnown(addedTypeId), Is.False);
                 if (publish)
                 {
                     NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
@@ -312,8 +492,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(whilePrepared, Is.EqualTo(originalParent),
                     "Private preparation must not add or replace a serving type relationship.");
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
-                    Is.EqualTo(publish ? Ua.ObjectTypeIds.FolderType : originalParent),
-                    "Abort retains the old type image; publication installs the complete new image.");
+                    Is.EqualTo(publish ? proposedParent : originalParent),
+                    "Publication preserves serving definitions and adds compatible declarations.");
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(addedTypeId),
+                    Is.EqualTo(publish ? typeId : NodeId.Null));
                 Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(replace || publish ? 1 : 0));
                 if (replace && !publish)
                 {
@@ -322,8 +504,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
-            RuntimeNodeSetOptions Options(NodeId parent)
+            RuntimeNodeSetOptions Options(NodeId parent, bool includeChild = false)
             {
+                string child = includeChild ? $$"""
+                      <UAObjectType NodeId="ns=1;i={{typeIdentifier + 1}}" BrowseName="1:BatchChildType">
+                        <DisplayName>BatchChildType</DisplayName>
+                        <References>
+                          <Reference ReferenceType="i=45" IsForward="false">ns=1;i={{typeIdentifier}}</Reference>
+                        </References>
+                      </UAObjectType>
+                    """ : string.Empty;
                 string xml = $$"""
                     <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
                       <NamespaceUris><Uri>{{modelUri}}</Uri></NamespaceUris>
@@ -334,6 +524,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                           <Reference ReferenceType="i=45" IsForward="false">{{parent}}</Reference>
                         </References>
                       </UAObjectType>
+                      {{child}}
                     </UANodeSet>
                     """;
                 return new RuntimeNodeSetOptions
@@ -345,6 +536,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ]
                 };
             }
+        }
+
+        /// <summary>
+        /// Verifies that incompatible metadata aborts before the durable decision and preserves the live owner.
+        /// </summary>
+        /// <param name="changeFactory">Whether to change an activator rather than a type relationship.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedBatchRejectsIncompatibleMetadataBeforeDecisionAsync(bool changeFactory)
+        {
+            NodeManagerRegistration previous = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }), null).ConfigureAwait(false);
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId typeId = new(8400, namespaceIndex);
+            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
+            IEncodeableFactory factory = m_server.CurrentInstance.Factory;
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? serving), Is.True);
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.EUInformation, out IEncodeableType? proposed),
+                Is.True);
+            AssertLifecycleValue(proposed);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Replace(previous,
+                        CreateTrackingNodeManagementFactory(303, manager =>
+                        {
+                            if (changeFactory)
+                            {
+                                manager.Server.Factory.Builder.AddEncodeableType(DataTypeIds.Range, proposed).Commit();
+                            }
+                            else
+                            {
+                                manager.Server.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
+                            }
+                        }))
+                ], null).ConfigureAwait(false);
+            int decisions = 0;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            {
+                await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(decisions, Is.Zero);
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(GetBranchRegistration(lifecycle, previous.Id), Is.SameAs(previous));
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
+                    Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? retained), Is.True);
+                Assert.That(retained, Is.SameAs(serving));
+            }
+            await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
         }
 
         [TestCase(false)]
@@ -366,6 +614,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(secondManager);
             NodeId typeId = new(8303,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+            NodeId addedTypeId = new(8304, typeId.NamespaceIndex);
             m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
             Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? structure), Is.True);
@@ -375,10 +624,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
                     NodeManagerBatchChange.Replace(first,
-                        CreateTrackingNodeManagementFactory(303, _ =>
+                        CreateTrackingNodeManagementFactory(303, manager =>
                         {
-                            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
-                            factory.Builder.AddEncodeableType(alias, structure).Commit();
+                            manager.Server.TypeTree.AddSubtype(addedTypeId, typeId);
+                            manager.Server.Factory.Builder.AddEncodeableType(alias, structure).Commit();
                         })),
                     NodeManagerBatchChange.Replace(second,
                         CreateTrackingNodeManagementFactory(404, _ => { }, kSecondModelNamespaceUri))
@@ -399,16 +648,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId beforePublication = NodeId.Null;
             NodeId afterPublication = NodeId.Null;
             bool factoryBeforePublication = false;
-            bool factoryAfterPublication = false;
             firstManager.ReadCallbackNodeId = firstId;
-            firstManager.ReadCallback = async token =>
+            firstManager.ReadCallback = async (context, token) =>
             {
                 beforePublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
                 factoryBeforePublication = factory.TryGetEncodeableType(alias, out _);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 afterPublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
-                factoryAfterPublication = factory.TryGetEncodeableType(alias, out _);
             };
             Task<ReadResponse> pendingRead = ReadPairAsync();
             Task<NodeManagerBatchResult>? pendingCommit = null;
@@ -456,7 +703,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerBatchResult committed = await pendingCommit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
-                Assert.That(committed.Retired, Is.EqualTo(2u));
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             }
             ReadResponse current = await ReadPairAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
@@ -477,12 +724,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(secondManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
                 Assert.That(beforePublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
                 Assert.That(afterPublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType),
-                    "A native request must retain its captured type image when routing is published.");
+                    "An additive publication cannot change a serving type's definition.");
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
-                    Is.EqualTo(rejectDecision ? Ua.ObjectTypeIds.BaseObjectType : Ua.ObjectTypeIds.FolderType));
+                    Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(addedTypeId),
+                    Is.EqualTo(rejectDecision ? NodeId.Null : typeId));
                 Assert.That(factoryBeforePublication, Is.False);
-                Assert.That(factoryAfterPublication, Is.False,
-                    "The native request must retain the factory image captured with its routes.");
                 Assert.That(factory.TryGetEncodeableType(alias, out _), Is.EqualTo(!rejectDecision));
             }
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
@@ -617,6 +864,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     () =>
                     {
                         publications++;
+                        Assert.That(prepared.IsCommitted, Is.True);
                         Assert.That(GetBranchRegistration(lifecycle, original.Id),
                             Is.SameAs(prepared.Registrations[0]));
                         if (failPublication)
@@ -629,6 +877,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 escaped = failure;
             }
+            Assert.That(result, Is.Not.Null);
+            await result!.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(escaped, Is.Null, "A post-decision callback failure must remain a committed outcome.");
@@ -645,7 +895,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (result is not null)
                 {
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     if (failPublication || failReadiness)
                     {
                         Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
@@ -667,7 +917,67 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
             }
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            if (failReadiness)
+            {
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            }
+            else
+            {
+                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task PreparedBatchDecisionFailureKeepsCurrentGenerationAndAbortsCandidateAsync()
+        {
+            TrackingLifecycleNodeManager? originalManager = null;
+            TrackingLifecycleNodeManager? candidateManager = null;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager), null)
+                .ConfigureAwait(false);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Replace(
+                    original,
+                    CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidateManager = manager))],
+                null).ConfigureAwait(false);
+            var decisionFailure = new IOException("Durable decision was rejected.");
+            int decisions = 0;
+            Exception? escaped = null;
+
+            try
+            {
+                _ = await prepared.CommitAsync(
+                    _ =>
+                    {
+                        decisions++;
+                        return new ValueTask(Task.FromException(decisionFailure));
+                    }).ConfigureAwait(false);
+            }
+            catch (IOException failure)
+            {
+                escaped = failure;
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(escaped, Is.SameAs(decisionFailure));
+                Assert.That(decisions, Is.EqualTo(1));
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
+                Assert.That(originalManager, Is.Not.Null);
+                Assert.That(candidateManager, Is.Not.Null);
+                Assert.That(candidateManager!.DisposeCount, Is.Zero);
+            }
+
+            await prepared.DisposeAsync().ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
+                Assert.That(candidateManager!.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(candidateManager.DisposeCount, Is.EqualTo(1));
+            }
         }
 
         [Test]
@@ -805,6 +1115,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(secondValue.WrappedValue.TryGetValue(out int secondNumber), Is.True);
             Assert.That(firstNumber, Is.EqualTo(101));
             Assert.That(secondNumber, Is.EqualTo(202));
+
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch followup = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Replace(first, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, 606)))
+                ], null);
+            await followup.CommitAsync(_ => default).ConfigureAwait(false);
+            Assert.That(followup.IsCommitted, Is.True);
+            DataValue followupValue = await ReadValueAsync(new NodeId(
+                kValueNodeId, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri)));
+            Assert.That(followupValue.WrappedValue.TryGetValue(out int followupNumber), Is.True);
+            Assert.That(followupNumber, Is.EqualTo(606));
+        }
+
+        [Test]
+        public async Task PreparedBatchDecisionCallbackRejectsNestedLifecycleOperationsAsync()
+        {
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
+                ], null);
+            await using IPreparedNodeManagerBatch nestedCommit = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                ], null);
+
+            await prepared.CommitAsync(async _ =>
+            {
+                await Task.Run(async () =>
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await lifecycle.PrepareAsync(
+                            [
+                                NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                            ], null, timeout.Token).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await nestedCommit.CommitAsync(_ => default).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await nestedCommit.DisposeAsync().ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                }, _).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations().Count, Is.EqualTo(1));
+            await nestedCommit.DisposeAsync().ConfigureAwait(false);
+
+            await using IPreparedNodeManagerBatch followup = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                ], null);
+            await followup.CommitAsync(_ => default).ConfigureAwait(false);
+            Assert.That(followup.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations().Count, Is.EqualTo(2));
         }
 
         [Test]

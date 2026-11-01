@@ -76,7 +76,7 @@ namespace Quickstarts.Servers
             MonitoredItemId = queue.MonitoredItemId;
             IsDurable = queue.IsDurable;
             m_enqueueBatch = queue.EnqueueBatch!;
-            m_dequeueBatch = queue.DequeueBatch!;
+            m_dequeueBatch = queue.DequeueBatch ?? m_enqueueBatch;
             m_dataChangeBatches = queue.DataChangeBatches;
             QueueSize = queue.QueueSize;
             ItemsInQueue = queue.ItemsInQueue;

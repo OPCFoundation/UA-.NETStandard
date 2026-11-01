@@ -40,9 +40,9 @@ namespace Opc.Ua.Server
     public interface IMonitoredItem : IDisposable
     {
         /// <summary>
-        /// The node manager that created the item.
+        /// The currently bound node manager, or null while the item is unresolved.
         /// </summary>
-        IAsyncNodeManager NodeManager { get; }
+        IAsyncNodeManager? NodeManager { get; }
 
         /// <summary>
         /// The session that owns the monitored item.
@@ -81,9 +81,9 @@ namespace Opc.Ua.Server
         ISubscription SubscriptionCallback { get; set; }
 
         /// <summary>
-        /// The handle assigned by the NodeManager.
+        /// The handle assigned by the bound NodeManager, or null while the item is unresolved.
         /// </summary>
-        object ManagerHandle { get; }
+        object? ManagerHandle { get; }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.

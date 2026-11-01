@@ -127,7 +127,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 if (m_sourceHost is not IWotInvocationProjectionHost host ||
                     m_registry is not IWotInvocationRegistryPublicationService
-                        { SupportsPreparedPublication: true })
+                    { SupportsPreparedPublication: true })
                 {
                     throw new NotSupportedException("The configured owners cannot recover an authoritative publication.");
                 }
@@ -310,7 +310,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     if (staged is not null)
                     {
-                        BindPreparedSourceRoots(capture, staged, snapshot);
+                        BindPreparedSourceRoots(
+                            capture, staged, snapshot,
+                            (prepared as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? []);
                     }
                     ArrayOf<WotViewProjectionHandle> recoveredViews = prepared.ViewGraph?.Views ?? [];
                     if (prepared.ViewGraph is { } preparedGraph &&

@@ -140,6 +140,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The configured reference model retains its historical startup namespace index.
+        /// </summary>
+        [Test]
+        public void ReferenceNamespaceRetainsConfiguredStartupIndex()
+        {
+            NamespaceTable namespaces = m_server.CurrentInstance.NamespaceUris;
+            Assert.That(namespaces.GetIndex(Quickstarts.ReferenceServer.Namespaces.ReferenceServer), Is.EqualTo(2),
+                string.Join(" | ", namespaces.GetSnapshot(out _).ToArray()!));
+            ReferenceNodeManager manager = m_server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .ToList().OfType<ReferenceNodeManager>().Single();
+            Assert.That(manager.NamespaceIndex, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Set up a Reference Server a session
         /// </summary>
         [GlobalSetup]

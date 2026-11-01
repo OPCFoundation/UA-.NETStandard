@@ -115,6 +115,57 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(value).IsBetween(40.0 - 1e-9, 60.0 + 1e-9);
         }
 
+        /// <summary>
+        /// Verifies published readiness enables the measurement's historian and wire-level history access.
+        /// </summary>
+        [Test]
+        public async Task PublishedReadinessEnablesMeasurementHistory()
+        {
+            NodeId measurement = await ResolveBoilerVariableAsync(
+                "LCX001", "Measurement").ConfigureAwait(false);
+
+            ReadResponse attributes = await fixture.Session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                [
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.Historizing },
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.AccessLevel },
+                    new ReadValueId { NodeId = measurement, AttributeId = Attributes.UserAccessLevel }
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(attributes.Results.Count).IsEqualTo(3);
+            for (int ii = 0; ii < attributes.Results.Count; ii++)
+            {
+                await Assert.That(StatusCode.IsGood(attributes.Results[ii].StatusCode)).IsTrue();
+            }
+            await Assert.That(attributes.Results[0].GetValue(false)).IsTrue();
+            await Assert.That(attributes.Results[1].GetValue((byte)0) & AccessLevels.HistoryRead)
+                .IsEqualTo((int)AccessLevels.HistoryRead);
+            await Assert.That(attributes.Results[2].GetValue((byte)0) & AccessLevels.HistoryRead)
+                .IsEqualTo((int)AccessLevels.HistoryRead);
+
+            var details = new ReadRawModifiedDetails
+            {
+                StartTime = DateTime.UtcNow.AddMinutes(-1),
+                EndTime = DateTime.UtcNow,
+                NumValuesPerNode = 1,
+                IsReadModified = false,
+                ReturnBounds = false
+            };
+            HistoryReadResponse history = await fixture.Session.HistoryReadAsync(
+                null,
+                new ExtensionObject(details),
+                TimestampsToReturn.Source,
+                false,
+                [new HistoryReadValueId { NodeId = measurement }],
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.That(history.Results.Count).IsEqualTo(1);
+            await Assert.That(StatusCode.IsGood(history.Results[0].StatusCode)).IsTrue();
+        }
+
         [Test]
         public async Task TypedBuilderWiredHaltMethodCanBeCalled()
         {

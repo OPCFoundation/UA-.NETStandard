@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -65,18 +67,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             table.RegisterNamespace(3, unrelated, visible: false);
             var prepared = new PreparedNodeManager(candidate, [])
             {
-                Staged = true,
                 ReplacedNodeManager = replace ? original : null
             };
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+                [prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
-            using (table.Capture())
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using (context.CaptureRouting(table))
             {
                 routes.Reserve();
                 routes.Publish();
-                Assert.That(table.Any(manager => ReferenceEquals(manager, candidate)), Is.False,
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(candidate),
                     "An in-flight request must retain the unpublished routing image.");
+                Assert.That(table, Does.Contain(candidate), "Contextless work must use live routes.");
             }
             using (Assert.EnterMultipleScope())
             {
@@ -94,30 +97,359 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CaptureUntilReturnEndsWhenTheAsyncMethodReturnsAsync(bool completeAsynchronously)
+        public async Task ExplicitOperationRoutingSurvivesAsyncPublicationAsync(bool completeAsynchronously)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager lifecycleManager = CreateManager();
 
             async ValueTask CaptureAndPublishAsync()
             {
-                table.CaptureUntilReturn();
-                NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                context.PinRouting(table);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 table.Add(lifecycleManager, AddNamespaceIndexes);
                 if (completeAsynchronously)
                 {
                     await Task.Yield();
                 }
-                Assert.That(table.CapturedRevision, Is.SameAs(captured),
-                    "The rest of the method must keep the captured routing image.");
-                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.False);
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured),
+                    "The operation must retain its explicit routes.");
+                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True,
+                    "A metadata image must never select dispatch routes.");
             }
 
             await CaptureAndPublishAsync().ConfigureAwait(false);
 
-            Assert.That(table.CapturedRevision, Is.SameAs(table.Revision),
-                "The caller must read the live routing once the method returned.");
             Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True);
+        }
+
+        /// <summary>
+        /// Independent work never inherits a request's explicitly selected dispatch view.
+        /// </summary>
+        [Test]
+        public async Task IndependentBackgroundWorkUsesLiveRoutesDespiteInheritedRequestMetadataAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager added = CreateManager();
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            using OperationContext.RoutingScope requestRouting = context.CaptureRouting(table);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<(IAsyncNodeManager[] Routes, NodeManagerRoutingTable.RoutingSnapshot Metadata)> background =
+                Task.Run(async () =>
+                {
+                    started.SetResult(true);
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    using var independent = new OperationContext(
+                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                    return (table.GetDispatchView(independent.RoutingSnapshot).NodeManagers, table.Revision);
+                }, timeout.Token);
+            try
+            {
+                await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                table.Add(added, AddNamespaceIndexes);
+            }
+            finally
+            {
+                published.TrySetResult(true);
+            }
+            var result = await background.ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Metadata, Is.SameAs(table.Revision));
+                Assert.That(result.Routes, Does.Contain(added),
+                    "The inherited bridge must not select background dispatch routes.");
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(added),
+                    "Only the original request explicitly holds its earlier routing view.");
+            }
+        }
+
+        /// <summary>
+        /// Nested service scopes retain a request's original view, which disposal releases.
+        /// </summary>
+        [Test]
+        public void RequestPinSurvivesNestedScopesAndIsReleasedWithTheContext()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
+            table.Add(CreateManager(), AddNamespaceIndexes);
+            context.PinRouting(table);
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original), "A later dispatch must not repin the request.");
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+                using (context.CaptureRouting(table))
+                {
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+                }
+                Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+            }
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+            context.Dispose();
+            Assert.That(context.RoutingSnapshot, Is.Null);
+        }
+
+        /// <summary>
+        /// Concurrent first captures join one cohort and release its single epoch pin exactly once.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentBorrowedScopesShareOnePinAndPermitFreshReuseAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int count = 0;
+            var snapshots = new ConcurrentBag<NodeManagerRoutingTable.RoutingSnapshot>();
+            Task[] calls = Enumerable.Range(0, 16).Select(_ => Task.Run(async () =>
+            {
+                await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
+                snapshots.Add(captured);
+                if (Interlocked.Increment(ref count) == 16)
+                {
+                    entered.SetResult(true);
+                }
+                await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                scope.Dispose();
+                scope.Dispose();
+            }, timeout.Token)).ToArray();
+            NodeManagerRoutingTable.RoutingSnapshot original = table.Revision;
+            try
+            {
+                start.SetResult(true);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(snapshots, Has.Count.EqualTo(16));
+                Assert.That(snapshots.All(snapshot => ReferenceEquals(snapshot, original)), Is.True);
+                Assert.That(original.Epoch.ActiveCount, Is.EqualTo(1));
+                table.Add(CreateManager(), AddNamespaceIndexes);
+                Assert.That(original.Epoch.IsDrained, Is.False);
+            }
+            finally
+            {
+                start.TrySetResult(true);
+                release.TrySetResult(true);
+                await Task.WhenAll(calls).ConfigureAwait(false);
+            }
+            Assert.That(original.Epoch.ActiveCount, Is.Zero);
+            Assert.That(original.Epoch.IsDrained, Is.True);
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+            context.PinRouting(table);
+            Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            context.Dispose();
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Exception and cancellation unwinding release temporary ownership without disposing the context.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BorrowedRoutingScopesReleaseTheirPinOnFailureAsync(bool cancel)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellation = new CancellationTokenSource();
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task work = FailAsync();
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+                if (cancel)
+                {
+                    cancellation.Cancel();
+                    await Assert.ThatAsync(async () => await work.ConfigureAwait(false),
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    finish.SetResult(true);
+                    await Assert.ThatAsync(async () => await work.ConfigureAwait(false),
+                        Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                finish.TrySetResult(true);
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(context.HasRoutingPin, Is.False);
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+            using (context.CaptureRouting(table))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+            }
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+
+            async Task FailAsync()
+            {
+                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                using OperationContext.RoutingScope nested = context.CaptureRouting(table);
+                entered.SetResult(true);
+                await finish.Task.WaitAsync(cancellation.Token).ConfigureAwait(false);
+                throw new InvalidOperationException("Borrowed service failed.");
+            }
+        }
+
+        /// <summary>
+        /// Ordinary request-owned dispatch allocates no cohort or per-service ownership token.
+        /// </summary>
+        [Test]
+        public void RequestOwnedRoutingCaptureAddsNoManagedAllocations()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            for (int ii = 0; ii < 128; ii++)
+            {
+                context.CaptureRouting(table).Dispose();
+            }
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            long started = Stopwatch.GetTimestamp();
+            for (int ii = 0; ii < 10000; ii++)
+            {
+                context.CaptureRouting(table).Dispose();
+            }
+            long elapsed = Stopwatch.GetTimestamp() - started;
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(allocated, Is.Zero);
+            Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(1));
+            TestContext.Out.WriteLine(
+                $"Request-owned capture microcheck: 10000 scopes, {allocated} bytes, " +
+                $"{elapsed} stopwatch ticks ({Stopwatch.Frequency} ticks/s); not a load benchmark.");
+        }
+
+        /// <summary>
+        /// First borrowed acquisition racing an explicit pin or disposal cannot leak or repin a terminal context.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BorrowedRoutingAcquisitionRacesExplicitOwnershipSafelyAsync(bool dispose)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            for (int ii = 0; ii < 32; ii++)
+            {
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task capture = Task.Run(async () =>
+                {
+                    await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    try
+                    {
+                        using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                    }
+                    catch (ObjectDisposedException) when (dispose)
+                    {
+                    }
+                }, timeout.Token);
+                Task owner = Task.Run(async () =>
+                {
+                    await start.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (dispose)
+                    {
+                        context.Dispose();
+                    }
+                    else
+                    {
+                        context.PinRouting(table);
+                    }
+                }, timeout.Token);
+                start.SetResult(true);
+                await Task.WhenAll(capture, owner).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.EqualTo(dispose ? 0 : 1));
+                context.Dispose();
+                Assert.That(context.RoutingSnapshot, Is.Null);
+                Assert.That(table.Revision.Epoch.ActiveCount, Is.Zero);
+                Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
+                Assert.That(() => context.PinRouting(table), Throws.TypeOf<ObjectDisposedException>());
+            }
+        }
+
+        /// <summary>
+        /// Unwinding a nested request scope after disposal cannot restore the disposed context's old snapshot.
+        /// </summary>
+        [Test]
+        public void NestedRequestRoutingDoesNotRestoreDisposedContext()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
+            table.Add(CreateManager(), AddNamespaceIndexes);
+            using (context.CaptureRouting(table))
+            {
+                context.Dispose();
+                Assert.That(context.RoutingSnapshot, Is.Null);
+            }
+            Assert.That(context.RoutingSnapshot, Is.Null);
+            Assert.That(original.Epoch.ActiveCount, Is.Zero);
+            Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        /// <summary>
+        /// A permanently installed cohort never reuses a state accepted by stale null-cohort bootstrap paths.
+        /// This checks the protocol invariant, not an intercepted interleaving between individual field reads.
+        /// </summary>
+        [Test]
+        public void BorrowedRoutingCohortNeverReentersOrdinaryBootstrapStates()
+        {
+            FieldInfo stateField = typeof(OperationContext).GetField(
+                "m_routingPinState", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            FieldInfo cohortField = typeof(OperationContext).GetField(
+                "m_routingCohort", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var ordinary = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            int unclaimed = (int)stateField.GetValue(ordinary)!;
+            ordinary.PinRouting(table);
+            int ordinaryActive = (int)stateField.GetValue(ordinary)!;
+            using var borrowed = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using (borrowed.CaptureRouting(table))
+            {
+                Assert.That(cohortField.GetValue(borrowed), Is.Not.Null);
+            }
+            object cohort = cohortField.GetValue(borrowed)!;
+            int idle = (int)stateField.GetValue(borrowed)!;
+            using (borrowed.CaptureRouting(table))
+            {
+                Assert.That(cohortField.GetValue(borrowed), Is.SameAs(cohort));
+                borrowed.PinRouting(table);
+            }
+            int upgraded = (int)stateField.GetValue(borrowed)!;
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(idle, Is.Not.EqualTo(unclaimed),
+                    "A stale null-cohort CAS must not claim bootstrap initialization after the cohort drained.");
+                Assert.That(idle, Is.Not.EqualTo(ordinaryActive));
+                Assert.That(upgraded, Is.Not.EqualTo(unclaimed));
+                Assert.That(upgraded, Is.Not.EqualTo(ordinaryActive),
+                    "A stale null-cohort release must not bypass the installed cohort's lock.");
+                Assert.That(cohortField.GetValue(borrowed), Is.SameAs(cohort));
+            }
         }
 
         [Test]
@@ -390,6 +722,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 for (int iteration = 0; iteration < ReaderIterations; iteration++)
                 {
+                    var pinned = table.PinCurrent();
+                    try
+                    {
+                        var pinnedManagers = pinned.Snapshot.NodeManagers;
+                        if (pinnedManagers.Length != 3 ||
+                            !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
+                            !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
+                            (!ReferenceEquals(pinnedManagers[2], generationA) &&
+                                !ReferenceEquals(pinnedManagers[2], generationB)))
+                        {
+                            managerSnapshotFailures.Add(
+                                $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
+                        }
+                    }
+                    finally
+                    {
+                        pinned.Epoch.Exit(pinned.Slot);
+                    }
+
                     using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
                     var managers = new List<IAsyncNodeManager>();
                     while (managerSnapshot.MoveNext())
@@ -498,7 +849,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddWithVisibleFalseHidesManagerFromEnumerationButNotFromIndexer()
+        public void AddWithVisibleFalseHidesManagerFromReadOnlyList()
         {
             NodeManagerRoutingTable table = CreateTable(
                 out IAsyncNodeManager firstPermanent,
@@ -507,8 +858,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             table.Add(hiddenManager, AddNamespaceIndexes, visible: false);
 
-            Assert.That(table, Has.Count.EqualTo(3));
-            Assert.That(table[2], Is.SameAs(hiddenManager));
+            Assert.That(table, Has.Count.EqualTo(2));
+            Assert.That((IReadOnlyCollection<IAsyncNodeManager>)table, Has.Count.EqualTo(2));
+            Assert.That(table, Is.Not.Contains(hiddenManager));
             Assert.That(table.IsVisible(hiddenManager), Is.False);
             using IEnumerator<IAsyncNodeManager> visibleSnapshot = table.GetEnumerator();
             AssertManagerSnapshot(visibleSnapshot, firstPermanent, secondPermanent);
@@ -536,14 +888,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void ReplaceThrowsWhenCurrentIsNotLifecycleManaged()
+        public void ReplaceInitialManagerPreservesItsRoutingPosition()
         {
             NodeManagerRoutingTable table = CreateTable(
-                out IAsyncNodeManager firstPermanent,
-                out _);
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
+            IAsyncNodeManager replacement = CreateManager();
 
-            Assert.Throws<InvalidOperationException>(
-                () => table.Replace(firstPermanent, CreateManager(), ReplaceNamespaceIndexes));
+            var position = table.Replace(firstInitial, replacement, ReplaceNamespaceIndexes);
+
+            Assert.That(position.ManagerPosition.Index, Is.Zero);
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([replacement, secondInitial]));
+            Assert.That(table, Does.Not.Contain(firstInitial));
+            foreach (int namespaceIndex in ReplaceNamespaceIndexes)
+            {
+                AssertSingleManagerRoute(table.NamespaceManagers, namespaceIndex, replacement);
+            }
         }
 
         [Test]
@@ -570,11 +931,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RemoveThrowsWhenNodeManagerIsNotLifecycleManaged()
+        public void RemoveInitialManagerRemovesItsRoutes()
         {
-            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
 
-            Assert.Throws<InvalidOperationException>(() => table.Remove(firstPermanent));
+            table.Remove(firstInitial);
+
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([secondInitial]));
+            Assert.That(table.NamespaceManagers.ContainsKey(2), Is.False);
         }
 
         [Test]

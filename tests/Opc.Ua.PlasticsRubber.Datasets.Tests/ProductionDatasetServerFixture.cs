@@ -196,7 +196,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
     /// <summary>
     /// Places the test manager in the real server's service dispatch tree.
     /// </summary>
-    internal sealed class ProductionDatasetTestServer : StandardServer
+    internal sealed class ProductionDatasetTestServer : StandardServer, IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Captures the injected test dependencies.
@@ -215,6 +215,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             m_clock = clock;
             m_options = options;
             m_select = select;
+            AddNodeManager(this);
         }
 
         /// <summary>
@@ -223,14 +224,19 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         internal ProductionDatasetTestNodeManager Manager { get; private set; } = null!;
 
         /// <inheritdoc/>
-        protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+        ArrayOf<string> IAsyncNodeManagerFactory.NamespacesUris =>
+            [ProductionDatasetTestNodeManager.InstanceNamespaceUri, Di.Namespaces.OpcUaDi, Namespaces.PlasticsRubber];
+
+        /// <inheritdoc/>
+        ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Manager = new ProductionDatasetTestNodeManager(
                 server, configuration, m_provider, m_policy, m_clock, m_options, m_select);
-            return new ValueTask<IMasterNodeManager>(new MasterNodeManager(server, configuration, null, [Manager]));
+            return new ValueTask<IAsyncNodeManager>(Manager);
         }
 
         /// <summary>The injected storage and activation authority.</summary>
@@ -265,7 +271,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             TimeProvider clock,
             ProductionDatasetOptions options,
             Action<ProductionDatasetManagementState, ISystemContext>? select)
-            : base(server, configuration, kInstanceUri, Di.Namespaces.OpcUaDi, Namespaces.PlasticsRubber)
+            : base(server, configuration, InstanceNamespaceUri, Di.Namespaces.OpcUaDi, Namespaces.PlasticsRubber)
         {
             m_provider = provider;
             m_policy = policy;
@@ -285,7 +291,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             CancellationToken cancellationToken = default)
         {
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-            ushort index = SystemContext.NamespaceUris.GetIndexOrAppend(kInstanceUri);
+            ushort index = SystemContext.NamespaceUris.GetIndexOrAppend(InstanceNamespaceUri);
             var root = new FolderState(null)
             {
                 NodeId = new NodeId("DatasetTests", index),
@@ -325,8 +331,8 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
-        /// <summary>The private test instance namespace.</summary>
-        private const string kInstanceUri = "urn:opcfoundation:tests:production-datasets";
+        /// <summary>The fixture's application-instance namespace.</summary>
+        internal const string InstanceNamespaceUri = "urn:opcfoundation:tests:production-datasets";
 
         /// <summary>The injected per-instance device authority.</summary>
         private readonly IProductionDatasetProvider m_provider;

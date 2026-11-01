@@ -27,11 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.TestFramework;
@@ -112,6 +115,274 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
+        /// Shared-service configuration waits for readiness and retains the open builder through a failed attempt.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PostSetupWaitsForReadinessAndSealsAfterSuccessfulCallbackAsync(bool failFirst)
+        {
+            int calls = 0;
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager value, CancellationToken _) =>
+                {
+                    var probe = (ProbeNodeManager)value;
+                    Assert.DoesNotThrow(() => probe.Builder!.Node("AsyncWired"));
+                    calls++;
+                    if (failFirst && calls == 1)
+                    {
+                        throw new InvalidOperationException("Injected post-setup failure.");
+                    }
+                    return default;
+                });
+            using var manager = new ProbeNodeManager(m_server.CurrentInstance, m_fixture.Config, runner.Object);
+
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+
+            Assert.That(calls, Is.Zero, "Preparation must not invoke configurators that use shared services.");
+            var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+            if (failFirst)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            }
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failFirst ? 2 : 1));
+            ServiceResultException sealedException = Assert.Throws<ServiceResultException>(
+                () => manager.Builder!.Node("AsyncWired"))!;
+            Assert.That(sealedException.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failFirst ? 2 : 1),
+                "A completed post-setup must not be repeated by a later readiness notification.");
+        }
+
+        /// <summary>
+        /// A failed seal retries completion without replaying a successfully completed shared-service callback.
+        /// </summary>
+        [Test]
+        public async Task SealRetryDoesNotRepeatSuccessfulPostSetupAsync()
+        {
+            int calls = 0;
+            int notifications = 0;
+            var failure = new InvalidOperationException("Injected node-added failure.");
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager value, CancellationToken _) =>
+                {
+                    calls++;
+                    ((ProbeNodeManager)value).Builder!.Node("AsyncWired").OnNodeAdded((_, _) =>
+                    {
+                        notifications++;
+                        if (notifications == 1)
+                        {
+                            throw failure;
+                        }
+                    });
+                    return default;
+                });
+            await using var manager = new ProbeNodeManager(m_server.CurrentInstance, m_fixture.Config, runner.Object);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            Assert.That(observed, Is.SameAs(failure));
+
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+            await readiness.OnServerReadyAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(calls, Is.EqualTo(1), "The successful shared-service callback is not replayed.");
+                Assert.That(notifications, Is.EqualTo(2), "Only the incomplete seal is retried.");
+            });
+            ServiceResultException sealedException = Assert.Throws<ServiceResultException>(
+                () => manager.Builder!.Node("AsyncWired"))!;
+            Assert.That(sealedException.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Stopping a prepared manager releases resources without invoking or retrying shared-service configurators.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedManagerCleanupDoesNotInvokeOrRetryPostSetupAsync(bool failReadiness)
+        {
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            if (failReadiness)
+            {
+                runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Throws(new InvalidOperationException("Injected post-setup failure before stop."));
+            }
+            var resource = new Mock<IAsyncDisposable>(MockBehavior.Strict);
+            resource.Setup(value => value.DisposeAsync()).Returns(default(ValueTask));
+            await using var manager = new ProbeNodeManager(
+                m_server.CurrentInstance, m_fixture.Config, runner.Object);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            manager.RegisterNodeResource(
+                manager.FindPredefinedNode<FolderState>(manager.StagedFolderId)!, resource.Object);
+
+            if (failReadiness)
+            {
+                var readiness = (INodeManagerReadinessNotification)(IAsyncNodeManager)manager;
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await readiness.OnServerReadyAsync().ConfigureAwait(false));
+            }
+            await manager.DeleteAddressSpaceAsync(CancellationToken.None).ConfigureAwait(false);
+            await manager.DisposeAsync().ConfigureAwait(false);
+
+            runner.Verify(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(failReadiness ? 1 : 0));
+            resource.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// Published setup precedes hosting post-setup and a later failure does not replay an earlier successful step.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishedConfigurationCallbacksRunInOrderAndRetryOnlyUnfinishedStepsAsync(bool failLater)
+        {
+            var calls = new List<string>();
+            int postSetupCalls = 0;
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager _, CancellationToken _) =>
+                {
+                    calls.Add("post-setup");
+                    postSetupCalls++;
+                    if (failLater && postSetupCalls == 1)
+                    {
+                        throw new InvalidOperationException("Injected later post-setup failure.");
+                    }
+                    return default;
+                });
+            await using var manager = new ProbeNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                runner.Object,
+                _ =>
+                {
+                    calls.Add("published");
+                    return default;
+                });
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            Assert.That(calls, Is.Empty, "Neither shared-service step may run during private preparation.");
+
+            if (failLater)
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await manager.OnServerReadyAsync().ConfigureAwait(false));
+                Assert.That(calls, Is.EqualTo(s_callbackOrder));
+                Assert.DoesNotThrow(() => manager.Builder!.Node("AsyncWired"),
+                    "The original builder must stay open until every shared-service step completes.");
+            }
+            await manager.OnServerReadyAsync().ConfigureAwait(false);
+            await manager.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(failLater
+                ? s_callbackRetryOrder
+                : s_callbackOrder));
+            ServiceResultException? sealedException = Assert.Throws<ServiceResultException>(
+                () => manager.Builder!.Node("AsyncWired"));
+            Assert.That(sealedException!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// A published authoring pass must not activate manager-wide behaviors before hosting post-setup succeeds.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishedAuthoringWaitsForHostingPostSetupBeforeActivatingAsync(bool failLater)
+        {
+            int activations = 0;
+            int authoringCalls = 0;
+            int postSetupCalls = 0;
+            var failure = new InvalidOperationException("Injected hosting failure before final sealing.");
+            var runner = new Mock<IDiPostSetupRunner>(MockBehavior.Strict);
+            runner.Setup(value => value.RunAsync(It.IsAny<DiNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns((DiNodeManager _, CancellationToken _) =>
+                {
+                    Assert.That(activations, Is.Zero, "Shared behaviors must wait until hosting setup succeeds.");
+                    postSetupCalls++;
+                    if (failLater && postSetupCalls == 1)
+                    {
+                        throw failure;
+                    }
+                    return default;
+                });
+            await using var manager = new ProbeNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                runner.Object,
+                publishedAuthoring: (builder, _) =>
+                {
+                    authoringCalls++;
+                    builder.Attach((_, _) =>
+                    {
+                        activations++;
+                        return default;
+                    });
+                    return default;
+                });
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            Assert.That(activations, Is.Zero);
+
+            if (failLater)
+            {
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await manager.OnServerReadyAsync().ConfigureAwait(false));
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(activations, Is.Zero, "Failed readiness must not activate shared behaviors.");
+            }
+            await manager.OnServerReadyAsync().ConfigureAwait(false);
+            await manager.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(activations, Is.EqualTo(1));
+                Assert.That(authoringCalls, Is.EqualTo(1));
+                Assert.That(postSetupCalls, Is.EqualTo(failLater ? 2 : 1));
+            });
+        }
+
+        /// <summary>
+        /// A configuration sequence cannot change its original builder or be reopened after readiness.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishedConfigurationRejectsAnotherBuilderOrLateRegistrationAsync(bool afterReadiness)
+        {
+            int calls = 0;
+            await using var manager = new ProbeNodeManager(
+                m_server.CurrentInstance,
+                m_fixture.Config,
+                publishedConfigure: _ =>
+                {
+                    calls++;
+                    return default;
+                });
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                .ConfigureAwait(false);
+            if (afterReadiness)
+            {
+                await manager.OnServerReadyAsync().ConfigureAwait(false);
+                Assert.Throws<InvalidOperationException>(() => manager.RegisterAnotherSharedStep());
+            }
+            else
+            {
+                Assert.Throws<InvalidOperationException>(() => manager.RegisterStepForAnotherBuilder());
+                await manager.OnServerReadyAsync().ConfigureAwait(false);
+            }
+            await manager.OnServerReadyAsync().ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1), "Rejected registrations must not replace or replay the existing sequence.");
+        }
+
+        /// <summary>
         /// A DI manager that does all its wiring from the awaitable hook —
         /// the shape that used to require the manager to hand-roll
         /// <c>CreateFluentBuilder(...).Configure(...).Seal()</c> from a
@@ -121,9 +392,14 @@ namespace Opc.Ua.Di.Tests
         {
             public ProbeNodeManager(
                 IServerInternal server,
-                ApplicationConfiguration configuration)
-                : base(server, configuration)
+                ApplicationConfiguration configuration,
+                IDiPostSetupRunner? postSetupRunner = null,
+                Func<CancellationToken, ValueTask>? publishedConfigure = null,
+                Func<INodeManagerBuilder, CancellationToken, ValueTask>? publishedAuthoring = null)
+                : base(server, configuration, postSetupRunner)
             {
+                m_publishedConfigure = publishedConfigure;
+                m_publishedAuthoring = publishedAuthoring;
             }
 
             public int ConfigureAsyncCalls { get; private set; }
@@ -135,6 +411,22 @@ namespace Opc.Ua.Di.Tests
             public bool ContainsPredefined(NodeId nodeId)
             {
                 return PredefinedNodes.ContainsKey(nodeId);
+            }
+
+            /// <summary>
+            /// Attempts to register another step against the original builder.
+            /// </summary>
+            public void RegisterAnotherSharedStep()
+            {
+                DeferConfigurationUntilReady(Builder!, _ => default);
+            }
+
+            /// <summary>
+            /// Attempts to attach a different builder to an existing configuration sequence.
+            /// </summary>
+            public void RegisterStepForAnotherBuilder()
+            {
+                DeferConfigurationUntilReady(CreateFluentBuilder(InstanceNamespaceIndex), _ => default);
             }
 
             protected override async ValueTask ConfigureAsync(
@@ -159,7 +451,27 @@ namespace Opc.Ua.Di.Tests
                     DisplayName = new LocalizedText("AsyncWired")
                 };
                 StagedFolderId = builder.Add(folder).Node.NodeId;
+                if (m_publishedAuthoring is { } authoring)
+                {
+                    DeferPublishedAuthoringUntilReady(builder, authoring);
+                }
+                if (m_publishedConfigure is { } configure)
+                {
+                    DeferConfigurationUntilReady(builder, configure);
+                }
             }
+
+            /// <summary>An earlier shared-service step registered by the manager rather than its hosting runner.</summary>
+            private readonly Func<CancellationToken, ValueTask>? m_publishedConfigure;
+
+            /// <summary>An additional published authoring pass before hosting post-setup.</summary>
+            private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask>? m_publishedAuthoring;
         }
+
+        /// <summary>The manager's shared-service step precedes the hosting runner.</summary>
+        private static readonly string[] s_callbackOrder = ["published", "post-setup"];
+
+        /// <summary>A later failure retries only the hosting runner.</summary>
+        private static readonly string[] s_callbackRetryOrder = ["published", "post-setup", "post-setup"];
     }
 }

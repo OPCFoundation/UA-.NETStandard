@@ -73,18 +73,19 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 .Returns((string category) => category == "Opc.Ua.Di.Server.Hosting.DiPostSetupRunner"
                     ? startupLogger.Object : NullLogger.Instance);
             fixture.Services.AddLogging(logging => logging.AddProvider(loggerProvider.Object));
-            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await fixture.StartAsync(failStartup: true).ConfigureAwait(false)))!;
-            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
-            Assert.That(failure.LocalizedText.Text, Is.EqualTo("Unexpected error starting application"));
-            Assert.That(failure.InnerResult, Is.Not.Null);
-            Assert.That(failure.InnerResult!.StatusCode, Is.EqualTo(StatusCodes.Bad));
+            Assert.That(failure.Message, Is.EqualTo("Initial generation reconciliation failed."));
+            Assert.That(failure.InnerException, Is.TypeOf<AggregateException>());
+            var reconciliation = (AggregateException)failure.InnerException!;
+            Assert.That(reconciliation.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(reconciliation.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            var configuration = (InvalidOperationException)reconciliation.InnerExceptions[0];
             string managerType = typeof(MachineryNodeManager).FullName!;
             string expectedWrapper =
                 $"DI post-setup configurator #0 (target '{managerType}') " +
                 $"failed for manager '{managerType}'. See inner exception.";
-            Assert.That(failure.InnerResult.LocalizedText.Text, Does.StartWith("[InvalidOperationException] "));
-            Assert.That(failure.InnerResult.LocalizedText.Text, Does.Contain(expectedWrapper));
+            Assert.That(configuration.Message, Is.EqualTo(expectedWrapper));
             Moq.IInvocation[] loggedFailures = startupLogger.Invocations
                 .Where(invocation => invocation.Method.Name == nameof(ILogger.Log)).ToArray();
             Assert.That(loggedFailures, Has.Length.EqualTo(1));
@@ -93,20 +94,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
             var originalCause = (ServiceResultException)loggedFailures[0].Arguments[3];
             Assert.That(originalCause.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(originalCause.LocalizedText.Text, Is.EqualTo("Composition startup rejection."));
-            var diagnostics = new List<string>();
-            for (ServiceResult? result = failure.Result; result != null; result = result.InnerResult)
-            {
-                diagnostics.Add(result.AdditionalInfo ?? string.Empty);
-                diagnostics.Add(result.LocalizedText.Text ?? string.Empty);
-            }
-            string diagnosticChain = string.Join(Environment.NewLine, diagnostics);
-#if DEBUG
-            Assert.That(diagnosticChain, Does.Contain("Composition startup rejection."));
-#else
-            Assert.That(diagnosticChain, Does.Not.Contain("Composition startup rejection."));
-            Assert.That(diagnosticChain, Does.Not.Contain(nameof(CompanionSuiteFixture)));
-#endif
-            Assert.That(diagnosticChain, Does.Not.Contain(nameof(IndexOutOfRangeException)));
+            Assert.That(configuration.InnerException, Is.SameAs(originalCause));
             Assert.That(fixture.Cranes, Has.Count.EqualTo(2));
             Assert.That(fixture.Cranes.All(value => value.IsDisposed), Is.True);
             foreach (MachineToolRuntime<MachineToolState> machine in fixture.Machines)
@@ -135,8 +123,18 @@ namespace Opc.Ua.Machinery.Tests.Integration
         public async Task StoppedMixedHostWithdrawsConformanceWithoutDereferencingDisposedServerAsync()
         {
             await using var fixture = new CompanionSuiteFixture();
-            await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await fixture.StartAsync(failStartup: true).ConfigureAwait(false));
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await fixture.StartAsync(failStartup: true).ConfigureAwait(false)))!;
+            Assert.That(failure.Message, Is.EqualTo("Initial generation reconciliation failed."));
+            Assert.That(failure.InnerException, Is.TypeOf<AggregateException>());
+            var reconciliation = (AggregateException)failure.InnerException!;
+            Assert.That(reconciliation.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(reconciliation.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            var configuration = (InvalidOperationException)reconciliation.InnerExceptions[0];
+            Assert.That(configuration.InnerException, Is.TypeOf<ServiceResultException>());
+            var originalCause = (ServiceResultException)configuration.InnerException!;
+            Assert.That(originalCause.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(originalCause.LocalizedText.Text, Is.EqualTo("Composition startup rejection."));
             foreach (MachineToolRuntime<MachineToolState> machine in fixture.Machines)
             {
                 MachineToolCapabilities capabilities = machine.Capabilities;

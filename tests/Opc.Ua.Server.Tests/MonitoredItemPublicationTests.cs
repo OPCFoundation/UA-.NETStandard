@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var harness = new Harness(1);
             Task observation = harness.ObserveAsync(42, CancellationToken.None);
-            ((IDetachableMonitoredItem)harness.Item).MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)harness.Item).Invalidate(terminal: false);
             ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await observation.ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));

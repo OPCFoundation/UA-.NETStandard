@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return new WotProjectionChange(
                 null, document ?? throw new ArgumentNullException(nameof(document)),
-                WotProjectionRetirementPolicy.Graceful);
+                WotProjectionRetirementPolicy.Migrate);
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotProjectionChange Replace(
             WotProjectionHandle current,
             WotProjectionDocument document,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)),
@@ -98,7 +98,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="retirementPolicy">The retirement policy.</param>
         public static WotProjectionChange Remove(
             WotProjectionHandle current,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Invalidate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)), null, retirementPolicy);
@@ -252,6 +252,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
             IWotPreparedViewPublication? views = null,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Supplies an explicit namespace mapping for privately prepared native projections.
+    /// </summary>
+    public interface IWotPreparedProjectionNamespaceSource
+    {
+        /// <summary>
+        /// Gets the explicit candidate namespace mapping, including unpublished additions.
+        /// Empty means that the provider uses only already-published namespaces.
+        /// Decorators must forward this mapping without appending it to the serving table.
+        /// </summary>
+        ArrayOf<string> CapturedNamespaceUris { get; }
     }
 
     /// <summary>

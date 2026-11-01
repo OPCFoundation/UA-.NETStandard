@@ -270,11 +270,12 @@ namespace Opc.Ua.AMB.Tests
                 options.EndpointUrls.Add("opc.tcp://localhost:0/" + nameof(AFailingSetupDelegateAbortsTheStartupAsync));
             });
             bool ran = false;
+            var failure = new InvalidDataException("broken setup");
             builder.AddAssetManagement()
                 .ConfigureAssetManagement(_ =>
                 {
                     ran = true;
-                    throw new InvalidDataException("broken setup");
+                    throw failure;
                 });
 
             await using ServiceProvider provider = services.BuildServiceProvider();
@@ -288,16 +289,25 @@ namespace Opc.Ua.AMB.Tests
                 .ConfigureAwait(false);
             await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
 
-            // The server reduces the cause to BadInternalError and logs it.
+            Exception? cause = execute.Exception;
+            while (cause?.InnerException is { } inner)
+            {
+                if (cause is AggregateException aggregate)
+                {
+                    Assert.That(aggregate.InnerExceptions, Has.Count.EqualTo(1),
+                        "Startup must not hide an additional failure behind the configurator cause.");
+                }
+                cause = inner;
+            }
             Assert.Multiple(() =>
             {
                 Assert.That(ran, Is.True);
                 Assert.That(finished, Is.SameAs(execute), "the startup must fail");
                 Assert.That(execute.IsFaulted, Is.True);
                 Assert.That(
-                    execute.Exception!.InnerException,
-                    Is.InstanceOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
-                        .EqualTo((StatusCode)StatusCodes.BadInternalError));
+                    cause,
+                    Is.SameAs(failure),
+                    "Published-readiness startup failure must preserve the exact configurator cause.");
             });
         }
 

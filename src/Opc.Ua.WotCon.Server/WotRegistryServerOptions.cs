@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Server
         /// a successful version switch.
         /// </summary>
         public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
-            WotProjectionRetirementPolicy.Graceful;
+            WotProjectionRetirementPolicy.Migrate;
 
         /// <summary>
         /// Gets or sets the id of the group into which legacy 1.02 assets are

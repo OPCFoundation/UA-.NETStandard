@@ -28,37 +28,39 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
-namespace Opc.Ua.Server
+namespace Opc.Ua
 {
     /// <summary>
-    /// Provides internal ownership operations for a monitored-item manager.
+    /// Identifies a serving revision that changed after an optimistic publication captured it.
     /// </summary>
-    internal interface IMonitoredItemManagerLifecycle
+    internal sealed class OptimisticPublicationConflictException : InvalidOperationException
     {
         /// <summary>
-        /// Returns a stable snapshot of the monitored items owned by the manager.
+        /// Creates a conflict with the default stale-revision diagnostic.
         /// </summary>
-        IReadOnlyList<IMonitoredItem> GetMonitoredItemsSnapshot(
-            IReadOnlyCollection<NodeId>? nodeIds);
+        public OptimisticPublicationConflictException()
+            : base("A serving revision changed after it was captured.")
+        {
+        }
 
         /// <summary>
-        /// Removes an item from the manager without disposing it.
+        /// Creates a conflict for a stale serving revision.
         /// </summary>
-        (ServiceResult Result, bool Changed) DetachMonitoredItem(
-            ServerSystemContext context,
-            ISampledDataChangeMonitoredItem monitoredItem,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
+        /// <param name="message">The stale revision diagnostic.</param>
+        public OptimisticPublicationConflictException(string message)
+            : base(message)
+        {
+        }
 
         /// <summary>
-        /// Adds an existing item to the manager and rebinds its ownership.
+        /// Creates a conflict with its originating failure.
         /// </summary>
-        (ServiceResult Result, bool Changed) AttachMonitoredItem(
-            ServerSystemContext context,
-            NodeHandle handle,
-            ISampledDataChangeMonitoredItem monitoredItem,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
-            Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
+        /// <param name="message">The stale revision diagnostic.</param>
+        /// <param name="innerException">The failure that caused the conflict.</param>
+        public OptimisticPublicationConflictException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

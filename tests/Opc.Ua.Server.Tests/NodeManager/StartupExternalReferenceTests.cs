@@ -29,49 +29,47 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Tests;
+using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
-    /// Exercises reference snapshots through real startup and lifecycle adoption.
+    /// Exercises independent reference contributions through actual initial Add publication.
     /// </summary>
     [TestFixture]
     [Parallelizable]
     public sealed class StartupExternalReferenceTests
     {
+        /// <summary>
+        /// A later factory cannot rewrite another candidate's private contribution table.
+        /// </summary>
         [TestCase("Unchanged")]
         [TestCase("Reordered")]
         [TestCase("Cloned")]
         [TestCase("Removed")]
-        public async Task StartupDoesNotClaimExistingReferencesAsync(string mutation)
+        public async Task StartupFactoriesOwnIndependentReferenceContributionsAsync(string mutation)
         {
-            IReference first = Reference(1);
-            IReference second = Reference(2);
-            IAsyncNodeManager original = Manager(references =>
+            IReference firstReference = Reference(1);
+            var first = new ReferenceFactory(references =>
+                references[ObjectIds.ObjectsFolder] = [firstReference, Reference(1), Reference(2)]);
+            var second = new ReferenceFactory(references =>
             {
-                references[ObjectIds.ObjectsFolder] = [first, Reference(1), second];
-                references[ObjectIds.ViewsFolder] = [Reference(3)];
-            });
-            IAsyncNodeManager observer = Manager(references =>
-            {
+                Assert.That(references, Is.Empty);
+                references[ObjectIds.ObjectsFolder] = [Reference(8), Reference(9)];
                 switch (mutation)
                 {
                     case "Reordered":
-                        references[ObjectIds.ObjectsFolder] =
-                            references[ObjectIds.ObjectsFolder].Reverse().ToList();
+                        references[ObjectIds.ObjectsFolder] = [Reference(9), Reference(8)];
                         break;
                     case "Cloned":
-                        references[ObjectIds.ObjectsFolder] = [Reference(1), Reference(1), Reference(2)];
+                        references[ObjectIds.ObjectsFolder] = [Reference(8), Reference(9)];
                         break;
                     case "Removed":
-                        references[ObjectIds.ObjectsFolder] = [Reference(1)];
-                        references.Remove(ObjectIds.ViewsFolder);
+                        references.Remove(ObjectIds.ObjectsFolder);
                         break;
                     case "Unchanged":
                         break;
@@ -79,160 +77,201 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         throw new ArgumentOutOfRangeException(nameof(mutation));
                 }
             });
-            using MasterNodeManager master = CreateMaster([original, observer]);
-
-            await master.StartupAsync().ConfigureAwait(false);
-            ArrayOf<PreparedNodeManager> prepared = await ((IDynamicNodeManagerHost)master)
-                .TakeStartupNodeManagersAsync().ConfigureAwait(false);
-
-            Assert.That(prepared, Has.Count.EqualTo(2));
-            Assert.That(prepared[0].ExternalReferences[ObjectIds.ObjectsFolder], Has.Count.EqualTo(3));
-            Assert.That(prepared[0].ExternalReferences[ObjectIds.ObjectsFolder][0], Is.SameAs(first));
-            Assert.That(prepared[1].ExternalReferences, Is.Empty);
+            await WithServerAsync([first, second], server =>
+            {
+                Assert.That(first.Contributions, Is.Not.SameAs(second.Contributions));
+                IList<IReference> contributions = first.Contributions[ObjectIds.ObjectsFolder];
+                Assert.That(contributions, Has.Count.EqualTo(3));
+                Assert.That(contributions[0], Is.SameAs(firstReference));
+                Assert.That(contributions[1].TargetId, Is.EqualTo(new ExpandedNodeId(1u, 2)));
+                Assert.That(contributions[2].TargetId, Is.EqualTo(new ExpandedNodeId(2u, 2)));
+                Assert.That(server.NodeManagerLifecycle.Registrations, Has.Count.EqualTo(2));
+                Assert.That(second.Contributions.ContainsKey(ObjectIds.ObjectsFolder),
+                    Is.EqualTo(mutation != "Removed"));
+            }).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Initial publication preserves duplicate contributions and each factory's order and identities.
+        /// </summary>
         [Test]
-        public async Task StartupPreservesAddedMultiplicityOrderAndIdentityAsync()
+        public async Task StartupPreservesEachFactoryReferenceOrderAndMultiplicityAsync()
         {
+            IReference firstReference = Reference(1);
             IReference extraDuplicate = Reference(1);
             IReference otherType = new NodeStateReference(ReferenceTypeIds.HasComponent, false, new NodeId(1u, 2));
             IReference otherDirection = new NodeStateReference(ReferenceTypeIds.Organizes, true, new NodeId(1u, 2));
             IReference stringTarget = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId("1", 2));
             IReference newSource = Reference(3);
-            IAsyncNodeManager first = Manager(references =>
-                references[ObjectIds.ObjectsFolder] = [Reference(1), Reference(1), Reference(2)]);
-            IAsyncNodeManager second = Manager(references =>
+            var first = new ReferenceFactory(references =>
+                references[ObjectIds.ObjectsFolder] = [firstReference, Reference(1), Reference(2)]);
+            var second = new ReferenceFactory(references =>
             {
-                references[ObjectIds.ObjectsFolder] =
-                [
-                    Reference(2), Reference(1), Reference(1), extraDuplicate, otherType, otherDirection, stringTarget
-                ];
+                references[ObjectIds.ObjectsFolder] = [extraDuplicate, otherType, otherDirection, stringTarget];
                 references[ObjectIds.ViewsFolder] = [newSource];
             });
-            IAsyncNodeManager third = Manager(_ => { });
-            using MasterNodeManager master = CreateMaster([first, second, third]);
-
-            await master.StartupAsync().ConfigureAwait(false);
-            ArrayOf<PreparedNodeManager> prepared = await ((IDynamicNodeManagerHost)master)
-                .TakeStartupNodeManagersAsync().ConfigureAwait(false);
-
-            IList<IReference> additions = prepared[1].ExternalReferences[ObjectIds.ObjectsFolder];
-            Assert.Multiple(() =>
+            await WithServerAsync([first, second], _ =>
             {
+                Assert.That(first.Contributions[ObjectIds.ObjectsFolder], Has.Count.EqualTo(3));
+                Assert.That(first.Contributions[ObjectIds.ObjectsFolder][0], Is.SameAs(firstReference));
+                IList<IReference> additions = second.Contributions[ObjectIds.ObjectsFolder];
                 Assert.That(additions, Has.Count.EqualTo(4));
                 Assert.That(additions[0], Is.SameAs(extraDuplicate));
                 Assert.That(additions[1], Is.SameAs(otherType));
                 Assert.That(additions[2], Is.SameAs(otherDirection));
                 Assert.That(additions[3], Is.SameAs(stringTarget));
-                Assert.That(prepared[1].ExternalReferences[ObjectIds.ViewsFolder][0], Is.SameAs(newSource));
-                Assert.That(prepared[2].ExternalReferences, Is.Empty);
-            });
+                Assert.That(second.Contributions[ObjectIds.ViewsFolder][0], Is.SameAs(newSource));
+            }).ConfigureAwait(false);
         }
 
-        [TestCase("Type")]
-        [TestCase("Direction")]
-        [TestCase("Target")]
-        public async Task StartupSnapshotsMutableReferenceValuesAsync(string changedField)
-        {
-            var mutable = new MutableReference(Reference(1));
-            IAsyncNodeManager first = Manager(references =>
-                references[ObjectIds.ObjectsFolder] = [mutable]);
-            IAsyncNodeManager second = Manager(references =>
-            {
-                switch (changedField)
-                {
-                    case "Type":
-                        mutable.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-                        break;
-                    case "Direction":
-                        mutable.IsInverse = true;
-                        break;
-                    case "Target":
-                        mutable.TargetId = new ExpandedNodeId("remote", "urn:test:remote", 1);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(changedField));
-                }
-                references[ObjectIds.ObjectsFolder].Add(Reference(1));
-            });
-            using MasterNodeManager master = CreateMaster([first, second]);
-
-            await master.StartupAsync().ConfigureAwait(false);
-            ArrayOf<PreparedNodeManager> prepared = await ((IDynamicNodeManagerHost)master)
-                .TakeStartupNodeManagersAsync().ConfigureAwait(false);
-
-            Assert.That(prepared[1].ExternalReferences[ObjectIds.ObjectsFolder], Has.Count.EqualTo(1));
-            Assert.That(prepared[1].ExternalReferences[ObjectIds.ObjectsFolder][0], Is.SameAs(mutable));
-        }
-
+        /// <summary>
+        /// Empty contributions stay independent and do not prevent canonical registration.
+        /// </summary>
         [Test]
-        public async Task StartupCapturesEmptyReferenceTablesAsync()
+        public async Task StartupFactoriesRetainEmptyContributionsAsync()
         {
-            using MasterNodeManager master = CreateMaster([Manager(_ => { }), Manager(_ => { })]);
-
-            await master.StartupAsync().ConfigureAwait(false);
-            ArrayOf<PreparedNodeManager> prepared = await ((IDynamicNodeManagerHost)master)
-                .TakeStartupNodeManagersAsync().ConfigureAwait(false);
-
-            Assert.That(prepared, Has.Count.EqualTo(2));
-            Assert.That(prepared[0].ExternalReferences, Is.Empty);
-            Assert.That(prepared[1].ExternalReferences, Is.Empty);
+            var first = new ReferenceFactory(_ => { });
+            var second = new ReferenceFactory(_ => { });
+            await WithServerAsync([first, second], server =>
+            {
+                Assert.That(first.Contributions, Is.Empty);
+                Assert.That(second.Contributions, Is.Empty.And.Not.SameAs(first.Contributions));
+                Assert.That(server.NodeManagerLifecycle.Registrations, Has.Count.EqualTo(2));
+            }).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Rejects application instances that cannot be constructed against a private candidate server.
+        /// </summary>
+        [Test]
+        public async Task HostedStartupRejectsPreconstructedApplicationManagersAsync()
+        {
+            PreconstructedServer? rejected = null;
+            var fixture = new ServerFixture<PreconstructedServer>(telemetry =>
+                rejected = new PreconstructedServer(telemetry));
+            try
+            {
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await fixture.StartAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure, Is.Not.Null);
+                Assert.That(failure!.InnerException, Is.TypeOf<InvalidOperationException>());
+                Assert.That(failure.InnerException!.Message, Does.Contain("InitialFactories"));
+                Assert.That(rejected, Is.Not.Null);
+                Assert.That(rejected!.NodeManagerLifecycle.Registrations, Is.Empty);
+                rejected.VerifyRejectedManagerCleanup();
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Runs assertions after the factories have completed canonical initial publication.
+        /// </summary>
+        private static async Task WithServerAsync(
+            ArrayOf<ReferenceFactory> factories,
+            Action<StandardServer> verify)
+        {
+            var fixture = new ServerFixture<StandardServer>(telemetry =>
+            {
+                var server = new StandardServer(telemetry);
+                for (int index = 0; index < factories.Count; index++)
+                {
+                    server.AddNodeManager(factories[index]);
+                }
+                return server;
+            });
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                verify(server);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Creates an exact contributed reference.
+        /// </summary>
         private static NodeStateReference Reference(uint target)
         {
             return new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(target, 2));
         }
 
-        private static IAsyncNodeManager Manager(Action<IDictionary<NodeId, IList<IReference>>> create)
+        /// <summary>
+        /// Captures the reference table provided to one privately constructed application.
+        /// </summary>
+        private sealed class ReferenceFactory(Action<IDictionary<NodeId, IList<IReference>>> create)
+            : IAsyncNodeManagerFactory
         {
-            var manager = new Mock<IAsyncNodeManager>();
-            manager.SetupGet(value => value.NamespaceUris).Returns(["urn:test:startup-reference"]);
-            manager.Setup(value => value.CreateAddressSpaceAsync(
-                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
-                .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>((references, _) =>
-                    create(references))
-                .Returns(default(ValueTask));
-            return manager.Object;
-        }
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => ["urn:test:startup-reference"];
 
-        private static MasterNodeManager CreateMaster(ArrayOf<IAsyncNodeManager> managers)
-        {
-            var factory = new Mock<IMainNodeManagerFactory>();
-            factory.Setup(value => value.CreateConfigurationNodeManager())
-                .Returns(Mock.Of<IConfigurationNodeManager>());
-            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
-                .Returns(Mock.Of<ICoreNodeManager>());
-            var server = new Mock<IServerInternal>();
-            var namespaces = new NamespaceTable();
-            namespaces.Append("urn:test:server");
-            server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
-            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
-            server.SetupGet(value => value.Factory).Returns(EncodeableFactory.Create());
-            server.SetupGet(value => value.Telemetry).Returns(NUnitTelemetryContext.Create());
-            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
-            return new MasterNodeManager(
-                server.Object,
-                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
-                null,
-                managers.ToArray(),
-                null);
-        }
+            /// <summary>
+            /// Gets the factory's own reference table, retained for publication assertions.
+            /// </summary>
+            internal IDictionary<NodeId, IList<IReference>> Contributions { get; private set; } = null!;
 
-        private sealed class MutableReference : IReference
-        {
-            public MutableReference(IReference reference)
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
             {
-                ReferenceTypeId = reference.ReferenceTypeId;
-                IsInverse = reference.IsInverse;
-                TargetId = reference.TargetId;
+                cancellationToken.ThrowIfCancellationRequested();
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.SetupGet(value => value.NamespaceUris).Returns(["urn:test:startup-reference"]);
+                manager.Setup(value => value.CreateAddressSpaceAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                    .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>((references, _) =>
+                    {
+                        Contributions = references;
+                        create(references);
+                    })
+                    .Returns(default(ValueTask));
+                return new ValueTask<IAsyncNodeManager>(manager.Object);
+            }
+        }
+
+        /// <summary>
+        /// Exercises the legacy preconstructed-hosting boundary without a private factory.
+        /// </summary>
+        private sealed class PreconstructedServer : StandardServer
+        {
+            /// <summary>
+            /// Creates a disposable compatibility manager without initializing its address space.
+            /// </summary>
+            internal PreconstructedServer(ITelemetryContext telemetry)
+                : base(telemetry)
+            {
+                m_manager.As<IDisposable>();
             }
 
-            public NodeId ReferenceTypeId { get; set; }
+            /// <summary>
+            /// Verifies rejection precedes application initialization and still releases construction ownership.
+            /// </summary>
+            internal void VerifyRejectedManagerCleanup()
+            {
+                m_manager.Verify(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()), Times.Never);
+                m_manager.As<IDisposable>().Verify(manager => manager.Dispose(), Times.Once);
+            }
 
-            public bool IsInverse { get; set; }
+            /// <inheritdoc/>
+            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IMasterNodeManager>(new MasterNodeManager(
+                    server, configuration, null, [m_manager.Object]));
+            }
 
-            public ExpandedNodeId TargetId { get; set; }
+            /// <summary>The preconstructed instance retained for exact cleanup assertions.</summary>
+            private readonly Mock<IAsyncNodeManager> m_manager = new();
         }
     }
 }

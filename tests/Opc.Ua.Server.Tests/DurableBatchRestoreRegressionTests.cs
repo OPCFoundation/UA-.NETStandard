@@ -355,6 +355,121 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.Dequeue(out _), Is.False);
         }
 
+        /// <summary>
+        /// A stored data-change queue whose single batch is both the enqueue and the dequeue
+        /// batch restores one shared batch, so values enqueued after the restore are dequeued
+        /// in order instead of faulting the publish with an empty dequeue batch.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(3)]
+        public void RestoredDataChangeQueueDeliversValuesEnqueuedAfterRestore(int count)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var persistor = new Mock<IBatchPersistor>();
+            using var queue = new DurableDataChangeMonitoredItemQueue(
+                true, 1, persistor.Object, telemetry);
+            queue.ResetQueue(100, false);
+            for (int i = 1; i <= count; i++)
+            {
+                queue.Enqueue(new DataValue(new Variant(i)), null!);
+            }
+
+            StorableDataChangeQueue stored = RoundTrip(
+                queue.ToStorableQueue(),
+                ServiceMessageContext.Create(telemetry));
+            Assert.That(stored.DequeueBatch, Is.Null);
+            using var restored = new DurableDataChangeMonitoredItemQueue(stored, persistor.Object);
+            restored.Enqueue(new DataValue(new Variant(count + 1)), null!);
+
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(count + 1));
+            for (int i = 1; i <= count + 1; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True, $"value {i}");
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(i));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+        }
+
+        /// <summary>
+        /// Files written before the shared data-change batch was stored once hold the same
+        /// batch in both slots; it is restored once, so every value is delivered once.
+        /// </summary>
+        [Test]
+        public void LegacyFileWithSharedDataChangeBatchInBothSlotsRestoresOnce()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var batch = new DataChangeBatch(
+                [
+                    (new DataValue(new Variant(1)), null),
+                    (new DataValue(new Variant(2)), null)
+                ],
+                1000,
+                6);
+
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                // the previous writer: queue header, then the same batch as enqueue and dequeue batch.
+                encoder.WriteBoolean(null, true);
+                encoder.WriteUInt32(null, 6);
+                encoder.WriteInt32(null, 2);
+                encoder.WriteUInt32(null, 100);
+                WriteLegacyDataChangeBatch(encoder, batch);
+                WriteLegacyDataChangeBatch(encoder, batch);
+                encoder.WriteInt32(null, 0);
+            }
+            stream.Position = 0;
+            StorableDataChangeQueue template;
+            using (var decoder = new BinaryDecoder(stream, context, true))
+            {
+                template = DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
+            }
+            Assert.That(template.DequeueBatch, Is.Null);
+
+            using var restored = new DurableDataChangeMonitoredItemQueue(
+                template, new Mock<IBatchPersistor>().Object);
+            restored.Enqueue(new DataValue(new Variant(3)), null!);
+            Assert.That(restored.ItemsInQueue, Is.EqualTo(3));
+            for (int i = 1; i <= 3; i++)
+            {
+                Assert.That(restored.Dequeue(out DataValue value, out _), Is.True, $"value {i}");
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(i));
+            }
+            Assert.That(restored.Dequeue(out _, out _), Is.False);
+        }
+
+        private static void WriteLegacyDataChangeBatch(BinaryEncoder encoder, DataChangeBatch batch)
+        {
+            encoder.WriteBoolean(null, true);
+            encoder.WriteGuid(null, batch.Id);
+            encoder.WriteUInt32(null, batch.BatchSize);
+            encoder.WriteUInt32(null, batch.MonitoredItemId);
+            encoder.WriteBoolean(null, false);
+            encoder.WriteInt32(null, batch.Values.Count);
+            foreach ((DataValue value, ServiceResult? _) in batch.Values)
+            {
+                encoder.WriteDataValue(null, value);
+                encoder.WriteStatusCode(null, StatusCodes.Good);
+            }
+        }
+
+        private static StorableDataChangeQueue RoundTrip(
+            StorableDataChangeQueue original,
+            IServiceMessageContext context)
+        {
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                DurableMonitoredItemQueueFactory.EncodeDataChangeQueue(encoder, original);
+            }
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context, true);
+            return DurableMonitoredItemQueueFactory.DecodeDataChangeQueue(decoder);
+        }
+
         private static void WriteLegacyEventBatch(BinaryEncoder encoder, EventBatch batch)
         {
             encoder.WriteBoolean(null, true);

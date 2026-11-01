@@ -28,18 +28,113 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Identifies lifecycle operations that a callback may re-enter without reacquiring its current admission.
+    /// </summary>
+    [Flags]
+    internal enum NodeManagerAdmissionCapability
+    {
+        /// <summary>
+        /// No re-entry capability is granted.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// The callback may publish address-space changes.
+        /// </summary>
+        AddressSpaceMutation = 1,
+
+        /// <summary>
+        /// The callback may publish server lifecycle changes.
+        /// </summary>
+        ServerLifecycle = 2
+    }
+
+    /// <summary>
+    /// Carries semantic host admission for one lifecycle batch commit.
+    /// </summary>
+    internal interface INodeManagerBatchAdmission : IDisposable
+    {
+        /// <summary>
+        /// Determines whether the host granted the specified lifecycle capability.
+        /// </summary>
+        /// <param name="capability">The capability to check.</param>
+        /// <returns>True when the capability is currently available.</returns>
+        bool Includes(NodeManagerAdmissionCapability capability);
+
+        /// <summary>
+        /// Releases the specified lifecycle capability before an external durable decision.
+        /// </summary>
+        /// <param name="capability">The capability to release.</param>
+        void Release(NodeManagerAdmissionCapability capability);
+    }
+
+    /// <summary>
+    /// Carries semantic capabilities for lifecycle re-entry from a manager callback.
+    /// </summary>
+    internal sealed class NodeManagerCallbackPermit : IAsyncDisposable
+    {
+        /// <summary>
+        /// Establishes a scoped permit in the current asynchronous execution context.
+        /// </summary>
+        /// <param name="current">The execution-context slot for callback permits.</param>
+        /// <param name="capabilities">The lifecycle capabilities granted to the callback.</param>
+        internal NodeManagerCallbackPermit(
+            AsyncLocal<NodeManagerCallbackPermit?> current,
+            NodeManagerAdmissionCapability capabilities)
+        {
+            m_current = current;
+            Previous = current.Value;
+            Capabilities = capabilities;
+            current.Value = this;
+        }
+
+        /// <summary>
+        /// Gets the preceding callback permit.
+        /// </summary>
+        internal NodeManagerCallbackPermit? Previous { get; }
+
+        /// <summary>
+        /// Gets the lifecycle capabilities granted to this callback.
+        /// </summary>
+        internal NodeManagerAdmissionCapability Capabilities { get; }
+
+        /// <summary>
+        /// Gets whether this permit remains active.
+        /// </summary>
+        internal bool IsActive => Volatile.Read(ref m_active) != 0;
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            Volatile.Write(ref m_active, 0);
+            RestoreContext();
+            return default;
+        }
+
+        private void RestoreContext()
+        {
+            if (ReferenceEquals(m_current.Value, this))
+            {
+                m_current.Value = Previous;
+            }
+        }
+
+        private readonly AsyncLocal<NodeManagerCallbackPermit?> m_current;
+        private int m_active = 1;
+    }
+
+    /// <summary>
     /// Carries the candidate routing image and callbacks for a batch publication.
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
     /// <param name="Removed">The node managers removed by the batch.</param>
-    /// <param name="ImmediateRetirements">The removed managers that retire without draining.</param>
-    /// <param name="RoutingRevision">The routing image the batch was prepared against.</param>
     /// <param name="TypeTree">The candidate type tree.</param>
     /// <param name="OriginalTypes">The type tree the batch was prepared against.</param>
     /// <param name="TypeRevision">The revision of the original type tree.</param>
@@ -48,15 +143,22 @@ namespace Opc.Ua.Server
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
     /// <param name="DecideAsync">The callback deciding whether to publish, or null to validate only.</param>
+    /// <param name="ViewPublished">The callback marking the routing-view commit point.</param>
     /// <param name="Published">The callback invoked after the candidate has been published.</param>
     /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
+    /// <param name="DeferReferenceRemoval">
+    /// The callback recording external reference removals that cannot be applied to a staged NodeState.
+    /// </param>
     /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
+    /// <param name="Preparation">The explicit private metadata staging context.</param>
+    /// <param name="Reconciliation">The server-owned post-commit checkpoints.</param>
+    /// <param name="References">Reference edits discovered before publication serialization.</param>
+    /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
+    /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
-        ArrayOf<IAsyncNodeManager> ImmediateRetirements,
-        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
         TypeTable TypeTree,
         TypeTable OriginalTypes,
         long TypeRevision,
@@ -65,13 +167,20 @@ namespace Opc.Ua.Server
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
         Func<CancellationToken, ValueTask>? DecideAsync,
-        Action Published,
+        Action ViewPublished,
+        Func<ValueTask> Published,
         Func<ValueTask> ReconcileBindingsAsync,
+        Action<IAsyncNodeManager, List<LocalReference>> DeferReferenceRemoval,
         Action<Exception> ReportCleanupFailure,
-        CancellationToken CancellationToken);
+        ChangePreparer Preparation,
+        GenerationReconciler.ReconciliationWork Reconciliation,
+        CancellationToken CancellationToken,
+        PreparedAddressSpaceReferences? References = null,
+        NodeManagerCallbackPermit? CallbackPermit = null,
+        INodeManagerBatchAdmission? Admission = null);
 
     /// <summary>
-    /// Optional host support for a single prepared routing publication.
+    /// Publication responsibilities of the unified dynamic NodeManager host.
     /// </summary>
     internal interface IDynamicNodeManagerBatchHost
     {
@@ -81,47 +190,41 @@ namespace Opc.Ua.Server
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
 
         /// <summary>
-        /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
+        /// Captures the callback permit associated with the current asynchronous execution context.
         /// </summary>
-        /// <returns>A scope that restores the previous routing when disposed.</returns>
-        IDisposable UseLiveRouting();
+        /// <returns>The current callback permit, if present.</returns>
+        NodeManagerCallbackPermit? CaptureLifecycleCallbackPermit();
 
         /// <summary>
-        /// Uses a private type image while preparing or discarding a candidate.
+        /// Stops routing item deletions to a retired generation after its all-events bindings were released.
         /// </summary>
-        /// <param name="typeTree">The private type tree to use.</param>
-        /// <param name="factory">The private encodeable factory to use.</param>
-        /// <returns>A scope that restores the previous type image when disposed.</returns>
-        IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
+        /// <param name="generation">The retired generation whose bindings were released.</param>
+        void ReleaseRetiringEventGeneration(NodeManagerGeneration generation);
 
         /// <summary>
-        /// Releases the binding admission captured for the specified request context while a callback waits for
-        /// and executes lifecycle work. A null or unadmitted context is an ordinary external caller and suspends
-        /// nothing. Async disposal resumes admission after lifecycle serialization has been released.
+        /// Resolves reference owners under the captured view without holding lifecycle mutation ownership.
         /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
-        IAsyncDisposable SuspendBindingAdmission(IOperationContext? context);
+        /// <param name="candidates">Private additions and replacements.</param>
+        /// <param name="removed">Explicit removals.</param>
+        /// <param name="view">The serving view captured by the transaction.</param>
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
+        /// <param name="cancellationToken">Cancels reference discovery.</param>
+        /// <returns>The versioned reference edits to reserve before deciding.</returns>
+        ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken,
+            NodeManagerCallbackPermit? callbackPermit = null);
 
         /// <summary>
-        /// Checks whether the request admitted for the context is already removing this exact monitored item.
-        /// A null or unadmitted context is removing nothing.
+        /// Acquires all required host admission capabilities without retaining a partial set while waiting.
         /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <param name="monitoredItem">The monitored item to check.</param>
-        /// <returns><c>true</c> if the admitted operation is removing the item.</returns>
-        bool IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Dispatches Session activation and its notifications against the published bindings.
-        /// </summary>
-        /// <param name="context">The ActivateSession request context, or null for an independent caller.</param>
-        /// <param name="activateAsync">The callback performing the Session activation.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The server nonce and activation status produced by <paramref name="activateAsync"/>.</returns>
-        ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
-            IOperationContext? context,
-            Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
+        /// <param name="callbackPermit">The callback permit captured when preparation began, if any.</param>
+        /// <param name="cancellationToken">The token used to cancel admission.</param>
+        /// <returns>The semantic admission granted by the host.</returns>
+        ValueTask<INodeManagerBatchAdmission> AcquireCommitAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
             CancellationToken cancellationToken);
 
         /// <summary>

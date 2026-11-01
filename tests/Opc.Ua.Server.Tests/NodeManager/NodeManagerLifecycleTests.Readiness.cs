@@ -46,6 +46,78 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kReadinessProbeNamespaceUri = kModelNamespaceUri + ":ReadinessProbe";
 
         /// <summary>
+        /// Reconciliation permits a nested writer while its result retains the revision and slots it published.
+        /// </summary>
+        [Test]
+        public async Task BindingReconciliationAwaitsNestedAddWithoutChangingPublishedResultAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }), null, timeout.Token)
+                .ConfigureAwait(false);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? child = null;
+            NodeManagerRegistration? childRegistration = null;
+            long revisionBeforeChild = 0;
+            var childFactory = new CountingNodeManagerFactory(
+                [kReadinessProbeNamespaceUri],
+                CreateTrackingNodeManagementFactory(
+                    304, value => child = value, kReadinessProbeNamespaceUri).CreateAsync);
+            try
+            {
+                await using IPreparedNodeManagerBatch prepared =
+                    await ((INodeManagerBatchLifecycle)lifecycle).PrepareAsync(
+                        [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                            kSecondRegistrationValue,
+                            value =>
+                            {
+                                candidate = value;
+                                value.AllEventsCallback = async (item, unsubscribe, token) =>
+                                {
+                                    if (!unsubscribe && item.Id == itemId)
+                                    {
+                                        revisionBeforeChild = lifecycle.Revision;
+                                        childRegistration = await lifecycle.AddAsync(
+                                            childFactory, null, token).ConfigureAwait(false);
+                                    }
+                                };
+                            },
+                            kSecondModelNamespaceUri))],
+                        null, timeout.Token).ConfigureAwait(false);
+
+                NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, timeout.Token)
+                    .AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                AssertLifecycleValue(candidate);
+                AssertLifecycleValue(child);
+                AssertLifecycleValue(childRegistration);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    Assert.That(result.Revision, Is.EqualTo(revisionBeforeChild));
+                    Assert.That(lifecycle.Revision, Is.GreaterThan(result.Revision));
+                    Assert.That(result.Slots.ToList(), Does.Contain(result.Registrations[0].Slot));
+                    Assert.That(result.Slots.ToList(), Does.Not.Contain(childRegistration.Slot));
+                    Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(child.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(childFactory.CreateCount, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                if (candidate is not null)
+                {
+                    candidate.AllEventsCallback = (_, _, _) => default;
+                }
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Readiness runs on the published manager, can register a real child, and remains
         /// part of the Add operation even when a synchronous factory exposes both adapters.
         /// </summary>
@@ -73,7 +145,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Generation, Is.EqualTo(1));
                         AssertReadinessManager(observed, manager, synchronousFactory);
@@ -175,7 +247,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Id, Is.EqualTo(original.Id));
                         Assert.That(observed.Generation, Is.EqualTo(2));
@@ -228,6 +300,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(next.Generation, Is.EqualTo(2));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+            await originalManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
@@ -285,7 +358,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
-            Assert.That(participant.Find(ReadinessNodeId(kModelNamespaceUri, kValueNodeId)), Is.Null);
+            NodeId candidateValueId = new(
+                kValueNodeId, (ushort)participant.Server.NamespaceUris.GetIndex(kModelNamespaceUri));
+            Assert.That(participant.Find(candidateValueId), Is.Null);
             if (reload)
             {
                 AssertLifecycleValue(original);
@@ -299,7 +374,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             else
             {
-                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
+                DataValue missing = await ReadValueAsync(candidateValueId).ConfigureAwait(false);
+                Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             }
             Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
         }
@@ -326,7 +403,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
                             .ConfigureAwait(false);
@@ -334,13 +411,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     };
                 },
                 timeout.Token);
-            InvalidOperationException failure = await ExpectReadinessExceptionAsync<InvalidOperationException>(
+            NodeManagerAddCommittedException failure =
+                await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(
                 operation).ConfigureAwait(false);
             AssertLifecycleValue(participant);
             AssertLifecycleValue(observed);
 
             Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
             Assert.That(failure.InnerException, Is.SameAs(expected));
+            Assert.That(failure.Registration, Is.SameAs(observed));
             Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
             Assert.That(observed.Generation, Is.EqualTo(1));
             Assert.That(observed.NodeManager, Is.SameAs(participant));
@@ -348,18 +427,133 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
             await AssertReadinessCleanupAndRecoveryAsync(observed, participant).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Both cancellation from the participant and a cancelled caller whose
-        /// participant returns normally must fail Add without losing committed identity.
+        /// A readiness retry owns its pending registration until the callback attempt completes.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task ReadinessRetryRejectsRemovalWhileCallbackIsActiveAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var expected = new SentinelException("Published Add readiness failed before retry.");
+            var retryEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRetry = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int attempts = 0;
+            ReadinessLifecycleNodeManager? participant = null;
+            Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    participant = manager;
+                    manager.ReadinessCallback = async ct =>
+                    {
+                        if (Interlocked.Increment(ref attempts) == 1)
+                        {
+                            throw expected;
+                        }
+                        retryEntered.TrySetResult(true);
+                        await releaseRetry.Task.WaitAsync(ct).ConfigureAwait(false);
+                    };
+                },
+                timeout.Token);
+            NodeManagerAddCommittedException failure =
+                await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
+                    .ConfigureAwait(false);
+            NodeManagerBatchResult result = failure.Result ??
+                throw new AssertionException("The committed Add result was not retained.");
+
+            Task retry = result.RetryReconciliationAsync(timeout.Token).AsTask();
+            try
+            {
+                await retryEntered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                InvalidOperationException removeFailure =
+                    await ExpectReadinessExceptionAsync<InvalidOperationException>(
+                        m_server.NodeManagerLifecycle.RemoveAsync(
+                            failure.Registration, null, timeout.Token).AsTask()).ConfigureAwait(false);
+                Assert.That(removeFailure.Message, Does.Contain("completing readiness"));
+            }
+            finally
+            {
+                releaseRetry.TrySetResult(true);
+            }
+
+            await retry.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            Assert.That(result.Issues.ToArray(), Is.Empty);
+            await RemoveReadinessRegistrationAsync(failure.Registration, participant).ConfigureAwait(false);
+            Assert.That(participant!.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(participant.DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Replacing a service-level owner revokes its writer before the replacement readiness callback claims it.
+        /// </summary>
+        [Test]
+        public async Task ReplacingServiceLevelOwnerRevokesWriterForNextGenerationAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            Action<byte>? retiredWriter = null;
+            Action<byte>? replacementWriter = null;
+            ReadinessLifecycleNodeManager? retiredManager = null;
+            ReadinessLifecycleNodeManager? replacementManager = null;
+            NodeManagerRegistration registration = await StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    retiredManager = manager;
+                    manager.ReadinessCallback = _ =>
+                    {
+                        retiredWriter = ((IServerServiceLevelControl)manager.SystemContext.Server)
+                            .ClaimServiceLevelControl();
+                        return default;
+                    };
+                },
+                timeout.Token).ConfigureAwait(false);
+
+            NodeManagerRegistration replacement = await StartReadinessChangeAsync(
+                ReadinessChange.Reload,
+                registration,
+                synchronousFactory: false,
+                kGeneration2Value,
+                manager =>
+                {
+                    replacementManager = manager;
+                    manager.ReadinessCallback = _ =>
+                    {
+                        replacementWriter = ((IServerServiceLevelControl)manager.SystemContext.Server)
+                            .ClaimServiceLevelControl();
+                        return default;
+                    };
+                },
+                timeout.Token).ConfigureAwait(false);
+
+            AssertLifecycleValue(retiredManager);
+            AssertLifecycleValue(replacementManager);
+            Assert.That(replacement.Generation, Is.EqualTo(registration.Generation + 1));
+            Assert.That(retiredWriter, Is.Not.Null);
+            Assert.That(replacementWriter, Is.Not.Null);
+            Assert.That(() => retiredWriter!(10), Throws.TypeOf<InvalidOperationException>());
+            replacementWriter!(20);
+            await RemoveReadinessRegistrationAsync(replacement).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Caller cancellation cannot abort committed readiness. Independent participant cancellation
+        /// is reported with the authoritative committed identity.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         [Category("NodeManagerReadiness")]
-        public async Task AddAsyncReadinessCancellationRetainsRegistrationForCleanupAsync(bool observeCancellation)
+        public async Task AddAsyncReadinessCancellationPreservesCommittedOutcomeAsync(bool observeCancellation)
         {
             using var caller = new CancellationTokenSource(s_readinessTimeout);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -383,14 +577,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
                             .ConfigureAwait(false);
                         entered.TrySetResult(true);
-                        // Intentionally independent of ct: the false case requires the
-                        // lifecycle's post-callback cancellation check to reject success.
                         await release.Task.WaitAsync(s_readinessTimeout, CancellationToken.None).ConfigureAwait(false);
                         if (observeCancellation)
                         {
                             try
                             {
-                                ct.ThrowIfCancellationRequested();
+                                caller.Token.ThrowIfCancellationRequested();
                             }
                             catch (OperationCanceledException exception)
                             {
@@ -402,32 +594,46 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 caller.Token);
 
-            InvalidOperationException? failure = null;
+            NodeManagerAddCommittedException? failure = null;
+            NodeManagerRegistration? added = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                Assert.That(receivedToken, Is.EqualTo(caller.Token));
+                Assert.That(receivedToken.CanBeCanceled, Is.False);
                 Assert.That(operation.IsCompleted, Is.False);
                 caller.Cancel();
             }
             finally
             {
                 release.TrySetResult(true);
-                failure = await ExpectReadinessExceptionAsync<InvalidOperationException>(operation)
-                    .ConfigureAwait(false);
+                if (observeCancellation)
+                {
+                    failure = await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    added = await operation.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                }
             }
 
-            AssertLifecycleValue(failure);
             AssertLifecycleValue(participant);
             AssertLifecycleValue(observed);
-            Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
-            Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
-            Assert.That(
-                RequireLifecycleValue(failure.InnerException as OperationCanceledException).CancellationToken,
-                Is.EqualTo(caller.Token));
             if (observeCancellation)
             {
+                AssertLifecycleValue(failure);
+                Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
+                Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
+                Assert.That(
+                    RequireLifecycleValue(failure.InnerException as OperationCanceledException).CancellationToken,
+                    Is.EqualTo(caller.Token));
                 Assert.That(failure.InnerException, Is.SameAs(callbackCancellation));
+                Assert.That(failure.Registration, Is.SameAs(observed));
+                Assert.That(failure.Result!.Registrations[0], Is.SameAs(observed));
+            }
+            else
+            {
+                Assert.That(added, Is.SameAs(observed));
             }
             Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
             Assert.That(observed.Generation, Is.EqualTo(1));
@@ -436,7 +642,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(observeCancellation ? 0 : 1));
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            if (observeCancellation)
+            {
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            }
+            else
+            {
+                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value).ConfigureAwait(false);
+            }
             await AssertReadinessCleanupAndRecoveryAsync(observed, participant).ConfigureAwait(false);
         }
 
@@ -479,7 +692,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(caller.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Id, Is.EqualTo(original.Id));
                         Assert.That(observed.Generation, Is.EqualTo(2));
@@ -488,7 +701,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         if (cancel)
                         {
                             caller.Cancel();
-                            Assert.That(ct.IsCancellationRequested, Is.True);
+                            Assert.That(ct.IsCancellationRequested, Is.False);
                         }
                         throw expected;
                     };
@@ -511,9 +724,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
+            await originalManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
-            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+            // The replacement is live but never completed readiness, so external reads stay hidden.
+            await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? rejectedManager = null;
+            using var rejectTimeout = new CancellationTokenSource(s_readinessTimeout);
+            Assert.That(
+                () => lifecycle.ReloadAsync(
+                    failure.Registration,
+                    CreateTrackingNodeManagementFactory(
+                        kFirstRegistrationValue,
+                        manager => rejectedManager = manager),
+                    rejectTimeout.Token).AsTask().WaitAsync(s_readinessTimeout),
+                Throws.InvalidOperationException);
+            Assert.That(rejectedManager, Is.Null);
             await AssertReadinessCleanupAndRecoveryAsync(failure.Registration, participant).ConfigureAwait(false);
         }
 
@@ -575,6 +801,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         lifecycle.RemoveAsync(observed, null, timeout.Token).AsTask()).ConfigureAwait(false);
                 Assert.That(removeFailure.Message, Does.Contain("completing readiness"));
 
+                asyncReplacement.SetupGet(factory => factory.NamespacesUris).Returns([]);
+                syncReplacement.SetupGet(factory => factory.NamespacesUris).Returns([]);
                 ReadinessChange[] reloads =
                 [
                     ReadinessChange.Reload,
@@ -640,7 +868,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(independentManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independentManager.DisposeCount, Is.EqualTo(1));
                 await AssertReadinessNodeUnknownAsync(kSecondModelNamespaceUri).ConfigureAwait(false);
-                await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
                 Assert.That(operation.IsCompleted, Is.False);
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
                 Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
@@ -658,6 +886,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(completed, Is.SameAs(observed));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+            await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
             await RemoveReadinessRegistrationAsync(completed).ConfigureAwait(false);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
@@ -716,8 +945,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await releaseDelete.Task.WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                         using var nestedTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         nestedTimeout.CancelAfter(s_readinessTimeout);
-                        await lifecycle.RemoveAsync(RequireLifecycleValue(child), null, nestedTimeout.Token)
-                            .AsTask().WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
+                        await RemoveAndRetireAsync(lifecycle, RequireLifecycleValue(child), nestedTimeout.Token)
+                            .WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                     };
                 },
                 timeout.Token).WaitAsync(s_readinessTimeout).ConfigureAwait(false);
@@ -727,7 +956,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             uint subscriptionId = 0;
-            bool shadowRetired = false;
             Task? cleanupTask = null;
             Task<NodeManagerRegistration>? reloadTask = null;
             NodeManagerRegistration? replacement = null;
@@ -735,45 +963,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (cleanup == ReadinessCleanup.ShadowDrain)
                 {
-                    uint monitoredItemId;
-                    (subscriptionId, monitoredItemId) = await CreateSubscriptionWithMonitoredItemAsync(
+                    // The monitored item migrates at commit; the test separately awaits physical retirement.
+                    (subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
                         services,
                         ReadinessNodeId(kModelNamespaceUri, kValueNodeId))
                         .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    replacement = await lifecycle.ShadowReloadAsync(
-                        original,
-                        CreateTrackingNodeManagementFactory(
-                            kGeneration2Value,
-                            manager => replacementManager = manager),
-                        timeout.Token).AsTask().WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    shadowRetired = true;
-                    Assert.That(parentManager.DeleteAddressSpaceCount, Is.Zero);
-                    Assert.That(parentManager.DisposeCount, Is.Zero);
-                    Assert.That(
-                        RequireLifecycleValue(parentManager.Find(
-                            ReadinessNodeId(kModelNamespaceUri, kValueNodeId)) as BaseVariableState).Value,
-                        Is.EqualTo(kGeneration1Value));
-                    await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
-                    cleanupTask = parentManager.DisposalCompleted;
-                    await DeleteMonitoredItemAsync(services, subscriptionId, monitoredItemId)
-                        .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                 }
-                else if (cleanup == ReadinessCleanup.Reload)
+                reloadTask = RunWithoutExecutionContext(async () =>
                 {
-                    reloadTask = RunWithoutExecutionContext(() => lifecycle.ReloadAsync(
-                        original,
-                        CreateTrackingNodeManagementFactory(
-                            kGeneration2Value,
-                            manager => replacementManager = manager),
-                        null,
-                        timeout.Token).AsTask());
-                    cleanupTask = reloadTask;
-                }
-                else
-                {
-                    cleanupTask = RunWithoutExecutionContext(
-                        () => lifecycle.RemoveAsync(original, null, timeout.Token).AsTask());
-                }
+                    NodeManagerBatchChange change = cleanup == ReadinessCleanup.Remove
+                        ? NodeManagerBatchChange.Remove(original)
+                        : NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
+                            kGeneration2Value, manager => replacementManager = manager));
+                    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [change], timeout.Token).ConfigureAwait(false);
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    await result.Retirement.WaitAsync(s_readinessTimeout, timeout.Token).ConfigureAwait(false);
+                    return cleanup == ReadinessCleanup.Remove ? original : result.Registrations[0];
+                });
+                cleanupTask = reloadTask;
 
                 await deleteEntered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                 Assert.That(cleanupTask.IsCompleted, Is.False);
@@ -840,14 +1050,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await DeleteSubscriptionAsync(services, subscriptionId)
                             .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                     }
-                    if (shadowRetired)
-                    {
-                        await parentManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    }
                 }
             }
 
-            if (reloadTask is not null)
+            if (reloadTask is not null && cleanup != ReadinessCleanup.Remove)
             {
                 replacement = await reloadTask.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             }
@@ -1034,8 +1240,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool synchronousFactory = false)
         {
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token)
-                .AsTask().WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, registration, timeout.Token)
+                .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             if (synchronousFactory)
             {
                 // The legacy sync facade does not own disposal of its underlying async
@@ -1104,7 +1310,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int DisposeCount => Volatile.Read(ref m_disposeCount);
 
+            public int HistoryUpdateCount => Volatile.Read(ref m_historyUpdateCount);
+
             public Task DisposalCompleted => m_disposed.Task;
+
+            public ValueTask ReportRootEventAsync(string message, CancellationToken cancellationToken)
+            {
+                NodeState root = RequireLifecycleValue(Find(new NodeId(kRootNodeId, NamespaceIndexes[0])));
+                var occurrence = new BaseEventState(null);
+                occurrence.Initialize(SystemContext, root, EventSeverity.Medium, new LocalizedText(message));
+                return OnReportEventAsync(SystemContext, root, occurrence, cancellationToken);
+            }
+
+            public override ValueTask HistoryUpdateAsync(
+                OperationContext context,
+                Type detailsType,
+                ArrayOf<HistoryUpdateDetails> nodesToUpdate,
+                IList<HistoryUpdateResult> results,
+                IList<ServiceResult> errors,
+                CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_historyUpdateCount);
+                return base.HistoryUpdateAsync(
+                    context, detailsType, nodesToUpdate, results, errors, cancellationToken);
+            }
 
             public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
             {
@@ -1153,6 +1382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_readinessCompletedCount;
             private int m_deleteAddressSpaceCount;
             private int m_disposeCount;
+            private int m_historyUpdateCount;
         }
 
         /// <summary>

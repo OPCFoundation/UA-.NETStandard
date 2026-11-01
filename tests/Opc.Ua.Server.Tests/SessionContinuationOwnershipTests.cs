@@ -265,7 +265,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void OwnershipRecognizesEquivalentSynchronousAdapters()
+        public void ContinuationOwnershipUsesExactGenerationIdentity()
         {
             var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 2, null);
             var sync = new Mock<INodeManager>();
@@ -275,10 +275,10 @@ namespace Opc.Ua.Server.Tests
             lookup.SetupGet(manager => manager.SyncNodeManager).Returns(sync.Object);
             using ContinuationPoint point = CreatePoint(creating.Object);
             holder.SaveBrowse(point);
-            Assert.That(holder.HasBrowseForManager(lookup.Object), Is.True);
+            Assert.That(holder.HasBrowseForManager(lookup.Object), Is.False);
             holder.RemoveForManager(lookup.Object);
-            Assert.That(holder.HasBrowseForManager(creating.Object), Is.False);
-            Assert.That(holder.RestoreBrowse(point.Id.ToByteArray().ToByteString()), Is.Null);
+            Assert.That(holder.HasBrowseForManager(creating.Object), Is.True);
+            Assert.That(holder.RestoreBrowse(point.Id.ToByteArray().ToByteString()), Is.SameAs(point));
         }
 
         [Test]

@@ -36,8 +36,8 @@ namespace Opc.Ua.Server
     /// Stores information used while a thread is completing an operation on behalf of a client.
     /// <para>
     /// A context created for a Client request owns that request's tracking scope, so disposing the
-    /// context reports the request as completed. Contexts created for internal work, such as
-    /// sampling a MonitoredItem, own no scope and disposing them does nothing.
+    /// context reports the request as completed. Internal contexts own no request tracking scope.
+    /// Service calls borrowing an unpinned context share one routing view until their last scope exits.
     /// </para>
     /// </summary>
     public class OperationContext : ISessionOperationContext, IDisposable, IRequestTableEntry
@@ -198,6 +198,27 @@ namespace Opc.Ua.Server
         /// Gets the authorization epoch captured with the request identity.
         /// </summary>
         internal NotificationAuthorization? NotificationAuthorization { get; }
+
+        /// <summary>
+        /// Gets the routing view explicitly owned by this operation, if it is dispatching a service.
+        /// Internal subscriber contexts without a service scope use live routing.
+        /// </summary>
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; private set; }
+
+        /// <summary>
+        /// Gets whether this operation currently owns a routing-view pin.
+        /// </summary>
+        internal bool HasRoutingPin =>
+            Volatile.Read(ref m_routingPinState) is
+                kRoutingPinActive or kRoutingPinTemporary or kRoutingPinDisposedActive or kRoutingPinCohortOwned;
+
+        /// <summary>
+        /// Gets whether this operation's pin protects the currently selected routing view.
+        /// </summary>
+        internal bool RoutingPinMatchesSnapshot =>
+            RoutingSnapshot is { } snapshot &&
+            HasRoutingPin &&
+            ReferenceEquals(Volatile.Read(ref m_routingEpoch), snapshot.Epoch);
 
         /// <summary>
         /// The lifetime of the request.
@@ -367,9 +388,9 @@ namespace Opc.Ua.Server
         public string AuditEntryId { get; } = null!;
 
         /// <summary>
-        /// Reports the request as completed and releases any lifecycle operation waiting for it.
-        /// Disposing a context that does not track a request does nothing, and disposing the same
-        /// context twice is safe.
+        /// Reports the request as completed and releases context-owned routing.
+        /// Active borrowed service scopes retain their admission until the last scope exits.
+        /// Disposing the same context twice is safe; a disposed context cannot capture another view.
         /// </summary>
         public void Dispose()
         {
@@ -393,8 +414,199 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    try
+                    {
+                        ReleaseRoutingPin();
+                    }
+                    finally
+                    {
+                        if (Volatile.Read(ref m_routingCohort) is null)
+                        {
+                            RoutingSnapshot = null;
+                        }
+                        System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Pins the current routing view once for this request before admission or service callbacks run.
+        /// Subsequent calls are no-ops and do not replace the view.
+        /// </summary>
+        /// <param name="routingTable">The routing table providing the current published view.</param>
+        internal void PinRouting(NodeManagerRoutingTable routingTable)
+        {
+            if (routingTable is null)
+            {
+                throw new ArgumentNullException(nameof(routingTable));
+            }
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    cohort.PinRouting(routingTable);
+                    return;
+                }
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    return;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinAcquiring,
+                    kRoutingPinUnclaimed) == kRoutingPinUnclaimed)
+                {
+                    break;
+                }
+            }
+
+            AcquireRoutingPin(routingTable, kRoutingPinActive);
+        }
+
+        /// <summary>
+        /// Enters a service view without transferring a borrowed context's pin to its caller.
+        /// Overlapping and nested calls share the view until quiescence; continuous overlap can extend it.
+        /// </summary>
+        /// <param name="routingTable">The routing table providing the published view.</param>
+        /// <returns>The scope releasing this service's temporary ownership.</returns>
+        internal RoutingScope CaptureRouting(NodeManagerRoutingTable routingTable)
+        {
+            if (routingTable is null)
+            {
+                throw new ArgumentNullException(nameof(routingTable));
+            }
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    return cohort.Enter(routingTable);
+                }
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    return default;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState, kRoutingPinAcquiring, kRoutingPinUnclaimed) != kRoutingPinUnclaimed)
+                {
+                    continue;
+                }
+                try
+                {
+                    return new RoutingCohort(this).Enter(routingTable);
+                }
+                catch
+                {
+                    _ = Interlocked.CompareExchange(
+                        ref m_routingPinState, kRoutingPinUnclaimed, kRoutingPinAcquiring);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Acquires an epoch slot after the caller has reserved pin initialization.
+        /// </summary>
+        private void AcquireRoutingPin(NodeManagerRoutingTable routingTable, int state)
+        {
+            AddressSpaceEpoch? epoch = null;
+            int slot = -1;
+            try
+            {
+                (NodeManagerRoutingTable.RoutingSnapshot snapshot, AddressSpaceEpoch pinnedEpoch, int pinSlot) =
+                    routingTable.PinCurrent();
+                epoch = pinnedEpoch;
+                slot = pinSlot;
+                m_routingEpoch = pinnedEpoch;
+                m_routingPinSlot = pinSlot;
+                RoutingSnapshot = snapshot;
+                Volatile.Write(ref m_routingPinState, state);
+            }
+            catch
+            {
+                if (epoch is not null && slot >= 0)
+                {
+                    epoch.Exit(slot);
+                }
+                m_routingEpoch = null;
+                m_routingPinSlot = -1;
+                RoutingSnapshot = null;
+                _ = Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinUnclaimed,
+                    kRoutingPinAcquiring);
+                throw;
+            }
+        }
+
+        private void ReleaseRoutingPin()
+        {
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingCohort? cohort = Volatile.Read(ref m_routingCohort);
+                if (cohort is not null)
+                {
+                    cohort.DisposeContext();
+                    return;
+                }
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    return;
+                }
+                if (state is kRoutingPinAcquiring or kRoutingPinTemporary or kRoutingPinDisposedActive or
+                    kRoutingPinCohortIdle or kRoutingPinCohortOwned)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinReleased,
+                    state) != state)
+                {
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    AddressSpaceEpoch? epoch = m_routingEpoch;
+                    int slot = m_routingPinSlot;
+                    m_routingEpoch = null;
+                    m_routingPinSlot = -1;
+                    if (epoch is null || slot < 0)
+                    {
+                        throw new InvalidOperationException("An active routing pin has no epoch slot.");
+                    }
+                    epoch.Exit(slot);
+                }
+                return;
             }
         }
 
@@ -614,14 +826,207 @@ namespace Opc.Ua.Server
             m_defaultPermissions = null;
         }
 
+        /// <summary>
+        /// Releases temporary service ownership without changing the execution context.
+        /// </summary>
+        internal readonly struct RoutingScope : IDisposable
+        {
+            /// <summary>
+            /// Creates a scope owning one admission to a borrowed context's routing cohort.
+            /// </summary>
+            internal RoutingScope(IDisposable cohortScope)
+            {
+                m_cohortScope = cohortScope;
+            }
+
+            /// <summary>
+            /// Releases temporary ownership exactly once.
+            /// </summary>
+            public void Dispose()
+            {
+                m_cohortScope?.Dispose();
+            }
+
+            /// <summary>The idempotent admission owned by a borrowed service scope.</summary>
+            private readonly IDisposable? m_cohortScope;
+        }
+
+        /// <summary>
+        /// Serializes borrowed-context ownership without locking ordinary request-owned service dispatch.
+        /// </summary>
+        private sealed class RoutingCohort
+        {
+            /// <summary>
+            /// Creates the ownership state for a context's first borrowed service call.
+            /// </summary>
+            public RoutingCohort(OperationContext context)
+            {
+                m_context = context;
+            }
+
+            /// <summary>
+            /// Joins the current view or pins a fresh view after the previous cohort drained.
+            /// </summary>
+            public RoutingScope Enter(NodeManagerRoutingTable routingTable)
+            {
+                lock (m_lock)
+                {
+                    ThrowIfDisposed();
+                    var scope = new CohortScope(this);
+                    if (m_activeScopes == 0 && !m_contextOwned)
+                    {
+                        m_context.AcquireRoutingPin(routingTable, kRoutingPinTemporary);
+                    }
+                    m_activeScopes++;
+                    Volatile.Write(ref m_context.m_routingCohort, this);
+                    return new RoutingScope(scope);
+                }
+            }
+
+            /// <summary>
+            /// Transfers the current view to explicit context ownership without replacing it.
+            /// </summary>
+            public void PinRouting(NodeManagerRoutingTable routingTable)
+            {
+                lock (m_lock)
+                {
+                    ThrowIfDisposed();
+                    if (!m_contextOwned)
+                    {
+                        if (m_activeScopes == 0)
+                        {
+                            m_context.AcquireRoutingPin(routingTable, kRoutingPinCohortOwned);
+                        }
+                        m_contextOwned = true;
+                        Volatile.Write(ref m_context.m_routingPinState, kRoutingPinCohortOwned);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Rejects new scopes and releases the epoch after any active scopes finish.
+            /// </summary>
+            public void DisposeContext()
+            {
+                lock (m_lock)
+                {
+                    m_disposed = true;
+                    m_contextOwned = false;
+                    if (m_activeScopes == 0)
+                    {
+                        ReleasePin();
+                    }
+                    else
+                    {
+                        Volatile.Write(ref m_context.m_routingPinState, kRoutingPinDisposedActive);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Releases the last temporary owner without making the reusable context terminal.
+            /// </summary>
+            private void Exit()
+            {
+                lock (m_lock)
+                {
+                    m_activeScopes--;
+                    if (m_activeScopes == 0 && !m_contextOwned)
+                    {
+                        ReleasePin();
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Clears the selected view and exits its epoch slot exactly once.
+            /// </summary>
+            private void ReleasePin()
+            {
+                AddressSpaceEpoch? epoch = m_context.m_routingEpoch;
+                int slot = m_context.m_routingPinSlot;
+                m_context.m_routingEpoch = null;
+                m_context.m_routingPinSlot = -1;
+                m_context.RoutingSnapshot = null;
+                Volatile.Write(
+                    ref m_context.m_routingPinState, m_disposed ? kRoutingPinReleased : kRoutingPinCohortIdle);
+                if (epoch is not null)
+                {
+                    epoch.Exit(slot);
+                }
+            }
+
+            /// <summary>
+            /// Rejects pin acquisition after context disposal, even while old scopes still own a view.
+            /// </summary>
+            private void ThrowIfDisposed()
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+            }
+
+            /// <summary>
+            /// Releases one cohort admission once even if a routing scope is copied or disposed twice.
+            /// </summary>
+            private sealed class CohortScope : IDisposable
+            {
+                /// <summary>
+                /// Creates one service admission.
+                /// </summary>
+                public CohortScope(RoutingCohort cohort)
+                {
+                    m_cohort = cohort;
+                }
+
+                /// <inheritdoc/>
+                public void Dispose()
+                {
+                    Interlocked.Exchange(ref m_cohort, null)?.Exit();
+                }
+
+                /// <summary>The cohort awaiting this admission's release.</summary>
+                private RoutingCohort? m_cohort;
+            }
+
+            /// <summary>The context whose identity and selected view remain unchanged.</summary>
+            private readonly OperationContext m_context;
+
+            /// <summary>Serializes acquisition, explicit ownership, and scope release.</summary>
+            private readonly System.Threading.Lock m_lock = new();
+
+            /// <summary>The number of service scopes still using the selected view.</summary>
+            private int m_activeScopes;
+
+            /// <summary>Whether an explicit pin keeps the view after the last service returns.</summary>
+            private bool m_contextOwned;
+
+            /// <summary>Whether disposal forbids new admissions.</summary>
+            private bool m_disposed;
+        }
+
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
+        private AddressSpaceEpoch? m_routingEpoch;
+        private int m_routingPinSlot = -1;
+        private int m_routingPinState;
+        private RoutingCohort? m_routingCohort;
         private SystemContextCacheEntry? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
+        private const int kRoutingPinUnclaimed = 0;
+        private const int kRoutingPinAcquiring = 1;
+        private const int kRoutingPinActive = 2;
+        private const int kRoutingPinReleased = 3;
+        private const int kRoutingPinTemporary = 4;
+        private const int kRoutingPinDisposedActive = 5;
+        // Once installed, a cohort never reuses states accepted by stale null-cohort bootstrap paths.
+        private const int kRoutingPinCohortIdle = 6;
+        private const int kRoutingPinCohortOwned = 7;
     }
 
     /// <summary>

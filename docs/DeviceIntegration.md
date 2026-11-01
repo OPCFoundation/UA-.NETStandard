@@ -552,8 +552,10 @@ type. The runner invokes each matching delegate after:
 - authored-node registration through `RegisterAuthoredNodesAsync`;
 - `CompleteConfigureAsync`.
 
-The configurators run **before** `SealConfigurationAsync`. The base class
-then seals the builder and starts the manager's registries.
+The configurators run during `OnServerReadyAsync`, after the initial application managers have
+been published, so services supplied by peer managers are available. They still run **before**
+`SealConfigurationAsync`; the base class then seals the builder and starts the manager's registries.
+Private preparation does not invoke callbacks that resolve shared serving services.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -562,8 +564,10 @@ manager (including `PumpNodeManager`); a delegate targeting
 
 Multiple `ConfigureDevicesFor<T>` calls accumulate and run in
 registration order. **Exception semantics are fail-fast**: any
-exception thrown by a configurator aborts hosted-server startup with
-a diagnostic that identifies the failing index and target type.
+exception thrown by a configurator fails hosted-server startup with
+a diagnostic that identifies the failing index and target type. A runtime readiness failure
+retains the committed generation for recovery or removal; it does not roll back publication.
+Configurators that fail after performing side effects must support a subsequent readiness retry.
 
 ### Composing companion models
 
@@ -752,14 +756,16 @@ and lifetime traps).
 | `DiNodeManager` / `PumpNodeManager` | Per-server startup (factory passes runner) | app |
 
 The runner is injected into the manager via the factory. The base
-`DiNodeManager` auto-invokes it at the end of its own
-`CreateAddressSpaceAsync` for every concrete subclass:
+`DiNodeManager` auto-invokes it during published readiness for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
   `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
-  `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
-  `SealConfigurationAsync(builder, ct)` in that order. Sealing comes last because the
+  `CompleteConfigureAsync`. With an injected runner it retains the open builder until
+  its `INodeManagerReadinessNotification` callback invokes `PostSetupRunner.RunAsync(this, ct)` and then
+  `SealConfigurationAsync(builder, ct)`. Without a runner or other deferred shared-service steps,
+  it seals during address-space creation.
+  Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
   configurator must still be able to register a simulation loop.
@@ -771,6 +777,15 @@ The runner is injected into the manager via the factory. The base
   node registration and sealing. The runner fires automatically before
   `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
+
+Subclasses that require published shared services can register ordered steps with
+`DeferConfigurationUntilReady`. All steps must use the same original builder and be registered
+before readiness starts. `DeferPublishedAuthoringUntilReady` supplies a separate attached builder
+when a step also authors nodes. It resolves the prepared default namespace by URI after publication,
+registers the new roots and external references, and closes that pass's graph authoring.
+Manager-wide behavior activation waits until every step, including hosting post-setup, succeeds.
+Completed steps, roots and external-reference source groups are not replayed after a failure;
+an interrupted callback, subtree or source group must support idempotent retry.
 
 ```mermaid
 sequenceDiagram
@@ -793,6 +808,11 @@ sequenceDiagram
     Base->>Base: await RegisterAuthoredNodesAsync(builder, ct)
     Base->>Base: await CompleteConfigureAsync(externalReferences, ct)
 
+    Base-->>Host: private preparation complete
+    Note over Host: publish the initial application managers
+    Host->>Base: OnServerReadyAsync(ct)
+    Base->>Sub: complete deferred shared-service authoring
+    Note over Sub: register published additions and references;<br/>do not activate manager-wide behaviors yet
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
@@ -804,6 +824,13 @@ Sealing is the last step for a reason: the fluent registries belong to
 the manager rather than to one builder, and sealing starts them. Sealing
 before `RunAsync` would leave the post-setup configurators unable to
 register a simulation loop of their own.
+
+A completed post-setup is not repeated when readiness is notified again or a later seal is retried.
+The manager owns its attached builders throughout preparation, readiness and shutdown, including
+when startup stops before post-setup runs. Custom standalone hosts that use deferred shared-service steps must call
+`INodeManagerReadinessNotification.OnServerReadyAsync` after publication and before accepting clients.
+DI post-setup and AMB setup callbacks run in manager registration order, so both observe the
+published peer managers without constructing or mutating peers during private preparation.
 
 ### Runtime conformance advertisement
 

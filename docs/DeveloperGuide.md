@@ -564,6 +564,8 @@ GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
 Each project or filtered shard has a **45-minute test-execution budget**.
+Server.Tests runs the native NodeManager lifecycle fixture separately from the
+remaining tests on net8.0, net9.0 and net10.0; net48 uses finer-grained shards.
 Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
 of larger project-specific timeouts. For example, the modern WoT sample suite
 separates ordinary cases, full generation replacement, and native comparisons.

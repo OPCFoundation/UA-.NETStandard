@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -219,7 +220,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <summary>
     /// A server exposing only the counter node manager in addition to the standard nodes.
     /// </summary>
-    internal sealed class CounterServer : StandardServer
+    internal sealed class CounterServer : StandardServer, IAsyncNodeManagerFactory
     {
         public CounterServer(
             ITelemetryContext telemetry,
@@ -232,19 +233,28 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Counters = new CounterValues(count, lockedCallback);
             m_namespaceUri = namespaceUri;
             m_asyncNodeManager = asyncNodeManager;
+            AddNodeManager(this);
         }
 
         public CounterValues Counters { get; }
 
-        protected override IMasterNodeManager CreateMasterNodeManager(
+        /// <inheritdoc/>
+        ArrayOf<string> IAsyncNodeManagerFactory.NamespacesUris => [m_namespaceUri];
+
+        /// <inheritdoc/>
+        // TODO: Remove when CA2000 recognizes lifecycle ownership through ValueTask<IAsyncNodeManager>.
+        [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
+            Justification = "Canonical lifecycle preparation takes ownership of the returned manager and its adapter.")]
+        ValueTask<IAsyncNodeManager> IAsyncNodeManagerFactory.CreateAsync(
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken)
         {
-            return m_asyncNodeManager
-                ? new MasterNodeManager(
-                    server, configuration, null, new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri))
-                : new MasterNodeManager(
-                    server, configuration, null, new CounterNodeManager(server, configuration, Counters, m_namespaceUri));
+            cancellationToken.ThrowIfCancellationRequested();
+            IAsyncNodeManager manager = m_asyncNodeManager
+                ? new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri)
+                : new CounterNodeManager(server, configuration, Counters, m_namespaceUri).ToAsyncNodeManager();
+            return new ValueTask<IAsyncNodeManager>(manager);
         }
 
         private readonly string m_namespaceUri;

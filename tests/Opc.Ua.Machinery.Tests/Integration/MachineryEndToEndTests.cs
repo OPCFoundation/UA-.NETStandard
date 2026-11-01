@@ -1907,36 +1907,27 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 PressConfigurator configurator)
                 : base(telemetry)
             {
-                m_configurator = configurator;
-            }
-
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
-                IServerInternal server,
-                ApplicationConfiguration configuration,
-                CancellationToken cancellationToken = default)
-            {
                 var options = new MachineryServerOptions { Parts = MachineryParts.All };
-                var manager = new MachineryNodeManager(
-                    server,
-                    configuration,
-                    new IMachineryModelProvider[]
-                    {
-                        new MachineryModelProvider(options.Parts)
-                    }.ToArrayOf(),
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts)],
                     options,
-                    new DelegatePostSetupRunner(m_configurator));
-                Manager = manager;
-                IMasterNodeManager master = new MasterNodeManager(
-                    server,
-                    configuration,
-                    null,
-                    [manager]);
-                return new ValueTask<IMasterNodeManager>(master);
+                    new DelegatePostSetupRunner(configurator)));
             }
 
+            /// <summary>
+            /// Gets the published Machinery owner, retained for teardown assertions.
+            /// </summary>
             public MachineryNodeManager? Manager { get; private set; }
 
-            private readonly PressConfigurator m_configurator;
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            }
+
         }
 
         /// <summary>

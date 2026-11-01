@@ -82,6 +82,18 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool AllowNodeManagement => m_nodeManager.AllowNodeManagement;
 
+        /// <summary>
+        /// Gets the asynchronous resource wrapped by this synchronous facade.
+        /// </summary>
+        internal IAsyncNodeManager AsyncNodeManager => m_nodeManager;
+
+        /// <summary>
+        /// Gets whether the wrapped manager has an actual readiness callback.
+        /// </summary>
+        internal bool HasReadinessParticipant => m_nodeManager is AsyncNodeManagerAdapter adapter
+            ? adapter.HasReadinessParticipant
+            : m_nodeManager is INodeManagerReadinessNotification;
+
         /// <inheritdoc/>
         public ValueTask<(ServiceResult result, NodeId addedNodeId)> AddNodeAsync(
             OperationContext context,

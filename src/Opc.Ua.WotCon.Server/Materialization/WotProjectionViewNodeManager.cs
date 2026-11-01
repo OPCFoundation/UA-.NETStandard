@@ -122,9 +122,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string namespaceUri = Server.NamespaceUris.GetString(request.ViewNodeId.NamespaceIndex)
                     ?? throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, "The authored View namespace is not registered.");
-                var namespaces = new List<string>(NamespaceUris) { namespaceUri };
-                SetNamespaces(namespaces.ToArray());
-                Server.NodeManager.RegisterNamespaceManager(namespaceUri, this);
+                string[] previousNamespaces = [.. NamespaceUris];
+                SetNamespaces([.. previousNamespaces, namespaceUri]);
+                try
+                {
+                    await Server.NodeManager.RegisterNamespaceManagerAsync(namespaceUri, this, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // without the master route a retry must register again, so the local list is restored.
+                    SetNamespaces(previousNamespaces);
+                    throw;
+                }
             }
             if (Find(request.ViewNodeId) is not null)
             {

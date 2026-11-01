@@ -215,13 +215,23 @@ sequenceDiagram
         NM->>NM: ConfigureInstancesAsync → Pump_n (PumpType)
         NM->>NM: MaterialiseNameplate + optional children
     end
-    NM->>NM: Configure(builder)
+    NM->>NM: RegisterAuthoredNodesAsync + CompleteConfigureAsync
+    Note over NM: initial instances are prepared privately;<br/>no shared historian is registered yet
+    Host->>NM: publish, then OnServerReadyAsync(ct)
+    NM->>NM: Configure(publishedBuilder)
     Note over NM: Configure wires identification, maintenance,<br/>measurements, alarms and history per pump
-    NM->>NM: await builder.SealAsync(ct)
-    Note over NM: SealAsync registers staged root notifiers<br/>and starts the 250 ms simulation loop
+    NM->>NM: register published additions and external references
     NM->>Runner: post-setup pipeline
     Runner->>NM: TopologyElement(pumpNodeId).WithFunctionalGroup("Diagnostics")
+    NM->>NM: await SealConfigurationAsync(originalBuilder, ct)
+    Note over NM: final sealing registers staged root notifiers<br/>and starts the 250 ms simulation loop
 ```
+
+Historian registration and capture bindings use the published server's shared services, not
+the private preparation facade. The published authoring pass runs before hosting post-setup;
+manager-wide behaviors start only after both complete. Readiness retries retain completed
+authoring progress. A custom host that constructs a manager directly must complete
+`OnServerReadyAsync` after address-space creation and publication, before serving clients.
 
 ## Simulation and alarm dataflow
 

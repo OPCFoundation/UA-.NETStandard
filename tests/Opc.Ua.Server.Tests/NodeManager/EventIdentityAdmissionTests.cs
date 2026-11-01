@@ -257,17 +257,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture();
             EnableAdmission(fixture);
-            // The manager holds the admitted identity only while the admitted
-            // event is reachable; keep it alive so a GC cannot release it.
-            BaseEventState first = Event(s_id);
-            fixture.Manager.AdmitEvent(fixture.Context, first);
+            BaseEventState original = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, original);
+            CollectUnownedTargets();
             BaseEventState changed = Event(s_id);
             changed.Severity!.Value = 999;
 
             AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, changed),
                 StatusCodes.BadSecurityChecksFailed);
             fixture.Manager.AdmitEvent(fixture.Context, Event(s_id));
-            GC.KeepAlive(first);
+            GC.KeepAlive(original);
         }
 
         /// <summary>

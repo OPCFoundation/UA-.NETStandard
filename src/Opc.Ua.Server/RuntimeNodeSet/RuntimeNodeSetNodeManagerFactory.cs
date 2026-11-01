@@ -72,8 +72,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
     /// </para>
     /// </remarks>
     public sealed class RuntimeNodeSetNodeManagerFactory :
-        IAsyncNodeManagerFactory,
-        IRequestCallbackSafeNodeManagerFactory
+        IAsyncNodeManagerFactory
     {
         /// <summary>
         /// Initializes the factory from the supplied
@@ -109,7 +108,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             m_defaultNamespaceUri = options.DefaultNamespaceUri;
             m_configure = options.Configure;
             m_configureAsync = options.ConfigureAsync;
-            AllowLifecycleFromRequestCallback = options.AllowLifecycleFromRequestCallback;
             NamespacesUris = BuildNamespacesUris(m_sources);
 
             if (!string.IsNullOrEmpty(m_defaultNamespaceUri) &&
@@ -123,9 +121,6 @@ namespace Opc.Ua.Server.RuntimeNodeSet
 
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris { get; }
-
-        /// <inheritdoc/>
-        public bool AllowLifecycleFromRequestCallback { get; }
 
         /// <inheritdoc/>
         public async ValueTask<IAsyncNodeManager> CreateAsync(
@@ -168,8 +163,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 sorted,
                 defaultNs,
                 m_configure,
-                m_configureAsync,
-                AllowLifecycleFromRequestCallback);
+                m_configureAsync);
 #pragma warning restore CA2000
         }
 

@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task PreparedBatchGracefulBrowseRetainsCrossManagerTargetMetadataAsync(bool replace)
+        public async Task GracefulRetirementInvalidatesBrowseContinuationFromOldGenerationAsync(bool replace)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -74,7 +74,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.References[0].NodeId.NamespaceIndex, Is.EqualTo(source.NamespaceIndex));
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(m_server.CurrentInstance.SubscriptionManager.GetSubscriptions(), Is.Empty);
-                List<ReferenceDescription> oldReferences = [.. page.References];
                 TrackingLifecycleNodeManager? newSource = null;
                 TrackingLifecycleNodeManager? newTarget = null;
                 NodeManagerBatchResult retired;
@@ -101,10 +100,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     retired = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
                 }
-                int targetDeletedAtSwitch = target.Manager.DeleteAddressSpaceCount;
-                int targetDisposedAtSwitch = target.Manager.DisposeCount;
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(unrelated.Manager.DisposeCount, Is.EqualTo(1),
-                    "An unrelated generation must not be pinned by a Browse snapshot.");
+                    "A saved continuation must not pin an unrelated generation.");
                 BrowseResult current = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 0, timeout.Token).ConfigureAwait(false);
                 if (replace)
@@ -117,24 +115,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 }
 
-                for (int pages = 0; !page.ContinuationPoint.IsEmpty; pages++)
-                {
-                    Assert.That(pages, Is.LessThan(5));
-                    BrowseNextResponse next = await session.BrowseNextAsync(
-                        null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-                    Assert.That(next.Results.Count, Is.EqualTo(1));
-                    page = next.Results[0];
-                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    oldReferences.AddRange(page.References);
-                }
+                BrowseNextResponse stale = await session.BrowseNextAsync(
+                    null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
-                    AssertBrowseDependencyReferences(
-                        new BrowseResult { References = [.. oldReferences] },
-                        source.NamespaceIndex, target.NamespaceIndex, "Old", VariableTypeIds.BaseDataVariableType);
-                    Assert.That(targetDeletedAtSwitch, Is.Zero);
-                    Assert.That(targetDisposedAtSwitch, Is.Zero);
-                    Assert.That(retired.Retired, Is.EqualTo(1u));
+                    Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(stale.Results[0].References, Is.Empty);
+                    Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     Assert.That(retired.CleanupFailure, Is.Null);
                 }
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -161,7 +148,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task SharedBrowseDependenciesRetainOnlyExactOwnersUntilEveryPointDrainsAsync(bool sharedNamespace)
+        public async Task SavedBrowsePointsDoNotRetainAnyGenerationAsync(bool sharedNamespace)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var first = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -204,43 +191,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(secondPoint.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     [first.Registration, second.Registration, targetRegistration, unrelatedRegistration],
-                    false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(1u));
-                Assert.That(unrelated.DisposeCount, Is.EqualTo(1),
-                    "Sharing a namespace with a required target does not establish ownership.");
-                Assert.That(target.DisposeCount, Is.Zero);
-                await ReleaseContinuationAsync(session, firstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                await ReleaseContinuationAsync(session, firstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                Assert.That(first.Manager.DisposeCount, Is.Zero);
-                Assert.That(target.DisposeCount, Is.Zero);
-                await ReleaseContinuationAsync(session, anotherFirstPoint.ContinuationPoint, timeout.Token)
-                    .ConfigureAwait(false);
-                await first.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    timeout.Token).ConfigureAwait(false);
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(retired.CleanupFailure, Is.Null);
+                Assert.That(unrelated.DisposeCount, Is.EqualTo(1));
+                Assert.That(target.DisposeCount, Is.EqualTo(1));
                 Assert.That(first.Manager.DisposeCount, Is.EqualTo(1));
-                Assert.That(second.Manager.DisposeCount, Is.Zero);
-                Assert.That(target.DisposeCount, Is.Zero,
-                    "A different source still has a continuation requiring the shared target.");
-                List<ReferenceDescription> references = await DrainBrowsePointAsync(
-                    session, secondPoint, timeout.Token).ConfigureAwait(false);
-                Assert.That(references.Select(reference => reference.NodeId), Is.EquivalentTo(new[]
-                {
-                    new ExpandedNodeId(kValueNodeId, second.NamespaceIndex),
-                    new ExpandedNodeId(8010u, second.NamespaceIndex),
-                    new ExpandedNodeId(8011u, second.NamespaceIndex),
-                    new ExpandedNodeId(targetId)
-                }));
-                ReferenceDescription reference = references.Single(candidate => candidate.NodeId == targetId);
-                Assert.That(reference.BrowseName, Is.EqualTo(new QualifiedName("SharedTarget", targetNamespace)));
-                Assert.That(reference.TypeDefinition, Is.EqualTo(new ExpandedNodeId(VariableTypeIds.PropertyType)));
+                Assert.That(second.Manager.DisposeCount, Is.EqualTo(1));
+                await first.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await second.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(second.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(target.DisposeCount, Is.EqualTo(1));
                 Assert.That(target.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(unrelated.RejectedHandleLookups, Is.Zero,
-                    "Captured routes must not call an unrelated disposed manager in the same namespace.");
+                    "A stale continuation must not call an unrelated disposed manager.");
+                foreach (ByteString token in new[]
+                {
+                    firstPoint.ContinuationPoint,
+                    anotherFirstPoint.ContinuationPoint,
+                    secondPoint.ContinuationPoint
+                })
+                {
+                    BrowseNextResponse stale = await session.BrowseNextAsync(
+                        null, false, [token], timeout.Token).ConfigureAwait(false);
+                    Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(stale.Results[0].References, Is.Empty);
+                }
             }
             finally
             {
@@ -251,7 +227,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task RestoredNativeBrowseKeepsDependencyOwnersWhileNextIsInFlightAsync()
+        public async Task InFlightBrowsePinsItsViewButNotItsSuccessorContinuationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -266,52 +242,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool capturedTarget = false;
+            bool hasRequestPin = false;
+            bool requestPinMatchesView = false;
+            AddressSpaceEpoch? requestEpoch = null;
+            OperationContext? blockedOperationContext = null;
+            RequestType callbackRequestType = RequestType.Unknown;
+            NodeManagerGeneration? requestGeneration = null;
             try
             {
                 BrowseResult page = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 int calls = 0;
-                source.Manager.ValidateNodeCallback = async (nodeId, token) =>
+                source.Manager.ValidateNodeCallback = async (context, nodeId, token) =>
                 {
                     if (nodeId == new NodeId(kRootNodeId, source.NamespaceIndex) &&
                         Interlocked.Increment(ref calls) == 1)
                     {
+                        hasRequestPin = context.OperationContext!.HasRoutingPin;
+                        requestPinMatchesView = context.OperationContext.RoutingPinMatchesSnapshot;
+                        blockedOperationContext = context.OperationContext;
+                        callbackRequestType = context.OperationContext.RequestType;
+                        NodeManagerRoutingTable.RoutingSnapshot snapshot =
+                            context.OperationContext.RoutingSnapshot!;
+                        requestEpoch = snapshot.Epoch;
+                        requestGeneration = snapshot.GetGeneration(source.Manager);
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(token).ConfigureAwait(false);
-                        var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-                        capturedTarget = master.NamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
+                        capturedTarget = context.OperationContext!.RoutingSnapshot!
+                            .VisibleNamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
                     }
                 };
+                var requestHeader = new RequestHeader
+                {
+                    RequestHandle = 9936,
+                    TimeoutHint = 60_000
+                };
                 Task<BrowseNextResponse> pending = session.BrowseNextAsync(
-                    null, false, [page.ContinuationPoint], timeout.Token).AsTask();
+                    requestHeader, false, [page.ContinuationPoint], timeout.Token).AsTask();
+                Task<NodeManagerBatchResult>? retirement = null;
+                NodeManagerBatchResult? retiredResult = null;
                 try
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                    Assert.That(retired.Retired, Is.Zero);
+                    Assert.That(pending.IsCompleted, Is.False);
+                    Assert.That(callbackRequestType, Is.EqualTo(RequestType.BrowseNext));
+                    Assert.That(hasRequestPin, Is.True);
+                    Assert.That(requestPinMatchesView, Is.True);
+                    Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
+                    retirement = RetireBrowseDependenciesAsync(
+                        [source.Registration, target.Registration], timeout.Token);
+                    BrowseResult current = default!;
+                    for (int attempt = 0; attempt < 30; attempt++)
+                    {
+                        current = await BrowseContinuationRootAsync(
+                            session, source.NamespaceIndex, 0, timeout.Token).ConfigureAwait(false);
+                        if (current.StatusCode == StatusCodes.BadNodeIdUnknown)
+                        {
+                            break;
+                        }
+                        await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    // The removal publishes without waiting for in-flight requests; only disposal waits for them.
+                    retiredResult = await retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(pending.IsCompleted, Is.False);
+                    Assert.That(blockedOperationContext!.HasRoutingPin, Is.True);
+                    Assert.That(blockedOperationContext.RoutingPinMatchesSnapshot, Is.True);
+                    Assert.That(requestEpoch!.ActiveCount, Is.GreaterThan(0));
                     Assert.That(source.Manager.DisposeCount, Is.Zero);
                     Assert.That(target.Manager.DisposeCount, Is.Zero);
-                    Assert.That(pending.IsCompleted, Is.False);
-                    BrowseResult current = await BrowseContinuationRootAsync(
-                        session, source.NamespaceIndex, 0, timeout.Token).ConfigureAwait(false);
-                    Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 }
                 finally
                 {
                     release.TrySetResult(true);
                 }
+                // The in-flight request keeps resolving against its pinned view, but retirement invalidated the
+                // issuing generation's continuation points, so no successor point outlives the retired generation.
                 BrowseNextResponse next = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(next.Results[0].ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(capturedTarget, Is.True);
-                Assert.That(target.Manager.DisposeCount, Is.Zero);
-                List<ReferenceDescription> remaining = await DrainBrowsePointAsync(
-                    session, next.Results[0], timeout.Token).ConfigureAwait(false);
-                Assert.That(remaining.Single(reference =>
-                    reference.NodeId == new ExpandedNodeId(kValueNodeId, target.NamespaceIndex)).BrowseName,
-                    Is.EqualTo(new QualifiedName("OldTarget", target.NamespaceIndex)));
+                Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(next.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                await retiredResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
@@ -320,7 +332,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                source.Manager.ValidateNodeCallback = (_, _) => default;
+                source.Manager.ValidateNodeCallback = (_, _, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -329,7 +341,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task FinalNativeBrowseMetadataRetainsDependenciesUntilRequestDrainsAsync(bool cancel)
+        public async Task InFlightBrowseMetadataUsesItsPinnedViewDuringRetirementAsync(bool cancel)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -345,41 +357,57 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool hasRequestPin = false;
+            bool requestPinMatchesView = false;
+            NodeManagerGeneration? requestGeneration = null;
             try
             {
-                ISession serverSession = m_server.CurrentInstance.SessionManager.GetSessions()
-                    .Single(candidate => candidate.Id == session.SessionId);
-                var holder = (ISessionContinuationPointLifecycle)serverSession.ContinuationPoints;
                 BrowseResult page = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 3, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.References.Count, Is.EqualTo(3));
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                await RetireBrowseDependenciesAsync(
-                    [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                bool pointDisposedBeforeMetadata = false;
-                target.Manager.ValidateNodeCallback = async (nodeId, token) =>
+                target.Manager.ValidateNodeCallback = async (context, nodeId, token) =>
                 {
                     if (nodeId == new NodeId(kValueNodeId, target.NamespaceIndex))
                     {
-                        pointDisposedBeforeMetadata =
-                            !holder.HasBrowseForManager(source.Manager) && !holder.HasBrowseForManager(target.Manager);
-                        if (!pointDisposedBeforeMetadata)
-                        {
-                            return;
-                        }
+                        hasRequestPin = context.OperationContext!.HasRoutingPin;
+                        requestPinMatchesView = context.OperationContext.RoutingPinMatchesSnapshot;
+                        NodeManagerRoutingTable.RoutingSnapshot snapshot =
+                            context.OperationContext.RoutingSnapshot!;
+                        requestGeneration = snapshot.GetGeneration(source.Manager);
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(token).ConfigureAwait(false);
                     }
                 };
-                var header = new RequestHeader { RequestHandle = 9937 };
+                var header = new RequestHeader { RequestHandle = 9937, TimeoutHint = 60_000 };
                 Task<BrowseNextResponse> pending = session.BrowseNextAsync(
                     header, false, [page.ContinuationPoint], timeout.Token).AsTask();
+                Task<NodeManagerBatchResult>? retirement = null;
+                NodeManagerBatchResult? retiredResult = null;
                 try
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    Assert.That(pointDisposedBeforeMetadata, Is.True,
-                        "The manager has exhausted its browser, but the dispatcher still needs target metadata.");
+                    Assert.That(hasRequestPin, Is.True);
+                    Assert.That(requestPinMatchesView, Is.True);
+                    Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
                     Assert.That(pending.IsCompleted, Is.False);
+                    retirement = RetireBrowseDependenciesAsync(
+                        [source.Registration, target.Registration], timeout.Token);
+                    BrowseResult current = default!;
+                    for (int attempt = 0; attempt < 30; attempt++)
+                    {
+                        current = await BrowseContinuationRootAsync(
+                            session, source.NamespaceIndex, 0, timeout.Token).ConfigureAwait(false);
+                        if (current.StatusCode == StatusCodes.BadNodeIdUnknown)
+                        {
+                            break;
+                        }
+                        await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
+                    }
+                    Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    // The removal publishes without waiting for in-flight requests; only disposal waits for them.
+                    retiredResult = await retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
                     Assert.That(source.Manager.DisposeCount, Is.Zero);
                     Assert.That(target.Manager.DisposeCount, Is.Zero);
                     if (cancel)
@@ -391,8 +419,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             Throws.TypeOf<ServiceResultException>()
                                 .With.Property(nameof(ServiceResultException.StatusCode))
                                 .EqualTo(StatusCodes.BadRequestCancelledByClient)).ConfigureAwait(false);
-                        Assert.That(holder.HasBrowseForManager(source.Manager), Is.False);
-                        Assert.That(holder.HasBrowseForManager(target.Manager), Is.False);
                     }
                     else
                     {
@@ -415,6 +441,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     release.TrySetResult(true);
                 }
+                await retiredResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
@@ -423,7 +450,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                target.Manager.ValidateNodeCallback = (_, _) => default;
+                target.Manager.ValidateNodeCallback = (_, _, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -438,7 +465,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase("Shutdown")]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task NativeBrowseDependencyTerminalPathsReleaseEveryOwnerAsync(string terminal)
+        public async Task NativeBrowseTerminalPathsDoNotRetainRetiredGenerationsAsync(string terminal)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -451,6 +478,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
             bool shutdown = false;
+            NodeManagerRegistration? evictingRegistration = null;
             try
             {
                 ISession serverSession = m_server.CurrentInstance.SessionManager.GetSessions()
@@ -460,12 +488,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 BrowseResult page = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                    [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.Zero);
                 Assert.That(holder.HasBrowseForManager(source.Manager), Is.True);
-                Assert.That(holder.HasBrowseForManager(target.Manager), Is.True);
-                Assert.That(target.Manager.DisposeCount, Is.Zero);
+                Assert.That(holder.HasBrowseForManager(target.Manager), Is.False);
                 switch (terminal)
                 {
                     case "Release":
@@ -475,6 +499,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     case "Eviction":
                         var evicting = await AddContinuationOwnerAsync(
                             kModelNamespaceUri + ":EvictingSource", timeout.Token).ConfigureAwait(false);
+                        evictingRegistration = evicting.Registration;
                         BrowseResult fresh = await BrowseContinuationRootAsync(
                             session, evicting.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
                         Assert.That(fresh.ContinuationPoint.IsEmpty, Is.False);
@@ -519,6 +544,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     default:
                         throw new ArgumentOutOfRangeException(nameof(terminal));
                 }
+                Assert.That(holder.HasBrowseForManager(source.Manager), Is.False);
+                Assert.That(holder.HasBrowseForManager(target.Manager), Is.False);
+                if (!shutdown)
+                {
+                    NodeManagerRegistration[] registrations = evictingRegistration is { } evicting
+                        ? [source.Registration, target.Registration, evicting]
+                        : [source.Registration, target.Registration];
+                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                        registrations, timeout.Token).ConfigureAwait(false);
+                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -541,13 +577,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task ImmediateDependencyRetirementInvalidatesNativeBrowseAsync(bool retireSource)
+        public async Task RetiringBrowseIssuerInvalidatesContinuationButRetiringTargetDoesNotAsync(bool retireSource)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             ConfigureBrowseDependency(
                 source.Manager, target.Manager, "OldTarget", VariableTypeIds.BaseDataVariableType);
+            target.Manager.RejectHandleLookupAfterDisposal = true;
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
@@ -560,15 +597,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     retireSource ? [source.Registration, target.Registration] : [target.Registration],
-                    true, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(retireSource ? 2u : 1u));
+                    timeout.Token).ConfigureAwait(false);
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(retireSource ? 1 : 0));
-                BrowseNextResponse stale = await session.BrowseNextAsync(
+                BrowseNextResponse resumed = await session.BrowseNextAsync(
                     null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-                Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
-                Assert.That(stale.Results[0].References.IsEmpty, Is.True);
-                await ReleaseContinuationAsync(session, page.ContinuationPoint, timeout.Token).ConfigureAwait(false);
+                if (retireSource)
+                {
+                    Assert.That(resumed.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                    Assert.That(resumed.Results[0].References.IsEmpty, Is.True);
+                    await ReleaseContinuationAsync(session, page.ContinuationPoint, timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    Assert.That(resumed.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    List<ReferenceDescription> references = await DrainBrowsePointAsync(
+                        session, resumed.Results[0], timeout.Token).ConfigureAwait(false);
+                    Assert.That(references, Has.Count.EqualTo(2));
+                    Assert.That(references.Any(reference =>
+                        reference.NodeId == new ExpandedNodeId(kValueNodeId, target.NamespaceIndex)), Is.False);
+                    Assert.That(source.Manager.DisposeCount, Is.Zero);
+                    Assert.That(target.Manager.RejectedHandleLookups, Is.Zero,
+                        "Later pages must resolve targets through the current routing view.");
+                }
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
             }
             finally
@@ -577,25 +629,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
+        [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task NativeLazyBrowseRequiresCompleteDependencyContractAsync(bool declaresDependencies)
+        public async Task RetiredNativeLazyBrowseInvalidatesOpaqueContinuationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            target.Manager.RejectHandleLookupAfterDisposal = true;
             NodeId targetId = new(kValueNodeId, target.NamespaceIndex);
             int disposedBrowsers = 0;
             NodeState root = RequireLifecycleValue(source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex)));
             root.OnCreateBrowser =
                 (context, _, view, referenceType, includeSubtypes, direction, name, additional, only) =>
-                declaresDependencies
-                    ? new DeclaredLazyDependencyBrowser(
-                        context, view, referenceType, includeSubtypes, direction, name, additional, only, targetId,
-                        () => Interlocked.Increment(ref disposedBrowsers))
-                    : new OpaqueLazyDependencyBrowser(
+                    new OpaqueLazyDependencyBrowser(
                         context, view, referenceType, includeSubtypes, direction, name, additional, only, targetId,
                         () => Interlocked.Increment(ref disposedBrowsers));
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
@@ -613,35 +661,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(disposedBrowsers, Is.EqualTo(1));
                 BrowseResult page = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
-                if (declaresDependencies)
-                {
-                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                    Assert.That(retired.Retired, Is.Zero);
-                    Assert.That(target.Manager.DisposeCount, Is.Zero);
-                    List<ReferenceDescription> references = await DrainBrowsePointAsync(
-                        session, page, timeout.Token).ConfigureAwait(false);
-                    Assert.That(references, Has.Count.EqualTo(4));
-                    Assert.That(references.Single(reference => reference.NodeId == targetId).BrowseName,
-                        Is.EqualTo(new QualifiedName(kValueBrowseName, target.NamespaceIndex)));
-                }
-                else
-                {
-                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
-                        "An opaque lazy browser cannot promise ownership from its currently buffered references.");
-                    Assert.That(page.ContinuationPoint.IsEmpty, Is.True);
-                    Assert.That(page.References.IsEmpty, Is.True, "Unsupported pagination is not partial success.");
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                    Assert.That(retired.Retired, Is.EqualTo(2u));
-                }
+                Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
+                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                    [source.Registration, target.Registration], timeout.Token).ConfigureAwait(false);
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(disposedBrowsers, Is.EqualTo(2));
+                BrowseNextResponse stale = await session.BrowseNextAsync(
+                    null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+                Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(stale.Results[0].References, Is.Empty);
+                Assert.That(disposedBrowsers, Is.EqualTo(2));
+                Assert.That(target.Manager.RejectedHandleLookups, Is.Zero);
             }
             finally
             {
@@ -652,10 +687,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task SynchronousNativeBrowseRetainsItsExternalDependencyAsync()
+        public async Task SynchronousNativeBrowseUsesCurrentTargetViewWithoutRetentionAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            target.Manager.RejectHandleLookupAfterDisposal = true;
             ReferenceSynchronousNodeManager? source = null;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
@@ -681,16 +717,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     session, sourceNamespace, 1, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                    [target.Registration], false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.Zero);
-                Assert.That(target.Manager.DisposeCount, Is.Zero);
+                    [target.Registration], timeout.Token).ConfigureAwait(false);
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 List<ReferenceDescription> references = await DrainBrowsePointAsync(
                     session, page, timeout.Token).ConfigureAwait(false);
-                Assert.That(references, Has.Count.EqualTo(4));
-                Assert.That(references.Single(reference => reference.NodeId == targetId).BrowseName,
-                    Is.EqualTo(new QualifiedName(kValueBrowseName, target.NamespaceIndex)));
-                await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
+                Assert.That(references, Has.Count.EqualTo(3));
+                Assert.That(references.Any(reference => reference.NodeId == targetId), Is.False);
+                Assert.That(target.Manager.RejectedHandleLookups, Is.Zero);
             }
             finally
             {
@@ -700,14 +734,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private async Task<NodeManagerBatchResult> RetireBrowseDependenciesAsync(
             ArrayOf<NodeManagerRegistration> registrations,
-            bool immediate,
             CancellationToken cancellationToken)
         {
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             var changes = new List<NodeManagerBatchChange>();
             foreach (NodeManagerRegistration registration in registrations)
             {
-                changes.Add(NodeManagerBatchChange.Remove(registration, immediate));
+                changes.Add(NodeManagerBatchChange.Remove(registration));
             }
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [.. changes], null, cancellationToken).ConfigureAwait(false);
@@ -745,11 +778,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            source.ValidateNodeCallback = async (_, token) =>
+            source.ValidateNodeCallback = async (_, _, token) =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
-                throw new IOException("The retained Browse source failed.");
+                throw new IOException("The Browse source failed.");
             };
             try
             {
@@ -776,7 +809,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                source.ValidateNodeCallback = (_, _) => default;
+                source.ValidateNodeCallback = (_, _, _) => default;
             }
         }
 
@@ -856,7 +889,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await AddPredefinedNodeAsync(SystemContext, target, cancellationToken).ConfigureAwait(false);
             }
 
-            public override ValueTask<object> GetManagerHandleAsync(
+            public override async ValueTask<object> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
@@ -865,7 +898,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Interlocked.Increment(ref m_rejectedHandleLookups);
                     throw new ObjectDisposedException(nameof(TrackingLifecycleNodeManager));
                 }
-                return base.GetManagerHandleAsync(nodeId, cancellationToken);
+                if (ManagerHandleCallback is not null)
+                {
+                    await ManagerHandleCallback(nodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
             }
 
             private int m_rejectedHandleLookups;
@@ -894,7 +931,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private class OpaqueLazyDependencyBrowser(
+        private sealed class OpaqueLazyDependencyBrowser(
             ISystemContext context,
             ViewDescription? view,
             NodeId referenceType,
@@ -908,7 +945,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             : NodeBrowser(context, view, referenceType, includeSubtypes, direction,
                 browseName, additionalReferences, internalOnly)
         {
-            protected NodeId DependencyTarget { get; } = targetId;
+            private NodeId DependencyTarget { get; } = targetId;
 
             public override IReference? Next()
             {
@@ -937,25 +974,5 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private bool m_returned;
         }
 
-        private sealed class DeclaredLazyDependencyBrowser(
-            ISystemContext context,
-            ViewDescription? view,
-            NodeId referenceType,
-            bool includeSubtypes,
-            BrowseDirection direction,
-            QualifiedName browseName,
-            IEnumerable<IReference>? additionalReferences,
-            bool internalOnly,
-            NodeId targetId,
-            Action disposed)
-            : OpaqueLazyDependencyBrowser(context, view, referenceType, includeSubtypes, direction,
-                browseName, additionalReferences, internalOnly, targetId, disposed)
-        {
-            public override bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
-            {
-                targetIds = [.. GetRemainingReferenceTargets(), DependencyTarget];
-                return true;
-            }
-        }
     }
 }

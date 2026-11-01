@@ -192,16 +192,13 @@ namespace Pumps
             await ConfigureInstancesAsync(builder, cancellationToken)
                 .ConfigureAwait(false);
 
-            // Configuration phase 2 (sync): wire fluent callbacks
-            // against the predefined nodes.
-            Configure(builder);
-            PreservePumpHistoryReadAccessLevels();
-
-            m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
-
-            // The builder is sealed and the PostSetupRunner invoked by the
-            // base DiNodeManager.CreateAddressSpaceAsync once this method
-            // returns; no manual invocation needed here.
+            DeferPublishedAuthoringUntilReady(builder, (published, _) =>
+            {
+                Configure(published);
+                PreservePumpHistoryReadAccessLevels();
+                m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
+                return default;
+            });
         }
 
         /// <summary>

@@ -41,6 +41,56 @@ namespace Opc.Ua.Types.Tests.Utils
     public sealed class StringTablePrivateViewTests
     {
         /// <summary>
+        /// Verifies that publication rebinds cached tables and preserves future additions.
+        /// </summary>
+        /// <param name="namespaces">Whether to exercise a namespace table.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublishedCachedHandlesObserveFutureAdditionsAndDetachBeforeCleanup(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            StringTable cached = CreateTable(namespaces);
+            cached.BindTo(staged);
+            staged.Append("urn:first");
+            Assert.That(serving.GetIndex("urn:first"), Is.EqualTo(-1));
+            using (StringTable.Publication publication = serving.BeginPublication(staged, serving.Version))
+            {
+                Assert.Throws<InvalidOperationException>(() => serving.Append("urn:conflict"));
+                Assert.Throws<InvalidOperationException>(() => serving.GetIndexOrAppend("urn:conflict"));
+                Assert.That(serving.GetIndexOrAppend("urn:base"), Is.EqualTo(1));
+                publication.Complete();
+                cached.BindTo(serving);
+            }
+            Assert.That(serving.GetIndex("urn:conflict"), Is.EqualTo(-1));
+            serving.Append("urn:second");
+            Assert.That(cached.GetIndex("urn:second"), Is.EqualTo(3));
+            cached.Detach();
+            cached.Update([Namespaces.OpcUa]);
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:first"));
+            Assert.That(serving.GetString(3), Is.EqualTo("urn:second"));
+        }
+
+        /// <summary>
+        /// Verifies that a changed source rejects publication without changing either namespace prefix.
+        /// </summary>
+        /// <param name="namespaces">Whether to exercise a namespace table.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ChangedSourceRejectsPublicationBeforeInstallingPrivateNamespaces(bool namespaces)
+        {
+            StringTable serving = CreateTable(namespaces);
+            StringTable staged = serving.CaptureSnapshot();
+            long revision = serving.Version;
+            staged.Append("urn:private");
+            serving.Append("urn:concurrent");
+            Assert.Throws<OptimisticPublicationConflictException>(() => serving.BeginPublication(staged, revision));
+            Assert.That(serving.GetIndex("urn:private"), Is.EqualTo(-1));
+            Assert.That(serving.GetString(2), Is.EqualTo("urn:concurrent"));
+            Assert.That(staged.GetString(2), Is.EqualTo("urn:private"));
+        }
+
+        /// <summary>
         /// Verifies that private mapping is execution local and preserves concurrent live changes.
         /// </summary>
         /// <param name="namespaces">The namespaces flag for this test case.</param>
@@ -49,17 +99,18 @@ namespace Opc.Ua.Types.Tests.Utils
         public async Task PrivateMappingIsExecutionLocalAndPreservesConcurrentLiveChanges(bool namespaces)
         {
             StringTable table = CreateTable(namespaces);
+            StringTable serving = table;
             ArrayOf<string> before = table.GetSnapshot(out long version);
             var inspectLive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var live = Task.Run(async () =>
             {
                 await inspectLive.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                Assert.That(table.ToArrayOf(), Is.EqualTo(before));
-                Assert.That(table.Version, Is.EqualTo(version));
-                table.Append("urn:live");
+                Assert.That(serving.ToArrayOf(), Is.EqualTo(before));
+                Assert.That(serving.Version, Is.EqualTo(version));
+                serving.Append("urn:live");
             });
 
-            using (table.UsePrivateCopy())
+            table = table.CaptureSnapshot();
             {
                 try
                 {
@@ -76,7 +127,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.GetString(2), Is.EqualTo("urn:private"));
                 Assert.That(table.Count, Is.EqualTo(3));
             }
-
+            table = serving;
             Assert.That(table.ToArray(), Is.EqualTo([Namespaces.OpcUa, "urn:base", "urn:live"]));
             Assert.That(table.GetIndex("urn:private"), Is.EqualTo(-1));
             Assert.That(table.Version, Is.EqualTo(version + 1));
@@ -93,7 +144,8 @@ namespace Opc.Ua.Types.Tests.Utils
             StringTable table = CreateTable(namespaces);
             ArrayOf<string> before = table.GetSnapshot(out long version);
 
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Update([Namespaces.OpcUa, "urn:updated"]);
                 Assert.That(table.Append("urn:appended"), Is.EqualTo(2));
@@ -114,7 +166,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 Assert.That(table.GetString(4), Is.EqualTo("urn:mapped"));
                 Assert.That(table.Version, Is.EqualTo(version + 4));
             }
-
+            table = serving;
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));
             Assert.That(table.Version, Is.EqualTo(version));
         }
@@ -130,21 +182,22 @@ namespace Opc.Ua.Types.Tests.Utils
             StringTable table = CreateTable(namespaces);
             ArrayOf<string> before = table.GetSnapshot(out long version);
 
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Append("urn:outer");
-                using IDisposable inner = table.UsePrivateCopy();
+                StringTable parent = table;
+                table = table.CaptureSnapshot();
                 table.Append("urn:inner");
                 await Task.Yield();
                 Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
                 Assert.That(table.GetString(3), Is.EqualTo("urn:inner"));
-                inner.Dispose();
-                inner.Dispose();
+                table = parent;
                 Assert.That(table.GetIndex("urn:inner"), Is.EqualTo(-1));
                 Assert.That(table.GetString(2), Is.EqualTo("urn:outer"));
                 Assert.That(table.Version, Is.EqualTo(version + 1));
             }
-
+            table = serving;
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));
             Assert.That(table.Version, Is.EqualTo(version));
         }
@@ -159,7 +212,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             StringTable table = CreateTable(namespaces);
             StringTable copy;
-            using (table.UsePrivateCopy())
+            StringTable serving = table;
+            table = table.CaptureSnapshot();
             {
                 table.Append("urn:private");
                 copy = table is NamespaceTable namespaceTable
@@ -168,7 +222,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 table.Append("urn:later");
                 Assert.That(copy.Count, Is.EqualTo(3));
             }
-
+            table = serving;
             Assert.That(copy.GetString(2), Is.EqualTo("urn:private"));
             Assert.That(copy.GetIndex("urn:later"), Is.EqualTo(-1));
             Assert.That(table.Count, Is.EqualTo(2));
@@ -183,9 +237,9 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var table = new NamespaceTable([Namespaces.OpcUa, "urn:base"]);
             ArrayOf<string> before = table.GetSnapshot(out long version);
-            using (table.UsePrivateCopy())
+            var staging = (NamespaceTable)table.CaptureSnapshot();
             {
-                Assert.That(() => table.Update(["urn:not-the-opc-ua-namespace"]),
+                Assert.That(() => staging.Update(["urn:not-the-opc-ua-namespace"]),
                     Throws.TypeOf<ArgumentException>());
             }
             Assert.That(table.ToArrayOf(), Is.EqualTo(before));

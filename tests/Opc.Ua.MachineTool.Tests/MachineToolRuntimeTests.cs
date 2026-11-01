@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -396,7 +397,13 @@ namespace Opc.Ua.MachineTool.Tests
                 ITelemetryContext telemetry, ArrayOf<IMachineryModelProvider> additionalProviders = default)
                 : base(telemetry)
             {
-                m_additionalProviders = additionalProviders;
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(), .. additionalProviders],
+                    options));
             }
 
             /// <summary>
@@ -405,24 +412,13 @@ namespace Opc.Ua.MachineTool.Tests
             public MachineryNodeManager Manager { get; private set; } = null!;
 
             /// <inheritdoc/>
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+            protected override async ValueTask OnNodeManagerStartedAsync(
                 IServerInternal server,
-                ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
-                };
-                Manager = new MachineryNodeManager(server, configuration,
-                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(), .. m_additionalProviders],
-                    options);
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, [Manager]));
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
             }
-
-            /// <summary>Models selected before namespace registration.</summary>
-            private readonly ArrayOf<IMachineryModelProvider> m_additionalProviders;
         }
 
         /// <summary>Additional model providers supplied before server construction.</summary>

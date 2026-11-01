@@ -30,7 +30,7 @@
 namespace Opc.Ua.Server
 {
     /// <inheritdoc/>
-    public class StoredMonitoredItem : IStoredMonitoredItem
+    public class StoredMonitoredItem : IStoredMonitoredItemInvalidation
     {
         /// <inheritdoc/>
         public bool IsRestored { get; set; }
@@ -40,6 +40,9 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public bool IsDetached { get; set; }
+
+        /// <inheritdoc/>
+        public bool IsTerminal { get; set; }
 
         /// <inheritdoc/>
         public uint SubscriptionId { get; set; }

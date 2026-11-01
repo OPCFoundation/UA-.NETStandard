@@ -2407,7 +2407,7 @@ namespace Opc.Ua.Server.Historian
             try
             {
                 (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                    .GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
                     .ConfigureAwait(false);
                 if (handle != null && nodeManager != null)
                 {
@@ -3205,8 +3205,7 @@ namespace Opc.Ua.Server.Historian
                         nodeToRead.NodeId);
                 }
                 HistorianContinuationState claimedState = claim.State;
-                if (!claimedState.Ownership.HasCapturedDependencies &&
-                    !ReferenceEquals(claimedState.Provider, provider) &&
+                if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
                         provider is not IHistorianProviderIdentity currentIdentity ||
@@ -3321,14 +3320,9 @@ namespace Opc.Ua.Server.Historian
                 ServiceResult admission = ServiceResult.Good;
                 if (systemContext.Server?.NodeManager is MasterNodeManager master)
                 {
-                    admission = await master.CaptureHistoryContinuationAsync(state, cancellationToken)
+                    admission = await master.CaptureHistoryContinuationAsync(
+                        systemContext.OperationContext!, state, validateSource: false, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(admission) &&
-                        state.Ownership.HasCapturedDependencies &&
-                        continuationPoints is not SessionContinuationPoints)
-                    {
-                        admission = StatusCodes.BadNotSupported;
-                    }
                 }
                 if (ServiceResult.IsBad(admission))
                 {

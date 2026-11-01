@@ -489,12 +489,12 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The oversized net48 server suite is split into exclusive filters,
-        /// while the other frameworks retain their existing single workload.
+        /// Server shards cover every test exactly once, including names that
+        /// resemble the lifecycle fixture but belong to another fixture.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task ServerNet48FiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
+        public async Task ServerFiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
             MatrixEntry[] server = matrix.Tests.Where(entry =>
@@ -503,9 +503,10 @@ namespace Opc.Ua.Tools.Tests
 
             string[] serverShards =
             [
+                "server-node-lifecycle-prepared",
+                "server-node-lifecycle",
                 "server-node-management",
-                "server-historian",
-                "server-subscriptions",
+                "server-history-subscriptions",
                 "server-sessions",
                 "server-configuration",
                 "server-runtime",
@@ -514,25 +515,38 @@ namespace Opc.Ua.Tools.Tests
             ];
             foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
-                string[] expectedShards = profile.First().Framework == "net48" ? serverShards : ["all"];
+                string[] expectedShards = profile.First().Framework == "net48"
+                    ? serverShards
+                    : profile.First().Os == "macos"
+                        ? ["server-node-lifecycle", "server-other"]
+                        : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
+                Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
             }
 
             (string TestName, string ExpectedShard)[] testCases =
             [
-                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-management"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.PreparedBatchDecisionAsync",
+                    "server-node-lifecycle-prepared"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-lifecycle"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.RejectsPreparedBatchAsync",
+                    "server-node-lifecycle"),
+                ("Opc.Ua.Server.Tests.Hosting.HostedNodeManagerLifecycleTests.PreparedBatchAsync",
+                    "server-node-management"),
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
+                    "server-node-management"),
                 ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
-                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync", "server-historian"),
-                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync", "server-subscriptions"),
+                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync",
+                    "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync",
+                    "server-history-subscriptions"),
                 ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
                 ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
                 ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
                 ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
                 ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
             ];
-            foreach (IGrouping<string, MatrixEntry> profile in server
-                .Where(entry => entry.Framework == "net48")
-                .GroupBy(entry => entry.Profile))
+            foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
             {
                 foreach ((string testName, string expectedShard) in testCases)
                 {
@@ -540,9 +554,18 @@ namespace Opc.Ua.Tools.Tests
                         .Where(entry => MatchesServerFilter(entry.Filter, testName))
                         .Select(entry => entry.Shard)
                         .ToArray();
+                    string shard = profile.First().Framework == "net48"
+                        ? expectedShard
+                        : profile.First().Os != "macos"
+                            ? "all"
+                            : testName.StartsWith(
+                                "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
+                                StringComparison.Ordinal)
+                                ? "server-node-lifecycle"
+                                : "server-other";
                     Assert.That(
                         matches,
-                        Is.EqualTo(new[] { expectedShard }),
+                        Is.EqualTo(new[] { shard }),
                         $"Profile '{profile.Key}', test '{testName}'.");
                 }
             }
@@ -716,6 +739,10 @@ namespace Opc.Ua.Tools.Tests
             return filter.Split('&').All(term =>
             {
                 string expression = term.Trim('(', ')');
+                if (expression.Length == 0)
+                {
+                    return true;
+                }
                 if (expression.StartsWith("TestCategory!=", StringComparison.Ordinal))
                 {
                     return !categories.Contains(expression["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase);

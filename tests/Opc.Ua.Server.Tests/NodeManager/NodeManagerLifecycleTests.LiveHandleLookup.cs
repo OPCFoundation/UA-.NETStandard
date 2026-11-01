@@ -31,6 +31,7 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 
@@ -38,6 +39,181 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Borrowed service contexts release their view on return; explicit pins remain context-owned.
+        /// </summary>
+        /// <param name="ownership">Zero borrows the context, one pins it directly, and two uses request routing.</param>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ServiceRoutingRespectsExplicitContextPinOwnershipAsync(int ownership)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = timeout.Token;
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), ct).ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            NodeManagerBatchResult? publication = null;
+            try
+            {
+                if (ownership == 1)
+                {
+                    context.PinRouting(GetRoutingTable(master));
+                }
+                else if (ownership == 2)
+                {
+                    ((IRequestRouting)master).PinRequest(context);
+                }
+                ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+                var nodeId = new NodeId(kValueNodeId, ns);
+                Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
+                    Is.EqualTo(kFirstRegistrationValue));
+                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(current, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], ct).ConfigureAwait(false))
+                {
+                    publication = await replacement.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    current = replacement.Registrations[0];
+                }
+                Assert.That(publication.CleanupFailure, Is.Null);
+                if (ownership == 0)
+                {
+                    await publication.Retirement.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+                    Assert.That(context.HasRoutingPin, Is.False);
+                    Assert.That(context.RoutingSnapshot, Is.Null);
+                    Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
+                        Is.EqualTo(kSecondRegistrationValue));
+                    Assert.That(context.HasRoutingPin, Is.False);
+                    Assert.That(context.RoutingSnapshot, Is.Null);
+                }
+                else
+                {
+                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                    Assert.That(context.HasRoutingPin, Is.True);
+                    context.Dispose();
+                    await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                context.Dispose();
+                if (publication is not null)
+                {
+                    await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                }
+                await RemoveAndRetireAsync(lifecycle, current, ct).ConfigureAwait(false);
+            }
+
+        }
+
+        /// <summary>
+        /// Nested and overlapping calls retain one view without restoring stale snapshots on out-of-order return.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task BorrowedRoutingCohortSurvivesReplacementUntilLastScopeAsync(bool upgrade, bool dispose)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            CancellationToken ct = timeout.Token;
+            IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
+            NodeManagerRoutingTable table = GetRoutingTable(master);
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            NodeManagerRegistration current = await lifecycle.AddRuntimeNodeSetAsync(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue), ct).ConfigureAwait(false);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            OperationContext.RoutingScope outer = context.CaptureRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task overlapping = Task.Run(async () =>
+            {
+                using OperationContext.RoutingScope scope = context.CaptureRouting(table);
+                entered.SetResult(true);
+                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                Assert.That(context.RoutingPinMatchesSnapshot, Is.True);
+            }, ct);
+            NodeManagerBatchResult? publication = null;
+            try
+            {
+                await entered.Task.WaitAsync(ct).ConfigureAwait(false);
+                outer.Dispose();
+                outer.Dispose();
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                await using (IPreparedNodeManagerBatch replacement = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(current, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kSecondRegistrationValue)))], ct).ConfigureAwait(false))
+                {
+                    publication = await replacement.CommitAsync(_ => default, ct).ConfigureAwait(false);
+                    current = replacement.Registrations[0];
+                }
+                Assert.That(publication.CleanupFailure, Is.Null);
+                Assert.That(publication.Retirement.IsCompleted, Is.False);
+                ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+                var nodeId = new NodeId(kValueNodeId, ns);
+                Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
+                    Is.EqualTo(kFirstRegistrationValue), "Nested dispatch must use the still-admitted old view.");
+                Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                if (upgrade)
+                {
+                    context.PinRouting(table);
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                }
+                if (dispose)
+                {
+                    context.Dispose();
+                    Assert.That(() => context.CaptureRouting(table), Throws.TypeOf<ObjectDisposedException>());
+                    Assert.That(() => context.PinRouting(table), Throws.TypeOf<ObjectDisposedException>());
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                }
+                release.SetResult(true);
+                await overlapping.ConfigureAwait(false);
+                if (upgrade && !dispose)
+                {
+                    Assert.That(publication.Retirement.IsCompleted, Is.False);
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
+                    context.Dispose();
+                }
+                await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                Assert.That(captured.Epoch.ActiveCount, Is.Zero);
+                Assert.That(context.HasRoutingPin, Is.False);
+                Assert.That(context.RoutingSnapshot, Is.Null);
+                if (!upgrade && !dispose)
+                {
+                    Assert.That(await ReadContextValueAsync(master, context, nodeId, ct).ConfigureAwait(false),
+                        Is.EqualTo(kSecondRegistrationValue));
+                    Assert.That(context.RoutingSnapshot, Is.Null);
+                }
+            }
+            finally
+            {
+                outer.Dispose();
+                release.TrySetResult(true);
+                try
+                {
+                    await overlapping.ConfigureAwait(false);
+                }
+                finally
+                {
+                    context.Dispose();
+                    if (publication is not null)
+                    {
+                        await publication.Retirement.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    await RemoveAndRetireAsync(lifecycle, current, ct).ConfigureAwait(false);
+                }
+            }
+        }
+
         /// <summary>
         /// A NodeManager published while the calling flow still holds a captured routing image, as a method
         /// callback does inside a dispatched Call, must be visible to the live existence query. The captured
@@ -54,9 +230,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? registration = null;
             try
             {
-                using (table.Capture())
+                using (var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
                 {
-                    NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                    context.PinRouting(table);
+                    NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                     registration = await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null, timeout.Token)
                         .ConfigureAwait(false);
@@ -69,7 +247,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(materialized, Is.True);
-                        Assert.That(table.CapturedRevision, Is.SameAs(captured));
+                        Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                         Assert.That(table.Revision, Is.Not.SameAs(captured));
                     }
                 }
@@ -94,9 +272,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             NodeManagerRoutingTable table = GetRoutingTable(master);
 
-            using (table.Capture())
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
             {
-                NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                context.PinRouting(table);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 bool known = await master.IsNodeMaterializedAsync(ObjectIds.ObjectsFolder, timeout.Token)
                     .ConfigureAwait(false);
                 bool unknown = await master.IsNodeMaterializedAsync(
@@ -106,7 +286,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(known, Is.True);
                     Assert.That(unknown, Is.False);
-                    Assert.That(table.CapturedRevision, Is.SameAs(captured));
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                 }
             }
         }
@@ -131,6 +311,57 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Legacy proxy owners stay authoritative, but a newly published managed owner cannot replace a pinned view.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public async Task ExplicitLookupPreservesExternalOverridesWithoutCrossingManagedViewsAsync(
+            bool registerBeforePin,
+            bool registerAfterPin)
+        {
+            await using var master = new OverridingMasterNodeManager(m_server.CurrentInstance, m_fixture.Config);
+            var proxy = new Mock<IAsyncNodeManager>();
+            master.LookupManager = proxy.Object;
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var routing = (IRequestRouting)master;
+            if (registerBeforePin)
+            {
+                GetRoutingTable(master).Add(proxy.Object, [9]);
+            }
+            routing.PinRequest(context);
+            if (registerAfterPin)
+            {
+                GetRoutingTable(master).Add(proxy.Object, [9]);
+            }
+            (object? handle, IAsyncNodeManager? manager) = await routing.GetManagerHandleAsync(
+                context, new NodeId("LegacyLookup", 9), CancellationToken.None).ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(
+                    context.RoutingSnapshot!.VisibleNodeManagers,
+                    registerBeforePin ? Does.Contain(proxy.Object) : Does.Not.Contain(proxy.Object));
+                Assert.That(master.LookupCount, Is.EqualTo(1));
+                Assert.That(handle, registerAfterPin ? Is.Null : Is.SameAs(master.LookupHandle));
+                Assert.That(manager, registerAfterPin ? Is.Null : Is.SameAs(proxy.Object));
+            }
+        }
+
+        /// <summary>
+        /// Reads through the real master dispatch while borrowing the supplied context.
+        /// </summary>
+        private static async Task<int> ReadContextValueAsync(
+            MasterNodeManager master, OperationContext context, NodeId nodeId, CancellationToken ct)
+        {
+            (ArrayOf<DataValue> values, _) = await master.ReadAsync(
+                context, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }], ct).ConfigureAwait(false);
+            Assert.That(values.Count, Is.EqualTo(1));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            return values[0].WrappedValue.GetInt32();
+        }
+
         private static NodeManagerRoutingTable GetRoutingTable(MasterNodeManager master)
         {
             FieldInfo field = typeof(MasterNodeManager).GetField(
@@ -147,12 +378,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int LookupCount { get; private set; }
 
+            /// <summary>
+            /// Gets the opaque handle returned by the legacy override.
+            /// </summary>
+            public NodeHandle LookupHandle { get; } = new();
+
+            /// <summary>
+            /// Gets or sets the manager selected by the legacy override.
+            /// </summary>
+            public IAsyncNodeManager? LookupManager { get; set; }
+
             public override ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
                 LookupCount++;
-                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((new object(), null));
+                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((LookupHandle, LookupManager));
             }
         }
     }

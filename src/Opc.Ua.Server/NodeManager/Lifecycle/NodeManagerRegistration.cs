@@ -43,14 +43,28 @@ namespace Opc.Ua.Server
             long generation,
             IAsyncNodeManager nodeManager)
         {
-            Id = id;
-            Generation = generation;
-            NodeManager = nodeManager;
+            NodeManagerGeneration identity = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            identity.Slot.SetRegistrationId(id);
+            if (identity.Number != generation)
+            {
+                throw new InvalidOperationException(
+                    $"Expected node-manager generation {generation}, but the published identity is {identity.Number}.");
+            }
+            Identity = identity;
+            Slot = identity.Slot;
+            Id = Slot.Id;
+            Generation = identity.Number;
+            NodeManager = identity.NodeManager;
             IEnumerable<string>? namespaceUris = nodeManager.NamespaceUris;
             NamespaceUris = namespaceUris is null
                 ? default
                 : new ArrayOf<string>(namespaceUris.ToArray());
         }
+
+        /// <summary>
+        /// Gets the stable slot shared by every generation of this registration.
+        /// </summary>
+        public NodeManagerSlot Slot { get; }
 
         /// <summary>
         /// Gets the stable identifier shared by all generations of this registration.
@@ -72,5 +86,10 @@ namespace Opc.Ua.Server
         /// a NodeManager that uses custom routing instead of namespace ownership.
         /// </summary>
         public ArrayOf<string> NamespaceUris { get; }
+
+        /// <summary>
+        /// Gets the immutable generation identity associated with this public registration.
+        /// </summary>
+        internal NodeManagerGeneration Identity { get; }
     }
 }

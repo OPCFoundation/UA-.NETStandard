@@ -212,6 +212,53 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
+        /// Verifies that hosted shutdown keeps lifecycle forwarding attached until manager cleanup finishes.
+        /// </summary>
+        [Test]
+        public async Task HostedShutdownKeepsLifecycleAttachedThroughManagerCleanupAsync()
+        {
+            RegistryCaptureServer.Reset();
+            INodeManagerLifecycle? lifecycle = null;
+            CleanupLifecycleNodeManager? manager = null;
+            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
+            factory.SetupGet(value => value.NamespacesUris).Returns(["urn:hosting:cleanup-lifecycle"]);
+            factory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
+                {
+                    manager = new CleanupLifecycleNodeManager(server, configuration, lifecycle!);
+                    return new ValueTask<IAsyncNodeManager>(manager);
+                });
+            HostedServerFixture fixture = await HostedServerFixture.StartAsync(services =>
+            {
+                services.AddLogging();
+                services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                services.AddOpcUa()
+                    .AddServer<RegistryCaptureServer>(options => ConfigureHostedOptions(options, "CleanupLifecycle"))
+                    .AddNodeManagers((provider, _) =>
+                    {
+                        lifecycle = provider.GetRequiredService<INodeManagerLifecycle>();
+                        return [factory.Object];
+                    });
+            }).ConfigureAwait(false);
+            await using (fixture.ConfigureAwait(false))
+            {
+                Assert.That(await WaitForAsync(
+                    () => RegistryCaptureServer.StartedServer is not null,
+                    TimeSpan.FromSeconds(60)).ConfigureAwait(false), Is.True);
+            }
+
+            Assert.That(manager, Is.Not.Null);
+            Assert.That(manager!.CleanupCalls, Is.EqualTo(1));
+            Assert.That(manager.CleanupObservedShutdown, Is.True);
+            Assert.Throws<InvalidOperationException>(() => _ = lifecycle!.IsShuttingDown);
+            factory.Verify(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that matching certificate and issued-token policies do not produce unmatched-authenticator
         /// warnings.
         /// </summary>
@@ -503,6 +550,46 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
+        /// A failed server disposal detaches the lifecycle and can be retried by hosted-service disposal.
+        /// </summary>
+        [Test]
+        public async Task FailedServerDisposalDetachesLifecycleAndRetainsServerForRetryAsync()
+        {
+            RetryDisposalServer.Reset();
+            HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa().AddServer<RetryDisposalServer>(
+                        options => ConfigureHostedOptions(options, "RetryServerDisposal"));
+                }).ConfigureAwait(false);
+            INodeManagerLifecycle lifecycle = fixture.Services.GetRequiredService<INodeManagerLifecycle>();
+
+            try
+            {
+                Assert.That(
+                    await WaitForAsync(
+                        () => RetryDisposalServer.StartedInstance is not null,
+                        TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                    Is.True);
+
+                await fixture.StopAsync().ConfigureAwait(false);
+
+                Assert.That(RetryDisposalServer.DisposeAttempts, Is.EqualTo(2));
+                Assert.That(() => lifecycle.IsShuttingDown, Throws.InvalidOperationException);
+            }
+            finally
+            {
+                await fixture.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(RetryDisposalServer.DisposeAttempts, Is.EqualTo(3));
+            Assert.That(() => lifecycle.IsShuttingDown, Throws.InvalidOperationException);
+        }
+
+        /// <summary>
         /// Verifies that the fluent builder rejects a budget that is not positive.
         /// </summary>
         [Test]
@@ -624,12 +711,84 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        [SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated by the DI container through AddServer<TServer>.")]
+        private sealed class RetryDisposalServer : StandardServer
+        {
+            public RetryDisposalServer(ITelemetryContext telemetry, TimeProvider timeProvider)
+                : base(telemetry, timeProvider)
+            {
+                StartedInstance = this;
+            }
+
+            public static RetryDisposalServer? StartedInstance { get; private set; }
+
+            public static int DisposeAttempts => Volatile.Read(ref s_disposeAttempts);
+
+            public static void Reset()
+            {
+                StartedInstance = null;
+                Interlocked.Exchange(ref s_disposeAttempts, 0);
+            }
+
+            protected override ValueTask DisposeAsyncCore()
+            {
+                if (Interlocked.Increment(ref s_disposeAttempts) == 2)
+                {
+                    return new ValueTask(Task.FromException(
+                        new InvalidOperationException("Injected disposal failure.")));
+                }
+
+                return base.DisposeAsyncCore();
+            }
+
+            private static int s_disposeAttempts;
+        }
+
+        /// <summary>
+        /// Observes the injected lifecycle while the server reclaims its owned manager.
+        /// </summary>
+        /// <param name="server">The owning server.</param>
+        /// <param name="configuration">The server configuration.</param>
+        /// <param name="lifecycle">The injected hosted lifecycle.</param>
+        private sealed class CleanupLifecycleNodeManager(
+            IServerInternal server, ApplicationConfiguration configuration, INodeManagerLifecycle lifecycle)
+            : AsyncCustomNodeManager(server, configuration, NullLogger.Instance, "urn:hosting:cleanup-lifecycle")
+        {
+            /// <summary>
+            /// Gets the number of cleanup attempts.
+            /// </summary>
+            public int CleanupCalls { get; private set; }
+
+            /// <summary>
+            /// Gets whether cleanup observed the attached server's shutdown state.
+            /// </summary>
+            public bool CleanupObservedShutdown { get; private set; }
+
+            /// <inheritdoc/>
+            public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
+            {
+                CleanupCalls++;
+                CleanupObservedShutdown = lifecycle.IsShuttingDown;
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         private sealed class HostedServerFixture : IAsyncDisposable
         {
             private HostedServerFixture(ServiceProvider provider, IHostedService hostedService)
             {
                 m_provider = provider;
                 m_hostedService = hostedService;
+            }
+
+            public IServiceProvider Services => m_provider;
+
+            public Task StopAsync()
+            {
+                return m_hostedService.StopAsync(CancellationToken.None);
             }
 
             public static async ValueTask<HostedServerFixture> StartAsync(

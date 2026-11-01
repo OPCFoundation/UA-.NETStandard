@@ -441,17 +441,27 @@ at most one regular server may be registered per service collection.
 The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    public async ValueTask<NodeManagerBatchResult> AddAsync(CancellationToken ct)
     {
-        return lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [
+                NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
+                        {
+                            Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+                        }))
+            ],
+            ct).ConfigureAwait(false);
+        // CleanupFailure does not undo publication; return the authoritative result.
+        return await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
     }
 }
 ```
@@ -587,6 +597,12 @@ server cleanup; subsequent tasks do not run.
 `StopAsync` waits for execution cleanup even after a host shutdown timeout,
 so the host does not dispose dependencies that the server is still using.
 Slow cleanup can therefore outlast that timeout.
+
+Hosted server disposal detaches the injected lifecycle even if server disposal
+throws. The hosted service retains the failed server for a later disposal
+attempt; retaining its resources does not make it available through the hosted
+lifecycle. A successful retry releases the server reference, and later hosted
+disposal calls do not dispose it again.
 
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:

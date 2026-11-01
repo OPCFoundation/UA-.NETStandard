@@ -227,12 +227,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Installs a source condition action with an optional asynchronous response barrier.
+        /// </summary>
         private static async Task<NodeId> InstallActionSourceAsync(
             NativeEndpoint source,
             ChannelWriter<NativeConditionCall> calls,
             CancellationToken ct,
             string conditionName = "ConditionA",
-            string pumpName = "PumpA")
+            string pumpName = "PumpA",
+            Func<CancellationToken, ValueTask>? beforeReturn = null)
         {
             UANodeSet nodes = ConditionSourceNodes();
             nodes.Items![2] = ConditionEventType(1, Ua.ObjectTypeIds.AcknowledgeableConditionType.ToString());
@@ -265,7 +269,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     method.OnCall = null;
                     method.OnCallAsync = null;
                     methodId = method.NodeId;
-                    builder.Node(method.NodeId).OnCallWithResult((context, _, receiver, arguments, cancellation) =>
+                    builder.Node(method.NodeId).OnCallWithResult(async (context, _, receiver, arguments, cancellation) =>
                     {
                         cancellation.ThrowIfCancellationRequested();
                         if (arguments.Count != 2 ||
@@ -274,14 +278,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             context is not ServerSystemContext serverContext ||
                             serverContext.SessionId is not NodeId sourceSessionId)
                         {
-                            return new ValueTask<MethodInvocationResult>(
-                                new MethodInvocationResult(StatusCodes.BadInvalidArgument));
+                            return new MethodInvocationResult(StatusCodes.BadInvalidArgument);
                         }
                         bool written = calls.TryWrite(new NativeConditionCall(
                             NodeId.ToExpandedNodeId(receiver, context.NamespaceUris),
                             eventId, text, sourceSessionId));
-                        return new ValueTask<MethodInvocationResult>(new MethodInvocationResult(
-                            written ? StatusCodes.Good : StatusCodes.BadTooManyOperations));
+                        if (beforeReturn is not null)
+                        {
+                            await beforeReturn(cancellation).ConfigureAwait(false);
+                        }
+                        return new MethodInvocationResult(
+                            written ? StatusCodes.Good : StatusCodes.BadTooManyOperations);
                     });
                     return null;
                 }

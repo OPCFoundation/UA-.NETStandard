@@ -60,8 +60,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative committed transaction.
+        /// </summary>
+        /// <param name="registration">The committed replacement registration.</param>
+        /// <param name="result">The committed transaction result, including asynchronous retirement.</param>
+        /// <param name="message">The post-commit failure message.</param>
+        /// <param name="innerException">The failure raised after publication.</param>
+        public NodeManagerReloadCommittedException(
+            NodeManagerRegistration registration,
+            NodeManagerBatchResult result,
+            string message,
+            Exception innerException)
+            : this(registration, message, innerException)
+        {
+            Result = result ?? throw new ArgumentNullException(nameof(result));
+        }
+
+        /// <summary>
         /// Gets the committed replacement registration that remains the active NodeManager generation.
         /// </summary>
         public NodeManagerRegistration Registration { get; }
+
+        /// <summary>
+        /// Gets the committed transaction, or null for exceptions constructed with the legacy constructor.
+        /// </summary>
+        public NodeManagerBatchResult? Result { get; }
     }
 }

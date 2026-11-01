@@ -40,6 +40,75 @@ namespace Opc.Ua.Server
     /// </summary>
     public partial class MasterNodeManager : IDynamicNodeManagerBatchHost, INodeManagerReadImageSource
     {
+        /// <summary>
+        /// Holds host-private synchronization while exposing only lifecycle admission capabilities.
+        /// </summary>
+        private sealed class BatchAdmission : INodeManagerBatchAdmission
+        {
+            /// <summary>
+            /// Creates an admission from capabilities acquired by the host.
+            /// </summary>
+            /// <param name="addressSpaceAdmission">The private address-space admission, if acquired.</param>
+            /// <param name="serverLifecycleAdmission">The private server-lifecycle admission, if acquired.</param>
+            internal BatchAdmission(
+                SemaphoreSlim? addressSpaceAdmission,
+                SemaphoreSlim? serverLifecycleAdmission)
+            {
+                m_addressSpaceAdmission = addressSpaceAdmission;
+                m_serverLifecycleAdmission = serverLifecycleAdmission;
+                m_capabilities =
+                    (addressSpaceAdmission is null ? 0 : (int)NodeManagerAdmissionCapability.AddressSpaceMutation) |
+                    (serverLifecycleAdmission is null ? 0 : (int)NodeManagerAdmissionCapability.ServerLifecycle);
+            }
+
+            /// <inheritdoc/>
+            public bool Includes(NodeManagerAdmissionCapability capability)
+            {
+                return capability != NodeManagerAdmissionCapability.None &&
+                    (Volatile.Read(ref m_capabilities) & (int)capability) == (int)capability;
+            }
+
+            /// <inheritdoc/>
+            public void Release(NodeManagerAdmissionCapability capability)
+            {
+                if ((capability & NodeManagerAdmissionCapability.ServerLifecycle) != 0)
+                {
+                    Revoke(NodeManagerAdmissionCapability.ServerLifecycle);
+                    Interlocked.Exchange(ref m_serverLifecycleAdmission, null)?.Release();
+                }
+                if ((capability & NodeManagerAdmissionCapability.AddressSpaceMutation) != 0)
+                {
+                    Revoke(NodeManagerAdmissionCapability.AddressSpaceMutation);
+                    Interlocked.Exchange(ref m_addressSpaceAdmission, null)?.Release();
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Release(
+                    NodeManagerAdmissionCapability.ServerLifecycle |
+                    NodeManagerAdmissionCapability.AddressSpaceMutation);
+            }
+
+            private void Revoke(NodeManagerAdmissionCapability capability)
+            {
+                while (true)
+                {
+                    int current = Volatile.Read(ref m_capabilities);
+                    int next = current & ~(int)capability;
+                    if (Interlocked.CompareExchange(ref m_capabilities, next, current) == current)
+                    {
+                        return;
+                    }
+                }
+            }
+
+            private SemaphoreSlim? m_addressSpaceAdmission;
+            private SemaphoreSlim? m_serverLifecycleAdmission;
+            private int m_capabilities;
+        }
+
         /// <inheritdoc/>
         public INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
         {
@@ -55,44 +124,232 @@ namespace Opc.Ua.Server
         NodeManagerRoutingTable.RoutingSnapshot IDynamicNodeManagerBatchHost.RoutingRevision
             => m_nodeManagers.Revision;
 
-        /// <inheritdoc/>
-        IDisposable IDynamicNodeManagerBatchHost.UseLiveRouting()
-        {
-            return m_nodeManagers.UseLiveRouting();
-        }
+        NodeManagerCallbackPermit? IDynamicNodeManagerBatchHost.CaptureLifecycleCallbackPermit()
+            => CaptureLifecycleCallbackPermit();
 
         /// <inheritdoc/>
-        IDisposable IDynamicNodeManagerBatchHost.UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
+        void IDynamicNodeManagerBatchHost.ReleaseRetiringEventGeneration(NodeManagerGeneration generation)
         {
-            return m_nodeManagers.UseTypeImage(typeTree, factory);
+            if (generation is null)
+            {
+                throw new ArgumentNullException(nameof(generation));
+            }
+
+            lock (m_retiringEventGenerationsLock)
+            {
+                NodeManagerGeneration[] current = m_retiringEventGenerations;
+                int index = Array.IndexOf(current, generation);
+                if (index < 0)
+                {
+                    return;
+                }
+                var next = new NodeManagerGeneration[current.Length - 1];
+                Array.Copy(current, 0, next, 0, index);
+                Array.Copy(current, index + 1, next, index, next.Length - index);
+                Volatile.Write(ref m_retiringEventGenerations, next);
+            }
         }
 
-        /// <inheritdoc/>
-        IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
+        /// <summary>
+        /// Gets the retired generations whose all-events binding records have not been released yet. Item deletion
+        /// releases its binding on these generations so a deleted item is never retained by a retired manager.
+        /// The array is empty unless a lifecycle change retired a generation.
+        /// </summary>
+        internal NodeManagerGeneration[] RetiringEventGenerations => Volatile.Read(ref m_retiringEventGenerations);
+
+        private void TrackRetiringEventGenerations(List<NodeManagerGeneration> generations)
         {
-            return SuspendBindingAdmission(context);
+            if (generations.Count == 0)
+            {
+                return;
+            }
+            lock (m_retiringEventGenerationsLock)
+            {
+                NodeManagerGeneration[] current = m_retiringEventGenerations;
+                var next = new NodeManagerGeneration[current.Length + generations.Count];
+                current.CopyTo(next, 0);
+                generations.CopyTo(next, current.Length);
+                Volatile.Write(ref m_retiringEventGenerations, next);
+            }
         }
 
-        /// <inheritdoc/>
-        bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem)
+        async ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken,
+            NodeManagerCallbackPermit? callbackPermit)
         {
-            return IsRemovingBinding(context, monitoredItem);
+            if (!view.TryPin(out int stripe))
+            {
+                throw new NodeManagerRoutingConflictException("The reference preparation view has retired.", view);
+            }
+            try
+            {
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previous;
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousSnapshot;
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> next;
+                HashSet<IAsyncNodeManager> retiring = [.. removed];
+                bool dynamicMutationSemaphoreHeld = false;
+                if (!HasActiveCallbackPermit(
+                        callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation))
+                {
+                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    dynamicMutationSemaphoreHeld = true;
+                }
+                try
+                {
+                    if (!ReferenceEquals(view, m_nodeManagers.Revision))
+                    {
+                        throw new NodeManagerRoutingConflictException(
+                            "The address space changed before reference discovery.", view);
+                    }
+                    previous = m_dynamicExternalReferences;
+                    previousSnapshot = previous.ToDictionary(entry => entry.Key, entry => entry.Value);
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        ValidatePreparedNodeManager(candidate);
+                        if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
+                        {
+                            throw new InvalidOperationException("A batch candidate has no prepared generation.");
+                        }
+                        if (candidate.ReplacedNodeManager is { } old)
+                        {
+                            retiring.Add(old);
+                        }
+                    }
+                    next = previousSnapshot.Where(entry => !retiring.Contains(entry.Key))
+                        .ToDictionary(entry => entry.Key, entry => entry.Value);
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        next.Add(candidate.NodeManager, candidate.ExternalReferences);
+                    }
+                }
+                finally
+                {
+                    if (dynamicMutationSemaphoreHeld)
+                    {
+                        m_dynamicMutationSemaphore.Release();
+                    }
+                }
+
+                (
+                    ArrayOf<PreparedReferenceSource> sources,
+                    Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> additions,
+                    Dictionary<IAsyncNodeManager, List<LocalReference>> deferredRemovals) =
+                    await PrepareReferenceSourcesAsync(
+                        candidates, retiring, previousSnapshot, next, view, cancellationToken)
+                        .ConfigureAwait(false);
+                var owners = new Dictionary<NodeState.ReferenceUpdate, NodeManagerGeneration>();
+                foreach (PreparedReferenceSource source in sources)
+                {
+                    owners.Add(source.Update,
+                        (candidates.ToArray() ?? []).FirstOrDefault(candidate =>
+                            ReferenceEquals(candidate.NodeManager, source.Owner))?.Generation ??
+                        view.GetGeneration(source.Owner));
+                }
+                return new PreparedAddressSpaceReferences(view, previous, next, owners, additions, deferredRemovals);
+            }
+            finally
+            {
+                view.Epoch.Exit(stripe);
+            }
         }
 
-        /// <inheritdoc/>
-        async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
-            IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
-                IOperationContext? context,
-                Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
-                CancellationToken cancellationToken)
+        async ValueTask<INodeManagerBatchAdmission> IDynamicNodeManagerBatchHost.AcquireCommitAdmissionAsync(
+            NodeManagerCallbackPermit? callbackPermit,
+            CancellationToken cancellationToken)
         {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission(context);
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
-            return await activateAsync().ConfigureAwait(false);
+            bool needsDynamicMutationSemaphore =
+                !HasActiveCallbackPermit(
+                    callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation);
+            bool needsStartupShutdownSemaphore =
+                !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle);
+            if (!needsDynamicMutationSemaphore && !needsStartupShutdownSemaphore)
+            {
+                return new BatchAdmission(null, null);
+            }
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                needsDynamicMutationSemaphore =
+                    !HasActiveCallbackPermit(
+                        callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation);
+                needsStartupShutdownSemaphore =
+                    !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle);
+                if (!needsDynamicMutationSemaphore && !needsStartupShutdownSemaphore)
+                {
+                    return new BatchAdmission(null, null);
+                }
+                if (!needsDynamicMutationSemaphore)
+                {
+                    await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    if (needsDynamicMutationSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
+                        needsStartupShutdownSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    {
+                        return new BatchAdmission(null, m_startupShutdownSemaphoreSlim);
+                    }
+                    m_startupShutdownSemaphoreSlim.Release();
+                    continue;
+                }
+                if (!needsStartupShutdownSemaphore)
+                {
+                    await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    if (needsDynamicMutationSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
+                        needsStartupShutdownSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    {
+                        return new BatchAdmission(m_dynamicMutationSemaphore, null);
+                    }
+                    m_dynamicMutationSemaphore.Release();
+                    continue;
+                }
+
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (m_startupShutdownSemaphoreSlim.Wait(0, CancellationToken.None))
+                {
+                    if (needsDynamicMutationSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
+                        needsStartupShutdownSemaphore ==
+                            !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    {
+                        return new BatchAdmission(
+                            m_dynamicMutationSemaphore, m_startupShutdownSemaphoreSlim);
+                    }
+                    m_startupShutdownSemaphoreSlim.Release();
+                }
+                m_dynamicMutationSemaphore.Release();
+
+                await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (m_dynamicMutationSemaphore.Wait(0, CancellationToken.None))
+                {
+                    if (needsDynamicMutationSemaphore ==
+                            !HasActiveCallbackPermit(
+                                callbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
+                        needsStartupShutdownSemaphore ==
+                            !HasActiveCallbackPermit(callbackPermit, NodeManagerAdmissionCapability.ServerLifecycle))
+                    {
+                        return new BatchAdmission(
+                            m_dynamicMutationSemaphore, m_startupShutdownSemaphoreSlim);
+                    }
+                    m_dynamicMutationSemaphore.Release();
+                }
+                m_startupShutdownSemaphoreSlim.Release();
+            }
         }
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Commits a prepared node-manager batch under its captured lifecycle admission.
+        /// </summary>
+        /// <param name="context">The prepared batch and its lifecycle callbacks.</param>
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             NodeManagerBatchContext context)
         {
@@ -103,8 +360,6 @@ namespace Opc.Ua.Server
 
             ArrayOf<PreparedNodeManager> candidates = context.Candidates;
             ArrayOf<IAsyncNodeManager> removed = context.Removed;
-            ArrayOf<IAsyncNodeManager> immediateRetirements = context.ImmediateRetirements;
-            NodeManagerRoutingTable.RoutingSnapshot routingRevision = context.RoutingRevision;
             TypeTable typeTree = context.TypeTree;
             TypeTable originalTypes = context.OriginalTypes;
             long typeRevision = context.TypeRevision;
@@ -113,27 +368,60 @@ namespace Opc.Ua.Server
             long factoryRevision = context.FactoryRevision;
             ArrayOf<INodeManagerReadImage> readImages = context.ReadImages;
             Func<CancellationToken, ValueTask>? decideAsync = context.DecideAsync;
-            Action published = context.Published;
+            Func<ValueTask> published = context.Published;
             Func<ValueTask> reconcileBindingsAsync = context.ReconcileBindingsAsync;
-            Action<Exception> reportCleanupFailure = context.ReportCleanupFailure;
             CancellationToken cancellationToken = context.CancellationToken;
 
+            INodeManagerBatchAdmission admission = context.Admission ??
+                throw new InvalidOperationException("Lifecycle commit admission must precede mutation ownership.");
             var referenceUpdates = new List<NodeState.ReferenceUpdate>();
-            bool bindingAdmissionHeld = false;
+            var referenceOwners = new Dictionary<NodeState.ReferenceUpdate, NodeManagerGeneration>();
+            NodeManagerGeneration[] publishedOwners = [];
+            var referenceAdditions = new Dictionary<
+                IAsyncNodeManager,
+                Dictionary<NodeId, IList<IReference>>>();
+            bool dynamicMutationSemaphoreHeld =
+                admission.Includes(NodeManagerAdmissionCapability.AddressSpaceMutation);
+            bool startupShutdownSemaphoreHeld =
+                admission.Includes(NodeManagerAdmissionCapability.ServerLifecycle);
+            bool decisionCommitted = false;
+            bool lifecycleDecisionWindowStarted = false;
+            bool namespaceRegistrationAdmissionHeld = false;
+            TaskCompletionSource<bool>? namespacePublication = null;
+            Task? previousNamespacePublication = m_currentNamespacePublication.Value;
+            NodeManagerRoutingTable.PreparedRoutes? routes = null;
             try
             {
-                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                namespaceRegistrationAdmissionHeld = true;
+                namespacePublication = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_currentNamespacePublication.Value = namespacePublication.Task;
+                if (!HasActiveCallbackPermit(
+                        context.CallbackPermit, NodeManagerAdmissionCapability.AddressSpaceMutation) &&
+                    !dynamicMutationSemaphoreHeld)
+                {
+                    throw new InvalidOperationException(
+                        "Lifecycle commit lacks address-space mutation admission.");
+                }
                 try
                 {
-                    await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    if (!HasActiveCallbackPermit(
+                            context.CallbackPermit, NodeManagerAdmissionCapability.ServerLifecycle) &&
+                        !startupShutdownSemaphoreHeld)
+                    {
+                        throw new InvalidOperationException(
+                            "Lifecycle commit lacks server lifecycle admission.");
+                    }
                     try
                     {
-                        foreach (PreparedNodeManager candidate in candidates)
+                        for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
                         {
+                            PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
-                            if (!candidate.Staged)
+                            if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
                             {
-                                throw new InvalidOperationException("A batch candidate is not staged.");
+                                throw new InvalidOperationException("A batch candidate has no prepared generation.");
                             }
                         }
                         HashSet<IAsyncNodeManager> retiring = [.. removed];
@@ -144,109 +432,216 @@ namespace Opc.Ua.Server
                                 retiring.Add(old);
                             }
                         }
+                        var retiringGenerations = new List<NodeManagerGeneration>(retiring.Count);
                         foreach (IAsyncNodeManager manager in retiring)
                         {
-                            if (!m_dynamicExternalReferences.ContainsKey(manager))
+                            if (!m_nodeManagers.Revision.TryGetGeneration(
+                                manager, out NodeManagerGeneration? generation))
                             {
                                 throw new InvalidOperationException("A batch retirement is no longer registered.");
                             }
+                            retiringGenerations.Add(generation!);
                         }
 
-                        var nextReferences = m_dynamicExternalReferences
-                            .Where(entry => !retiring.Contains(entry.Key))
-                            .ToDictionary(entry => entry.Key, entry => entry.Value);
-                        foreach (PreparedNodeManager candidate in candidates)
+                        typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
+                        factory = originalFactory.PrepareAdditiveMerge(
+                            factory, originalFactory, factoryRevision, context.Preparation.NamespaceUris);
+                        PreparedAddressSpaceReferences references = context.References ??
+                            throw new InvalidOperationException("Reference discovery must precede publication.");
+                        if (!ReferenceEquals(references.View, m_nodeManagers.Revision) ||
+                            !ReferenceEquals(references.Previous, m_dynamicExternalReferences))
                         {
-                            nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
+                            throw new OptimisticPublicationConflictException("The reference preparation is stale.");
                         }
-                        Dictionary<NodeState, NodeState.ReferenceSnapshot> referenceImages =
-                            routingRevision.References.ToDictionary(entry => entry.Key, entry => entry.Value);
-                        using (m_nodeManagers.UseTypeImage(typeTree, factory))
+                        var nextReferences = references.Next;
+                        referenceAdditions = references.Additions;
+                        foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in
+                            references.DeferredRemovals)
                         {
-                            ArrayOf<PreparedReferenceSource> sources = await PrepareReferenceSourcesAsync(
-                                candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
-                            foreach (PreparedReferenceSource source in sources)
-                            {
-                                referenceUpdates.Add(m_nodeManagers.PrepareReferences(
-                                    source.Owner, source.Node, source.Additions, source.Removals, referenceImages));
-                            }
+                            context.DeferReferenceRemoval(deferred.Key, deferred.Value);
+                        }
+                        foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> source in
+                            references.Owners)
+                        {
+                            referenceUpdates.Add(source.Key);
+                            referenceOwners.Add(source.Key, source.Value);
                         }
 
-                        using NodeManagerRoutingTable.PreparedRoutes routes =
-                            m_nodeManagers.PrepareBatch(
-                                candidates, removed, routingRevision, ResolveNamespaceIndexes,
-                                typeTree, factory, referenceImages, readImages);
+                        routes = m_nodeManagers.PrepareBatch(
+                                candidates, removed,
+                                manager => (manager.NamespaceUris ?? Enumerable.Empty<string>())
+                                    .Concat(ChangePreparer.GetServer(manager)?.NamespaceRegistrations ??
+                                        Enumerable.Empty<string>())
+                                    .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
+                                originalTypes, originalFactory, readImages);
                         routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =
                             originalFactory.BeginPublication(originalFactory, factoryRevision);
+                        using StringTable.Publication namespaces = Server.NamespaceUris.BeginPublication(
+                            context.Preparation.NamespaceUris, context.Preparation.NamespaceRevision);
+                        using StringTable.Publication serverUris = Server.ServerUris.BeginPublication(
+                            context.Preparation.ServerUris, context.Preparation.ServerRevision);
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Reserve();
                         }
-                        using PreparedSourceEmissionCutoff emissions =
-                            PrepareSourceEmissionCutoff(immediateRetirements);
+                        var publisher = new AddressSpacePublisher(
+                            routes,
+                            namespaces,
+                            serverUris,
+                            types,
+                            registrations,
+                            typeTree,
+                            factory,
+                            candidates,
+                            referenceUpdates,
+                            () =>
+                            {
+                                context.ViewPublished();
+                                m_dynamicExternalReferences = nextReferences;
+                                TrackRetiringEventGenerations(retiringGenerations);
+                                foreach (PreparedNodeManager candidate in candidates)
+                                {
+                                    candidate.Published = true;
+                                    candidate.ReplacedNodeManager = null;
+                                    SetPreparing(candidate.NodeManager, preparing: false);
+                                }
+                            });
                         cancellationToken.ThrowIfCancellationRequested();
                         if (decideAsync is null)
                         {
                             return;
                         }
-                        await decideAsync(cancellationToken).ConfigureAwait(false);
-
-                        // Lifecycle-waiting callbacks suspend their admission while the committed image is installed.
-                        await m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-                        bindingAdmissionHeld = true;
-                        foreach (IAsyncNodeManager manager in retiring)
+                        BeginLifecycleDecisionWindow();
+                        lifecycleDecisionWindowStarted = true;
+                        // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
+                        // while the durable decision callback performs external I/O. The prepared batch retains
+                        // its lifecycle operation until commit or disposal, so shutdown cannot dispose this host.
+                        if (startupShutdownSemaphoreHeld)
                         {
-                            RetainRetiredGenerationNotifications(manager);
+                            admission.Release(NodeManagerAdmissionCapability.ServerLifecycle);
+                            startupShutdownSemaphoreHeld = false;
                         }
-                        emissions.Publish(routes);
-                        types.Complete();
-                        registrations.Complete();
+                        if (dynamicMutationSemaphoreHeld)
+                        {
+                            admission.Release(NodeManagerAdmissionCapability.AddressSpaceMutation);
+                            dynamicMutationSemaphoreHeld = false;
+                        }
+                        await decideAsync(cancellationToken).ConfigureAwait(false);
+                        decisionCommitted = true;
+
+                        // The publication invocation remains an active lifecycle operation until
+                        // reconciliation finishes, so shutdown cannot tear down this host first.
+                        publisher.Publish();
+                        publishedOwners =
+                            m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
+                        // Callbacks may mutate the committed image after internal publication bookkeeping.
+                        namespaces.Dispose();
+                        serverUris.Dispose();
+                        types.Dispose();
+                        registrations.Dispose();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
-                            update.Complete();
+                            update.Dispose();
                         }
-                        foreach (IAsyncNodeManager manager in retiring)
-                        {
-                            m_dynamicExternalReferences.Remove(manager);
-                        }
-                        foreach (PreparedNodeManager candidate in candidates)
-                        {
-                            m_dynamicExternalReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
-                            candidate.Staged = false;
-                            candidate.Published = true;
-                            candidate.ReplacedNodeManager = null;
-                            candidate.ReplacedExternalReferences = null;
-                            SetPreparing(candidate.NodeManager, preparing: false);
-                        }
-                        // Callbacks may mutate the committed image after internal publication bookkeeping.
                         routes.Dispose();
-                        published();
+                        // Application-state reconciliation can re-enter lifecycle publication after reservations release.
+                        EndLifecycleDecisionWindow();
+                        lifecycleDecisionWindowStarted = false;
+                        namespacePublication.TrySetResult(true);
+                        m_currentNamespacePublication.Value = previousNamespacePublication;
+                        m_namespaceRegistrationSemaphore.Release();
+                        namespaceRegistrationAdmissionHeld = false;
+                        await published().ConfigureAwait(false);
                     }
                     finally
                     {
-                        m_startupShutdownSemaphoreSlim.Release();
+                        try
+                        {
+                            foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                            {
+                                update.Dispose();
+                            }
+                            routes?.Dispose();
+                        }
+                        finally
+                        {
+                            if (lifecycleDecisionWindowStarted)
+                            {
+                                EndLifecycleDecisionWindow();
+                                lifecycleDecisionWindowStarted = false;
+                            }
+                            if (startupShutdownSemaphoreHeld)
+                            {
+                                admission.Release(NodeManagerAdmissionCapability.ServerLifecycle);
+                                startupShutdownSemaphoreHeld = false;
+                            }
+                        }
                     }
                 }
                 finally
                 {
-                    m_dynamicMutationSemaphore.Release();
+                    if (dynamicMutationSemaphoreHeld)
+                    {
+                        admission.Release(NodeManagerAdmissionCapability.AddressSpaceMutation);
+                        dynamicMutationSemaphoreHeld = false;
+                    }
+                }
+                for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+                {
+                    PreparedNodeManager candidate = candidates[candidateIndex];
+                    if (!referenceAdditions.TryGetValue(
+                        candidate.NodeManager,
+                        out Dictionary<NodeId, IList<IReference>>? additions))
+                    {
+                        continue;
+                    }
+                    foreach (NodeManagerGeneration owner in publishedOwners)
+                    {
+                        await context.Reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.References,
+                            [candidate.Generation!, owner],
+                            () => owner.NodeManager.AddReferencesAsync(additions, CancellationToken.None))
+                            .ConfigureAwait(false);
+                    }
                 }
                 await reconcileBindingsAsync().ConfigureAwait(false);
-                m_bindingSemaphore.Release();
-                bindingAdmissionHeld = false;
                 foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                 {
-                    update.Notify(reportCleanupFailure);
+                    await context.Reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.References,
+                        (candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)
+                            .Append(referenceOwners[update]).Distinct().ToArray(),
+                        () =>
+                        {
+                            var failures = new List<Exception>();
+                            update.Notify(failures.Add);
+                            if (failures.Count != 0)
+                            {
+                                throw new AggregateException("Reference observers remain pending.", failures);
+                            }
+                            return default;
+                        }).ConfigureAwait(false);
                 }
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException && !decisionCommitted)
+            {
+                throw;
             }
             finally
             {
-                if (bindingAdmissionHeld)
+                if (namespaceRegistrationAdmissionHeld)
                 {
-                    m_bindingSemaphore.Release();
+                    namespacePublication?.TrySetResult(true);
+                    m_currentNamespacePublication.Value = previousNamespacePublication;
+                    m_namespaceRegistrationSemaphore.Release();
                 }
+                if (dynamicMutationSemaphoreHeld)
+                {
+                    admission.Release(NodeManagerAdmissionCapability.AddressSpaceMutation);
+                }
+                admission.Dispose();
                 foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                 {
                     update.Dispose();
@@ -260,18 +655,29 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="candidates">The prepared node managers.</param>
         /// <param name="retiring">The node managers that are retired.</param>
+        /// <param name="previousReferences">Captured contributions before the batch.</param>
         /// <param name="nextReferences">The external references after the batch.</param>
+        /// <param name="view">The pinned serving view used for owner discovery.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The reference sources to update.</returns>
-        private async ValueTask<ArrayOf<PreparedReferenceSource>> PrepareReferenceSourcesAsync(
+        private async ValueTask<(
+            ArrayOf<PreparedReferenceSource> Sources,
+            Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> Additions,
+            Dictionary<IAsyncNodeManager, List<LocalReference>> DeferredRemovals)>
+            PrepareReferenceSourcesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             HashSet<IAsyncNodeManager> retiring,
+            Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousReferences,
             Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> nextReferences,
+            NodeManagerRoutingTable.RoutingSnapshot view,
             CancellationToken cancellationToken)
         {
-            Dictionary<NodeId, ReferenceDictionary<bool>> previous = Collect(m_dynamicExternalReferences.Values);
+            Dictionary<NodeId, ReferenceDictionary<bool>> previous = Collect(previousReferences.Values);
             Dictionary<NodeId, ReferenceDictionary<bool>> next = Collect(nextReferences.Values);
             var sources = new List<PreparedReferenceSource>();
+            var referenceAdditions =
+                new Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>();
+            var deferredRemovals = new Dictionary<IAsyncNodeManager, List<LocalReference>>();
             var newOwners = new HashSet<IAsyncNodeManager>();
             foreach (PreparedNodeManager candidate in candidates)
             {
@@ -279,7 +685,7 @@ namespace Opc.Ua.Server
             }
             IAsyncNodeManager[] owners =
             [
-                .. m_nodeManagers.Where(manager => !retiring.Contains(manager)),
+                .. view.VisibleNodeManagers.Where(manager => !retiring.Contains(manager)),
                 .. newOwners
             ];
             var nodes = new HashSet<NodeState>();
@@ -291,11 +697,29 @@ namespace Opc.Ua.Server
                 ArrayOf<IReference> removals = oldReferences is null
                     ? []
                     : [.. oldReferences.Keys.Where(reference => newReferences?.ContainsKey(reference) != true)];
+                bool contributionsChanged = removals.Count != 0 ||
+                    newReferences?.Keys.Any(reference => oldReferences?.ContainsKey(reference) != true) == true;
+                var ownerNodes = new List<(IAsyncNodeManager Owner, NodeState Node)>();
+                bool hasUnsupportedOwner = false;
                 foreach (IAsyncNodeManager owner in owners)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    object handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
-                        .ConfigureAwait(false);
+                    NodeManagerGeneration? generation = newOwners.Contains(owner) ? null : view.GetGeneration(owner);
+                    int stripe = 0;
+                    if (generation is not null && !generation.Gate.TryEnter(out stripe))
+                    {
+                        throw new InvalidOperationException("A reference owner retired during discovery.");
+                    }
+                    object handle;
+                    try
+                    {
+                        handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        generation?.Gate.Exit(stripe);
+                    }
                     if (handle is null)
                     {
                         continue;
@@ -303,27 +727,111 @@ namespace Opc.Ua.Server
                     if ((owner is not AsyncCustomNodeManager && owner.SyncNodeManager is not CustomNodeManager2) ||
                         handle is not NodeHandle { Validated: true, Node: { } node })
                     {
-                        throw new NotSupportedException(
-                            "Prepared external references require an in-memory NodeState owner.");
+                        hasUnsupportedOwner = true;
+                        continue;
                     }
                     if (!nodes.Add(node))
                     {
                         throw new NotSupportedException(
                             "A prepared reference source has multiple NodeManager owners.");
                     }
-                    sources.Add(new PreparedReferenceSource(
-                        owner, node, additions, newOwners.Contains(owner) ? [] : removals));
+                    ownerNodes.Add((owner, node));
+                    bool newOwner = newOwners.Contains(owner);
+                    if (newOwner || contributionsChanged)
+                    {
+                        sources.Add(new PreparedReferenceSource(
+                            owner, node.PrepareReferences(additions, newOwner ? [] : removals)));
+                    }
+                }
+                if (hasUnsupportedOwner && ownerNodes.Count > 0)
+                {
+                    throw new NotSupportedException(
+                        "Prepared external references have both in-memory and external owners.");
+                }
+                if (hasUnsupportedOwner || ownerNodes.Count == 0)
+                {
+                    if (removals.Count > 0)
+                    {
+                        foreach (IReference removal in removals)
+                        {
+                            IAsyncNodeManager? retirementOwner = retiring.FirstOrDefault(manager =>
+                                previousReferences.TryGetValue(
+                                    manager,
+                                    out Dictionary<NodeId, IList<IReference>>? contributed) &&
+                                contributed.TryGetValue(sourceId, out IList<IReference>? references) &&
+                                references.Any(reference =>
+                                    reference.ReferenceTypeId == removal.ReferenceTypeId &&
+                                    reference.IsInverse == removal.IsInverse &&
+                                    reference.TargetId == removal.TargetId));
+                            if (retirementOwner is null)
+                            {
+                                throw new NotSupportedException(
+                                    "Removing prepared external references requires an in-memory NodeState owner " +
+                                    "or a retiring contributor.");
+                            }
+                            NodeId targetId = ExpandedNodeId.ToNodeId(removal.TargetId, Server.NamespaceUris);
+                            if (!targetId.IsNull)
+                            {
+                                if (!deferredRemovals.TryGetValue(
+                                    retirementOwner,
+                                    out List<LocalReference>? pending))
+                                {
+                                    deferredRemovals.Add(retirementOwner, pending = []);
+                                }
+                                pending.Add(new LocalReference(
+                                    sourceId,
+                                    removal.ReferenceTypeId,
+                                    removal.IsInverse,
+                                    targetId));
+                            }
+                        }
+                    }
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        if (!candidate.ExternalReferences.TryGetValue(
+                            sourceId,
+                            out IList<IReference>? candidateReferences))
+                        {
+                            continue;
+                        }
+                        var candidateAdditions = new List<IReference>();
+                        foreach (IReference reference in candidateReferences)
+                        {
+                            var frozen = new NodeStateReference(
+                                reference.ReferenceTypeId,
+                                reference.IsInverse,
+                                reference.TargetId);
+                            if (newReferences?.ContainsKey(frozen) == true &&
+                                oldReferences?.ContainsKey(frozen) != true)
+                            {
+                                candidateAdditions.Add(frozen);
+                            }
+                        }
+                        if (candidateAdditions.Count == 0)
+                        {
+                            continue;
+                        }
+                        if (!referenceAdditions.TryGetValue(
+                            candidate.NodeManager,
+                            out Dictionary<NodeId, IList<IReference>>? candidateReferencesBySource))
+                        {
+                            referenceAdditions.Add(
+                                candidate.NodeManager,
+                                candidateReferencesBySource = []);
+                        }
+                        candidateReferencesBySource[sourceId] = candidateAdditions;
+                    }
                 }
             }
-            return [.. sources];
+            return ([.. sources], referenceAdditions, deferredRemovals);
 
             Dictionary<NodeId, ReferenceDictionary<bool>> Collect(
                 IEnumerable<Dictionary<NodeId, IList<IReference>>> references)
             {
                 var result = new Dictionary<NodeId, ReferenceDictionary<bool>>();
-                if (m_startupExternalReferences is { } startup)
+                if (m_foundationExternalReferences is { } foundation)
                 {
-                    Add(startup);
+                    Add(foundation);
                 }
                 foreach (Dictionary<NodeId, IList<IReference>> source in references)
                 {
@@ -353,13 +861,9 @@ namespace Opc.Ua.Server
         /// Describes the reference changes for one source node.
         /// </summary>
         /// <param name="Owner">The node manager that owns the node.</param>
-        /// <param name="Node">The source node.</param>
-        /// <param name="Additions">The references to add.</param>
-        /// <param name="Removals">The references to remove.</param>
+        /// <param name="Update">Versioned reference edits captured before subsequent owner callbacks.</param>
         private sealed record PreparedReferenceSource(
             IAsyncNodeManager Owner,
-            NodeState Node,
-            ArrayOf<IReference> Additions,
-            ArrayOf<IReference> Removals);
+            NodeState.ReferenceUpdate Update);
     }
 }

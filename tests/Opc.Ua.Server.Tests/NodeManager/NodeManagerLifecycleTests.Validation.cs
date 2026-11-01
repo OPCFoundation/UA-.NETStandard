@@ -53,15 +53,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public void LifecycleReportsTransactionCapabilitiesOnThePrimaryContract()
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(lifecycle.SupportsPreparedPublication, Is.True);
+                Assert.That(lifecycle.SupportsPublicationIsolation, Is.True);
+            }
+        }
+
+        [Test]
         public async Task PrivateValidationRejectsUnsupportedReferencesBeforePublication()
         {
             (Mock<IAsyncNodeManager> manager, BaseObjectState node, IAsyncNodeManagerFactory factory) =
                 CreateUnsupportedReferenceFactory();
-            var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
             Assert.That(publication, Is.InstanceOf<INodeManagerValidationPublication>());
-            var validation = (INodeManagerValidationPublication)publication;
+            INodeManagerPublication validation = publication;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             int inspections = 0;
@@ -88,10 +100,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? manager = null;
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kFirstRegistrationValue, created => manager = created);
-            var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
-            var validation = (INodeManagerValidationPublication)publication;
+            INodeManagerPublication validation = publication;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             int decisions = 0;
 
@@ -132,12 +144,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? manager = null;
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kFirstRegistrationValue, created => manager = created);
-            var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
             await using (INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false))
             {
-                var validation = (INodeManagerValidationPublication)publication;
+                INodeManagerPublication validation = publication;
                 using var cancellation = new CancellationTokenSource();
                 var failure = new InvalidOperationException("The private metadata inspection failed.");
                 await Assert.ThatAsync(async () => await validation.ValidateAsync(
@@ -169,10 +181,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PrivateValidationRequiresAnInspectorBeforeCreatingCandidates()
         {
             var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-            var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using INodeManagerPublication publication =
                 await lifecycle.CapturePublication().BeginAsync(null).ConfigureAwait(false);
-            var validation = (INodeManagerValidationPublication)publication;
+            INodeManagerPublication validation = publication;
 
             await Assert.ThatAsync(async () => await validation.ValidateAsync(
                 [NodeManagerBatchChange.Add(factory.Object)], null!).ConfigureAwait(false),

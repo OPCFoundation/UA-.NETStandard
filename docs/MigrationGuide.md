@@ -21,6 +21,10 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Handling server shutdown failures](#handling-server-shutdown-failures)
+- [Migrating NodeManager lifecycle convenience calls](#migrating-nodemanager-lifecycle-convenience-calls)
+- [Migrating from LifecycleXRegistryProjectionHost](#migrating-from-lifecyclexregistryprojectionhost)
+- [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -70,6 +74,190 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating NodeManager lifecycle convenience calls
+
+`INodeManagerLifecycle` exposes `Revision`, stable `Slots`, registration snapshots, and the
+context-free prepared transaction API. `AddAsync`, `ReloadAsync`, `ShadowReloadAsync`,
+`ImmediateReloadAsync`, and `RemoveAsync` are no longer interface or concrete provider members.
+For one release, obsolete extension methods preserve ordinary source calls, including synchronous
+factory and explicit-context overloads. Runtime NodeSet convenience extensions are obsolete too.
+These APIs were not present in the 1.5.378 compatibility baseline; custom implementations or mocks
+of the newer interface must now implement or set up `PrepareAsync` rather than convenience methods.
+Extension methods cannot be intercepted by mocking libraries.
+
+Assemblies compiled against 2.0.0 or 2.0.1 must be rebuilt. Those releases declared the convenience
+operations on `INodeManagerLifecycle`; a binary compiled against them still calls the interface
+method, which no longer exists, and fails at run time with `MissingMethodException`. Recompiling
+binds the same source call to the obsolete extension method without code changes. Custom
+`INodeManagerLifecycle` implementations do not compile until they implement the new members.
+The nullable annotations on `IMonitoredItem.NodeManager` and `ManagerHandle` described below are
+metadata only and do not break binaries; callers that dereference these properties without a check
+get nullable warnings.
+
+| Previous call | Prepared change |
+| --- | --- |
+| `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |
+| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
+| `ImmediateReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
+| `RemoveAsync(current)` | `NodeManagerBatchChange.Remove(current)` |
+| Runtime NodeSet add/reload helpers | The same changes using `new RuntimeNodeSetNodeManagerFactory(options)` |
+
+```csharp
+await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+    [NodeManagerBatchChange.Replace(current, factory)], cancellationToken);
+NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, cancellationToken);
+current = result.Registrations[0]; // Authoritative even if result.CleanupFailure is non-null.
+```
+
+Pass no callback context to `PrepareAsync` or `CapturePublication().BeginAsync`. Obsolete context
+extensions ignore it and forward only the changes and cancellation token. Use an
+`IAsyncNodeManagerFactory` for new transactions; the synchronous factory adapter exists only in
+the obsolete shims. There is no retained-generation reload mode.
+
+`Invalidate` and removal make existing monitored items terminal: each item reports
+`BadNodeIdUnknown` once and cannot recover when a matching node is later added. Clients must create
+new monitored items. `Migrate` preserves item IDs and permits missing or incompatible items to recover
+within their original slot when compatible nodes return.
+
+`IStoredMonitoredItem` is unchanged for existing implementations. To persist terminal invalidation,
+implement the optional `IStoredMonitoredItemInvalidation` capability and retain `IsTerminal` when
+cloning or serializing definitions. Older definitions without the capability default to nonterminal. Terminal
+state implies both `IsDeleted` and `IsDetached`; custom stores must preserve those flags too.
+The shared key-value subscription store uses definition format 7 only for subscriptions containing terminal
+items; unaffected subscriptions retain format 5 or 6. Replicas that do not support format 7 cannot
+restore a subscription containing terminal items.
+
+Commit awaits reconciliation and readiness, but retirement is asynchronous. Unlike the former
+single-operation pipeline, committed runtime readiness uses a noncancelable token; caller cancellation
+after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.
+Inspect `CleanupFailure`
+and retain the published revision/slots/registrations rather than retrying a committed operation as
+an addition. Await `result.Retirement` only outside work whose admission must drain. The compatibility
+shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, and
+`NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
+`Result`. Add/reload exceptions created using their legacy constructors have no result.
+Uncommitted preparation or decision failures must still dispose the prepared owner.
+Use `result.Issues` and `await result.RetryReconciliationAsync(ct)` to retry unfinished
+post-commit callbacks without another durable decision or routing publication. `CleanupFailure`
+keeps the original failure; current issues identify retryable or superseded work. Concurrent retries
+join one attempt, and canceling a caller's wait does not cancel admitted callbacks. Application
+publication callbacks must be idempotent because a throwing attempt may have partially applied state.
+
+Candidate factories, address-space preparation, and monitored-item transition discovery no
+longer hold the lifecycle writer.
+Concurrent changes can therefore complete while a candidate is preparing. A serving-view
+or metadata change makes that candidate stale; an explicit prepared transaction's commit fails
+with `InvalidOperationException` before invoking the durable decision. Handle that conflict
+explicitly and prepare a new transaction if appropriate; explicit prepared transactions do not
+automatically rerun factories or rebase private namespace indexes.
+The obsolete compatibility convenience operations retry stale preparation with a fresh transaction.
+For Add and Reload, each retry invokes the factory to create a fresh candidate rather than rebasing
+the previous candidate's private namespace indexes.
+
+Startup factories now run after the system address space is initialized, against private staged
+metadata, and enter the same Add transaction as runtime factories. Overrides of
+`CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` should return a master configured with
+`new MasterNodeManager(server, configuration, dynamicNamespaceUri, GetInitialNodeManagerFactories())`
+instead of invoking registered factories
+themselves. Include additional application factories in that list in their initialization order.
+Do not rely on a candidate already being routable from its factory or `CreateAddressSpaceAsync`.
+Move serving-service registrations, such as historian builder/provider bindings, to
+`INodeManagerReadinessNotification.OnServerReadyAsync`; this callback runs after publication and
+runtime initialization and is awaited before startup succeeds.
+
+Factory-declared namespaces are reserved before diagnostics, with synchronous declarations first
+and asynchronous declarations second; duplicate declarations do not consume additional indexes.
+Address-space preparation and dispatch remain asynchronous-first. A namespace appended only by a
+manager constructor or `CreateAddressSpaceAsync` stays private until publication, so its index now
+follows `http://opcfoundation.org/UA/Diagnostics` instead of its 1.5.x position. Declare those
+namespaces in the factory's `NamespacesUris` property to reserve them before diagnostics.
+Clients should resolve namespace URIs from the server's `NamespaceArray` rather than hard-code
+`ns=` indexes.
+
+The reference server sample reserves its primary model URI before optional sample NodeManagers.
+With the default namespace table, the reference model therefore remains at index 2; provisioning
+mode does not reserve that model.
+
+Because initial publication uses prepared transactions, `StandardServer` requires the default
+`EncodeableFactory`, not an arbitrary `IEncodeableFactory` implementation. Use the default factory's
+builder to register custom encodeable types. An unsupported factory is rejected before NodeManager
+creation, without retaining system generations that would require that factory for cleanup.
+
+The `MasterNodeManager` constructors accepting preconstructed managers are obsolete.
+They remain available for standalone dispatch, but hosted startup rejects preconstructed
+applications instead of adopting them after construction. Pass `initialFactories` to the
+four-argument constructor, or register factories through `AddNodeManager`. A factory must
+construct its manager against the supplied server; it must not return an instance constructed
+earlier against the serving metadata.
+
+See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
+
+Unresolved monitored items are no longer parked on the Core manager. `IMonitoredItem.NodeManager`
+and `ManagerHandle` now return null when no source is bound. Custom item consumers must check
+these properties before invoking source operations, and must not use Core ownership or a shared
+sentinel handle to recognize a lost node. The subscription retains the item and its queues;
+the original stable slot retains recovery ownership until compatible adoption or client deletion.
+Unresolved-item modification now uses `ServerConfiguration` sampling and queue limits instead of
+concrete `CoreNodeManager` settings or overrides. Bound items still use their source manager's
+validation hooks, including historian-specific aggregate revision.
+
+Event-provider overrides of `OnSubscribeToEvents` and `OnSubscribeToEventsAsync` must reconcile
+against the monitored node's current membership and make unsubscribe idempotent. Runtime source
+adoption and compensation run outside the native mutation gate, including on legacy managers;
+release can overlap a pending subscribe callback, requiring cleanup again after that callback returns.
+
+Condition-refresh callbacks now receive invocation-scoped `IEventMonitoredItem` targets rather than
+the subscription's original concrete item objects. Custom refresh implementations must use the
+interface properties and `QueueEvent` methods: replace casts to `MonitoredItem` and reference-identity
+lookups with the supplied item id or manager handle. Queue work before returning from the callback;
+escaped targets refuse events after success, failure or cancellation. Item ids and the original
+virtual queue implementation are preserved. See [MonitoredItems](NodeManagers.md#monitoreditems).
+
+`CustomNodeManager2.AddPredefinedNode` remains a synchronous initialization/indexing helper. For
+runtime changes that must recover unresolved monitored items, use the existing awaited
+`ILocalAddressSpace` adapter:
+```csharp
+ILocalAddressSpace addressSpace = ((ILocalAddressSpaceSource)nodeManager).CreateLocalAddressSpace();
+await addressSpace.AddOrUpdateNodeAsync(node, cancellationToken);
+```
+Recovery now runs once after the complete subtree is indexed and can suspend normally. It checks
+only unresolved items for the indexed subtree in that manager's stable slot; unrelated unresolved
+nodes are not retried. The synchronous recovery interface and completed-ValueTask requirement are
+removed. Startup indexing does not require recovery.
+
+Replace legacy `CustomNodeManager2.CreateNode(...)` runtime calls with
+`await nodeManager.CreateNodeAsync(..., cancellationToken)`. The asynchronous method preserves
+parent linking, child-id assignment and model-change emission, and awaits subtree recovery outside
+the indexing lock. The obsolete synchronous method still creates/indexes the instance, but does not
+run asynchronous recovery.
+
+## Migrating from LifecycleXRegistryProjectionHost
+
+`LifecycleXRegistryProjectionHost` is removed. It was published in
+`OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` version `2.0.1-preview.200`
+(built from repository commit `07e62f72500cc0923a2bab940653c8c1116fa286`), so applications
+that instantiate it must be rebuilt and change that construction. The host-agnostic
+`IXRegistryProjectionHost` contract remains available to the XRegistry refresh engine.
+
+The removed type was a convenience adapter over `INodeManagerLifecycle`; it did not provide
+projection behavior that the refresh engine requires. Applications that need this adapter must
+implement `IXRegistryProjectionHost` and use prepared lifecycle batches with
+`RuntimeNodeSetNodeManagerFactory`, or provide another host-specific implementation. No
+compatibility forwarding type is retained.
+
+## Compatible metadata in prepared NodeManager batches
+
+Prepared NodeManager batches now reject incompatible metadata before invoking the durable decision
+callback. Existing type supertypes, reference names, encoding ownership and encodeable activators
+remain valid when a replacement is published. Use new type and encoding identifiers instead of
+reparenting a published type or changing a registered CLR type, XML name or data type definition.
+This does not change direct `TypeTable` mutation APIs.
+
+A serving metadata change after preparation makes that batch stale, including an unrelated
+compatible addition. Dispose the unpublished batch and prepare it again against the current
+revision. See [prepared NodeManager batches](NodeManagers.md#datatypes)
+for the decision and cleanup contract.
 
 ## Program state numbers and managed execution
 
@@ -437,6 +625,28 @@ await its own drain with `DisposeAsync()`. Await completion outside the
 callback. Server and master-node-manager asynchronous teardown already await
 adapted synchronous managers, so server-owned managers need no additional
 disposal call.
+
+## Handling server shutdown failures
+
+`ServerBase.StopAsync` now propagates a failed `OnServerStoppingAsync` callback after closing
+transport listeners, rather than recording `ServerError` and returning success. Concurrent
+callers join the same attempt. A later call retries a failed stop; a successful stop remains
+idempotent. Canceling one caller's wait does not cancel the shared cleanup.
+
+`StandardServer` retains internals required by unfinished NodeManager retirement instead of
+disposing dependencies beneath failed cleanup. A failed producer, subscription, or session
+shutdown also retains serving generations until that consumer stage can complete.
+Observe failures from `StopAsync` or
+`DisposeAsync`, correct their cause, then retry. A failed disposal can be retried too; it does
+not permanently cache a failed attempt. Custom stop overrides must support retry and avoid
+replaying successfully completed cleanup.
+An explicit call to hosted `MasterNodeManager.ShutdownAsync` defensively joins this same stop
+attempt and closes the owner's transports. Ordinary server stop drives the lifecycle directly,
+not through this master entry point.
+Treat a hosted master as borrowed: stop and dispose its server instead of disposing
+the master directly. Direct master disposal throws while serving or retired generations still
+require their owner.
+See [NodeManager shutdown](NodeManagers.md#concurrent-operations-cancellation-and-failure).
 
 ## Migrating code that called IServerInternal.Set* mutators
 

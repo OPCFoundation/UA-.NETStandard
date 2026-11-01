@@ -406,6 +406,7 @@ namespace Opc.Ua.Di.Tests
             m_manager = new PumpNodeManager(server.CurrentInstance, m_fixture.Config);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await m_manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            await m_manager.OnServerReadyAsync().ConfigureAwait(false);
 
             m_configuredPump = m_manager.FindPredefinedNode<PumpState>(
                 ExpectedChildId(

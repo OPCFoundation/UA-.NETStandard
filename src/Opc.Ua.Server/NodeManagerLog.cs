@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -56,5 +57,25 @@ namespace Opc.Ua.Server
             this ILogger logger,
             NodeId nodeId,
             QualifiedName browseName);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 4, Level = LogLevel.Error,
+            Message = "Retired NodeManager cleanup failed; a later lifecycle operation or shutdown will retry.")]
+        public static partial void RetiredGenerationCleanupFailed(
+            this ILogger logger,
+            Exception exception);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 5, Level = LogLevel.Warning,
+            Message = "NodeManager lifecycle wait {Wait} has remained pending for {Elapsed}. Context: {Context}")]
+        public static partial void LifecycleWaitExceeded(
+            this ILogger logger,
+            string wait,
+            TimeSpan elapsed,
+            string context);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 6, Level = LogLevel.Warning,
+            Message = "NodeManager shutdown reconciliation failed after commit, but retirement completed.")]
+        public static partial void ShutdownReconciliationReported(
+            this ILogger logger,
+            Exception exception);
     }
 }
