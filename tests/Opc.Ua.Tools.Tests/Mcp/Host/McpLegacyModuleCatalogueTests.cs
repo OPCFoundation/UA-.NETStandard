@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(FullSetCases))]
-        public void AllThirtySevenProfilesProduceExactIndependentFullSetCatalogues(
+        public void AllThirtyEightProfilesProduceExactIndependentFullSetCatalogues(
             string module,
             bool diagnosticsToolsEnabled,
             string catalogue,
@@ -154,7 +154,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             int expectedConnectionCount)
         {
             McpToolProfileSet profiles = AllProfiles();
-            Assert.That(profiles.Count, Is.EqualTo(37));
+            Assert.That(profiles.Count, Is.EqualTo(38));
             string[] actual = Observe(builder => RegisterSet(builder, module, profiles, diagnosticsToolsEnabled));
 
             AssertCatalogue(actual, ExpectedNames(catalogue, expectedConnectionCount),
@@ -553,7 +553,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile[] invalidProfiles =
             [
                 (McpToolProfile)(-1),
-                (McpToolProfile)37,
+                (McpToolProfile)38,
                 (McpToolProfile)63,
                 (McpToolProfile)64,
                 (McpToolProfile)int.MinValue,
@@ -1302,7 +1302,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
             McpToolProfile.CranesHoists,
-            McpToolProfile.AutoId
+            McpToolProfile.AutoId,
+            McpToolProfile.Lads
         ];
 
         /// <summary>
@@ -1344,7 +1345,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
             McpToolProfile.CranesHoists,
-            McpToolProfile.AutoId
+            McpToolProfile.AutoId,
+            McpToolProfile.Lads
         ];
 
         /// <summary>

@@ -63,7 +63,8 @@ namespace UaLens.Plugins.Companions
                     new RobotIntentCompanionProvider(deploymentPolicy, m_timeProvider),
                     new VisionCompanionProvider(),
                     new AICompanionProvider(),
-                    new OpenUsdCompanionProvider()
+                    new OpenUsdCompanionProvider(),
+                    new LadsCompanionProvider(timeProvider: m_timeProvider)
                 ]
                 : providers;
             m_viewportFactory = viewportFactory ?? CreateViewportFactory(m_providers, viewportAssets);

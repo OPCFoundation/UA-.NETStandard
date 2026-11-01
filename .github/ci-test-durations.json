@@ -23,6 +23,7 @@
     "Opc.Ua.ISA95.Tests": 4,
     "Opc.Ua.InformationModel.Tests": 7,
     "Opc.Ua.Interop.Tests": 11,
+    "Opc.Ua.LADS.Tests": 5,
     "Opc.Ua.Lds.Tests": 4,
     "Opc.Ua.Machinery.Tests": 7,
     "Opc.Ua.MigrationAnalyzer.Core.Tests": 2,
