@@ -53,15 +53,23 @@ namespace Opc.Ua.Aot.Tests
             LifecycleResult current = added;
             try
             {
+                int customNamespaceIndex =
+                    fixture.ServerFixture.Server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
+                await Assert.That(customNamespaceIndex).IsGreaterThanOrEqualTo(0);
+                NodeId customTypeId = new(2u, checked((ushort)customNamespaceIndex));
+                await Assert.That(fixture.ServerFixture.Server.CurrentInstance.TypeTree.FindSuperType(customTypeId))
+                    .IsEqualTo(ObjectTypeIds.BaseObjectType);
                 await using ILifecycleWriter writer = await lifecycle.BeginAsync(added.Revision).ConfigureAwait(false);
                 await using (IPreparedChanges aborted = await writer.PrepareAsync(
-                    [LifecycleChange.Replace(slot, CreateFactory(namespaceUri))]).ConfigureAwait(false))
+                    [LifecycleChange.Replace(slot, CreateFactory(namespaceUri, includeCustomType: false))])
+                    .ConfigureAwait(false))
                 {
                     await Assert.That(aborted.IsCommitted).IsFalse();
                 }
                 await Assert.That(lifecycle.Revision).IsEqualTo(added.Revision);
                 await using IPreparedChanges replacement = await writer.PrepareAsync(
-                    [LifecycleChange.Replace(slot, CreateFactory(namespaceUri))]).ConfigureAwait(false);
+                    [LifecycleChange.Replace(slot, CreateFactory(namespaceUri, includeCustomType: false))])
+                    .ConfigureAwait(false);
                 replacement.SetMetadata(slot, new ChangeSetReadImage(replacement.Registrations[0].NodeManager));
                 int decisions = 0;
                 int publications = 0;
@@ -82,8 +90,11 @@ namespace Opc.Ua.Aot.Tests
                 await Assert.That(current.Issues.Count).IsEqualTo(1);
                 await Assert.That(current.Issues[0].IsRetryable).IsTrue();
                 await current.RetryReconciliationAsync().ConfigureAwait(false);
+                await added.Retired.ConfigureAwait(false);
                 await Assert.That(current.Issues.Count).IsEqualTo(0);
                 await Assert.That(current.CleanupFailure).IsNotNull();
+                await Assert.That(fixture.ServerFixture.Server.CurrentInstance.TypeTree.FindSuperType(customTypeId))
+                    .IsEqualTo(ObjectTypeIds.BaseObjectType);
                 await Assert.That(decisions).IsEqualTo(1);
                 await Assert.That(publications).IsEqualTo(2);
                 await Assert.That((added.PublishedSlots.ToArray() ?? [])
@@ -105,9 +116,18 @@ namespace Opc.Ua.Aot.Tests
         /// Constructs a reload-capable runtime NodeSet factory without reflection or dynamic code.
         /// </summary>
         /// <param name="namespaceUri">The test's isolated namespace.</param>
+        /// <param name="includeCustomType">Whether to include the first generation's custom ObjectType.</param>
         /// <returns>The candidate factory.</returns>
-        private static RuntimeNodeSetNodeManagerFactory CreateFactory(string namespaceUri)
+        private static RuntimeNodeSetNodeManagerFactory CreateFactory(
+            string namespaceUri,
+            bool includeCustomType = true)
         {
+            string customTypeNode = includeCustomType
+                ? "<UAObjectType NodeId=\"ns=1;i=2\" BrowseName=\"1:CustomType\">" +
+                    "<DisplayName>CustomType</DisplayName>" +
+                    "<References><Reference ReferenceType=\"i=45\" IsForward=\"false\">i=58</Reference></References>" +
+                    "</UAObjectType>"
+                : string.Empty;
             string xml =
                 "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                 "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
@@ -117,6 +137,7 @@ namespace Opc.Ua.Aot.Tests
                 "<Models><Model ModelUri=\"" +
                 namespaceUri +
                 "\" /></Models>" +
+                customTypeNode +
                 "<UAObject NodeId=\"ns=1;i=1\" BrowseName=\"1:Root\">" +
                 "<DisplayName>Root</DisplayName></UAObject></UANodeSet>";
             return new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions

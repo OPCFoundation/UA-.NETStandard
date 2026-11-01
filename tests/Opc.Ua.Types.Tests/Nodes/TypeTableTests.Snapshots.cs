@@ -503,6 +503,35 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
+        /// Verifies retirement cleanup cannot remove a type used by another published generation.
+        /// </summary>
+        [Test]
+        public void RetiredHandleCannotRemovePublishedContribution()
+        {
+            TypeTable candidate = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId contributionId = new(7000);
+            candidate.AddSubtype(contributionId, s_rootTypeId);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(candidate, source, revision);
+            using (TypeTable.Publication publication = m_typeTable.BeginPublication(source, revision))
+            {
+                publication.Complete(merged);
+                candidate.BindTo(m_typeTable);
+            }
+            TypeTable active = m_typeTable.CaptureSnapshot(out _, out _);
+            active.BindTo(m_typeTable);
+
+            candidate.Detach();
+            candidate.Remove(contributionId);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidate.IsKnown(contributionId), Is.False);
+                Assert.That(active.IsKnown(contributionId), Is.True);
+                Assert.That(m_typeTable.IsKnown(contributionId), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies that a cached handle can be safely rebound to the same canonical storage.
         /// </summary>
         [Test]

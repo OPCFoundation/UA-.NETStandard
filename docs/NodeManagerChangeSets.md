@@ -211,6 +211,16 @@ retired handles detach before cleanup can remove registrations still used by a
 live generation. Encodeable-factory captures already share immutable frozen
 maps, while additive merges still build merged frozen maps.
 
+The `TypeTable` is server-wide, not generation-specific. Candidate preparation
+uses a private snapshot, and publication merges registrations additively. A
+candidate removal does not delete a serving registration; publication rejects
+conflicting type hierarchies, reference-type names and encoding owners. Published
+handles share the canonical table. Live node deletion removes a type only when
+no other active NodeManager owns its NodeId. A retiring handle detaches before
+cleanup, so its deletions affect only its private table. The canonical table
+retains additions after generation retirement; this layer does not track
+generation owner counts or reclaim those registrations.
+
 A three-round sequential net10 Release comparison against baseline
 `fcfc84eab5c105780d7268474a47d344d100aca1` measured these median capture costs
 for five snapshots:
@@ -225,8 +235,6 @@ The first mutation still copies the graph. At 16,384 types, that copy measured
 29.054 ms and 4,597,048 bytes per five mutations on the candidate. The copy
 moves from capture under the canonical serving-table lock to the first write
 under the private staging-table lock; total copy work is not eliminated.
-Encodeable-factory captures already share immutable frozen maps, while
-additive merges still build merged frozen maps.
 
 Three alternating net10.0 Release rounds compared the S6 parent
 `0a48fb5cf2de4c9bec3a2beafe41d8caedb482ea` with S7
@@ -252,11 +260,16 @@ server creation and one type registration. It does not measure address-space
 construction, routing publication or full lifecycle duration, and its models
 use root registrations rather than a representative hierarchy.
 
-The focused TypeTable and encodeable-factory selection passed 176/176 on
-net10.0 and 176/176 on net48. The selected win-x64 NativeAOT lifecycle
-change-set test passed 1/1. The new server-level concurrent capture and
-preparation tests passed 2/2 on net10.0 and 2/2 on net48. These results do not
-include a full-project test run or the separate #4869 benchmark.
+The focused TypeTable and encodeable-factory selection passed 177/177 on each
+supported TFM: net48, net8.0, net9.0 and net10.0. This includes the regression
+that retiring a detached handle cannot remove another published contribution.
+The encodeable matrix round-trip fixture passed 6/6 on each of those TFMs across
+Binary, XML and JSON. The selected win-x64 NativeAOT lifecycle change-set test
+passed 1/1 with a runtime NodeSet ObjectType registration retained across
+replacement; the NativeAOT binary and JSON encoding fixture passed 5/5. The
+new server-level concurrent capture and preparation tests passed 2/2 on net10.0
+and 2/2 on net48. These results do not include a full-project test run or the
+separate #4869 benchmark.
 
 ## Candidate state and cleanup ownership
 
