@@ -22,8 +22,9 @@ covers cross-cutting changes.
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
 - [Handling server shutdown failures](#handling-server-shutdown-failures)
-- [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
 - [Migrating NodeManager lifecycle convenience calls](#migrating-nodemanager-lifecycle-convenience-calls)
+- [Migrating from LifecycleXRegistryProjectionHost](#migrating-from-lifecyclexregistryprojectionhost)
+- [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -230,6 +231,20 @@ Replace legacy `CustomNodeManager2.CreateNode(...)` runtime calls with
 parent linking, child-id assignment and model-change emission, and awaits subtree recovery outside
 the indexing lock. The obsolete synchronous method still creates/indexes the instance, but does not
 run asynchronous recovery.
+
+## Migrating from LifecycleXRegistryProjectionHost
+
+`LifecycleXRegistryProjectionHost` is removed. It was published in
+`OPCFoundation.NetStandard.Opc.Ua.XRegistry.Server` version `2.0.1-preview.200`
+(built from repository commit `07e62f72500cc0923a2bab940653c8c1116fa286`), so applications
+that instantiate it must be rebuilt and change that construction. The host-agnostic
+`IXRegistryProjectionHost` contract remains available to the XRegistry refresh engine.
+
+The removed type was a convenience adapter over `INodeManagerLifecycle`; it did not provide
+projection behavior that the refresh engine requires. Applications that need this adapter must
+implement `IXRegistryProjectionHost` and use prepared lifecycle batches with
+`RuntimeNodeSetNodeManagerFactory`, or provide another host-specific implementation. No
+compatibility forwarding type is retained.
 
 ## Compatible metadata in prepared NodeManager batches
 

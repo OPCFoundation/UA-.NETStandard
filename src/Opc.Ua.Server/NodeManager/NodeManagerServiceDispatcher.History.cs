@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
-            NodeManagerGeneration generation = GetGeneration(context, source);
+            NodeManagerGeneration generation = GetGenerationReference(context, source);
             if (validateSource)
             {
                 using GenerationGate.Lease? admission = TryEnterHistoryContinuation(generation);

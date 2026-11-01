@@ -850,13 +850,12 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
-        /// Detaches the server lifecycle, disposes the server and releases the reference.
+        /// Disposes the server, then detaches its lifecycle and releases the reference.
         /// </summary>
         /// <remarks>
-        /// The hosted lifecycle is detached even when disposal fails, because the server no
-        /// longer runs. The hosted-service disposal and the cancelled execution can both reach
-        /// this method, so disposal is serialized. A failed server disposal keeps its remaining
-        /// resources, so the server stays referenced until a later disposal succeeds.
+        /// The hosted-service disposal and the cancelled execution can both reach this method,
+        /// so disposal is serialized. A failed server disposal keeps its lifecycle attached and
+        /// its reference here until a later disposal succeeds.
         /// </remarks>
         private void DisposeServer()
         {
@@ -867,16 +866,10 @@ namespace Opc.Ua.Server.Hosting
                     return;
                 }
 
-                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-                try
-                {
-                    m_server.Dispose();
-                    m_server = null;
-                }
-                finally
-                {
-                    m_nodeManagerLifecycle.Detach(lifecycle);
-                }
+                StandardServer server = m_server;
+                server.Dispose();
+                m_nodeManagerLifecycle.Detach(server.NodeManagerLifecycle);
+                m_server = null;
             }
         }
     }

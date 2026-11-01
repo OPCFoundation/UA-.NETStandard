@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -239,7 +240,10 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private async Task RefreshAliasNameSourceInBackground(NodeId applicationId)
         {
-            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            if (!TryBeginAliasNameOperation(out TaskCompletionSource<bool>? operation))
+            {
+                return;
+            }
             CancellationToken cancellationToken = m_aliasShutdown.Token;
             try
             {
@@ -248,6 +252,9 @@ namespace Opc.Ua.Gds.Server
                     try
                     {
                         await RefreshAliasNameSourceCoreAsync(applicationId, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
                     }
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
@@ -304,7 +311,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     foreach (NodeId applicationId in FindAliasNameSourceIds())
                     {
-                        await RefreshAliasNameSourceAsync(applicationId, ct).ConfigureAwait(false);
+                        await RefreshAliasNameSourceInRefreshLoopAsync(applicationId, ct).ConfigureAwait(false);
                     }
                     if (interval == Timeout.InfiniteTimeSpan)
                     {
@@ -319,6 +326,33 @@ namespace Opc.Ua.Gds.Server
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 m_logger.AliasNameRefreshFailed(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes a source while holding admission for the periodic worker, or skips it after shutdown starts.
+        /// </summary>
+        private async Task RefreshAliasNameSourceInRefreshLoopAsync(
+            NodeId applicationId,
+            CancellationToken cancellationToken)
+        {
+            if (!TryBeginAliasNameOperation(out TaskCompletionSource<bool>? operation))
+            {
+                return;
+            }
+            try
+            {
+                try
+                {
+                    await RefreshAliasNameSourceCoreAsync(applicationId, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                }
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
             }
         }
 
@@ -664,15 +698,29 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private TaskCompletionSource<bool> BeginAliasNameOperation()
         {
+            if (TryBeginAliasNameOperation(out TaskCompletionSource<bool>? operation))
+            {
+                return operation;
+            }
+            throw new ObjectDisposedException(nameof(ApplicationsNodeManager));
+        }
+
+        /// <summary>
+        /// Attempts to admit a source operation before shutdown closes admission.
+        /// </summary>
+        private bool TryBeginAliasNameOperation(
+            [NotNullWhen(true)] out TaskCompletionSource<bool>? operation)
+        {
             lock (m_aliasWorkLock)
             {
                 if (m_aliasStopping)
                 {
-                    throw new ObjectDisposedException(nameof(ApplicationsNodeManager));
+                    operation = null;
+                    return false;
                 }
-                var operation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                operation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 m_aliasOperations.Add(operation.Task);
-                return operation;
+                return true;
             }
         }
 

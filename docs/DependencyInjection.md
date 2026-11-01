@@ -441,17 +441,27 @@ at most one regular server may be registered per service collection.
 The regular hosted server also registers `INodeManagerLifecycle` as a singleton forwarding provider. After the server reaches `Running`, application services can inject it to add, reload, or remove lifecycle-owned NodeManagers. Calls made before startup or after shutdown fail explicitly.
 
 ```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Opc.Ua.Server;
+using Opc.Ua.Server.RuntimeNodeSet;
+
 public sealed class RuntimeModelService(INodeManagerLifecycle lifecycle)
 {
-    public ValueTask<NodeManagerRegistration> AddAsync(CancellationToken ct)
+    public async ValueTask<NodeManagerBatchResult> AddAsync(CancellationToken ct)
     {
-        return lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [
+                NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(
+                        new RuntimeNodeSetOptions
+                        {
+                            Sources = [RuntimeNodeSetSource.FromFile("Models/Line.NodeSet2.xml")]
+                        }))
+            ],
+            ct).ConfigureAwait(false);
+        // CleanupFailure does not undo publication; return the authoritative result.
+        return await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
     }
 }
 ```

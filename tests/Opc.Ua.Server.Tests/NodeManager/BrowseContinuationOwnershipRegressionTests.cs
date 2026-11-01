@@ -609,5 +609,187 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private readonly ExpandedNodeId m_targetId;
             private readonly IDisposable? m_resource;
         }
+
+        /// <summary>
+        /// Explicit release owns cleanup even when the issuing generation cannot admit a callback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredIssuingGenerationReleaseDoesNotCallManagerAsync(bool disposedGeneration)
+        {
+            using var harness = new BrowseHarness();
+            var resource = new Mock<IDisposable>();
+            ContinuationPoint point = harness.AddPoint(resource);
+            ByteString token = Token(point);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(harness.Manager.Object);
+            generation.Gate.Retire();
+            if (disposedGeneration)
+            {
+                generation.Gate.DisposeGeneration();
+            }
+            harness.Manager.Invocations.Clear();
+
+            (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
+                harness.Context, true, [token]).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(results[0].References, Is.Empty);
+            Assert.That(harness.Points.RestoreBrowse(token), Is.Null);
+            Assert.That(point.Generation, Is.Null);
+            Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            Assert.That(harness.Manager.Invocations, Is.Empty, "Release must not even request owner metadata.");
+            resource.Verify(value => value.Dispose(), Times.Once);
+            harness.Points.Clear();
+            resource.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Restore transfers ownership from a custom store to BrowseNext, which disposes the released point.
+        /// </summary>
+        [Test]
+        public async Task CustomSessionStoreRestoresAndDisposesReleasedBrowsePointOnceAsync()
+        {
+            using var harness = new BrowseHarness();
+            var resource = new Mock<IDisposable>();
+            ContinuationPoint point = harness.NewPoint(resource);
+            ByteString token = Token(point);
+            var store = new Mock<ISessionContinuationPoints>(MockBehavior.Strict);
+            ContinuationPoint? owned = point;
+            store.Setup(value => value.RestoreBrowse(token)).Returns(() =>
+            {
+                ContinuationPoint? restored = owned;
+                owned = null;
+                return restored;
+            });
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            session.SetupGet(value => value.ContinuationPoints).Returns(store.Object);
+            using var context = new OperationContext(
+                new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+
+            (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
+                context, true, [token]).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(results[0].References, Is.Empty);
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(owned, Is.Null);
+            Assert.That(point.Generation, Is.Null);
+            store.Verify(value => value.RestoreBrowse(token), Times.Once);
+            store.VerifyNoOtherCalls();
+            harness.Manager.Verify(value => value.BrowseAsync(
+                It.IsAny<OperationContext>(), It.IsAny<ContinuationPoint>(),
+                It.IsAny<IList<ReferenceDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            resource.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// A proxy outside the master's managed routing view can release a continuation after its generation
+        /// admission has been withdrawn.
+        /// </summary>
+        [Test]
+        public async Task ExternalProxyBrowseReleaseDoesNotRequireManagedGenerationAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (MasterNodeManager services = DeterministicServerMock.CreateMasterNodeManager(server, []))
+            {
+                var proxy = new Mock<IAsyncNodeManager>();
+                var handle = new NodeHandle { NodeId = new NodeId("ProxyBrowse", 1) };
+                var resource = new Mock<IDisposable>();
+                var metadata = new NodeMetadata(handle, handle.NodeId) { NodeClass = NodeClass.Object };
+                proxy.Setup(value => value.GetNodeMetadataAsync(
+                    It.IsAny<OperationContext>(), handle, It.IsAny<BrowseResultMask>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(metadata);
+                ContinuationPoint? issued = null;
+                proxy.Setup(value => value.BrowseAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<ContinuationPoint>(),
+                    It.IsAny<IList<ReferenceDescription>>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, ContinuationPoint current,
+                        IList<ReferenceDescription> references, CancellationToken _) =>
+                    {
+                        issued ??= current;
+                        current.Data ??= resource.Object;
+                        references.Add(new ReferenceDescription { NodeId = new NodeId("ProxyChild", 1) });
+                        return new ValueTask<ContinuationPoint?>(current);
+                    });
+                using var master = new ExternalBrowseMaster(server.Object, proxy.Object, handle);
+                var points = new SessionContinuationPoints(() => new NodeId("ProxySession", 1), 10, 10, null);
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                session.SetupGet(value => value.ContinuationPoints).Returns(points);
+                using var context = new OperationContext(
+                    new RequestHeader(), null!, RequestType.Browse, RequestLifetime.None, session.Object);
+                try
+                {
+                    Assert.That(master.AsyncNodeManagers, Does.Not.Contain(proxy.Object));
+                    (ArrayOf<BrowseResult> first, _) = await master.BrowseAsync(
+                        context, new ViewDescription(), 1,
+                        [new BrowseDescription
+                        {
+                            NodeId = handle.NodeId,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }]).ConfigureAwait(false);
+                    Assert.That(first[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(first[0].ContinuationPoint.IsEmpty, Is.False);
+                    Assert.That(first[0].References[0].NodeId,
+                        Is.EqualTo((ExpandedNodeId)new NodeId("ProxyChild", 1)));
+                    Assert.That(issued!.Manager, Is.SameAs(proxy.Object));
+                    resource.Verify(value => value.Dispose(), Times.Never);
+
+                    (ArrayOf<BrowseResult> next, _) = await master.BrowseNextAsync(
+                        context, false, [first[0].ContinuationPoint]).ConfigureAwait(false);
+                    Assert.That(next[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(next[0].References, Has.Count.EqualTo(1));
+                    Assert.That(next[0].ContinuationPoint.IsEmpty, Is.False);
+                    Assert.That(next[0].References[0].NodeId,
+                        Is.EqualTo((ExpandedNodeId)new NodeId("ProxyChild", 1)));
+
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(proxy.Object);
+                    generation.Gate.Retire();
+                    (ArrayOf<BrowseResult> released, _) = await master.BrowseNextAsync(
+                        context, true, [next[0].ContinuationPoint]).ConfigureAwait(false);
+                    Assert.That(released[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(released[0].ContinuationPoint.IsEmpty, Is.True);
+                    Assert.That(points.RestoreBrowse(next[0].ContinuationPoint), Is.Null);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                    Assert.That(master.AsyncNodeManagers, Does.Not.Contain(proxy.Object));
+                    proxy.Verify(value => value.BrowseAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<ContinuationPoint>(),
+                        It.IsAny<IList<ReferenceDescription>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+                    resource.Verify(value => value.Dispose(), Times.Once);
+                }
+                finally
+                {
+                    points.Clear();
+                }
+                resource.Verify(value => value.Dispose(), Times.Once);
+            }
+        }
+
+        private sealed class ExternalBrowseMaster : MasterNodeManager
+        {
+            public ExternalBrowseMaster(IServerInternal server, IAsyncNodeManager proxy, NodeHandle handle)
+                : base(server,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    null, System.Array.Empty<INodeManager>())
+            {
+                m_proxy = proxy;
+                m_handle = handle;
+            }
+
+            public override ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
+                NodeId nodeId, CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((m_handle, m_proxy));
+            }
+
+            private readonly IAsyncNodeManager m_proxy;
+            private readonly NodeHandle m_handle;
+        }
     }
 }

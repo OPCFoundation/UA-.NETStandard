@@ -902,5 +902,64 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 new EventFilter(), createDurable: false);
         }
+
+        /// <summary>
+        /// Two SessionClosing notifications spanning retirement and later reconciliation release one binding once.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DoubleSessionClosingAcrossRetirementReleasesRecordedBindingOnceAsync(
+            bool deleteSubscriptions)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var session = new Mock<ISession>();
+                var sessionId = new NodeId("DoubleClosingRetirement", 2);
+                session.SetupGet(value => value.Id).Returns(sessionId);
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([session.Object]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                await using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                using var context = new OperationContext(session.Object, DiagnosticsMasks.None);
+                await master.SessionActivatedAsync(context, sessionId).ConfigureAwait(false);
+                Assert.That(generation.SessionBindings, Has.Count.EqualTo(1));
+                var closeAdmissions = new List<long>();
+                Mock.Get(master.ConfigurationNodeManager!).Setup(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, deleteSubscriptions, It.IsAny<CancellationToken>()))
+                    .Callback(() =>
+                    {
+                        closeAdmissions.Add(generation.Gate.ActiveCount);
+                        generation.Gate.Retire();
+                    })
+                    .Returns(default(ValueTask));
+
+                await master.SessionClosingAsync(context, sessionId, deleteSubscriptions).ConfigureAwait(false);
+                await master.SessionClosingAsync(context, sessionId, deleteSubscriptions).ConfigureAwait(false);
+                await master.GenerationReconciler.UnbindRetiredAsync(
+                    generation, false, CancellationToken.None).ConfigureAwait(false);
+                await master.GenerationReconciler.UnbindRetiredAsync(
+                    generation, false, CancellationToken.None).ConfigureAwait(false);
+
+                manager.Verify(value => value.SessionActivatedAsync(
+                    It.IsAny<OperationContext>(), sessionId, It.IsAny<CancellationToken>()), Times.Once);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, deleteSubscriptions, It.IsAny<CancellationToken>()),
+                    Times.Once);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), sessionId, It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                    Times.Once);
+                Assert.That(closeAdmissions, Is.EqualTo(new long[] { 1, 0 }),
+                    "Both closes ran; only the first owned the application generation admission.");
+                Assert.That(generation.SessionBindings, Is.Empty);
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            }
+        }
     }
 }

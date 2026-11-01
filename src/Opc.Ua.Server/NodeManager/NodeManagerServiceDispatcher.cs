@@ -987,55 +987,49 @@ namespace Opc.Ua.Server
                     try
                     {
                         using GenerationGate.Lease? generationLease = TryEnterContinuation(cp);
-                        if (!releaseContinuationPoints && cp is not null && generationLease is null)
+                        if (!releaseContinuationPoints && (cp is null || generationLease is null))
                         {
                             error = StatusCodes.BadContinuationPointInvalid;
                         }
-                        if (ServiceResult.IsGood(error) && cp is not null)
+                        // A retired continuation can be released without calling its unavailable owner.
+                        if (cp is not null && generationLease is not null)
                         {
                             error = await ValidatePermissionsAsync(
                                 context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
                                 null, true, cancellationToken).ConfigureAwait(false);
                         }
 
-                        if (ServiceResult.IsGood(error) && !releaseContinuationPoints)
+                        if (ServiceResult.IsGood(error) && !releaseContinuationPoints && cp is not null)
                         {
-                            if (cp is null)
+                            ContinuationPoint fetching = cp;
+                            cp = null;
+                            try
                             {
-                                error = StatusCodes.BadContinuationPointInvalid;
+                                var page = await FetchReferencesAsync(
+                                    context,
+                                    m_owner.MaxContinuationPointsPerBrowse == 0 ||
+                                        continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
+                                    fetching,
+                                    result.References,
+                                    cancellationToken).ConfigureAwait(false);
+                                error = page.serviceResult;
+                                cp = page.cp;
+                                result.References = page.references;
                             }
-                            else
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                             {
-                                ContinuationPoint fetching = cp;
+                                throw;
+                            }
+                            catch (Exception e)
+                            {
+                                error = ServiceResult.Create(
+                                    e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
+                            }
+                            if (cp is not null && ServiceResult.IsGood(error))
+                            {
+                                result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
+                                continuationPointsAssigned++;
                                 cp = null;
-                                try
-                                {
-                                    var page = await FetchReferencesAsync(
-                                        context,
-                                        m_owner.MaxContinuationPointsPerBrowse == 0 ||
-                                            continuationPointsAssigned < m_owner.MaxContinuationPointsPerBrowse,
-                                        fetching,
-                                        result.References,
-                                        cancellationToken).ConfigureAwait(false);
-                                    error = page.serviceResult;
-                                    cp = page.cp;
-                                    result.References = page.references;
-                                }
-                                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                                {
-                                    throw;
-                                }
-                                catch (Exception e)
-                                {
-                                    error = ServiceResult.Create(
-                                        e, StatusCodes.BadUnexpectedError, "Unexpected error browsing node.");
-                                }
-                                if (cp is not null && ServiceResult.IsGood(error))
-                                {
-                                    result.ContinuationPoint = cp.Id.ToByteArray().ToByteString();
-                                    continuationPointsAssigned++;
-                                    cp = null;
-                                }
                             }
                         }
                     }
@@ -1139,7 +1133,7 @@ namespace Opc.Ua.Server
 
             using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
-                Generation = GetGeneration(context, nodeManager!).Reference,
+                Generation = GetGenerationReference(context, nodeManager!).Reference,
                 View = view,
                 NodeToBrowse = handle,
                 RequestedNodeId = nodeToBrowse.NodeId,
@@ -1296,9 +1290,17 @@ namespace Opc.Ua.Server
                     : null;
         }
 
-        private NodeManagerGeneration GetGeneration(OperationContext context, IAsyncNodeManager nodeManager)
+        private NodeManagerGeneration GetGenerationReference(
+            OperationContext context,
+            IAsyncNodeManager nodeManager)
         {
-            return GetRouting(context).GetGeneration(nodeManager);
+            if (GetRouting(context).TryGetGeneration(nodeManager, out NodeManagerGeneration? generation))
+            {
+                return generation ?? throw new InvalidOperationException(
+                    "A routing view resolved a NodeManager without a generation.");
+            }
+            // Legacy lookup overrides may return a proxy owner outside the managed routing view.
+            return NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
         }
 
         /// <summary>
@@ -1418,10 +1420,14 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-            // search node id in all node managers
-            foreach (IAsyncNodeManager nodeManager in
-                context?.RoutingSnapshot?.VisibleNodeManagers ?? m_nodeManagers.Revision.VisibleNodeManagers)
+            NodeManagerRoutingTable.RoutingSnapshot snapshot =
+                context?.RoutingSnapshot ?? m_nodeManagers.Revision;
+            foreach (IAsyncNodeManager nodeManager in snapshot.VisibleNodeManagers)
             {
+                if (!snapshot.CanDispatchTo(nodeManager))
+                {
+                    continue;
+                }
                 if ((await nodeManager.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false))
                     is not NodeHandle handle)
                 {

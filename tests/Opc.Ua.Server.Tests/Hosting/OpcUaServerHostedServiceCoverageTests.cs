@@ -550,6 +550,46 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
+        /// A failed server disposal retains the attached lifecycle and can be retried by hosted-service disposal.
+        /// </summary>
+        [Test]
+        public async Task FailedServerDisposalKeepsLifecycleAttachedForRetryAsync()
+        {
+            RetryDisposalServer.Reset();
+            HostedServerFixture fixture = await HostedServerFixture.StartAsync(
+                services =>
+                {
+                    services.AddLogging();
+                    services.AddSingleton<ITransportBindingRegistry>(TestTransportBindings.WithAllSchemes());
+                    services.AddSingleton(new ServerComplexTypeOptions { Enabled = false });
+                    services.AddOpcUa().AddServer<RetryDisposalServer>(
+                        options => ConfigureHostedOptions(options, "RetryServerDisposal"));
+                }).ConfigureAwait(false);
+            INodeManagerLifecycle lifecycle = fixture.Services.GetRequiredService<INodeManagerLifecycle>();
+
+            try
+            {
+                Assert.That(
+                    await WaitForAsync(
+                        () => RetryDisposalServer.StartedInstance is not null,
+                        TimeSpan.FromSeconds(60)).ConfigureAwait(false),
+                    Is.True);
+
+                await fixture.StopAsync().ConfigureAwait(false);
+
+                Assert.That(RetryDisposalServer.DisposeAttempts, Is.EqualTo(2));
+                Assert.That(lifecycle.IsShuttingDown, Is.True);
+            }
+            finally
+            {
+                await fixture.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(RetryDisposalServer.DisposeAttempts, Is.EqualTo(3));
+            Assert.That(() => lifecycle.IsShuttingDown, Throws.InvalidOperationException);
+        }
+
+        /// <summary>
         /// Verifies that the fluent builder rejects a budget that is not positive.
         /// </summary>
         [Test]
@@ -671,6 +711,41 @@ namespace Opc.Ua.Server.Tests.Hosting
             }
         }
 
+        [SuppressMessage(
+            "Performance",
+            "CA1812:Avoid uninstantiated internal classes",
+            Justification = "Instantiated by the DI container through AddServer<TServer>.")]
+        private sealed class RetryDisposalServer : StandardServer
+        {
+            public RetryDisposalServer(ITelemetryContext telemetry, TimeProvider timeProvider)
+                : base(telemetry, timeProvider)
+            {
+                StartedInstance = this;
+            }
+
+            public static RetryDisposalServer? StartedInstance { get; private set; }
+
+            public static int DisposeAttempts => Volatile.Read(ref s_disposeAttempts);
+
+            public static void Reset()
+            {
+                StartedInstance = null;
+                Interlocked.Exchange(ref s_disposeAttempts, 0);
+            }
+
+            protected override ValueTask DisposeAsyncCore()
+            {
+                if (Interlocked.Increment(ref s_disposeAttempts) == 2)
+                {
+                    return ValueTask.FromException(new InvalidOperationException("Injected disposal failure."));
+                }
+
+                return base.DisposeAsyncCore();
+            }
+
+            private static int s_disposeAttempts;
+        }
+
         /// <summary>
         /// Observes the injected lifecycle while the server reclaims its owned manager.
         /// </summary>
@@ -706,6 +781,13 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 m_provider = provider;
                 m_hostedService = hostedService;
+            }
+
+            public IServiceProvider Services => m_provider;
+
+            public Task StopAsync()
+            {
+                return m_hostedService.StopAsync(CancellationToken.None);
             }
 
             public static async ValueTask<HostedServerFixture> StartAsync(

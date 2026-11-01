@@ -2578,5 +2578,86 @@ namespace Opc.Ua.Server.Tests
 
         private static readonly ArrayOf<int> s_indexRangeExpectedSlice =
             new(new[] { 2, 3, 4 });
+
+        /// <summary>
+        /// A new sample attempted after source notification finalization is rejected before reading or enqueueing.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FinalizedSourceRejectsNewSampleWithoutEnqueueAsync(bool stateChange)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>())).Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+                int reads = 0;
+                int sampledValue = 555;
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("FinalizedSample", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 555,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    OnReadValueAsync = (_, _, _, _, _) =>
+                    {
+                        reads++;
+                        return new ValueTask<AttributeReadResult>(new AttributeReadResult(
+                            ServiceResult.Good, new Variant(sampledValue), StatusCodes.Good, DateTimeUtc.Now));
+                    }
+                };
+                using var item = new MonitoredItem(
+                    server.Object, manager.Object, new NodeHandle { NodeId = node.NodeId, Node = node },
+                    1, 2, new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                    DiagnosticsMasks.All, TimestampsToReturn.Both, MonitoringMode.Reporting,
+                    3, null, new MonitoringFilter(), null, 0, 10, true, 0);
+                await using var monitored = new MonitoredNode2(manager.Object, server.Object, node);
+                monitored.Add((IDataChangeMonitoredItem2)item);
+                await monitored.QueueValueAsync(server.Object.DefaultSystemContext, node, item).ConfigureAwait(false);
+                using var context = new OperationContext(item);
+                var notifications = new Queue<MonitoredItemNotification>();
+                var diagnostics = new Queue<DiagnosticInfo>();
+                item.Publish(context, notifications, diagnostics, 10,
+                    server.Object.Telemetry.CreateLogger<MonitoredItem>());
+                Assert.That(notifications, Has.Count.EqualTo(1), "The fixture must accept a live source sample.");
+                Assert.That(notifications.Dequeue().Value.WrappedValue, Is.EqualTo(new Variant(555)));
+                Assert.That(reads, Is.EqualTo(1));
+
+                await ((IDynamicNodeManagerHost)master).FinalizeRetiredGenerationNotificationsAsync(
+                    manager.Object, CancellationToken.None).ConfigureAwait(false);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                Assert.That(MasterNodeManager.TryCaptureItemEmission(
+                    server.Object, manager.Object, generation.Reference, out var rejected), Is.False);
+                Assert.That(rejected, Is.Null);
+                node.Value = 777;
+                sampledValue = 777;
+                manager.Invocations.Clear();
+
+                if (stateChange)
+                {
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                }
+                else
+                {
+                    await monitored.QueueValueAsync(
+                        server.Object.DefaultSystemContext, node, item).ConfigureAwait(false);
+                }
+                await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+                item.Publish(context, notifications, diagnostics, 10,
+                    server.Object.Telemetry.CreateLogger<MonitoredItem>());
+
+                Assert.That(notifications, Is.Empty, "The newly attempted value must never reach the item queue.");
+                Assert.That(reads, Is.EqualTo(1), "Finalization rejects the new sample before reading its value.");
+                Assert.That(manager.Invocations, Is.Empty, "A rejected sample must not begin authorization.");
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            }
+        }
     }
 }
