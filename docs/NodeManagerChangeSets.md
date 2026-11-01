@@ -232,7 +232,7 @@ destruction. The transitive `NodeManagerRoutingTable.Remove` /
 checks remain live and are retained. F2 changes writer-path state and ownership;
 it adds no request, sampling or notification-path work and does not qualify the
 performance work in
-[OPCFoundation/UA-.NETStandard#4869](https://github.com/OPCFoundation/UA-.NETStandard/pull/4869).
+[OPCFoundation/UA-.NETStandard#4869](https://github.com/OPCFoundation/UA-.NETStandard/issues/4869).
 
 The former private `ResolveNamespaceIndexes`, `AddExternalReferencesAsync` and
 `RemoveExternalReferencesAsync` helpers have no callers, including through the
