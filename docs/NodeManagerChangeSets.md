@@ -226,10 +226,36 @@ The first mutation still copies the graph. At 16,384 types, that copy measured
 moves from capture under the canonical serving-table lock to the first write
 under the private staging-table lock; total copy work is not eliminated.
 Encodeable-factory captures already share immutable frozen maps, while
-additive merges still build merged frozen maps. Supported-framework,
-concurrent-isolation and NativeAOT checks passed: the focused type-registration
-suite passed 176/176 on net10.0 and 176/176 on net48, and the selected
-win-x64 NativeAOT lifecycle change-set test passed 1/1. These results do not
+additive merges still build merged frozen maps.
+
+Three alternating net10.0 Release rounds compared the S6 parent
+`0a48fb5cf2de4c9bec3a2beafe41d8caedb482ea` with S7
+`1cf9db60d24feb1b916f2e4741d92a1334f4f5c7`. Each round measured five
+`LifecycleWriter.CaptureRevision` calls, then four concurrent candidate
+preparations through `ChangePreparer.CreateNodeManagerAsync`. Each test factory
+added one distinct root subtype to its private staging type table. The table
+reports median elapsed time and allocation for the capture calls, and concurrent
+wall time plus summed worker allocations for candidate preparation.
+
+| Registered types | S6 capture, 5 calls | S7 capture, 5 calls | S6 concurrent preparation, 4 candidates | S7 concurrent preparation, 4 candidates |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 0.29 ms / 225,568 bytes | 0.14 ms / 32,888 bytes | 2.97 ms / 394,168 bytes | 3.34 ms / 420,056 bytes |
+| 2,048 | 9.81 ms / 4,148,568 bytes | 0.08 ms / 32,888 bytes | 3.01 ms / 3,470,232 bytes | 10.55 ms / 3,491,872 bytes |
+| 16,384 | 22.85 ms / 22,992,048 bytes | 0.09 ms / 32,888 bytes | 23.87 ms / 18,547,144 bytes | 6.33 ms / 18,572,808 bytes |
+
+`CaptureRevision` time and allocation stayed nearly constant in S7 as the model
+grew. Concurrent preparation with the first type write was faster for 16,384
+types, similar at 128, and slower at 2,048. Worker allocations were close
+between versions at every size; S7 moves the graph copy to the first staging
+write rather than removing it. This fixture measures metadata capture, staging
+server creation and one type registration. It does not measure address-space
+construction, routing publication or full lifecycle duration, and its models
+use root registrations rather than a representative hierarchy.
+
+The focused TypeTable and encodeable-factory selection passed 176/176 on
+net10.0 and 176/176 on net48. The selected win-x64 NativeAOT lifecycle
+change-set test passed 1/1. The new server-level concurrent capture and
+preparation tests passed 2/2 on net10.0 and 2/2 on net48. These results do not
 include a full-project test run or the separate #4869 benchmark.
 
 ## Candidate state and cleanup ownership
