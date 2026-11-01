@@ -203,6 +203,9 @@ models that each model depends on.
   verifier and RTLS readers: model, server hosting with a provider contract for
   the reader hardware, typed client, MCP tools and a simulated RFID reader
   sample, based on the Device Integration model.
+- [Laboratory and Analytical Devices](LADS.md) (OPC 30500-1, LADS): model,
+  server hosting on Machinery with functions, programs, results and maintenance
+  tasks, typed client and a shaking incubator sample.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.

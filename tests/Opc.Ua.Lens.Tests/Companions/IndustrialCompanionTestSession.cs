@@ -45,7 +45,7 @@ namespace UaLens.Tests.Companions;
 /// </summary>
 internal sealed class IndustrialCompanionTestSession
 {
-    public IndustrialCompanionTestSession(bool includeModels = true)
+    public IndustrialCompanionTestSession(bool includeModels = true, uint maximumBrowseReferences = 64)
     {
         Telemetry = DefaultTelemetry.Create(static _ => { });
         MessageContext = ServiceMessageContext.Create(Telemetry);
@@ -69,7 +69,7 @@ internal sealed class IndustrialCompanionTestSession
                 ArrayOf<BrowseDescription> descriptions, CancellationToken token) =>
             {
                 token.ThrowIfCancellationRequested();
-                Assert.That(maximum, Is.InRange(1u, 64u));
+                Assert.That(maximum, Is.InRange(1u, maximumBrowseReferences));
                 Assert.That(descriptions, Has.Count.EqualTo(1));
                 m_browseCalls.Add(descriptions[0]);
                 BrowseResult result = BrowseHandler?.Invoke(descriptions[0], token) ?? Browse(descriptions[0]);

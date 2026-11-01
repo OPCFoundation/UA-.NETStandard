@@ -66,7 +66,8 @@ internal enum PluginKind
     Pumps,
     Weighing,
     PackML,
-    Positioning
+    Positioning,
+    Lads
 }
 
 /// <summary>

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).LADS.Server</AssemblyName>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC</DefineConstants>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.LADS.Server</PackageId>
+    <RootNamespace>Opc.Ua.LADS.Server</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Server runtime for the OPC 30500-1 Laboratory and Analytical Device Standard (LADS) composed on the shared Machinery namespace owner: a fluent device, functional unit and function builder for all LADS function types, typed runtime handles, the device, functional unit, control function, cover and maintenance state machines, a program manager with templates, active program, results and result files, maintenance tasks, operation counters, injectable device, function and program-executor providers with in-memory simulation defaults, and hosting extensions for standalone and Machinery-composed servers.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.LADS.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.LADS\Opc.Ua.LADS.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- The LADS NodeSet is linked, not copied: with
+       ModelSourceGeneratorFluentAccessorsOnly the generator emits only the
+       typed fluent accessors here and takes the model itself from Opc.Ua.LADS,
+       which publishes it with OmitFluentApi. -->
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.LADS\Model\Opc.Ua.LADS.NodeSet2.xml">
+      <Link>Model\Opc.Ua.LADS.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.LADS</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
