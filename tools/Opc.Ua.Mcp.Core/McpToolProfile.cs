@@ -218,6 +218,11 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// AutoID reader discovery, scans, tag reads and RTLS location queries.
         /// </summary>
-        AutoId = 36
+        AutoId = 36,
+
+        /// <summary>
+        /// LADS device discovery, program control, results and maintenance tasks.
+        /// </summary>
+        Lads = 37
     }
 }

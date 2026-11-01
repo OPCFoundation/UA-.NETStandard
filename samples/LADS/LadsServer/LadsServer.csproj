@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>LadsServer</AssemblyName>
+    <PackageId>LadsServer</PackageId>
+    <RootNamespace>LadsSample.Server</RootNamespace>
+    <Description>Self-contained .NET console OPC UA server publishing a simulated OPC 30500-1 (LADS) shaking incubator with Opc.Ua.LADS.Server: temperature and shaker speed controls, a CO2 sensor, a door, a timer and incubation programs that produce result files.</Description>
+    <IsPackable>false</IsPackable>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.LADS.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.LADS.Server\Opc.Ua.LADS.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+</Project>

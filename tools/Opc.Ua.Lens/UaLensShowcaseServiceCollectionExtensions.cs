@@ -162,6 +162,18 @@ namespace UaLens
                 provider.GetRequiredService<ICompanionDeploymentPolicy>(), provider.GetService<TimeProvider>()));
             services.TryAddSingleton(provider => new Plugins.Companions.Providers.PositioningCompanionProvider(
                 provider.GetService<TimeProvider>()));
+            services.TryAddSingleton(provider => new Plugins.Companions.Providers.LadsCompanionProvider(
+                provider.GetService<TimeProvider>()));
+            services.AddSingleton(provider =>
+            {
+                CompanionPluginFactory factory = provider.GetRequiredService<CompanionPluginFactory>();
+                LadsCompanionProvider lads =
+                    provider.GetRequiredService<Plugins.Companions.Providers.LadsCompanionProvider>();
+                return new PluginFactoryRegistration(
+                    PluginKind.Lads,
+                    host => factory.CreateSpecification(host, PluginKind.Lads, lads),
+                    IsDefault: true);
+            });
             services.AddSingleton(provider =>
             {
                 CompanionPluginFactory factory = provider.GetRequiredService<CompanionPluginFactory>();

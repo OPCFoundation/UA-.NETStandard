@@ -2329,6 +2329,8 @@ namespace Opc.Ua.Server
                 // check for space in the queue only for events that passed the filter.
                 if (m_eventQueueHandler.SetQueueOverflowIfFull())
                 {
+                    // the incoming event is lost (OPC 10000-9 5.11.4).
+                    m_eventQueueHandler.TrackDiscardedEvent(instance);
                     return;
                 }
 
@@ -2409,6 +2411,35 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = true;
                 SignalReady();
             }
+        }
+
+        /// <summary>
+        /// Returns true if the queued event handle is a Condition event.
+        /// </summary>
+        /// <remarks>
+        /// Conditions report their events as an <see cref="InstanceStateSnapshot"/> of the
+        /// <see cref="ConditionState"/>; other sources may queue the event state itself.
+        /// The type tree identifies subtypes of ConditionType of any origin.
+        /// </remarks>
+        private bool IsConditionEvent(object? handle)
+        {
+            if (handle is FilteredRetainTarget wrapper)
+            {
+                handle = wrapper.Target;
+            }
+
+            if (handle is ConditionState ||
+                (handle is InstanceStateSnapshot snapshot && snapshot.Handle is ConditionState))
+            {
+                return true;
+            }
+
+            if (handle is IFilterTarget target && m_server.TypeTree != null)
+            {
+                return target.IsTypeOf(GetEventFilterContext(out _), ObjectTypeIds.ConditionType);
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -2649,12 +2680,24 @@ namespace Opc.Ua.Server
                         SubscriptionId,
                         Id);
 
+                    int notificationsBefore = notifications.Count;
+                    uint maxNotifications = maxNotificationsPerPublish;
+
                     // with discardOldest TRUE the overflow event is placed at the beginning
                     // of the queue (Part 4 5.13.1.5).
                     if (m_discardOldest && m_eventQueueHandler.Overflow)
                     {
                         notifications.Enqueue(CreateEventQueueOverflowEventFields(context));
                         EventQueueOverflowReported();
+                        maxNotificationsPerPublish--;
+                    }
+
+                    // once the overflow event went out in an earlier publish, keep a slot for the
+                    // pending RefreshRequired, so new events cannot push it out of every publish.
+                    if (m_eventQueueHandler.ConditionEventsLost &&
+                        !m_eventQueueHandler.Overflow &&
+                        maxNotificationsPerPublish > 0)
+                    {
                         maxNotificationsPerPublish--;
                     }
 
@@ -2671,8 +2714,26 @@ namespace Opc.Ua.Server
                         EventQueueOverflowReported();
                     }
 
+                    // OPC 10000-9 5.11.4: if Condition events were lost, issue a
+                    // RefreshRequired event "after the Event queue is no longer in an
+                    // overflow state", i.e. once the overflow event was delivered. When the
+                    // publish is full it follows with the next one.
+                    if (m_eventQueueHandler.ConditionEventsLost &&
+                        !m_eventQueueHandler.Overflow &&
+                        notifications.Count - notificationsBefore < maxNotifications)
+                    {
+                        notifications.Enqueue(CreateInternalEventFields(
+                            context,
+                            new RefreshRequiredEventState(null),
+                            "RefreshRequiredEventState",
+                            "Condition events lost due to queue overflow, ConditionRefresh required."));
+                        m_eventQueueHandler.ConditionEventsLost = false;
+                    }
+
                     moreValuesToPublish =
-                        m_eventQueueHandler.ItemsInQueue > 0 || m_eventQueueHandler.Overflow;
+                        m_eventQueueHandler.ItemsInQueue > 0 ||
+                        m_eventQueueHandler.Overflow ||
+                        m_eventQueueHandler.ConditionEventsLost;
                     m_logger.MONITOREDITEMPublishQueueSizeQueueSize(
                         notifications.Count,
                         SubscriptionId,
@@ -2693,13 +2754,24 @@ namespace Opc.Ua.Server
         /// </summary>
         private EventFieldList CreateEventQueueOverflowEventFields(OperationContext context)
         {
-            // construct event.
-            var e = new EventQueueOverflowEventState(null);
-
-            var message = new TranslationInfo(
+            return CreateInternalEventFields(
+                context,
+                new EventQueueOverflowEventState(null),
                 "EventQueueOverflowEventState",
-                "en-US",
                 "Events lost due to queue overflow.");
+        }
+
+        /// <summary>
+        /// Creates the fields of an event the server raises for this item, such as
+        /// EventQueueOverflow or RefreshRequired (SourceNode = Server).
+        /// </summary>
+        private EventFieldList CreateInternalEventFields(
+            OperationContext context,
+            BaseEventState e,
+            string key,
+            string text)
+        {
+            var message = new TranslationInfo(key, "en-US", text);
 
             ISystemContext systemContext = new ServerSystemContext(m_server, context);
 
@@ -2716,7 +2788,7 @@ namespace Opc.Ua.Server
                 false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
 
-            // fetch the event fields. The overflow path is reached only
+            // fetch the event fields. Internal events are raised only
             // when m_eventQueueHandler is active, which guarantees an
             // EventFilter has been configured for this monitored item.
             return GetEventFields(
@@ -3408,6 +3480,7 @@ namespace Opc.Ua.Server
                             m_server.Telemetry,
                             QueueOverflowHandler,
                             null);
+                        m_eventQueueHandler.IsConditionEvent = IsConditionEvent;
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
@@ -3537,6 +3610,7 @@ namespace Opc.Ua.Server
                                 m_server.Telemetry,
                                 QueueOverflowHandler,
                                 null);
+                            m_eventQueueHandler.IsConditionEvent = IsConditionEvent;
 
                             // the queue may have been persisted with a size that was
                             // revised since, e.g. a literal size of 1 before queueSize 1
@@ -3556,6 +3630,7 @@ namespace Opc.Ua.Server
                                 m_server.Telemetry,
                                 QueueOverflowHandler,
                                 null);
+                            m_eventQueueHandler.IsConditionEvent = IsConditionEvent;
                             if (m_queueRestoreStaged)
                             {
                                 m_eventQueueHandler.RestorableQueue?.BeginRestore();
