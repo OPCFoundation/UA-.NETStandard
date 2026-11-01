@@ -598,6 +598,12 @@ server cleanup; subsequent tasks do not run.
 so the host does not dispose dependencies that the server is still using.
 Slow cleanup can therefore outlast that timeout.
 
+Hosted server disposal detaches the injected lifecycle even if server disposal
+throws. The hosted service retains the failed server for a later disposal
+attempt; retaining its resources does not make it available through the hosted
+lifecycle. A successful retry releases the server reference, and later hosted
+disposal calls do not dispose it again.
+
 Use injected services for application dependencies and the existing typed
 node-manager lookup for server subsystems. For example, inside a task:
 

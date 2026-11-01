@@ -550,10 +550,10 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
-        /// A failed server disposal retains the attached lifecycle and can be retried by hosted-service disposal.
+        /// A failed server disposal detaches the lifecycle and can be retried by hosted-service disposal.
         /// </summary>
         [Test]
-        public async Task FailedServerDisposalKeepsLifecycleAttachedForRetryAsync()
+        public async Task FailedServerDisposalDetachesLifecycleAndRetainsServerForRetryAsync()
         {
             RetryDisposalServer.Reset();
             HostedServerFixture fixture = await HostedServerFixture.StartAsync(
@@ -578,7 +578,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 await fixture.StopAsync().ConfigureAwait(false);
 
                 Assert.That(RetryDisposalServer.DisposeAttempts, Is.EqualTo(2));
-                Assert.That(lifecycle.IsShuttingDown, Is.True);
+                Assert.That(() => lifecycle.IsShuttingDown, Throws.InvalidOperationException);
             }
             finally
             {
@@ -737,7 +737,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 if (Interlocked.Increment(ref s_disposeAttempts) == 2)
                 {
-                    return ValueTask.FromException(new InvalidOperationException("Injected disposal failure."));
+                    return new ValueTask(Task.FromException(
+                        new InvalidOperationException("Injected disposal failure.")));
                 }
 
                 return base.DisposeAsyncCore();
