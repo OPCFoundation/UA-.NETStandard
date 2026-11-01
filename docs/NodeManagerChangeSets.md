@@ -191,9 +191,46 @@ The former callback-heavy `NodeManagerBatchContext` is no longer the handoff.
 Existing internal host interfaces and private `PreparedNodeManager` candidates
 remain behind this typed plan. Removing every host/candidate adapter would
 require a larger provider migration than this compatibility layer. F2 candidate
-ownership is described below. This change does not implement F3 metadata redesign
-or the matched notification, activation and retirement performance gaps recorded in
-[OPCFoundation/UA-.NETStandard#4952](https://github.com/OPCFoundation/UA-.NETStandard/pull/4952).
+ownership is described below. The type-table staging behavior and remaining F3
+qualification are described in the next section. The matched notification,
+activation and retirement performance gaps recorded in
+[OPCFoundation/UA-.NETStandard#4952](https://github.com/OPCFoundation/UA-.NETStandard/pull/4952)
+remain separate.
+
+## Type registration snapshots
+
+Type-table captures share a registration graph until a handle first mutates it.
+That writer detaches by copying the type, encoding and reference-name indexes
+and their connected hierarchy. A candidate therefore keeps its type changes
+private during preparation, while readers of a captured graph continue to see
+the graph they captured.
+
+Publication installs the validated graph under the canonical type-table lock.
+Staging handles bound to that canonical table then observe later registrations;
+retired handles detach before cleanup can remove registrations still used by a
+live generation. Encodeable-factory captures already share immutable frozen
+maps, while additive merges still build merged frozen maps.
+
+A three-round sequential net10 Release comparison against baseline
+`fcfc84eab5c105780d7268474a47d344d100aca1` measured these median capture costs
+for five snapshots:
+
+| Registered types | Baseline time / allocation | Copy-on-write time / allocation |
+| ---: | ---: | ---: |
+| 128 | 0.172 ms / 43,696 bytes | 0.024 ms / 5,216 bytes |
+| 2,048 | 7.827 ms / 828,296 bytes | 0.018 ms / 5,216 bytes |
+| 16,384 | 26.784 ms / 4,596,984 bytes | 0.017 ms / 5,208 bytes |
+
+The first mutation still copies the graph. At 16,384 types, that copy measured
+29.054 ms and 4,597,048 bytes per five mutations on the candidate. The copy
+moves from capture under the canonical serving-table lock to the first write
+under the private staging-table lock; total copy work is not eliminated.
+Encodeable-factory captures already share immutable frozen maps, while
+additive merges still build merged frozen maps. Supported-framework,
+concurrent-isolation and NativeAOT checks passed: the focused type-registration
+suite passed 176/176 on net10.0 and 176/176 on net48, and the selected
+win-x64 NativeAOT lifecycle change-set test passed 1/1. These results do not
+include a full-project test run or the separate #4869 benchmark.
 
 ## Candidate state and cleanup ownership
 
