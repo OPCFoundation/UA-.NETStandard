@@ -398,26 +398,32 @@ namespace Opc.Ua.Server
         /// context is shared: callers must not dispose or retain it.
         /// </remarks>
         /// <param name="item">The monitored item.</param>
-        public static OperationContext GetSubscriberContext(IMonitoredItem item)
+        /// <param name="diagnostics">The requested operation diagnostics mask.</param>
+        public static OperationContext GetSubscriberContext(
+            IMonitoredItem item,
+            DiagnosticsMasks diagnostics = DiagnosticsMasks.SymbolicId)
         {
             ISession? session = item.Session;
             if (session == null)
             {
                 IUserIdentity? identity = item.EffectiveIdentity;
                 SubscriberContext? itemContext = s_itemContexts.TryGetValue(item, out SubscriberContextSlot? itemSlot)
-                    ? Volatile.Read(ref itemSlot.Current) : null;
+                    ? Volatile.Read(ref itemSlot.GetEntry(diagnostics)) : null;
                 if (itemContext is { Context.Session: null } &&
+                    itemContext.Context.DiagnosticsMask == diagnostics &&
                     ReferenceEquals(itemContext.Identity, identity))
                 {
                     return itemContext.Context;
                 }
                 // CA2000: the shared context is owned by the item's entry and never disposed by callers.
 #pragma warning disable CA2000
-                var operationContext = new OperationContext(item);
+                var operationContext = new OperationContext(item, diagnostics);
                 operationContext.EnableWeakSystemContextCache();
                 var created = new SubscriberContext(identity, null, 0, null, null, operationContext);
 #pragma warning restore CA2000
-                Volatile.Write(ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).Current, created);
+                Volatile.Write(
+                    ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).GetEntry(diagnostics),
+                    created);
                 return created.Context;
             }
 
@@ -430,8 +436,10 @@ namespace Opc.Ua.Server
             EndpointDescription? endpoint = GetEndpoint(session);
             string secureChannelId = session.SecureChannelId ?? string.Empty;
             SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
-            SubscriberContext? current = Volatile.Read(ref slot.Current);
+            ref SubscriberContext? entry = ref slot.GetEntry(diagnostics);
+            SubscriberContext? current = Volatile.Read(ref entry);
             if (current != null &&
+                current.Context.DiagnosticsMask == diagnostics &&
                 ReferenceEquals(current.Identity, effectiveIdentity) &&
                 current.Generation == generation &&
                 ReferenceEquals(current.Endpoint, endpoint) &&
@@ -440,12 +448,12 @@ namespace Opc.Ua.Server
             {
                 return current.Context;
             }
-            OperationContext context = CreateContext(session);
+            OperationContext context = CreateContext(session, diagnostics);
             context.EnableWeakSystemContextCache();
             // the constructor captured identity and epoch together; key the entry on what it captured.
             current = new SubscriberContext(
                 context.UserIdentity, context.NotificationAuthorization, generation, endpoint, secureChannelId, context);
-            Volatile.Write(ref slot.Current, current);
+            Volatile.Write(ref entry, current);
             return context;
         }
 
@@ -473,7 +481,39 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class SubscriberContextSlot
         {
-            public SubscriberContext? Current;
+            /// <summary>
+            /// Selects a bounded slot for the default or operation-level diagnostics mask.
+            /// </summary>
+            public ref SubscriberContext? GetEntry(DiagnosticsMasks diagnostics)
+            {
+                if (diagnostics == DiagnosticsMasks.SymbolicId)
+                {
+                    return ref m_current;
+                }
+                if ((diagnostics & ~DiagnosticsMasks.OperationAll) != 0)
+                {
+                    return ref m_other;
+                }
+                SubscriberContext?[] masked = Volatile.Read(ref m_masked) ??
+                    Interlocked.CompareExchange(ref m_masked, new SubscriberContext?[kOperationMasks], null) ??
+                    m_masked;
+                return ref masked[(int)diagnostics >> kOperationMaskShift];
+            }
+
+            /// <summary>The operation-level diagnostics occupy bits 5 through 9.</summary>
+            private const int kOperationMaskShift = 5;
+
+            /// <summary>Number of possible operation-level diagnostics masks.</summary>
+            private const int kOperationMasks = ((int)DiagnosticsMasks.OperationAll >> kOperationMaskShift) + 1;
+
+            /// <summary>Default diagnostics context.</summary>
+            private SubscriberContext? m_current;
+
+            /// <summary>Fallback context for non-operation masks.</summary>
+            private SubscriberContext? m_other;
+
+            /// <summary>Lazily allocated operation diagnostics slots.</summary>
+            private SubscriberContext?[]? m_masked;
         }
 
         private static readonly ConditionalWeakTable<ISession, SubscriberContextSlot> s_sessionContexts = new();

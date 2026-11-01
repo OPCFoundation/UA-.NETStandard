@@ -484,6 +484,22 @@ is also revalidated at least once per second, which bounds the delay for
 permissions a node manager computes without such a change, for example through
 `OnReadRolePermissions`.
 
+Periodic sampling also retains a successful exact-source read verdict alongside
+the role verdict. Reuse requires the same manager, node, attribute, owner context,
+identity-refresh generation, permission epoch, endpoint, secure channel,
+transport, security mode and access restrictions. A namespace metadata replacement
+or a namespace-default permission change invalidates the verdict. Failed
+exact-source checks are not cached; permission callbacks, dynamic namespace
+defaults and registered Value read policies still run on each sample. Generation
+admission and the current-source queue check remain mandatory even on a cache hit.
+
+Sampling uses the shared subscriber context with the group's operation diagnostics
+mask and its stable per-manager system-context copy. Sessionless items retain
+their own identity-keyed context instead of sharing a prior session's grant.
+Different diagnostics masks use separate bounded slots; a context change
+invalidates the sampled verdict, and the weak template table does not retain
+retired managers.
+
 For an asynchronous, caller-specific Value read policy, register
 `AsyncCustomNodeManager.RegisterValueReadAuthorization(node, authorize)` and keep
 its disposable registration for the binding's lifetime. The policy runs at

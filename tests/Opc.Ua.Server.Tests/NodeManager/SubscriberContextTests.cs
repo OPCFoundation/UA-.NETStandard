@@ -45,6 +45,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class SubscriberContextTests
     {
         /// <summary>
+        /// Each operation diagnostics mask retains its own stable context, including sessionless sampling.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SamplingDiagnosticsContextsAreStableAndDistinct(bool sessionless)
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem item = subscriber.CreateItem();
+            if (sessionless)
+            {
+                subscriber.ActiveSession = null;
+            }
+            OperationContext first = MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationAll);
+            OperationContext second = MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationInnerStatusCode);
+
+            Assert.That(first, Is.Not.SameAs(second));
+            Assert.That(first.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.OperationAll));
+            Assert.That(second.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.OperationInnerStatusCode));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationAll), Is.SameAs(first));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationInnerStatusCode), Is.SameAs(second));
+        }
+
+        /// <summary>
         /// Items of one session share one context, and its system context copy per template.
         /// </summary>
         [Test]

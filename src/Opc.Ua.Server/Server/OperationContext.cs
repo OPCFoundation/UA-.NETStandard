@@ -158,6 +158,14 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="monitoredItem">The monitored item.</param>
         public OperationContext(IMonitoredItem monitoredItem)
+            : this(monitoredItem, DiagnosticsMasks.SymbolicId)
+        {
+        }
+
+        /// <summary>
+        /// Creates a sessionless subscriber context with the sampling group's diagnostics.
+        /// </summary>
+        internal OperationContext(IMonitoredItem monitoredItem, DiagnosticsMasks diagnostics)
         {
             if (monitoredItem == null)
             {
@@ -174,7 +182,7 @@ namespace Opc.Ua.Server
                 PreferredLocales = Session.PreferredLocales;
             }
 
-            DiagnosticsMask = DiagnosticsMasks.SymbolicId;
+            DiagnosticsMask = diagnostics;
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
