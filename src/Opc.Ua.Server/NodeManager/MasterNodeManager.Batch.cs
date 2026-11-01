@@ -209,10 +209,6 @@ namespace Opc.Ua.Server
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ValidatePreparedNodeManager(candidate);
-                        if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
-                        {
-                            throw new InvalidOperationException("A batch candidate has no prepared generation.");
-                        }
                         if (candidate.ReplacedNodeManager is { } old)
                         {
                             retiring.Add(old);
@@ -418,10 +414,6 @@ namespace Opc.Ua.Server
                         {
                             PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
-                            if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
-                            {
-                                throw new InvalidOperationException("A batch candidate has no prepared generation.");
-                            }
                         }
                         HashSet<IAsyncNodeManager> retiring = [.. removed];
                         foreach (PreparedNodeManager candidate in candidates)
@@ -497,8 +489,7 @@ namespace Opc.Ua.Server
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)
                                 {
-                                    candidate.Published = true;
-                                    candidate.ReplacedNodeManager = null;
+                                    candidate.Publish();
                                     SetPreparing(candidate.NodeManager, preparing: false);
                                 }
                             });

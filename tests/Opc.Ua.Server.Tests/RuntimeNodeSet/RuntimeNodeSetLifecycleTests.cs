@@ -613,6 +613,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(runtimeManager.GetAddedReferences(), Is.Empty);
         }
 
+        /// <summary>
+        /// Private replacement preparation reports only references to nodes absent from the next generation.
+        /// </summary>
         [Test]
         public async Task PrepareReloadAsyncReturnsDroppedReferencesForRemovedNodesAsync()
         {
@@ -646,7 +649,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             var host = (IDynamicNodeManagerHost)server.NodeManager;
             PreparedNodeManager prepared = await host
-                .PrepareAsync(replacement)
+                .PrepareAsync(replacement,
+                    NodeManagerGenerationRegistry.CreateReplacement(registration.Identity, replacement),
+                    originalManager)
                 .ConfigureAwait(false);
 
             try

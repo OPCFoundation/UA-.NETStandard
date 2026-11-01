@@ -54,10 +54,14 @@ namespace Opc.Ua.Server
         /// and collects the references it wants to add to Nodes owned by other NodeManagers.
         /// </summary>
         /// <param name="nodeManager">The NodeManager to prepare.</param>
+        /// <param name="generation">The identity assigned before address-space callbacks.</param>
+        /// <param name="replacedNodeManager">The exact predecessor, or null for an addition.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
             IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
+            IAsyncNodeManager? replacedNodeManager,
             CancellationToken ct = default);
 
         /// <summary>
@@ -166,12 +170,31 @@ namespace Opc.Ua.Server
         /// <param name="externalReferences">
         /// The references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </param>
+        /// <param name="generation">The already assigned generation identity.</param>
+        /// <param name="replacedNodeManager">The predecessor, or null for an addition.</param>
         public PreparedNodeManager(
             IAsyncNodeManager nodeManager,
-            Dictionary<NodeId, IList<IReference>> externalReferences)
+            Dictionary<NodeId, IList<IReference>> externalReferences,
+            NodeManagerGeneration generation,
+            IAsyncNodeManager? replacedNodeManager = null)
         {
-            NodeManager = nodeManager;
-            ExternalReferences = externalReferences;
+            NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            ExternalReferences = externalReferences ?? throw new ArgumentNullException(nameof(externalReferences));
+            Generation = generation ?? throw new ArgumentNullException(nameof(generation));
+            if (!ReferenceEquals(NodeManagerGenerationRegistry.GetIdentity(nodeManager),
+                NodeManagerGenerationRegistry.GetIdentity(generation.NodeManager)))
+            {
+                throw new ArgumentException("The generation belongs to another NodeManager.", nameof(generation));
+            }
+            if (replacedNodeManager is not null &&
+                (!NodeManagerGenerationRegistry.TryGet(replacedNodeManager, out NodeManagerGeneration? predecessor) ||
+                    !ReferenceEquals(predecessor!.Slot, generation.Slot) ||
+                    predecessor.Number + 1 != generation.Number))
+            {
+                throw new ArgumentException(
+                    "The predecessor belongs to another generation.", nameof(replacedNodeManager));
+            }
+            m_replacedNodeManager = replacedNodeManager;
         }
 
         /// <summary>
@@ -180,14 +203,9 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
-        /// Gets or sets the explicit metadata preparation, if this is a runtime candidate.
+        /// Gets the exact identity assigned before address-space preparation began.
         /// </summary>
-        public ChangePreparer? Preparation { get; set; }
-
-        /// <summary>
-        /// Gets or sets the exact generation identity assigned to this prepared NodeManager.
-        /// </summary>
-        public NodeManagerGeneration? Generation { get; set; }
+        public NodeManagerGeneration Generation { get; }
 
         /// <summary>
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
@@ -195,14 +213,77 @@ namespace Opc.Ua.Server
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
 
         /// <summary>
-        /// Gets or sets whether the candidate crossed the routing-view commit point.
+        /// Gets whether the candidate crossed the routing-view commit point, even if it has since retired.
         /// </summary>
-        public bool Published { get; set; }
+        public bool Published => Volatile.Read(ref m_state) == PublishedState;
 
         /// <summary>
-        /// Gets or sets the exact predecessor withdrawn by this candidate's publication.
+        /// Gets the predecessor retained only until this candidate's publication.
         /// </summary>
-        public IAsyncNodeManager? ReplacedNodeManager { get; set; }
+        public IAsyncNodeManager? ReplacedNodeManager => m_replacedNodeManager;
 
+        /// <summary>
+        /// Validates a private candidate before reserving publication.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The candidate was consumed or its generation is no longer prepared.
+        /// </exception>
+        public void ValidateForPublication()
+        {
+            if (Volatile.Read(ref m_state) != PrivateState ||
+                Generation.Gate.State != NodeManagerGenerationState.Prepared)
+            {
+                throw new InvalidOperationException("The candidate has no prepared generation or has been consumed.");
+            }
+        }
+
+        /// <summary>
+        /// Transfers cleanup ownership to the published generation and releases the predecessor reference.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The candidate was consumed or its generation is not live.
+        /// </exception>
+        public void Publish()
+        {
+            if (Generation.Gate.State != NodeManagerGenerationState.Live ||
+                Interlocked.CompareExchange(ref m_state, PublishedState, PrivateState) != PrivateState)
+            {
+                throw new InvalidOperationException("Only an unpublished live generation can cross publication.");
+            }
+            m_replacedNodeManager = null;
+        }
+
+        /// <summary>
+        /// Claims private address-space abort once; published and retired identities cannot be aborted.
+        /// </summary>
+        /// <returns>Whether this caller owns private address-space destruction.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// The generation is published, retiring or disposed.
+        /// </exception>
+        public bool TryBeginAbort()
+        {
+            if (Published ||
+                Generation.Gate.State is NodeManagerGenerationState.Live or
+                    NodeManagerGenerationState.Retiring or NodeManagerGenerationState.Disposed)
+            {
+                throw new InvalidOperationException("A published or retired NodeManager cannot be aborted.");
+            }
+            return Interlocked.CompareExchange(ref m_state, AbortedState, PrivateState) == PrivateState;
+        }
+
+        /// <summary>The private preparation state.</summary>
+        private const int PrivateState = 0;
+
+        /// <summary>The state after routing publication, including subsequent retirement.</summary>
+        private const int PublishedState = 1;
+
+        /// <summary>The terminal private cleanup claim.</summary>
+        private const int AbortedState = 2;
+
+        /// <summary>The predecessor needed by routing preparation until publication.</summary>
+        private IAsyncNodeManager? m_replacedNodeManager;
+
+        /// <summary>The candidate's single publication or abort transition.</summary>
+        private int m_state;
     }
 }

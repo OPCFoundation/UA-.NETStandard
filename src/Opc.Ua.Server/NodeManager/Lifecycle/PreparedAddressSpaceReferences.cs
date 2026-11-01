@@ -142,7 +142,7 @@ namespace Opc.Ua.Server
                 {
                     await reconciliation.RunAsync(
                         NodeManagerReconciliationStage.References,
-                        [candidate.Generation!, owner],
+                        [candidate.Generation, owner],
                         () => owner.NodeManager.AddReferencesAsync(additions, CancellationToken.None))
                         .ConfigureAwait(false);
                 }
@@ -160,8 +160,10 @@ namespace Opc.Ua.Server
             {
                 await reconciliation.RunAsync(
                     NodeManagerReconciliationStage.References,
-                    (m_candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)
-                        .Append(observer.Value).Distinct().ToArray(),
+                    [
+                        .. (m_candidates.ToArray() ?? []).Select(candidate => candidate.Generation)
+                            .Append(observer.Value).Distinct()
+                    ],
                     () =>
                     {
                         var failures = new List<Exception>();

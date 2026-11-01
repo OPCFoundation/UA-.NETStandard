@@ -6298,6 +6298,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Host guards reject invalid publication and preserve a single private abort, including after failure.
+        /// </summary>
         [Test]
         public async Task DynamicHostGuardsRejectInvalidArgumentsAndStateAsync()
         {
@@ -6306,12 +6309,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:HostGuards");
             var prepared = new PreparedNodeManager(
                 candidate.Object,
-                []);
+                [],
+                NodeManagerGenerationRegistry.CreateAddition(candidate.Object));
+            prepared.Generation.Gate.Abort();
 
             ArgumentNullException exception =
                 await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await host
-                        .PrepareAsync(null!)
+                        .PrepareAsync(null!, prepared.Generation, null)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
@@ -6371,7 +6376,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(decisions, Is.Zero);
                 Assert.That(prepared.Published, Is.False);
-                Assert.That(prepared.Generation, Is.Null);
+                Assert.That(prepared.Generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
             }
 
             Mock<IAsyncNodeManager> unowned = CreateLifecycleNodeManager(
@@ -6393,10 +6398,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
 
             await host.AbortAsync(prepared).ConfigureAwait(false);
+            await host.AbortAsync(prepared).ConfigureAwait(false);
             candidate.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
                     CancellationToken.None),
                 Times.Once);
+
+            Mock<IAsyncNodeManager> failingCandidate = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:FailedAbort");
+            failingCandidate.Setup(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("Private destruction failed."));
+            var failedPreparation = new PreparedNodeManager(
+                failingCandidate.Object, [], NodeManagerGenerationRegistry.CreateAddition(failingCandidate.Object));
+            await Assert.ThatAsync(() => host.AbortAsync(failedPreparation).AsTask(),
+                Throws.InvalidOperationException.With.Message.EqualTo("Private destruction failed.")).ConfigureAwait(false);
+            await host.AbortAsync(failedPreparation).ConfigureAwait(false);
+            failingCandidate.Verify(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(failedPreparation.Generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
 
             Mock<IAsyncNodeManager> owned = CreateLifecycleNodeManager(
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:Owned");
@@ -6411,7 +6429,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .NodeManagerLifecycle
                 .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
-            var duplicate = new PreparedNodeManager(owned.Object, []);
+            var duplicate = new PreparedNodeManager(owned.Object, [], registration.Identity);
             Assert.That(
                 async () => await host
                     .AbortAsync(duplicate)
@@ -6419,9 +6437,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.InvalidOperationException.With.Message.Contains(
                     "cannot be aborted"));
             owned.Verify(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
-            duplicate.Published = true;
+            duplicate.Publish();
             await Assert.ThatAsync(() => host.AbortAsync(duplicate).AsTask(),
-                Throws.InvalidOperationException.With.Message.Contains("already been published")).ConfigureAwait(false);
+                Throws.InvalidOperationException.With.Message.Contains("cannot be aborted")).ConfigureAwait(false);
 
             await m_server.NodeManagerLifecycle
                 .RemoveAsync(registration, null)
@@ -6972,8 +6990,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             proxy.SetupGet(value => value.CoreNodeManager).Returns(master.CoreNodeManager);
             dynamicProxy.SetupGet(value => value.GenerationReconciler).Returns(host.GenerationReconciler);
             dynamicProxy.Setup(value => value.PrepareAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.PrepareAsync(manager, ct));
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<NodeManagerGeneration>(),
+                It.IsAny<IAsyncNodeManager?>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, NodeManagerGeneration, IAsyncNodeManager?, CancellationToken>(
+                    host.PrepareAsync);
             dynamicProxy.Setup(value => value.AbortAsync(
                 It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
                 .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.AbortAsync(prepared, ct));

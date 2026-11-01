@@ -1883,11 +1883,9 @@ namespace Opc.Ua.Server
                                 ? NodeManagerGenerationRegistry.CreateAddition(entry.Manager)
                                 : NodeManagerGenerationRegistry.CreateReplacement(
                                     current.Registration.Identity, entry.Manager);
-                            entry.Prepared = await host.PrepareAsync(entry.Manager, cancellationToken)
+                            entry.Prepared = await host.PrepareAsync(
+                                entry.Manager, generation, current?.Prepared.NodeManager, cancellationToken)
                                 .ConfigureAwait(false);
-                            entry.Prepared.Preparation = preparation;
-                            entry.Prepared.Generation = generation;
-                            entry.Prepared.ReplacedNodeManager = current?.Prepared.NodeManager;
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
                             if (current is not null)
@@ -2192,9 +2190,11 @@ namespace Opc.Ua.Server
                 }
 
                 NodeManagerGeneration[] candidateGenerations =
-                    (batch.Initial?.SystemRegistrations.ToArray() ?? [])
-                    .Select(registration => registration.Identity)
-                    .Concat((candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)).ToArray();
+                [
+                    .. (batch.Initial?.SystemRegistrations.ToArray() ?? [])
+                        .Select(registration => registration.Identity)
+                        .Concat((candidates.ToArray() ?? []).Select(candidate => candidate.Generation))
+                ];
                 var lifecycleCommit = new LifecycleCommit(
                     this, batch, mutation, decideAsync, committedRegistrations, retired, readinessClaims, reconciler);
                 committedLifecycle = lifecycleCommit;
@@ -2504,7 +2504,6 @@ namespace Opc.Ua.Server
                     {
                         if (entry.Current is not null)
                         {
-                            entry.Current.Prepared.Published = false;
                             if (entry.Change.TransitionMode !=
                                 NodeManagerMonitoredItemTransitionMode.Migrate || entry.Manager is null)
                             {
@@ -2589,14 +2588,14 @@ namespace Opc.Ua.Server
                         failures.Add(failure);
                     }
                 }
-                if (entry.Manager is not null && entry.Prepared?.Published != true)
+                if (entry.TakePrivateManager() is { } manager)
                 {
-                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(entry.Manager);
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
                     if (generation.Gate.State == NodeManagerGenerationState.Prepared)
                     {
                         generation.Gate.Abort();
                     }
-                    Exception? failure = await TryDisposeNodeManagerAsync(entry.Manager).ConfigureAwait(false);
+                    Exception? failure = await TryDisposeNodeManagerAsync(manager).ConfigureAwait(false);
                     if (failure is not null)
                     {
                         failures.Add(failure);
@@ -2635,7 +2634,11 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets or sets the node manager created for the change.
             /// </summary>
-            public IAsyncNodeManager? Manager { get; set; }
+            public IAsyncNodeManager? Manager
+            {
+                get => m_manager;
+                set => m_manager = value;
+            }
 
             /// <summary>
             /// Gets or sets the prepared node manager of the change.
@@ -2651,6 +2654,18 @@ namespace Opc.Ua.Server
             /// Gets or sets the external references dropped by the change.
             /// </summary>
             public List<LocalReference> DroppedReferences { get; set; } = [];
+
+            /// <summary>
+            /// Transfers the private manager to the sole disposal caller, including after a failed abort.
+            /// </summary>
+            /// <returns>The manager to dispose, or null after disposal ownership was transferred or published.</returns>
+            public IAsyncNodeManager? TakePrivateManager()
+            {
+                return Prepared?.Published == true ? null : Interlocked.Exchange(ref m_manager, null);
+            }
+
+            /// <summary>The manager owned by this private entry until publication or abort disposal.</summary>
+            private IAsyncNodeManager? m_manager;
         }
 
         /// <summary>

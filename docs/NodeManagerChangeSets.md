@@ -25,7 +25,7 @@ The change-set API follows the F1 lifecycle model in the
 | `lifecycle.BeginAsync(expectedRevision, ct)` | Captures optimistic publication evidence for an `ILifecycleWriter`. |
 | `ILifecycleWriter.PrepareAsync(...)` | Prepares an `IPreparedChanges` unit against the writer's evidence. |
 | `IPreparedChanges.CommitAsync(decideAsync, ct)` | Performs the optional durable decision, publishes, then returns `LifecycleResult`. |
-| `LifecycleResult` | Owns the committed revision, registrations, slot snapshots, issues and physical retirement task. |
+| `LifecycleResult` | Retains the committed revision, registrations, slot snapshots and issues; exposes the generation owner's physical retirement task. |
 
 This layer is additive to the preceding lifecycle API. `ApplyAsync`, `BeginAsync`
 and the slot-based `PrepareAsync` overloads are extension methods, not new required
@@ -190,7 +190,52 @@ The former callback-heavy `NodeManagerBatchContext` is no longer the handoff.
 
 Existing internal host interfaces and private `PreparedNodeManager` candidates
 remain behind this typed plan. Removing every host/candidate adapter would
-require a larger provider migration than this compatibility layer. This change
-does not implement F2/F3 state or metadata redesign, nor the matched notification,
-activation and retirement performance gaps recorded in
+require a larger provider migration than this compatibility layer. F2 candidate
+ownership is described below. This change does not implement F3 metadata redesign
+or the matched notification, activation and retirement performance gaps recorded in
 [OPCFoundation/UA-.NETStandard#4952](https://github.com/OPCFoundation/UA-.NETStandard/pull/4952).
+
+## Candidate state and cleanup ownership
+
+`PreparedNodeManager` receives its generation identity and exact predecessor at
+construction. The lifecycle assigns the identity before `CreateAddressSpaceAsync`
+runs, so preparation callbacks continue to resolve the candidate's stable slot
+and generation. Routing preparation validates that identity; it does not assign
+the candidate to a generation again.
+
+The candidate has one private-to-published or private-to-aborted transition.
+Publication requires a live generation, releases the predecessor reference and
+permanently excludes private abort, including after retirement. An abort caller
+claims address-space destruction once. A repeated abort does not repeat a failed
+destruction callback. The batch entry separately transfers manager disposal once,
+including when destruction throws; cleanup failures remain observable.
+
+| Resource | Owner and boundary |
+| --- | --- |
+| Private metadata image | `PreparedBatch.Preparation` owns the shared `ChangePreparer`; individual candidates do not retain duplicate preparation pointers. |
+| Routing image and reservation | `PreparedRoutes` owns the next routing epoch and reservation until publication or abandonment. Abandonment closes its unpublished epoch and prepared admission; host abort still owns private address-space destruction. |
+| Generation identity | The generation registry assigns one identity per canonical manager resource; synchronous/asynchronous adapters retain their shared resource identity and owning facade. |
+| Private manager | The batch entry owns disposal until publication transfers lifetime to the generation owner. Host abort claims address-space destruction independently of disposal. |
+| Retirement task | The reclaimer owns each retirement record, worker and retry checkpoints. Results expose completion without acquiring cleanup ownership. |
+
+Writer mutation admission, callback permits and ambient scopes remain distinct.
+The writer serializes the durable decision; callback permits authorize only their
+declared host reentry capabilities and are revoked when the callback ends.
+Operation scopes retain shutdown admission while writer-free callbacks execute;
+independent retirement workers suppress inherited execution context. These
+mechanisms cannot be replaced by a candidate publication flag.
+
+Physical retirement still waits for generation admission, routing epochs and
+retained dependencies to quiesce before resource disposal and address-space
+destruction. The transitive `NodeManagerRoutingTable.Remove` /
+`RemoveAndCapturePosition` cleanup path and `UsesDirectReferenceStorage` adapter
+checks remain live and are retained. F2 changes writer-path state and ownership;
+it adds no request, sampling or notification-path work and does not qualify the
+performance work in
+[OPCFoundation/UA-.NETStandard#4869](https://github.com/OPCFoundation/UA-.NETStandard/pull/4869).
+
+The former private `ResolveNamespaceIndexes`, `AddExternalReferencesAsync` and
+`RemoveExternalReferencesAsync` helpers have no callers, including through the
+compatibility adapters, and are removed. Their serving effects belong to the
+existing prepared routing and reference publication paths; removing them does
+not remove reference reconciliation or destruction-failure diagnostics.

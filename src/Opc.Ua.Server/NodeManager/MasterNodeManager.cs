@@ -710,6 +710,8 @@ namespace Opc.Ua.Server
 
         async ValueTask<PreparedNodeManager> IDynamicNodeManagerHost.PrepareAsync(
             IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
+            IAsyncNodeManager? replacedNodeManager,
             CancellationToken ct)
         {
             if (nodeManager is null)
@@ -718,6 +720,8 @@ namespace Opc.Ua.Server
             }
 
             ct.ThrowIfCancellationRequested();
+            var candidate = new PreparedNodeManager(nodeManager, [], generation, replacedNodeManager);
+            candidate.ValidateForPublication();
             bool prepared = false;
             bool preparationStarted = false;
             try
@@ -729,14 +733,14 @@ namespace Opc.Ua.Server
                 preparationStarted = true;
                 SetPreparing(nodeManager, preparing: true);
                 SetExistingEventSubscriptionSuppression(nodeManager, suppress: true);
-                var externalReferences = new Dictionary<NodeId, IList<IReference>>();
+                Dictionary<NodeId, IList<IReference>> externalReferences = candidate.ExternalReferences;
                 await nodeManager
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
                 ChangePreparer.GetServer(nodeManager)?.AppendRootNotifierReferences(externalReferences);
                 ChangePreparer.GetServer(nodeManager)?.CaptureExternalReferences(externalReferences);
                 prepared = true;
-                return new PreparedNodeManager(nodeManager, externalReferences);
+                return candidate;
             }
             catch (Exception ex) when (
                 ex is not OutOfMemoryException and
@@ -864,10 +868,17 @@ namespace Opc.Ua.Server
             PreparedNodeManager prepared,
             CancellationToken ct)
         {
-            ValidatePreparedNodeManager(prepared);
+            if (prepared is null)
+            {
+                throw new ArgumentNullException(nameof(prepared));
+            }
             if (m_nodeManagers.Contains(prepared.NodeManager))
             {
                 throw new InvalidOperationException("A serving NodeManager cannot be aborted.");
+            }
+            if (!prepared.TryBeginAbort())
+            {
+                return;
             }
             if (ChangePreparer.GetServer(prepared.NodeManager)?.IsStaging != true)
             {
@@ -885,9 +896,9 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (prepared.Generation is { Gate.State: NodeManagerGenerationState.Prepared } generation)
+                if (prepared.Generation.Gate.State == NodeManagerGenerationState.Prepared)
                 {
-                    generation.Gate.Abort();
+                    prepared.Generation.Gate.Abort();
                 }
                 ((IDynamicNodeManagerHost)this).Release(
                     prepared.NodeManager);
@@ -1317,11 +1328,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(prepared));
             }
-            if (prepared.Published)
-            {
-                throw new InvalidOperationException(
-                    "The prepared NodeManager has already been published.");
-            }
+            prepared.ValidateForPublication();
         }
 
         private static void SetExistingEventSubscriptionSuppression(
@@ -1368,72 +1375,6 @@ namespace Opc.Ua.Server
                     m_preparingNodeManagers.RemoveAll(candidate =>
                         ReferenceEquals(candidate, nodeManager));
                 }
-            }
-        }
-
-        private int[] ResolveNamespaceIndexes(IAsyncNodeManager nodeManager)
-        {
-            IEnumerable<string>? namespaceUris = nodeManager.NamespaceUris;
-            if (namespaceUris is null)
-            {
-                return [];
-            }
-            return
-            [
-                .. namespaceUris
-                    .Select(namespaceUri => (int)Server.NamespaceUris.GetIndexOrAppend(namespaceUri))
-            ];
-        }
-
-        private async ValueTask AddExternalReferencesAsync(
-            Dictionary<NodeId, IList<IReference>> externalReferences,
-            IAsyncNodeManager additionalNodeManager,
-            CancellationToken ct)
-        {
-            foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
-            {
-                await nodeManager
-                    .AddReferencesAsync(externalReferences, ct)
-                    .ConfigureAwait(false);
-            }
-
-            if (!m_nodeManagers.Any(nodeManager =>
-                ReferenceEquals(nodeManager, additionalNodeManager)))
-            {
-                await additionalNodeManager
-                    .AddReferencesAsync(externalReferences, ct)
-                    .ConfigureAwait(false);
-            }
-        }
-
-        private async ValueTask RemoveExternalReferencesAsync(
-            Dictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken ct)
-        {
-            var referencesToRemove = new List<LocalReference>();
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in externalReferences)
-            {
-                foreach (IReference reference in entry.Value)
-                {
-                    var targetId = ExpandedNodeId.ToNodeId(
-                        reference.TargetId,
-                        Server.NamespaceUris);
-                    if (targetId.IsNull)
-                    {
-                        continue;
-                    }
-
-                    referencesToRemove.Add(new LocalReference(
-                        entry.Key,
-                        reference.ReferenceTypeId,
-                        reference.IsInverse,
-                        targetId));
-                }
-            }
-
-            if (referencesToRemove.Count > 0)
-            {
-                await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);
             }
         }
 
