@@ -74,6 +74,7 @@ namespace Opc.Ua.Server.Hosting
         private IApplicationInstance? m_application;
 #pragma warning restore CA2213
         private StandardServer? m_server;
+        private readonly Lock m_serverDisposalLock = new();
         private bool m_ownsApplication;
 
         /// <summary>
@@ -827,25 +828,7 @@ namespace Opc.Ua.Server.Hosting
                     }
                     finally
                     {
-                        INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
-                        try
-                        {
-                            m_server?.Dispose();
-                        }
-                        finally
-                        {
-                            try
-                            {
-                                if (lifecycle is not null)
-                                {
-                                    m_nodeManagerLifecycle.Detach(lifecycle);
-                                }
-                            }
-                            finally
-                            {
-                                m_server = null;
-                            }
-                        }
+                        DisposeServer();
                     }
                 }
             }
@@ -856,24 +839,43 @@ namespace Opc.Ua.Server.Hosting
         /// </summary>
         public override void Dispose()
         {
-            INodeManagerLifecycle? lifecycle = m_server?.NodeManagerLifecycle;
             try
             {
-                m_server?.Dispose();
+                DisposeServer();
             }
             finally
             {
+                base.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Detaches the server lifecycle, disposes the server and releases the reference.
+        /// </summary>
+        /// <remarks>
+        /// The hosted lifecycle is detached even when disposal fails, because the server no
+        /// longer runs. The hosted-service disposal and the cancelled execution can both reach
+        /// this method, so disposal is serialized. A failed server disposal keeps its remaining
+        /// resources, so the server stays referenced until a later disposal succeeds.
+        /// </remarks>
+        private void DisposeServer()
+        {
+            lock (m_serverDisposalLock)
+            {
+                if (m_server is null)
+                {
+                    return;
+                }
+
+                INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
                 try
                 {
-                    if (lifecycle is not null)
-                    {
-                        m_nodeManagerLifecycle.Detach(lifecycle);
-                    }
+                    m_server.Dispose();
+                    m_server = null;
                 }
                 finally
                 {
-                    m_server = null;
-                    base.Dispose();
+                    m_nodeManagerLifecycle.Detach(lifecycle);
                 }
             }
         }

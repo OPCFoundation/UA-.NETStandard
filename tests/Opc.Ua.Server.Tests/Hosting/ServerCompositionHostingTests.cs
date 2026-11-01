@@ -724,7 +724,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
-        /// Verifies direct hosted-service disposal detaches the lifecycle when server disposal throws.
+        /// Verifies direct hosted-service disposal detaches the lifecycle when server disposal throws,
+        /// the cancelled execution retries the server disposal, and a later disposal is a no-op.
         /// </summary>
         [Test]
         public async Task HostedDisposeDetachesLifecycleWhenServerDisposeThrowsAsync()
@@ -750,7 +751,11 @@ namespace Opc.Ua.Server.Tests.Hosting
                     Throws.TypeOf<InvalidOperationException>()
                         .With.Message.EqualTo("The configured server disposal attempt failed."));
                 Assert.That(() => _ = lifecycle.Revision, Throws.InvalidOperationException);
-                Assert.That(server.DisposeAttempts, Is.EqualTo(1));
+
+                await fixture.ExecuteTask.ConfigureAwait(false);
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
+                hostedService.Dispose();
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
             }
             finally
             {
@@ -759,7 +764,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         /// <summary>
-        /// Verifies execution cleanup detaches the lifecycle when server disposal throws.
+        /// Verifies execution cleanup detaches the lifecycle when server disposal throws and keeps
+        /// the server for a disposal retry by the hosted service.
         /// </summary>
         [Test]
         public async Task StopApplicationDetachesLifecycleWhenServerDisposeThrowsAsync()
@@ -787,6 +793,9 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Assert.That(failure!.Message, Is.EqualTo("The configured server disposal attempt failed."));
                 Assert.That(() => _ = lifecycle.Revision, Throws.InvalidOperationException);
                 Assert.That(server.DisposeAttempts, Is.EqualTo(2));
+
+                hostedService.Dispose();
+                Assert.That(server.DisposeAttempts, Is.EqualTo(3));
             }
             finally
             {
