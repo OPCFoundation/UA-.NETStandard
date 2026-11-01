@@ -429,7 +429,7 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     Returns exhaustive, non-overlapping filters for projects whose full test
     suite exceeds the per-project execution budget.
 #>
-function Get-TestProjectShards([string] $project, [string] $framework)
+function Get-TestProjectShards([string] $project, [string] $framework, [string] $os)
 {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
     switch ($stem) {
@@ -520,6 +520,18 @@ function Get-TestProjectShards([string] $project, [string] $framework)
         }
         'Opc.Ua.Server.Tests' {
             $nativeLifecycle = 'Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.'
+            # Only the macOS runners need the lifecycle split to stay under the
+            # per-project ceiling; every extra entry counts against the job limit.
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
+                return @(
+                    @{
+                        id = 'all'
+                        name = 'all'
+                        filter = ''
+                        hangTimeout = ''
+                    }
+                )
+            }
             if ($framework -ne 'net48') {
                 return @(
                     @{
@@ -553,15 +565,13 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                     name = 'server-node-management'
                     terms = @('NodeManager', 'SamplingGroup', 'SamplingInterval', 'NodeState', 'MonitoredNode')
                 }
+                # Historian and subscription tests share one shard: each runs in about
+                # ten minutes on net48, and every entry counts against the 256-job limit.
                 @{
-                    id = 'server-historian'
-                    name = 'server-historian'
-                    terms = @('Historian', 'Aggregate', 'History')
-                }
-                @{
-                    id = 'server-subscriptions'
-                    name = 'server-subscriptions'
-                    terms = @('Subscription', 'MonitoredItem', 'Publish', 'KeepAlive')
+                    id = 'server-history-subscriptions'
+                    name = 'server-history-subscriptions'
+                    terms = @('Historian', 'Aggregate', 'History', 'Subscription', 'MonitoredItem', 'Publish',
+                        'KeepAlive')
                 }
                 @{
                     id = 'server-sessions'
@@ -640,7 +650,7 @@ function Measure-TestEntries([string] $scope, [int] $targetMinutes)
         }
         foreach ($batch in @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)) {
             if ($batch.Count -eq 1) {
-                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework).Count
+                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os).Count
             }
             else {
                 $total++
@@ -703,7 +713,7 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                     hangTimeout = ''
                 })
             if ($batch.Count -eq 1) {
-                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework)
+                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os)
             }
             foreach ($shard in $shards) {
                 $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))-$($shard.id)"

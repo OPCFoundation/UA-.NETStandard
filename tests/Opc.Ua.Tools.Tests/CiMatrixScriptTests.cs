@@ -506,8 +506,7 @@ namespace Opc.Ua.Tools.Tests
                 "server-node-lifecycle-prepared",
                 "server-node-lifecycle",
                 "server-node-management",
-                "server-historian",
-                "server-subscriptions",
+                "server-history-subscriptions",
                 "server-sessions",
                 "server-configuration",
                 "server-runtime",
@@ -518,7 +517,9 @@ namespace Opc.Ua.Tools.Tests
             {
                 string[] expectedShards = profile.First().Framework == "net48"
                     ? serverShards
-                    : ["server-node-lifecycle", "server-other"];
+                    : profile.First().Os == "macos"
+                        ? ["server-node-lifecycle", "server-other"]
+                        : ["all"];
                 Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
                 Assert.That(profile.All(entry => entry.PerProjectTimeout == 45), Is.True);
             }
@@ -535,8 +536,10 @@ namespace Opc.Ua.Tools.Tests
                 ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTestsExtra.PreparedBatchAsync",
                     "server-node-management"),
                 ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
-                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync", "server-historian"),
-                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync", "server-subscriptions"),
+                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync",
+                    "server-history-subscriptions"),
+                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync",
+                    "server-history-subscriptions"),
                 ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
                 ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
                 ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
@@ -553,11 +556,13 @@ namespace Opc.Ua.Tools.Tests
                         .ToArray();
                     string shard = profile.First().Framework == "net48"
                         ? expectedShard
-                        : testName.StartsWith(
-                            "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
-                            StringComparison.Ordinal)
-                            ? "server-node-lifecycle"
-                            : "server-other";
+                        : profile.First().Os != "macos"
+                            ? "all"
+                            : testName.StartsWith(
+                                "Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.",
+                                StringComparison.Ordinal)
+                                ? "server-node-lifecycle"
+                                : "server-other";
                     Assert.That(
                         matches,
                         Is.EqualTo(new[] { shard }),
@@ -734,6 +739,10 @@ namespace Opc.Ua.Tools.Tests
             return filter.Split('&').All(term =>
             {
                 string expression = term.Trim('(', ')');
+                if (expression.Length == 0)
+                {
+                    return true;
+                }
                 if (expression.StartsWith("TestCategory!=", StringComparison.Ordinal))
                 {
                     return !categories.Contains(expression["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase);
