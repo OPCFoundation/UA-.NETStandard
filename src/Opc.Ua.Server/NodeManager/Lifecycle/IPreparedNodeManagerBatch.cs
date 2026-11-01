@@ -37,6 +37,8 @@ namespace Opc.Ua.Server
     /// Owns an unpublished unit and all resources acquired while preparing it.
     /// </summary>
     /// <remarks>
+    /// This compatibility owner adapts to <see cref="IPreparedChanges"/> for slot-based consumers.
+    /// Its committed result delegates to <see cref="NodeManagerBatchResult.CommittedResult"/> without copying status.
     /// Durable decision callbacks cannot re-enter NodeManager lifecycle operations. Nested lifecycle operations
     /// are rejected before they can wait on the active commit or alter its prepared unit.
     /// </remarks>
@@ -132,18 +134,27 @@ namespace Opc.Ua.Server
         /// <param name="current">The registration being replaced or retired, or null for an addition.</param>
         /// <param name="factory">The candidate factory, or null for a retirement.</param>
         /// <param name="transitionMode">The monitored-item transition used for the retiring generation.</param>
+        /// <param name="targetSlot">The stable target resolved during preparation, or null for legacy changes.</param>
         private NodeManagerBatchChange(
             NodeManagerRegistration? current,
             IAsyncNodeManagerFactory? factory,
-            NodeManagerMonitoredItemTransitionMode transitionMode)
+            NodeManagerMonitoredItemTransitionMode transitionMode,
+            NodeManagerSlot? targetSlot = null)
         {
             Current = current;
             Factory = factory;
             TransitionMode = transitionMode;
+            TargetSlot = targetSlot;
         }
 
         /// <summary>
-        /// Gets the exact registration being replaced or retired, or null for an addition.
+        /// Gets the stable target for slot-based changes, or null for exact-generation changes and additions.
+        /// Providers must resolve its current registration once under preparation admission.
+        /// </summary>
+        public NodeManagerSlot? TargetSlot { get; }
+
+        /// <summary>
+        /// Gets the exact registration being replaced or retired, or null for an addition or stable-slot target.
         /// </summary>
         public NodeManagerRegistration? Current { get; }
 
@@ -225,6 +236,16 @@ namespace Opc.Ua.Server
                 current ?? throw new ArgumentNullException(nameof(current)),
                 null,
                 NodeManagerMonitoredItemTransitionMode.Invalidate);
+        }
+
+        /// <summary>
+        /// Converts a slot-targeted change to the shared preparation representation.
+        /// </summary>
+        /// <param name="change">The change whose target is resolved by the lifecycle writer.</param>
+        /// <returns>The shared preparation input.</returns>
+        internal static NodeManagerBatchChange FromChange(LifecycleChange change)
+        {
+            return new NodeManagerBatchChange(null, change.Factory, change.TransitionMode, change.Slot);
         }
     }
 
@@ -341,7 +362,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The committed registrations and any post-decision reconciliation failure.
     /// </summary>
-    public sealed class NodeManagerBatchResult
+    public sealed class LifecycleResult
     {
         /// <summary>
         /// Creates a result.
@@ -352,22 +373,25 @@ namespace Opc.Ua.Server
         /// <param name="retirement">The task that completes after every retired generation is cleaned up.</param>
         /// <param name="revision">The published routing revision.</param>
         /// <param name="slots">The stable slots in the published routing view.</param>
+        /// <param name="publishedSlots">The generation snapshots captured at publication.</param>
         /// <param name="reconciliation">The non-owning reconciliation status ticket.</param>
-        internal NodeManagerBatchResult(
+        internal LifecycleResult(
             ArrayOf<NodeManagerRegistration> registrations,
             uint retired,
             Exception? cleanupFailure,
             long revision,
             NodeManagerSlot[] slots,
             Task retirement,
-            GenerationReconciler.Reconciliation? reconciliation = null)
+            GenerationReconciler.Reconciliation? reconciliation = null,
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlots = default)
         {
             Registrations = registrations;
-            Retired = retired;
+            RetiredCount = retired;
             CleanupFailure = cleanupFailure;
             Revision = revision;
             Slots = new ArrayOf<NodeManagerSlot>(slots);
-            Retirement = retirement ?? throw new ArgumentNullException(nameof(retirement));
+            PublishedSlots = publishedSlots;
+            Retired = retirement ?? throw new ArgumentNullException(nameof(retirement));
             m_reconciliation = reconciliation;
         }
 
@@ -379,7 +403,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the number of old generations whose cleanup completed before this result was created.
         /// </summary>
-        public uint Retired { get; }
+        public uint RetiredCount { get; }
 
         /// <summary>
         /// Gets a post-commit reconciliation failure, if any. It never denotes an aborted publication.
@@ -398,10 +422,28 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
+        /// Gets the application slot generations at this result's revision. Unlike a slot's current value,
+        /// these snapshots do not advance when a reconciliation callback publishes a nested change.
+        /// </summary>
+        public ArrayOf<NodeManagerSlotSnapshot> PublishedSlots { get; }
+
+        /// <summary>
         /// Gets a task that completes after every generation retired by this batch has been cleaned up, including
         /// retries. The task faults if an earlier cleanup attempt failed, even when a later retry succeeds.
         /// </summary>
-        public Task Retirement { get; }
+        public Task Retired { get; }
+
+        /// <summary>
+        /// Gets physical retirement completion independently of reconciliation and supersession.
+        /// A failed task denotes completed cleanup with an earlier failed attempt, not permission to republish.
+        /// </summary>
+        public NodeManagerRetirementStatus RetirementStatus => Retired.Status switch
+        {
+            TaskStatus.RanToCompletion => NodeManagerRetirementStatus.Completed,
+            TaskStatus.Faulted => NodeManagerRetirementStatus.CompletedWithFailure,
+            TaskStatus.Canceled => NodeManagerRetirementStatus.Canceled,
+            _ => NodeManagerRetirementStatus.Pending
+        };
 
         /// <summary>
         /// Gets current reconciliation issues. Successful steps disappear; superseded steps remain explicit.
@@ -424,5 +466,131 @@ namespace Opc.Ua.Server
 
         /// <summary>The result-owned status ticket, which does not retain callback ownership.</summary>
         private readonly GenerationReconciler.Reconciliation? m_reconciliation;
+    }
+
+    /// <summary>
+    /// Compatibility view over the authoritative lifecycle result.
+    /// </summary>
+    public sealed class NodeManagerBatchResult
+    {
+        /// <summary>
+        /// Creates a compatibility result for the existing batch provider boundary.
+        /// </summary>
+        /// <param name="registrations">The committed candidate registrations.</param>
+        /// <param name="retired">The number physically retired before reconciliation returned.</param>
+        /// <param name="cleanupFailure">The initial committed failure.</param>
+        /// <param name="revision">The committed routing revision.</param>
+        /// <param name="slots">The slots at publication.</param>
+        /// <param name="retirement">The physical retirement task.</param>
+        /// <param name="reconciliation">The shared reconciliation ticket.</param>
+        /// <param name="publishedSlots">The generation snapshots at publication.</param>
+        internal NodeManagerBatchResult(
+            ArrayOf<NodeManagerRegistration> registrations,
+            uint retired,
+            Exception? cleanupFailure,
+            long revision,
+            NodeManagerSlot[] slots,
+            Task retirement,
+            GenerationReconciler.Reconciliation? reconciliation = null,
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlots = default)
+            : this(new LifecycleResult(
+                registrations, retired, cleanupFailure, revision, slots, retirement, reconciliation, publishedSlots))
+        {
+        }
+
+        /// <summary>
+        /// Creates a compatibility view without copying committed facts or checkpoint ownership.
+        /// </summary>
+        /// <param name="result">The authoritative result.</param>
+        internal NodeManagerBatchResult(LifecycleResult result)
+        {
+            CommittedResult = result ?? throw new ArgumentNullException(nameof(result));
+        }
+
+        /// <summary>
+        /// Gets the authoritative result shared by new callers and compatibility failures.
+        /// </summary>
+        public LifecycleResult CommittedResult { get; }
+
+        /// <summary>
+        /// Gets the committed candidate registrations.
+        /// </summary>
+        public ArrayOf<NodeManagerRegistration> Registrations => CommittedResult.Registrations;
+
+        /// <summary>
+        /// Gets the number physically retired before this result was created.
+        /// </summary>
+        public uint Retired => CommittedResult.RetiredCount;
+
+        /// <summary>
+        /// Gets the initial post-publication failure.
+        /// </summary>
+        public Exception? CleanupFailure => CommittedResult.CleanupFailure;
+
+        /// <summary>
+        /// Gets the committed routing revision.
+        /// </summary>
+        public long Revision => CommittedResult.Revision;
+
+        /// <summary>
+        /// Gets the stable slots at publication.
+        /// </summary>
+        public ArrayOf<NodeManagerSlot> Slots => CommittedResult.Slots;
+
+        /// <summary>
+        /// Gets the generation snapshots at publication.
+        /// </summary>
+        public ArrayOf<NodeManagerSlotSnapshot> PublishedSlots => CommittedResult.PublishedSlots;
+
+        /// <summary>
+        /// Gets the independent physical retirement task.
+        /// </summary>
+        public Task Retirement => CommittedResult.Retired;
+
+        /// <summary>
+        /// Gets physical retirement completion.
+        /// </summary>
+        public NodeManagerRetirementStatus RetirementStatus => CommittedResult.RetirementStatus;
+
+        /// <summary>
+        /// Gets the shared current reconciliation issues.
+        /// </summary>
+        public ArrayOf<NodeManagerReconciliationIssue> Issues => CommittedResult.Issues;
+
+        /// <summary>
+        /// Retries only shared unfinished reconciliation without republishing.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels only this caller's wait.</param>
+        /// <returns>Completion of the joined retry attempt.</returns>
+        public ValueTask RetryReconciliationAsync(CancellationToken cancellationToken = default)
+        {
+            return CommittedResult.RetryReconciliationAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Describes the completion task for physical retirement, not the outcome of publication.
+    /// </summary>
+    public enum NodeManagerRetirementStatus
+    {
+        /// <summary>
+        /// At least one old generation is still waiting for drain or cleanup.
+        /// </summary>
+        Pending,
+
+        /// <summary>
+        /// Every old generation was physically cleaned up without a failed attempt.
+        /// </summary>
+        Completed,
+
+        /// <summary>
+        /// Every old generation was physically cleaned up, but an earlier attempt failed.
+        /// </summary>
+        CompletedWithFailure,
+
+        /// <summary>
+        /// The retirement completion task was canceled; cleanup completion is not established.
+        /// </summary>
+        Canceled
     }
 }

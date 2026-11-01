@@ -6342,7 +6342,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using INodeManagerBatchAdmission admission = await batchHost.AcquireCommitAdmissionAsync(
                 null, CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
-            var context = new NodeManagerBatchContext(
+            var commit = new Mock<INodeManagerPublicationCommit>();
+            commit.SetupGet(value => value.HasDecision).Returns(true);
+            commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>())).Returns(() =>
+            {
+                decisions++;
+                return default;
+            });
+            commit.Setup(value => value.Publish())
+                .Callback(() => Assert.Fail("An unprepared candidate must not be published."));
+            var context = new NodeManagerPublicationPlan(
                 Candidates: [prepared],
                 Removed: [],
                 TypeTree: preparation.TypeTree,
@@ -6352,23 +6361,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 OriginalFactory: preparation.OriginalFactory,
                 FactoryRevision: preparation.FactoryRevision,
                 ReadImages: [],
-                DecideAsync: _ =>
-                {
-                    decisions++;
-                    return default;
-                },
-                ViewPublished: () => Assert.Fail("An unprepared candidate must not be published."),
-                Published: () =>
-                {
-                    Assert.Fail("An unprepared candidate must not complete publication.");
-                    return default;
-                },
-                ReconcileBindingsAsync: () => default,
-                DeferReferenceRemoval: (_, _) => Assert.Fail("An unprepared candidate must not retire references."),
-                ReportCleanupFailure: _ => Assert.Fail("An unprepared candidate must fail before commit."),
+                Commit: commit.Object,
                 Preparation: preparation,
                 CancellationToken: CancellationToken.None,
-                Reconciliation: null!,
                 Admission: admission);
             await Assert.ThatAsync(async () => await batchHost.CommitBatchAsync(context).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("no prepared generation")).ConfigureAwait(false);
@@ -7020,22 +7015,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
                 .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
-            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerBatchContext>()))
-                .Returns<NodeManagerBatchContext>(context =>
+            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerPublicationPlan>()))
+                .Returns<NodeManagerPublicationPlan>(async context =>
                 {
-                    return batchHost.CommitBatchAsync(shouldFail()
-                        ? context with
+                    bool fail = shouldFail();
+                    if (fail && !notifyBeforeFailure)
+                    {
+                        var commit = new Mock<INodeManagerPublicationCommit>();
+                        commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
+                        commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
+                            .Returns<CancellationToken>(context.Commit.DecideAsync);
+                        commit.Setup(value => value.Publish()).Callback(() =>
                         {
-                            Published = async () =>
-                            {
-                                if (notifyBeforeFailure)
-                                {
-                                    await context.Published().ConfigureAwait(false);
-                                }
-                                throw failure;
-                            }
-                        }
-                        : context);
+                            context.Commit.Publish();
+                            throw failure;
+                        });
+                        return await batchHost.CommitBatchAsync(
+                            context with { Commit = commit.Object }).ConfigureAwait(false);
+                    }
+                    PublishedReferenceChanges? references = await batchHost.CommitBatchAsync(context)
+                        .ConfigureAwait(false);
+                    if (fail)
+                    {
+                        throw failure;
+                    }
+                    return references;
                 });
             return proxy;
         }

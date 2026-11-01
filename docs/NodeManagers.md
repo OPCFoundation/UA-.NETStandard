@@ -1000,51 +1000,36 @@ server, or use `StandardServer.NodeManagerLifecycle` when constructing the serve
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 {
-    public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
+    public async ValueTask<LifecycleResult> LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Add(factory)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = result.Registrations[0];
-        // This is authoritative even when post-publication readiness or binding failed.
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerAddCommittedException(
-                m_registration, result, "The model is live but reconciliation failed.", failure);
-        }
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Add(factory)], ct);
+        m_slot = result.Registrations[0].Slot;
+        return result;
     }
 
-    public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
+    public ValueTask<LifecycleResult> ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Replace(m_registration!, replacement,
-                NodeManagerMonitoredItemTransitionMode.Migrate)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = result.Registrations[0];
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerReloadCommittedException(
-                m_registration, result, "The replacement is live but reconciliation failed.", failure);
-        }
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        return lifecycle.ApplyAsync([LifecycleChange.Reload(slot, replacement)], ct);
     }
 
-    public async ValueTask RemoveAsync(CancellationToken ct)
+    public async ValueTask<LifecycleResult> RemoveAsync(CancellationToken ct)
     {
-        NodeManagerRegistration current = m_registration!;
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Remove(current)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = null;
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerRemovalCommittedException(current, result, failure);
-        }
-        // Await result.Retirement here only if this caller needs generation cleanup to finish.
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Remove(slot)], ct);
+        m_slot = null;
+        return result;
     }
 
-    private NodeManagerRegistration? m_registration;
+    private NodeManagerSlot? m_slot;
 }
 ```
+
+The caller retains the returned `LifecycleResult` even when reconciliation reports issues:
+the model is already live or unpublished. Inspect `Issues` and use
+`RetryReconciliationAsync` for unfinished callbacks, rather than replaying the change.
+See [change sets](NodeManagerChangeSets.md) for explicit decisions, mixed batches,
+typed metadata and the extension-method compatibility boundary.
 
 Each committed addition returns an immutable `NodeManagerRegistration`; replacement returns the next generation and
 invalidates the previous handle. `Registrations` also lists application NodeManagers composed
@@ -1073,9 +1058,9 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 `INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
 for requests that pinned a retired generation. `CommitAsync` returns after publication and reconciliation,
 without waiting for in-flight generation admissions to drain.
-Use the batch API's `NodeManagerBatchResult.Retirement` task when the caller needs explicit retirement
+Use `LifecycleResult.Retired` (or the compatibility `NodeManagerBatchResult.Retirement`) when the caller needs retirement
 completion. A post-commit `CleanupFailure` does not undo a removal: its registration is already
-unpublished, and `Retirement` carries the eventual retirement outcome. Do not await retirement from
+unpublished, and the retirement task carries the eventual cleanup outcome. Do not await retirement from
 the callback or request whose own view or generation admission must drain.
 
 Service, Method, event-source, session, and hosted-service callbacks use the same context-free

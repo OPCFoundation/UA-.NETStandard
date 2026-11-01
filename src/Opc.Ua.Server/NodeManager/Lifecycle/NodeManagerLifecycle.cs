@@ -1760,12 +1760,13 @@ namespace Opc.Ua.Server
                 {
                     throw new ArgumentException("A publication change cannot be null.", nameof(changes));
                 }
+                Guid? targetId = change.TargetSlot?.Id ?? change.Current?.Id;
+                if (targetId is { } id && !identities.Add(id))
+                {
+                    throw new ArgumentException("A slot occurs twice in the same unit.", nameof(changes));
+                }
                 if (change.Current is { } current)
                 {
-                    if (!identities.Add(current.Id))
-                    {
-                        throw new ArgumentException("A registration occurs twice in the same unit.", nameof(changes));
-                    }
                     RegistrationState state = GetCurrentState(
                         current,
                         shutdown is not null,
@@ -1775,7 +1776,7 @@ namespace Opc.Ua.Server
                         throw new InvalidOperationException("System slots can only be withdrawn by server shutdown.");
                     }
                 }
-                if (change.Factory is { } factory)
+                if (change.TargetSlot is null && change.Factory is { } factory)
                 {
                     ValidateFactoryRegistration(factory, change.Current);
                 }
@@ -1817,12 +1818,35 @@ namespace Opc.Ua.Server
                     for (int index = 0; index < changes.Count; index++)
                     {
                         NodeManagerBatchChange change = changes[index];
-                        RegistrationState? current = change.Current is null
+                        NodeManagerRegistration? target = change.Current;
+                        if (change.TargetSlot is { } slot)
+                        {
+                            lock (m_registrationLock)
+                            {
+                                if (!m_registrations.TryGetValue(slot.Id, out RegistrationState? state) ||
+                                    !ReferenceEquals(state.Registration.Slot, slot))
+                                {
+                                    throw new InvalidOperationException(
+                                        "The target slot is not owned by this lifecycle.");
+                                }
+                                target = state.Registration;
+                            }
+                        }
+                        RegistrationState? current = target is null
                             ? null
                             : GetCurrentState(
-                                change.Current,
+                                target,
                                 shutdown is not null,
                                 allowRemovalAfterFailedReadiness: change.Factory is null);
+                        if (current?.IsSystem == true && shutdown is null)
+                        {
+                            throw new InvalidOperationException(
+                                "System slots can only be withdrawn by server shutdown.");
+                        }
+                        if (change.TargetSlot is not null && change.Factory is { } slotFactory)
+                        {
+                            ValidateFactoryRegistration(slotFactory, target);
+                        }
                         if (current is not null)
                         {
                             NodeManagerGeneration generation = current.Registration.Identity;
@@ -1984,9 +2008,9 @@ namespace Opc.Ua.Server
             var semanticChanges = new List<SemanticChangeStructureDataType>();
             var preparationAdmissions = new List<(NodeManagerGeneration Generation, int Stripe)>(batch.Entries.Count);
             List<RegistrationState>? readinessClaims = null;
-            bool readinessClaimed = false;
-            long publishedRevision = 0;
+            LifecycleCommit? committedLifecycle = null;
             NodeManagerSlot[] publishedSlots = [];
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlotSnapshots = [];
             GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
             GenerationReconciler.ReconciliationWork reconciliation =
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
@@ -2098,6 +2122,17 @@ namespace Opc.Ua.Server
                         batch.RoutingRevision,
                         cancellationToken,
                         batch.CallbackPermit).ConfigureAwait(false);
+                foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in references.DeferredRemovals)
+                {
+                    RetiredGeneration? retirement = retired.FirstOrDefault(item =>
+                        ReferenceEquals(item.NodeManager, deferred.Key));
+                    if (retirement is null)
+                    {
+                        throw new InvalidOperationException(
+                            "A deferred reference removal has no retiring NodeManager.");
+                    }
+                    retirement.PendingReferences.AddRange(deferred.Value);
+                }
 
                 using INodeManagerBatchAdmission admission =
                     await batch.Host.AcquireCommitAdmissionAsync(
@@ -2148,6 +2183,11 @@ namespace Opc.Ua.Server
                         .Where(state => !state.IsSystem)
                         .Select(state => state.Registration.Slot)
                         .ToArray();
+                    publishedSlotSnapshots = committedRegistrations.Values
+                        .Where(state => !state.IsSystem)
+                        .Select(state => new NodeManagerSlotSnapshot(
+                            state.Registration.Slot, state.Registration.Generation, state.Registration.NodeManager))
+                        .ToArrayOf();
                     m_reclaimer.Reserve(retired.Count);
                 }
 
@@ -2155,6 +2195,9 @@ namespace Opc.Ua.Server
                     (batch.Initial?.SystemRegistrations.ToArray() ?? [])
                     .Select(registration => registration.Identity)
                     .Concat((candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)).ToArray();
+                var lifecycleCommit = new LifecycleCommit(
+                    this, batch, mutation, decideAsync, committedRegistrations, retired, readinessClaims, reconciler);
+                committedLifecycle = lifecycleCommit;
                 bool reconciliationStarted = false;
                 async ValueTask PublishCommittedStateAsync()
                 {
@@ -2165,7 +2208,7 @@ namespace Opc.Ua.Server
                     reconciliationStarted = true;
                     mutation.Dispose();
                     releaseWriter = false;
-                    reconciliation.Publish(publishedRevision);
+                    reconciliation.Publish(lifecycleCommit.Revision);
                     if (publishCommittedState is not null)
                     {
                         await reconciliation.RunAsync(
@@ -2180,9 +2223,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
+                PublishedReferenceChanges? committedReferences = null;
                 try
                 {
-                    var context = new NodeManagerBatchContext(
+                    var context = new NodeManagerPublicationPlan(
                         Candidates: candidates,
                         Removed: removed,
                         TypeTree: batch.TypeTree,
@@ -2192,125 +2236,13 @@ namespace Opc.Ua.Server
                         OriginalFactory: batch.OriginalFactory,
                         FactoryRevision: batch.FactoryRevision,
                         ReadImages: batch.ReadImages,
-                        DecideAsync: decideAsync is null
-                            ? null
-                            : token =>
-                            {
-                                batch.Publication?.ValidateRevision();
-                                return mutation.DecideAsync(decideAsync, token);
-                            },
-                        ViewPublished: () =>
-                        {
-                            batch.Publication?.AdvanceRevision();
-                            lock (m_registrationLock)
-                            {
-                                if (batch.IsCommitted)
-                                {
-                                    return;
-                                }
-                                batch.IsCommitted = true;
-                                m_reclaimer.Enqueue(retired);
-                                m_registrations = committedRegistrations;
-                                if (readinessClaims is { Count: > 0 })
-                                {
-                                    foreach (RegistrationState state in readinessClaims)
-                                    {
-                                        state.ReadinessInProgress = true;
-                                    }
-                                    readinessClaimed = true;
-                                }
-                                foreach (BatchEntry entry in batch.Entries)
-                                {
-                                    if (entry.Current is not null)
-                                    {
-                                        entry.Current.Prepared.Published = false;
-                                        if (entry.Change.TransitionMode !=
-                                            NodeManagerMonitoredItemTransitionMode.Migrate || entry.Manager is null)
-                                        {
-                                            NodeManagerGeneration generation = entry.Current.Registration.Identity;
-                                            generation.Slot.LateMigrationRevision =
-                                                unchecked(generation.Slot.LateMigrationRevision + 1);
-                                        }
-                                    }
-                                }
-                                foreach (RetiredGeneration retirement in retired)
-                                {
-                                    retirement.LateMigrationRevision = retirement.Generation.Slot.LateMigrationRevision;
-                                }
-                                publishedRevision =
-                                    batch.Host.RoutingRevision.Revision;
-                            }
-                            foreach (RetiredGeneration retirement in retired)
-                            {
-                                ChangePreparer.RevokeServiceLevelControl(retirement.NodeManager);
-                            }
-                            if (batch.Resolver is not null)
-                            {
-                                m_server.ComplexTypeResolverHolder?.SetResolver(batch.Resolver);
-                            }
-                            reconciler.SupersedeReconciliations();
-                        },
-                        Published: PublishCommittedStateAsync,
-                        ReconcileBindingsAsync: async () =>
-                        {
-                            if (batch.Initial is { } initial)
-                            {
-                                await initial.WaitForRuntimeAsync().ConfigureAwait(false);
-                            }
-                            // Retired generations are cut off by their gate; physical source bindings are released
-                            // by retirement cleanup once admitted work has drained.
-                            foreach (MonitoredItemTransition transition in monitoredItemTransitions)
-                            {
-                                try
-                                {
-                                    foreach (Exception failure in await transition.AdoptAsync(
-                                        CancellationToken.None).ConfigureAwait(false))
-                                    {
-                                        reconciliation.ReportOwnedFailure(
-                                            NodeManagerReconciliationStage.MonitoredItems, failure);
-                                    }
-                                }
-                                catch (Exception failure) when (failure is not OutOfMemoryException)
-                                {
-                                    reconciliation.ReportOwnedFailure(
-                                        NodeManagerReconciliationStage.MonitoredItems, failure);
-                                }
-                            }
-                            m_reclaimer.FinalizeMonitoredItemTransitions(retired);
-                            foreach (NodeManagerGeneration generation in candidateGenerations)
-                            {
-                                await reconciliation.RunAsync(
-                                    NodeManagerReconciliationStage.Bindings,
-                                    [generation],
-                                    async () =>
-                                {
-                                    GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
-                                        generation, CancellationToken.None).ConfigureAwait(false);
-                                    await reconciler.ReconcileAsync(
-                                        generation, bindings, CancellationToken.None).ConfigureAwait(false);
-                                }).ConfigureAwait(false);
-                            }
-                        },
-                        DeferReferenceRemoval: (owner, references) =>
-                        {
-                            RetiredGeneration? retirement = retired.FirstOrDefault(item =>
-                                ReferenceEquals(item.NodeManager, owner));
-                            if (retirement is null)
-                            {
-                                throw new InvalidOperationException(
-                                    "A deferred reference removal has no retiring NodeManager.");
-                            }
-                            retirement.PendingReferences.AddRange(references);
-                        },
-                        ReportCleanupFailure: failure => reconciliation.ReportOwnedFailure(
-                            NodeManagerReconciliationStage.Publication, failure),
+                        Commit: lifecycleCommit,
                         CancellationToken: cancellationToken,
                         Preparation: batch.Preparation,
-                        Reconciliation: reconciliation,
                         References: references,
                         CallbackPermit: batch.CallbackPermit,
                         Admission: admission);
-                    await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
+                    committedReferences = await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
                 {
@@ -2326,6 +2258,51 @@ namespace Opc.Ua.Server
                 if (batch.Initial is { } initialPublication)
                 {
                     await initialPublication.WaitForRuntimeAsync().ConfigureAwait(false);
+                }
+                try
+                {
+                    if (committedReferences is not null)
+                    {
+                        await committedReferences.ReconcileAdditionsAsync(reconciliation).ConfigureAwait(false);
+                    }
+                    foreach (MonitoredItemTransition transition in monitoredItemTransitions)
+                    {
+                        try
+                        {
+                            foreach (Exception failure in await transition.AdoptAsync(
+                                CancellationToken.None).ConfigureAwait(false))
+                            {
+                                reconciliation.ReportOwnedFailure(
+                                    NodeManagerReconciliationStage.MonitoredItems, failure);
+                            }
+                        }
+                        catch (Exception failure) when (failure is not OutOfMemoryException)
+                        {
+                            reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.MonitoredItems, failure);
+                        }
+                    }
+                    m_reclaimer.FinalizeMonitoredItemTransitions(retired);
+                    foreach (NodeManagerGeneration generation in candidateGenerations)
+                    {
+                        await reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.Bindings,
+                            [generation],
+                            async () =>
+                            {
+                                GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
+                                    generation, CancellationToken.None).ConfigureAwait(false);
+                                await reconciler.ReconcileAsync(
+                                    generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                            }).ConfigureAwait(false);
+                    }
+                    if (committedReferences is not null)
+                    {
+                        await committedReferences.NotifyObserversAsync(reconciliation).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
                 }
 
                 IEnumerable<(RegistrationState State, bool RecoverSources)> readinessStates = batch.Entries
@@ -2410,14 +2387,15 @@ namespace Opc.Ua.Server
                     batch.Registrations, completed,
                     failures.Count == 0 ? null : new AggregateException(
                         "The batch committed; generation reconciliation remains pending.", failures),
-                    publishedRevision,
+                    lifecycleCommit.Revision,
                     publishedSlots,
                     Task.WhenAll(retired.Select(item => item.Retirement)),
-                    reconciliation.Ticket);
+                    reconciliation.Ticket,
+                    publishedSlotSnapshots);
             }
             finally
             {
-                if (readinessClaimed && readinessClaims is { Count: > 0 })
+                if (committedLifecycle?.ReadinessClaimed == true && readinessClaims is { Count: > 0 })
                 {
                     lock (m_registrationLock)
                     {
@@ -2441,6 +2419,141 @@ namespace Opc.Ua.Server
                     ScheduleRetiredGenerationDrainCleanup();
                 }
             }
+        }
+
+        /// <summary>
+        /// Owns the lifecycle side of a reserved publication without passing bookkeeping callbacks to the host.
+        /// </summary>
+        private sealed class LifecycleCommit : INodeManagerPublicationCommit
+        {
+            /// <summary>
+            /// Captures prepared registration and retirement state before the durable decision.
+            /// </summary>
+            /// <param name="owner">The registration lifecycle owner.</param>
+            /// <param name="batch">The prepared unit.</param>
+            /// <param name="mutation">The mutation admission for this decision.</param>
+            /// <param name="decideAsync">The application decision, or null for validation.</param>
+            /// <param name="registrations">The next registration map.</param>
+            /// <param name="retired">The prepared retirement records.</param>
+            /// <param name="readinessClaims">The states requiring readiness after publication.</param>
+            /// <param name="reconciler">The generation checkpoint owner.</param>
+            public LifecycleCommit(
+                NodeManagerLifecycle owner,
+                PreparedBatch batch,
+                LifecycleWriter.Mutation mutation,
+                Func<CancellationToken, ValueTask>? decideAsync,
+                Dictionary<Guid, RegistrationState> registrations,
+                List<RetiredGeneration> retired,
+                List<RegistrationState>? readinessClaims,
+                GenerationReconciler reconciler)
+            {
+                m_owner = owner;
+                m_batch = batch;
+                m_mutation = mutation;
+                m_decideAsync = decideAsync;
+                m_registrations = registrations;
+                m_retired = retired;
+                m_readinessClaims = readinessClaims;
+                m_reconciler = reconciler;
+            }
+
+            /// <inheritdoc/>
+            public bool HasDecision => m_decideAsync is not null;
+
+            /// <summary>
+            /// Gets the revision installed at the routing swap.
+            /// </summary>
+            public long Revision { get; private set; }
+
+            /// <summary>
+            /// Gets whether publication claimed readiness work that must be released by completion.
+            /// </summary>
+            public bool ReadinessClaimed { get; private set; }
+
+            /// <inheritdoc/>
+            public ValueTask DecideAsync(CancellationToken cancellationToken)
+            {
+                m_batch.Publication?.ValidateRevision();
+                return m_mutation.DecideAsync(m_decideAsync ??
+                    throw new InvalidOperationException("A validation unit has no durable decision."),
+                    cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public void Publish()
+            {
+                m_batch.Publication?.AdvanceRevision();
+                lock (m_owner.m_registrationLock)
+                {
+                    if (m_batch.IsCommitted)
+                    {
+                        return;
+                    }
+                    m_batch.IsCommitted = true;
+                    m_owner.m_reclaimer.Enqueue(m_retired);
+                    m_owner.m_registrations = m_registrations;
+                    if (m_readinessClaims is { Count: > 0 })
+                    {
+                        foreach (RegistrationState state in m_readinessClaims)
+                        {
+                            state.ReadinessInProgress = true;
+                        }
+                        ReadinessClaimed = true;
+                    }
+                    foreach (BatchEntry entry in m_batch.Entries)
+                    {
+                        if (entry.Current is not null)
+                        {
+                            entry.Current.Prepared.Published = false;
+                            if (entry.Change.TransitionMode !=
+                                NodeManagerMonitoredItemTransitionMode.Migrate || entry.Manager is null)
+                            {
+                                NodeManagerGeneration generation = entry.Current.Registration.Identity;
+                                generation.Slot.LateMigrationRevision =
+                                    unchecked(generation.Slot.LateMigrationRevision + 1);
+                            }
+                        }
+                    }
+                    foreach (RetiredGeneration retirement in m_retired)
+                    {
+                        retirement.LateMigrationRevision = retirement.Generation.Slot.LateMigrationRevision;
+                    }
+                    Revision = m_batch.Host.RoutingRevision.Revision;
+                }
+                foreach (RetiredGeneration retirement in m_retired)
+                {
+                    ChangePreparer.RevokeServiceLevelControl(retirement.NodeManager);
+                }
+                if (m_batch.Resolver is not null)
+                {
+                    m_owner.m_server.ComplexTypeResolverHolder?.SetResolver(m_batch.Resolver);
+                }
+                m_reconciler.SupersedeReconciliations();
+            }
+
+            /// <summary>The registration owner.</summary>
+            private readonly NodeManagerLifecycle m_owner;
+
+            /// <summary>The prepared unit.</summary>
+            private readonly PreparedBatch m_batch;
+
+            /// <summary>The decision's mutation admission.</summary>
+            private readonly LifecycleWriter.Mutation m_mutation;
+
+            /// <summary>The external durable decision.</summary>
+            private readonly Func<CancellationToken, ValueTask>? m_decideAsync;
+
+            /// <summary>The prepared registration map.</summary>
+            private readonly Dictionary<Guid, RegistrationState> m_registrations;
+
+            /// <summary>The prepared retirement records.</summary>
+            private readonly List<RetiredGeneration> m_retired;
+
+            /// <summary>The publication's readiness claims.</summary>
+            private readonly List<RegistrationState>? m_readinessClaims;
+
+            /// <summary>The generation checkpoint owner.</summary>
+            private readonly GenerationReconciler m_reconciler;
         }
 
         /// <summary>
