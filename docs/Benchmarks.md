@@ -643,6 +643,15 @@ commit with the lower delivery (0edc3b55a: 98 %, 2.8 µs per notification;
 65a67dd2f: 6 %, 94 µs). The 10-session row above may be affected as well:
 its CPU per notification is about twice the value reported in #4829.
 
+The lock-free admission, cached exact-source verdict and shared subscriber
+context changes from draft #4874 target this regression. Its paired runs on a
+Ryzen AI 9 HX 370 reported 98.4–98.8 % delivery at 4.7–4.8 µs of server CPU
+per notification. A validation run on another machine after applying those
+changes delivered 88.8 % and 91.7 % at 3.2 and 3.1 µs, respectively. These
+results are not directly comparable across machines; rerun the paired harness
+scenario below on the target hardware before treating the delivery percentage
+as an acceptance threshold.
+
 Results of the individual pull requests, measured as paired A/B rounds
 against the previous `master` when each was merged, are recorded in
 #4829 (publish cadence: 50 × 15 × 600 delivered 67.7 % → 97.8 %),
