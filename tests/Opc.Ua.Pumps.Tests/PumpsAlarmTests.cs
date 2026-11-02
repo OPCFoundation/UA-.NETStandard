@@ -148,10 +148,14 @@ namespace Opc.Ua.Pumps.Tests
             ServiceResult ack = alarm.Acknowledge!.OnCall!(
                 m_fixture.Manager.SystemContext, alarm.Acknowledge, alarm.NodeId,
                 alarm.EventId.Value, new LocalizedText("Acknowledged"));
+            TwoStateVariableState ackedState = alarm.AckedState
+                ?? throw new AssertionException("The condition has no AckedState.");
+            PropertyState<bool> ackedId = ackedState.Id
+                ?? throw new AssertionException("The AckedState has no Id property.");
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(ack), Is.True);
-                Assert.That(alarm.AckedState!.Id!.Value, Is.True);
+                Assert.That(ackedId.Value, Is.True);
                 Assert.That(alarm.Retain.Value, Is.False);
             });
             events.Clear();

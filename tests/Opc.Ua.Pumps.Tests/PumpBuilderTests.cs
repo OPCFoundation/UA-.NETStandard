@@ -124,17 +124,25 @@ namespace Opc.Ua.Pumps.Tests
         {
             IFileTypeBinding binding = m_fixture.Manager.Runtime.BindDocumentationFile(
                 m_pump, BrowseNames.OperationManual, ByteString.From("manual"u8), new FileTypeBinder());
-            Assert.That(binding.File.Size!.Value, Is.EqualTo(6ul));
-            Assert.That(binding.File.Writable!.Value, Is.False);
-            Assert.That(binding.File.Read!.OnCallMethod2Async, Is.Not.Null);
+            PropertyState<ulong> size = binding.File.Size
+                ?? throw new AssertionException("The documentation file has no Size property.");
+            PropertyState<bool> writable = binding.File.Writable
+                ?? throw new AssertionException("The documentation file has no Writable property.");
+            ReadMethodState read = binding.File.Read
+                ?? throw new AssertionException("The documentation file has no Read method.");
+            PropertyState<ushort> openCount = binding.File.OpenCount
+                ?? throw new AssertionException("The documentation file has no OpenCount property.");
+            Assert.That(size.Value, Is.EqualTo(6ul));
+            Assert.That(writable.Value, Is.False);
+            Assert.That(read.OnCallMethod2Async, Is.Not.Null);
             var session = new NodeId(42u);
             uint handle = await binding.OpenAsync(session, 1).ConfigureAwait(false);
-            Assert.That(binding.File.OpenCount!.Value, Is.EqualTo(1));
+            Assert.That(openCount.Value, Is.EqualTo(1));
             await Assert.ThatAsync(
                 async () => await binding.CloseAsync(new NodeId(43u), handle).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
             await binding.CloseAsync(session, handle).ConfigureAwait(false);
-            Assert.That(binding.File.OpenCount!.Value, Is.Zero);
+            Assert.That(openCount.Value, Is.Zero);
             await Assert.ThatAsync(
                 async () => await binding.OpenAsync(session, 2).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
@@ -154,7 +162,9 @@ namespace Opc.Ua.Pumps.Tests
                 m_pump, "CE", ByteString.From("marking"u8), new FileTypeBinder());
             Assert.That(binding.File.BrowseName,
                 Is.EqualTo(new QualifiedName("CE", m_fixture.Manager.InstanceNamespaceIndex)));
-            Assert.That(binding.File.Parent!.BrowseName.Name, Is.EqualTo(BrowseNames.Markings));
+            NodeState parent = binding.File.Parent
+                ?? throw new AssertionException("The marking file has no parent folder.");
+            Assert.That(parent.BrowseName.Name, Is.EqualTo(BrowseNames.Markings));
             Assert.That(binding.File.TypeDefinitionId, Is.EqualTo(Opc.Ua.ObjectTypeIds.FileType));
             Assert.That(
                 () => m_fixture.Manager.Runtime.BindMarkingFile(
