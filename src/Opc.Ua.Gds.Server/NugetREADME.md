@@ -19,8 +19,12 @@ The package also provides the OPC 10000-21 registrar administration
 surface. Load the generated `Opc.Ua.Onboarding` nodes from
 `Opc.Ua.Gds`, then bind `DeviceRegistrarAdminState` to an
 `ITicketStore` with `BindToTicketStore`. `MemoryTicketStore` is provided
-for samples and tests; production hosts should inject a persistent,
-concurrency-safe implementation.
+for samples and tests. `AddFileSystemOnboardingTicketStore` selects the
+filesystem implementation for a single writer, retaining exact ticket
+envelopes and metadata across restarts without changing trust policy.
+It rejects damaged state and competing store registrations. Hosts sharing
+storage across processes need a provider with storage-level coordination;
+the filesystem adapter only serializes calls within one instance.
 
 `AddDeviceRegistrarPushScheduler<TProcessor>` connects one bounded in-memory
 queue to the host lifetime and `IDeviceRegistrarPushScheduler`. The processor

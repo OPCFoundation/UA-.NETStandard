@@ -84,7 +84,15 @@ try
     {
         CryptographicOperations.ZeroMemory(passwordBytes);
     }
-    builder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
+    bool runPullRegistrar = GetBooleanOption(builder, "pullRegistrar");
+    if (runPullRegistrar)
+    {
+        builder.Services.AddFileSystemOnboardingTicketStore(Path.Combine(pkiRoot, "tickets.bin"));
+    }
+    else
+    {
+        builder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
+    }
     builder.Services.AddSingleton<ICertificateManager>(services =>
     {
         return new CertificateManager(services.GetRequiredService<ITelemetryContext>());
@@ -94,7 +102,6 @@ try
         new UserManagement(services.GetRequiredService<IUserDatabase>()));
     builder.Services.AddSingleton<IServerStartupTask>(
         new OnboardingReadyStartupTask(endpoint));
-    bool runPullRegistrar = GetBooleanOption(builder, "pullRegistrar");
     if (runPullRegistrar)
     {
         ConfigurePullRegistrar(builder, pkiRoot, endpoint, userName);

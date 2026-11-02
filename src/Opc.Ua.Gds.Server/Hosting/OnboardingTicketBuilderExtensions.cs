@@ -42,6 +42,41 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class OnboardingTicketBuilderExtensions
     {
         /// <summary>
+        /// Selects one filesystem ticket store without replacing an existing custom store.
+        /// Register before the registrar runtime. One process exclusively owns the checkpoint path;
+        /// this registration does not change ticket validation or grant authority to persisted envelopes.
+        /// </summary>
+        public static IServiceCollection AddFileSystemOnboardingTicketStore(
+            this IServiceCollection services,
+            string path,
+            IFileSystem? fileSystem = null,
+            TimeProvider? timeProvider = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("A ticket checkpoint path is required.", nameof(path));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    (descriptor.ServiceType == typeof(ITicketStore) ||
+                    descriptor.ServiceType == typeof(FileSystemTicketStore)))
+                {
+                    throw new InvalidOperationException("Select only one onboarding ticket store.");
+                }
+            }
+            services.AddSingleton(provider => new FileSystemTicketStore(
+                path, fileSystem ?? provider.GetService<IFileSystem>(),
+                timeProvider ?? provider.GetService<TimeProvider>()));
+            services.AddSingleton<ITicketStore>(provider => provider.GetRequiredService<FileSystemTicketStore>());
+            return services;
+        }
+
+        /// <summary>
         /// Adds ticket services to a server using its injected certificate manager.
         /// Custom ticket validators and trust providers registered beforehand are retained.
         /// The registrar trust list stores public ticket authorities, not device identity keys.

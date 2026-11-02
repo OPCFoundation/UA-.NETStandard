@@ -220,6 +220,36 @@ The obsolete binding overload without a validator returns
 tickets. Removing a stored ticket does not revoke a device that was
 already accepted.
 
+Select filesystem persistence before registering the runtime:
+
+```csharp
+services.AddFileSystemOnboardingTicketStore(ticketCheckpointPath, fileSystem);
+```
+
+`FileSystemTicketStore` implements the same `ITicketStore` contract as
+`MemoryTicketStore` and also supports direct construction. It retains the
+exact envelope bytes, validated metadata and creation timestamp across
+restart. Replacing a ticket ID replaces its record; removing it persists
+that removal. Reads and enumeration return detached snapshots.
+
+One provider instance must exclusively own its path. It serializes
+read/modify/publication operations locally, flushes a staging file, then
+uses the injected `IFileSystem.Replace` to publish the complete checkpoint.
+The filesystem provider must make replacement indivisible. A failed
+publication leaves the preceding checkpoint intact; publication and
+staging-cleanup failures are both reported. Cancellation after replacement
+does not report a committed update as uncommitted. The adapter limits the
+complete file to 16 MiB and 10,000 tickets, rejects corrupt or incompatible
+state on reads and writes, and never reconstructs an empty store from a
+damaged file.
+
+Protect the checkpoint against unauthorized writes. Persistence does not
+validate envelopes, grant ticket authority or replace the registrar's
+current trust checks. The fluent registration rejects a competing ticket
+store without changing the existing registrations. Shared writers and
+high-availability deployments need a provider with storage-level
+coordination rather than multiple instances of this adapter.
+
 Bind `TicketAuthorities` and `DeviceIdentityAuthorities` to their managed
 certificate stores through `DeviceRegistrarAuthorityTrustLists`:
 

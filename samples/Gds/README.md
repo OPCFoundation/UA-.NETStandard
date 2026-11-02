@@ -152,11 +152,14 @@ Application records and pending request state use `applications.json`;
 device identity and certificate lifecycle state use
 `device-lifecycle.json`, both under the selected PKI root. The host binds
 these providers to its actual namespace table. Use one process and keep
-the PKI root and CA keys together across restarts. Tickets and issuance
-receipts remain in memory. Reimport tickets after a restart, and do not
-rely on this sample to retain consumed-request receipts or generated
-private-key responses across registrar restarts. A production host needs
-durable ticket and issuance providers.
+the PKI root and CA keys together across restarts. Accepted tickets use
+`tickets.bin` through `AddFileSystemOnboardingTicketStore`; the exact
+envelopes and metadata survive restart, and unreadable or corrupt ticket
+state is reported instead of being replaced. The file is limited to
+16 MiB and 10,000 tickets and must be protected against other writers.
+Issuance receipts remain in memory. Do not rely on this sample to retain
+consumed-request receipts or generated private-key responses across
+registrar restarts; a production host needs a durable issuance provider.
 
 ## Pull DCA against a configured registrar
 
@@ -365,5 +368,7 @@ in a second temporary application store without registrar trust. The
 registrar therefore recognizes the client's channel certificate; the
 rejection tests the client's missing registrar trust, not an unknown
 client certificate at the registrar.
-The memory ticket store does not survive a registrar restart. Do not
-reuse demo credentials or keys in a production deployment.
+The default administration demo's memory ticket store does not survive a
+registrar restart; the connected pull mode uses the filesystem store
+described above. Do not reuse demo credentials or keys in a production
+deployment.
