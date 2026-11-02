@@ -166,6 +166,9 @@ namespace Opc.Ua.Server
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
     /// <param name="Commit">The owner of the durable decision and registration publication.</param>
+    /// <param name="CaptureCommittedReferences">
+    /// Captures reference reconciliation ownership immediately after publication.
+    /// </param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
     /// <param name="Preparation">The explicit private metadata staging context.</param>
     /// <param name="References">Reference edits discovered before publication serialization.</param>
@@ -182,6 +185,7 @@ namespace Opc.Ua.Server
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
         INodeManagerPublicationCommit Commit,
+        Action<PublishedReferenceChanges> CaptureCommittedReferences,
         ChangePreparer Preparation,
         CancellationToken CancellationToken,
         PreparedAddressSpaceReferences? References = null,

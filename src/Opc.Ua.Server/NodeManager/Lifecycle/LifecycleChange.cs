@@ -166,7 +166,7 @@ namespace Opc.Ua.Server
         /// <returns>The shared compatibility factory adapter.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="factory"/> is null.</exception>
         // TODO: Remove this naming exemption when RCS1047 recognizes async-interface adapter names.
-#pragma warning disable RCS1047 // AsAsync names the report's factory conversion, not asynchronous execution.
+#pragma warning disable RCS1047 // AsAsync names an interface adapter, not asynchronous execution.
         public static IAsyncNodeManagerFactory AsAsync(this INodeManagerFactory factory)
         {
             return new NodeManagerLifecycleExtensions.SyncFactoryAdapter(

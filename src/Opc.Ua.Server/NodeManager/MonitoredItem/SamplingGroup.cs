@@ -811,7 +811,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets S2's stable copy for this sampling group and subscriber.
+        /// Gets the stable system-context copy for this sampling group and subscriber.
         /// </summary>
         private ServerSystemContext GetSampleSystemContext(OperationContext context)
         {
@@ -837,10 +837,14 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool IsCurrentOwner(ISampledDataChangeMonitoredItem item, OperationContext context)
         {
-            return ReferenceEquals(context.Session, item.Session) &&
-                ReferenceEquals(context.UserIdentity, item.Session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
-                (item.Session is not Session session ||
-                    ReferenceEquals(context.NotificationAuthorization, session.NotificationAuthorization));
+            ISession? session = item.Session;
+            return ReferenceEquals(context.Session, session) &&
+                ReferenceEquals(context.UserIdentity, session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
+                (session is null ||
+                (context.ChannelContext?.SecureChannelId ?? string.Empty) ==
+                    (session.SecureChannelId ?? string.Empty)) &&
+                (session is not Session concreteSession ||
+                    ReferenceEquals(context.NotificationAuthorization, concreteSession.NotificationAuthorization));
         }
 
         /// <summary>

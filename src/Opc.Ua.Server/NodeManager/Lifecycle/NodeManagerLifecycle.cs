@@ -2298,6 +2298,7 @@ namespace Opc.Ua.Server
                         FactoryRevision: batch.FactoryRevision,
                         ReadImages: batch.ReadImages,
                         Commit: lifecycleCommit,
+                        CaptureCommittedReferences: committed => committedReferences = committed,
                         CancellationToken: cancellationToken,
                         Preparation: batch.Preparation,
                         References: references,

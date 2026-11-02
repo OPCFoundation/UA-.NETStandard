@@ -344,6 +344,187 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A host failure after committing reference changes must leave additions and observer notifications
+        /// retryable.
+        /// </summary>
+        [Test]
+        public async Task CommittedReferenceHostFailureRetainsAdditionsAndObserversForRetryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string ownerUri = kModelNamespaceUri + ":ReferencePublicationRetryOwner";
+            const string unsupportedUri = kModelNamespaceUri + ":ReferencePublicationRetryUnsupported";
+            const string candidateUri = kModelNamespaceUri + ":ReferencePublicationRetryCandidate";
+
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            bool failPublication = false;
+            bool failAddReferences = true;
+            bool failObserverNotification = true;
+            var failure = new InvalidOperationException("The host failed after committing reference changes.");
+            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
+                master, () => failPublication, notifyBeforeFailure: true, failure);
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
+                nameof(ServerInternalData.NodeManager)) ??
+                throw new AssertionException("The bound master NodeManager property was not found.");
+            nodeManagerProperty.SetValue(server, proxy.Object);
+
+            try
+            {
+                using var lifecycle = new NodeManagerLifecycle(m_server);
+                TrackingLifecycleNodeManager? owner = null;
+                NodeManagerRegistration ownerRegistration = await lifecycle.AddAsync(
+                    CreateTrackingNodeManagementFactory(kGeneration1Value, manager => owner = manager, ownerUri),
+                    timeout.Token).ConfigureAwait(false);
+                IServerInternal serverInternal = m_server.CurrentInstance;
+                ushort ownerNamespaceIndex = (ushort)serverInternal.NamespaceUris.GetIndex(ownerUri);
+                var ownerRootId = new NodeId(kRootNodeId, ownerNamespaceIndex);
+                NodeState ownerRoot = RequireLifecycleValue(owner!.Find(ownerRootId));
+
+                var unsupportedManager = CreateLifecycleNodeManager(unsupportedUri);
+                var unsupportedFactory = new Mock<IAsyncNodeManagerFactory>();
+                unsupportedFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(unsupportedManager.Object);
+                NodeManagerRegistration unsupportedRegistration = await lifecycle.AddAsync(
+                    unsupportedFactory.Object, timeout.Token).ConfigureAwait(false);
+
+                ushort candidateNamespaceIndex = (ushort)serverInternal.NamespaceUris.GetIndexOrAppend(candidateUri);
+                var candidateRootId = new NodeId(kRootNodeId, candidateNamespaceIndex);
+                var unsupportedSourceId = new NodeId(9904, ownerNamespaceIndex);
+                unsupportedManager
+                    .Setup(manager => manager.GetManagerHandleAsync(
+                        unsupportedSourceId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<object>(new object()));
+
+                var candidate = CreateLifecycleNodeManager(candidateUri);
+                candidate.Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                    .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>((references, _) =>
+                    {
+                        MasterNodeManager.CreateExternalReference(
+                            references,
+                            ownerRootId,
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            candidateRootId);
+                        MasterNodeManager.CreateExternalReference(
+                            references,
+                            unsupportedSourceId,
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            candidateRootId);
+                    })
+                    .Returns(default(ValueTask));
+
+                IDictionary<NodeId, IList<IReference>>? deliveredAdditions = null;
+                int addReferencesAttempts = 0;
+                unsupportedManager
+                    .Setup(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>(
+                        (additions, _) =>
+                        {
+                            deliveredAdditions = additions;
+                            addReferencesAttempts++;
+                        })
+                    .Returns(() => failAddReferences
+                        ? new ValueTask(Task.FromException(new InvalidOperationException(
+                            "Reference additions are temporarily unavailable.")))
+                        : default);
+
+                var candidateFactory = new Mock<IAsyncNodeManagerFactory>();
+                candidateFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(candidate.Object);
+
+                int referenceNotificationAttempts = 0;
+                int successfulReferenceNotifications = 0;
+                NodeStateReferenceAdded? previousObserver = ownerRoot.OnReferenceAdded;
+                ownerRoot.OnReferenceAdded = (_, _, _, _) =>
+                {
+                    referenceNotificationAttempts++;
+                    if (failObserverNotification)
+                    {
+                        throw new InvalidOperationException(
+                            "The reference observer is temporarily unavailable.");
+                    }
+                    successfulReferenceNotifications++;
+                };
+                try
+                {
+                    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Add(candidateFactory.Object)], timeout.Token)
+                        .ConfigureAwait(false);
+                    failPublication = true;
+                    NodeManagerBatchResult result = await prepared.CommitAsync(
+                        _ => default, timeout.Token).ConfigureAwait(false);
+                    NodeManagerRegistration candidateRegistration = result.Registrations[0];
+
+                    Assert.That(result.CleanupFailure?.ToString(), Does.Contain(failure.Message));
+                    Assert.That(lifecycle.Registrations.Find(
+                        registration => registration.Id == candidateRegistration.Id),
+                        Is.SameAs(candidateRegistration));
+                    Assert.That(ownerRoot.ReferenceExists(
+                        ReferenceTypeIds.HasComponent, false, candidateRootId), Is.True,
+                        "A committed reference must not be rolled back after the host throws.");
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(1));
+                    Assert.That(successfulReferenceNotifications, Is.Zero);
+                    Assert.That(addReferencesAttempts, Is.EqualTo(1));
+                    Assert.That(result.Issues.ToList().Any(issue =>
+                        issue.Stage == NodeManagerReconciliationStage.References && issue.IsRetryable), Is.True);
+
+                    failPublication = false;
+                    failAddReferences = false;
+                    failObserverNotification = false;
+                    await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+
+                    Assert.That(deliveredAdditions, Is.Not.Null);
+                    Assert.That(deliveredAdditions, Has.Count.EqualTo(1));
+                    Assert.That(deliveredAdditions.ContainsKey(unsupportedSourceId), Is.True);
+                    IReference delivered = deliveredAdditions[unsupportedSourceId].Single();
+                    Assert.That(delivered.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                    Assert.That(delivered.IsInverse, Is.False);
+                    Assert.That(delivered.TargetId, Is.EqualTo(candidateRootId));
+                    Assert.That(addReferencesAttempts, Is.EqualTo(2));
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(2));
+                    Assert.That(successfulReferenceNotifications, Is.EqualTo(1));
+                    Assert.That(result.Issues.ToList().Any(issue =>
+                        issue.Stage == NodeManagerReconciliationStage.References), Is.False);
+                    unsupportedManager.Verify(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+                    await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(2),
+                        "A completed observer notification is not replayed by a repeated retry.");
+                    unsupportedManager.Verify(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+                    ownerRoot.OnReferenceAdded = previousObserver;
+                    await RemoveAndRetireAsync(lifecycle, candidateRegistration, timeout.Token).ConfigureAwait(false);
+                    await RemoveAndRetireAsync(
+                        lifecycle, unsupportedRegistration, timeout.Token).ConfigureAwait(false);
+                    await RemoveAndRetireAsync(lifecycle, ownerRegistration, timeout.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    ownerRoot.OnReferenceAdded = previousObserver;
+                }
+            }
+            finally
+            {
+                nodeManagerProperty.SetValue(server, master);
+            }
+        }
+
+        /// <summary>
         /// Reference cleanup retains its resolved live owner until both lookup and the reference callback finish.
         /// </summary>
         [Test]
@@ -6367,6 +6548,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 FactoryRevision: preparation.FactoryRevision,
                 ReadImages: [],
                 Commit: commit.Object,
+                CaptureCommittedReferences: _ => Assert.Fail(
+                    "An unprepared candidate must not capture committed references."),
                 Preparation: preparation,
                 CancellationToken: CancellationToken.None,
                 Admission: admission);

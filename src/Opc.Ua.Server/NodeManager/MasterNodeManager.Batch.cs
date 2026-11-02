@@ -385,6 +385,7 @@ namespace Opc.Ua.Server
             TaskCompletionSource<bool>? namespacePublication = null;
             Task? previousNamespacePublication = m_currentNamespacePublication.Value;
             NodeManagerRoutingTable.PreparedRoutes? routes = null;
+            PublishedReferenceChanges? committedReferences = null;
             try
             {
                 await m_namespaceRegistrationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -521,6 +522,9 @@ namespace Opc.Ua.Server
                         publisher.Publish();
                         publishedOwners =
                             m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
+                        committedReferences = new PublishedReferenceChanges(
+                            candidates, publishedOwners, referenceAdditions, referenceOwners);
+                        context.CaptureCommittedReferences(committedReferences);
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         namespaces.Dispose();
                         serverUris.Dispose();
@@ -572,8 +576,7 @@ namespace Opc.Ua.Server
                         dynamicMutationSemaphoreHeld = false;
                     }
                 }
-                return new PublishedReferenceChanges(
-                    candidates, publishedOwners, referenceAdditions, referenceOwners);
+                return committedReferences;
             }
             catch (Exception failure) when (failure is not OutOfMemoryException && !decisionCommitted)
             {

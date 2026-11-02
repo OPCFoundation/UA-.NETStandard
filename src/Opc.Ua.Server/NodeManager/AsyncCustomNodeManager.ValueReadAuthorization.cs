@@ -392,10 +392,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// The context of a session only depends on its effective identity, its notification
-        /// authorization epoch and its accepted endpoint, so all items of the session reuse one
-        /// context until one of them changes, and the context's per-node-manager system context
-        /// copy is reused with it. A notification therefore allocates no context. The returned
-        /// context is shared: callers must not dispose or retain it.
+        /// authorization epoch, accepted endpoint, secure channel and preferred locales, so all
+        /// items of the session reuse one context until one of them changes, and the context's
+        /// per-node-manager system context copy is reused with it. A notification therefore
+        /// allocates no context. The returned context is shared: callers must not dispose or
+        /// retain it.
         /// </remarks>
         /// <param name="item">The monitored item.</param>
         /// <param name="diagnostics">The requested operation diagnostics mask.</param>
@@ -444,6 +445,7 @@ namespace Opc.Ua.Server
                 current.Generation == generation &&
                 ReferenceEquals(current.Endpoint, endpoint) &&
                 current.SecureChannelId == secureChannelId &&
+                current.Context.PreferredLocales == session.PreferredLocales &&
                 (session is not Session || ReferenceEquals(current.Authorization, authorization)))
             {
                 return current.Context;

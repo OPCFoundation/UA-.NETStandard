@@ -222,6 +222,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A locale-only session update refreshes the shared operation context and then reuses it.
+        /// </summary>
+        [Test]
+        public void ChangedPreferredLocalesReplaceAndReuseSubscriberContext()
+        {
+            var subscriber = new Subscriber
+            {
+                PreferredLocales = ["en-US", "fr-FR"]
+            };
+            IMonitoredItem item = subscriber.CreateItem();
+            OperationContext before = MonitoredReadAuthorization.GetSubscriberContext(item);
+
+            subscriber.PreferredLocales = ["de-DE", "fr-FR"];
+
+            OperationContext after = MonitoredReadAuthorization.GetSubscriberContext(item);
+
+            Assert.That(after, Is.Not.SameAs(before));
+            Assert.That(after.PreferredLocales.Count, Is.EqualTo(2));
+            Assert.That(after.PreferredLocales[0], Is.EqualTo("de-DE"));
+            Assert.That(after.PreferredLocales[1], Is.EqualTo("fr-FR"));
+            Assert.That(after.UserIdentity, Is.SameAs(before.UserIdentity));
+            Assert.That(
+                after.ChannelContext?.EndpointDescription,
+                Is.SameAs(before.ChannelContext?.EndpointDescription));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(after));
+        }
+
+        /// <summary>
         /// Switching an item to sessionless delivery does not reuse its prior session context.
         /// </summary>
         [Test]
@@ -262,6 +290,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Session.SetupGet(value => value.SecureChannelId).Returns(() => SecureChannelId);
                 Session.SetupGet(value => value.EffectiveIdentity).Returns(() => Identity);
                 Session.SetupGet(value => value.EndpointDescription).Returns(() => Endpoint);
+                Session.SetupGet(value => value.PreferredLocales).Returns(() => PreferredLocales);
                 Session.Setup(value => value.CaptureIdentityRefreshSnapshot())
                     .Returns(() => new IdentityRefreshSnapshot(Identity, Generation));
             }
@@ -273,6 +302,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public long Generation { get; set; }
 
             public string SecureChannelId { get; set; } = "initial-channel";
+
+            public string[] PreferredLocales { get; set; } = [];
 
             public ISession? ActiveSession { get; set; }
 

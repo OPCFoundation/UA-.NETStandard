@@ -594,7 +594,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_server.CurrentInstance.NamespaceUris,
                 serving,
                 new object());
-            var otherOwnerNode = new NodeId("s9-other-owner", 0);
+            var otherOwnerNode = new NodeId("other-owner", 0);
             otherOwner.RegisterForNode(otherOwnerNode, otherOwnerProvider);
             otherOwner.Publish();
 
@@ -648,7 +648,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var provider = new LifecycleHistorianProvider();
             IHistorianProviderRegistry serving =
                 ((IHistorianRegistryProvider)m_server.CurrentInstance).HistorianRegistry;
-            NodeId defaultNode = new("s9-no-readiness", 0);
+            NodeId defaultNode = new("no-readiness", 0);
             IHistorianProvider? baselineProvider = serving.Resolve(defaultNode);
             TrackingLifecycleNodeManager? manager = null;
 
@@ -1464,9 +1464,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var localRegistry =
                 ((IHistorianRegistryProvider)stagingServer).HistorianRegistry;
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var exactNode = new NodeId("s9-historian-exact", namespaceIndex);
-            var namespaceNode = new NodeId("s9-historian-namespace", namespaceIndex);
-            var defaultNode = new NodeId("s9-historian-default", 0);
+            var exactNode = new NodeId("historian-exact", namespaceIndex);
+            var namespaceNode = new NodeId("historian-namespace", namespaceIndex);
+            var defaultNode = new NodeId("historian-default", 0);
             var nodeProvider = new LifecycleHistorianProvider();
             var namespaceProvider = new LifecycleHistorianProvider();
             var defaultProvider = new LifecycleHistorianProvider();

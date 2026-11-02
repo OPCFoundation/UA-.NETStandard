@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     /// <summary>
     /// Verifies that a sampling group reuses a good exact-source read verdict of a sampled item
-    /// (the per-sample recheck #4834 added) until one of its inputs changes, never reuses a bad
+    /// until one of its inputs changes, never reuses a bad
     /// one, and still runs a registered Value read authorizer on every sample.
     /// </summary>
     /// <remarks>
@@ -269,6 +269,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Status(0), Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(harness.Status(1), Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(checks, Is.GreaterThanOrEqualTo(3), "the suspended grant must be rechecked");
+        }
+
+        /// <summary>
+        /// A channel rebound while custom-session authorization is suspended invalidates the old sample.
+        /// </summary>
+        [Test]
+        public async Task SuspendedAuthorizationRejectsSampleAfterCustomSecureChannelRebindAsync()
+        {
+            await using var harness = new Harness();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int authorizations = 0;
+            using IDisposable registration = harness.Owner.RegisterValueReadAuthorization(
+                harness.Node, async (_, token) =>
+                {
+                    if (Interlocked.Increment(ref authorizations) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(token).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+            await harness.StartAsync().ConfigureAwait(false);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            harness.Change("SecureChannelId");
+            release.TrySetResult(true);
+            await harness.WaitForSampleAsync(1).ConfigureAwait(false);
+
+            Assert.That(harness.Status(0), Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                "The pending sample was captured with the session's old secure-channel ID.");
+            Assert.That(harness.Value(0).IsNull, Is.True,
+                "The old-channel sample must not place its value in the item queue.");
+            Assert.That(harness.Status(1), Is.EqualTo(StatusCodes.Good),
+                "The next sample must use a context captured after the channel rebind.");
+            Assert.That(harness.Value(1), Is.EqualTo(Variant.From(42)));
+            Assert.That(Volatile.Read(ref authorizations), Is.GreaterThanOrEqualTo(2));
         }
 
         /// <summary>
@@ -522,6 +559,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
+            /// <summary>
+            /// Gets the value queued for a recorded sample.
+            /// </summary>
+            public Variant Value(int sample)
+            {
+                lock (m_recordsLock)
+                {
+                    return m_records[sample].Value;
+                }
+            }
+
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
@@ -600,7 +648,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 lock (m_recordsLock)
                 {
                     sample = m_records.Count;
-                    m_records.Add((value.StatusCode, Owner.Checks));
+                    m_records.Add((value.StatusCode, Owner.Checks, value.WrappedValue));
                 }
                 if (m_afterSample.TryGetValue(sample, out Action? action))
                 {
@@ -634,8 +682,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>Sampled item with a recording queue callback.</summary>
             private readonly Mock<ISampledDataChangeMonitoredItem> m_item = new();
 
-            /// <summary>Statuses and cumulative permission-check counts.</summary>
-            private readonly List<(StatusCode Status, int Checks)> m_records = [];
+            /// <summary>Statuses, cumulative permission-check counts and queued values.</summary>
+            private readonly List<(StatusCode Status, int Checks, Variant Value)> m_records = [];
 
             /// <summary>Protects sample records.</summary>
             private readonly Lock m_recordsLock = new();
