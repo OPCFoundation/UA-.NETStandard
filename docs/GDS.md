@@ -296,6 +296,16 @@ factory resolution. A direct host can construct the factory with those
 dependencies. Do not register another node manager for the same onboarding
 namespace.
 
+Select `services.AddHostedDeviceRegistrarAuditing()` before registering the
+runtime to route audit calls through the standard factory's restricted native
+event reporter. The adapter resolves without constructing server nodes; the
+factory attaches it after model initialization and detaches it during shutdown.
+Calls without an active model return `BadServerHalted`, and another live model
+cannot replace its reporter. An existing custom `IDeviceRegistrarAuditReporter`
+is retained. Direct hosts can continue constructing and injecting their own
+`DeviceRegistrarAuditReporter`; the hosted adapter supports one registrar per
+service collection.
+
 For an in-memory supervised push queue, register
 `services.AddDeviceRegistrarPushScheduler<MyPushProcessor>(capacity: 32)` before
 the registrar's provider check. `MyPushProcessor` implements

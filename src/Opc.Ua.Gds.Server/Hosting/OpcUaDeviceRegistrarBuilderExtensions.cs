@@ -309,6 +309,24 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Selects model-bound restricted audit delivery before registering the registrar runtime.
+        /// The standard registrar factory attaches the reporter before exposing its namespace and detaches it
+        /// during shutdown. Existing custom audit providers are retained; direct hosts bind their own reporter.
+        /// This registration supports one registrar host per service collection.
+        /// </summary>
+        public static IServiceCollection AddHostedDeviceRegistrarAuditing(this IServiceCollection services)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            services.TryAddSingleton<HostedDeviceRegistrarAuditReporter>();
+            services.TryAddSingleton<IDeviceRegistrarAuditReporter>(provider =>
+                provider.GetRequiredService<HostedDeviceRegistrarAuditReporter>());
+            return services;
+        }
+
+        /// <summary>
         /// Selects an in-memory bounded push queue and registers its processor and host-owned worker as singletons.
         /// Register before AddDeviceRegistrarRuntime validates its provider set. The processor owns authentication,
         /// persistent provisioning state, and recovery of uncertain remote effects; this queue does not retry them.

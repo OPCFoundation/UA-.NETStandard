@@ -191,6 +191,37 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         /// <summary>
+        /// Hosts can select restricted model-bound auditing without constructing nodes during DI resolution.
+        /// </summary>
+        [Test]
+        public void HostedAuditingSuppliesRequiredRuntimeProviderAndPreservesCustomOverrides()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            ConfigureProviders(services, missing: 5);
+            IServiceCollection returned = services.AddHostedDeviceRegistrarAuditing();
+            services.AddHostedDeviceRegistrarAuditing();
+            services.AddDeviceRegistrarRuntime(_ => { });
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(returned, Is.SameAs(services));
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarAuditReporter>(),
+                Is.SameAs(provider.GetRequiredService<HostedDeviceRegistrarAuditReporter>()));
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarRuntime>(), Is.TypeOf<DeviceRegistrarRuntime>());
+            Assert.That(services.Count(descriptor => descriptor.ServiceType ==
+                typeof(HostedDeviceRegistrarAuditReporter)), Is.EqualTo(1));
+
+            var customServices = new ServiceCollection();
+            var custom = new Mock<IDeviceRegistrarAuditReporter>();
+            customServices.AddSingleton(custom.Object);
+            customServices.AddHostedDeviceRegistrarAuditing();
+            using ServiceProvider customProvider = customServices.BuildServiceProvider();
+            Assert.That(customProvider.GetRequiredService<IDeviceRegistrarAuditReporter>(), Is.SameAs(custom.Object));
+            Assert.That(() => OpcUaDeviceRegistrarBuilderExtensions.AddHostedDeviceRegistrarAuditing(null!),
+                Throws.ArgumentNullException);
+        }
+
+        /// <summary>
         /// Repeated selection registers the model only for the chosen server kind.
         /// </summary>
         [TestCase(false)]

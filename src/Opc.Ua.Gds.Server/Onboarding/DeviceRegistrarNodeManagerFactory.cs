@@ -45,11 +45,26 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ITicketStore ticketStore,
             IOnboardingTicketValidator ticketValidator,
             ICertificateManager certificateManager)
+            : this(runtime, ticketStore, ticketValidator, certificateManager, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that also binds an optional injected audit adapter to this host's restricted reporter.
+        /// The four-argument construction path remains available for a host supplying its own audit routing.
+        /// </summary>
+        public DeviceRegistrarNodeManagerFactory(
+            IDeviceRegistrarRuntime runtime,
+            ITicketStore ticketStore,
+            IOnboardingTicketValidator ticketValidator,
+            ICertificateManager certificateManager,
+            HostedDeviceRegistrarAuditReporter? hostedAudit)
         {
             m_runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             m_ticketStore = ticketStore ?? throw new ArgumentNullException(nameof(ticketStore));
             m_ticketValidator = ticketValidator ?? throw new ArgumentNullException(nameof(ticketValidator));
             m_certificateManager = certificateManager ?? throw new ArgumentNullException(nameof(certificateManager));
+            m_hostedAudit = hostedAudit;
         }
 
         /// <inheritdoc/>
@@ -73,7 +88,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
 #pragma warning disable CA2000 // Ownership transfers to the server; TODO: teach the analyzer ValueTask ownership.
             return new ValueTask<IAsyncNodeManager>(
                 new RegistrarNodeManager(
-                    server, configuration, m_runtime, m_ticketStore, m_ticketValidator, m_certificateManager));
+                    server, configuration, m_runtime, m_ticketStore, m_ticketValidator, m_certificateManager,
+                    m_hostedAudit));
 #pragma warning restore CA2000
         }
 
@@ -91,13 +107,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 IDeviceRegistrarRuntime runtime,
                 ITicketStore ticketStore,
                 IOnboardingTicketValidator ticketValidator,
-                ICertificateManager certificateManager)
+                ICertificateManager certificateManager,
+                HostedDeviceRegistrarAuditReporter? hostedAudit)
                 : base(server, configuration, server.Telemetry.CreateLogger<RegistrarNodeManager>())
             {
                 m_runtime = runtime;
                 m_ticketStore = ticketStore;
                 m_ticketValidator = ticketValidator;
                 m_certificateManager = certificateManager;
+                m_hostedAudit = hostedAudit;
                 NamespaceUris = [Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding];
                 server.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
                 server.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
@@ -117,15 +135,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 administration.BindToTicketStore(m_ticketStore, m_ticketValidator);
                 registrar.BindToRuntime(m_runtime);
                 // Configure event ACLs even when the host uses a different audit sink.
-                _ = new DeviceRegistrarAuditReporter(Server, context, nodes.ToArray().ToArrayOf());
+                var audit = new DeviceRegistrarAuditReporter(Server, context, nodes.ToArray().ToArrayOf());
                 m_authorities = new DeviceRegistrarAuthorityTrustLists(
                     administration, context, m_certificateManager, Server, Server.Telemetry);
+                m_hostedAudit?.Attach(audit);
+                m_audit = audit;
                 return new ValueTask<NodeStateCollection>(nodes);
             }
 
             /// <inheritdoc/>
             protected override ValueTask DisposeAsyncCore()
             {
+                if (m_audit != null)
+                {
+                    m_hostedAudit?.Detach(m_audit);
+                }
                 m_authorities?.Dispose();
                 return base.DisposeAsyncCore();
             }
@@ -169,6 +193,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             /// <summary>The owned authority file handlers, disposed after dispatch drains.</summary>
             private DeviceRegistrarAuthorityTrustLists? m_authorities;
+
+            /// <summary>The optional container-owned routing adapter.</summary>
+            private readonly HostedDeviceRegistrarAuditReporter? m_hostedAudit;
+
+            /// <summary>The restricted reporter attached while this model is active.</summary>
+            private DeviceRegistrarAuditReporter? m_audit;
         }
 
         /// <summary>The shared registrar runtime.</summary>
@@ -182,5 +212,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The shared managed authority provider.</summary>
         private readonly ICertificateManager m_certificateManager;
+
+        /// <summary>The optional injected adapter awaiting model initialization.</summary>
+        private readonly HostedDeviceRegistrarAuditReporter? m_hostedAudit;
     }
 }

@@ -46,6 +46,100 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class DeviceRegistrarAuditReporterTests
     {
         /// <summary>
+        /// The injected adapter sends both native event types through the bound server's restricted reporter.
+        /// </summary>
+        [Test]
+        public async Task HostedAdapterReportsThroughBoundModelAndRejectsAfterDetach()
+        {
+            (SessionSystemContext context, ArrayOf<NodeState> nodes) = CreateModel();
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.Auditing).Returns(true);
+            var events = new List<IFilterTarget>();
+            server.Setup(value => value.ReportEventAsync(
+                context, It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Callback<ISystemContext, IFilterTarget, CancellationToken>((_, target, _) => events.Add(target))
+                .Returns(default(ValueTask));
+            var reporter = new DeviceRegistrarAuditReporter(server.Object, context, nodes);
+            var adapter = new HostedDeviceRegistrarAuditReporter();
+            OnboardingIdentitySelection identity = CreateSelection("signed-ticket", "signed-composite");
+            ServiceResultException? before = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.ReportIdentityAcceptedAsync(context, identity).ConfigureAwait(false));
+            Assert.That(before!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            adapter.Attach(reporter);
+
+            await adapter.ReportIdentityAcceptedAsync(context, identity).ConfigureAwait(false);
+            await adapter.ReportSoftwareStatusAsync(context, identity.ProductInstanceUri, true, "2.0")
+                .ConfigureAwait(false);
+            adapter.Detach(reporter);
+            ServiceResultException? after = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.ReportSoftwareStatusAsync(context, identity.ProductInstanceUri, true, "2.0")
+                    .ConfigureAwait(false));
+
+            Assert.That(after!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(events, Has.Count.EqualTo(2));
+            Assert.That(events[0], Is.InstanceOf<DeviceIdentityAcceptedAuditEventState>());
+            Assert.That(events[1], Is.InstanceOf<DeviceSoftwareUpdatedAuditEventState>());
+            Assert.That(((DeviceIdentityAcceptedAuditEventState)events[0]).Ticket!.Value, Is.EqualTo("signed-ticket"));
+        }
+
+        /// <summary>
+        /// A live owner cannot be overwritten, and a stale shutdown cannot detach a replacement owner.
+        /// </summary>
+        [Test]
+        public async Task HostedAdapterRejectsCompetingOwnersAndIgnoresStaleDetach()
+        {
+            var first = new Mock<IDeviceRegistrarAuditReporter>(MockBehavior.Strict);
+            var second = new Mock<IDeviceRegistrarAuditReporter>(MockBehavior.Strict);
+            var context = new SystemContext(NUnitTelemetryContext.Create());
+            second.Setup(value => value.ReportSoftwareStatusAsync(
+                context, "urn:device:test", false, "3.0", CancellationToken.None)).Returns(default(ValueTask));
+            var adapter = new HostedDeviceRegistrarAuditReporter();
+            Assert.That(() => adapter.Attach(null!), Throws.ArgumentNullException);
+            Assert.That(() => adapter.Attach(adapter), Throws.ArgumentException);
+            adapter.Attach(first.Object);
+            Assert.That(() => adapter.Attach(second.Object), Throws.InvalidOperationException);
+            Assert.That(() => adapter.Attach(first.Object), Throws.InvalidOperationException);
+            adapter.Detach(first.Object);
+            adapter.Attach(second.Object);
+            adapter.Detach(first.Object);
+
+            await adapter.ReportSoftwareStatusAsync(context, "urn:device:test", false, "3.0").ConfigureAwait(false);
+
+            first.VerifyNoOtherCalls();
+            second.Verify(value => value.ReportSoftwareStatusAsync(
+                context, "urn:device:test", false, "3.0", CancellationToken.None), Times.Once);
+            second.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Cancellation prevents dispatch, while a live reporter's failure remains observable to its caller.
+        /// </summary>
+        [Test]
+        public async Task HostedAdapterPreservesReporterFailureAndHonorsCancellation()
+        {
+            var reporter = new Mock<IDeviceRegistrarAuditReporter>(MockBehavior.Strict);
+            var context = new SystemContext(NUnitTelemetryContext.Create());
+            OnboardingIdentitySelection identity = CreateSelection("signed-ticket", "");
+            var failure = new ServiceResultException(StatusCodes.BadCommunicationError);
+            reporter.Setup(value => value.ReportIdentityAcceptedAsync(
+                context, identity, CancellationToken.None)).Throws(failure);
+            var adapter = new HostedDeviceRegistrarAuditReporter();
+            adapter.Attach(reporter.Object);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await adapter.ReportIdentityAcceptedAsync(context, identity, cancellation.Token).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await adapter.ReportIdentityAcceptedAsync(context, identity).ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            reporter.Verify(value => value.ReportIdentityAcceptedAsync(
+                context, identity, CancellationToken.None), Times.Once);
+            reporter.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Identity acceptance retains the exact signed envelopes and selected certificate in the native event.
         /// </summary>
         [TestCase("")]
