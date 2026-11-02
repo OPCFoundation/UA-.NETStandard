@@ -262,6 +262,8 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Authorizes and submits an operation. Good reports acceptance, not
         /// completion. Requests are serialized with snapshots and completion.
+        /// Returns BadInvalidState if application provider work prevents admission.
+        /// Reentry through the current callback context throws InvalidOperationException.
         /// </summary>
         public ValueTask<ServiceResult> RequestAsync(
             ISystemContext context,
@@ -274,14 +276,22 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Serializes the exact wire method's eligibility with provider execution.
         /// </summary>
-        private ValueTask<ServiceResult> RequestCoreAsync(
+        private async ValueTask<ServiceResult> RequestCoreAsync(
             ISystemContext context,
             PackMLRequest request,
             MethodState? requiredMethod,
             CancellationToken cancellationToken)
         {
-            return m_lifetime.RunAsync(
-                token => RequestSerializedAsync(context, request, requiredMethod, token), cancellationToken);
+            try
+            {
+                return await m_lifetime.RunAsync(
+                    token => RequestSerializedAsync(context, request, requiredMethod, token), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (PackMLBusyException exception)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState, exception.Message);
+            }
         }
 
         /// <summary>
@@ -322,7 +332,8 @@ namespace Opc.Ua.PackML.Server
                 RemoteInterfaces = request.RemoteInterfaces.ConvertAll(
                     remote => (PackMLRemoteInterfaceDataType)remote.Clone())
             };
-            ServiceResult authorization = await m_provider.AuthorizeAsync(context, request, cancellationToken)
+            ServiceResult authorization = await m_lifetime.CallProviderAsync(
+                () => m_provider.AuthorizeAsync(context, request, cancellationToken))
                 .ConfigureAwait(false);
             if (ServiceResult.IsUncertain(authorization))
             {
@@ -337,7 +348,8 @@ namespace Opc.Ua.PackML.Server
             ServiceResult accepted;
             try
             {
-                accepted = await m_provider.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+                accepted = await m_lifetime.CallProviderAsync(
+                    () => m_provider.ExecuteAsync(request, cancellationToken)).ConfigureAwait(false);
             }
             catch
             {
@@ -362,6 +374,7 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Reports equipment completion for the current accepted command.
         /// A stale identity or a different state is rejected without transition.
+        /// Throws InvalidOperationException if application provider work prevents admission.
         /// </summary>
         public ValueTask<ServiceResult> CompleteActingStateAsync(
             long requestId,
@@ -394,6 +407,7 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Acquires provider data and publishes its quality and acquisition time.
         /// A requested mode is committed only when the equipment confirms it.
+        /// Throws InvalidOperationException if application provider work prevents admission.
         /// </summary>
         public ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
@@ -406,7 +420,8 @@ namespace Opc.Ua.PackML.Server
         private async ValueTask RefreshCoreAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            PackMLEquipmentSnapshot snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            PackMLEquipmentSnapshot snapshot = await m_lifetime.CallProviderAsync(
+                () => m_provider.ReadAsync(cancellationToken)).ConfigureAwait(false);
             ValidateSnapshot(snapshot);
             if (StatusCode.IsGood(snapshot.StatusCode))
             {
@@ -447,7 +462,8 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
-        /// Cancels pending provider work and drains the unit before teardown.
+        /// Drains the unit when no application callback is active.
+        /// Active callbacks require host-owned shutdown or caller cancellation before disposal.
         /// Does not dispose the application-owned equipment provider.
         /// </summary>
         public async ValueTask DisposeAsync()
@@ -456,8 +472,17 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
+        /// Cancels and drains provider work for the owning runtime.
+        /// </summary>
+        internal ValueTask ShutdownAsync()
+        {
+            return m_lifetime.ShutdownAsync();
+        }
+
+        /// <summary>
         /// Projects a coherent administration sample obtained from the existing
         /// alarm/equipment owner and its configured history storage.
+        /// Throws InvalidOperationException if application provider work prevents admission.
         /// </summary>
         public ValueTask PublishAdministrationAsync(
             PackMLAdministrationData data,
@@ -481,6 +506,7 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Persists an explicit timer checkpoint. Provider failures are propagated
         /// without silently reverting to memory or replaying equipment commands.
+        /// Throws InvalidOperationException if application provider work prevents admission.
         /// </summary>
         public ValueTask CheckpointAsync(CancellationToken cancellationToken = default)
         {
@@ -490,15 +516,19 @@ namespace Opc.Ua.PackML.Server
         /// <summary>
         /// Commits the configured timer snapshot after accepted changes.
         /// </summary>
-        private ValueTask SaveAdministrationAsync(CancellationToken cancellationToken)
+        private async ValueTask SaveAdministrationAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (m_options.AdministrationStore is { } store)
             {
-                return store.SaveAsync(Administration.Capture(), cancellationToken);
+                await m_lifetime.CallProviderAsync(async () =>
+                {
+                    await store.SaveAsync(Administration.Capture(), cancellationToken).ConfigureAwait(false);
+                    return true;
+                }).ConfigureAwait(false);
+                return;
             }
             Administration.Refresh();
-            return default;
         }
 
         /// <summary>

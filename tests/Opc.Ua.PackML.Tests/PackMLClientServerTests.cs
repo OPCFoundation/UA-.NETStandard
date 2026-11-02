@@ -660,6 +660,65 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(secondProvider.Executed, Has.Count.EqualTo(1));
         }
 
+        [Test]
+        public async Task RuntimePreservesEveryUnitShutdownFailure()
+        {
+            var runtime = new PackMLRuntime(m_manager);
+            var firstEntered = PackMLTestSupport.Signal();
+            var secondEntered = PackMLTestSupport.Signal();
+            var firstCancelled = PackMLTestSupport.Signal();
+            var secondCancelled = PackMLTestSupport.Signal();
+            var firstError = new InvalidOperationException("First unit cancellation failed.");
+            var secondError = new InvalidOperationException("Second unit cancellation failed.");
+            var firstProvider = new EquipmentProvider
+            {
+                Execute = async (_, token) =>
+                {
+                    using CancellationTokenRegistration registration = token.Register(() =>
+                    {
+                        firstCancelled.TrySetResult(true);
+                        throw firstError;
+                    });
+                    firstEntered.TrySetResult(true);
+                    await firstCancelled.Task;
+                    token.ThrowIfCancellationRequested();
+                    return ServiceResult.Good;
+                }
+            };
+            var secondProvider = new EquipmentProvider
+            {
+                Execute = async (_, token) =>
+                {
+                    using CancellationTokenRegistration registration = token.Register(() =>
+                    {
+                        secondCancelled.TrySetResult(true);
+                        throw secondError;
+                    });
+                    secondEntered.TrySetResult(true);
+                    await secondCancelled.Task;
+                    token.ThrowIfCancellationRequested();
+                    return ServiceResult.Good;
+                }
+            };
+            Unit first = await runtime.AddUnitAsync(
+                new QualifiedName("FirstFailure", m_manager.InstanceNamespaceIndex), firstProvider);
+            Unit second = await runtime.AddUnitAsync(
+                new QualifiedName("SecondFailure", m_manager.InstanceNamespaceIndex), secondProvider);
+            var request = new PackMLRequest { Operation = PackMLOperation.SetMachSpeed, MachineSpeed = 5 };
+            Task<ServiceResult> firstRequest = first.RequestAsync(m_manager.SystemContext, request).AsTask();
+            Task<ServiceResult> secondRequest = second.RequestAsync(m_manager.SystemContext, request).AsTask();
+            await Task.WhenAll(firstEntered.Task, secondEntered.Task).WaitAsync(TimeSpan.FromSeconds(10));
+
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await runtime.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10))))!;
+
+            Assert.That(failure.Flatten().InnerExceptions, Does.Contain(firstError));
+            Assert.That(failure.Flatten().InnerExceptions, Does.Contain(secondError));
+            Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
+            await Assert.ThatAsync(async () => await firstRequest, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(async () => await secondRequest, Throws.InstanceOf<OperationCanceledException>());
+        }
+
         private void ConfigureServer(OpcUaServerOptions options)
         {
             options.ApplicationName = nameof(PackMLClientServerTests);

@@ -22,6 +22,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -47,21 +48,27 @@ namespace Opc.Ua.PackML.Server
             }
             RejectReentry();
             CancellationTokenSource pending;
+            Task predecessor;
+            var completed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             lock (m_sync)
             {
                 if (m_closed)
                 {
                     throw new ObjectDisposedException(nameof(PackMLLifetime));
                 }
+                if (m_providerActive > 0)
+                {
+                    throw new PackMLBusyException();
+                }
                 pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_stopping.Token);
+                predecessor = m_tail;
+                m_tail = completed.Task;
                 m_active++;
             }
-            bool entered = false;
             var execution = new Execution();
             try
             {
-                await m_gate.WaitAsync(pending.Token).ConfigureAwait(false);
-                entered = true;
+                await predecessor.ConfigureAwait(false);
                 pending.Token.ThrowIfCancellationRequested();
                 m_execution.Value = execution;
                 return await operation(pending.Token).ConfigureAwait(false);
@@ -71,10 +78,7 @@ namespace Opc.Ua.PackML.Server
                 execution.Active = false;
                 m_execution.Value = null;
                 pending.Dispose();
-                if (entered)
-                {
-                    m_gate.Release();
-                }
+                completed.TrySetResult(true);
                 Exit();
             }
         }
@@ -107,25 +111,102 @@ namespace Opc.Ua.PackML.Server
                 throw new ArgumentNullException(nameof(cleanup));
             }
             RejectReentry();
-            try
-            {
-                await DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                await cleanup().ConfigureAwait(false);
-            }
+            await CompleteShutdownAsync(ShutdownAsync, cleanup).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Closes admission and joins shutdown for concurrent disposal callers.
         /// </summary>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
+        {
+            return DisposeCoreAsync(false);
+        }
+
+        /// <summary>
+        /// Cancels and drains work on behalf of the hosting owner.
+        /// </summary>
+        internal ValueTask ShutdownAsync()
+        {
+            return DisposeCoreAsync(true);
+        }
+
+        /// <summary>
+        /// Invokes application provider code without holding a synchronization primitive.
+        /// </summary>
+        /// <typeparam name="T">The provider result type.</typeparam>
+        internal async ValueTask<T> CallProviderAsync<T>(Func<ValueTask<T>> callback)
+        {
+            if (callback is null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
+            lock (m_sync)
+            {
+                m_providerActive++;
+            }
+            try
+            {
+                return await callback().ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_sync)
+                {
+                    m_providerActive--;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Attempts owner cleanup after shutdown and retains errors from both phases.
+        /// </summary>
+        internal static async ValueTask CompleteShutdownAsync(Func<ValueTask> shutdown, Func<ValueTask> cleanup)
+        {
+            if (shutdown is null)
+            {
+                throw new ArgumentNullException(nameof(shutdown));
+            }
+            if (cleanup is null)
+            {
+                throw new ArgumentNullException(nameof(cleanup));
+            }
+            Exception? stopError = null;
+            try
+            {
+                await shutdown().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                stopError = exception;
+            }
+            try
+            {
+                await cleanup().ConfigureAwait(false);
+            }
+            catch (Exception cleanupError) when (stopError is not null)
+            {
+                throw new AggregateException("PackML shutdown and cleanup both failed.", stopError, cleanupError);
+            }
+            if (stopError is not null)
+            {
+                ExceptionDispatchInfo.Capture(stopError).Throw();
+            }
+        }
+
+        /// <summary>
+        /// Applies the distinction between direct disposal and host-owned shutdown.
+        /// </summary>
+        private async ValueTask DisposeCoreAsync(bool hostOwned)
         {
             RejectReentry();
             bool first;
             lock (m_sync)
             {
+                if (!hostOwned && m_providerActive > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Direct PackML disposal is unavailable while an application callback is active.");
+                }
                 first = !m_closed;
                 m_closed = true;
                 if (m_active == 0)
@@ -147,7 +228,6 @@ namespace Opc.Ua.PackML.Server
                 finally
                 {
                     await m_drained.Task.ConfigureAwait(false);
-                    m_gate.Dispose();
                     m_stopping.Dispose();
                 }
                 m_disposed.TrySetResult(true);
@@ -155,8 +235,8 @@ namespace Opc.Ua.PackML.Server
             catch (Exception exception)
             {
                 m_disposed.TrySetException(exception);
-                throw;
             }
+            await m_disposed.Task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -201,8 +281,11 @@ namespace Opc.Ua.PackML.Server
         /// <summary>Protects admission counts and shutdown flags.</summary>
         private readonly System.Threading.Lock m_sync = new();
 
-        /// <summary>Serializes admitted operations.</summary>
-        private readonly SemaphoreSlim m_gate = new(1, 1);
+        /// <summary>The completion of the last admitted operation.</summary>
+        private Task m_tail = Task.CompletedTask;
+
+        /// <summary>The number of equipment or persistence callbacks currently executing.</summary>
+        private int m_providerActive;
 
         /// <summary>Requests cancellation of active and queued operations.</summary>
         private readonly CancellationTokenSource m_stopping = new();
@@ -219,5 +302,35 @@ namespace Opc.Ua.PackML.Server
 
         /// <summary>The number of active and queued operations.</summary>
         private int m_active;
+    }
+
+    /// <summary>
+    /// Reports an operation that cannot enter while application provider code is outstanding.
+    /// </summary>
+    internal sealed class PackMLBusyException : InvalidOperationException
+    {
+        /// <summary>
+        /// Creates the documented per-unit busy error.
+        /// </summary>
+        public PackMLBusyException()
+            : base("The PackML unit has an application callback outstanding; retry after that operation finishes.")
+        {
+        }
+
+        /// <summary>
+        /// Creates a busy error with the supplied explanation.
+        /// </summary>
+        public PackMLBusyException(string message)
+            : base(message)
+        {
+        }
+
+        /// <summary>
+        /// Creates a busy error retaining its original cause.
+        /// </summary>
+        public PackMLBusyException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
     }
 }

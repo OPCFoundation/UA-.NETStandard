@@ -282,8 +282,15 @@ namespace Opc.Ua.PackML.Tests
             Task<ServiceResult> second = unit.RequestAsync(context, Command(PackMLCommand.Start)).AsTask();
             try
             {
-                Assert.That(second.IsCompleted, Is.False);
+                Assert.That((await second.WaitAsync(TimeSpan.FromSeconds(5))).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                 Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle), "not accepted yet");
+                Assert.That(unit.Node.Status.Required().CurMachSpeed.Required().Value, Is.EqualTo(12.5f));
+                await using Unit other = await Unit.CreateAsync(
+                    context, null, PackMLTestSupport.Name(context, "Other"), new EquipmentProvider());
+                Good(await other.RequestAsync(context, Command(PackMLCommand.Reset))
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+                Assert.That(other.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
             }
             finally
             {
@@ -317,7 +324,11 @@ namespace Opc.Ua.PackML.Tests
             await entered.Task;
             if (shutdown)
             {
-                await unit.DisposeAsync();
+                await Assert.ThatAsync(
+                    async () => await unit.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.InvalidOperationException);
+                Assert.That(request.IsCompleted, Is.False);
+                await unit.ShutdownAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             }
             else
             {
@@ -720,6 +731,273 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
             Assert.That(provider.Executed, Has.Count.EqualTo(2));
             Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[1].RequestId));
+        }
+
+        [TestCase(0, true)]
+        [TestCase(1, true)]
+        [TestCase(2, true)]
+        [TestCase(0, false)]
+        [TestCase(1, false)]
+        [TestCase(2, false)]
+        public async Task SuppressedContextProviderMutationIsRejectedWithoutWaiting(int phase, bool request)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            int rejected = 0;
+            provider.CallbackPhase = phase;
+            provider.Callback = async _ =>
+            {
+                Task reentry;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    reentry = Task.Run(async () =>
+                    {
+                        if (request)
+                        {
+                            Assert.That((await unit.RequestAsync(context, Command(PackMLCommand.Abort))).StatusCode,
+                                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                        }
+                        else
+                        {
+                            await Assert.ThatAsync(
+                                async () => await unit.RefreshAsync(),
+                                Throws.InstanceOf<InvalidOperationException>());
+                        }
+                    });
+                }
+                await reentry.WaitAsync(TimeSpan.FromSeconds(5));
+                rejected++;
+            };
+            if (phase == 2)
+            {
+                await unit.RefreshAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset))
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.That(rejected, Is.EqualTo(1));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            provider.Callback = null;
+        }
+
+        [Test]
+        public async Task SuppressedContextPersistenceReentryCannotWaitBehindItsCheckpoint()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var store = new MemoryAdministrationStore();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), provider,
+                new PackMLUnitOptions { AdministrationStore = store });
+            store.SaveCallback = async _ =>
+            {
+                Task reentry;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    reentry = Task.Run(async () =>
+                    {
+                        Assert.That((await unit.RequestAsync(context, Command(PackMLCommand.Reset))).StatusCode,
+                            Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                        await Assert.ThatAsync(
+                            async () => await unit.CheckpointAsync(),
+                            Throws.InstanceOf<InvalidOperationException>());
+                        await Assert.ThatAsync(async () => await unit.DisposeAsync(), Throws.InvalidOperationException);
+                    });
+                }
+                await reentry.WaitAsync(TimeSpan.FromSeconds(5));
+            };
+            await unit.CheckpointAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.That(store.Saves, Is.EqualTo(1));
+            Assert.That(provider.Executed, Is.Empty);
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
+            store.SaveCallback = null;
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+        }
+
+        [Test]
+        public async Task IdleDirectDisposalClosesAdmissionAndCanBeRepeated()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            await unit.DisposeAsync();
+            await unit.DisposeAsync();
+            await Assert.ThatAsync(async () => await unit.RefreshAsync(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(provider.Executed, Is.Empty);
+        }
+
+        [Test]
+        public async Task HostShutdownWaitsForProviderDrainAndSharesTheShutdownOutcome()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            var entered = PackMLTestSupport.Signal();
+            var cancelled = PackMLTestSupport.Signal();
+            var release = PackMLTestSupport.Signal();
+            provider.Execute = async (_, token) =>
+            {
+                using CancellationTokenRegistration registration = token.Register(() => cancelled.TrySetResult(true));
+                entered.TrySetResult(true);
+                await release.Task;
+                token.ThrowIfCancellationRequested();
+                return ServiceResult.Good;
+            };
+            Task<ServiceResult> request = unit.RequestAsync(context, Command(PackMLCommand.Reset)).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Task shutdown = unit.ShutdownAsync().AsTask();
+            Task concurrentShutdown = unit.ShutdownAsync().AsTask();
+            try
+            {
+                await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.That(shutdown.IsCompleted, Is.False);
+                Assert.That(concurrentShutdown.IsCompleted, Is.False);
+                Assert.That(request.IsCompleted, Is.False);
+                await Assert.ThatAsync(async () => await unit.DisposeAsync(), Throws.InvalidOperationException);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await Task.WhenAll(shutdown, concurrentShutdown).WaitAsync(TimeSpan.FromSeconds(5));
+            await Assert.ThatAsync(async () => await request, Throws.InstanceOf<OperationCanceledException>());
+            await unit.DisposeAsync();
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task SuppressedContextProviderDisposalIsRejectedWithoutClosingTheUnit(int phase)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            int rejected = 0;
+            provider.CallbackPhase = phase;
+            provider.Callback = async _ =>
+            {
+                Task disposal;
+                using (ExecutionContext.SuppressFlow())
+                {
+                    disposal = Task.Run(async () => await unit.DisposeAsync());
+                }
+                await Assert.ThatAsync(
+                    async () => await disposal.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.InvalidOperationException);
+                rejected++;
+            };
+            if (phase == 2)
+            {
+                await unit.RefreshAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset))
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.That(rejected, Is.EqualTo(1));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            provider.Callback = null;
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Idle));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ShutdownPreservesCancellationAndCleanupFailures(bool cleanupFails)
+        {
+            var lifetime = new PackMLLifetime();
+            var entered = PackMLTestSupport.Signal();
+            var cancelled = PackMLTestSupport.Signal();
+            var cancellationError = new InvalidOperationException("Cancellation callback failed.");
+            var cleanupError = new InvalidOperationException("Owner cleanup failed.");
+            Task operation = lifetime.RunAsync(async token =>
+            {
+                using CancellationTokenRegistration registration = token.Register(() =>
+                {
+                    cancelled.TrySetResult(true);
+                    throw cancellationError;
+                });
+                entered.TrySetResult(true);
+                await cancelled.Task;
+                token.ThrowIfCancellationRequested();
+            }, CancellationToken.None).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            bool cleanupAttempted = false;
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await lifetime.StopAsync(() =>
+                {
+                    cleanupAttempted = true;
+                    if (cleanupFails)
+                    {
+                        throw cleanupError;
+                    }
+                    return default;
+                })
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5))))!;
+            Assert.That(cleanupAttempted, Is.True);
+            Assert.That(failure.Flatten().InnerExceptions, Does.Contain(cancellationError));
+            Assert.That(failure.Flatten().InnerExceptions.Contains(cleanupError), Is.EqualTo(cleanupFails));
+            Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(cleanupFails ? 2 : 1));
+            await Assert.ThatAsync(async () => await operation, Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        [Test]
+        public async Task BusyAdmissionPreservesOperationsAdmittedBeforeTheProviderStarted()
+        {
+            await using var lifetime = new PackMLLifetime();
+            var firstEntered = PackMLTestSupport.Signal();
+            var beginProvider = PackMLTestSupport.Signal();
+            var providerEntered = PackMLTestSupport.Signal();
+            var releaseProvider = PackMLTestSupport.Signal();
+            int order = 0;
+            int firstOrder = 0;
+            int secondOrder = 0;
+            Task first = lifetime.RunAsync(async _ =>
+            {
+                firstEntered.TrySetResult(true);
+                await beginProvider.Task;
+                await lifetime.CallProviderAsync(async () =>
+                {
+                    providerEntered.TrySetResult(true);
+                    await releaseProvider.Task;
+                    return true;
+                });
+                firstOrder = ++order;
+            }, CancellationToken.None).AsTask();
+            await firstEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Task second = lifetime.RunAsync(_ =>
+            {
+                secondOrder = ++order;
+                return default;
+            }, CancellationToken.None).AsTask();
+            beginProvider.TrySetResult(true);
+            await providerEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            try
+            {
+                Assert.That(second.IsCompleted, Is.False);
+                await Assert.ThatAsync(
+                    async () => await lifetime.RunAsync(_ => default(ValueTask), CancellationToken.None),
+                    Throws.InstanceOf<InvalidOperationException>());
+            }
+            finally
+            {
+                releaseProvider.TrySetResult(true);
+            }
+            await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.That(firstOrder, Is.EqualTo(1));
+            Assert.That(secondOrder, Is.EqualTo(2));
+            Assert.That(order, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ShutdownPreservesCleanupFailureAfterSuccessfulDrain()
+        {
+            var lifetime = new PackMLLifetime();
+            var cleanupError = new InvalidOperationException("Owner cleanup failed.");
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await lifetime.StopAsync(() => throw cleanupError)))!;
+            Assert.That(failure, Is.SameAs(cleanupError));
+            await lifetime.DisposeAsync();
         }
 
         [Test]

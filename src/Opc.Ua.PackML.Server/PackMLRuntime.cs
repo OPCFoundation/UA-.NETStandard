@@ -216,9 +216,21 @@ namespace Opc.Ua.PackML.Server
             var shutdown = new Task[units.Count];
             for (int index = 0; index < units.Count; index++)
             {
-                shutdown[index] = units[index].DisposeAsync().AsTask();
+                shutdown[index] = units[index].ShutdownAsync().AsTask();
             }
-            await Task.WhenAll(shutdown).ConfigureAwait(false);
+            Task all = Task.WhenAll(shutdown);
+            try
+            {
+                await all.ConfigureAwait(false);
+            }
+            catch
+            {
+                if (all.Exception is { } errors)
+                {
+                    throw errors;
+                }
+                throw;
+            }
         }
 
         /// <summary>The borrowed address-space owner.</summary>

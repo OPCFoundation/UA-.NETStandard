@@ -77,14 +77,9 @@ namespace Opc.Ua.PackML.Server
         /// <inheritdoc/>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            try
-            {
-                await Runtime.DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
-            }
+            await PackMLLifetime.CompleteShutdownAsync(
+                Runtime.DisposeAsync,
+                () => base.DeleteAddressSpaceAsync(cancellationToken)).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -99,14 +94,8 @@ namespace Opc.Ua.PackML.Server
         /// <inheritdoc/>
         protected override async ValueTask DisposeAsyncCore()
         {
-            try
-            {
-                await Runtime.DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                await base.DisposeAsyncCore().ConfigureAwait(false);
-            }
+            await PackMLLifetime.CompleteShutdownAsync(
+                Runtime.DisposeAsync, () => base.DisposeAsyncCore()).ConfigureAwait(false);
         }
 
         /// <summary>

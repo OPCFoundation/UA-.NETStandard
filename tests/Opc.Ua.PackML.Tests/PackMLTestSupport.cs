@@ -135,22 +135,27 @@ namespace Opc.Ua.PackML.Tests
         public int Loads { get; private set; }
         public int Saves { get; private set; }
         public Exception? SaveException { get; set; }
+        public Func<CancellationToken, ValueTask>? SaveCallback { get; set; }
         public ValueTask<PackMLAdministrationSnapshot?> LoadAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Loads++;
             return new(Snapshot);
         }
-        public ValueTask SaveAsync(PackMLAdministrationSnapshot snapshot, CancellationToken cancellationToken = default)
+        public async ValueTask SaveAsync(
+            PackMLAdministrationSnapshot snapshot, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (SaveException is { } exception)
             {
                 throw exception;
             }
+            if (SaveCallback is { } callback)
+            {
+                await callback(cancellationToken);
+            }
             Saves++;
             Snapshot = snapshot;
-            return default;
         }
     }
 }

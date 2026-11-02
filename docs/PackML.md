@@ -113,13 +113,33 @@ duplicate completion or completion for a superseded request returns
 command; its completion uses the new identity.
 
 Operations on one unit are serialized, including provider calls, snapshots,
-completion and checkpoints. A call back into the same unit from a provider
-callback's asynchronous execution context throws `InvalidOperationException`
-before admission, rather than waiting behind its own operation. This also
-applies to disposal and persistence callbacks. Independent callers remain
-serialized. Shutdown cancels active and queued provider work and waits
-for it to finish; providers must observe the supplied cancellation token.
-Provider exceptions and store errors are propagated to the caller.
+completion and checkpoints. No synchronization primitive is held while
+application callbacks execute. Operations already admitted execute in admission
+order unless canceled before starting. While equipment or persistence work is outstanding, newly arriving
+mutations on that unit are rejected instead of waiting behind the callback:
+`RequestAsync` returns `BadInvalidState`, and refresh, completion, administration
+publication and checkpoint APIs throw `InvalidOperationException`. All mutation
+APIs throw `InvalidOperationException` for reentry through the current callback's
+execution context. Suppressed execution contexts follow the same busy-admission
+policy as independent callers.
+Reads of published values and operations on independent units remain available.
+Callbacks must not await a previously captured, queued mutation of the same unit:
+that admitted operation still follows the callback in execution order.
+This is the runtime's concurrency policy, not an OPC 30050 requirement;
+[OPC 30050 v1.01 section 6.7.9](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.7.9)
+describes `BadInvalidState` for an object in an invalid state, rather than a
+general prohibition on concurrent calls.
+
+Direct `DisposeAsync` throws `InvalidOperationException` while an application
+callback is active; it does not report successful disposal or close admission.
+The host-owned runtime has a separate internal shutdown path that cancels active
+and admitted work and waits for it to finish before address-space deletion.
+Equipment providers do not receive that shutdown authority. A direct unit owner
+must cancel its operation through the supplied cancellation token and await it
+before disposing the idle unit. Providers must observe cancellation. Idle direct
+disposal still drains admitted work, and all disposal paths report their failures.
+When both shutdown and owner cleanup fail, an `AggregateException` retains both
+errors. Provider exceptions and store errors are propagated to the caller.
 
 A cancellation, timeout or transport failure after a request has been sent can
 leave the equipment outcome unknown. The client does not retry such a command.
