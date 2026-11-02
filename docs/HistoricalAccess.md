@@ -377,7 +377,10 @@ mapping without changing node attributes.
 The standard fluent `.Historize(provider: ...)` path reserves the new mapping
 before changing variable attributes. If setup fails, it restores the prior exact
 mapping, registration identity and attributes. An owner that disposed during setup
-is not restored, and a later replacement is not removed by that rollback.
+is not restored. Resolution and advertised providers retain the committed provider
+until setup commits. While a replacement is reserved, a competing registration,
+unregistration or replacement for that node is rejected before mutation; other
+nodes remain available.
 Successful setup retains the new binding even if an older scoped owner disposes
 between the attribute changes and completion.
 Injected registries can implement `IHistorianNodeReplacementRegistry` and return

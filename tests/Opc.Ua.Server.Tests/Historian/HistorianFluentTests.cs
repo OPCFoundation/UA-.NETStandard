@@ -367,6 +367,8 @@ namespace Opc.Ua.Server.Tests.Historian
                     It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
                 .Returns(() =>
                 {
+                    Assert.That(storageRegistry.Resolve(node.NodeId), Is.SameAs(previous));
+                    Assert.That(storageRegistry.Providers.Contains(replacement), Is.False);
                     if (disposePreviousDuringSetup)
                     {
                         oldBinding!.Dispose();
@@ -388,7 +390,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 Assert.That(node.Historizing, Is.EqualTo(!disposePreviousDuringSetup));
                 byte expectedAccess = disposePreviousDuringSetup
                     ? AccessLevels.CurrentRead
-                    : AccessLevels.CurrentRead | AccessLevels.HistoryRead;
+                    : (byte)(AccessLevels.CurrentRead | AccessLevels.HistoryRead);
                 Assert.That(node.AccessLevel, Is.EqualTo(expectedAccess));
                 Assert.That(node.UserAccessLevel, Is.EqualTo(expectedAccess));
                 oldBinding!.Dispose();
@@ -411,10 +413,10 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Failed fluent setup cannot undo an independently installed later mapping or its attributes.
+        /// A competing mutation is rejected before it can change an in-progress fluent replacement.
         /// </summary>
         [Test]
-        public void FailedExplicitProviderReplacementPreservesALaterOwner()
+        public void ExplicitProviderReplacementRejectsConcurrentMutationBeforeChangingTheOwner()
         {
             IServerInternal server = CreateServerWithRegistry();
             var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
@@ -435,20 +437,21 @@ namespace Opc.Ua.Server.Tests.Historian
                     It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
                 .Returns(() =>
                 {
-                    registry.RegisterForNode(node.NodeId, later);
-                    node.Historizing = true;
-                    node.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
-                    node.UserAccessLevel = AccessLevels.HistoryWrite;
-                    throw new InvalidOperationException("Replacement setup failed after a later owner registered.");
+                    Assert.That(registry.Resolve(node.NodeId), Is.SameAs(previous));
+                    Assert.Throws<InvalidOperationException>(() => registry.RegisterForNode(node.NodeId, later));
+                    Assert.That(registry.Resolve(node.NodeId), Is.SameAs(previous));
+                    throw new InvalidOperationException("Replacement setup failed.");
                 });
 
             Assert.Throws<InvalidOperationException>(() =>
                 builder.Variable<int>(node.NodeId).Historize(provider: attempted, autoCapture: false));
-            oldBinding!.Dispose();
-            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(later));
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(previous));
             Assert.That(node.Historizing, Is.True);
-            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
-            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryWrite));
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryRead));
+            oldBinding!.Dispose();
+            Assert.That(registry.Resolve(node.NodeId), Is.Null);
+            Assert.That(node.Historizing, Is.False);
         }
 
         /// <summary>

@@ -158,8 +158,10 @@ namespace Opc.Ua.Server.Historian
     {
         /// <summary>
         /// Reserves a replacement before the caller changes historian attributes.
+        /// Resolution and provider advertisement retain the committed provider until Commit succeeds.
+        /// Conflicting replacement or registration changes must be rejected before mutation while reserved.
         /// Disposing without committing restores the prior mapping, registration identity and attributes,
-        /// unless that prior owner disposed or a later registration superseded the reservation.
+        /// unless that prior owner disposed during setup, in which case it must not be restored.
         /// </summary>
         /// <param name="node">The variable whose historian binding is being replaced.</param>
         /// <param name="provider">The replacement provider.</param>

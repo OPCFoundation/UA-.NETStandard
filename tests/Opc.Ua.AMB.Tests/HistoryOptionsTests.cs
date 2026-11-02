@@ -250,6 +250,90 @@ namespace Opc.Ua.AMB.Tests
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReplacementReservationsKeepUncommittedProvidersInvisibleAndRejectOverlapAsync(bool commit)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var original = new InMemoryHistorianProvider();
+            using var attempted = new InMemoryHistorianProvider();
+            using var conflicting = new InMemoryHistorianProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("pending", 1),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            Assert.That(registry.TryRegisterForNode(node, original, out IDisposable? owner), Is.True);
+            node.Historizing = true;
+            node.AccessLevel |= AccessLevels.HistoryRead;
+            node.UserAccessLevel |= AccessLevels.HistoryRead;
+            var replacements = (IHistorianNodeReplacementRegistry)registry;
+            using (IHistorianNodeReplacement pending = replacements.BeginNodeReplacement(node, attempted))
+            {
+                node.AccessLevel |= AccessLevels.HistoryWrite;
+                await Task.Run(() =>
+                {
+                    Assert.That(registry.Resolve(node.NodeId), Is.SameAs(original));
+                    Assert.That(registry.Providers.Contains(attempted), Is.False);
+                    Assert.Throws<InvalidOperationException>(() =>
+                        replacements.BeginNodeReplacement(node, conflicting));
+                    Assert.Throws<InvalidOperationException>(() => registry.RegisterForNode(node.NodeId, conflicting));
+                    Assert.Throws<InvalidOperationException>(() => registry.UnregisterForNode(node.NodeId));
+                    Assert.That(registry.TryRegisterForNode(node, conflicting, out IDisposable? rejected), Is.False);
+                    Assert.That(rejected, Is.Null);
+                }).ConfigureAwait(false);
+                owner!.Dispose();
+                Assert.That(node.Historizing, Is.True);
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(original));
+                if (commit)
+                {
+                    pending.Commit();
+                    Assert.That(registry.Resolve(node.NodeId), Is.SameAs(attempted));
+                }
+            }
+            if (commit)
+            {
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(attempted));
+                Assert.That(node.Historizing, Is.True);
+                Assert.That(node.AccessLevel, Is.EqualTo(
+                    AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead | AccessLevels.HistoryRead));
+            }
+            else
+            {
+                Assert.That(registry.Resolve(node.NodeId), Is.Null);
+                Assert.That(node.Historizing, Is.False);
+                Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            }
+            Assert.That(registry.Providers.Contains(conflicting), Is.False);
+            Assert.That(registry.Providers.Contains(attempted), Is.EqualTo(commit));
+        }
+
+        [Test]
+        public void FailedReservationDoesNotBecomeTheOwnerRestoredByASubsequentFailure()
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var original = new InMemoryHistorianProvider();
+            using var failed = new InMemoryHistorianProvider();
+            using var later = new InMemoryHistorianProvider();
+            var node = new BaseDataVariableState(null) { NodeId = new NodeId("overlap", 1) };
+            registry.RegisterForNode(node.NodeId, original);
+            var replacements = (IHistorianNodeReplacementRegistry)registry;
+            using (IHistorianNodeReplacement first = replacements.BeginNodeReplacement(node, failed))
+            {
+                Assert.Throws<InvalidOperationException>(() => replacements.BeginNodeReplacement(node, later));
+            }
+            using (IHistorianNodeReplacement second = replacements.BeginNodeReplacement(node, later))
+            {
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(original));
+            }
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(original));
+            Assert.That(registry.Providers.Contains(failed), Is.False);
+            Assert.That(registry.Providers.Contains(later), Is.False);
+        }
+
         [Test]
         public async Task MemoryProvisioningPreservesExplicitCapabilitiesAsync()
         {

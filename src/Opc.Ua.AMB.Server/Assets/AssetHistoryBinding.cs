@@ -120,14 +120,14 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 return;
             }
-            List<Exception>? failures = null;
+            var failures = new List<Exception>();
             try
             {
                 await m_builder.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception failure)
             {
-                (failures ??= []).Add(failure);
+                failures.Add(failure);
             }
             try
             {
@@ -135,7 +135,7 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             catch (Exception failure)
             {
-                (failures ??= []).Add(failure);
+                failures.Add(failure);
             }
             try
             {
@@ -143,10 +143,10 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             catch (Exception failure)
             {
-                (failures ??= []).Add(failure);
+                failures.Add(failure);
             }
             Kinds = AssetHistoryKinds.None;
-            if (failures != null)
+            if (failures.Count != 0)
             {
                 throw new AggregateException("Asset history cleanup failed.", failures);
             }

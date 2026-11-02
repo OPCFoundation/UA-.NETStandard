@@ -67,6 +67,7 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                RejectPendingReplacement(nodeId);
                 m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
                 m_nodeBindings.Remove(nodeId);
@@ -167,6 +168,7 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                RejectPendingReplacement(nodeId);
                 if (m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider))
                 {
                     m_nodes.Remove(nodeId);
@@ -264,6 +266,7 @@ namespace Opc.Ua.Server.Historian
                 providers = [.. m_ownedProviders];
                 m_nodes.Clear();
                 m_nodeBindings.Clear();
+                m_pendingReplacements.Clear();
                 m_namespaces.Clear();
                 m_default = null;
                 m_providers.Clear();
@@ -301,17 +304,12 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_lock)
             {
+                RejectPendingReplacement(node.NodeId);
                 m_nodes.TryGetValue(node.NodeId, out IHistorianProvider? previousProvider);
                 m_nodeBindings.TryGetValue(node.NodeId, out NodeBinding? previousBinding);
                 var current = new NodeBinding(this, node.NodeId, node);
-                m_nodes[node.NodeId] = provider;
-                m_nodeBindings[node.NodeId] = current;
-                AddProvider(provider, ownsProvider: true);
-                if (previousProvider != null)
-                {
-                    RebuildProviderSet(previousProvider);
-                }
-                return new NodeReplacement(this, node.NodeId, current, previousProvider, previousBinding);
+                m_pendingReplacements.Add(node.NodeId, current);
+                return new NodeReplacement(this, node.NodeId, current, provider, previousProvider, previousBinding);
             }
         }
 
@@ -334,7 +332,7 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_lock)
             {
-                if (m_nodes.ContainsKey(nodeId))
+                if (m_nodes.ContainsKey(nodeId) || m_pendingReplacements.ContainsKey(nodeId))
                 {
                     binding = null;
                     return false;
@@ -356,6 +354,10 @@ namespace Opc.Ua.Server.Historian
             lock (m_lock)
             {
                 binding.IsDisposed = true;
+                if (m_pendingReplacements.ContainsKey(nodeId))
+                {
+                    return;
+                }
                 if (m_nodeBindings.TryGetValue(nodeId, out NodeBinding? current) &&
                     ReferenceEquals(current, binding))
                 {
@@ -376,43 +378,55 @@ namespace Opc.Ua.Server.Historian
         private void CompleteNodeReplacement(
             NodeId nodeId,
             NodeBinding current,
+            IHistorianProvider provider,
             IHistorianProvider? previousProvider,
             NodeBinding? previousBinding,
             bool commit)
         {
             lock (m_lock)
             {
-                if (!m_nodeBindings.TryGetValue(nodeId, out NodeBinding? active) || !ReferenceEquals(active, current))
+                if (!m_pendingReplacements.TryGetValue(nodeId, out NodeBinding? active) ||
+                    !ReferenceEquals(active, current))
                 {
                     return;
                 }
-                m_nodeBindings.Remove(nodeId);
+                m_pendingReplacements.Remove(nodeId);
                 if (commit)
                 {
+                    m_nodes[nodeId] = provider;
+                    m_nodeBindings.Remove(nodeId);
+                    AddProvider(provider, ownsProvider: true);
+                    if (previousProvider != null)
+                    {
+                        RebuildProviderSet(previousProvider);
+                    }
                     return;
                 }
-                m_nodes.TryRemove(nodeId, out IHistorianProvider? replacedProvider);
                 if (previousBinding?.IsDisposed == true)
                 {
                     previousBinding.RestoreAttributes();
+                    m_nodes.Remove(nodeId);
+                    m_nodeBindings.Remove(nodeId);
+                    if (previousProvider != null)
+                    {
+                        RebuildProviderSet(previousProvider);
+                    }
                 }
                 else
                 {
                     current.RestoreAttributes();
-                    if (previousProvider != null)
-                    {
-                        m_nodes[nodeId] = previousProvider;
-                        AddProvider(previousProvider, ownsProvider: true);
-                    }
-                    if (previousBinding != null)
-                    {
-                        m_nodeBindings[nodeId] = previousBinding;
-                    }
                 }
-                if (replacedProvider != null)
-                {
-                    RebuildProviderSet(replacedProvider);
-                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects competing mutations before they can alter an in-progress replacement.
+        /// </summary>
+        private void RejectPendingReplacement(NodeId nodeId)
+        {
+            if (m_pendingReplacements.ContainsKey(nodeId))
+            {
+                throw new InvalidOperationException("A historian replacement is already being configured for this node.");
             }
         }
 
@@ -545,12 +559,14 @@ namespace Opc.Ua.Server.Historian
                 HistorianProviderRegistry registry,
                 NodeId nodeId,
                 NodeBinding current,
+                IHistorianProvider provider,
                 IHistorianProvider? previousProvider,
                 NodeBinding? previousBinding)
             {
                 m_registry = registry;
                 m_nodeId = nodeId;
                 m_current = current;
+                m_provider = provider;
                 m_previousProvider = previousProvider;
                 m_previousBinding = previousBinding;
             }
@@ -577,7 +593,7 @@ namespace Opc.Ua.Server.Historian
                 if (Interlocked.Exchange(ref m_completed, 1) == 0)
                 {
                     m_registry.CompleteNodeReplacement(
-                        m_nodeId, m_current, m_previousProvider, m_previousBinding, commit);
+                        m_nodeId, m_current, m_provider, m_previousProvider, m_previousBinding, commit);
                 }
             }
 
@@ -589,6 +605,9 @@ namespace Opc.Ua.Server.Historian
 
             /// <summary>The reservation identity.</summary>
             private readonly NodeBinding m_current;
+
+            /// <summary>The provider published only after setup commits.</summary>
+            private readonly IHistorianProvider m_provider;
 
             /// <summary>The prior exact-node provider, if any.</summary>
             private readonly IHistorianProvider? m_previousProvider;
@@ -606,6 +625,9 @@ namespace Opc.Ua.Server.Historian
 
         /// <summary>Identities of detachable bindings, distinct from provider identity.</summary>
         private readonly NodeIdDictionary<NodeBinding> m_nodeBindings = [];
+
+        /// <summary>Unpublished replacements that exclude competing mutations for the same node.</summary>
+        private readonly NodeIdDictionary<NodeBinding> m_pendingReplacements = [];
 
         private readonly Dictionary<string, IHistorianProvider> m_namespaces = new(StringComparer.Ordinal);
         private readonly HashSet<IHistorianProvider> m_providers = [];
