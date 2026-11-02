@@ -117,6 +117,7 @@ namespace Opc.Ua.SourceGeneration
                     OptimizeForCompileSpeed =
                         m_compilationOptions.OptimizationLevel == OptimizationLevel.Debug,
                     OmitObjectTypeProxies = m_options.OmitObjectTypeProxies,
+                    ObjectTypeProxyMethodsWithStatus = m_options.ObjectTypeProxyMethodsWithStatus,
                     ObjectTypeProxyNamespace =
                         string.IsNullOrWhiteSpace(m_options.ObjectTypeProxyNamespace)
                             ? null

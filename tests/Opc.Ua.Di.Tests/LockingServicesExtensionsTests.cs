@@ -28,9 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Di.Server.Locking;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Tests
 {
@@ -93,12 +96,6 @@ namespace Opc.Ua.Di.Tests
 
             Assert.DoesNotThrow(() => lockState.BindToLockService(s_elementId, service));
         }
-
-        // -----------------------------------------------------------------
-        // Behavioural tests — verify that the OnCall delegate installed by
-        // BindToLockService routes through to the supplied ILockService and
-        // propagates the integer status via the ref parameter.
-        // -----------------------------------------------------------------
 
         [Test]
         public void BindToLockServiceRoutesInitLockToService()
@@ -172,7 +169,16 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public void BindToLockServiceRoutesBreakLockToService()
         {
-            ISystemContext ctx = Mock.Of<ISystemContext>();
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_SecurityAdmin]);
+            var channel = new SecureChannelContext(
+                "test-channel",
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                RequestEncoding.Binary);
+            using var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity.Object);
+            var ctx = new SessionSystemContext(operation, telemetry: null!);
             var service = new Mock<ILockService>(MockBehavior.Strict);
             service.Setup(s => s.BreakLock(ctx, s_elementId)).Returns(99);
 
@@ -190,6 +196,44 @@ namespace Opc.Ua.Di.Tests
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That(status, Is.EqualTo(99));
             service.Verify(s => s.BreakLock(ctx, s_elementId), Times.Once);
+        }
+
+        [Test]
+        public void BindToLockServiceRejectsUnauthorizedBreakWithoutCallingLegacyProvider()
+        {
+            var service = new Mock<ILockService>(MockBehavior.Strict);
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_Operator]);
+            var channel = new SecureChannelContext(
+                "test-channel",
+                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                RequestEncoding.Binary);
+            using var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity.Object);
+            var context = new SessionSystemContext(operation, telemetry: null!);
+            var lockState = new LockingServicesState(parent: null)
+            {
+                BreakLock = new BreakLockMethodState(parent: null)
+            };
+            lockState.BindToLockService(s_elementId, service.Object);
+            int status = 99;
+
+            ServiceResult result = lockState.BreakLock!.OnCall!(
+                context, lockState.BreakLock, NodeId.Null, ref status);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(status, Is.EqualTo(99));
+            service.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public void LegacyProviderDoesNotRequireOwnershipCapability()
+        {
+            ILockService service = new Mock<ILockService>().Object;
+            Assert.That(service, Is.Not.InstanceOf<ILockOwnershipService>());
+            var state = new LockingServicesState(parent: null);
+            Assert.DoesNotThrow(() => state.BindToLockService(s_elementId, service));
         }
 
         [Test]
@@ -217,6 +261,46 @@ namespace Opc.Ua.Di.Tests
             Assert.That(lockState.ExitLock!.OnCall, Is.Not.Null);
             Assert.That(lockState.RenewLock, Is.Null);
             Assert.That(lockState.BreakLock, Is.Null);
+        }
+
+        /// <summary>
+        /// Proves metadata reads and monitored refreshes reflect expiry without renewing the lease.
+        /// </summary>
+        [Test]
+        public async Task LockMetadataUsesAuthoritativeLeaseAndMillisecondDuration()
+        {
+            var service = new Mock<ILockService>(MockBehavior.Strict);
+            LockState current = new(true, "client", "user", 2.5);
+            service.Setup(value => value.GetState(s_elementId)).Returns(() => current);
+            var state = new LockingServicesState(null)
+            {
+                Locked = new PropertyState<bool>(null),
+                LockingClient = new PropertyState<string>(null),
+                LockingUser = new PropertyState<string>(null),
+                RemainingLockTime = new PropertyState<double>(null)
+            };
+            ISystemContext context = Mock.Of<ISystemContext>();
+            state.BindToLockService(s_elementId, service.Object);
+
+            AttributeSimpleReadResult read = await state.RemainingLockTime.OnSimpleReadValueAsync!(
+                context, state.RemainingLockTime, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(read.Value.TryGetDouble(out double remaining), Is.True);
+            Assert.That(remaining, Is.EqualTo(2500));
+
+            await state.RefreshLockStateAsync(service.Object, s_elementId, context).ConfigureAwait(false);
+            Assert.That(state.Locked.Value, Is.True);
+            Assert.That(state.LockingClient.Value, Is.EqualTo("client"));
+            Assert.That(state.LockingUser.Value, Is.EqualTo("user"));
+            Assert.That(state.RemainingLockTime.Value, Is.EqualTo(2500));
+
+            current = new LockState(false, string.Empty, string.Empty, 0);
+            await state.RefreshLockStateAsync(service.Object, s_elementId, context).ConfigureAwait(false);
+            Assert.That(state.Locked.Value, Is.False);
+            Assert.That(state.LockingClient.Value, Is.Empty);
+            Assert.That(state.LockingUser.Value, Is.Empty);
+            Assert.That(state.RemainingLockTime.Value, Is.Zero);
+            service.Verify(value => value.GetState(s_elementId), Times.Exactly(3));
+            service.VerifyNoOtherCalls();
         }
     }
 }

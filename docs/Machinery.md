@@ -103,6 +103,11 @@ The Machinery models compose types from these companion specifications:
 | `Opc.Ua.ECM` | OPC 34100 Energy Consumption Management | 40001-4's energy carriers are instances of ECM's `EnergyMeasurementValueType`. |
 | `Opc.Ua.ISA95` | OPC 10031-4 ISA-95 Job Control V2 | 40001-3's `JobManagementType` composes the Job Control V2 receiver and response provider. |
 
+For standalone OPC 34100 standby and WOL bindings without the Machinery
+Consumption hierarchy, see [Energy Consumption Management](ECM.md).
+Standalone ECM measurement profiles and accuracy/statistics integration
+remain pending; Machinery's existing energy APIs retain their current behavior.
+
 The model reference graph:
 
 ```mermaid

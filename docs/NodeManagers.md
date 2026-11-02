@@ -237,6 +237,18 @@ Subclasses must await their teardown operations before the callback returns.
 Operation lifetime extends through post-processing callbacks even after their
 semaphore scope has ended.
 
+Derived managers use the protected `ExecuteNodeManagerOperationAsync<T>` helper
+for application-facing operations that acquire provider data and then register
+or remove nodes. The helper awaits the complete callback before releasing
+admission, so shutdown waits for its registration and rollback work. Nested
+manager calls remain available to that callback after shutdown rejects new
+operations. Await all work inside the callback; a background task that outlives
+it does not retain access. The caller's cancellation token is passed through
+unchanged, and shutdown does not cancel it. A provider must therefore finish
+its acquisition or observe caller cancellation before disposal can complete.
+Do not await the manager's own `DisposeAsync()` inside the callback, because
+disposal is waiting for that callback to return.
+
 `CustomNodeManager2` also closes admission before releasing its monitored-item
 manager. Its synchronous service and lifecycle calls, and its optional
 asynchronous method callbacks, retain operation leases until they return.

@@ -262,6 +262,7 @@ limitations and the actual configured instance before claiming a facet.
 | [AI](AI.md), [xRegistry](XRegistry.md), [OpenUSD](OpenUsd.md) | Model/deployment/inference services, registry/version/federation and scene/address-space integration | Draft extension models; preview-only families, with provider/backend-specific limits |
 | [WoT Connectivity](WotCon.md) | OPC 10100-1 interfaces and WoT conversion/binding implementations | Preview package policy; registry extensions and transport-specific bindings have separate scope |
 | [PA-DIM/ECM](Machinery.md) and [PackML](Scales.md) | Shared generated dependency models and the behavior bound by Machinery/Scales | Not a blanket standalone device or all-facet implementation claim |
+| [Standalone ECM](ECM.md) | Provider-backed standby and simulated WOL runtime | Partial: standalone measurement profiles, accuracy and shared statistics integration remain pending |
 
 Package preview status is governed by [the release policy](ReleaseProcess.md#terms),
 not by a specification's publication date. The MachineTool/GMS and released

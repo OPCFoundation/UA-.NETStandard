@@ -197,6 +197,9 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [Energy Consumption Management](ECM.md) (OPC 34100) — provider-backed
+  standby and simulated WOL sleep, with standalone measurement integration
+  still pending.
 - [Composing DI companions](DeviceIntegration.md#composing-companion-models) — add several DI device
   families and their models to one server's `DeviceSet`.
 - [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical
