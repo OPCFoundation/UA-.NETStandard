@@ -385,6 +385,9 @@ Registry shutdown invalidates pending reservations. A later commit throws
 `ObjectDisposedException`, restores the pre-setup attributes and leaves the
 registry empty; it cannot report a successful unpublished binding. The fluent
 path detaches and cancels raw capture created by the failed setup.
+If capture cleanup or replacement rollback also throws, the fluent operation
+reports an `AggregateException` containing the initiating error and each cleanup
+error. If cleanup succeeds, the initiating error is rethrown unchanged.
 Successful setup retains the new binding even if an older scoped owner disposes
 between the attribute changes and completion.
 Injected registries can implement `IHistorianNodeReplacementRegistry` and return

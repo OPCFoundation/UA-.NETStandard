@@ -520,6 +520,59 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// A custom replacement's rollback error cannot hide the initiating setup or commit failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExplicitProviderReplacementPreservesSetupAndRollbackFailuresAsync(bool failCommit)
+        {
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            var replacement = new Mock<IHistorianNodeReplacement>(MockBehavior.Strict);
+            registry.As<IHistorianNodeReplacementRegistry>()
+                .Setup(value => value.BeginNodeReplacement(
+                    It.IsAny<BaseVariableState>(), It.IsAny<IHistorianProvider>()))
+                .Returns(replacement.Object);
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders, registry.Object);
+            var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
+            {
+                CallBase = true
+            };
+            (NodeManagerBuilder builder, BaseDataVariableState node) =
+                CreateBuilderForServer(server, variable.Object);
+            using var provider = new InMemoryHistorianProvider();
+            var setupFailure = new InvalidOperationException("The replacement setup failed.");
+            var rollbackFailure = new InvalidOperationException("The replacement rollback failed.");
+            variable.Setup(value => value.FindChild(
+                    It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
+                .Returns(() => failCommit ? null : throw setupFailure);
+            replacement.Setup(value => value.Commit()).Throws(setupFailure);
+            replacement.Setup(value => value.Dispose()).Throws(rollbackFailure);
+
+            AggregateException? failure = Assert.Throws<AggregateException>(() =>
+                builder.Variable<int>(node.NodeId).Historize(provider: provider));
+
+            Assert.That(failure!.Flatten().InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(failure.Flatten().InnerExceptions[0], Is.SameAs(setupFailure));
+            Assert.That(failure.Flatten().InnerExceptions[1], Is.SameAs(rollbackFailure));
+            replacement.Verify(value => value.Commit(), failCommit ? Times.Once() : Times.Never());
+            replacement.Verify(value => value.Dispose(), Times.Once);
+            registry.As<IHistorianNodeReplacementRegistry>()
+                .Verify(value => value.BeginNodeReplacement(node, provider), Times.Once);
+            replacement.VerifyNoOtherCalls();
+            registry.VerifyNoOtherCalls();
+            node.Value = 987;
+            node.Timestamp = DateTime.UtcNow;
+            node.ClearChangeMasks(builder.Context, false);
+            foreach (HistorianBuilder captureBuilder in builders)
+            {
+                await captureBuilder.DisposeAsync().ConfigureAwait(false);
+            }
+            Assert.That(await CountHistoryAsync(provider, builder.Context, node.NodeId).ConfigureAwait(false),
+                Is.Zero);
+        }
+
+        /// <summary>
         /// A custom scoped registry without replacement support rejects only an existing exact-node binding.
         /// </summary>
         [Test]

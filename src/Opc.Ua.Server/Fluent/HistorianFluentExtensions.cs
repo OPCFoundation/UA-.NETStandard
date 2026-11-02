@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Opc.Ua.Server.Historian;
@@ -245,24 +246,23 @@ namespace Opc.Ua.Server.Fluent
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
                 IHistorianRegistryProvider registryHost = RequireRegistryHost(serverForBinding);
                 IHistorianProviderRegistry providerRegistry = registryHost.HistorianRegistry;
-                using IHistorianNodeReplacement? replacement =
+                IHistorianNodeReplacement? replacement =
                     BeginReplacement(providerRegistry, variable, perCallProvider);
-
-                // The server lifecycle owns this builder and drains its
-                // capture pipeline during shutdown. A dedicated builder keeps
-                // the per-call provider isolated from the cached manager-wide
-                // default, so reads and automatic capture use the same adapter.
-#pragma warning disable CA2000
-                HistorianBuilder scope =
-                    new HistorianBuilder(serverForBinding)
-                        .UseProvider(perCallProvider);
-#pragma warning restore CA2000
-                if (historizing == false)
-                {
-                    variable.Historizing = false;
-                }
+                HistorianBuilder? scope = null;
                 try
                 {
+                    // The server lifecycle owns this builder and drains its
+                    // capture pipeline during shutdown. A dedicated builder keeps
+                    // the per-call provider isolated from the cached manager-wide
+                    // default, so reads and automatic capture use the same adapter.
+#pragma warning disable CA2000
+                    scope = new HistorianBuilder(serverForBinding)
+                        .UseProvider(perCallProvider);
+#pragma warning restore CA2000
+                    if (historizing == false)
+                    {
+                        variable.Historizing = false;
+                    }
                     scope.Historize(
                         variable,
                         historyAccessLevel,
@@ -282,17 +282,31 @@ namespace Opc.Ua.Server.Fluent
                 }
                 catch (Exception failure)
                 {
+                    List<Exception> failures = [failure];
                     try
                     {
-                        scope.AbortRawCapture();
+                        scope?.AbortRawCapture();
                     }
                     catch (Exception cleanupFailure)
                     {
+                        failures.Add(cleanupFailure);
+                    }
+                    try
+                    {
+                        replacement?.Dispose();
+                    }
+                    catch (Exception rollbackFailure)
+                    {
+                        failures.Add(rollbackFailure);
+                    }
+                    if (failures.Count > 1)
+                    {
                         throw new AggregateException(
-                            "Historian setup and capture cleanup failed.", failure, cleanupFailure);
+                            "Historian setup and cleanup failed.", failures);
                     }
                     throw;
                 }
+                replacement?.Dispose();
                 return;
             }
 
