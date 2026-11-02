@@ -199,6 +199,11 @@ The GDS builder registers authority initialization on the GDS itself, including
 when a regular server shares the service collection. The regular server builder
 registers it on that server. Both use the explicitly injected certificate manager;
 these registrations do not create separate per-server trust providers.
+Repeated registrations may select the same authority-store paths. Selecting
+different paths for the same authority kind in one service collection throws
+before changing registrations; it does not silently retain the first paths.
+Use separate service collections for registrars with independent default trust
+contexts.
 Resolve `IOnboardingTicketValidator` and pass it to the binding.
 The validator accepts RFC 7515 general JSON serialization with protected
 `alg`, `x5c`, and `cty` headers; a composite builder's signature also

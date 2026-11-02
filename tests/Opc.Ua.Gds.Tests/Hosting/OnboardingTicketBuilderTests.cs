@@ -105,6 +105,67 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(() => builder.AddOnboardingIdentities("trusted", " "), Throws.ArgumentException);
         }
 
+        /// <summary>
+        /// Sharing a container cannot silently replace a later registrar's explicitly selected trust context.
+        /// </summary>
+        [TestCase(false, false, "trusted")]
+        [TestCase(false, false, "issuer")]
+        [TestCase(false, false, "missing-issuer")]
+        [TestCase(false, true, "trusted")]
+        [TestCase(false, true, "issuer")]
+        [TestCase(false, true, "missing-issuer")]
+        [TestCase(true, false, "trusted")]
+        [TestCase(true, false, "issuer")]
+        [TestCase(true, false, "missing-issuer")]
+        [TestCase(true, true, "trusted")]
+        [TestCase(true, true, "issuer")]
+        [TestCase(true, true, "missing-issuer")]
+        public void ConflictingAuthorityStoresRejectWithoutChangingRegistrations(
+            bool identities, bool gdsFirst, string conflict)
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder root = services.AddOpcUa();
+            IOpcUaServerBuilder server = root.AddServer(_ => { });
+            IGdsServerBuilder gds = root.AddGdsServer(_ => { });
+
+            void Register(bool useGds, string trusted, string? issuer)
+            {
+                if (useGds)
+                {
+                    if (identities)
+                    {
+                        gds.AddOnboardingIdentities(trusted, issuer);
+                    }
+                    else
+                    {
+                        gds.AddOnboardingTickets(trusted, issuer);
+                    }
+                }
+                else if (identities)
+                {
+                    server.AddOnboardingIdentities(trusted, issuer);
+                }
+                else
+                {
+                    server.AddOnboardingTickets(trusted, issuer);
+                }
+            }
+
+            Register(gdsFirst, "trusted", "issuers");
+            Register(!gdsFirst, "trusted", "issuers");
+            ServiceDescriptor[] before = services.ToArray();
+            string trusted = conflict == "trusted" ? "other-trusted" : "trusted";
+            string? issuer = conflict == "issuer" ? "other-issuers"
+                : conflict == "missing-issuer" ? null : "issuers";
+
+            Assert.That(() => Register(!gdsFirst, trusted, issuer), Throws.InvalidOperationException);
+
+            Assert.That(services.ToArray(), Is.EqualTo(before));
+            Assert.That(services.Count(descriptor => descriptor.ServiceType ==
+                (identities ? typeof(IOnboardingIdentityTrustProvider) : typeof(IOnboardingTicketTrustProvider))),
+                Is.EqualTo(1));
+        }
+
         [Test]
         public void AddOnboardingIdentitiesResolvesTicketScopedDefaultsAndPreservesOverrides()
         {

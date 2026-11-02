@@ -120,6 +120,7 @@ namespace Microsoft.Extensions.DependencyInjection
             bool isGds)
         {
             ValidateStorePaths(trustedStorePath, issuerStorePath);
+            RequireSharedStoreConfiguration(services, trustedStorePath, issuerStorePath, identityAuthorities: true);
             services.TryAddSingleton<IOnboardingIdentityTrustProvider>(provider =>
             {
                 ICertificateManager manager = provider.GetRequiredService<ICertificateManager>();
@@ -147,6 +148,7 @@ namespace Microsoft.Extensions.DependencyInjection
             bool isGds)
         {
             ValidateStorePaths(trustedStorePath, issuerStorePath);
+            RequireSharedStoreConfiguration(services, trustedStorePath, issuerStorePath, identityAuthorities: false);
             services.TryAddSingleton<IOnboardingTicketTrustProvider>(provider =>
             {
                 ICertificateManager manager = provider.GetRequiredService<ICertificateManager>();
@@ -163,6 +165,36 @@ namespace Microsoft.Extensions.DependencyInjection
                     provider.GetRequiredService<ICertificateManager>().CertificateProvider,
                     CreateMessageContext(provider.GetRequiredService<ITelemetryContext>())));
             RegisterStartupTask<IOnboardingTicketTrustProvider>(services, isGds);
+        }
+
+        /// <summary>
+        /// Rejects incompatible store paths instead of silently using the first singleton's configuration.
+        /// Separate default registrar trust contexts require separate service collections.
+        /// </summary>
+        private static void RequireSharedStoreConfiguration(
+            IServiceCollection services,
+            string trustedStorePath,
+            string? issuerStorePath,
+            bool identityAuthorities)
+        {
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    descriptor.ImplementationInstance is AuthorityStoreRegistration registration &&
+                    registration.IdentityAuthorities == identityAuthorities)
+                {
+                    if (!string.Equals(registration.TrustedStorePath, trustedStorePath, StringComparison.Ordinal) ||
+                        !string.Equals(registration.IssuerStorePath, issuerStorePath, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            "Onboarding authority providers are shared by this service collection. " +
+                            "Conflicting authority store configurations require separate service collections.");
+                    }
+                    return;
+                }
+            }
+            services.AddSingleton(new AuthorityStoreRegistration(
+                trustedStorePath, issuerStorePath, identityAuthorities));
         }
 
         /// <summary>
@@ -210,6 +242,14 @@ namespace Microsoft.Extensions.DependencyInjection
             context.Factory.Builder.AddOpcUaOnboarding().Commit();
             return context;
         }
+
+        /// <summary>
+        /// Retains the store configuration shared by the default authority provider of one kind.
+        /// </summary>
+        private sealed record AuthorityStoreRegistration(
+            string TrustedStorePath,
+            string? IssuerStorePath,
+            bool IdentityAuthorities);
 
         /// <summary>
         /// Initializes authority services before model bindings open their managed trust-list stores.
