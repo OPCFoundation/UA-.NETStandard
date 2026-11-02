@@ -171,7 +171,8 @@ namespace Opc.Ua.Di.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
-            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_SecurityAdmin]);
+            identity.SetupGet(value => value.GrantedRoleIds)
+                .Returns([global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin]);
             var channel = new SecureChannelContext(
                 "test-channel",
                 new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
@@ -204,7 +205,7 @@ namespace Opc.Ua.Di.Tests
             var service = new Mock<ILockService>(MockBehavior.Strict);
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
-            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_Operator]);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([global::Opc.Ua.ObjectIds.WellKnownRole_Operator]);
             var channel = new SecureChannelContext(
                 "test-channel",
                 new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
@@ -272,19 +273,17 @@ namespace Opc.Ua.Di.Tests
             var service = new Mock<ILockService>(MockBehavior.Strict);
             LockState current = new(true, "client", "user", 2.5);
             service.Setup(value => value.GetState(s_elementId)).Returns(() => current);
-            var state = new LockingServicesState(null)
-            {
-                Locked = new PropertyState<bool>(null),
-                LockingClient = new PropertyState<string>(null),
-                LockingUser = new PropertyState<string>(null),
-                RemainingLockTime = new PropertyState<double>(null)
-            };
+            var state = new LockingServicesState(null);
+            state.Locked = PropertyState<bool>.With<VariantBuilder>(state);
+            state.LockingClient = PropertyState<string>.With<VariantBuilder>(state);
+            state.LockingUser = PropertyState<string>.With<VariantBuilder>(state);
+            state.RemainingLockTime = PropertyState<double>.With<VariantBuilder>(state);
             ISystemContext context = Mock.Of<ISystemContext>();
             state.BindToLockService(s_elementId, service.Object);
 
             AttributeSimpleReadResult read = await state.RemainingLockTime.OnSimpleReadValueAsync!(
                 context, state.RemainingLockTime, CancellationToken.None).ConfigureAwait(false);
-            Assert.That(read.Value.TryGetDouble(out double remaining), Is.True);
+            Assert.That(read.Value.TryGetValue(out double remaining), Is.True);
             Assert.That(remaining, Is.EqualTo(2500));
 
             await state.RefreshLockStateAsync(service.Object, s_elementId, context).ConfigureAwait(false);

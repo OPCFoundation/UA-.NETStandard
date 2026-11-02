@@ -299,7 +299,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         private ClientFixture m_clientFixture = null!;
 
         /// <summary>The live session owned by this fixture.</summary>
-        private Client.ISession m_session = null!;
+        private global::Opc.Ua.Client.ISession m_session = null!;
 
         /// <summary>The typed client borrowing the fixture's session.</summary>
         private EcmClient m_client = null!;

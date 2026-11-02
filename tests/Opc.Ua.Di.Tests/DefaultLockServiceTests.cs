@@ -210,7 +210,7 @@ namespace Opc.Ua.Di.Tests
             ServerSystemContext other = TestSystemContext("session-B", "alice");
             Assert.That(service.InitLock(owner, s_elementId, "session-B"), Is.EqualTo(LockStatus.Ok));
 
-            ILockOwnershipService ownership = service;
+            DefaultLockService ownership = service;
             Assert.That(ownership.IsLockOwner(owner, s_elementId), Is.True);
             Assert.That(ownership.IsLockOwner(other, s_elementId), Is.False);
             Assert.That(service.RenewLock(other, s_elementId), Is.EqualTo(LockStatus.WrongClient));
@@ -401,7 +401,7 @@ namespace Opc.Ua.Di.Tests
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.TokenType).Returns(tokenType);
             identity.SetupGet(value => value.GrantedRoleIds)
-                .Returns(grantAdmin ? [ObjectIds.WellKnownRole_SecurityAdmin] : ArrayOf<NodeId>.Empty);
+                .Returns(grantAdmin ? [global::Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin] : ArrayOf<NodeId>.Empty);
             var channel = new SecureChannelContext(
                 "test-channel",
                 new EndpointDescription { SecurityMode = securityMode },
