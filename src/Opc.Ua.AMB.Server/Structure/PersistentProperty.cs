@@ -61,12 +61,20 @@ namespace Opc.Ua.AMB.Server.Structure
     {
         public static readonly StringCodec Instance = new();
 
+        /// <summary>A codec for fields whose null values cannot be retained as absent store entries.</summary>
+        public static readonly StringCodec RequiredInstance = new(allowNull: false);
+
+        private StringCodec(bool allowNull = true)
+        {
+            m_allowNull = allowNull;
+        }
+
         public bool TryEncode(Variant value, out string? text)
         {
             if (value.IsNull)
             {
                 text = null;
-                return true;
+                return m_allowNull;
             }
             return value.TryGetValue(out text);
         }
@@ -74,6 +82,72 @@ namespace Opc.Ua.AMB.Server.Structure
         public Variant Decode(string text)
         {
             return Variant.From(text);
+        }
+
+        /// <summary>Whether a null write removes the store entry.</summary>
+        private readonly bool m_allowNull;
+    }
+
+    /// <summary>
+    /// Stores the locale length, locale and text of a LocalizedText without a lossy string conversion.
+    /// </summary>
+    internal sealed class LocalizedTextCodec : IPersistedValueCodec
+    {
+        /// <summary>The stateless shared codec.</summary>
+        public static readonly LocalizedTextCodec Instance = new();
+
+        /// <inheritdoc/>
+        public bool TryEncode(Variant value, out string? text)
+        {
+            if (value.IsNull)
+            {
+                text = "null";
+                return true;
+            }
+            if (!value.TryGetValue(out LocalizedText localized))
+            {
+                text = null;
+                return false;
+            }
+            text = string.Format(CultureInfo.InvariantCulture, "{0}:{1}:{2}{3}",
+                localized.Locale?.Length ?? -1, localized.Text?.Length ?? -1, localized.Locale, localized.Text);
+            return true;
+        }
+
+        /// <inheritdoc/>
+        public Variant Decode(string text)
+        {
+            if (text == "null")
+            {
+                return Variant.From(LocalizedText.Null);
+            }
+            int delimiter = text.IndexOf(':', StringComparison.Ordinal);
+            int second = delimiter < 0 ? -1 : text.IndexOf(':', delimiter + 1);
+            if (delimiter < 1 || second < 0 ||
+                !TryParseLength(text, 0, delimiter, out int localeLength) ||
+                !TryParseLength(text, delimiter + 1, second - delimiter - 1, out int textLength) ||
+                localeLength < -1 || textLength < -1 ||
+                (long)Math.Max(0, localeLength) + Math.Max(0, textLength) != text.Length - second - 1)
+            {
+                throw new FormatException("The persisted LocalizedText has an invalid locale length.");
+            }
+            return Variant.From(new LocalizedText(
+                localeLength < 0 ? null : text.Substring(second + 1, localeLength),
+                textLength < 0 ? null : text.Substring(second + 1 + Math.Max(0, localeLength), textLength)));
+        }
+
+        /// <summary>
+        /// Parses an invariant length without allocating a substring on platforms with span-based parsing.
+        /// </summary>
+        private static bool TryParseLength(string text, int start, int length, out int value)
+        {
+#if NET8_0_OR_GREATER
+            return int.TryParse(text.AsSpan(start, length),
+                NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
+#else
+            return int.TryParse(text.Substring(start, length),
+                NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
+#endif
         }
     }
 
@@ -161,6 +235,7 @@ namespace Opc.Ua.AMB.Server.Structure
         /// </param>
         /// <param name="logger">The logger.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="writable">Enables write access after restoration when true.</param>
         public static async ValueTask<PersistentProperty> BindAsync(
             BaseVariableState variable,
             IAssetConfigurationStore store,
@@ -169,7 +244,8 @@ namespace Opc.Ua.AMB.Server.Structure
             IPersistedValueCodec codec,
             int? maxLength,
             ILogger logger,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool writable = true)
         {
             string? stored = await store.GetValueAsync(productInstanceUri, name, cancellationToken)
                 .ConfigureAwait(false);
@@ -184,8 +260,11 @@ namespace Opc.Ua.AMB.Server.Structure
                 variable.WrappedValue = codec.Decode(stored);
                 variable.Timestamp = DateTimeUtc.Now;
             }
-            variable.AccessLevel |= AccessLevels.CurrentReadOrWrite;
-            variable.UserAccessLevel |= AccessLevels.CurrentReadOrWrite;
+            if (writable)
+            {
+                variable.AccessLevel |= AccessLevels.CurrentReadOrWrite;
+                variable.UserAccessLevel |= AccessLevels.CurrentReadOrWrite;
+            }
             var binding = new PersistentProperty(variable, store, productInstanceUri, name, codec, maxLength, logger);
             variable.OnSimpleWriteValueAsync = binding.OnWriteAsync;
             return binding;

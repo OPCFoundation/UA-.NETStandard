@@ -101,6 +101,13 @@ namespace Opc.Ua.Pumps.Server.Builders
         /// <inheritdoc/>
         public IPumpGroupBuilder Set(string browseName, Variant value)
         {
+            if (Node is DesignState && browseName == BrowseNames.PumpClass &&
+                (!value.TryGetValue(out DeviceTypeEnum pumpClass) ||
+                    (int)pumpClass is < 0 or > 6))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value), "PumpClass must be a declared DeviceTypeEnum value.");
+            }
             BaseInstanceState child = Require(browseName);
             if (child is not BaseVariableState variable)
             {

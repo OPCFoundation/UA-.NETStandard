@@ -356,7 +356,8 @@ namespace Opc.Ua.Pumps.Client
         internal async ValueTask<NodeId> ResolveChildAsync(
             NodeId parent,
             QualifiedName browseName,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireCompleteTarget = false)
         {
             if (parent.IsNull)
             {
@@ -365,7 +366,8 @@ namespace Opc.Ua.Pumps.Client
             ArrayOf<NodeId> resolved = await ResolveChildrenAsync(
                 parent,
                 new[] { browseName },
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                requireCompleteTarget).ConfigureAwait(false);
             return resolved.Count > 0 ? resolved[0] : NodeId.Null;
         }
 
@@ -378,7 +380,8 @@ namespace Opc.Ua.Pumps.Client
         internal async ValueTask<ArrayOf<NodeId>> ResolveChildrenAsync(
             NodeId parent,
             IReadOnlyList<QualifiedName> browseNames,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool requireCompleteTarget = false)
         {
             var results = new NodeId[browseNames.Count];
             for (int ii = 0; ii < results.Length; ii++)
@@ -417,12 +420,17 @@ namespace Opc.Ua.Pumps.Client
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths.ToArrayOf(), cancellationToken)
                 .ConfigureAwait(false);
 
-            ValidateBoundedResponse(response.ResponseHeader, response.Results.Count, paths.Length);
+            ValidateBoundedResponse(
+                response.ResponseHeader, response.Results.Count, paths.Length, requireCompleteTarget);
+            if (requireCompleteTarget)
+            {
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, paths.ToArrayOf());
+            }
             for (int ii = 0; ii < response.Results.Count && ii < results.Length; ii++)
             {
-                if (m_maximumBrowseReferences != 0)
+                if (m_maximumBrowseReferences != 0 || requireCompleteTarget)
                 {
-                    results[ii] = TargetAt(response, ii);
+                    results[ii] = TargetAt(response, ii, requireCompleteTarget);
                     continue;
                 }
                 BrowsePathResult result = response.Results[ii];

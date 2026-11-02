@@ -57,6 +57,7 @@ namespace Opc.Ua.Pumps.Server
             Manager = manager ?? throw new ArgumentNullException(nameof(manager));
             m_options = (options ?? throw new ArgumentNullException(nameof(options))).Validate();
             m_logger = manager.SystemContext.Telemetry.CreateLogger<PumpsRuntime>();
+            manager.RegisterConformanceContributor(new PumpsConformance(this));
         }
 
         /// <summary>
@@ -80,6 +81,11 @@ namespace Opc.Ua.Pumps.Server
         /// Gets the options the manager was created with.
         /// </summary>
         public PumpsServerOptions Options => m_options;
+
+        /// <summary>
+        /// Gets whether this runtime has begun releasing its resources.
+        /// </summary>
+        internal bool IsDisposed => Volatile.Read(ref m_disposed);
 
         /// <summary>
         /// Gets the pumps this manager has materialised, in creation order.
