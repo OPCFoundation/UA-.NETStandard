@@ -520,14 +520,14 @@ namespace Opc.Ua.Scales.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
-            List<Exception>? failures = null;
+            var failures = new List<Exception>();
             try
             {
                 m_stopping.Cancel();
             }
             catch (Exception ex)
             {
-                (failures ??= []).Add(ex);
+                failures.Add(ex);
             }
             await m_creationsDrained.Task.ConfigureAwait(false);
             Volatile.Write(ref m_stopped, true);
@@ -540,7 +540,7 @@ namespace Opc.Ua.Scales.Server
             }
             catch (Exception ex)
             {
-                (failures ??= []).Add(ex);
+                failures.Add(ex);
             }
             try
             {
@@ -548,7 +548,7 @@ namespace Opc.Ua.Scales.Server
             }
             catch (Exception ex)
             {
-                (failures ??= []).Add(ex);
+                failures.Add(ex);
             }
             try
             {
@@ -556,7 +556,7 @@ namespace Opc.Ua.Scales.Server
             }
             catch (Exception ex)
             {
-                (failures ??= []).Add(ex);
+                failures.Add(ex);
             }
             try
             {
@@ -564,13 +564,13 @@ namespace Opc.Ua.Scales.Server
             }
             catch (Exception ex)
             {
-                (failures ??= []).Add(ex);
+                failures.Add(ex);
             }
-            if (failures?.Count == 1)
+            if (failures.Count == 1)
             {
                 ExceptionDispatchInfo.Capture(failures[0]).Throw();
             }
-            if (failures != null)
+            if (failures.Count > 1)
             {
                 throw new AggregateException(failures);
             }
