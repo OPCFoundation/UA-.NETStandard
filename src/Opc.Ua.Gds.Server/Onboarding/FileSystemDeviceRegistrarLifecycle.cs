@@ -61,6 +61,35 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_fileSystem = fileSystem ?? LocalFileSystem.Instance;
         }
 
+        /// <summary>
+        /// Creates a hosted store that cannot process requests until its registrar model binds the namespace table.
+        /// </summary>
+        internal FileSystemDeviceRegistrarLifecycle(IFileSystem? fileSystem, string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("A lifecycle checkpoint path is required.", nameof(path));
+            }
+            m_path = path;
+            m_fileSystem = fileSystem ?? LocalFileSystem.Instance;
+        }
+
+        /// <summary>
+        /// Binds the one model host before any checkpoint is decoded or published.
+        /// </summary>
+        internal void BindNamespaceTable(NamespaceTable namespaceUris)
+        {
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            NamespaceTable? previous = Interlocked.CompareExchange(ref m_namespaceUris, namespaceUris, null);
+            if (previous != null && !ReferenceEquals(previous, namespaceUris))
+            {
+                throw new InvalidOperationException("The registrar lifecycle is already bound to another model host.");
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask RecordCandidateAsync(
             string productInstanceUri,
@@ -216,6 +245,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                RequireNamespaceTable();
                 MemoryDeviceRegistrarLifecycle state = await LoadAsync(cancellationToken).ConfigureAwait(false);
                 T result = await operation(state, cancellationToken).ConfigureAwait(false);
                 if (write && (publish == null || publish(result)))
@@ -441,11 +471,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private string EncodeId(NodeId id)
         {
-            if (id.IsNull || string.IsNullOrEmpty(m_namespaceUris.GetString(id.NamespaceIndex)))
+            NamespaceTable namespaces = RequireNamespaceTable();
+            if (id.IsNull || string.IsNullOrEmpty(namespaces.GetString(id.NamespaceIndex)))
             {
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
             }
-            return NodeId.ToExpandedNodeId(id, m_namespaceUris).ToString();
+            return NodeId.ToExpandedNodeId(id, namespaces).ToString();
         }
 
         /// <summary>
@@ -453,6 +484,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private NodeId DecodeId(string encoded)
         {
+            NamespaceTable namespaces = RequireNamespaceTable();
             ExpandedNodeId expanded = ExpandedNodeId.Parse(encoded);
             if (expanded.ServerIndex != 0 ||
                 (expanded.NamespaceIndex != 0 && string.IsNullOrEmpty(expanded.NamespaceUri)))
@@ -461,14 +493,23 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             if (!string.IsNullOrEmpty(expanded.NamespaceUri))
             {
-                m_namespaceUris.GetIndexOrAppend(expanded.NamespaceUri);
+                namespaces.GetIndexOrAppend(expanded.NamespaceUri);
             }
-            NodeId id = ExpandedNodeId.ToNodeId(expanded, m_namespaceUris);
+            NodeId id = ExpandedNodeId.ToNodeId(expanded, namespaces);
             if (id.IsNull)
             {
                 throw new InvalidDataException("A lifecycle application identifier cannot be null.");
             }
             return id;
+        }
+
+        /// <summary>
+        /// Returns the namespace mapping owned by the bound model host.
+        /// </summary>
+        private NamespaceTable RequireNamespaceTable()
+        {
+            return m_namespaceUris ?? throw new ServiceResultException(
+                StatusCodes.BadServerHalted, "The registrar model has not bound its namespace table.");
         }
 
         /// <summary>
@@ -513,7 +554,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         private readonly string m_path;
 
         /// <summary>The current host's namespace URI mapping.</summary>
-        private readonly NamespaceTable m_namespaceUris;
+        private NamespaceTable? m_namespaceUris;
 
         /// <summary>The borrowed file system with indivisible replacement semantics.</summary>
         private readonly IFileSystem m_fileSystem;

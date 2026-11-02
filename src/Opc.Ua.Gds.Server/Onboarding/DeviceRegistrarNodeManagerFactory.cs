@@ -59,12 +59,27 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IOnboardingTicketValidator ticketValidator,
             ICertificateManager certificateManager,
             HostedDeviceRegistrarAuditReporter? hostedAudit)
+            : this(runtime, ticketStore, ticketValidator, certificateManager, hostedAudit, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that binds an optional filesystem lifecycle to this model's actual namespace table.
+        /// </summary>
+        public DeviceRegistrarNodeManagerFactory(
+            IDeviceRegistrarRuntime runtime,
+            ITicketStore ticketStore,
+            IOnboardingTicketValidator ticketValidator,
+            ICertificateManager certificateManager,
+            HostedDeviceRegistrarAuditReporter? hostedAudit = null,
+            FileSystemDeviceRegistrarLifecycle? hostedLifecycle = null)
         {
             m_runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             m_ticketStore = ticketStore ?? throw new ArgumentNullException(nameof(ticketStore));
             m_ticketValidator = ticketValidator ?? throw new ArgumentNullException(nameof(ticketValidator));
             m_certificateManager = certificateManager ?? throw new ArgumentNullException(nameof(certificateManager));
             m_hostedAudit = hostedAudit;
+            m_hostedLifecycle = hostedLifecycle;
         }
 
         /// <inheritdoc/>
@@ -89,7 +104,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return new ValueTask<IAsyncNodeManager>(
                 new RegistrarNodeManager(
                     server, configuration, m_runtime, m_ticketStore, m_ticketValidator, m_certificateManager,
-                    m_hostedAudit));
+                    m_hostedAudit, m_hostedLifecycle));
 #pragma warning restore CA2000
         }
 
@@ -108,7 +123,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 ITicketStore ticketStore,
                 IOnboardingTicketValidator ticketValidator,
                 ICertificateManager certificateManager,
-                HostedDeviceRegistrarAuditReporter? hostedAudit)
+                HostedDeviceRegistrarAuditReporter? hostedAudit,
+                FileSystemDeviceRegistrarLifecycle? hostedLifecycle)
                 : base(server, configuration, server.Telemetry.CreateLogger<RegistrarNodeManager>())
             {
                 m_runtime = runtime;
@@ -116,6 +132,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 m_ticketValidator = ticketValidator;
                 m_certificateManager = certificateManager;
                 m_hostedAudit = hostedAudit;
+                m_hostedLifecycle = hostedLifecycle;
                 NamespaceUris = [Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding];
                 server.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
                 server.MessageContext.Factory.Builder.AddOpcUaGds().AddOpcUaOnboarding().Commit();
@@ -127,6 +144,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                m_hostedLifecycle?.BindNamespaceTable(context.NamespaceUris);
                 NodeStateCollection nodes = new NodeStateCollection().AddOpcUaOnboarding(context);
                 DeviceRegistrarState registrar = nodes.OfType<DeviceRegistrarState>().Single();
                 DeviceRegistrarAdminState administration = registrar.Administration ??
@@ -197,12 +215,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
             /// <summary>The optional container-owned routing adapter.</summary>
             private readonly HostedDeviceRegistrarAuditReporter? m_hostedAudit;
 
+            /// <summary>The optional lifecycle bound before registrar methods become available.</summary>
+            private readonly FileSystemDeviceRegistrarLifecycle? m_hostedLifecycle;
+
             /// <summary>The restricted reporter attached while this model is active.</summary>
             private DeviceRegistrarAuditReporter? m_audit;
         }
 
         /// <summary>The shared registrar runtime.</summary>
         private readonly IDeviceRegistrarRuntime m_runtime;
+
+        /// <summary>The optional lifecycle using this factory's model namespace table.</summary>
+        private readonly FileSystemDeviceRegistrarLifecycle? m_hostedLifecycle;
 
         /// <summary>The shared ticket store.</summary>
         private readonly ITicketStore m_ticketStore;

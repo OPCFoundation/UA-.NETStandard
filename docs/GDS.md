@@ -296,6 +296,17 @@ factory resolution. A direct host can construct the factory with those
 dependencies. Do not register another node manager for the same onboarding
 namespace.
 
+Select `services.AddFileSystemDeviceRegistrarLifecycle(checkpointPath)` before
+registering the runtime to persist candidate identities, software approval,
+application relations and pending DCA issuance through one provider. The model
+factory binds this provider to its running server's namespace table before
+publishing registrar methods; calls before binding return `BadServerHalted`
+without reading or writing a checkpoint. Do not construct a separate table with
+assumed namespace indexes. Direct hosts can still supply their actual table to
+the `FileSystemDeviceRegistrarLifecycle` constructor. The path requires one
+writer and protection against changes by other applications; this provider does
+not coordinate multiple processes or replicated registrars.
+
 Select `services.AddHostedDeviceRegistrarAuditing()` before registering the
 runtime to route audit calls through the standard factory's restricted native
 event reporter. The adapter resolves without constructing server nodes; the

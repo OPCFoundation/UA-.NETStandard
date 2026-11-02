@@ -123,6 +123,46 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers one filesystem lifecycle for candidate identity, software approval and DCA issuance.
+        /// AddDeviceRegistrar binds it to the actual model namespace table before requests are accepted.
+        /// The checkpoint path requires one writer; this does not register discovery candidates on the device.
+        /// </summary>
+        public static IServiceCollection AddFileSystemDeviceRegistrarLifecycle(
+            this IServiceCollection services,
+            string path,
+            IFileSystem? fileSystem = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new ArgumentException("A registrar lifecycle checkpoint path is required.", nameof(path));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    (descriptor.ServiceType == typeof(FileSystemDeviceRegistrarLifecycle) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarLifecycle) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarIdentityLifecycle) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarCertificateLifecycle)))
+                {
+                    throw new InvalidOperationException("Select only one registrar lifecycle provider.");
+                }
+            }
+            services.AddSingleton(provider => new FileSystemDeviceRegistrarLifecycle(
+                fileSystem ?? provider.GetService<IFileSystem>(), path));
+            services.AddSingleton<IDeviceRegistrarLifecycle>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            return services;
+        }
+
+        /// <summary>
         /// Selects filesystem persistence for device-side registrar discovery candidates.
         /// The path must have one writer instance. This does not pin a registrar, grant trust, or recover credentials.
         /// Register before AddProvisionableDeviceRuntime; custom stores must be selected instead, not alongside it.

@@ -46,6 +46,64 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [Category("Onboarding")]
     public sealed class DeviceRegistrarBuilderTests
     {
+        /// <summary>
+        /// All lifecycle contracts share one container-owned provider without inventing a namespace table.
+        /// </summary>
+        [Test]
+        public async Task HostedFileSystemLifecycleUsesOneProviderAndRequiresModelBinding()
+        {
+            var services = new ServiceCollection();
+            var files = new Mock<IFileSystem>(MockBehavior.Strict);
+            Assert.That(services.AddFileSystemDeviceRegistrarLifecycle("registrar-state.json", files.Object),
+                Is.SameAs(services));
+            using ServiceProvider provider = services.BuildServiceProvider();
+            FileSystemDeviceRegistrarLifecycle lifecycle =
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>();
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarLifecycle>(), Is.SameAs(lifecycle));
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(), Is.SameAs(lifecycle));
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarCertificateLifecycle>(), Is.SameAs(lifecycle));
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.FindDeviceAsync("urn:test:device").ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            files.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Invalid paths and competing lifecycle contracts are rejected before registrations change.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void HostedFileSystemLifecycleRejectsConflictingProviders(int contract)
+        {
+            var services = new ServiceCollection();
+            switch (contract)
+            {
+                case 0:
+                    services.AddSingleton(new Mock<IDeviceRegistrarLifecycle>().Object);
+                    break;
+                case 1:
+                    services.AddSingleton(new Mock<IDeviceRegistrarIdentityLifecycle>().Object);
+                    break;
+                case 2:
+                    services.AddSingleton(new Mock<IDeviceRegistrarCertificateLifecycle>().Object);
+                    break;
+                default:
+                    services.AddFileSystemDeviceRegistrarLifecycle("existing.json");
+                    break;
+            }
+            ServiceDescriptor[] before = services.ToArray();
+
+            Assert.Throws<InvalidOperationException>(() => services.AddFileSystemDeviceRegistrarLifecycle("new.json"));
+            Assert.That(services, Is.EqualTo(before));
+            Assert.Throws<ArgumentException>(() => new ServiceCollection().AddFileSystemDeviceRegistrarLifecycle(" "));
+            Assert.Throws<ArgumentNullException>(() =>
+                OpcUaDeviceRegistrarBuilderExtensions.AddFileSystemDeviceRegistrarLifecycle(null!, "state.json"));
+        }
+
         [Test]
         public void RegistrationRejectsNullServicesBuildersAndConfiguration()
         {

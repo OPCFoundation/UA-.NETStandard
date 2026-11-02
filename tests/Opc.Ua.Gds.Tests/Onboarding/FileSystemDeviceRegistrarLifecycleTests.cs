@@ -43,6 +43,57 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class FileSystemDeviceRegistrarLifecycleTests
     {
         /// <summary>
+        /// Hosted persistence cannot read or change authorization state before the actual model binds its table.
+        /// </summary>
+        [Test]
+        public async Task HostedLifecycleRejectsRequestsUntilModelNamespaceBinding()
+        {
+            using var files = new VirtualFileSystem();
+            using var lifecycle = new FileSystemDeviceRegistrarLifecycle(files, Path);
+            NamespaceTable namespaces = NamespacesWithApplications(true);
+            var applicationId = new NodeId("dca", (ushort)namespaces.GetIndex(ApplicationNamespace));
+
+            ServiceResultException? read = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false));
+            ServiceResultException? write = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.RecordCandidateAsync(Device, applicationId, Identity, true).ConfigureAwait(false));
+
+            Assert.That(read!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(write!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(files.Files, Is.Empty);
+            lifecycle.BindNamespaceTable(namespaces);
+            await lifecycle.RecordCandidateAsync(Device, applicationId, Identity, true).ConfigureAwait(false);
+            using var restarted = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, files);
+            DeviceRegistrarIdentityCandidate? candidate = await restarted.FindCandidateByCertificateAsync(Identity)
+                .ConfigureAwait(false);
+            Assert.That(candidate!.ApplicationId, Is.EqualTo(applicationId));
+            Assert.That(candidate.CertificateIssuanceAllowed, Is.False);
+        }
+
+        /// <summary>
+        /// Repeated binding to the same table is harmless; a second host cannot reinterpret existing identifiers.
+        /// </summary>
+        [Test]
+        public async Task HostedLifecycleRejectsAnotherNamespaceTableWithoutChangingItsBinding()
+        {
+            using var files = new VirtualFileSystem();
+            using var lifecycle = new FileSystemDeviceRegistrarLifecycle(files, Path);
+            NamespaceTable namespaces = NamespacesWithApplications(false);
+            lifecycle.BindNamespaceTable(namespaces);
+            lifecycle.BindNamespaceTable(namespaces);
+            await lifecycle.RecordCandidateAsync(Device, new NodeId("dca", 1), Identity, false)
+                .ConfigureAwait(false);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                lifecycle.BindNamespaceTable(NamespacesWithApplications(true)));
+            Assert.Throws<ArgumentNullException>(() => lifecycle.BindNamespaceTable(null!));
+
+            DeviceRegistrarIdentityCandidate? candidate = await lifecycle.FindCandidateByCertificateAsync(Identity)
+                .ConfigureAwait(false);
+            Assert.That(candidate!.ApplicationId, Is.EqualTo(new NodeId("dca", 1)));
+        }
+
+        /// <summary>
         /// Namespace ordering may change while device identity, approval and application relations survive restart.
         /// </summary>
         [Test]
