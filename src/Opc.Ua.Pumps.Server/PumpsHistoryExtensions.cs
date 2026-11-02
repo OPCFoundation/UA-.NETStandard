@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Pumps.Server.Builders;
@@ -135,12 +136,14 @@ namespace Opc.Ua.Pumps.Server
                     }
                 }
 
-                HistoryActivation? activation = new(
-                    runtime, provider, variables.ConvertAll<NodeState>(static variable => variable));
-                HistorianBuilder historian = activation.Builder;
+                HistoryActivation? activation = null;
                 Exception? activationError = null;
+                Exception? rollbackError = null;
                 try
                 {
+                    activation = new(
+                        runtime, provider, variables.ConvertAll<NodeState>(static variable => variable));
+                    HistorianBuilder historian = activation.Builder;
                     historian.UseProvider(provider);
                     for (int i = 0; i < variables.Count; i++)
                     {
@@ -162,7 +165,6 @@ namespace Opc.Ua.Pumps.Server
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
                     activationError = error;
-                    throw;
                 }
                 finally
                 {
@@ -181,14 +183,13 @@ namespace Opc.Ua.Pumps.Server
                         {
                             await activation.RollbackAsync(disposalError).ConfigureAwait(false);
                         }
-                        catch (Exception cleanupError) when (
-                            activationError is not null && cleanupError is not OutOfMemoryException)
+                        catch (Exception cleanupError) when (cleanupError is not OutOfMemoryException)
                         {
-                            throw new AggregateException(
-                                "History activation and rollback failed.", activationError, cleanupError);
+                            rollbackError = cleanupError;
                         }
                     }
                 }
+                ThrowActivationErrors(activationError, rollbackError);
                 return pump;
             }
             finally
@@ -257,11 +258,13 @@ namespace Opc.Ua.Pumps.Server
                         "The provider must support event reads and, for automatic capture, event insertion.");
                 }
 
-                HistoryActivation? activation = new(runtime, provider, [pump.Pump]);
-                HistorianBuilder historian = activation.Builder;
+                HistoryActivation? activation = null;
                 Exception? activationError = null;
+                Exception? rollbackError = null;
                 try
                 {
+                    activation = new(runtime, provider, [pump.Pump]);
+                    HistorianBuilder historian = activation.Builder;
                     historian.UseProvider(provider);
                     await historian.HistorizeEventsAsync(
                         pump.Pump,
@@ -280,7 +283,6 @@ namespace Opc.Ua.Pumps.Server
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
                     activationError = error;
-                    throw;
                 }
                 finally
                 {
@@ -299,19 +301,38 @@ namespace Opc.Ua.Pumps.Server
                         {
                             await activation.RollbackAsync(disposalError).ConfigureAwait(false);
                         }
-                        catch (Exception cleanupError) when (
-                            activationError is not null && cleanupError is not OutOfMemoryException)
+                        catch (Exception cleanupError) when (cleanupError is not OutOfMemoryException)
                         {
-                            throw new AggregateException(
-                                "History activation and rollback failed.", activationError, cleanupError);
+                            rollbackError = cleanupError;
                         }
                     }
                 }
+                ThrowActivationErrors(activationError, rollbackError);
                 return pump;
             }
             finally
             {
                 gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Preserves the activation stack and reports rollback failures after cleanup has completed.
+        /// </summary>
+        private static void ThrowActivationErrors(Exception? activationError, Exception? rollbackError)
+        {
+            if (activationError is not null && rollbackError is not null)
+            {
+                throw new AggregateException(
+                    "History activation and rollback failed.", activationError, rollbackError);
+            }
+            if (activationError is not null)
+            {
+                ExceptionDispatchInfo.Capture(activationError).Throw();
+            }
+            if (rollbackError is not null)
+            {
+                ExceptionDispatchInfo.Capture(rollbackError).Throw();
             }
         }
 
