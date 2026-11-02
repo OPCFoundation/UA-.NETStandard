@@ -239,11 +239,6 @@ namespace Opc.Ua.Server.Fluent
             HistorianCaptureOptions? captureOptions,
             bool? historizing)
         {
-            if (historizing == false)
-            {
-                variable.Historizing = false;
-            }
-
             if (perCallProvider != null)
             {
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
@@ -258,6 +253,13 @@ namespace Opc.Ua.Server.Fluent
                     new HistorianBuilder(serverForBinding)
                         .UseProvider(perCallProvider);
 #pragma warning restore CA2000
+                using HistorianProviderRegistry.NodeReplacement? replacement =
+                    (registryHost.HistorianRegistry as HistorianProviderRegistry)?
+                        .BeginNodeReplacement(variable, perCallProvider);
+                if (historizing == false)
+                {
+                    variable.Historizing = false;
+                }
                 scope.Historize(
                     variable,
                     historyAccessLevel,
@@ -266,10 +268,20 @@ namespace Opc.Ua.Server.Fluent
                     capabilities: capabilities,
                     autoCapture: autoCapture,
                     captureOptions: captureOptions);
-                registryHost.HistorianRegistry.RegisterForNode(
-                    variable.NodeId,
-                    perCallProvider);
+                if (replacement == null)
+                {
+                    registryHost.HistorianRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                }
+                else
+                {
+                    replacement.Commit();
+                }
                 return;
+            }
+
+            if (historizing == false)
+            {
+                variable.Historizing = false;
             }
 
             IServerInternal server = GetServer(nodeManagerBuilder);

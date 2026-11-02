@@ -280,6 +280,33 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Reserves a replacement before fluent setup changes attributes, restoring the prior owner if setup fails.
+        /// </summary>
+        internal NodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider)
+        {
+            ArgumentNullException.ThrowIfNull(node);
+            ArgumentNullException.ThrowIfNull(provider);
+            if (node.NodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(node));
+            }
+            lock (m_lock)
+            {
+                m_nodes.TryGetValue(node.NodeId, out IHistorianProvider? previousProvider);
+                m_nodeBindings.TryGetValue(node.NodeId, out NodeBinding? previousBinding);
+                var current = new NodeBinding(this, node.NodeId, node);
+                m_nodes[node.NodeId] = provider;
+                m_nodeBindings[node.NodeId] = current;
+                AddProvider(provider, ownsProvider: true);
+                if (previousProvider != null)
+                {
+                    RebuildProviderSet(previousProvider);
+                }
+                return new NodeReplacement(this, node.NodeId, current, previousProvider, previousBinding);
+            }
+        }
+
+        /// <summary>
         /// Acquires a registration identity and, when supplied, its node attributes in one operation.
         /// </summary>
         private bool TryRegisterForNode(
@@ -319,6 +346,7 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
+                binding.IsDisposed = true;
                 if (m_nodeBindings.TryGetValue(nodeId, out NodeBinding? current) &&
                     ReferenceEquals(current, binding))
                 {
@@ -329,6 +357,52 @@ namespace Opc.Ua.Server.Historian
                         m_nodes.Remove(nodeId);
                         RebuildProviderSet(provider);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Commits a prepared replacement or restores the previous owner unless a later registration superseded it.
+        /// </summary>
+        private void CompleteNodeReplacement(
+            NodeId nodeId,
+            NodeBinding current,
+            IHistorianProvider? previousProvider,
+            NodeBinding? previousBinding,
+            bool commit)
+        {
+            lock (m_lock)
+            {
+                if (!m_nodeBindings.TryGetValue(nodeId, out NodeBinding? active) || !ReferenceEquals(active, current))
+                {
+                    return;
+                }
+                m_nodeBindings.Remove(nodeId);
+                if (commit)
+                {
+                    return;
+                }
+                m_nodes.TryRemove(nodeId, out IHistorianProvider? replacedProvider);
+                if (previousBinding?.IsDisposed == true)
+                {
+                    previousBinding.RestoreAttributes();
+                }
+                else
+                {
+                    current.RestoreAttributes();
+                    if (previousProvider != null)
+                    {
+                        m_nodes[nodeId] = previousProvider;
+                        AddProvider(previousProvider, ownsProvider: true);
+                    }
+                    if (previousBinding != null)
+                    {
+                        m_nodeBindings[nodeId] = previousBinding;
+                    }
+                }
+                if (replacedProvider != null)
+                {
+                    RebuildProviderSet(replacedProvider);
                 }
             }
         }
@@ -378,7 +452,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// The identity of one detachable exact-node registration.
         /// </summary>
-        private sealed class NodeBinding : IDisposable
+        internal sealed class NodeBinding : IDisposable
         {
             /// <summary>
             /// Creates an identity owned by the registry.
@@ -399,6 +473,11 @@ namespace Opc.Ua.Server.Historian
                     m_eventNotifier = notifier.EventNotifier;
                 }
             }
+
+            /// <summary>
+            /// Whether the original owner released this registration, including while a replacement was being prepared.
+            /// </summary>
+            internal bool IsDisposed { get; set; }
 
             /// <inheritdoc/>
             public void Dispose()
@@ -443,6 +522,73 @@ namespace Opc.Ua.Server.Historian
 
             /// <summary>The original notifier event access.</summary>
             private readonly byte m_eventNotifier;
+        }
+
+        /// <summary>
+        /// Restores an uncommitted fluent replacement without reviving an owner that disposed during setup.
+        /// </summary>
+        internal sealed class NodeReplacement : IDisposable
+        {
+            /// <summary>
+            /// Records the reservation and the exact prior owner for rollback.
+            /// </summary>
+            internal NodeReplacement(
+                HistorianProviderRegistry registry,
+                NodeId nodeId,
+                NodeBinding current,
+                IHistorianProvider? previousProvider,
+                NodeBinding? previousBinding)
+            {
+                m_registry = registry;
+                m_nodeId = nodeId;
+                m_current = current;
+                m_previousProvider = previousProvider;
+                m_previousBinding = previousBinding;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Complete(commit: false);
+            }
+
+            /// <summary>
+            /// Retains the mapping after fluent setup succeeds.
+            /// </summary>
+            internal void Commit()
+            {
+                Complete(commit: true);
+            }
+
+            /// <summary>
+            /// Completes this reservation once.
+            /// </summary>
+            private void Complete(bool commit)
+            {
+                if (Interlocked.Exchange(ref m_completed, 1) == 0)
+                {
+                    m_registry.CompleteNodeReplacement(
+                        m_nodeId, m_current, m_previousProvider, m_previousBinding, commit);
+                }
+            }
+
+            /// <summary>The registry coordinating the reservation.</summary>
+            private readonly HistorianProviderRegistry m_registry;
+
+            /// <summary>The node whose provider is being replaced.</summary>
+            private readonly NodeId m_nodeId;
+
+            /// <summary>The reservation identity.</summary>
+            private readonly NodeBinding m_current;
+
+            /// <summary>The prior exact-node provider, if any.</summary>
+            private readonly IHistorianProvider? m_previousProvider;
+
+            /// <summary>The prior detachable owner, if any.</summary>
+            private readonly NodeBinding? m_previousBinding;
+
+            /// <summary>Whether this reservation has committed or rolled back.</summary>
+            private int m_completed;
         }
 
         private readonly Lock m_lock = new();

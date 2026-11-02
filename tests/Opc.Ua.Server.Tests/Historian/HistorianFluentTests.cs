@@ -317,6 +317,122 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Exercises old-owner disposal after fluent attribute changes and before replacement setup completes.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ExplicitProviderReplacementPreservesAttributesAndRollsBackFailure(
+            bool failSetup,
+            bool disposePreviousDuringSetup)
+        {
+            IServerInternal server = CreateServerWithRegistry();
+            var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
+            {
+                CallBase = true
+            };
+            (NodeManagerBuilder builder, BaseDataVariableState node) =
+                CreateBuilderForServer(server, variable.Object);
+            node.AccessLevel = AccessLevels.CurrentRead;
+            node.UserAccessLevel = AccessLevels.CurrentRead;
+            var registry = (HistorianProviderRegistry)((IHistorianRegistryProvider)server).HistorianRegistry;
+            using var previous = new InMemoryHistorianProvider();
+            using var replacement = new InMemoryHistorianProvider();
+            Assert.That(registry.TryRegisterForNode(node, previous, out IDisposable? oldBinding), Is.True);
+            node.Historizing = true;
+            node.AccessLevel |= AccessLevels.HistoryRead;
+            node.UserAccessLevel |= AccessLevels.HistoryRead;
+            var setupFailure = new InvalidOperationException("The annotation lookup failed.");
+            variable.Setup(value => value.FindChild(
+                    It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
+                .Returns(() =>
+                {
+                    if (disposePreviousDuringSetup)
+                    {
+                        oldBinding!.Dispose();
+                    }
+                    if (failSetup)
+                    {
+                        throw setupFailure;
+                    }
+                    return null;
+                });
+
+            if (failSetup)
+            {
+                Assert.That(Assert.Throws<InvalidOperationException>(() =>
+                    builder.Variable<int>(node.NodeId).Historize(
+                        provider: replacement, autoCapture: false)), Is.SameAs(setupFailure));
+                Assert.That(registry.Resolve(node.NodeId),
+                    disposePreviousDuringSetup ? Is.Null : Is.SameAs(previous));
+                Assert.That(node.Historizing, Is.EqualTo(!disposePreviousDuringSetup));
+                byte expectedAccess = disposePreviousDuringSetup
+                    ? AccessLevels.CurrentRead
+                    : AccessLevels.CurrentRead | AccessLevels.HistoryRead;
+                Assert.That(node.AccessLevel, Is.EqualTo(expectedAccess));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(expectedAccess));
+                oldBinding!.Dispose();
+                Assert.That(registry.Resolve(node.NodeId), Is.Null);
+                Assert.That(node.Historizing, Is.False);
+                Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            }
+            else
+            {
+                builder.Variable<int>(node.NodeId).Historize(provider: replacement, autoCapture: false);
+                oldBinding!.Dispose();
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(replacement));
+                Assert.That(node.Historizing, Is.True);
+                Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead | AccessLevels.HistoryRead));
+                Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead | AccessLevels.HistoryRead));
+            }
+            variable.Verify(value => value.FindChild(
+                It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)), Times.Once);
+        }
+
+        /// <summary>
+        /// Failed fluent setup cannot undo an independently installed later mapping or its attributes.
+        /// </summary>
+        [Test]
+        public void FailedExplicitProviderReplacementPreservesALaterOwner()
+        {
+            IServerInternal server = CreateServerWithRegistry();
+            var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
+            {
+                CallBase = true
+            };
+            (NodeManagerBuilder builder, BaseDataVariableState node) =
+                CreateBuilderForServer(server, variable.Object);
+            var registry = (HistorianProviderRegistry)((IHistorianRegistryProvider)server).HistorianRegistry;
+            using var previous = new InMemoryHistorianProvider();
+            using var attempted = new InMemoryHistorianProvider();
+            using var later = new InMemoryHistorianProvider();
+            Assert.That(registry.TryRegisterForNode(node, previous, out IDisposable? oldBinding), Is.True);
+            node.Historizing = true;
+            node.AccessLevel = AccessLevels.HistoryRead;
+            node.UserAccessLevel = AccessLevels.HistoryRead;
+            variable.Setup(value => value.FindChild(
+                    It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
+                .Returns(() =>
+                {
+                    registry.RegisterForNode(node.NodeId, later);
+                    node.Historizing = true;
+                    node.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                    node.UserAccessLevel = AccessLevels.HistoryWrite;
+                    throw new InvalidOperationException("Replacement setup failed after a later owner registered.");
+                });
+
+            Assert.Throws<InvalidOperationException>(() =>
+                builder.Variable<int>(node.NodeId).Historize(provider: attempted, autoCapture: false));
+            oldBinding!.Dispose();
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(later));
+            Assert.That(node.Historizing, Is.True);
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryWrite));
+        }
+
+        /// <summary>
         /// Verifies that an explicitly supplied provider receives automatically captured values.
         /// </summary>
         [Test]
@@ -530,17 +646,17 @@ namespace Opc.Ua.Server.Tests.Historian
             return CreateBuilderForServer(server);
         }
 
-        private static (NodeManagerBuilder Builder, BaseDataVariableState Var) CreateBuilderForServer(IServerInternal server)
+        private static (NodeManagerBuilder Builder, BaseDataVariableState Var) CreateBuilderForServer(
+            IServerInternal server,
+            BaseDataVariableState? variable = null)
         {
             var ctx = new ServerSystemContext(server);
-            var var1 = new BaseDataVariableState(parent: null)
-            {
-                NodeId = new NodeId("Var1", kNs),
-                BrowseName = new QualifiedName("Var1", kNs),
-                DisplayName = new LocalizedText("Var1"),
-                DataType = DataTypeIds.Int32,
-                ValueRank = ValueRanks.Scalar
-            };
+            BaseDataVariableState var1 = variable ?? new BaseDataVariableState(parent: null);
+            var1.NodeId = new NodeId("Var1", kNs);
+            var1.BrowseName = new QualifiedName("Var1", kNs);
+            var1.DisplayName = new LocalizedText("Var1");
+            var1.DataType = DataTypeIds.Int32;
+            var1.ValueRank = ValueRanks.Scalar;
 
             var roots = new Dictionary<QualifiedName, NodeState> { [var1.BrowseName] = var1 };
             var byId = new Dictionary<NodeId, NodeState> { [var1.NodeId] = var1 };

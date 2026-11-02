@@ -374,6 +374,13 @@ attributes; disposing an earlier registration then cannot restore an older
 snapshot over those attributes. The overload taking only `NodeId` manages the
 mapping without changing node attributes.
 
+The standard fluent `.Historize(provider: ...)` path reserves the new mapping
+before changing variable attributes. If setup fails, it restores the prior exact
+mapping, registration identity and attributes. An owner that disposed during setup
+is not restored, and a later replacement is not removed by that rollback.
+Successful setup retains the new binding even if an older scoped owner disposes
+between the attribute changes and completion.
+
 ### Provider resolution order
 
 For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the provider in this order:
