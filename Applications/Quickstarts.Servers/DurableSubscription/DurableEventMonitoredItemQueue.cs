@@ -66,6 +66,16 @@ namespace Quickstarts.Servers
         }
 
         /// <summary>
+        /// Creates a queue from a template, logging to the default logger factory
+        /// </summary>
+        public DurableEventMonitoredItemQueue(
+            StorableEventQueue queue,
+            IBatchPersistor batchPersistor)
+            : this(queue, batchPersistor, null)
+        {
+        }
+
+        /// <summary>
         /// Creates a queue from a template
         /// </summary>
         public DurableEventMonitoredItemQueue(
