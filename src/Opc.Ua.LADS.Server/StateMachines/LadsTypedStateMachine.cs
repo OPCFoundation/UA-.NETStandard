@@ -47,16 +47,16 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="context">The system context.</param>
         /// <param name="map">The enumeration map.</param>
         /// <param name="initial">The initial state.</param>
-        /// <param name="applyMutation">The owning device's admission for synchronous state writes.</param>
+        /// <param name="device">The owning device, when the machine belongs to a device.</param>
         public LadsStateMachine(
             FiniteStateMachineState stateMachine,
             ISystemContext context,
             LadsStateMap<TEnum> map,
             TEnum initial,
-            Action<Action>? applyMutation = null)
+            LadsDevice? device = null)
         {
             m_map = map;
-            Driver = new LadsStateMachine(stateMachine, context, map.Table, applyMutation);
+            Driver = new LadsStateMachine(stateMachine, context, map.Table, device);
             Driver.StateChanged += id => StateChanged?.Invoke(m_map.ToValue(id));
             Driver.SetInitialState(map.ToId(initial));
         }
@@ -156,11 +156,19 @@ namespace Opc.Ua.LADS.Server.StateMachines
         }
 
         /// <summary>
-        /// Publishes a terminal state while the owning device is quarantining all normal writes.
+        /// Writes a terminal state without dispatching observable notifications.
         /// </summary>
-        internal void SetQuarantinedState(TEnum state)
+        internal void AssignState(TEnum state)
         {
-            Driver.SetQuarantinedState(m_map.ToId(state));
+            Driver.AssignState(m_map.ToId(state));
+        }
+
+        /// <summary>
+        /// Reports a state written by the owning device.
+        /// </summary>
+        internal void NotifyStateChanged()
+        {
+            Driver.NotifyStateChanged(Driver.CurrentStateId);
         }
 
         private readonly LadsStateMap<TEnum> m_map;

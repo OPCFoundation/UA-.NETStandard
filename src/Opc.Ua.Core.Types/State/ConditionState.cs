@@ -161,6 +161,23 @@ namespace Opc.Ua
         /// <remarks>This method ensures all related variables are set correctly.</remarks>
         public virtual void SetSeverity(ISystemContext context, EventSeverity severity)
         {
+            SetSeverity(context, severity, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets severity attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="severity">The event severity.</param>
+        /// <param name="clearChangeMasks">
+        /// Whether to notify state observers now. Otherwise the caller clears change masks after its other updates.
+        /// </param>
+        public void SetSeverity(ISystemContext context, EventSeverity severity, bool clearChangeMasks)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             ConditionVariableState<ushort> lastSeverity = LastSeverity!; // condition states always have LastSeverity after construction
             PropertyState<ushort> severityProp = Severity!; // condition states always have Severity after construction
             lastSeverity.Value = severityProp.Value;
@@ -170,7 +187,10 @@ namespace Opc.Ua
 
             lastSeverity.Timestamp = DateTime.UtcNow;
             severityProp.Timestamp = DateTime.UtcNow;
-            ClearChangeMasks(context, includeChildren: true);
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
         }
 
         /// <summary>

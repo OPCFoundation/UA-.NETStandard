@@ -405,22 +405,11 @@ namespace Opc.Ua.LADS.Server
                             m_storedInterruptedRunId = runId;
                         }
                     }, cancellationToken).ConfigureAwait(false);
-                    m_unit.Device.ApplyMutation(() =>
-                    {
-                        PublishActiveProgram(run);
-                        lock (m_lock)
-                        {
-                            m_waiters[runId] = new TaskCompletionSource<ILadsResult>(
-                                TaskCreationOptions.RunContinuationsAsynchronously);
-                        }
-                        Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
-                        active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
-                        lock (m_lock)
-                        {
-                            m_active = active;
-                        }
-                        m_unit.UpdateRunningExecutability();
-                    });
+                    m_unit.Device.StartProgram(this, active);
+                    Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+                    Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
+                    active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
+                    m_unit.UpdateRunningExecutability();
                 }
                 catch (Exception startFailure)
                 {
@@ -429,7 +418,16 @@ namespace Opc.Ua.LADS.Server
                     {
                         if (active.Completion == null)
                         {
+                            lock (m_lock)
+                            {
+                                if (ReferenceEquals(m_active, active))
+                                {
+                                    m_active = null;
+                                }
+                                m_waiters.Remove(runId);
+                            }
                             active.Cancellation.Dispose();
+                            ResetActiveProgram();
                         }
                         else
                         {
@@ -1371,33 +1369,39 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Publishes the active program of a starting run.
+        /// Assigns the active program and its waiter without dispatching observable notifications.
         /// </summary>
-        private void PublishActiveProgram(LadsProgramRun run)
+        internal void AssignActiveProgram(ActiveRunEntry entry)
         {
+            LadsProgramRun run = entry.Run;
             ActiveProgramState active = Node.ActiveProgram!;
             NodeId templateNode = default;
             lock (m_lock)
             {
-                if (m_templates.TryGetValue(run.Template.Id, out TemplateEntry? entry))
+                if (m_templates.TryGetValue(run.Template.Id, out TemplateEntry? template))
                 {
-                    templateNode = entry.Node.NodeId;
+                    templateNode = template.Node.NodeId;
                 }
+                m_waiters[run.RunId] = new TaskCompletionSource<ILadsResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_active = entry;
             }
-            Runtime.Update(active.DeviceProgramRunId, Variant.From(run.RunId));
-            Runtime.Update(active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType
-            {
-                Name = new LocalizedText(run.Template.Id),
-                NodeId = templateNode
-            }));
-            Runtime.Update(active.EstimatedRuntime, Variant.From(run.Template.EstimatedRuntime.TotalMilliseconds));
-            Runtime.Update(active.EstimatedStepNumbers, Variant.From((uint)run.Template.Steps.Count));
-            Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
-            Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
-            Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.DeviceProgramRunId, Variant.From(run.RunId));
+            LadsRuntime.AssignValue(
+                active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType
+                {
+                    Name = new LocalizedText(run.Template.Id),
+                    NodeId = templateNode
+                }));
+            LadsRuntime.AssignValue(
+                active.EstimatedRuntime, Variant.From(run.Template.EstimatedRuntime.TotalMilliseconds));
+            LadsRuntime.AssignValue(active.EstimatedStepNumbers, Variant.From((uint)run.Template.Steps.Count));
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(LocalizedText.Null));
+            LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentPauseTime, Variant.From(0.0));
         }
 
         /// <summary>
@@ -1405,21 +1409,27 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void ResetActiveProgram()
         {
-            m_unit.Device.ApplyMutation(() =>
-            {
-                ActiveProgramState active = Node.ActiveProgram!;
-                Runtime.Update(active.DeviceProgramRunId, Variant.From(string.Empty));
-                Runtime.Update(active.CurrentProgramTemplate,
-                    Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
-                Runtime.Update(active.EstimatedRuntime, Variant.From(0.0));
-                Runtime.Update(active.EstimatedStepNumbers, Variant.From(0u));
-                Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
-                Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
-                Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
-                Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-                Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
-                Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
-            });
+            m_unit.Device.ResetActiveProgram(this);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Clears active-program attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignActiveProgramReset()
+        {
+            ActiveProgramState active = Node.ActiveProgram!;
+            LadsRuntime.AssignValue(active.DeviceProgramRunId, Variant.From(string.Empty));
+            LadsRuntime.AssignValue(active.CurrentProgramTemplate,
+                Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
+            LadsRuntime.AssignValue(active.EstimatedRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepNumbers, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(0u));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(LocalizedText.Null));
+            LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.EstimatedStepRuntime, Variant.From(0.0));
+            LadsRuntime.AssignValue(active.CurrentPauseTime, Variant.From(0.0));
         }
 
         /// <summary>
@@ -1427,24 +1437,32 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void OnStep(LadsProgramRun? run, uint number, string name)
         {
-            m_unit.Device.ApplyMutation(() =>
+            double runtime = run?.CurrentRuntime.TotalMilliseconds ?? 0;
+            m_unit.Device.SetProgramStep(this, run, number, name, runtime);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns step attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignStep(
+            LadsProgramRun? run, uint number, string name, double runtimeMilliseconds)
+        {
+            ActiveProgramState active = Node.ActiveProgram!;
+            LadsRuntime.AssignValue(active.CurrentStepNumber, Variant.From(number));
+            LadsRuntime.AssignValue(active.CurrentStepName, Variant.From(new LocalizedText(name)));
+            LadsRuntime.AssignValue(active.CurrentStepRuntime, Variant.From(0.0));
+            if (run != null)
             {
-                ActiveProgramState active = Node.ActiveProgram!;
-                Runtime.Update(active.CurrentStepNumber, Variant.From(number));
-                Runtime.Update(active.CurrentStepName, Variant.From(new LocalizedText(name)));
-                Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-                if (run != null)
+                int index = (int)number - 1;
+                ArrayOf<LadsProgramStep> steps = run.Template.Steps;
+                if (index >= 0 && index < steps.Count)
                 {
-                    int index = (int)number - 1;
-                    ArrayOf<LadsProgramStep> steps = run.Template.Steps;
-                    if (index >= 0 && index < steps.Count)
-                    {
-                        Runtime.Update(
-                            active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
-                    }
-                    Runtime.Update(active.CurrentRuntime, Variant.From(run.CurrentRuntime.TotalMilliseconds));
+                    LadsRuntime.AssignValue(
+                        active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
                 }
-            });
+                LadsRuntime.AssignValue(active.CurrentRuntime, Variant.From(runtimeMilliseconds));
+            }
         }
 
         /// <summary>
@@ -1452,16 +1470,20 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         internal void UpdateRuntime(LadsProgramRun run)
         {
-            m_unit.Device.ApplyMutation(() =>
-            {
-                Runtime.Update(
-                    Node.ActiveProgram!.CurrentRuntime,
-                    Variant.From(run.CurrentRuntime.TotalMilliseconds));
-                Runtime.Update(
-                    Node.ActiveProgram.CurrentPauseTime, Variant.From(run.CurrentPauseTime.TotalMilliseconds));
-                Runtime.Update(
-                    Node.ActiveProgram.CurrentStepRuntime, Variant.From(run.CurrentStepRuntime.TotalMilliseconds));
-            });
+            m_unit.Device.SetProgramRuntime(
+                this, run.CurrentRuntime.TotalMilliseconds, run.CurrentPauseTime.TotalMilliseconds,
+                run.CurrentStepRuntime.TotalMilliseconds);
+            Node.ActiveProgram!.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns measured program durations without dispatching observable notifications.
+        /// </summary>
+        internal void AssignRuntime(double runtime, double pause, double stepRuntime)
+        {
+            LadsRuntime.AssignValue(Node.ActiveProgram!.CurrentRuntime, Variant.From(runtime));
+            LadsRuntime.AssignValue(Node.ActiveProgram.CurrentPauseTime, Variant.From(pause));
+            LadsRuntime.AssignValue(Node.ActiveProgram.CurrentStepRuntime, Variant.From(stepRuntime));
         }
 
         /// <summary>
@@ -1630,7 +1652,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// The state of the active run.
         /// </summary>
-        private sealed class ActiveRunEntry
+        internal sealed class ActiveRunEntry
         {
             /// <summary>
             /// Creates the entry.

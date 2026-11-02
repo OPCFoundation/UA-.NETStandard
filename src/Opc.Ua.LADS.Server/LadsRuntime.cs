@@ -525,6 +525,15 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public void Update(BaseVariableState? variable, Variant value)
         {
+            AssignValue(variable, value);
+            variable?.ClearChangeMasks(Context, false);
+        }
+
+        /// <summary>
+        /// Assigns a variable's attributes without dispatching observable notifications.
+        /// </summary>
+        internal static void AssignValue(BaseVariableState? variable, Variant value)
+        {
             if (variable == null)
             {
                 return;
@@ -532,7 +541,6 @@ namespace Opc.Ua.LADS.Server
             variable.Value = value;
             variable.Timestamp = DateTimeUtc.Now;
             variable.StatusCode = StatusCodes.Good;
-            variable.ClearChangeMasks(Context, false);
         }
 
         /// <summary>

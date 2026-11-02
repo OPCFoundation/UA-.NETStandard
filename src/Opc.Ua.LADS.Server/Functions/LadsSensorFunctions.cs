@@ -93,17 +93,8 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(double value, double? rawValue = null)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                double raw = rawValue ?? value;
-                lock (m_lock)
-                {
-                    m_value = value;
-                    m_raw = raw;
-                }
-                Runtime.Update(m_node.SensorValue, Variant.From(value));
-                Runtime.Update(m_node.RawValue, Variant.From(raw));
-            });
+            Unit.Device.UpdateSensor(this, value, rawValue ?? value);
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
@@ -117,7 +108,21 @@ namespace Opc.Ua.LADS.Server
                     "The sensor '{0}' has no compensation value.",
                     Path);
             }
-            Unit.Device.ApplyMutation(() => Runtime.Update(compensated.CompensationValue, Variant.From(value)));
+            Unit.Device.SetFunctionParameter(compensated.CompensationValue, Variant.From(value));
+        }
+
+        /// <summary>
+        /// Assigns the measured and raw values without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(double value, double raw)
+        {
+            lock (m_lock)
+            {
+                m_value = value;
+                m_raw = raw;
+            }
+            LadsRuntime.AssignValue(m_node.SensorValue, Variant.From(value));
+            LadsRuntime.AssignValue(m_node.RawValue, Variant.From(raw));
         }
 
         private readonly AnalogScalarSensorFunctionState m_node;
@@ -162,16 +167,21 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(ArrayOf<double> values, ArrayOf<double> rawValues = default)
         {
-            Unit.Device.ApplyMutation(() =>
+            Unit.Device.UpdateSensor(this, values, rawValues.IsNull ? values : rawValues);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns the measured and raw arrays without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(ArrayOf<double> values, ArrayOf<double> raw)
+        {
+            lock (m_lock)
             {
-                ArrayOf<double> raw = rawValues.IsNull ? values : rawValues;
-                lock (m_lock)
-                {
-                    m_values = values;
-                }
-                Runtime.Update(m_node.SensorValue, Variant.From(values));
-                Runtime.Update(m_node.RawValue, Variant.From(raw));
-            });
+                m_values = values;
+            }
+            LadsRuntime.AssignValue(m_node.SensorValue, Variant.From(values));
+            LadsRuntime.AssignValue(m_node.RawValue, Variant.From(raw));
         }
 
         private readonly AnalogArraySensorFunctionState m_node;
@@ -204,11 +214,17 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(bool value)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                Volatile.Write(ref m_value, value);
-                Runtime.Update(m_variable, Variant.From(value));
-            });
+            Unit.Device.UpdateSensor(this, value);
+            m_variable?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Assigns the discrete reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(bool value)
+        {
+            Volatile.Write(ref m_value, value);
+            LadsRuntime.AssignValue(m_variable, Variant.From(value));
         }
 
         private readonly TwoStateDiscreteState? m_variable;
@@ -241,12 +257,18 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(uint value)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                LadsMultiStateDiscreteControlFunction.Check(m_states, value);
-                Volatile.Write(ref m_value, value);
-                Runtime.Update(m_variable, Variant.From(value));
-            });
+            Unit.Device.UpdateSensor(this, value);
+            m_variable?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Validates and assigns the discrete reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(uint value)
+        {
+            LadsMultiStateDiscreteControlFunction.Check(m_states, value);
+            Volatile.Write(ref m_value, value);
+            LadsRuntime.AssignValue(m_variable, Variant.From(value));
         }
 
         private readonly int m_states;
@@ -317,7 +339,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.Cover,
                 options.InitialState,
-                Unit.Device.ApplyMutation);
+                Unit.Device);
             m_machine.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))

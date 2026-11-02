@@ -146,6 +146,36 @@ namespace Opc.Ua
         /// <param name="active">if set to <c>true</c> the condition is active.</param>
         public virtual void SetActiveState(ISystemContext context, bool active)
         {
+            SetActiveState(context, active, clearChangeMasks: true, updateRetainState: true);
+        }
+
+        /// <summary>
+        /// Sets active-state attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="active">Whether the condition is active.</param>
+        /// <param name="clearChangeMasks">
+        /// Whether to notify state observers now. Otherwise the caller clears change masks after its other updates.
+        /// </param>
+        /// <param name="updateRetainState">
+        /// Whether to derive Retain, including invoking a configured retain-state provider.
+        /// Otherwise the caller assigns Retain after its other updates.
+        /// </param>
+        /// <remarks>
+        /// Deferred notifications are not supported for one-shot unshelving, which processes a separate
+        /// state machine with its own transition callbacks.
+        /// </remarks>
+        public void SetActiveState(
+            ISystemContext context, bool active, bool clearChangeMasks, bool updateRetainState)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
+            {
+                throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");
+            }
             TranslationInfo state;
             if (active)
             {
@@ -157,13 +187,27 @@ namespace Opc.Ua
                 // When a latched alarm activates, set LatchedState to true
                 if (LatchedState != null && !LatchedState.Id!.Value)
                 {
-                    SetLatchedState(context, true);
+                    if (clearChangeMasks)
+                    {
+                        SetLatchedState(context, true);
+                    }
+                    else
+                    {
+                        SetLatchedState(context, true, clearChangeMasks: false);
+                    }
                 }
 
                 // New activation resets silence state
                 if (SilenceState is { } silenceState && silenceState.Id!.Value)
                 {
-                    SetSilenceState(context, false);
+                    if (clearChangeMasks)
+                    {
+                        SetSilenceState(context, false);
+                    }
+                    else
+                    {
+                        SetSilenceState(context, false, clearChangeMasks: false);
+                    }
                 }
             }
             else
@@ -188,8 +232,14 @@ namespace Opc.Ua
 
             activeState.Timestamp = DateTimeUtc.Now;
             UpdateEffectiveState(context);
-            UpdateRetainState();
-            ClearChangeMasks(context, includeChildren: true);
+            if (updateRetainState)
+            {
+                UpdateRetainState();
+            }
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
         }
 
         /// <summary>

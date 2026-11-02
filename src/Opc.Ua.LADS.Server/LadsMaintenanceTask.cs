@@ -77,7 +77,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.Maintenance,
                 LadsMaintenanceStateValue.Planned,
-                Device.ApplyMutation);
+                Device);
             Machine.StateChanged += state =>
             {
                 Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
@@ -186,11 +186,8 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Planned);
                 await AskProviderAsync(LadsMaintenanceCommand.Start, cancellationToken).ConfigureAwait(false);
-                Device.ApplyMutation(() =>
-                {
-                    Transition(LadsMaintenanceStateValue.Executing);
-                    ApplyCondition(Runtime.Context, active: true, message: default);
-                });
+                Transition(LadsMaintenanceStateValue.Executing);
+                ApplyCondition(Runtime.Context, active: true, message: default);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -212,18 +209,10 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Executing);
                 await AskProviderAsync(LadsMaintenanceCommand.Stop, cancellationToken).ConfigureAwait(false);
-                Device.ApplyMutation(() =>
-                {
-                    DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
-                    lock (m_lock)
-                    {
-                        m_lastExecution = now;
-                        m_lastResult = result;
-                    }
-                    Runtime.Update(Node.LastExecutionDate, Variant.From(now));
-                    Transition(LadsMaintenanceStateValue.Finished);
-                    ApplyCondition(Runtime.Context, active: false, comment);
-                });
+                Transition(LadsMaintenanceStateValue.Finished);
+                Device.RecordMaintenanceCompletion(this, Runtime.TimeProvider.GetUtcNow(), result);
+                Node.LastExecutionDate?.ClearChangeMasks(Runtime.Context, false);
+                ApplyCondition(Runtime.Context, active: false, comment);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -242,16 +231,13 @@ namespace Opc.Ua.LADS.Server
                 Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Finished);
                 await AskProviderAsync(LadsMaintenanceCommand.Reset, cancellationToken).ConfigureAwait(false);
-                Device.ApplyMutation(() =>
+                Transition(LadsMaintenanceStateValue.Planned);
+                if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
                 {
-                    if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
-                    {
-                        DateTime next = LastExecutionDate.ToDateTime() + recurrence;
-                        Runtime.Update(Node.PlannedDate, Variant.From((DateTimeUtc)next));
-                    }
-                    Transition(LadsMaintenanceStateValue.Planned);
-                    ApplyCondition(Runtime.Context, active: true, message: default);
-                });
+                    DateTime next = LastExecutionDate.ToDateTime() + recurrence;
+                    Device.SetFunctionParameter(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                }
+                ApplyCondition(Runtime.Context, active: true, message: default);
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -332,9 +318,22 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Updates the condition state and reports it as an event.
+        /// Records a completed maintenance task without dispatching observable notifications.
         /// </summary>
-        private void ApplyCondition(ISystemContext context, bool active, LocalizedText message)
+        internal void AssignCompletion(DateTimeUtc completed, MaintenanceTaskResultEnum result)
+        {
+            lock (m_lock)
+            {
+                m_lastExecution = completed;
+                m_lastResult = result;
+            }
+            LadsRuntime.AssignValue(Node.LastExecutionDate, Variant.From(completed));
+        }
+
+        /// <summary>
+        /// Updates condition attributes without dispatching observable notifications.
+        /// </summary>
+        internal void AssignCondition(ISystemContext context, bool active, LocalizedText message)
         {
             MaintenanceTaskState condition = Node;
             if (condition.Message != null)
@@ -347,30 +346,40 @@ namespace Opc.Ua.LADS.Server
             {
                 if (condition.ActiveState?.Id?.Value != true)
                 {
-                    condition.SetActiveState(context, true);
-                    condition.SetAcknowledgedState(context, false);
+                    condition.SetActiveState(
+                        context, true, clearChangeMasks: false, updateRetainState: false);
+                    condition.SetAcknowledgedState(
+                        context, false, clearChangeMasks: false, updateRetainState: false);
                 }
-                condition.SetSeverity(context, (EventSeverity)ActiveSeverity);
+                condition.SetSeverity(context, (EventSeverity)ActiveSeverity, clearChangeMasks: false);
                 condition.Retain?.Value = true;
             }
             else
             {
-                condition.SetActiveState(context, false);
-                condition.SetSeverity(context, (EventSeverity)InactiveSeverity);
+                condition.SetActiveState(
+                    context, false, clearChangeMasks: false, updateRetainState: false);
+                condition.SetSeverity(context, (EventSeverity)InactiveSeverity, clearChangeMasks: false);
                 condition.Retain?.Value = condition.AckedState?.Id?.Value != true;
-            }
-            if (!Device.IsPublished || condition.EnabledState?.Id?.Value != true)
-            {
-                condition.ClearChangeMasks(context, true);
-                return;
             }
             condition.EventId?.Value = Uuid.NewUuid().ToByteString();
             condition.Time?.Value = DateTimeUtc.Now;
             condition.ReceiveTime?.Value = DateTimeUtc.Now;
-            condition.ClearChangeMasks(context, true);
+        }
+
+        /// <summary>
+        /// Updates the condition and reports its committed attributes after device state writes finish.
+        /// </summary>
+        private void ApplyCondition(ISystemContext context, bool active, LocalizedText message)
+        {
+            Device.SetMaintenanceCondition(this, active, message);
+            Node.ClearChangeMasks(context, true);
+            if (!Device.IsPublished || Node.EnabledState?.Id?.Value != true)
+            {
+                return;
+            }
             var snapshot = new InstanceStateSnapshot();
-            snapshot.Initialize(context, condition);
-            condition.ReportEvent(context, snapshot);
+            snapshot.Initialize(context, Node);
+            Node.ReportEvent(context, snapshot);
         }
 
         /// <summary>

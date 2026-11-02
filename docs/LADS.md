@@ -567,12 +567,17 @@ the last snapshot the provider successfully retained and rebuilds its nodes;
 the failed call does not establish whether the new or previous snapshot remains
 durable. A file-binding cleanup error after committed removal is reported
 without reversing the removal.
-Quarantine and local state/value writes share one device-private admission.
-Commands already waiting for their command gate recheck the device on entry;
-a provider acknowledgement or transition guard returning after quarantine
-cannot commit another local write. Asynchronous provider calls run outside
-that admission, so a delayed hardware callback does not prevent another unit's
-failed transaction from quarantining the device. The runtime cannot reverse
+The device orders quarantine against its concrete state and value operations.
+Each operation checks the retained failure and writes its attributes while the
+device's private lock is held; callers cannot supply code to run under that
+lock. Transition guards and hardware providers run before the commit, outside
+the lock. A provider acknowledgement or transition guard returning after
+quarantine therefore cannot commit another local write, including a transition
+out of Shutdown. Node change notifications, state observers and maintenance
+events are dispatched after the lock is released, so their handlers can update
+a counter or another function from a different thread without waiting for that
+lock. Commands already waiting for their command gate also recheck the device
+on entry. The runtime cannot reverse
 physical actions a provider has already performed.
 
 Before calling an executor, the runtime stores its run id as an interrupted-run

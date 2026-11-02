@@ -61,13 +61,13 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.Functional,
                 LadsFunctionalStateValue.Stopped,
-                Device.ApplyMutation);
+                Device);
             Running = new LadsStateMachine<LadsRunningStateValue>(
                 stateMachine.RunningStateMachine!,
                 context,
                 LadsStateMaps.Running,
                 LadsRunningStateValue.Idle,
-                Device.ApplyMutation);
+                Device);
             Functional.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))

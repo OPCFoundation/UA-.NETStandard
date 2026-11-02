@@ -65,6 +65,21 @@ namespace Opc.Ua
         /// <param name="silenced">If <c>true</c>, the alarm is silenced.</param>
         public virtual void SetSilenceState(ISystemContext context, bool silenced)
         {
+            SetSilenceState(context, silenced, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets silence attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="silenced">Whether the alarm is silenced.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        public void SetSilenceState(ISystemContext context, bool silenced, bool clearChangeMasks)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (SilenceState is not { } silenceState)
             {
                 return;
@@ -81,7 +96,10 @@ namespace Opc.Ua
             silenceState.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
-            ClearChangeMasks(context, includeChildren: true);
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
         }
 
         /// <summary>
@@ -133,6 +151,21 @@ namespace Opc.Ua
         /// <param name="latched">If <c>true</c>, the alarm is latched.</param>
         public virtual void SetLatchedState(ISystemContext context, bool latched)
         {
+            SetLatchedState(context, latched, clearChangeMasks: true);
+        }
+
+        /// <summary>
+        /// Sets latched-state attributes and optionally publishes their change masks.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="latched">Whether the alarm is latched.</param>
+        /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
+        public void SetLatchedState(ISystemContext context, bool latched, bool clearChangeMasks)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (LatchedState is not { } latchedState)
             {
                 return;
@@ -149,7 +182,10 @@ namespace Opc.Ua
             latchedState.Timestamp = DateTimeUtc.Now;
 
             UpdateEffectiveState(context);
-            ClearChangeMasks(context, includeChildren: true);
+            if (clearChangeMasks)
+            {
+                ClearChangeMasks(context, includeChildren: true);
+            }
         }
 
         /// <summary>

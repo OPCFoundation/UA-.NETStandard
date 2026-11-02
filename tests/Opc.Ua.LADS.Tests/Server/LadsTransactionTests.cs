@@ -471,6 +471,170 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Allows a native node notification to coordinate a mutation on another thread.
+        /// </summary>
+        [TestCase("sensor")]
+        [TestCase("current")]
+        [TestCase("target")]
+        [TestCase("enabled")]
+        [TestCase("counter")]
+        [TestCase("state")]
+        [TestCase("maintenance")]
+        [TestCase("maintenance-condition")]
+        [TestCase("quarantine")]
+        public async Task NativeNotificationsPermitCrossThreadDeviceMutationAsync(string change)
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            await using LadsHostedServer server = await StartAsync(
+                nameof(NativeNotificationsPermitCrossThreadDeviceMutationAsync),
+                new FaultingStore(), nodes).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var temperature = (LadsAnalogControlFunction)unit.GetFunction<IAnalogControlFunction>("Temperature");
+            var sensor = (LadsAnalogScalarSensorFunction)unit.GetFunction<IAnalogScalarSensorFunction>("CO2");
+            var maintenance = (LadsMaintenanceTask)device.GetMaintenanceTask(LadsIncubator.MaintenanceName);
+            if (change == "maintenance-condition")
+            {
+                await maintenance.StartAsync().ConfigureAwait(false);
+            }
+            NodeState observed = change switch
+            {
+                "sensor" => ((AnalogScalarSensorFunctionState)sensor.Node).SensorValue!,
+                "current" => ((AnalogControlFunctionState)temperature.Node).CurrentValue!,
+                "target" => ((AnalogControlFunctionState)temperature.Node).TargetValue!,
+                "enabled" => temperature.Node.IsEnabled!,
+                "counter" => device.Counters.OperationCycleCounter!,
+                "maintenance" => maintenance.Machine.Driver.StateMachine,
+                "maintenance-condition" => maintenance.Node.Severity!,
+                _ => device.DeviceState.Driver.StateMachine
+            };
+            using var finished = new ManualResetEventSlim();
+            Exception? workerFailure = null;
+            bool completedInsideNotification = false;
+            int notifications = 0;
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    device.AddOperationDuration(TimeSpan.FromMilliseconds(17));
+                }
+                catch (Exception failure)
+                {
+                    workerFailure = failure;
+                }
+                finally
+                {
+                    finished.Set();
+                }
+            })
+            {
+                IsBackground = true
+            };
+            double originalDuration = device.OperationDuration.TotalMilliseconds;
+            observed.OnStateChanged = (_, _, _) =>
+            {
+                if (Interlocked.Increment(ref notifications) == 1)
+                {
+                    worker.Start();
+                    completedInsideNotification = finished.Wait(TimeSpan.FromSeconds(10));
+                }
+            };
+            try
+            {
+                switch (change)
+                {
+                    case "sensor":
+                        sensor.UpdateValue(sensor.SensorValue + 1);
+                        break;
+                    case "current":
+                        temperature.UpdateCurrentValue(temperature.CurrentValue + 1);
+                        break;
+                    case "target":
+                        await temperature.SetTargetValueAsync(temperature.TargetValue + 1).ConfigureAwait(false);
+                        break;
+                    case "enabled":
+                        temperature.IsEnabled = false;
+                        break;
+                    case "counter":
+                        device.IncrementOperationCycles();
+                        break;
+                    case "maintenance":
+                        await maintenance.StartAsync().ConfigureAwait(false);
+                        break;
+                    case "maintenance-condition":
+                        await maintenance.StopAsync().ConfigureAwait(false);
+                        break;
+                    case "quarantine":
+                        await QuarantineAsync(device, nodes).ConfigureAwait(false);
+                        break;
+                    default:
+                        await device.GotoSleepAsync().ConfigureAwait(false);
+                        break;
+                }
+            }
+            finally
+            {
+                observed.OnStateChanged = null;
+                if (Volatile.Read(ref notifications) != 0)
+                {
+                    Assert.That(worker.Join(TimeSpan.FromSeconds(30)), Is.True);
+                }
+            }
+            Assert.That(notifications, Is.GreaterThan(0));
+            Assert.That(completedInsideNotification, Is.True,
+                "The callback could not complete a mutation on another thread.");
+            if (change == "quarantine")
+            {
+                Assert.That(workerFailure, Is.TypeOf<InvalidOperationException>());
+                Assert.That(workerFailure!.InnerException, Is.Not.Null);
+                Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+                Assert.That(device.OperationDuration.TotalMilliseconds, Is.EqualTo(originalDuration));
+            }
+            else
+            {
+                Assert.That(workerFailure, Is.Null);
+                Assert.That(device.OperationDuration.TotalMilliseconds, Is.EqualTo(originalDuration + 17));
+            }
+        }
+
+        /// <summary>
+        /// Does not rewind totalizer timing when clock samples are committed in a different order.
+        /// </summary>
+        [Test]
+        public async Task ReorderedClockSamplesDoNotSubtractOrDuplicateTotalizedTimeAsync()
+        {
+            await using LadsHostedServer server = await StartAsync(
+                nameof(ReorderedClockSamplesDoNotSubtractOrDuplicateTotalizedTimeAsync),
+                new FaultingStore(), new FaultingNodeOperations(),
+                extra: device => device.FunctionalUnit("Meter", unit => unit.AnalogControl(
+                    "Flow", options => options.Kind = LadsAnalogControlKind.Totalizer))).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit("Meter");
+            var function = (LadsAnalogControlFunction)unit.GetFunction<IAnalogControlFunction>("Flow");
+            await function.StartAsync().ConfigureAwait(false);
+            long start = device.Runtime.TimeProvider.GetTimestamp();
+            long frequency = device.Runtime.TimeProvider.TimestampFrequency;
+            device.UpdateControlReading(function, 2, start + frequency, frequency);
+            device.UpdateControlReading(function, 3, start + (3 * frequency), frequency);
+            Assert.That(function.TotalizedValue, Is.EqualTo(4));
+            device.UpdateControlReading(function, 5, start + (2 * frequency), frequency);
+            Assert.That(function.CurrentValue, Is.EqualTo(5));
+            Assert.That(function.TotalizedValue, Is.EqualTo(4));
+            device.UpdateControlReading(function, 5, start + (4 * frequency), frequency);
+            Assert.That(function.TotalizedValue, Is.EqualTo(9));
+            device.ResetTotalizer(function, start + (2 * frequency));
+            Assert.That(function.TotalizedValue, Is.Zero);
+            device.UpdateControlReading(function, 5, start + (5 * frequency), frequency);
+            Assert.That(function.TotalizedValue, Is.EqualTo(5));
+            Assert.Throws<InvalidOperationException>(() =>
+                device.UpdateControlReading(function, 99, start + (6 * frequency), 0));
+            Assert.Throws<InvalidOperationException>(() =>
+                device.UpdateControlReading(function, 99, start + (6 * frequency), -1));
+            Assert.That(function.CurrentValue, Is.EqualTo(5));
+            Assert.That(function.TotalizedValue, Is.EqualTo(5));
+        }
+
+        /// <summary>
         /// Drains owned execution during disposal without rewriting a quarantined unit's state.
         /// </summary>
         [Test]

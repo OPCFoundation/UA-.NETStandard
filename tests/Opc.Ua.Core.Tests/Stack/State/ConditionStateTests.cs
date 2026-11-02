@@ -110,6 +110,148 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Retains attribute changes for one later publication without evaluating an external retention provider.
+        /// </summary>
+        [TestCase("active", true)]
+        [TestCase("active", false)]
+        [TestCase("acknowledged", true)]
+        [TestCase("acknowledged", false)]
+        [TestCase("latched", true)]
+        [TestCase("latched", false)]
+        [TestCase("silenced", true)]
+        [TestCase("silenced", false)]
+        [TestCase("severity", true)]
+        public void DeferredConditionAttributesPublishOnlyWhenRequested(string attribute, bool value)
+        {
+            var alarm = new AlarmConditionState(m_telemetry, null!);
+            alarm.Create(m_context, new NodeId(1u), QualifiedName.From("Alarm"), default, true);
+            alarm.SetEnableState(m_context, true);
+            alarm.LatchedState = new TwoStateVariableState(alarm);
+            alarm.LatchedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.LatchedState), default, true);
+            alarm.SilenceState = new TwoStateVariableState(alarm);
+            alarm.SilenceState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.SilenceState), default, true);
+            switch (attribute)
+            {
+                case "active":
+                    alarm.SetActiveState(m_context, !value);
+                    break;
+                case "acknowledged":
+                    alarm.SetAcknowledgedState(m_context, !value);
+                    break;
+                case "latched":
+                    alarm.SetLatchedState(m_context, !value);
+                    break;
+                case "silenced":
+                    alarm.SetSilenceState(m_context, !value);
+                    break;
+            }
+            if (attribute == "active" && value)
+            {
+                alarm.SetLatchedState(m_context, false);
+                alarm.SetSilenceState(m_context, true);
+            }
+            alarm.Retain!.Value = false;
+            alarm.ClearChangeMasks(m_context, true);
+            int retentionCalls = 0;
+            alarm.RetainStateProvider = _ =>
+            {
+                retentionCalls++;
+                return true;
+            };
+            int notifications = 0;
+            int nestedNotifications = 0;
+            if (attribute == "active" && value)
+            {
+                alarm.LatchedState.Id!.StateChanged += (_, _, _) => nestedNotifications++;
+                alarm.SilenceState.Id!.StateChanged += (_, _, _) => nestedNotifications++;
+            }
+            BaseVariableState observed = attribute switch
+            {
+                "active" => alarm.ActiveState!.Id!,
+                "acknowledged" => alarm.AckedState!.Id!,
+                "latched" => alarm.LatchedState.Id!,
+                "silenced" => alarm.SilenceState.Id!,
+                _ => alarm.Severity!
+            };
+            observed.StateChanged += (_, _, _) => notifications++;
+            switch (attribute)
+            {
+                case "active":
+                    alarm.SetActiveState(
+                        m_context, value, clearChangeMasks: false, updateRetainState: false);
+                    break;
+                case "acknowledged":
+                    alarm.SetAcknowledgedState(
+                        m_context, value, clearChangeMasks: false, updateRetainState: false);
+                    break;
+                case "latched":
+                    alarm.SetLatchedState(m_context, value, clearChangeMasks: false);
+                    break;
+                case "silenced":
+                    alarm.SetSilenceState(m_context, value, clearChangeMasks: false);
+                    break;
+                default:
+                    alarm.SetSeverity(m_context, EventSeverity.High, clearChangeMasks: false);
+                    break;
+            }
+            Assert.That(retentionCalls, Is.Zero);
+            Assert.That(alarm.Retain.Value, Is.False);
+            Assert.That(notifications, Is.Zero);
+            Assert.That(nestedNotifications, Is.Zero);
+            Assert.That(observed.ChangeMasks, Is.Not.EqualTo(NodeStateChangeMasks.None));
+            if (attribute == "severity")
+            {
+                Assert.That(observed.Value.TryGetValue(out ushort severity), Is.True);
+                Assert.That(severity, Is.EqualTo((ushort)EventSeverity.High));
+            }
+            else
+            {
+                Assert.That(observed.Value.TryGetValue(out bool state), Is.True);
+                Assert.That(state, Is.EqualTo(value));
+            }
+            alarm.ClearChangeMasks(m_context, true);
+            Assert.That(notifications, Is.EqualTo(1));
+            Assert.That(observed.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+            Assert.That(retentionCalls, Is.Zero);
+            if (attribute == "active" && value)
+            {
+                Assert.That(alarm.LatchedState.Id!.Value, Is.True);
+                Assert.That(alarm.SilenceState.Id!.Value, Is.False);
+                Assert.That(nestedNotifications, Is.EqualTo(2));
+            }
+        }
+
+        /// <summary>
+        /// Retention can still be derived while state-change notifications are deferred.
+        /// </summary>
+        [Test]
+        public void DeferredAcknowledgementCanEvaluateRetentionExplicitly()
+        {
+            var condition = new AcknowledgeableConditionState(null);
+            condition.Create(m_context, new NodeId(1u), QualifiedName.From("Condition"), default, true);
+            condition.SetEnableState(m_context, true);
+            condition.SetAcknowledgedState(m_context, false);
+            int retentionCalls = 0;
+            condition.RetainStateProvider = _ =>
+            {
+                retentionCalls++;
+                return true;
+            };
+            int notifications = 0;
+            condition.AckedState!.Id!.StateChanged += (_, _, _) => notifications++;
+            condition.SetAcknowledgedState(
+                m_context, true, clearChangeMasks: false, updateRetainState: true);
+            Assert.That(retentionCalls, Is.EqualTo(1));
+            Assert.That(condition.Retain!.Value, Is.True);
+            Assert.That(condition.AckedState.Id.Value, Is.True);
+            Assert.That(notifications, Is.Zero);
+            condition.ClearChangeMasks(m_context, true);
+            Assert.That(notifications, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Test that SetEnableState updates the timestamp and clears change masks.
         /// </summary>
         [Test]

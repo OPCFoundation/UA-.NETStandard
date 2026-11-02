@@ -68,7 +68,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.Device,
                 LadsDeviceStateValue.Initialization,
-                ApplyMutation);
+                this);
             DeviceState.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -98,7 +98,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.ItemState,
                 MachineryItemStateValue.NotAvailable,
-                ApplyMutation);
+                this);
 
             LADSOperationModeStateMachineState operationMode = AddBlock(
                 blocks,
@@ -112,7 +112,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.OperationMode,
                 MachineryOperationModeValue.None,
-                ApplyMutation);
+                this);
             OperationModeMachine.StateChanged += mode =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -407,11 +407,13 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void IncrementOperationCycles()
         {
-            ApplyMutation(() =>
+            lock (m_mutationLock)
             {
+                RequireStorageHealthy();
                 uint cycles = (uint)Interlocked.Increment(ref m_cycles);
-                Runtime.Update(Counters.OperationCycleCounter, Variant.From(cycles));
-            });
+                LadsRuntime.AssignValue(Counters.OperationCycleCounter, Variant.From(cycles));
+            }
+            Counters.OperationCycleCounter?.ClearChangeMasks(Runtime.Context, false);
         }
 
         /// <summary>
@@ -419,20 +421,24 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public void AddOperationDuration(TimeSpan duration)
         {
-            ApplyMutation(() =>
+            lock (m_mutationLock)
             {
+                RequireStorageHealthy();
                 if (duration <= TimeSpan.Zero)
                 {
                     return;
                 }
                 long ticks = Interlocked.Add(ref m_operationTicks, duration.Ticks);
-                Runtime.Update(Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
-            });
+                LadsRuntime.AssignValue(
+                    Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
+            }
+            Counters.OperationDuration?.ClearChangeMasks(Runtime.Context, false);
         }
 
         /// <inheritdoc/>
         public async ValueTask SaveStoredDataAsync(CancellationToken cancellationToken = default)
         {
+            RequireStorageHealthy();
             await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -459,6 +465,7 @@ namespace Opc.Ua.LADS.Server
             Func<ValueTask>? publish = null,
             Func<ValueTask>? compensate = null)
         {
+            RequireStorageHealthy();
             await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -656,14 +663,280 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Orders a synchronous mutation against quarantine without holding admission across provider awaits.
+        /// Changes a machine's state after checking the device's retained storage failure.
         /// </summary>
-        internal void ApplyMutation(Action mutation)
+        internal void SetMachineState(LadsStateMachine machine, uint stateId)
         {
             lock (m_mutationLock)
             {
                 RequireStorageHealthy();
-                mutation();
+                machine.AssignState(stateId);
+            }
+        }
+
+        /// <summary>
+        /// Commits a guarded transition only while the device remains usable.
+        /// </summary>
+        internal bool TransitionMachine(LadsStateMachine machine, LadsTransitionDefinition transition)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                return machine.AssignTransition(transition);
+            }
+        }
+
+        /// <summary>
+        /// Sets a function's enabled value.
+        /// </summary>
+        internal void SetFunctionEnabled(LadsFunction function, bool enabled)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignEnabled(enabled);
+            }
+        }
+
+        /// <summary>
+        /// Sets a control function's normalized target value.
+        /// </summary>
+        internal void SetControlTarget(LadsControlFunction function, Variant value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                switch (function)
+                {
+                    case LadsAnalogControlFunction analog:
+                        analog.AssignTarget(value);
+                        break;
+                    case LadsMultiModeAnalogControlFunction multiMode:
+                        multiMode.AssignTarget(value);
+                        break;
+                    case LadsTwoStateDiscreteControlFunction twoState:
+                        twoState.AssignTarget(value);
+                        break;
+                    case LadsMultiStateDiscreteControlFunction multiState:
+                        multiState.AssignTarget(value);
+                        break;
+                    case LadsTimerFunction timer:
+                        timer.AssignTarget(value);
+                        break;
+                    default:
+                        throw new InvalidOperationException("The LADS control function has no target value.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets a scalar sensor's measured and raw values.
+        /// </summary>
+        internal void UpdateSensor(LadsAnalogScalarSensorFunction sensor, double value, double raw)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                sensor.AssignReading(value, raw);
+            }
+        }
+
+        /// <summary>
+        /// Sets an array sensor's measured and raw values.
+        /// </summary>
+        internal void UpdateSensor(
+            LadsAnalogArraySensorFunction sensor, ArrayOf<double> values, ArrayOf<double> raw)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                sensor.AssignReading(values, raw);
+            }
+        }
+
+        /// <summary>
+        /// Sets a two-state sensor's reading.
+        /// </summary>
+        internal void UpdateSensor(LadsTwoStateDiscreteSensorFunction sensor, bool value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                sensor.AssignReading(value);
+            }
+        }
+
+        /// <summary>
+        /// Sets a multi-state sensor's reading.
+        /// </summary>
+        internal void UpdateSensor(LadsMultiStateDiscreteSensorFunction sensor, uint value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                sensor.AssignReading(value);
+            }
+        }
+
+        /// <summary>
+        /// Sets an analog reading and integrates its totalizer using the supplied monotonic clock sample.
+        /// </summary>
+        internal void UpdateControlReading(
+            LadsAnalogControlFunction function, double value, long timestamp, long frequency)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignReading(value, timestamp, frequency);
+            }
+        }
+
+        /// <summary>
+        /// Sets a two-state control function's reading.
+        /// </summary>
+        internal void UpdateControlReading(LadsTwoStateDiscreteControlFunction function, bool value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignReading(value);
+            }
+        }
+
+        /// <summary>
+        /// Sets a multi-state control function's reading.
+        /// </summary>
+        internal void UpdateControlReading(LadsMultiStateDiscreteControlFunction function, uint value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignReading(value);
+            }
+        }
+
+        /// <summary>
+        /// Sets a timer's reading.
+        /// </summary>
+        internal void UpdateControlReading(LadsTimerFunction function, double value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignReading(value);
+            }
+        }
+
+        /// <summary>
+        /// Resets an analog totalizer to the supplied monotonic clock sample.
+        /// </summary>
+        internal void ResetTotalizer(LadsAnalogControlFunction function, long timestamp)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignTotalizerReset(timestamp);
+            }
+        }
+
+        /// <summary>
+        /// Sets a multi-mode control function's selected mode.
+        /// </summary>
+        internal void SetControlMode(LadsMultiModeAnalogControlFunction function, uint mode)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                function.AssignMode(mode);
+            }
+        }
+
+        /// <summary>
+        /// Sets a function parameter, such as a compensation or composed target value.
+        /// </summary>
+        internal void SetFunctionParameter(BaseVariableState? parameter, Variant value)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                LadsRuntime.AssignValue(parameter, value);
+            }
+            parameter?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Records a completed maintenance task.
+        /// </summary>
+        internal void RecordMaintenanceCompletion(
+            LadsMaintenanceTask task, DateTimeUtc completed, MaintenanceTaskResultEnum result)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                task.AssignCompletion(completed, result);
+            }
+        }
+
+        /// <summary>
+        /// Updates a maintenance condition without reporting an event during the attribute writes.
+        /// </summary>
+        internal void SetMaintenanceCondition(LadsMaintenanceTask task, bool active, LocalizedText message)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                task.AssignCondition(Runtime.Context, active, message);
+            }
+        }
+
+        /// <summary>
+        /// Publishes an active program and its retained waiter before its executor is scheduled.
+        /// </summary>
+        internal void StartProgram(LadsProgramManager programs, LadsProgramManager.ActiveRunEntry active)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                programs.AssignActiveProgram(active);
+            }
+        }
+
+        /// <summary>
+        /// Clears the published active program.
+        /// </summary>
+        internal void ResetActiveProgram(LadsProgramManager programs)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                programs.AssignActiveProgramReset();
+            }
+        }
+
+        /// <summary>
+        /// Publishes a program's reported step.
+        /// </summary>
+        internal void SetProgramStep(
+            LadsProgramManager programs, LadsProgramRun? run, uint number, string name,
+            double runtimeMilliseconds)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                programs.AssignStep(run, number, name, runtimeMilliseconds);
+            }
+        }
+
+        /// <summary>
+        /// Publishes a program's measured processing and pause durations.
+        /// </summary>
+        internal void SetProgramRuntime(
+            LadsProgramManager programs, double runtime, double pause, double stepRuntime)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                programs.AssignRuntime(runtime, pause, stepRuntime);
             }
         }
 
@@ -674,11 +947,13 @@ namespace Opc.Ua.LADS.Server
         {
             lock (m_mutationLock)
             {
-                if (m_storageFailure == null)
+                if (m_storageFailure != null)
                 {
-                    unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+                    return;
                 }
+                unit.Functional.AssignState(LadsFunctionalStateValue.Aborted);
             }
+            unit.Functional.NotifyStateChanged();
         }
 
         /// <summary>
@@ -991,7 +1266,7 @@ namespace Opc.Ua.LADS.Server
                 Volatile.Write(ref m_storageFailure, new AggregateException(failures));
                 try
                 {
-                    ItemStateMachine.SetQuarantinedState(MachineryItemStateValue.OutOfService);
+                    ItemStateMachine.AssignState(MachineryItemStateValue.OutOfService);
                 }
                 catch (Exception stateFailure)
                 {
@@ -999,17 +1274,33 @@ namespace Opc.Ua.LADS.Server
                 }
                 try
                 {
-                    DeviceState.SetQuarantinedState(LadsDeviceStateValue.Shutdown);
+                    DeviceState.AssignState(LadsDeviceStateValue.Shutdown);
                 }
                 catch (Exception stateFailure)
                 {
                     failures.Add(stateFailure);
                 }
-                var failure = new AggregateException(
-                    "LADS publication compensation failed; the device requires restart.", failures);
-                Volatile.Write(ref m_storageFailure, failure);
-                return failure;
             }
+            try
+            {
+                ItemStateMachine.NotifyStateChanged();
+            }
+            catch (Exception stateFailure)
+            {
+                failures.Add(stateFailure);
+            }
+            try
+            {
+                DeviceState.NotifyStateChanged();
+            }
+            catch (Exception stateFailure)
+            {
+                failures.Add(stateFailure);
+            }
+            var failure = new AggregateException(
+                "LADS publication compensation failed; the device requires restart.", failures);
+            Volatile.Write(ref m_storageFailure, failure);
+            return failure;
         }
 
         /// <summary>
@@ -1054,13 +1345,10 @@ namespace Opc.Ua.LADS.Server
             {
                 return;
             }
-            ApplyMutation(() =>
+            if (!ItemStateMachine.CanTransitionTo(target) || !ItemStateMachine.TransitionTo(target))
             {
-                if (!ItemStateMachine.CanTransitionTo(target) || !ItemStateMachine.TransitionTo(target))
-                {
-                    ItemStateMachine.SetState(target);
-                }
-            });
+                ItemStateMachine.SetState(target);
+            }
         }
 
         /// <summary>

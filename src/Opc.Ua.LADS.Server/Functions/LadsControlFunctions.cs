@@ -90,13 +90,19 @@ namespace Opc.Ua.LADS.Server
             get => Volatile.Read(ref m_enabled);
             set
             {
-                Unit.Device.ApplyMutation(() =>
-                {
-                    Volatile.Write(ref m_enabled, value);
-                    Runtime.Update(Node.IsEnabled, Variant.From(value));
-                    (this as LadsControlFunction)?.UpdateRunningExecutability();
-                });
+                Unit.Device.SetFunctionEnabled(this, value);
+                Node.IsEnabled?.ClearChangeMasks(Runtime.Context, false);
+                (this as LadsControlFunction)?.UpdateRunningExecutability();
             }
+        }
+
+        /// <summary>
+        /// Assigns the enabled value without dispatching notifications.
+        /// </summary>
+        internal void AssignEnabled(bool enabled)
+        {
+            Volatile.Write(ref m_enabled, enabled);
+            LadsRuntime.AssignValue(Node.IsEnabled, Variant.From(enabled));
         }
 
         /// <summary>
@@ -372,7 +378,7 @@ namespace Opc.Ua.LADS.Server
                 context,
                 LadsStateMaps.Functional,
                 LadsFunctionalStateValue.Stopped,
-                Unit.Device.ApplyMutation);
+                Unit.Device);
             m_machine.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -400,7 +406,7 @@ namespace Opc.Ua.LADS.Server
                     context,
                     LadsStateMaps.Running,
                     LadsRunningStateValue.Idle,
-                    Unit.Device.ApplyMutation);
+                    Unit.Device);
                 m_running.StateChanged += _ => UpdateRunningExecutability();
                 Runtime.Bind(runningNode.Hold, (_, ct) => HoldAsync(ct));
                 Runtime.Bind(runningNode.Unhold, (_, ct) => UnholdAsync(ct));
@@ -683,7 +689,11 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Writes an accepted target value.
         /// </summary>
-        protected abstract void ApplyTarget(Variant value);
+        protected void ApplyTarget(Variant value)
+        {
+            Unit.Device.SetControlTarget(this, value);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
 
         /// <summary>
         /// Sets the target value after the provider accepted it.
@@ -696,7 +706,7 @@ namespace Opc.Ua.LADS.Server
                     Variant target = NormalizeTarget(value);
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetTargetValue, target, cancellationToken)
                         .ConfigureAwait(false);
-                    Unit.Device.ApplyMutation(() => ApplyTarget(target));
+                    ApplyTarget(target);
                 },
                 cancellationToken);
         }
@@ -716,7 +726,7 @@ namespace Opc.Ua.LADS.Server
                         LadsFunctionCommandKind.StartWithTargetValue,
                         target,
                         cancellationToken).ConfigureAwait(false);
-                    Unit.Device.ApplyMutation(() => ApplyTarget(target));
+                    ApplyTarget(target);
                     if (State == LadsFunctionalStateValue.Stopped)
                     {
                         await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
@@ -1027,27 +1037,9 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                double total;
-                lock (m_lock)
-                {
-                    long now = Runtime.TimeProvider.GetTimestamp();
-                    if (State == LadsFunctionalStateValue.Running)
-                    {
-                        m_total += m_current *
-                            Runtime.TimeProvider.GetElapsedTime(m_lastUpdate, now).TotalSeconds;
-                    }
-                    m_lastUpdate = now;
-                    m_current = value;
-                    total = m_total;
-                }
-                Runtime.Update(m_node.CurrentValue, Variant.From(value));
-                if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
-                {
-                    Runtime.Update(totalizer.TotalizedValue, Variant.From(total));
-                }
-            });
+            Unit.Device.UpdateControlReading(
+                this, value, Runtime.TimeProvider.GetTimestamp(), Runtime.TimeProvider.TimestampFrequency);
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
@@ -1075,7 +1067,7 @@ namespace Opc.Ua.LADS.Server
                         LadsFunctionCommandKind.ModifyTargetValueBy,
                         Variant.From(delta),
                         cancellationToken).ConfigureAwait(false);
-                    Unit.Device.ApplyMutation(() => ApplyTarget(Variant.From(target)));
+                    ApplyTarget(Variant.From(target));
                 },
                 cancellationToken);
         }
@@ -1089,17 +1081,9 @@ namespace Opc.Ua.LADS.Server
                 {
                     await InvokeProviderAsync(LadsFunctionCommandKind.ResetTotalizer, default, cancellationToken)
                         .ConfigureAwait(false);
-                    Unit.Device.ApplyMutation(() =>
-                    {
-                        lock (m_lock)
-                        {
-                            m_total = 0;
-                            m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
-                        }
-                        Runtime.Update(
-                            ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue,
-                            Variant.From(0.0));
-                    });
+                    Unit.Device.ResetTotalizer(this, Runtime.TimeProvider.GetTimestamp());
+                    var totalizer = (AnalogControlFunctionWithTotalizerState)m_node;
+                    totalizer.TotalizedValue?.ClearChangeMasks(Runtime.Context, false);
                 },
                 cancellationToken);
         }
@@ -1118,7 +1102,7 @@ namespace Opc.Ua.LADS.Server
             }
             BaseVariableState variable = Runtime.FindChild<BaseVariableState>(composed.TargetValueSet, name) ??
                 throw ServiceResultException.Create(StatusCodes.BadNotFound, "No target value '{0}'.", name);
-            Unit.Device.ApplyMutation(() => Runtime.Update(variable, Variant.From(value)));
+            Unit.Device.SetFunctionParameter(variable, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -1129,15 +1113,59 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns a normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             double target = ToDouble(value);
             lock (m_lock)
             {
                 m_target = target;
             }
-            Runtime.Update(m_node.TargetValue, Variant.From(target));
+            LadsRuntime.AssignValue(m_node.TargetValue, Variant.From(target));
+        }
+
+        /// <summary>
+        /// Assigns the current reading and integrated total without invoking the clock provider or observers.
+        /// </summary>
+        internal void AssignReading(double value, long timestamp, long frequency)
+        {
+            if (frequency <= 0)
+            {
+                throw new InvalidOperationException("The LADS clock timestamp frequency must be positive.");
+            }
+            double total;
+            lock (m_lock)
+            {
+                timestamp = Math.Max(timestamp, m_lastUpdate);
+                if (State == LadsFunctionalStateValue.Running)
+                {
+                    m_total += m_current * ((double)(timestamp - m_lastUpdate) / frequency);
+                }
+                m_lastUpdate = timestamp;
+                m_current = value;
+                total = m_total;
+            }
+            LadsRuntime.AssignValue(m_node.CurrentValue, Variant.From(value));
+            if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
+            {
+                LadsRuntime.AssignValue(totalizer.TotalizedValue, Variant.From(total));
+            }
+        }
+
+        /// <summary>
+        /// Resets the total and its clock sample without dispatching notifications.
+        /// </summary>
+        internal void AssignTotalizerReset(long timestamp)
+        {
+            lock (m_lock)
+            {
+                m_total = 0;
+                m_lastUpdate = Math.Max(timestamp, m_lastUpdate);
+            }
+            LadsRuntime.AssignValue(
+                ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue, Variant.From(0.0));
         }
 
         /// <summary>
@@ -1244,11 +1272,8 @@ namespace Opc.Ua.LADS.Server
                     }
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetMode, Variant.From(mode), cancellationToken)
                         .ConfigureAwait(false);
-                    Unit.Device.ApplyMutation(() =>
-                    {
-                        Volatile.Write(ref m_mode, mode);
-                        Runtime.Update(m_node.CurrentMode, Variant.From(mode));
-                    });
+                    Unit.Device.SetControlMode(this, mode);
+                    m_node.CurrentMode?.ClearChangeMasks(Runtime.Context, false);
                 },
                 cancellationToken);
         }
@@ -1265,13 +1290,13 @@ namespace Opc.Ua.LADS.Server
         {
             Unit.Device.RequireStorageHealthy();
             CheckRange(m_options.Range, value);
-            Unit.Device.ApplyMutation(() => Runtime.Update(Find(mode).TargetValue, Variant.From(value)));
+            Unit.Device.SetFunctionParameter(Find(mode).TargetValue, Variant.From(value));
         }
 
         /// <inheritdoc/>
         public void UpdateCurrentValue(string mode, double value)
         {
-            Unit.Device.ApplyMutation(() => Runtime.Update(Find(mode).CurrentValue, Variant.From(value)));
+            Unit.Device.SetFunctionParameter(Find(mode).CurrentValue, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -1282,10 +1307,21 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the target of the selected mode without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
-            Runtime.Update(m_parameters[CurrentMode].TargetValue, Variant.From(ToDouble(value)));
+            LadsRuntime.AssignValue(m_parameters[CurrentMode].TargetValue, Variant.From(ToDouble(value)));
+        }
+
+        /// <summary>
+        /// Assigns the selected mode without dispatching notifications.
+        /// </summary>
+        internal void AssignMode(uint mode)
+        {
+            Volatile.Write(ref m_mode, mode);
+            LadsRuntime.AssignValue(m_node.CurrentMode, Variant.From(mode));
         }
 
         /// <summary>
@@ -1342,11 +1378,17 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(bool value)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                Volatile.Write(ref m_currentValue, value);
-                Runtime.Update(m_current, Variant.From(value));
-            });
+            Unit.Device.UpdateControlReading(this, value);
+            m_current?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Assigns the current reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(bool value)
+        {
+            Volatile.Write(ref m_currentValue, value);
+            LadsRuntime.AssignValue(m_current, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -1393,12 +1435,14 @@ namespace Opc.Ua.LADS.Server
             throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "A Boolean value is expected.");
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             value.TryGetValue(out bool flag);
             Volatile.Write(ref m_targetValue, flag);
-            Runtime.Update(m_target, Variant.From(flag));
+            LadsRuntime.AssignValue(m_target, Variant.From(flag));
         }
 
         private readonly TwoStateDiscreteState? m_current;
@@ -1441,12 +1485,18 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(uint value)
         {
-            Unit.Device.ApplyMutation(() =>
-            {
-                Check(m_states, value);
-                Volatile.Write(ref m_currentValue, value);
-                Runtime.Update(m_current, Variant.From(value));
-            });
+            Unit.Device.UpdateControlReading(this, value);
+            m_current?.ClearChangeMasks(Runtime.Context, false);
+        }
+
+        /// <summary>
+        /// Validates and assigns the current reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(uint value)
+        {
+            Check(m_states, value);
+            Volatile.Write(ref m_currentValue, value);
+            LadsRuntime.AssignValue(m_current, Variant.From(value));
         }
 
         /// <inheritdoc/>
@@ -1522,12 +1572,14 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(index);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             value.TryGetValue(out uint index);
             Volatile.Write(ref m_targetValue, index);
-            Runtime.Update(m_target, Variant.From(index));
+            LadsRuntime.AssignValue(m_target, Variant.From(index));
         }
 
         private readonly int m_states;
@@ -1561,7 +1613,8 @@ namespace Opc.Ua.LADS.Server
             ConfigureAnalog(node.TargetValue, units, options.Range);
             ConfigureAnalog(node.DifferenceValue, units, null);
             m_target = options.InitialTargetValue;
-            Publish();
+            AssignValues();
+            Node.ClearChangeMasks(Runtime.Context, true);
         }
 
         /// <inheritdoc/>
@@ -1603,14 +1656,20 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
-            Unit.Device.ApplyMutation(() =>
+            Unit.Device.UpdateControlReading(this, value);
+            Node.ClearChangeMasks(Runtime.Context, true);
+        }
+
+        /// <summary>
+        /// Assigns the current timer reading without dispatching notifications.
+        /// </summary>
+        internal void AssignReading(double value)
+        {
+            lock (m_lock)
             {
-                lock (m_lock)
-                {
-                    m_current = value;
-                }
-                Publish();
-            });
+                m_current = value;
+            }
+            AssignValues();
         }
 
         /// <inheritdoc/>
@@ -1633,20 +1692,22 @@ namespace Opc.Ua.LADS.Server
             return Variant.From(target);
         }
 
-        /// <inheritdoc/>
-        protected override void ApplyTarget(Variant value)
+        /// <summary>
+        /// Assigns the normalized timer target without dispatching notifications.
+        /// </summary>
+        internal void AssignTarget(Variant value)
         {
             lock (m_lock)
             {
                 m_target = ToDouble(value);
             }
-            Publish();
+            AssignValues();
         }
 
         /// <summary>
         /// Writes the values of the timer.
         /// </summary>
-        private void Publish()
+        private void AssignValues()
         {
             double current;
             double target;
@@ -1655,9 +1716,9 @@ namespace Opc.Ua.LADS.Server
                 current = m_current;
                 target = m_target;
             }
-            Runtime.Update(m_node.CurrentValue, Variant.From(current));
-            Runtime.Update(m_node.TargetValue, Variant.From(target));
-            Runtime.Update(m_node.DifferenceValue, Variant.From(target - current));
+            LadsRuntime.AssignValue(m_node.CurrentValue, Variant.From(current));
+            LadsRuntime.AssignValue(m_node.TargetValue, Variant.From(target));
+            LadsRuntime.AssignValue(m_node.DifferenceValue, Variant.From(target - current));
         }
 
         private readonly TimerControlFunctionState m_node;

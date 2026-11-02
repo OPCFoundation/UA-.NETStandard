@@ -50,17 +50,17 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="stateMachine">The state machine instance.</param>
         /// <param name="context">The system context of the owning node manager.</param>
         /// <param name="table">The states and transitions of the state machine type.</param>
-        /// <param name="applyMutation">The owning device's admission for synchronous state writes.</param>
+        /// <param name="device">The owning device, when the machine belongs to a device.</param>
         public LadsStateMachine(
             FiniteStateMachineState stateMachine,
             ISystemContext context,
             LadsStateTable table,
-            Action<Action>? applyMutation = null)
+            LadsDevice? device = null)
         {
             StateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             Table = table ?? throw new ArgumentNullException(nameof(table));
-            m_applyMutation = applyMutation ?? (static action => action());
+            m_device = device;
             int index = context.NamespaceUris.GetIndex(table.NamespaceUri);
             m_namespaceIndex = index < 0 ? (ushort)0 : (ushort)index;
         }
@@ -105,7 +105,15 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="stateId">The state identifier.</param>
         public void SetInitialState(uint stateId)
         {
-            WriteInitialState(stateId, enforceAdmission: true);
+            if (m_device == null)
+            {
+                AssignState(stateId);
+            }
+            else
+            {
+                m_device.SetMachineState(this, stateId);
+            }
+            NotifyStateChanged(stateId);
         }
 
         /// <summary>
@@ -148,6 +156,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                m_device?.RequireStorageHealthy();
                 LadsTransitionDefinition transition;
                 lock (m_lock)
                 {
@@ -166,20 +175,9 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 {
                     return false;
                 }
-                bool committed = false;
-                m_applyMutation(() =>
-                {
-                    lock (m_lock)
-                    {
-                        if (m_currentStateId == transition.FromStateId)
-                        {
-                            WriteStateLocked(target);
-                            WriteTransitionLocked(transition);
-                            m_currentStateId = target.Id;
-                            committed = true;
-                        }
-                    }
-                });
+                bool committed = m_device == null
+                    ? AssignTransition(transition)
+                    : m_device.TransitionMachine(this, transition);
                 if (!committed)
                 {
                     continue;
@@ -212,37 +210,44 @@ namespace Opc.Ua.LADS.Server.StateMachines
         }
 
         /// <summary>
-        /// Writes the owning device's terminal quarantine state under its existing admission.
+        /// Writes state attributes without dispatching observable notifications.
         /// </summary>
-        internal void SetQuarantinedState(uint stateId)
+        internal void AssignState(uint stateId)
         {
-            WriteInitialState(stateId, enforceAdmission: false);
+            LadsStateDefinition state = Table.FindState(stateId);
+            lock (m_lock)
+            {
+                WriteStateLocked(state);
+                m_currentStateId = state.Id;
+            }
         }
 
         /// <summary>
-        /// Writes an initial or terminal state and notifies observers after the write.
+        /// Commits a transition only if its source state is still current, without notifying observers.
         /// </summary>
-        private void WriteInitialState(uint stateId, bool enforceAdmission)
+        internal bool AssignTransition(LadsTransitionDefinition transition)
         {
-            LadsStateDefinition state = Table.FindState(stateId);
-            void Write()
+            LadsStateDefinition state = Table.FindState(transition.ToStateId);
+            lock (m_lock)
             {
-                lock (m_lock)
+                if (m_currentStateId != transition.FromStateId)
                 {
-                    WriteStateLocked(state);
-                    m_currentStateId = state.Id;
+                    return false;
                 }
+                WriteStateLocked(state);
+                WriteTransitionLocked(transition);
+                m_currentStateId = state.Id;
+                return true;
             }
-            if (enforceAdmission)
-            {
-                m_applyMutation(Write);
-            }
-            else
-            {
-                Write();
-            }
+        }
+
+        /// <summary>
+        /// Dispatches state notifications after the owning device finished its state write.
+        /// </summary>
+        internal void NotifyStateChanged(uint stateId)
+        {
             StateMachine.ClearChangeMasks(m_context, true);
-            StateChanged?.Invoke(state.Id);
+            StateChanged?.Invoke(stateId);
         }
 
         private ServiceResult Invoke(StateMachineTransitionHandler? handler, uint transitionId)
@@ -313,8 +318,8 @@ namespace Opc.Ua.LADS.Server.StateMachines
         private readonly ISystemContext m_context;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
-        /// <summary>The owning device's admission for each synchronous state commit.</summary>
-        private readonly Action<Action> m_applyMutation;
+        /// <summary>The owning device, or null for a standalone machine.</summary>
+        private readonly LadsDevice? m_device;
         private uint m_currentStateId;
     }
 
