@@ -394,9 +394,13 @@ Do not enable AMB capture on that variable as well.
 An existing exact-node provider binding also rejects registration without
 replacing it. Namespace and default provider fallbacks do not prevent AMB from
 installing its own exact-node binding. Disposal removes only the registration
-AMB installed, including when another owner later registers the same provider
-instance for that node. Custom registries must implement
-`IHistorianNodeBindingRegistry` for this ownership behavior.
+AMB installed. The scoped registration also restores the original history
+attributes, but only while AMB remains the exact-node owner. A later registration,
+including one using the same provider instance, retains its mapping and attributes
+when the older AMB binding is disposed. Replacement owners must register before
+setting their history attributes. Custom registries must implement the
+`IHistorianNodeBindingRegistry` overload taking `NodeState` for this ownership
+behavior.
 An owner that overrides `GetHistorianProvider` must return this same provider
 for the bound nodes; node-manager overrides take precedence over the shared
 registry during service dispatch.
@@ -408,12 +412,20 @@ server-defined AMB types.
 
 Registration installs `Historizing`, history-read access and
 `HasHistoricalConfiguration` on `DeviceHealth`, and event history-read access
-and historical event configuration on the asset notifier. Existing configuration
-objects and their values are left unchanged. If registration fails after adding
-configuration, AMB removes its new children and references before returning the
-error; those children are not indexed by the node manager until the complete
-binding succeeds. It does not enable
-client HistoryUpdate access. The shared capture queues store value changes with
+and historical event configuration on the asset notifier. AMB accepts an existing
+`HAConfiguration` only if its type, forward and inverse historical-configuration
+references, and provider-derived properties agree with the selected provider.
+A malformed or different configuration rejects registration with
+`BadConfigurationError`; its existing values and references remain unchanged.
+Additional configuration children that AMB cannot verify also reject registration.
+If registration fails after adding configuration, AMB removes its new children
+and references before returning the error; those children are not indexed by the
+node manager until the complete binding succeeds. All requested history kinds
+are validated before capture is attached or an initial record is emitted, so a
+rejected event binding cannot add a health sample to the archive.
+If cleanup also fails, an `AggregateException` retains the initiating error and
+the cleanup errors. AMB does not enable client HistoryUpdate access.
+The shared capture queues store value changes with
 their source timestamps and immutable event snapshots after live forwarding.
 Events include condition identity, EventId, time, class, acknowledgement and
 active state, root causes, and the AMB maintenance fields. Replanning a

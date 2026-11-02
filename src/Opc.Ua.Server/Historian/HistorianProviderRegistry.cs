@@ -80,28 +80,17 @@ namespace Opc.Ua.Server.Historian
         /// <inheritdoc/>
         public bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding)
         {
-            if (nodeId.IsNull)
+            return TryRegisterForNode(nodeId, provider, null, out binding);
+        }
+
+        /// <inheritdoc/>
+        public bool TryRegisterForNode(NodeState node, IHistorianProvider provider, out IDisposable? binding)
+        {
+            if (node == null)
             {
-                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+                throw new ArgumentNullException(nameof(node));
             }
-            if (provider == null)
-            {
-                throw new ArgumentNullException(nameof(provider));
-            }
-            lock (m_lock)
-            {
-                if (m_nodes.ContainsKey(nodeId))
-                {
-                    binding = null;
-                    return false;
-                }
-                var registration = new NodeBinding(this, nodeId);
-                m_nodes.Add(nodeId, provider);
-                m_nodeBindings.Add(nodeId, registration);
-                AddProvider(provider, ownsProvider: true);
-                binding = registration;
-                return true;
-            }
+            return TryRegisterForNode(node.NodeId, provider, node, out binding);
         }
 
         /// <inheritdoc/>
@@ -291,6 +280,39 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Acquires a registration identity and, when supplied, its node attributes in one operation.
+        /// </summary>
+        private bool TryRegisterForNode(
+            NodeId nodeId,
+            IHistorianProvider provider,
+            NodeState? node,
+            out IDisposable? binding)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (m_lock)
+            {
+                if (m_nodes.ContainsKey(nodeId))
+                {
+                    binding = null;
+                    return false;
+                }
+                var registration = new NodeBinding(this, nodeId, node);
+                m_nodes.Add(nodeId, provider);
+                m_nodeBindings.Add(nodeId, registration);
+                AddProvider(provider, ownsProvider: true);
+                binding = registration;
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Releases a scoped registration only while it is still the exact current registration.
         /// </summary>
         private void ReleaseNodeBinding(NodeId nodeId, NodeBinding binding)
@@ -300,6 +322,7 @@ namespace Opc.Ua.Server.Historian
                 if (m_nodeBindings.TryGetValue(nodeId, out NodeBinding? current) &&
                     ReferenceEquals(current, binding))
                 {
+                    binding.RestoreAttributes();
                     m_nodeBindings.Remove(nodeId);
                     if (m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider))
                     {
@@ -360,10 +383,21 @@ namespace Opc.Ua.Server.Historian
             /// <summary>
             /// Creates an identity owned by the registry.
             /// </summary>
-            public NodeBinding(HistorianProviderRegistry registry, NodeId nodeId)
+            public NodeBinding(HistorianProviderRegistry registry, NodeId nodeId, NodeState? node)
             {
                 m_registry = registry;
                 m_nodeId = nodeId;
+                m_node = node;
+                if (node is BaseVariableState variable)
+                {
+                    m_historizing = variable.Historizing;
+                    m_accessLevel = variable.AccessLevel;
+                    m_userAccessLevel = variable.UserAccessLevel;
+                }
+                if (node is BaseObjectState notifier)
+                {
+                    m_eventNotifier = notifier.EventNotifier;
+                }
             }
 
             /// <inheritdoc/>
@@ -372,11 +406,43 @@ namespace Opc.Ua.Server.Historian
                 m_registry.ReleaseNodeBinding(m_nodeId, this);
             }
 
+            /// <summary>
+            /// Restores the node attributes while the registry still owns this registration identity.
+            /// </summary>
+            public void RestoreAttributes()
+            {
+                if (m_node is BaseVariableState variable)
+                {
+                    variable.Historizing = m_historizing;
+                    variable.AccessLevel = m_accessLevel;
+                    variable.UserAccessLevel = m_userAccessLevel;
+                }
+                if (m_node is BaseObjectState notifier)
+                {
+                    notifier.EventNotifier = m_eventNotifier;
+                }
+            }
+
             /// <summary>The registry responsible for the atomic release.</summary>
             private readonly HistorianProviderRegistry m_registry;
 
             /// <summary>The exact node registration.</summary>
             private readonly NodeId m_nodeId;
+
+            /// <summary>The optional node whose historian attributes belong to this registration.</summary>
+            private readonly NodeState? m_node;
+
+            /// <summary>The original variable historizing flag.</summary>
+            private readonly bool m_historizing;
+
+            /// <summary>The original variable access level.</summary>
+            private readonly byte m_accessLevel;
+
+            /// <summary>The original per-user variable access level.</summary>
+            private readonly byte m_userAccessLevel;
+
+            /// <summary>The original notifier event access.</summary>
+            private readonly byte m_eventNotifier;
         }
 
         private readonly Lock m_lock = new();

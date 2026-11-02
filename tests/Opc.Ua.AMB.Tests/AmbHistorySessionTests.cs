@@ -556,9 +556,13 @@ namespace Opc.Ua.AMB.Tests
                 Does.Not.Contain(new QualifiedName(ConformanceUnitNames.AssetHealthTrackingEvents)));
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task FailedEventBindingUndoesAlreadyInstalledRawCaptureAsync(bool existingConfiguration)
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task FailedEventBindingUndoesAlreadyInstalledRawCaptureAsync(
+            bool existingConfiguration,
+            bool preconfiguredArchive)
         {
             using var storage = new InMemoryHistorianProvider();
             Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
@@ -570,6 +574,22 @@ namespace Opc.Ua.AMB.Tests
             await using AmbHostedServer scope = server;
             byte original = device.DeviceHealth!.AccessLevel;
             var handle = (AssetHandle)asset;
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var historyContext = new HistorianOperationContext(
+                (ServerSystemContext)handle.Context, operation, device.DeviceHealth, HistoryUpdateType.Insert);
+            DataValue[] originalArchive = preconfiguredArchive
+                ? [new DataValue(Variant.From((int)DeviceHealthEnumeration.FAILURE),
+                    StatusCodes.Good, DateTime.UtcNow.AddDays(-1))]
+                : [];
+            if (preconfiguredArchive)
+            {
+                storage.Register(device.DeviceHealth.NodeId);
+                HistorianUpdateOutcome<DataValue> inserted = await storage.InsertAsync(
+                    historyContext, device.DeviceHealth.NodeId, originalArchive.ToArrayOf(), CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(inserted.OperationResults.ToArray(), Is.EqualTo(new[] { (StatusCode)StatusCodes.Good }));
+            }
             HistoricalDataConfigurationState? configuration = null;
             NodeId configurationId = default;
             if (existingConfiguration)
@@ -583,11 +603,6 @@ namespace Opc.Ua.AMB.Tests
                     handle.Context, device.DeviceHealth, storage).ConfigureAwait(false);
                 configurationId = configuration.NodeId;
                 AssetNodes.Register(handle, device.DeviceHealth);
-                storage.SetCapabilities(device.DeviceHealth.NodeId, HistorianNodeCapabilities.DataReadWrite with
-                {
-                    Stepped = true,
-                    MaxTimeInterval = 456
-                });
             }
             HistoricalDataConfigurationState? attemptedConfiguration = null;
             provider.Setup(value => value.GetCapabilitiesAsync(asset.NodeId, It.IsAny<CancellationToken>()))
@@ -616,6 +631,20 @@ namespace Opc.Ua.AMB.Tests
                 device.DeviceHealth.NodeId, Ua.ReferenceTypeIds.HasHistoricalConfiguration).ConfigureAwait(false);
             Assert.That(configurations, Has.Count.EqualTo(existingConfiguration ? 1 : 0));
             Assert.That(attemptedConfiguration, Is.Not.Null);
+            HistorianPage<HistoricalDataValue> retained = await storage.ReadRawAsync(
+                historyContext,
+                new HistorianRawReadRequest
+                {
+                    NodeId = device.DeviceHealth.NodeId,
+                    StartTime = DateTimeUtc.MinValue,
+                    EndTime = DateTimeUtc.MaxValue,
+                    IsForward = true,
+                    MaxValues = 10,
+                    PageLimit = 10
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(retained.Values.ToList().Select(value => value.Value), Is.EqualTo(originalArchive));
             if (configuration != null)
             {
                 Assert.That(configuration.Stepped!.Value, Is.False);
@@ -691,9 +720,239 @@ namespace Opc.Ua.AMB.Tests
             NodeId node = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : asset.NodeId;
             IHistorianProvider replacement = sameProvider ? provider : other;
             registry.RegisterForNode(node, replacement);
+            if (kind == AssetHistoryKinds.DeviceHealth)
+            {
+                device.DeviceHealth!.Historizing = true;
+                device.DeviceHealth.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead |
+                    AccessLevels.HistoryWrite;
+                device.DeviceHealth.UserAccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+            }
+            else
+            {
+                device.EventNotifier = EventNotifiers.SubscribeToEvents | EventNotifiers.HistoryRead |
+                    EventNotifiers.HistoryWrite;
+            }
             await binding.DisposeAsync().ConfigureAwait(false);
             Assert.That(registry.Resolve(node), Is.SameAs(replacement));
             Assert.That(registry.Providers.Contains(replacement), Is.True);
+            if (kind == AssetHistoryKinds.DeviceHealth)
+            {
+                Assert.That(device.DeviceHealth!.Historizing, Is.True);
+                Assert.That(device.DeviceHealth.AccessLevel, Is.EqualTo(
+                    AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                Assert.That(device.DeviceHealth.UserAccessLevel, Is.EqualTo(
+                    AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+            }
+            else
+            {
+                Assert.That(device.EventNotifier, Is.EqualTo(
+                    EventNotifiers.SubscribeToEvents | EventNotifiers.HistoryRead | EventNotifiers.HistoryWrite));
+            }
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth, 0)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, 1)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, 2)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, 3)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, 4)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, 5)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 0)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 1)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 2)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 3)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 4)]
+        [TestCase(AssetHistoryKinds.HealthEvents, 5)]
+        public async Task MalformedOrStaleHistoricalConfigurationRejectsBindingWithoutMutationAsync(
+            AssetHistoryKinds kind,
+            int defect)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(MalformedOrStaleHistoricalConfigurationRejectsBindingWithoutMutationAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            HistorianNodeCapabilities capabilities = (kind == AssetHistoryKinds.DeviceHealth
+                ? HistorianNodeCapabilities.DataReadWrite
+                : HistorianNodeCapabilities.EventReadWrite) with
+            {
+                StartOfArchive = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            provider.Register(parent.NodeId, capabilities);
+            BaseInstanceState configuration;
+            if (defect == 0)
+            {
+                configuration = new BaseObjectState(parent)
+                {
+                    NodeId = new NodeId(Guid.NewGuid(), parent.NodeId.NamespaceIndex),
+                    BrowseName = new QualifiedName(Ua.BrowseNames.HAConfiguration),
+                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+                };
+                parent.AddChild(configuration);
+                parent.AddReference(Ua.ReferenceTypeIds.HasHistoricalConfiguration, false, configuration.NodeId);
+                configuration.AddReference(Ua.ReferenceTypeIds.HasHistoricalConfiguration, true, parent.NodeId);
+            }
+            else
+            {
+                configuration = kind == AssetHistoryKinds.DeviceHealth
+                    ? await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                        handle.Context, device.DeviceHealth!, provider).ConfigureAwait(false)
+                    : await HistoricalEventConfigurationInstaller.EnsureInstalledAsync(
+                        handle.Context, device, provider).ConfigureAwait(false);
+                if (defect == 1)
+                {
+                    parent.RemoveReference(Ua.ReferenceTypeIds.HasHistoricalConfiguration, false, configuration.NodeId);
+                }
+                else if (defect == 2)
+                {
+                    configuration.RemoveReference(
+                        Ua.ReferenceTypeIds.HasHistoricalConfiguration, true, parent.NodeId);
+                }
+                else if (defect == 4)
+                {
+                    configuration.TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType;
+                }
+                else if (defect == 5)
+                {
+                    configuration.AddChild(new PropertyState<int>(configuration)
+                    {
+                        NodeId = new NodeId(Guid.NewGuid(), parent.NodeId.NamespaceIndex),
+                        BrowseName = new QualifiedName("VendorSetting", parent.NodeId.NamespaceIndex),
+                        Value = 42
+                    });
+                }
+                else if (configuration is HistoricalDataConfigurationState data)
+                {
+                    data.Stepped!.Value = !capabilities.Stepped;
+                }
+                else
+                {
+                    ((HistoricalEventConfigurationState)configuration).StartOfArchive!.Value =
+                        capabilities.StartOfArchive.ToDateTime().AddDays(-1);
+                }
+            }
+            Dictionary<NodeId, DataValue> originalValues = ConfigurationValues(configuration, handle.Context);
+            NodeId originalType = configuration.TypeDefinitionId;
+            var configurationReferences = new List<IReference>();
+            configuration.GetReferences(handle.Context, configurationReferences);
+            var referencesBefore = new List<IReference>();
+            parent.GetReferences(handle.Context, referencesBefore);
+            AssetNodes.Register(handle, parent);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await AssetHistoryBinding.CreateAsync(
+                    handle, server.Server, new AssetHistoryOptions(provider, kind), CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(ConfigurationValues(configuration, handle.Context), Is.EqualTo(originalValues));
+            Assert.That(configuration.TypeDefinitionId, Is.EqualTo(originalType));
+            var remainingConfigurationReferences = new List<IReference>();
+            configuration.GetReferences(handle.Context, remainingConfigurationReferences);
+            Assert.That(remainingConfigurationReferences.Count, Is.EqualTo(configurationReferences.Count));
+            foreach (IReference reference in configurationReferences)
+            {
+                Assert.That(configuration.ReferenceExists(
+                    reference.ReferenceTypeId, reference.IsInverse, reference.TargetId), Is.True);
+            }
+            Assert.That(
+                parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.SameAs(configuration));
+            var referencesAfter = new List<IReference>();
+            parent.GetReferences(handle.Context, referencesAfter);
+            Assert.That(referencesAfter.Count, Is.EqualTo(referencesBefore.Count));
+            foreach (IReference reference in referencesBefore)
+            {
+                Assert.That(parent.ReferenceExists(
+                    reference.ReferenceTypeId, reference.IsInverse, reference.TargetId), Is.True);
+            }
+            Assert.That(device.DeviceHealth!.Historizing, Is.False);
+            Assert.That(device.EventNotifier & EventNotifiers.HistoryRead, Is.Zero);
+            Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId), Is.Null);
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth)]
+        [TestCase(AssetHistoryKinds.HealthEvents)]
+        public async Task ValidOwnerConfigurationIsReusedWithoutReconfigurationAsync(AssetHistoryKinds kind)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(ValidOwnerConfigurationIsReusedWithoutReconfigurationAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            HistorianNodeCapabilities capabilities = (kind == AssetHistoryKinds.DeviceHealth
+                ? HistorianNodeCapabilities.DataReadWrite
+                : HistorianNodeCapabilities.EventReadWrite) with
+            {
+                StartOfArchive = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            provider.Register(parent.NodeId, capabilities);
+            BaseInstanceState configuration = kind == AssetHistoryKinds.DeviceHealth
+                ? await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                    handle.Context, device.DeviceHealth!, provider).ConfigureAwait(false)
+                : await HistoricalEventConfigurationInstaller.EnsureInstalledAsync(
+                    handle.Context, device, provider).ConfigureAwait(false);
+            Dictionary<NodeId, DataValue> originalValues = ConfigurationValues(configuration, handle.Context);
+            AssetNodes.Register(handle, parent);
+            AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
+                handle, server.Server, new AssetHistoryOptions(provider, kind), CancellationToken.None)
+                .ConfigureAwait(false))!;
+            await using (binding.ConfigureAwait(false))
+            {
+                Assert.That(binding.Kinds, Is.EqualTo(kind));
+                Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId),
+                    Is.SameAs(provider));
+                Assert.That(
+                    parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                    Is.SameAs(configuration));
+                Assert.That(ConfigurationValues(configuration, handle.Context), Is.EqualTo(originalValues));
+                Assert.That(
+                    await provider.GetCapabilitiesAsync(parent.NodeId, CancellationToken.None).ConfigureAwait(false),
+                    Is.SameAs(capabilities));
+            }
+            Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId), Is.Null);
+        }
+
+        [Test]
+        public async Task BindingFailureAndCleanupFailureAreBothReportedAsync()
+        {
+            (AmbHostedServer server, IAssetHandle asset, _) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(BindingFailureAndCleanupFailureAreBothReportedAsync),
+                    builder => builder.WithDeviceHealth()).ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var bindFailure = new ServiceResultException(StatusCodes.BadResourceUnavailable);
+            var cleanupFailure = new InvalidOperationException("The scoped binding could not be released.");
+            var provider = new Mock<IHistorianProvider>(MockBehavior.Strict);
+            provider.Setup(value => value.GetCapabilitiesAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(bindFailure);
+            var release = new Mock<IDisposable>(MockBehavior.Strict);
+            release.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            IDisposable? registration = release.Object;
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(
+                    It.IsAny<NodeState>(), provider.Object, out registration))
+                .Returns(true);
+            var host = new Mock<IServerInternal>(MockBehavior.Strict);
+            host.As<IHistorianRegistryProvider>().SetupGet(value => value.HistorianRegistry).Returns(registry.Object);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await AssetHistoryBinding.CreateAsync(
+                    (AssetHandle)asset, host.Object,
+                    new AssetHistoryOptions(provider.Object, AssetHistoryKinds.DeviceHealth),
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error!.Flatten().InnerExceptions, Is.EqualTo(new Exception[] { bindFailure, cleanupFailure }));
+            release.Verify(value => value.Dispose(), Times.Once);
         }
 
         [TestCase(AssetHistoryKinds.DeviceHealth, false)]
@@ -917,6 +1176,32 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(device.DeviceHealth.Timestamp, Is.EqualTo(currentTimestamp));
             Assert.That(device.DeviceHealth.Timestamp, Is.Not.EqualTo((DateTimeUtc)archivedTimestamp));
             Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
+        }
+
+        /// <summary>
+        /// Snapshots every configuration value by instance identifier without changing the owner subtree.
+        /// </summary>
+        private static Dictionary<NodeId, DataValue> ConfigurationValues(NodeState root, ISystemContext context)
+        {
+            var values = new Dictionary<NodeId, DataValue>();
+            var pending = new Queue<NodeState>();
+            pending.Enqueue(root);
+            while (pending.Count != 0)
+            {
+                NodeState node = pending.Dequeue();
+                if (node is BaseVariableState variable)
+                {
+                    values.Add(node.NodeId, new DataValue(
+                        variable.WrappedValue, variable.StatusCode, variable.Timestamp));
+                }
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    pending.Enqueue(child);
+                }
+            }
+            return values;
         }
 
         /// <summary>

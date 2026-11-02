@@ -74,6 +74,7 @@ namespace Opc.Ua.AMB.Server.Assets
             try
             {
                 await binding.BindAsync(options, cancellationToken).ConfigureAwait(false);
+                await binding.StartCaptureAsync(options, cancellationToken).ConfigureAwait(false);
                 if (binding.m_health != null)
                 {
                     AssetNodes.Register(handle, binding.m_health);
@@ -82,17 +83,31 @@ namespace Opc.Ua.AMB.Server.Assets
                 {
                     AssetNodes.Register(handle, handle.Asset);
                 }
+                binding.ReportInitialState();
                 return binding;
             }
-            catch
+            catch (Exception failure)
             {
+                var errors = new List<Exception> { failure };
                 try
                 {
                     await binding.DisposeAsync().ConfigureAwait(false);
                 }
-                finally
+                catch (Exception cleanupFailure)
+                {
+                    errors.Add(cleanupFailure);
+                }
+                try
                 {
                     binding.RollBackMetadata();
+                }
+                catch (Exception rollbackFailure)
+                {
+                    errors.Add(rollbackFailure);
+                }
+                if (errors.Count > 1)
+                {
+                    throw new AggregateException("AMB history binding and its cleanup failed.", errors);
                 }
                 throw;
             }
@@ -105,37 +120,35 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 return;
             }
+            List<Exception>? failures = null;
             try
             {
                 await m_builder.DisposeAsync().ConfigureAwait(false);
             }
-            finally
+            catch (Exception failure)
             {
-                if (m_health != null)
-                {
-                    m_health.Historizing = m_originalHistorizing;
-                    m_health.AccessLevel = m_originalAccessLevel;
-                    m_health.UserAccessLevel = m_originalUserAccessLevel;
-                }
-                if ((Kinds & (AssetHistoryKinds.HealthEvents | AssetHistoryKinds.MaintenanceEvents)) != 0)
-                {
-                    m_handle.Asset.EventNotifier = m_originalEventNotifier;
-                }
-                try
-                {
-                    m_healthBinding?.Dispose();
-                }
-                finally
-                {
-                    try
-                    {
-                        m_eventBinding?.Dispose();
-                    }
-                    finally
-                    {
-                        Kinds = AssetHistoryKinds.None;
-                    }
-                }
+                (failures ??= []).Add(failure);
+            }
+            try
+            {
+                m_healthBinding?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                (failures ??= []).Add(failure);
+            }
+            try
+            {
+                m_eventBinding?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                (failures ??= []).Add(failure);
+            }
+            Kinds = AssetHistoryKinds.None;
+            if (failures != null)
+            {
+                throw new AggregateException("Asset history cleanup failed.", failures);
             }
         }
 
@@ -155,7 +168,7 @@ namespace Opc.Ua.AMB.Server.Assets
                 {
                     throw ConfigurationError("DeviceHealth is already historized by its owner.");
                 }
-                if (!m_registry.TryRegisterForNode(health.NodeId, provider, out m_healthBinding))
+                if (!m_registry.TryRegisterForNode(health, provider, out m_healthBinding))
                 {
                     throw ConfigurationError("DeviceHealth already has an exact-node historian provider binding.");
                 }
@@ -173,14 +186,21 @@ namespace Opc.Ua.AMB.Server.Assets
                         "DeviceHealth history requires provisioned raw read and capture support.");
                 }
 
+                BaseInstanceState? existingConfiguration = health.FindChild(
+                    m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
+                bool installHealthConfiguration = existingConfiguration == null;
+                if (!installHealthConfiguration)
+                {
+                    var expectedParent = new BaseDataVariableState(null) { NodeId = health.NodeId };
+                    HistoricalDataConfigurationState expected =
+                        await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                            m_handle.Context, expectedParent, provider, cancellationToken).ConfigureAwait(false);
+                    ValidateConfiguration(health, existingConfiguration!, expected);
+                }
                 m_originalHealthTimestamp = health.Timestamp;
-                bool restored = await RestoreTimestampAsync(data, health, cancellationToken).ConfigureAwait(false);
+                m_healthRestored = await RestoreTimestampAsync(data, health, cancellationToken).ConfigureAwait(false);
                 m_health = health;
-                m_originalHistorizing = health.Historizing;
-                m_originalAccessLevel = health.AccessLevel;
-                m_originalUserAccessLevel = health.UserAccessLevel;
-                bool installHealthConfiguration = health.FindChild(
-                    m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)) == null;
+                m_healthCapabilities = capabilities;
                 m_annotationsBefore = health.FindChild(
                     m_handle.Context, new QualifiedName(Ua.BrowseNames.Annotations));
                 if (m_annotationsBefore is BaseVariableState annotations)
@@ -195,6 +215,7 @@ namespace Opc.Ua.AMB.Server.Assets
                         health,
                         systemContext: m_handle.Context,
                         capabilities: capabilities,
+                        autoCapture: false,
                         captureOptions: options.Capture);
                 }
                 finally
@@ -219,11 +240,6 @@ namespace Opc.Ua.AMB.Server.Assets
                     }
                 }
                 Kinds |= AssetHistoryKinds.DeviceHealth;
-                if (!restored)
-                {
-                    health.UpdateChangeMasks(NodeStateChangeMasks.Value);
-                    health.ClearChangeMasks(m_handle.Context, false);
-                }
             }
 
             var eventTypes = new HashSet<NodeId>();
@@ -277,7 +293,7 @@ namespace Opc.Ua.AMB.Server.Assets
             }
 
             ArrayOf<SimpleAttributeOperand> fields = AmbEventFields.Select(m_handle.Context.NamespaceUris);
-            if (!m_registry.TryRegisterForNode(m_handle.NodeId, provider, out m_eventBinding))
+            if (!m_registry.TryRegisterForNode(m_handle.Asset, provider, out m_eventBinding))
             {
                 throw ConfigurationError("The asset already has an exact-node historian provider binding.");
             }
@@ -313,9 +329,23 @@ namespace Opc.Ua.AMB.Server.Assets
                     }
                 }
             }
-            m_originalEventNotifier = m_handle.Asset.EventNotifier;
-            bool installEventConfiguration = m_handle.Asset.FindChild(
-                m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)) == null;
+            BaseInstanceState? existingEventConfiguration = m_handle.Asset.FindChild(
+                m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
+            bool installEventConfiguration = existingEventConfiguration == null;
+            if (!installEventConfiguration)
+            {
+                var expectedParent = new BaseObjectState(null) { NodeId = m_handle.NodeId };
+                HistoricalEventConfigurationState expected =
+                    await HistoricalEventConfigurationInstaller.EnsureInstalledAsync(
+                        m_handle.Context, expectedParent, provider, cancellationToken).ConfigureAwait(false);
+                ValidateConfiguration(m_handle.Asset, existingEventConfiguration!, expected);
+            }
+            m_eventCapabilities = eventCapabilities with
+            {
+                EventFields = fields,
+                EventTypes = eventTypes.ToArrayOf()
+            };
+            m_selectedConditions = selectedConditions;
             Kinds |= events;
             try
             {
@@ -324,11 +354,8 @@ namespace Opc.Ua.AMB.Server.Assets
                     m_handle.Context,
                     eventNotifier: EventNotifiers.HistoryRead,
                     installConfiguration: installEventConfiguration,
-                    capabilities: eventCapabilities with
-                    {
-                        EventFields = fields,
-                        EventTypes = eventTypes.ToArrayOf()
-                    },
+                    capabilities: m_eventCapabilities,
+                    autoCapture: false,
                     captureOptions: options.Capture,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
             }
@@ -340,10 +367,127 @@ namespace Opc.Ua.AMB.Server.Assets
                         m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
                 }
             }
-            foreach (ConditionState condition in selectedConditions)
+        }
+
+        /// <summary>
+        /// Attaches capture only after every requested kind and its metadata have been accepted.
+        /// </summary>
+        private async ValueTask StartCaptureAsync(
+            AssetHistoryOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (m_health != null)
+            {
+                m_builder.Historize(
+                    m_health,
+                    systemContext: m_handle.Context,
+                    capabilities: m_healthCapabilities,
+                    captureOptions: options.Capture);
+            }
+            if (m_eventCapabilities != null)
+            {
+                await m_builder.HistorizeEventsAsync(
+                    m_handle.Asset,
+                    m_handle.Context,
+                    eventNotifier: EventNotifiers.HistoryRead,
+                    installConfiguration: false,
+                    capabilities: m_eventCapabilities,
+                    captureOptions: options.Capture,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Emits initial records only after capture setup and owner indexing have completed.
+        /// </summary>
+        private void ReportInitialState()
+        {
+            if (m_health != null && !m_healthRestored)
+            {
+                m_health.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                m_health.ClearChangeMasks(m_handle.Context, false);
+            }
+            foreach (ConditionState condition in m_selectedConditions)
             {
                 AssetNodes.ReportEvent(m_handle.Context, condition);
             }
+        }
+
+        /// <summary>
+        /// Rejects an existing companion that does not describe this provider without changing it.
+        /// </summary>
+        private void ValidateConfiguration(
+            NodeState parent,
+            BaseInstanceState existing,
+            BaseInstanceState expected)
+        {
+            if (existing.GetType() != expected.GetType() ||
+                existing.NodeId.IsNull ||
+                !parent.ReferenceExists(Ua.ReferenceTypeIds.HasHistoricalConfiguration, false, existing.NodeId) ||
+                !existing.ReferenceExists(Ua.ReferenceTypeIds.HasHistoricalConfiguration, true, parent.NodeId) ||
+                !ConfigurationMatches(existing, expected))
+            {
+                throw ConfigurationError(
+                    "The owner's historical configuration is malformed or disagrees with the selected provider.");
+            }
+        }
+
+        /// <summary>
+        /// Compares the provider-derived companion subtree without comparing instance identifiers.
+        /// </summary>
+        private bool ConfigurationMatches(BaseInstanceState actual, BaseInstanceState expected)
+        {
+            if (actual.TypeDefinitionId != expected.TypeDefinitionId ||
+                actual.ReferenceTypeId != expected.ReferenceTypeId)
+            {
+                return false;
+            }
+            if (expected is BaseVariableState expectedValue &&
+                (actual is not BaseVariableState actualValue ||
+                    !StatusCode.IsGood(actualValue.StatusCode) ||
+                    actualValue.DataType != expectedValue.DataType ||
+                    actualValue.ValueRank != expectedValue.ValueRank ||
+                    actualValue.WrappedValue != expectedValue.WrappedValue))
+            {
+                return false;
+            }
+            var actualChildren = new List<BaseInstanceState>();
+            var expectedChildren = new List<BaseInstanceState>();
+            actual.GetChildren(m_handle.Context, actualChildren);
+            expected.GetChildren(m_handle.Context, expectedChildren);
+            if (actualChildren.Count != expectedChildren.Count)
+            {
+                return false;
+            }
+            foreach (BaseInstanceState child in expectedChildren)
+            {
+                BaseInstanceState? actualChild = actual.FindChild(m_handle.Context, child.BrowseName);
+                if (actualChild == null || !ConfigurationMatches(actualChild, child))
+                {
+                    return false;
+                }
+            }
+            var actualReferences = new List<IReference>();
+            var expectedReferences = new List<IReference>();
+            actual.GetReferences(m_handle.Context, actualReferences);
+            expected.GetReferences(m_handle.Context, expectedReferences);
+            var actualTargets = new HashSet<ExpandedNodeId>();
+            var expectedTargets = new HashSet<ExpandedNodeId>();
+            foreach (IReference reference in actualReferences)
+            {
+                if (!reference.IsInverse && reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes)
+                {
+                    actualTargets.Add(reference.TargetId);
+                }
+            }
+            foreach (IReference reference in expectedReferences)
+            {
+                if (!reference.IsInverse && reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes)
+                {
+                    expectedTargets.Add(reference.TargetId);
+                }
+            }
+            return actualTargets.SetEquals(expectedTargets);
         }
 
         /// <summary>
@@ -476,20 +620,20 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <summary>The health variable whose binding must be restored on disposal.</summary>
         private BaseVariableState? m_health;
 
-        /// <summary>The owner's original health historizing flag.</summary>
-        private bool m_originalHistorizing;
-
         /// <summary>The owner's state-entry timestamp before history restoration.</summary>
         private DateTimeUtc m_originalHealthTimestamp;
 
-        /// <summary>The owner's original health access level.</summary>
-        private byte m_originalAccessLevel;
+        /// <summary>The accepted raw-history capabilities used when starting capture.</summary>
+        private HistorianNodeCapabilities? m_healthCapabilities;
 
-        /// <summary>The owner's original per-user health access level.</summary>
-        private byte m_originalUserAccessLevel;
+        /// <summary>The accepted event selection used when starting capture.</summary>
+        private HistorianNodeCapabilities? m_eventCapabilities;
 
-        /// <summary>The owner's original asset notifier attributes.</summary>
-        private byte m_originalEventNotifier;
+        /// <summary>The selected live conditions whose initial state is captured after acceptance.</summary>
+        private List<ConditionState> m_selectedConditions = [];
+
+        /// <summary>Whether the matching archived health timestamp was restored.</summary>
+        private bool m_healthRestored;
 
         /// <summary>Whether this binding has already detached its capture pipelines.</summary>
         private int m_disposed;

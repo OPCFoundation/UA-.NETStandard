@@ -365,6 +365,15 @@ that mapping without removing a later replacement, even if the replacement uses
 the same provider instance. Disposing a registration does not dispose its
 provider; the registry retains provider lifetime ownership until shutdown.
 
+The overload taking `NodeState` also snapshots a variable's `Historizing`,
+`AccessLevel` and `UserAccessLevel`, or an object's `EventNotifier`. Releasing
+that registration restores the snapshot only while its exact-node mapping is
+still current. Restoration and removal complete before another registration can
+replace that mapping. A replacement owner must register before setting its
+attributes; disposing an earlier registration then cannot restore an older
+snapshot over those attributes. The overload taking only `NodeId` manages the
+mapping without changing node attributes.
+
 ### Provider resolution order
 
 For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the provider in this order:

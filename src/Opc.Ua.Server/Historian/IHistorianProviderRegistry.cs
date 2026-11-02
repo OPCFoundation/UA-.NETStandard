@@ -137,6 +137,18 @@ namespace Opc.Ua.Server.Historian
         /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
         /// <returns>Whether a new binding was installed.</returns>
         bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding);
+
+        /// <summary>
+        /// Adds an exact-node binding and snapshots its historian access attributes.
+        /// Disposal restores those attributes only while this registration is still current,
+        /// before a competing replacement can become current. A replacement keeps its own
+        /// attributes. Register a replacement before setting its access attributes.
+        /// </summary>
+        /// <param name="node">The variable or notifier whose historian attributes belong to this binding.</param>
+        /// <param name="provider">The provider to register.</param>
+        /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        bool TryRegisterForNode(NodeState node, IHistorianProvider provider, out IDisposable? binding);
     }
 
     /// <summary>

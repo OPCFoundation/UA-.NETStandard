@@ -133,6 +133,123 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(registry.Resolve(node), Is.Null);
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ScopedAttributeRestorationRespectsReplacementOrdering(bool events, bool replaceBeforeDisposal)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var provider = new InMemoryHistorianProvider();
+            NodeState node = events
+                ? new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("events", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                }
+                : new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("health", 1),
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+            Assert.That(registry.TryRegisterForNode(node, provider, out IDisposable? binding), Is.True);
+            if (node is BaseVariableState captured)
+            {
+                captured.Historizing = true;
+                captured.AccessLevel |= AccessLevels.HistoryRead;
+                captured.UserAccessLevel |= AccessLevels.HistoryRead;
+            }
+            else
+            {
+                ((BaseObjectState)node).EventNotifier |= EventNotifiers.HistoryRead;
+            }
+            if (!replaceBeforeDisposal)
+            {
+                binding!.Dispose();
+                Assert.That(registry.Resolve(node.NodeId), Is.Null);
+                if (node is BaseVariableState restored)
+                {
+                    Assert.That(restored.Historizing, Is.False);
+                    Assert.That(restored.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(restored.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                }
+                else
+                {
+                    Assert.That(((BaseObjectState)node).EventNotifier, Is.EqualTo(EventNotifiers.SubscribeToEvents));
+                }
+            }
+            registry.RegisterForNode(node.NodeId, provider);
+            if (node is BaseVariableState replacement)
+            {
+                replacement.Historizing = true;
+                replacement.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                replacement.UserAccessLevel = AccessLevels.HistoryWrite;
+            }
+            else
+            {
+                ((BaseObjectState)node).EventNotifier = EventNotifiers.HistoryWrite;
+            }
+            binding!.Dispose();
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(provider));
+            if (node is BaseVariableState retained)
+            {
+                Assert.That(retained.Historizing, Is.True);
+                Assert.That(retained.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                Assert.That(retained.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryWrite));
+            }
+            else
+            {
+                Assert.That(((BaseObjectState)node).EventNotifier, Is.EqualTo(EventNotifiers.HistoryWrite));
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScopedAttributeRestorationCannotOverwriteAConcurrentReplacementAsync(bool events)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var first = new InMemoryHistorianProvider();
+            using var replacement = new InMemoryHistorianProvider();
+            for (int i = 0; i < 32; i++)
+            {
+                NodeState node = events
+                    ? new BaseObjectState(null) { NodeId = new NodeId(Guid.NewGuid(), 1) }
+                    : new BaseDataVariableState(null) { NodeId = new NodeId(Guid.NewGuid(), 1) };
+                Assert.That(registry.TryRegisterForNode(node, first, out IDisposable? binding), Is.True);
+                await Task.WhenAll(
+                    Task.Run(() => binding!.Dispose()),
+                    Task.Run(() =>
+                    {
+                        registry.RegisterForNode(node.NodeId, replacement);
+                        if (node is BaseVariableState variable)
+                        {
+                            variable.Historizing = true;
+                            variable.AccessLevel = AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                            variable.UserAccessLevel = AccessLevels.HistoryRead;
+                        }
+                        else
+                        {
+                            ((BaseObjectState)node).EventNotifier =
+                                EventNotifiers.HistoryRead | EventNotifiers.HistoryWrite;
+                        }
+                    })).ConfigureAwait(false);
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(replacement));
+                if (node is BaseVariableState variable)
+                {
+                    Assert.That(variable.Historizing, Is.True);
+                    Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                    Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryRead));
+                }
+                else
+                {
+                    Assert.That(((BaseObjectState)node).EventNotifier, Is.EqualTo(
+                        EventNotifiers.HistoryRead | EventNotifiers.HistoryWrite));
+                }
+                Assert.That(registry.UnregisterForNode(node.NodeId), Is.True);
+            }
+        }
+
         [Test]
         public async Task MemoryProvisioningPreservesExplicitCapabilitiesAsync()
         {
