@@ -119,14 +119,14 @@ namespace Opc.Ua.Pumps.Tests
             await fixture.Manager.Runtime.WithRetainedIdentificationAsync(pump, store.Object, Permissions);
             var variable = (BaseVariableState)pump.Identification.Child(Opc.Ua.Di.BrowseNames.AssetId)!;
             ServiceResult result = await variable.WriteAttributeAsync(fixture.Manager.SystemContext,
-                Attributes.Value, NumericRange.Empty, new DataValue(Variant.From("uncommitted")));
+                Attributes.Value, NumericRange.Null, new DataValue(Variant.From("uncommitted")));
             Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadResourceUnavailable));
             Assert.That(variable.WrappedValue, Is.EqualTo(Variant.From("default-asset")));
             Assert.That((await variable.WriteAttributeAsync(fixture.Manager.SystemContext,
-                Attributes.Value, NumericRange.Empty, new DataValue(Variant.From(123)))).StatusCode,
+                Attributes.Value, NumericRange.Null, new DataValue(Variant.From(123)))).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
             Assert.That((await variable.WriteAttributeAsync(fixture.Manager.SystemContext,
-                Attributes.Value, NumericRange.Empty, new DataValue(Variant.Null))).StatusCode,
+                Attributes.Value, NumericRange.Null, new DataValue(Variant.Null))).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
         }
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Pumps.Tests
         {
             var variable = (BaseVariableState)pump.Identification.Child(field)!;
             ServiceResult result = await variable.WriteAttributeAsync(
-                fixture.Manager.SystemContext, Attributes.Value, NumericRange.Empty, new DataValue(value));
+                fixture.Manager.SystemContext, Attributes.Value, NumericRange.Null, new DataValue(value));
             Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
         }
 

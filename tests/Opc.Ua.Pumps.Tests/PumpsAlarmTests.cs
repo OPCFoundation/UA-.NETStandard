@@ -318,10 +318,10 @@ namespace Opc.Ua.Pumps.Tests
             var alarm = (ExclusiveLimitAlarmState)binding.Alarm;
             NodeId expectedState = expected switch
             {
-                LimitAlarmStates.LowLow => ObjectIds.ExclusiveLimitStateMachineType_LowLow,
-                LimitAlarmStates.Low => ObjectIds.ExclusiveLimitStateMachineType_Low,
-                LimitAlarmStates.High => ObjectIds.ExclusiveLimitStateMachineType_High,
-                LimitAlarmStates.HighHigh => ObjectIds.ExclusiveLimitStateMachineType_HighHigh,
+                LimitAlarmStates.LowLow => new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_LowLow),
+                LimitAlarmStates.Low => new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_Low),
+                LimitAlarmStates.High => new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High),
+                LimitAlarmStates.HighHigh => new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_HighHigh),
                 _ => NodeId.Null
             };
             Assert.Multiple(() =>

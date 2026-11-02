@@ -40,6 +40,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Pumps.Client;
 using Opc.Ua.Pumps.Server;
@@ -601,7 +602,7 @@ namespace Opc.Ua.Pumps.Tests
 
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(Path.Combine(pki, "client"));
-                using ISession session = await clientFixture.ConnectAsync(
+                using Opc.Ua.Client.ISession session = await clientFixture.ConnectAsync(
                     new Uri($"opc.tcp://localhost:{fixture.Port}"), SecurityPolicies.None);
                 var pumps = new PumpsClient(session, NUnitTelemetryContext.Create());
                 await pumps.WriteAssetIdAsync(pump.NodeId, "retained-service-write");
