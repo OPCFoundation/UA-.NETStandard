@@ -579,23 +579,32 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The application URI installed on this device.</summary>
         private const string kApplicationUri = "urn:sample:onboarding:dca";
+
         /// <summary>The registrar-assigned DCA application identifier.</summary>
         private static readonly NodeId s_applicationId = new("sample-dca");
+
         /// <summary>The sample's supported credential profile.</summary>
         private static readonly PullDcaCertificateProfile s_profile = new(
             new NodeId("default-group"), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+
         /// <summary>The fixture-owned private identity.</summary>
         private Certificate m_identity = null!;
+
         /// <summary>The strict on-demand key provider.</summary>
         private Mock<ICertificateProvider> m_provider = null!;
+
         /// <summary>The strict manager observing installation side effects.</summary>
         private Mock<ICertificateManager> m_manager = null!;
+
         /// <summary>The configured application certificate identifier.</summary>
         private CertificateIdentifier m_identifier = null!;
+
         /// <summary>The host-owned sample configuration.</summary>
         private ApplicationConfiguration m_configuration = null!;
+
         /// <summary>The sample implementation under test.</summary>
         private OnboardingDeviceCredentials m_credentials = null!;
+
         /// <summary>The test's telemetry context.</summary>
         private ITelemetryContext m_telemetry = null!;
     }

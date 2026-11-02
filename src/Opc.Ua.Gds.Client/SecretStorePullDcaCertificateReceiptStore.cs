@@ -270,16 +270,22 @@ namespace Opc.Ua.Gds.Client
 
         /// <summary>The maximum encoded public receipt size.</summary>
         private const int kMaximumReceiptBytes = 16 * 1024 * 1024;
+
         /// <summary>The borrowed secret store.</summary>
         private readonly ISecretStore m_secretStore;
+
         /// <summary>The host's stable namespace mapping for the selected registrar.</summary>
         private readonly NamespaceTable m_namespaceUris;
+
         /// <summary>The exclusive device scope.</summary>
         private readonly string m_scope;
+
         /// <summary>The bounded codec context.</summary>
         private readonly ServiceMessageContext m_context;
+
         /// <summary>The instance-local gate, not a distributed writer claim.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>Whether this adapter has been disposed.</summary>
         private int m_disposed;
     }

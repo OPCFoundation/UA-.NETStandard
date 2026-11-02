@@ -213,14 +213,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The explicitly selected device ticket identifiers.</summary>
         private readonly ArrayOf<string> m_ticketIds;
+
         /// <summary>The borrowed shared ticket store.</summary>
         private readonly ITicketStore m_tickets;
+
         /// <summary>The borrowed local ticket integrity policy.</summary>
         private readonly IOnboardingTicketValidator m_validator;
+
         /// <summary>The host's persistent registrar configuration.</summary>
         private readonly IProvisionableDeviceRegistrarStore m_registrars;
+
         /// <summary>The optional host-selected device trust and reset gate.</summary>
         private readonly IProvisionableDeviceSecurity? m_security;
+
         /// <summary>The strict decoder preserves signed envelopes without replacement characters.</summary>
         private static readonly UTF8Encoding s_utf8 = new(false, true);
     }

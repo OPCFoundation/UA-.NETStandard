@@ -708,16 +708,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The URI owned by this DCA.</summary>
         private const string kApplicationUri = "urn:device:dca";
+
         /// <summary>The first registrar's actual channel certificate.</summary>
         private Certificate m_firstRegistrar = null!;
+
         /// <summary>A different registrar's actual channel certificate.</summary>
         private Certificate m_otherRegistrar = null!;
+
         /// <summary>The device's issued DCA certificate.</summary>
         private Certificate m_dca = null!;
+
         /// <summary>The retained memory backend, not a durable-storage demonstration.</summary>
         private InMemorySecretStore m_secrets = null!;
+
         /// <summary>The injected scoped validator.</summary>
         private Mock<ICertificateManager> m_certificates = null!;
+
         /// <summary>The explicitly mocked platform operations.</summary>
         private Mock<IProvisionableDeviceSecurityInstaller> m_installer = null!;
     }

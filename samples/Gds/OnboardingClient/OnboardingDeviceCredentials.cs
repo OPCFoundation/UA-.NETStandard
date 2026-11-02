@@ -300,14 +300,19 @@ namespace OnboardingClientSample
 
         /// <summary>The host-owned application configuration.</summary>
         private readonly ApplicationConfiguration m_configuration;
+
         /// <summary>The host-owned certificate manager.</summary>
         private readonly ICertificateManager m_manager;
+
         /// <summary>Telemetry used to open the configured certificate store.</summary>
         private readonly ITelemetryContext m_telemetry;
+
         /// <summary>Host-registered store providers, consulted before built-in store types.</summary>
         private readonly ArrayOf<ICertificateStoreProvider> m_storeProviders;
+
         /// <summary>The one DCA application whose key was used for the CSR.</summary>
         private NodeId m_applicationId;
+
         /// <summary>The original certificate group/type selected for the retained DCA request.</summary>
         private PullDcaCertificateProfile? m_profile;
     }

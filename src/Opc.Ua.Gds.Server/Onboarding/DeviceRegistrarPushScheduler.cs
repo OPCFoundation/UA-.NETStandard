@@ -234,12 +234,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host-owned processor responsible for persistent provisioning state.</summary>
         private readonly IDeviceRegistrarPushProcessor m_processor;
+
         /// <summary>The bounded queue of independently owned endpoint descriptions.</summary>
         private readonly Channel<ApplicationDescription> m_queue;
+
         /// <summary>The source-generated worker diagnostics.</summary>
         private readonly ILogger<DeviceRegistrarPushScheduler> m_logger;
+
         /// <summary>Serializes only queue acceptance and closure, never provider calls.</summary>
         private readonly Lock m_acceptance = new();
+
         /// <summary>Zero before startup, one while accepting, and two after stopping.</summary>
         private int m_state;
     }

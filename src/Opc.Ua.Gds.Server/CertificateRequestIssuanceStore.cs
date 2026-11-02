@@ -367,12 +367,16 @@ namespace Opc.Ua.Gds.Server
 
         /// <summary>The maximum retained JSON document, including private-key output.</summary>
         private const int MaximumReceiptBytes = 16 * 1024 * 1024;
+
         /// <summary>The host-owned storage for secret issuance output.</summary>
         private readonly ISecretStore m_secretStore;
+
         /// <summary>The hosting server's namespace URI mapping.</summary>
         private readonly NamespaceTable m_namespaceUris;
+
         /// <summary>The unique database scope inside the secret store.</summary>
         private readonly string m_scope;
+
         /// <summary>The adapter's internal single-writer coordination.</summary>
         private readonly SemaphoreSlim m_issuanceGate = new(1, 1);
     }

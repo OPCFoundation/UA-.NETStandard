@@ -157,22 +157,29 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
             /// <summary>The borrowed runtime shared with certificate authorization.</summary>
             private readonly IDeviceRegistrarRuntime m_runtime;
+
             /// <summary>The borrowed validated ticket store.</summary>
             private readonly ITicketStore m_ticketStore;
+
             /// <summary>The borrowed ticket-validation policy.</summary>
             private readonly IOnboardingTicketValidator m_ticketValidator;
+
             /// <summary>The borrowed manager owning the authority stores.</summary>
             private readonly ICertificateManager m_certificateManager;
+
             /// <summary>The owned authority file handlers, disposed after dispatch drains.</summary>
             private DeviceRegistrarAuthorityTrustLists? m_authorities;
         }
 
         /// <summary>The shared registrar runtime.</summary>
         private readonly IDeviceRegistrarRuntime m_runtime;
+
         /// <summary>The shared ticket store.</summary>
         private readonly ITicketStore m_ticketStore;
+
         /// <summary>The shared ticket validator.</summary>
         private readonly IOnboardingTicketValidator m_ticketValidator;
+
         /// <summary>The shared managed authority provider.</summary>
         private readonly ICertificateManager m_certificateManager;
     }

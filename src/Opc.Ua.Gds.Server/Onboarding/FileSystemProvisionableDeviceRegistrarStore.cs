@@ -215,14 +215,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The maximum encoded checkpoint size, including its version marker.</summary>
         private const int kMaximumCheckpointBytes = 16 * 1024 * 1024;
+
         /// <summary>The checkpoint path exclusively owned by this instance.</summary>
         private readonly string m_path;
+
         /// <summary>The borrowed file system.</summary>
         private readonly IFileSystem m_fileSystem;
+
         /// <summary>The private codec context retaining the standard decoder quotas.</summary>
         private readonly ServiceMessageContext m_context;
+
         /// <summary>The instance-local operation gate, not a distributed writer claim.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>Whether the host has disposed this instance.</summary>
         private int m_disposed;
     }

@@ -552,20 +552,28 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The checkpoint byte limit in addition to standard codec quotas.</summary>
         private const int kMaximumCheckpointBytes = 16 * 1024 * 1024;
+
         /// <summary>The host-owned storage.</summary>
         private readonly ISecretStore m_secrets;
+
         /// <summary>The unique device state key.</summary>
         private readonly SecretIdentifier m_identifier;
+
         /// <summary>The DCA application URI retained in every checkpoint.</summary>
         private readonly string m_applicationUri;
+
         /// <summary>The host's scoped certificate validation infrastructure.</summary>
         private readonly ICertificateManager m_certificates;
+
         /// <summary>The host's idempotent platform operations.</summary>
         private readonly IProvisionableDeviceSecurityInstaller m_installer;
+
         /// <summary>The private codec context retaining standard quotas.</summary>
         private readonly ServiceMessageContext m_context;
+
         /// <summary>The local serialization gate, not a distributed transaction.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>Whether this instance has been disposed.</summary>
         private int m_disposed;
     }

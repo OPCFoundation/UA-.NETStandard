@@ -88,8 +88,10 @@ namespace OnboardingRegistrar
         }
 
         private readonly ITicketStore m_ticketStore;
+
         /// <summary>The injected managed ticket authority policy.</summary>
         private readonly IOnboardingTicketTrustProvider m_ticketTrustProvider;
+
         /// <summary>The borrowed manager owns the named authority stores.</summary>
         private readonly ICertificateManager m_certificateManager;
     }
@@ -190,10 +192,13 @@ namespace OnboardingRegistrar
         }
 
         private readonly ITicketStore m_ticketStore;
+
         /// <summary>The validator bound to this server's message context.</summary>
         private readonly IOnboardingTicketValidator m_ticketValidator;
+
         /// <summary>The borrowed manager shares validation and administration stores.</summary>
         private readonly ICertificateManager m_certificateManager;
+
         /// <summary>The owned authority file handlers are released after active requests drain.</summary>
         private DeviceRegistrarAuthorityTrustLists? m_authorityTrustLists;
     }

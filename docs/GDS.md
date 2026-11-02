@@ -342,12 +342,22 @@ generation change before returning. `AddDeviceRegistrar` registers the validator
 direct hosts can construct it with their selector and telemetry.
 
 ```csharp
-OnboardingIdentitySelection identity = await pushIdentityValidator.ValidateAsync(
+await using OnboardingPushSession admitted = await pushIdentityValidator.CaptureAsync(
     deviceSession, provisionableDeviceId, cancellationToken);
+OnboardingIdentitySelection identity = admitted.Identity;
+ISession pushSession = admitted.Session;
 ```
 
-The host still owns initial channel trust and must keep subsequent push operations
-on the validated generation or validate again after reconnecting. This helper does
+Construct every subsequent generated certificate or TrustList client with
+`admitted.Session`. Each dispatch checks the original authentication token,
+namespace tables and physical channel, and requires encryption. It rejects a
+replacement generation rather than following a reconnect. Disposing the admission
+context releases only local client resources; the caller retains ownership of its
+connection. `ValidateAsync` remains available for an identity check without a
+retained context, but its result does not authorize requests through another
+session.
+
+The host still owns initial channel trust. This helper does
 not approve an application, install credentials, satisfy a software-update gate,
 or implement the supervised `IDeviceRegistrarPushScheduler`. Connected push
 orchestration remains incomplete.

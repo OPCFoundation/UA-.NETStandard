@@ -2803,8 +2803,10 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly SecureAccess m_readAccess;
+
         /// <summary>Optional replacement policy configured before dispatch begins.</summary>
         private Func<ISystemContext, CertificateStoreIdentifier, CancellationToken, ValueTask>? m_authorizeReadAsync;
+
         private readonly SecureAccess m_writeAccess;
         private readonly Dictionary<uint, OpenHandle> m_handles = [];
         private uint m_fileHandle;

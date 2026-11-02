@@ -31,8 +31,12 @@ Durable acceptance requires a separately supplied scheduler.
 `OnboardingPushIdentityValidator` uses the registrar's ticket-scoped identity
 selector to check the actual authenticated server certificate of a push device.
 It reads `RequestTickets` through a generation-bound encrypted session; discovery
-metadata cannot substitute for the channel peer. The host still supplies channel
-trust, software-update policy and supervised push orchestration. This validator
+metadata cannot substitute for the channel peer. `CaptureAsync` retains that
+generation for subsequent generated clients through `OnboardingPushSession.Session`;
+replacement sessions and channels cannot receive requests authorized by the
+earlier admission. Disposing the context never closes the caller's connection.
+The host still supplies channel trust, software-update policy and supervised push
+orchestration. This validator
 does not install certificates or complete the push onboarding flow.
 
 ## Target frameworks

@@ -32,6 +32,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Onboarding;
 using Opc.Ua.Security.Certificates;
@@ -224,6 +225,167 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Successful admission retains the same real encrypted generation for later generated-client operations.
+        /// Local disposal never closes the original session.
+        /// </summary>
+        [TestCase("raw")]
+        [TestCase("managed")]
+        public async Task CaptureRetainsValidatedGenerationWithoutTakingConnectionOwnership(string shape)
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_peer.RawData);
+            fixture.Handler = (request, _) => new ValueTask<IServiceResponse>(Respond(request));
+            Mock<IOnboardingIdentitySelector> identities = AcceptingSelector();
+            ISession session = shape == "raw" ? fixture.InnerSession : fixture.ManagedSession;
+            var deviceId = new NodeId("push-device", 1);
+            await using OnboardingPushSession admitted = await Validator(identities).CaptureAsync(session, deviceId)
+                .ConfigureAwait(false);
+
+            Assert.That(admitted.Identity.SelectedIdentity, Is.EqualTo(ByteString.From(m_peer.RawData.AsSpan())));
+            Assert.That(admitted.Invalidated.IsCompleted, Is.False);
+            var device = new ProvisionableDeviceTypeClient(admitted.Session, deviceId, fixture.Telemetry);
+            ArrayOf<string> tickets = await device.RequestTicketsAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(tickets.Count, Is.EqualTo(1));
+            Assert.That(tickets[0], Is.EqualTo("signed-ticket"));
+            int calls = 0;
+            foreach (IServiceRequest request in fixture.Requests)
+            {
+                if (request is CallRequest call)
+                {
+                    calls++;
+                    Assert.That(call.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token")));
+                    Assert.That(call.MethodsToCall[0].ObjectId, Is.EqualTo(deviceId));
+                }
+            }
+            Assert.That(calls, Is.EqualTo(2));
+            await admitted.DisposeAsync().ConfigureAwait(false);
+            await admitted.DisposeAsync().ConfigureAwait(false);
+            Assert.That(admitted.Invalidated.IsCompleted, Is.True);
+            Assert.Throws<ObjectDisposedException>(() => _ = admitted.Session);
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session")));
+            Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
+            identities.VerifyAll();
+            identities.Verify(selector => selector.SelectAsync(
+                It.IsAny<ArrayOf<ByteString>>(), It.IsAny<ArrayOf<ByteString>>(),
+                It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Neither a replacement session or physical channel nor changed namespaces or encryption can receive
+        /// a follow-up push request authorized by an earlier device admission.
+        /// </summary>
+        [TestCase("recreate")]
+        [TestCase("transport")]
+        [TestCase("namespace")]
+        [TestCase("downgrade")]
+        public async Task CapturedAdmissionRejectsChangedDispatchContextBeforeFollowUpCall(string mutation)
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_peer.RawData);
+            fixture.Handler = (request, _) => new ValueTask<IServiceResponse>(Respond(request));
+            Mock<IOnboardingIdentitySelector> identities = AcceptingSelector();
+            var deviceId = new NodeId("push-device", 1);
+            await using OnboardingPushSession admitted = await Validator(identities)
+                .CaptureAsync(fixture.ManagedSession, deviceId).ConfigureAwait(false);
+            var device = new ProvisionableDeviceTypeClient(admitted.Session, deviceId, fixture.Telemetry);
+            int admittedRequestCount = fixture.Requests.Count;
+            var replacement = new Mock<ITransportChannel>();
+            switch (mutation)
+            {
+                case "recreate":
+                    fixture.Recreate();
+                    break;
+                case "transport":
+                    fixture.ReplaceTransport(replacement.Object);
+                    break;
+                case "namespace":
+                    fixture.InnerSession.NamespaceUris.Append("urn:changed-after-admission");
+                    break;
+                case "downgrade":
+                    fixture.Channel.Object.EndpointDescription.SecurityMode = MessageSecurityMode.Sign;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mutation));
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await device.RequestTicketsAsync(CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(mutation == "downgrade"
+                ? StatusCodes.BadSecurityModeInsufficient : StatusCodes.BadSessionIdInvalid));
+            Assert.That(fixture.Requests.Count, Is.EqualTo(admittedRequestCount));
+            replacement.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Replacing the originating session during ticket evaluation prevents returning a usable push context.
+        /// </summary>
+        [Test]
+        public async Task CaptureRejectsGenerationChangeDuringTicketSelectionWithoutClosingOwner()
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            fixture.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_peer.RawData);
+            fixture.Handler = (request, _) => new ValueTask<IServiceResponse>(Respond(request));
+            var identities = new Mock<IOnboardingIdentitySelector>(MockBehavior.Strict);
+            identities.Setup(selector => selector.SelectAsync(
+                    It.IsAny<ArrayOf<ByteString>>(), It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
+                .Callback(fixture.Recreate)
+                .ReturnsAsync(Selection(m_peer));
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Validator(identities).CaptureAsync(fixture.ManagedSession, new NodeId("push-device", 1))
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("replacement-session")));
+            Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
+            identities.VerifyAll();
+        }
+
+        /// <summary>
+        /// Missing required inputs are rejected before the session or ticket policy is accessed.
+        /// </summary>
+        [Test]
+        public async Task CaptureRejectsMissingInputsBeforeBorrowingSession()
+        {
+            var identities = new Mock<IOnboardingIdentitySelector>(MockBehavior.Strict);
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            OnboardingPushIdentityValidator validator = Validator(identities);
+
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await validator.CaptureAsync(null!, new NodeId("push-device")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await validator.CaptureAsync(session.Object, NodeId.Null).ConfigureAwait(false));
+
+            session.VerifyNoOtherCalls();
+            identities.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Cancellation before capture cannot dispatch ticket reads or invoke ticket validation.
+        /// </summary>
+        [Test]
+        public async Task CaptureHonorsCancellationBeforeReadingTickets()
+        {
+            var identities = new Mock<IOnboardingIdentitySelector>(MockBehavior.Strict);
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Validator(identities).CaptureAsync(
+                    session.Object, new NodeId("push-device"), cancellation.Token).ConfigureAwait(false));
+
+            session.VerifyNoOtherCalls();
+            identities.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// The peer chain's additional certificates are issuers, never alternative selectable device identities.
         /// </summary>
         [Test]
@@ -305,6 +467,37 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Returns a ticket selection for the fixture's actual peer and checks the generated ticket output.
+        /// </summary>
+        private Mock<IOnboardingIdentitySelector> AcceptingSelector()
+        {
+            var identities = new Mock<IOnboardingIdentitySelector>(MockBehavior.Strict);
+            identities.Setup(selector => selector.SelectAsync(
+                    It.IsAny<ArrayOf<ByteString>>(), It.IsAny<ArrayOf<ByteString>>(),
+                    It.Is<ArrayOf<string>>(tickets => tickets.Count == 1 && tickets[0] == "signed-ticket"),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Selection(m_peer));
+            return identities;
+        }
+
+        /// <summary>
+        /// Answers generated method resolution and RequestTickets on a real stack session without a socket.
+        /// </summary>
+        private static IServiceResponse Respond(IServiceRequest request)
+        {
+            ArrayOf<string> tickets = ["signed-ticket"];
+            return request switch
+            {
+                BrowseRequest => new BrowseResponse { Results = [new BrowseResult { References = [] }] },
+                CallRequest => new CallResponse
+                {
+                    Results = [new CallMethodResult { OutputArguments = [Variant.From(tickets)] }]
+                },
+                _ => throw new InvalidOperationException("Unexpected push admission request.")
+            };
+        }
+
+        /// <summary>
         /// Creates the production validator with the same selector used by registrar identity admission.
         /// </summary>
         private static OnboardingPushIdentityValidator Validator(Mock<IOnboardingIdentitySelector> identities)
@@ -325,6 +518,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The authenticated device certificate owned by the fixture.</summary>
         private Certificate m_peer = null!;
+
         /// <summary>A different certificate used in discovery and substitution cases.</summary>
         private Certificate m_other = null!;
     }

@@ -60,6 +60,20 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId provisionableDeviceId,
             CancellationToken cancellationToken = default)
         {
+            await using OnboardingPushSession admitted = await CaptureAsync(
+                session, provisionableDeviceId, cancellationToken).ConfigureAwait(false);
+            return admitted.Identity;
+        }
+
+        /// <summary>
+        /// Validates the device and retains its encrypted session generation for subsequent push operations.
+        /// Use only the returned session for those operations. Disposing it does not close the owner's connection.
+        /// </summary>
+        public async ValueTask<OnboardingPushSession> CaptureAsync(
+            ISession session,
+            NodeId provisionableDeviceId,
+            CancellationToken cancellationToken = default)
+        {
             if (session == null)
             {
                 throw new ArgumentNullException(nameof(session));
@@ -69,18 +83,26 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentException("A provisionable device identifier is required.",
                     nameof(provisionableDeviceId));
             }
-            await using SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
+            SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
                 session, cancellationToken).ConfigureAwait(false);
-            var device = new ProvisionableDeviceTypeClient(
-                dispatch.Session, provisionableDeviceId, m_telemetry);
-            ArrayOf<string> tickets = await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
-            OnboardingIdentitySelection selection = await ValidatePeerAsync(
-                dispatch.Session.TransportChannel, tickets, cancellationToken).ConfigureAwait(false);
-            if (dispatch.Invalidated.IsCompleted)
+            try
             {
-                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                var device = new ProvisionableDeviceTypeClient(
+                    dispatch.Session, provisionableDeviceId, m_telemetry);
+                ArrayOf<string> tickets = await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
+                OnboardingIdentitySelection selection = await ValidatePeerAsync(
+                    dispatch.Session.TransportChannel, tickets, cancellationToken).ConfigureAwait(false);
+                if (dispatch.Invalidated.IsCompleted)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+                return new OnboardingPushSession(dispatch, selection);
             }
-            return selection;
+            catch
+            {
+                await dispatch.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <summary>
@@ -137,7 +159,72 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host's shared ticket and device-identity validation policy.</summary>
         private readonly IOnboardingIdentitySelector m_identities;
+
         /// <summary>The host's telemetry for generated device method proxies.</summary>
         private readonly ITelemetryContext m_telemetry;
+    }
+
+    /// <summary>
+    /// Retains a validated push device's identity and the encrypted generation used to read its tickets.
+    /// Requests through this session never follow a replacement connection or changed session identity.
+    /// </summary>
+    public sealed class OnboardingPushSession : IAsyncDisposable
+    {
+        /// <summary>
+        /// Takes ownership of the local request context, never the original connection.
+        /// </summary>
+        internal OnboardingPushSession(SessionRequestContext dispatch, OnboardingIdentitySelection identity)
+        {
+            m_dispatch = dispatch;
+            Identity = identity;
+        }
+
+        /// <summary>
+        /// Gets the identity selected from the authenticated peer and its tickets at admission.
+        /// This historical evidence does not authorize requests after the session is invalidated.
+        /// </summary>
+        public OnboardingIdentitySelection Identity { get; }
+
+        /// <summary>
+        /// Gets the generation-bound session for generated certificate and TrustList clients.
+        /// Each dispatch checks the original authentication token, namespace tables and physical channel.
+        /// </summary>
+        public ISession Session
+        {
+            get
+            {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ObjectDisposedException(nameof(OnboardingPushSession));
+                }
+                if (Invalidated.IsCompleted)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+                return m_dispatch.Session;
+            }
+        }
+
+        /// <summary>
+        /// Completes when the borrowed generation changes, recovery starts, or this local context is disposed.
+        /// </summary>
+        public Task Invalidated => m_dispatch.Invalidated;
+
+        /// <summary>
+        /// Releases the local request context without closing the caller's session or transport.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                await m_dispatch.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>The locally owned generation-bound request context.</summary>
+        private readonly SessionRequestContext m_dispatch;
+
+        /// <summary>Whether local disposal has begun.</summary>
+        private int m_disposed;
     }
 }
