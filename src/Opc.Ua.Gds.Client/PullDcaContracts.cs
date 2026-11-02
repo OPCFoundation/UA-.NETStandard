@@ -324,6 +324,26 @@ namespace Opc.Ua.Gds.Client
     }
 
     /// <summary>
+    /// Optional journaling capability of an explicitly registered <see cref="IPullDcaSigningRecoveryProvider"/>.
+    /// The workflow calls it after a StartSigningRequest response returns a request identifier and before the
+    /// first FinishRequest, so the provider can durably bind that request to its retained private key.
+    /// </summary>
+    public interface IPullDcaSigningRequestObserver
+    {
+        /// <summary>
+        /// Records the registrar, application, profile and request identifier for the exact signing request.
+        /// Throwing stops the workflow before FinishRequest; the request then stays pending at the registrar.
+        /// </summary>
+        ValueTask OnSigningRequestStartedAsync(
+            PullDcaRegistrar registrar,
+            NodeId applicationId,
+            NodeId requestId,
+            PullDcaCertificateProfile profile,
+            ByteString signingRequest,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// A bounded request remains pending; identifiers allow the host to resume it without issuing another request.
     /// </summary>
     public sealed class PullDcaCertificatePendingException : Exception

@@ -276,6 +276,11 @@ namespace Opc.Ua.Gds.Client
             {
                 throw new ServiceResultException(StatusCodes.BadUnexpectedError);
             }
+            if (m_signingRecovery is IPullDcaSigningRequestObserver observer)
+            {
+                await observer.OnSigningRequestStartedAsync(registrar, applicationId, requestId, profile, csr, ct)
+                    .ConfigureAwait(false);
+            }
             return await FinishAndInstallAsync(registrar, connection, applicationId, requestId, profile, progress, ct)
                 .ConfigureAwait(false);
         }

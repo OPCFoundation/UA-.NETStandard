@@ -318,6 +318,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return applicationId;
         }
 
+        /// <summary>
+        /// Requires an absolute application or product URI without changing its case-sensitive representation.
+        /// </summary>
         private static void RequireUri([System.Diagnostics.CodeAnalysis.NotNull] string? value)
         {
             if (string.IsNullOrWhiteSpace(value) || !Uri.TryCreate(value, UriKind.Absolute, out _))

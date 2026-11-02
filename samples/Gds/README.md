@@ -170,10 +170,96 @@ This sample mode provisions one DCA, not other device applications. It
 does not persist workflow checkpoints or make certificate-store,
 TrustList, and configuration writes one transaction. Installation errors
 propagate and may leave completed store writes. Manual pending-request
-resumption is not recovery of a lost accepted `FinishRequest` response:
-the sample has no durable request evidence or stale-assignment validator
-for `GetCertificates`. A consumed request therefore returns its error
-rather than accepting an unrelated assigned certificate.
+resumption is not recovery of a lost accepted `FinishRequest` response.
+It signs with the long-lived identity key, so a certificate assigned for
+an earlier request with that key is indistinguishable from the current
+one. Without the signing journal described next, a consumed request
+therefore returns its error rather than accepting an assigned certificate
+of unknown origin.
+
+### Recover a lost FinishRequest response
+
+The registrar can accept `FinishRequest` and issue the certificate while
+the response is lost. A retry then returns `Bad_InvalidArgument`, and
+OPC 10000-12 §7.9.5 lets a `StartSigningRequest` client read the assigned
+certificate through `GetCertificates` (§7.9.8). That certificate is only
+safe to install when it matches the retained key and request context.
+The opt-in signing journal records that context and gives each request
+its own key:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
+  --endpoint "opc.tcp://registrar.example:4840" `
+  --pkiRoot "D:\temp\configured-device-pki" `
+  --anonymous true `
+  --pull true `
+  --deviceTicket "D:\temp\device-ticket.json" `
+  --signingJournal "D:\temp\device-state\signing-request.journal" `
+  --signingKeyStore "D:\temp\device-state\signing-keys"
+```
+
+Both options are required together and only with `--pull true`. For each
+new request the client creates a fresh RSA key and CSR, records the
+public request data, and retains the private key in the directory store
+at `--signingKeyStore` before submitting the CSR. It reloads the stored
+key to confirm that private-key retention succeeded. The signing store
+must differ from the application certificate store. The private
+key exists only in that certificate store. The journal file holds public
+data: the key's certificate, the CSR, and the namespace-URI-qualified
+application, certificate group and certificate type. The client writes
+the journal in the `Prepared` state before it calls `StartSigningRequest`.
+It adds the registrar and the returned request ID in the `Started` state
+before the first `FinishRequest`. A certificate issued for an earlier
+request cannot match a key used only for the current request.
+
+When the `FinishRequest` retries end in `Bad_InvalidArgument`, the
+workflow reads `GetCertificates` and the complete TrustList for the
+journaled group and type. The client installs the returned certificate
+only when all of the following hold:
+
+- The journal is `Started` and its registrar, application, request ID,
+  group and type equal the values the workflow is completing.
+- The retained private key is still in the signing-key store.
+- The certificate carries the application URI, is an RSA certificate
+  for the requested type, and contains the retained public key.
+- The certificate chain validates against the received TrustList,
+  including its issuers and revocation lists.
+
+Any failed check rejects the certificate and installs nothing. After
+installation the client marks the journal `Installed`, then deletes the
+retained key and the journal.
+
+Run the same command after a restart. The client acts on the journal
+state before it calls `ProvideIdentities`:
+
+- `Started`: the client restores the retained key and binding, completes
+  the existing request without starting another, and prints
+  `PULL_DCA_REQUEST_INSTALLED`. A journal started at another registrar
+  is rejected.
+- `Prepared`: the `StartSigningRequest` outcome is unknown, and the
+  client stops. Run once with `--discardSigningRequest true`, which
+  deletes the retained key and the journal and prints
+  `PULL_DCA_REQUEST_DISCARDED`, then start a new request. The client
+  never repeats `StartSigningRequest` with a retained key. A request the
+  registrar did accept remains there, without a key to complete it.
+- `Installed`: the process stopped after installation but before
+  cleanup. The client deletes the retained key and the journal and
+  prints `PULL_DCA_REQUEST_CLEANED`.
+
+`--discardSigningRequest true` also abandons a `Started` request that
+must not be completed.
+
+The journal assumes one writer. It takes no lock across processes or
+hosts, so it does not support shared storage or a highly available
+device pair. It cannot be combined with the `--resume*` options. The
+journal update, key deletion and certificate installation are ordered
+but not one transaction; the restart states above define which step
+runs next.
+Protect both paths from writes by other applications. A restart after
+the issued key pair was stored but before trust installation completed
+reuses that exact key pair and repeats the remaining installation steps;
+it does not add a duplicate certificate. Failure to reload the stored
+private key stops installation.
 
 ## Wire contract
 

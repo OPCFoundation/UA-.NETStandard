@@ -325,6 +325,57 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A journaling recovery provider learns the exact started request before the first FinishRequest.
+        /// </summary>
+        [Test]
+        public async Task SigningRequestObserverRecordsStartedRequestBeforeFirstFinish()
+        {
+            var fixture = new Fixture();
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            Mock<IPullDcaSigningRequestObserver> observer = recovery.As<IPullDcaSigningRequestObserver>();
+            observer.Setup(value => value.OnSigningRequestStartedAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile, kCsr, It.IsAny<CancellationToken>()))
+                .Callback(() => fixture.Calls.Add("observe:dca"))
+                .Returns(default(ValueTask));
+
+            await fixture.Create(signingRecovery: recovery.Object).RunAsync(kRegistrar, CreateRequest())
+                .ConfigureAwait(false);
+
+            int started = fixture.Calls.IndexOf("start:dca");
+            Assert.That(fixture.Calls.IndexOf("observe:dca"), Is.EqualTo(started + 1));
+            Assert.That(fixture.Calls.IndexOf("finish:dca"), Is.EqualTo(started + 2));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+            observer.Verify(value => value.OnSigningRequestStartedAsync(
+                kRegistrar, kDcaId, kRequestId, kProfile, kCsr, It.IsAny<CancellationToken>()), Times.Once);
+            recovery.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A request that could not be journaled is never finished, so its certificate is never left unrecoverable.
+        /// </summary>
+        [Test]
+        public async Task SigningRequestObserverFailurePreventsFinish()
+        {
+            var fixture = new Fixture();
+            var failure = new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.As<IPullDcaSigningRequestObserver>()
+                .Setup(value => value.OnSigningRequestStartedAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile, kCsr, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(failure)));
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create(signingRecovery: recovery.Object).RunAsync(kRegistrar, CreateRequest())
+                    .ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(fixture.Calls, Does.Contain("start:dca"));
+            Assert.That(fixture.Calls, Does.Not.Contain("finish:dca"));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.Empty);
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+        }
+
+        /// <summary>
         /// A host can resume a persisted request without repeating identity selection, key generation or submission.
         /// </summary>
         [Test]

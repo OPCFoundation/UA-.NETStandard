@@ -73,6 +73,24 @@ try
         builder.Configuration["anonymous"],
         out bool anonymous) && anonymous;
     bool runPull = bool.TryParse(builder.Configuration["pull"], out bool pull) && pull;
+    string? signingJournal = builder.Configuration["signingJournal"];
+    string? signingKeyStore = builder.Configuration["signingKeyStore"];
+    bool discardSigningRequest =
+        bool.TryParse(builder.Configuration["discardSigningRequest"], out bool discard) && discard;
+    if ((signingJournal == null) != (signingKeyStore == null) || (signingJournal != null && !runPull))
+    {
+        throw new ArgumentException("--signingJournal and --signingKeyStore are used together with --pull.");
+    }
+    if (discardSigningRequest && signingJournal == null)
+    {
+        throw new ArgumentException("--discardSigningRequest requires --signingJournal and --signingKeyStore.");
+    }
+    if (signingJournal != null && (builder.Configuration["resumeApplicationId"] != null ||
+        builder.Configuration["resumeRequestId"] != null ||
+        builder.Configuration["resumeSigningKeyCertificate"] != null))
+    {
+        throw new ArgumentException("The --resume* options cannot be combined with --signingJournal.");
+    }
     IClientIdentityProvider? identityProvider = null;
     if (!useAnonymous)
     {
@@ -142,6 +160,11 @@ try
             services.GetRequiredService<OnboardingDeviceCredentials>());
         builder.Services.AddSingleton<IPullDcaCredentialProvider>(services =>
             services.GetRequiredService<OnboardingDeviceCredentials>());
+        if (signingJournal != null)
+        {
+            builder.Services.AddSingleton<IPullDcaSigningRecoveryProvider>(services =>
+                services.GetRequiredService<OnboardingDeviceCredentials>());
+        }
         gds.AddPullDcaWorkflow();
     }
 
@@ -190,6 +213,52 @@ try
                 Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
             var registrar = new PullDcaRegistrar(new Uri(endpoint), deviceRegistrar, directory);
             var profile = new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            if (signingJournal != null)
+            {
+                OnboardingDeviceCredentials credentials =
+                    host.Services.GetRequiredService<OnboardingDeviceCredentials>();
+                credentials.UseSigningJournal(
+                    signingJournal,
+                    new CertificateStoreIdentifier(
+                        signingKeyStore ?? throw new InvalidOperationException("Set --signingKeyStore."),
+                        CertificateStoreType.Directory,
+                        false),
+                    session.NamespaceUris);
+                OnboardingSigningRequestState state = await credentials.GetSigningRequestStateAsync(ct)
+                    .ConfigureAwait(false);
+                if (discardSigningRequest)
+                {
+                    await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
+                    Console.WriteLine($"PULL_DCA_REQUEST_DISCARDED {state}");
+                    return 0;
+                }
+                switch (state)
+                {
+                    case OnboardingSigningRequestState.Started:
+                        OnboardingJournaledSigningRequest journaled = await credentials
+                            .RestoreJournaledSigningRequestAsync(registrar, ct).ConfigureAwait(false);
+                        await host.Services.GetRequiredService<PullDcaWorkflow>()
+                            .CompleteCertificateRequestAsync(registrar, journaled.ApplicationId,
+                                journaled.RequestId, journaled.Profile, cancellationToken: ct)
+                            .ConfigureAwait(false);
+                        await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+                        await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                        Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {journaled.ApplicationId}");
+                        return 0;
+                    case OnboardingSigningRequestState.Prepared:
+                        throw new InvalidOperationException(
+                            "The StartSigningRequest outcome is unknown. Run again with " +
+                            "--discardSigningRequest true, then start a new request.");
+                    case OnboardingSigningRequestState.Installed:
+                        await credentials.DiscardSigningRequestAsync(ct).ConfigureAwait(false);
+                        Console.WriteLine("PULL_DCA_REQUEST_CLEANED");
+                        return 0;
+                    case OnboardingSigningRequestState.None:
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown signing request state {state}.");
+                }
+            }
             string? resumeApplication = builder.Configuration["resumeApplicationId"];
             string? resumeRequest = builder.Configuration["resumeRequestId"];
             string? resumeKey = builder.Configuration["resumeSigningKeyCertificate"];
