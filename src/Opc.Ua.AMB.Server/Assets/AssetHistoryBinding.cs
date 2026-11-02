@@ -299,8 +299,7 @@ namespace Opc.Ua.AMB.Server.Assets
                     continue;
                 }
                 bool maintenance = condition.ConditionClassId != null &&
-                    m_handle.Context.TypeTable.IsTypeOf(
-                        condition.ConditionClassId.Value, Ua.ObjectTypeIds.MaintenanceConditionClassType);
+                    IsMaintenanceClass(condition.ConditionClassId.Value);
                 AssetHistoryKinds kind = maintenance
                     ? AssetHistoryKinds.MaintenanceEvents
                     : AssetHistoryKinds.HealthEvents;
@@ -412,6 +411,26 @@ namespace Opc.Ua.AMB.Server.Assets
                         m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
                 }
             }
+        }
+
+        /// <summary>
+        /// Resolves declared AMB classes even when the owner registers before the AMB model is loaded.
+        /// </summary>
+        private bool IsMaintenanceClass(NodeId classId)
+        {
+            if (m_handle.Context.TypeTable.IsTypeOf(classId, Ua.ObjectTypeIds.MaintenanceConditionClassType))
+            {
+                return true;
+            }
+            foreach (AmbConditionClass conditionClass in AmbConditionClass.All)
+            {
+                if (conditionClass.BaseClass == AmbConditionClassBase.Maintenance &&
+                    classId == conditionClass.GetTypeId(m_handle.Context.NamespaceUris))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

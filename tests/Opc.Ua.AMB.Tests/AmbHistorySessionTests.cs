@@ -249,17 +249,13 @@ namespace Opc.Ua.AMB.Tests
                 new LocalizedText("actual")).ConfigureAwait(false);
             await activity.FinishAsync(new LocalizedText("finished")).ConfigureAwait(false);
             await activity.ReplanAsync(planned.AddDays(1), new LocalizedText("next")).ConfigureAwait(false);
-            List<MaintenanceActivityRecord> maintenance = [];
-            List<AssetAlarmRecord> alarms = [];
-            await WaitForAsync(async () =>
-            {
-                maintenance = await CollectAsync(client.ReadPastMaintenanceAsync(
-                    asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
-                alarms = await CollectAsync(client.ReadHealthEventsAsync(
-                    asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
-                return maintenance.Any(value => value.Message.Text == "next") &&
-                    alarms.Any(value => value.Message.Text == "cleared");
-            }).ConfigureAwait(false);
+            await WaitForCapturedMessageAsync(provider, handle, "next").ConfigureAwait(false);
+            List<MaintenanceActivityRecord> maintenance = await CollectAsync(client.ReadPastMaintenanceAsync(
+                asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
+            List<AssetAlarmRecord> alarms = await CollectAsync(client.ReadHealthEventsAsync(
+                asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
+            Assert.That(maintenance.Select(value => value.Message.Text), Does.Contain("next"));
+            Assert.That(alarms.Select(value => value.Message.Text), Does.Contain("cleared"));
             AssetAlarmRecord failure = alarms.Single(value => value.Message.Text == "failure");
             MaintenanceActivityRecord initial = maintenance.First(
                 value => value.State == MaintenanceStateKind.Planned);
@@ -342,14 +338,11 @@ namespace Opc.Ua.AMB.Tests
                 Uuid.NewUuid().ToByteString(), timestamp, "other-asset");
             ReportSnapshot(condition, handle.Context, asset.NodeId,
                 Uuid.NewUuid().ToByteString(), timestamp.AddMilliseconds(1), "after-other");
-            List<AssetAlarmRecord> values = [];
-            await WaitForAsync(async () =>
-            {
-                values = await CollectAsync(client.ReadHealthEventsAsync(
-                    asset.NodeId, timestamp.AddSeconds(-1), timestamp.AddSeconds(1),
-                    maxValuesPerNode: 1)).ConfigureAwait(false);
-                return values.Any(value => value.Message.Text == "after-other");
-            }).ConfigureAwait(false);
+            await WaitForCapturedMessageAsync(provider, handle, "after-other").ConfigureAwait(false);
+            List<AssetAlarmRecord> values = await CollectAsync(client.ReadHealthEventsAsync(
+                asset.NodeId, timestamp.AddSeconds(-1), timestamp.AddSeconds(1),
+                maxValuesPerNode: 1)).ConfigureAwait(false);
+            Assert.That(values.Select(value => value.Message.Text), Does.Contain("after-other"));
             List<AssetAlarmRecord> equal = values.Where(value => value.Time == (DateTimeUtc)timestamp).ToList();
             Assert.That(equal.Select(value => value.EventId), Is.EqualTo(new[] { first, second }));
             Assert.That(equal[0].Message.Text, Is.EqualTo("same-time-one"));
@@ -655,8 +648,9 @@ namespace Opc.Ua.AMB.Tests
                 "every asset having DeviceHealth must be covered, but assets without it need no raw archive");
         }
 
-        [Test]
-        public async Task MaintenanceOnlyAssetOverrideExcludesHealthCaptureAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MaintenanceOnlyAssetOverrideExcludesHealthCaptureAsync(bool assetManagementFirst)
         {
             using var provider = new InMemoryHistorianProvider();
             using var unusedGlobalProvider = new InMemoryHistorianProvider();
@@ -667,8 +661,11 @@ namespace Opc.Ua.AMB.Tests
                         .WithHealthAlarm("Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure)
                         .WithMaintenance("Inspection", AmbConditionClass.Inspection)
                         .WithHistory(new AssetHistoryOptions(provider, AssetHistoryKinds.MaintenanceEvents)),
-                    options => options.UseHistory(unusedGlobalProvider)).ConfigureAwait(false);
+                    options => options.UseHistory(unusedGlobalProvider),
+                    assetManagementFirst).ConfigureAwait(false);
             await using AmbHostedServer scope = server;
+            Assert.That(((AssetHandle)asset).History!.Kinds, Is.EqualTo(AssetHistoryKinds.MaintenanceEvents));
+            Assert.That(device.EventNotifier & EventNotifiers.HistoryRead, Is.Not.Zero);
             using var fixture = new ClientFixture(NUnitTelemetryContext.Create());
             using ISession session = await ConnectAsync(fixture, server).ConfigureAwait(false);
             var client = new AmbClient(session, NUnitTelemetryContext.Create());
@@ -703,7 +700,10 @@ namespace Opc.Ua.AMB.Tests
             bool existingConfiguration,
             bool preconfiguredArchive)
         {
-            using var storage = new InMemoryHistorianProvider();
+            using var storage = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
             Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
             (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
                 await HealthAlarmTests.StartWithSensorAsync(
@@ -1562,7 +1562,10 @@ namespace Opc.Ua.AMB.Tests
             uint status,
             DeviceHealthEnumeration archivedHealth)
         {
-            using var storage = new InMemoryHistorianProvider();
+            using var storage = new InMemoryHistorianProvider(new InMemoryHistorianOptions
+            {
+                RawDataRetentionPeriod = TimeSpan.Zero
+            });
             Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
             (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
                 await HealthAlarmTests.StartWithSensorAsync(
@@ -1693,6 +1696,44 @@ namespace Opc.Ua.AMB.Tests
             var snapshot = new InstanceStateSnapshot();
             snapshot.Initialize(context, condition);
             condition.ReportEvent(context, snapshot);
+        }
+
+        /// <summary>
+        /// Observes queue completion at the provider before asserting session authorization, filtering and paging.
+        /// </summary>
+        private static async Task WaitForCapturedMessageAsync(
+            IHistorianEventProvider provider,
+            AssetHandle handle,
+            string message)
+        {
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+            var context = new HistorianOperationContext(
+                (ServerSystemContext)handle.Context, operation, handle.Asset, HistoryUpdateType.Insert);
+            await WaitForAsync(async () =>
+            {
+                HistorianPage<HistorianEventRecord> page = await provider.ReadEventsAsync(
+                    context,
+                    new HistorianEventReadRequest
+                    {
+                        NodeId = handle.NodeId,
+                        StartTime = DateTime.UtcNow.AddHours(-1),
+                        EndTime = DateTime.UtcNow.AddSeconds(1),
+                        IsForward = true,
+                        Filter = new EventFilter()
+                    },
+                    default,
+                    CancellationToken.None).ConfigureAwait(false);
+                for (int i = 0; i < page.Values.Count; i++)
+                {
+                    if (page.Values[i].TryGetField(Opc.Ua.BrowseNames.Message, out Variant field) &&
+                        field.TryGetValue(out LocalizedText text) && text.Text == message)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }).ConfigureAwait(false);
         }
 
         /// <summary>
