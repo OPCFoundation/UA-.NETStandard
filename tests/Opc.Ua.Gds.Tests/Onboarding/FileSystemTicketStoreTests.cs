@@ -278,6 +278,29 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// The exact record capacity is readable; an additional ticket cannot replace it until one is removed.
+        /// </summary>
+        [Test]
+        public async Task RecordCapacityRejectsOneAdditionalTicketWithoutLosingExistingRecords()
+        {
+            using var files = new VirtualFileSystem();
+            files.Add(kPath, Checkpoint("", 10000));
+            using var store = new FileSystemTicketStore(kPath, files);
+            Assert.That((await CollectAsync(store).ConfigureAwait(false)).Count, Is.EqualTo(10000));
+            byte[] before = files.Get(kPath).ToArray();
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await store.AddAsync("overflow", [2], Metadata()).ConfigureAwait(false));
+            Assert.That(files.Get(kPath), Is.EqualTo(before));
+            Assert.That(await store.GetAsync("overflow").ConfigureAwait(false), Is.Null);
+            Assert.That(await store.RemoveAsync("00000").ConfigureAwait(false), Is.True);
+            await store.AddAsync("overflow", [2], Metadata()).ConfigureAwait(false);
+            Assert.That((await CollectAsync(store).ConfigureAwait(false)).Count, Is.EqualTo(10000));
+            Assert.That((await store.GetAsync("overflow").ConfigureAwait(false))!.EncodedTicket,
+                Is.EqualTo(new byte[] { 2 }));
+            Assert.That(files.Files, Is.EquivalentTo(new[] { kPath }));
+        }
+
+        /// <summary>
         /// Pre-cancelled and disposed calls never touch storage; cancellation after publication reports success.
         /// </summary>
         [Test]
@@ -391,7 +414,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Produces a complete record or a specifically malformed checkpoint independently of the store codec.
         /// </summary>
-        private static byte[] Checkpoint(string corruption)
+        private static byte[] Checkpoint(string corruption, int count = 1)
         {
             if (corruption == "oversized")
             {
@@ -406,9 +429,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     "count" => -1,
                     "record-limit" => 10001,
                     "duplicate" => 2,
-                    _ => 1
+                    _ => count
                 });
-                for (int i = 0; i < (corruption == "duplicate" ? 2 : 1); i++)
+                for (int i = 0; i < (corruption == "duplicate" ? 2 : count); i++)
                 {
                     if (corruption == "text-length")
                     {
@@ -421,7 +444,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                     else
                     {
-                        WriteText(writer, corruption == "empty-id" ? "" : "one");
+                        string id = count == 1 ? "one" :
+                            i.ToString("D5", System.Globalization.CultureInfo.InvariantCulture);
+                        WriteText(writer, corruption == "empty-id" ? "" : id);
                     }
                     writer.Write(corruption == "length" ? int.MaxValue : 1);
                     writer.Write((byte)1);

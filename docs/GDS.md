@@ -785,13 +785,27 @@ has passed.
 | §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, existing `IServerConfigurationResetProvider` path | `ProvisionableDeviceSecurityTests`; platform reset, preservation of device-identity keys and installed software, and connected re-onboarding still need an installer and integration evidence |
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
-| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, explicit `IPullDcaSigningRecoveryProvider` | issuance-store, receipt-store and pull-workflow fixtures; concrete durable request evidence and stale-assignment validation remain required for accepted-response loss |
+| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
 | §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, existing Part 12 push client | device-security and push-identity fixtures; supervised push orchestration, credential endpoint transition, singleton privilege handling and multi-application provisioning remain incomplete |
-| §7.4: alternate authentication/FDO | no FDO protocol implementation | no FDO interoperability evidence; an external authentication service is not treated as an implemented onboarding flow |
-| §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; RFC 3161 timestamp verification is not implemented |
+| §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
+| §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
 | §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
+| §§6.4, 9.2.11-9.2.12: accepted ticket retention across restart | `FileSystemTicketStore`, `AddFileSystemOnboardingTicketStore` | `FileSystemTicketStoreTests`; one instance owns the path, and remote execution remains required |
 | §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime` and generated node bindings | `ProvisionableDeviceRuntimeTests`; shared Part 22 Resources placement and non-singleton `ApplicationConfiguration` hosting remain incomplete |
+
+[Section 8.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.1)
+permits vendor-specific unprotected metadata, including an RFC 3161
+timestamp; it does not define a standard timestamp field or require that
+extension. This validator verifies the signature and the signer's current
+certificate trust without interpreting such metadata. A host that needs
+timestamp-based historical validation must supply that policy explicitly,
+not assume that an unprotected timestamp changes the accepted validity
+period.
+[Section 7.4](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.4)
+allows external authentication, including an FDO handoff, as an alternative
+to OPC UA ticket/identity authentication. It does not make an FDO stack a
+dependency of the ticket-based pull and push paths described here.
 
 The published model associates `EncodedTicket` with **Onboarding Ticket Reader**,
 `DeviceRegistrarType` with
