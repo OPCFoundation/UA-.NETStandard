@@ -151,6 +151,19 @@ namespace LadsSample.Client
             {
                 Console.WriteLine($"  Program template {template.Name}: {template.Description}");
             }
+            ArrayOf<LadsResult> retained = await chamber.GetResultsAsync(ct).ConfigureAwait(false);
+            Console.WriteLine($"Retained results: {retained.Count}");
+            if (retained.Count > 0)
+            {
+                LadsResult previous = retained[retained.Count - 1];
+                for (int index = 0; index < previous.Files.Count; index++)
+                {
+                    LadsResultFile file = previous.Files[index];
+                    ByteString content = await client.ReadResultFileAsync(file, ct).ConfigureAwait(false);
+                    Console.WriteLine(
+                        $"  Retained run {previous.RunId}: {file.FileName}, {content.Length} readable bytes");
+                }
+            }
 
             LadsFunction door = await chamber.GetFunctionAsync("Door", ct).ConfigureAwait(false);
             await door.LockAsync(ct).ConfigureAwait(false);
@@ -169,8 +182,19 @@ namespace LadsSample.Client
             Console.WriteLine($"Started program run {runId}");
             await chamber.WaitForStateAsync("Running", TimeSpan.FromSeconds(10), cancellationToken: ct)
                 .ConfigureAwait(false);
-            await chamber.WaitForStateAsync("Stopped", TimeSpan.FromSeconds(60), cancellationToken: ct)
+            await chamber.HoldAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("Held: the executor has acknowledged the processing pause.");
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            await chamber.UnholdAsync(ct).ConfigureAwait(false);
+            await chamber.SuspendAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("Suspended: sample-preservation simulation continues without processing.");
+            await Task.Delay(500, ct).ConfigureAwait(false);
+            await chamber.UnsuspendAsync(ct).ConfigureAwait(false);
+            await chamber.ToCompleteAsync(ct).ConfigureAwait(false);
+            await chamber.WaitForRunningStateAsync("Complete", TimeSpan.FromSeconds(60), cancellationToken: ct)
                 .ConfigureAwait(false);
+            await chamber.ResetAsync(ct).ConfigureAwait(false);
+            await chamber.StopAsync(ct).ConfigureAwait(false);
             watching.Cancel();
             await watch.ConfigureAwait(false);
             await door.UnlockAsync(ct).ConfigureAwait(false);

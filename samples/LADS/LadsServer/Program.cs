@@ -35,6 +35,7 @@ using LadsSample.Server;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua;
 using Opc.Ua.LADS.Server;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
@@ -61,6 +62,12 @@ if (pkiRoot is not null && !Path.IsPathFullyQualified(pkiRoot))
     await Console.Error.WriteLineAsync("--pki-root must be an absolute path.").ConfigureAwait(false);
     return 2;
 }
+string? dataRoot = builder.Configuration["data-root"];
+if (dataRoot is not null && !Path.IsPathFullyQualified(dataRoot))
+{
+    await Console.Error.WriteLineAsync("--data-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
 bool autoAccept = true;
 if (builder.Configuration["autoaccept"] is { } acceptOption && !bool.TryParse(acceptOption, out autoAccept))
 {
@@ -76,6 +83,7 @@ if (builder.Configuration["run-seconds"] is { } runOption &&
     return 2;
 }
 string endpointUrl = new UriBuilder("opc.tcp", bindHost, port, "/LadsServer").Uri.AbsoluteUri;
+using var dataStore = dataRoot is null ? null : new FileSystemLadsStore(LocalFileSystem.Instance, dataRoot);
 
 // The hardware accepts setpoints and the simulation moves the measured values towards them.
 builder.Services.AddSingleton<ILadsFunctionProvider, IncubatorHardware>();
@@ -98,7 +106,10 @@ builder.Services
             options.EndpointUrls.Add(endpointUrl);
         })
     // AddLads registers a Machinery owner, the asset management model and the LADS model.
-    .AddLads()
+    .AddLads(options =>
+    {
+        options.Store = dataStore;
+    })
     .ConfigureLads(ShakingIncubator.Configure);
 
 using IHost host = builder.Build();

@@ -114,6 +114,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the variant of the analog control function type.
         /// </summary>
         public LadsAnalogControlKind Kind { get; set; } = LadsAnalogControlKind.Plain;
@@ -160,6 +166,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiModeAnalogControlOptions
     {
         /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the names of the controller modes; at least one is required.
         /// </summary>
         public ArrayOf<string> Modes { get; set; }
@@ -186,6 +198,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsTwoStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the text of the true state.
         /// </summary>
         public LocalizedText TrueState { get; set; } = new("On");
@@ -207,6 +225,12 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsMultiStateDiscreteOptions
     {
         /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
+        /// <summary>
         /// Gets or sets the texts of the states; at least one is required.
         /// </summary>
         public ArrayOf<LocalizedText> States { get; set; }
@@ -222,6 +246,12 @@ namespace Opc.Ua.LADS.Server
     /// </summary>
     public sealed class LadsTimerOptions
     {
+        /// <summary>
+        /// Gets or sets whether to add the optional running state machine and its operations.
+        /// The function provider must implement <see cref="ILadsControlFunctionRunningProvider"/>.
+        /// </summary>
+        public bool EnableRunningOperations { get; set; }
+
         /// <summary>
         /// Gets or sets the engineering units, milliseconds by default.
         /// </summary>

@@ -302,9 +302,12 @@ namespace Opc.Ua.LADS.Tests.Client
 
             Assert.Multiple(() =>
             {
-                Assert.That(members.Count, Is.EqualTo(11));
+                Assert.That(members.Count, Is.EqualTo(12));
                 Assert.That(members[0], Is.EqualTo(LadsFunctionMembers.IsEnabled));
                 Assert.That(LadsFunctionMembers.ControlFunctionState, Is.EqualTo("ControlFunctionState/CurrentState"));
+                Assert.That(members[10], Is.EqualTo(LadsFunctionMembers.RunningState));
+                Assert.That(LadsFunctionMembers.RunningState,
+                    Is.EqualTo("ControlFunctionState/RunningStateMachine/CurrentState"));
                 Assert.That(LadsFunctionMembers.CoverState, Is.EqualTo("CoverState/CurrentState"));
             });
         }

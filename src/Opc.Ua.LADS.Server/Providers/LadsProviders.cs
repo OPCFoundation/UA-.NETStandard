@@ -243,4 +243,63 @@ namespace Opc.Ua.LADS.Server
         /// <returns>A task that completes when the run has finished.</returns>
         ValueTask ExecuteAsync(LadsProgramRun run, CancellationToken cancellationToken);
     }
+
+    /// <summary>
+    /// A program executor that acknowledges physical pause, resume and orderly completion.
+    /// </summary>
+    /// <remarks>
+    /// The callback must finish only after processing has stopped or resumed as requested.
+    /// Completing must request orderly shutdown, not cancel execution or fabricate a successful result.
+    /// An implementation may retain sample-preservation activities while processing is paused.
+    /// </remarks>
+    public interface ILadsControlledProgramExecutor : ILadsProgramExecutor
+    {
+        /// <summary>
+        /// Applies an execution change before the runtime publishes the corresponding stable state.
+        /// </summary>
+        /// <param name="run">The active run.</param>
+        /// <param name="target">Held, Suspended, Execute or Completing.</param>
+        /// <param name="cancellationToken">Cancellation of the command, not of the run.</param>
+        /// <returns>The hardware acknowledgment; a bad result leaves the acting state visible.</returns>
+        ValueTask<ServiceResult> ChangeExecutionAsync(
+            LadsProgramRun run,
+            LadsRunningStateValue target,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Optional running operations of a functional unit.
+    /// </summary>
+    public interface ILadsRunningOperations
+    {
+        /// <summary>
+        /// Pauses processing because of internal conditions and waits for acknowledgment.
+        /// </summary>
+        ValueTask HoldAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resumes processing after internal conditions have cleared.
+        /// </summary>
+        ValueTask UnholdAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Pauses processing because of external conditions and waits for acknowledgment.
+        /// </summary>
+        ValueTask SuspendAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resumes processing after external conditions have cleared.
+        /// </summary>
+        ValueTask UnsuspendAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resets Complete to Idle without starting physical execution.
+        /// </summary>
+        ValueTask ResetAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Requests orderly completion; the result is available when the executor finishes.
+        /// </summary>
+        ValueTask ToCompleteAsync(CancellationToken cancellationToken = default);
+    }
 }

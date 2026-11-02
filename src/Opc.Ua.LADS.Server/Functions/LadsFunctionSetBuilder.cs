@@ -452,6 +452,13 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <inheritdoc/>
+        public ILadsFunctionalUnitBuilder RunningOperations()
+        {
+            Unit.EnableRunningOperations();
+            return this;
+        }
+
+        /// <inheritdoc/>
         public ILadsFunctionalUnitBuilder SupportedProperty(string name)
         {
             Unit.AddSupportedProperty(name);

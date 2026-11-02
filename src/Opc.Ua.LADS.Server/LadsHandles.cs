@@ -41,6 +41,12 @@ namespace Opc.Ua.LADS.Server
     public interface ILadsDevice
     {
         /// <summary>
+        /// Commits the current stored data, including application-updated counters.
+        /// This does not persist or resume physical execution state.
+        /// </summary>
+        ValueTask SaveStoredDataAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// The browse name of the device.
         /// </summary>
         string Name { get; }
@@ -188,6 +194,11 @@ namespace Opc.Ua.LADS.Server
         LadsRunningStateValue RunningState { get; }
 
         /// <summary>
+        /// Gets the optional running commands, or null when the legacy lifecycle is selected.
+        /// </summary>
+        ILadsRunningOperations? RunningOperations { get; }
+
+        /// <summary>
         /// The top level functions of the functional unit.
         /// </summary>
         ArrayOf<ILadsFunction> Functions { get; }
@@ -258,6 +269,11 @@ namespace Opc.Ua.LADS.Server
     /// </summary>
     public interface ILadsProgramManager
     {
+        /// <summary>
+        /// Gets the last stored interrupted run identifier, without resuming its execution.
+        /// </summary>
+        string? InterruptedRunId { get; }
+
         /// <summary>
         /// The functional unit the program manager belongs to.
         /// </summary>
@@ -411,6 +427,16 @@ namespace Opc.Ua.LADS.Server
     /// </summary>
     public interface ILadsControlFunction : ILadsFunction
     {
+        /// <summary>
+        /// Gets the optional running commands, or null when they were not configured.
+        /// </summary>
+        ILadsRunningOperations? RunningOperations { get; }
+
+        /// <summary>
+        /// Gets the optional running substate.
+        /// </summary>
+        LadsRunningStateValue? RunningState { get; }
+
         /// <summary>
         /// The current state of the control function state machine.
         /// </summary>

@@ -356,33 +356,105 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(names, Does.Not.Contain("Overnight"));
         }
 
-        [Test]
-        public void TemplateContentRoundTrips()
+        [TestCase("Spin", "ShakerSpeed")]
+        [TestCase("Ramp; \"fast\"\r\nthen hold", "Speed; \"target\"\nvalue")]
+        [TestCase("\"Quoted\"", "\"Function\"")]
+        [TestCase(" Leading and trailing ", " Spaced ")]
+        public void TemplateContentRoundTrips(string stepName, string functionName)
         {
             LadsProgramTemplate template = new LadsProgramTemplate("Shake")
                 .WithDescription(new LocalizedText("Shake it"))
                 .Step(
-                    "Spin",
+                    stepName,
                     TimeSpan.FromSeconds(90),
-                    new LadsSetpoint("ShakerSpeed", Variant.From(300.0)),
-                    new LadsSetpoint("Door", Variant.From(true)))
+                    new LadsSetpoint(functionName, Variant.From(300.0)),
+                    new LadsSetpoint("Door", Variant.From(true)),
+                    new LadsSetpoint("Mode", Variant.From(2u)))
                 .Step("Rest", TimeSpan.FromSeconds(30));
 
             LadsProgramTemplate parsed = LadsProgramTemplate.Parse("Shake", template.ToContent());
 
             Assert.That(parsed.Id, Is.EqualTo("Shake"));
             Assert.That(parsed.Steps.Count, Is.EqualTo(2));
-            Assert.That(parsed.Steps[0].Name, Is.EqualTo("Spin"));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo(stepName));
             Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromSeconds(90)));
-            Assert.That(parsed.Steps[0].Setpoints.Count, Is.EqualTo(2));
-            Assert.That(parsed.Steps[0].Setpoints[0].FunctionName, Is.EqualTo("ShakerSpeed"));
+            Assert.That(parsed.Steps[0].Setpoints.Count, Is.EqualTo(3));
+            Assert.That(parsed.Steps[0].Setpoints[0].FunctionName, Is.EqualTo(functionName));
             Assert.That(parsed.Steps[0].Setpoints[0].Value.TryGetValue(out double speed), Is.True);
             Assert.That(speed, Is.EqualTo(300));
+            Assert.That(parsed.Steps[0].Setpoints[1].Value.TryGetValue(out bool door), Is.True);
+            Assert.That(door, Is.True);
+            Assert.That(parsed.Steps[0].Setpoints[2].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
             Assert.That(parsed.EstimatedRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(template.EstimatedRuntime, Is.EqualTo(TimeSpan.FromMinutes(2)));
             Assert.That(
                 () => LadsProgramTemplate.Parse("Bad", ByteString.From(Encoding.UTF8.GetBytes("{not json"))),
                 Throws.InstanceOf<ServiceResultException>());
+        }
+
+        [TestCase("step;\"Unclosed;1")]
+        [TestCase("step;\"Closed\"suffix;1")]
+        [TestCase("step;Too;Many;1")]
+        [TestCase("step;Missing")]
+        [TestCase("set;BeforeStep;true")]
+        public void TemplateContentRejectsMalformedRecords(string text)
+        {
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(
+                () => LadsProgramTemplate.Parse("Bad", ByteString.From(Encoding.UTF8.GetBytes(text))));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        [Test]
+        public void TemplateContentPreservesLegacyUnquotedRecords()
+        {
+            var template = new LadsProgramTemplate("Legacy")
+                .Step("Spin", TimeSpan.FromMilliseconds(125), new LadsSetpoint("Mode", Variant.From(2u)));
+            Assert.That(Encoding.UTF8.GetString(template.ToContent().ToArray()),
+                Is.EqualTo("step;Spin;125\nset;Mode;u2\n"));
+            LadsProgramTemplate parsed = LadsProgramTemplate.Parse(
+                "Legacy", ByteString.From(Encoding.UTF8.GetBytes("\r\nstep;Spin;125\r\nset;Mode;u2\r\n")));
+            Assert.That(parsed.Steps.Count, Is.EqualTo(1));
+            Assert.That(parsed.Steps[0].Name, Is.EqualTo("Spin"));
+            Assert.That(parsed.Steps[0].Duration, Is.EqualTo(TimeSpan.FromMilliseconds(125)));
+            Assert.That(parsed.Steps[0].Setpoints[0].Value.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.EqualTo(2u));
+        }
+
+        [Test]
+        public async Task ActiveRecipeKeepsFullDurationAndIsDetachedFromCallerMutationsAsync()
+        {
+            var executor = new GatedExecutor();
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(ActiveRecipeKeepsFullDurationAndIsDetachedFromCallerMutationsAsync),
+                builder => builder.Services.AddSingleton<ILadsProgramExecutor>(executor)).ConfigureAwait(false);
+            ILadsProgramManager programs = (await server.DeviceAsync().ConfigureAwait(false))
+                .GetFunctionalUnit(LadsIncubator.UnitName).Programs!;
+            LadsSetpoint[] setpoints = [new("Temperature", Variant.From(20.0))];
+            var template = new LadsProgramTemplate("Detached")
+                .WithAuthor("Original")
+                .Step(new LadsProgramStep("Submillisecond", TimeSpan.FromTicks(12345), setpoints));
+            await programs.AddTemplateAsync(template).ConfigureAwait(false);
+            string runId = await programs.StartProgramAsync(template.Id).ConfigureAwait(false);
+            try
+            {
+                await executor.Started.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                template.Author = "Changed";
+                template.Step("Later", TimeSpan.FromHours(1));
+                setpoints[0] = new LadsSetpoint("Temperature", Variant.From(99.0));
+                LadsProgramTemplate active = programs.ActiveRun!.Template;
+                Assert.That(active, Is.Not.SameAs(template));
+                Assert.That(active.Author, Is.EqualTo("Original"));
+                Assert.That(active.Steps.Count, Is.EqualTo(1));
+                Assert.That(active.Steps[0].Duration, Is.EqualTo(TimeSpan.FromTicks(12345)));
+                Assert.That(active.Steps[0].Setpoints[0].Value.TryGetValue(out double target), Is.True);
+                Assert.That(target, Is.EqualTo(20.0));
+            }
+            finally
+            {
+                executor.Release.TrySetResult(true);
+            }
+            await programs.WaitForResultAsync(runId).ConfigureAwait(false);
         }
 
         [Test]

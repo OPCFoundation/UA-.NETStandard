@@ -8,14 +8,23 @@ the chamber and downloads the result file.
 | Sample | What it does |
 | --- | --- |
 | [LadsServer](LadsServer/) | Describes the incubator with `AddLads().ConfigureLads(...)`: one functional unit `Chamber` with the `Temperature` and `ShakerSpeed` analog controls, a `CO2` analog sensor, a `Door` cover, a `Timer` and the program templates `Incubation` and `Overnight`. `IncubatorHardware` accepts setpoints without applying them; `IncubatorSimulation` updates the measured values every 500 ms |
-| [LadsClient](LadsClient/) | Connects with `AddClient().AddDiscoveryAndConnect(...).AddLadsClient()`, prints the device and its functions, locks the door, starts `Incubation`, prints temperature, shaker speed and CO2 changes until the unit stops, unlocks the door and prints the result file |
+| [LadsClient](LadsClient/) | Connects with `AddClient().AddDiscoveryAndConnect(...).AddLadsClient()`, locks the door, starts `Incubation`, holds and suspends processing, requests orderly completion, waits for `Complete`, resets the unit and downloads the result file |
 
 The server uses the default `InMemoryLadsProgramExecutor`. It applies the
 setpoints of each step, waits for the step duration and adds `Protocol.csv` to
 the result. The `Incubation` template takes 13 seconds: `WarmUp` (37 °C,
 150 rpm, 5 s), `Shake` (250 rpm, 5 s) and `CoolDown` (25 °C, 0 rpm, 3 s).
 
-The timer reports elapsed program time in milliseconds. When the temperature
+The sample selects `RunningOperations()` for the chamber. The client
+demonstrates Hold/Unhold and Suspend/Unsuspend before requesting ToComplete.
+The executor writes the protocol for the steps reached and stops its controls;
+the unit stays Running/Complete until Reset. This demonstration therefore ends
+before the full 13-second template duration. Omitting `RunningOperations()`
+retains the SDK's default automatic stop after a successful program.
+
+The timer reports processing time in milliseconds and stops advancing during
+Held and Suspended. Temperature preservation continues during these pauses;
+the simulated shaker moves toward zero. When the temperature
 control stops or aborts, the temperature returns toward ambient (22 °C). When
 the shaker control stops or aborts, its speed returns toward zero. Restarting
 either control resumes its retained target.
@@ -30,13 +39,30 @@ dotnet run --project samples/LADS/LadsClient -f net10.0
 ```
 
 The server listens on `opc.tcp://localhost:62565/LadsServer` and takes
-`--port`, `--host`, `--pki-root` (absolute path), `--autoaccept` and
+`--port`, `--host`, `--pki-root` and `--data-root` (absolute paths), `--autoaccept` and
 `--run-seconds`. The client connects with `SignAndEncrypt` and
 `Basic256Sha256` and takes `--url <endpoint>`, `--pki-root <absolute path>` and
 `--autoaccept true|false`. Both accept untrusted certificates by default so that
 the pair runs without trust setup; never do this in production.
 
-The client prints something like this (the value lines are shortened):
+To retain completed results and their file bytes across restarts, start the
+server with `--data-root D:\lads-data`. Run the client, stop the server and start
+it again with the same directory. Run the client again: before starting a new
+program, it prints the retained result count and downloads the latest retained
+result's files, reporting their readable byte counts. The result remains in the
+chamber's `ProgramManager/ResultSet`, and the operation counters and calibration
+record are restored. The sample uses a fixed ProductInstanceUri for this simulated
+device. A production deployment must assign distinct physical-device
+identities and protect the data directory.
+
+Restart never resumes a physical process. If the server stops during a run,
+its program manager records the interrupted run id and starts without an
+active program. Configured templates win content conflicts; explicit template
+removals and result retention remain effective after restart.
+
+The client prints device discovery and measurements, followed by pause
+acknowledgments and a protocol for the steps reached. Identifiers, timestamps
+and measured values vary. For example, discovery begins with:
 
 ```
 Device Incubator: OPC Foundation Shaking incubator (SN-0001), state Operate
@@ -54,17 +80,12 @@ Started program run aedc879dea954ba28077194beb1bbf65
   ShakerSpeed  50
   Temperature  24
   ...
-  Temperature  37
-  CO2          5
-  ShakerSpeed  250
-  ...
-  Temperature  25
+Held: the executor has acknowledged the processing pause.
+Suspended: sample-preservation simulation continues without processing.
 Program run aedc879dea954ba28077194beb1bbf65 completed with 1 result file(s).
 --- Protocol.csv (text/csv) ---
 step;name;started;durationMs
 1;WarmUp;2026-10-31T13:09:53.8479514Z;5000
-2;Shake;2026-10-31T13:09:58.8588382Z;5000
-3;CoolDown;2026-10-31T13:10:03.8627787Z;3000
 ```
 
 The server logs each command it receives, for example

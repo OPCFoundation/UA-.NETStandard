@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,6 +36,63 @@ namespace Opc.Ua.LADS.Client
 {
     public sealed partial class LadsClient
     {
+        /// <summary>
+        /// Discovers optional running methods with current state and user executability.
+        /// A missing optional method is omitted; a failed attribute read is reported to the caller.
+        /// </summary>
+        public async ValueTask<ArrayOf<LadsRunningMethod>> GetRunningMethodsAsync(
+            NodeId functionalUnitId,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfNull(functionalUnitId, nameof(functionalUnitId));
+            NodeId running = await ResolveRunningStateAsync(functionalUnitId, cancellationToken).ConfigureAwait(false);
+            if (running.IsNull)
+            {
+                return default;
+            }
+            string[] names =
+            [
+                BrowseNames.Hold, BrowseNames.Unhold, BrowseNames.Suspend,
+                BrowseNames.Unsuspend, BrowseNames.Reset, BrowseNames.ToComplete
+            ];
+            var nodes = new List<NodeId>();
+            var found = new List<string>();
+            foreach (string name in names)
+            {
+                NodeId method = await ResolveAsync(running, cancellationToken, Lads(name)).ConfigureAwait(false);
+                if (!method.IsNull)
+                {
+                    nodes.Add(method);
+                    found.Add(name);
+                }
+            }
+            NodeId[] nodeIds = nodes.ToArray();
+            DataValue[] executable = await ReadAttributesAsync(nodeIds, Attributes.Executable, cancellationToken)
+                .ConfigureAwait(false);
+            DataValue[] userExecutable = await ReadAttributesAsync(
+                nodeIds, Attributes.UserExecutable, cancellationToken)
+                .ConfigureAwait(false);
+            var methods = new LadsRunningMethod[nodes.Count];
+            for (int index = 0; index < methods.Length; index++)
+            {
+                if (StatusCode.IsBad(executable[index].StatusCode))
+                {
+                    throw new ServiceResultException(executable[index].StatusCode);
+                }
+                if (StatusCode.IsBad(userExecutable[index].StatusCode))
+                {
+                    throw new ServiceResultException(userExecutable[index].StatusCode);
+                }
+                if (!executable[index].WrappedValue.TryGetValue(out bool canExecute) ||
+                    !userExecutable[index].WrappedValue.TryGetValue(out bool userCanExecute))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                }
+                methods[index] = new LadsRunningMethod(found[index], nodes[index], canExecute, userCanExecute);
+            }
+            return methods.ToArrayOf();
+        }
+
         /// <summary>
         /// Stops a functional unit through its <c>FunctionalUnitState</c>.
         /// </summary>
@@ -437,12 +495,28 @@ namespace Opc.Ua.LADS.Client
             NodeId functionalUnitId,
             CancellationToken cancellationToken)
         {
-            NodeId running = await RequireAsync(
-                functionalUnitId,
-                cancellationToken,
-                Lads(BrowseNames.FunctionalUnitState),
-                Lads(BrowseNames.RunningStateMachine)).ConfigureAwait(false);
+            NodeId running = await ResolveRunningStateAsync(functionalUnitId, cancellationToken).ConfigureAwait(false);
+            if (running.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
             return new RunningStateMachineTypeClient(Session, running, Telemetry);
+        }
+
+        /// <summary>
+        /// Resolves the running submachine of either a functional unit or a control function.
+        /// </summary>
+        internal async ValueTask<NodeId> ResolveRunningStateAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfNull(nodeId, nameof(nodeId));
+            NodeId running = await ResolveAsync(nodeId, cancellationToken,
+                Lads(BrowseNames.FunctionalUnitState), Lads(BrowseNames.RunningStateMachine)).ConfigureAwait(false);
+            return running.IsNull
+                ? await ResolveAsync(nodeId, cancellationToken,
+                    Lads(BrowseNames.ControlFunctionState), Lads(BrowseNames.RunningStateMachine)).ConfigureAwait(false)
+                : running;
         }
 
         private async ValueTask<ControlFunctionStateMachineTypeClient> ControlStateAsync(

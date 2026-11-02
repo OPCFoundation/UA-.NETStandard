@@ -185,6 +185,7 @@ namespace Opc.Ua.LADS.Server
                 await AskProviderAsync(LadsMaintenanceCommand.Start, cancellationToken).ConfigureAwait(false);
                 Transition(LadsMaintenanceStateValue.Executing);
                 ApplyCondition(Runtime.Context, active: true, message: default);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -212,6 +213,7 @@ namespace Opc.Ua.LADS.Server
                 Runtime.Update(Node.LastExecutionDate, Variant.From(now));
                 Transition(LadsMaintenanceStateValue.Finished);
                 ApplyCondition(Runtime.Context, active: false, comment);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -234,11 +236,53 @@ namespace Opc.Ua.LADS.Server
                 }
                 Transition(LadsMaintenanceStateValue.Planned);
                 ApplyCondition(Runtime.Context, active: true, message: default);
+                await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 m_gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Captures the retained maintenance record.
+        /// </summary>
+        internal LadsStoredMaintenanceData CaptureStoredData()
+        {
+            lock (m_lock)
+            {
+                return new LadsStoredMaintenanceData
+                {
+                    Name = Name,
+                    State = State,
+                    LastExecutionDate = m_lastExecution,
+                    LastResult = m_lastResult,
+                    PlannedDate = Node.PlannedDate?.Value ?? default,
+                    Comment = Node.Message?.Value ?? LocalizedText.Null
+                };
+            }
+        }
+
+        /// <summary>
+        /// Restores a record without restarting an interrupted physical maintenance operation.
+        /// </summary>
+        internal void RestoreStoredData(LadsStoredMaintenanceData data)
+        {
+            lock (m_lock)
+            {
+                m_lastExecution = data.LastExecutionDate;
+                m_lastResult = data.LastResult;
+            }
+            Machine.SetState(data.State == LadsMaintenanceStateValue.Executing
+                ? LadsMaintenanceStateValue.Planned
+                : data.State);
+            Runtime.Update(Node.LastExecutionDate, Variant.From(data.LastExecutionDate));
+            if (!data.PlannedDate.IsNull)
+            {
+                Node.AddPlannedDate(Runtime.Context);
+                Runtime.Update(Node.PlannedDate, Variant.From(data.PlannedDate));
+            }
+            ApplyCondition(Runtime.Context, State != LadsMaintenanceStateValue.Finished, data.Comment);
         }
 
         /// <summary>

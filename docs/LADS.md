@@ -31,8 +31,10 @@ client that drives an incubation program end to end.
   - [Maintenance tasks](#maintenance-tasks)
 - [Driving the device at run time](#driving-the-device-at-run-time)
 - [State machines](#state-machines)
+- [Optional running lifecycle](#optional-running-lifecycle)
 - [Providers](#providers)
 - [Results and result files](#results-and-result-files)
+- [Stored data and restart](#stored-data-and-restart)
 - [Conformance](#conformance)
 - [Client](#client)
 - [Sample](#sample)
@@ -123,13 +125,15 @@ services.AddOpcUa()
             .AnalogScalarSensor("CO2", s => s.EngineeringUnits = LadsUnits.Percent))));
 ```
 
-`LadsServerOptions` holds the run-time limits:
+`LadsServerOptions` configures runtime limits and providers:
 
 | Option | Default | Effect |
 | --- | --- | --- |
 | `InstanceNamespaceUri` | `urn:opcua-netstandard:lads:instances` | Namespace of the device instances in standalone mode |
 | `MaxResultFileBytes` | 16 MiB | Largest result file clients can read through the `FileType` methods |
 | `MaxRetainedResults` | 100 | Results kept per program manager; the oldest is removed when a new result exceeds the limit |
+| `Store` | Registered `ILadsStore`, or `InMemoryLadsStore` | Retains templates, completed results and file bytes, maintenance records and counters |
+| `TimeProvider` | Registered `TimeProvider` | Overrides the LADS execution and counter clock without changing transport or session timing |
 
 `Validate()` rejects a limit that is not positive and an invalid namespace, so
 `AddLads` throws during registration rather than at server start.
@@ -208,6 +212,8 @@ from the in-memory defaults when none are registered.
 `ILadsFunctionalUnitBuilder` adds functions (see below), `SupportedProperty(name)`
 for the `SupportedPropertiesSet`, `Programs(configure)` for a program manager
 and `FunctionProvider(provider)` for a function provider for this unit only.
+`RunningOperations()` selects the complete running lifecycle for that unit;
+omitting it retains automatic stop after a successful program.
 
 ### Functions
 
@@ -308,7 +314,7 @@ counters, and `StateChanged` and `OperationModeChanged` events.
 | Machinery operation mode | `Maintenance`, `Processing`, `Setup` and the others of Machinery | `GotoMaintenance`, `GotoProcessing`, `GotoSetup` |
 | Machinery item state | `NotAvailable`, `OutOfService`, `NotExecuting`, `Executing` | none; derived from the device state |
 | Functional unit state | `Stopped`, `Running`, `Stopping`, `Aborting`, `Aborted`, `Clearing` | `Start`, `StartProgram`, `Stop`, `Abort`, `Clear` |
-| Running state (substate of `Running`) | `Idle`, `Starting`, `Execute`, `Completing`, `Complete`, and the hold and suspend states | none |
+| Running state (substate of `Running`) | `Idle`, `Starting`, `Execute`, `Completing`, `Complete`, and the hold and suspend states | Optional `Hold`, `Unhold`, `Suspend`, `Unsuspend`, `Reset`, `ToComplete` |
 | Control function state | Same as the functional unit state | `Start`, `StartWithTargetValue`, `Stop`, `Abort`, `Clear` |
 | Cover state | `Opened`, `Closing`, `Closed`, `Locking`, `Locked`, `Unlocking`, `Opening`, `Error` | `Open`, `Close`, `Lock`, `Unlock`, `Reset` |
 | Maintenance state | `Planned`, `Executing`, `Finished` | `StartTask`, `StopTask`, `ResetTask` |
@@ -322,6 +328,95 @@ A method that is not valid in the current state fails with
 is running. A provider can reject a transition with any bad status, which the
 client receives as the method result.
 
+## Optional running lifecycle
+
+Select `RunningOperations()` on a functional unit to retain `Complete` after
+a successful program. `Reset` moves through `Resetting` to `Idle`, from which
+`Start` or `StartProgram` can begin the next process. `Stop` and `Abort` also
+leave `Complete`. Applications that omit this option keep the existing
+automatic-stop behavior.
+
+```csharp
+device.FunctionalUnit("Chamber", unit => unit
+    .RunningOperations()
+    .Programs(programs => programs
+        .Template("Incubate", template => template
+            .Step("Hold temperature", TimeSpan.FromMinutes(30)))));
+
+ILadsRunningOperations running = chamber.RunningOperations!;
+string runId = await chamber.Programs!.StartProgramAsync("Incubate", cancellationToken: ct);
+await running.HoldAsync(ct);
+await running.UnholdAsync(ct);
+await running.SuspendAsync(ct);
+await running.UnsuspendAsync(ct);
+await running.ToCompleteAsync(ct);
+ILadsResult result = await chamber.Programs.WaitForResultAsync(runId, ct);
+await running.ResetAsync(ct);
+```
+
+The six methods are optional under OPC 30500-1 section 7.1.6. `Hold` addresses
+internal conditions; `Suspend` addresses external conditions. Their acting
+states are followed by `Held` or `Suspended` only after an
+`ILadsControlledProgramExecutor` acknowledges the equipment operation.
+The same direct methods let an application request recovery when its sensors
+detect that a condition has cleared. The published graph permits Hold from
+Starting, Execute, Suspending, Suspended, Unsuspending and Unholding.
+The runtime rejects requests with no permitted transition.
+
+The reference executor acknowledges a pause at an asynchronous processing
+checkpoint. No subsequent step or setpoint is applied while paused, and a
+step delay retains its remaining duration. Sample-preservation simulation
+can continue independently. Hardware executors must implement
+`ChangeExecutionAsync` and acknowledge their own physical actions; implementing
+`ILadsProgramExecutor` alone does not enable these methods. A rejected or
+failed callback leaves the acting state visible rather than reporting a
+successful pause or resume. Stop, Abort and server shutdown cancel a pending
+callback through its cancellation token.
+
+`ToComplete` requests orderly completion by entering `Completing`; a fast
+executor can reach `Complete` before the method returns. The request does not
+cancel the run or itself publish a successful result. The reference executor
+finishes its protocol, stops the running
+control functions and writes its result. Hardware executors must define their
+own orderly shutdown. Result finalization waits for `ExecuteAsync` to return
+and for any pending `ToComplete` callback to acknowledge success. If that
+callback fails after processing ends, the result records Aborted and no
+successful cycle is counted.
+Stop or Abort while paused uses the existing cancellation path and does not
+count a successful cycle.
+
+If an executor finishes while Held, Suspended or awaiting a pause/resume
+acknowledgment, the runtime records Aborted rather than reporting successful
+processing. Pending acknowledgments are cancelled. A new Start or Reset is
+rejected until the previous callback has returned, so it cannot overlap the
+next run.
+
+`ActiveProgram.CurrentRuntime` and `CurrentStepRuntime` exclude acknowledged
+pauses. `CurrentPauseTime` accumulates all Held and Suspended intervals for the
+current run; it does not reset on resume. Result `TotalRuntime` includes pauses
+and `TotalPauseTime` reports the accumulated pause duration. Operation duration
+also uses elapsed time, so wall-clock corrections do not change its counter.
+These values use
+the injected `TimeProvider` and are computed when read. The NodeSet
+descriptions define these distinct measures.
+
+Method `Executable` follows the active functional-state nesting, the running
+transition graph and the configured executor capability. Client
+`GetRunningMethodsAsync` reads current method availability and user
+executability. This snapshot does not reserve an operation. Use
+`ObserveRunningStateAsync` or `WaitForRunningStateAsync` to distinguish an
+accepted command from its stable state, and never retry an uncertain physical
+command automatically.
+
+Control functions select their optional submachine with
+`EnableRunningOperations = true` on their builder options. Their function
+provider must also implement `ILadsControlFunctionRunningProvider`.
+`ILadsControlFunction.RunningOperations` then exposes the same six operations;
+without the provider capability, equipment operations are not executable.
+The callback receives the requested stable state, or `Completing` for orderly
+completion, and must return only after the hardware operation is acknowledged.
+The control function retains Complete until Reset, Stop or Abort.
+
 ## Providers
 
 Three provider contracts connect the runtime to the hardware. Each is a
@@ -334,8 +429,10 @@ default with `TryAdd`, so a registration made before or after `AddLads` wins.
 | `ILadsFunctionProvider` | Before a function command (`LadsFunctionCommand` with `Function`, `Kind`, `Value`) is applied | `InMemoryLadsFunctionProvider` accepts every command; a new target value is reached at once |
 | `ILadsProgramExecutor` | Once per program run | `InMemoryLadsProgramExecutor` runs the template steps in order, applies their setpoints, waits for their durations and writes a CSV protocol as result file |
 
-Each callback returns a `ServiceResult`. A bad result rejects the change and
-leaves the state unchanged. `ILadsDeviceBuilder.Provider` and
+Device and ordinary function callbacks return a `ServiceResult`. A bad result
+rejects their change and leaves the state unchanged. Optional running callbacks
+leave the acting state visible when acknowledgment fails.
+`ILadsDeviceBuilder.Provider` and
 `ILadsFunctionalUnitBuilder.FunctionProvider` override the service for one
 device or unit.
 
@@ -368,11 +465,22 @@ public sealed class HplcExecutor : ILadsProgramExecutor
 The loops are indexed because `ArrayOf<T>` enumerates through a span, which
 cannot cross an `await`.
 
-The run completes when `ExecuteAsync` returns, with the outcome `Completed`.
+The run completes when `ExecuteAsync` returns, with the outcome `Completed`,
+unless a pending `ToComplete` still requires provider acknowledgment.
 `Stop` cancels the token and records the outcome `Stopped`. `Abort` cancels the
 token and records `Aborted`. An exception from the executor also records
-`Aborted`. `DelayAsync` waits on the `TimeProvider` from the service
-collection, so tests can advance time with a fake provider.
+`Aborted`. `DelayAsync` uses the runtime clock. Set
+`LadsServerOptions.TimeProvider` to advance LADS execution in tests without
+advancing session expiry; otherwise the runtime uses the registered
+`TimeProvider`.
+
+Program template content uses semicolon-delimited `step;name;durationMs` and
+`set;function;value` records. Names containing semicolons, quotes or newlines
+are quoted, and embedded quotes are doubled. Unquoted records remain readable.
+The same representation is used by template upload/download and stored-data
+recovery. Starting a program copies its recipe structurally, so subsequent
+changes to the caller's template do not alter the active run or truncate its
+step durations to the exchange format's integer milliseconds.
 
 ## Results and result files
 
@@ -383,6 +491,79 @@ read-only through `IFileTypeBinder`. `MaxResultFileBytes` caps the size a
 client can read. When the result set exceeds `MaxRetainedResults`, the oldest
 result and its file bindings are removed. `ILadsProgramManager.RemoveResultAsync`
 removes a result explicitly.
+
+## Stored data and restart
+
+The default `InMemoryLadsStore` retains data only for its service-provider
+lifetime. Select `FileSystemLadsStore` when completed work must survive a process
+restart, or register an application implementation of `ILadsStore` before
+`AddLads`. `LadsServerOptions.Store` overrides the registered provider and also
+supports direct composition.
+
+```csharp
+var store = new FileSystemLadsStore(LocalFileSystem.Instance, @"D:\lads-data");
+services.AddOpcUa()
+    .AddServer<StandardServer>(server => { /* endpoints, security */ })
+    .AddLads(options => options.Store = store)
+    .ConfigureLads(context => context.AddDevice("Incubator", device => device
+        .Identification(id => id.ProductInstanceUri = "urn:lab:incubator:SN-0001")
+        .FunctionalUnit("Chamber", unit => unit.Programs(programs => programs
+            .Template("Incubate", template => template
+                .Step("Hold temperature", TimeSpan.FromMinutes(30)))))));
+```
+
+Each device snapshot contains its templates, completed results with their file
+bytes, maintenance records and operation counters. A completed result and its
+files are committed together before its result node or result event is
+published. If the save fails, the caller waiting for the result receives the
+error, no completed-cycle increment is applied and the functional unit enters
+Aborted. The runtime does not substitute a memory provider after a storage
+error.
+
+The storage key is the configured `ProductInstanceUri`; if that is absent it is
+the application namespace URI followed by `#` and the device name. Namespace
+indexes and session NodeIds are not storage keys. Keep this identity stable
+across restarts and use a distinct identity for each physical device.
+The file provider hashes it for the file name and stores a bounded, versioned
+snapshot; malformed, unsupported or oversized snapshots prevent device
+publication rather than silently discarding data.
+The default snapshot limit is 64 MiB and can be set through the provider's
+`maxBytes` constructor argument. A provider serializes its own writes but does
+not coordinate separate processes; assign one writer to each directory.
+The application owns an explicitly supplied provider and disposes it after
+the server host.
+
+Configured template content wins when a stored template has the same id.
+Configured metadata also wins, except that an unspecified Created value retains
+the stored date and an unspecified Modified value retains the stored date when
+the content is unchanged.
+Templates that exist only in storage are restored. An explicit
+`RemoveTemplateAsync` is retained as a removal record, so a deleted configured
+template does not reappear after restart; adding that id again clears the
+removal record. Result deletion and `MaxRetainedResults` pruning remove the
+corresponding files from the next committed snapshot.
+Template additions and removals, and explicit result deletion, become visible
+only after their snapshot is saved. Concurrent device checkpoints cannot
+persist a pending change before its save succeeds.
+
+Before calling an executor, the runtime stores its run id as an interrupted-run
+marker. Completion replaces that marker with the result in one snapshot.
+Restart restores records and creates new address-space nodes, but never calls
+an executor, reapplies a setpoint or resumes equipment. The program manager's
+`InterruptedRunId` reports the most recently recovered interruption to the
+application; that record remains stored after subsequent successful runs.
+Maintenance that was Executing returns to Planned; its previous completion
+record remains available.
+Device and function operating states always come from the configured startup
+policy, not from stored physical state.
+
+Program and maintenance operations checkpoint automatically. Call
+`ILadsDevice.SaveStoredDataAsync` after application-managed counter changes
+that must be durable immediately. Graceful shutdown also checkpoints, including
+an interrupted-run marker, before releasing the runtime.
+If maintenance hardware has already acknowledged an action when its checkpoint
+fails, the storage error is reported without reversing the physical action.
+Inspect the equipment state before retrying that command.
 
 ## Conformance
 
@@ -398,13 +579,11 @@ The server implements:
 - Machinery identification, item state, operation mode and operation counters
   as building blocks.
 
-The following are not implemented by the server:
-
-- The optional `Hold`, `Unhold`, `Suspend`, `Unsuspend`, `Reset` and
-  `ToComplete` methods of the running state machine. The client has wrappers
-  for them, for use with other servers.
-- Persistence. Templates, results and maintenance history live in memory and
-  are lost when the server restarts.
+Running operations require explicit configuration and an executor or hardware
+provider that supports them. Optional operations are not universally required
+for every LADS device. The Complete state and its Reset graph use the published
+model; the ToComplete prose's reference to "Completed" does not introduce an
+additional state.
 
 ## Client
 
@@ -534,5 +713,7 @@ encodings, and run hosted servers with the LADS client over a real session.
 | `LadsDeviceTests` | Device and operation mode state machines, item state, counters, providers rejecting transitions |
 | `LadsFunctionTests` | Every function type, control and cover state machines, provider vetoes |
 | `LadsProgramTests` | Template management, program runs, stop and abort, executor failures, results and result files |
+| `LadsRunningOperationsTests` | Opt-in lifecycle, cooperative pauses, acting-state failures, cancellation and client method discovery |
+| `LadsStoredDataTests` | Restarted templates, results/files, maintenance and counters, deletion/retention, interrupted execution and storage errors |
 | `LadsMaintenanceTaskTests` | The maintenance state machine, invalid transitions, the task methods, provider vetoes |
 | `LadsClientServerTests` | Client discovery, snapshots, function and program control, file download and composition with Machinery over a real session |

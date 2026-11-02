@@ -59,16 +59,18 @@ namespace Opc.Ua.LADS.Server
             ILadsDeviceProvider deviceProvider,
             ILadsFunctionProvider functionProvider,
             ILadsProgramExecutor programExecutor,
+            ILadsStore store,
             LadsDeviceRegistry registry)
         {
             Stopping = m_stopping.Token;
             Manager = manager;
             Options = options;
-            TimeProvider = timeProvider;
+            TimeProvider = options.TimeProvider ?? timeProvider;
             FileBinder = fileBinder;
             DeviceProvider = deviceProvider;
             FunctionProvider = functionProvider;
             ProgramExecutor = programExecutor;
+            Store = options.Store ?? store;
             Registry = registry;
             Logger = manager.SystemContext.Telemetry.CreateLogger<LadsRuntime>();
             NamespaceUris = manager.SystemContext.NamespaceUris;
@@ -123,6 +125,11 @@ namespace Opc.Ua.LADS.Server
         /// Gets the default program executor.
         /// </summary>
         public ILadsProgramExecutor ProgramExecutor { get; }
+
+        /// <summary>
+        /// Gets the stored-data provider; it never restores physical execution.
+        /// </summary>
+        public ILadsStore Store { get; }
 
         /// <summary>
         /// Gets the registry the devices are published to.
@@ -205,6 +212,7 @@ namespace Opc.Ua.LADS.Server
                         buildContext.GetService<ILadsDeviceProvider>() ?? new InMemoryLadsDeviceProvider(),
                         buildContext.GetService<ILadsFunctionProvider>() ?? new InMemoryLadsFunctionProvider(),
                         buildContext.GetService<ILadsProgramExecutor>() ?? new InMemoryLadsProgramExecutor(),
+                        buildContext.GetService<ILadsStore>() ?? new InMemoryLadsStore(),
                         buildContext.GetService<ILadsDeviceRegistry>() as LadsDeviceRegistry ??
                             new LadsDeviceRegistry());
                 })).Value;
@@ -286,6 +294,8 @@ namespace Opc.Ua.LADS.Server
             {
                 ThrowIfDisposed();
                 LADSDeviceState node = device.Node;
+                await device.RestoreStoredDataAsync(cancellationToken).ConfigureAwait(false);
+                await device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
                 NodeState deviceSet = DeviceSet;
                 RemoveDeclarationReferences(node);
                 deviceSet.AddChild(node);

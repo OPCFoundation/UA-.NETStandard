@@ -40,7 +40,7 @@ namespace Opc.Ua.LADS.Server
     public enum LadsProgramOutcome
     {
         /// <summary>
-        /// The run executed all of its steps.
+        /// The run reached its defined end, including an acknowledged orderly completion.
         /// </summary>
         Completed,
 
@@ -265,16 +265,16 @@ namespace Opc.Ua.LADS.Server
             var text = new StringBuilder();
             foreach (LadsProgramStep step in m_steps)
             {
-                text.Append("step;")
-                    .Append(step.Name)
-                    .Append(';')
+                text.Append("step;");
+                AppendCsvField(text, step.Name);
+                text.Append(';')
                     .Append(((long)step.Duration.TotalMilliseconds).ToString(CultureInfo.InvariantCulture))
                     .Append('\n');
                 foreach (LadsSetpoint setpoint in step.Setpoints)
                 {
-                    text.Append("set;")
-                        .Append(setpoint.FunctionName)
-                        .Append(';')
+                    text.Append("set;");
+                    AppendCsvField(text, setpoint.FunctionName);
+                    text.Append(';')
                         .Append(FormatValue(setpoint.Value))
                         .Append('\n');
                 }
@@ -298,22 +298,10 @@ namespace Opc.Ua.LADS.Server
             string? stepName = null;
             TimeSpan duration = TimeSpan.Zero;
             var setpoints = new List<LadsSetpoint>();
-            foreach (string raw in text.Split('\n'))
+            foreach (string[] parts in ReadContentRecords(text))
             {
-                string line = raw.Trim();
-                if (line.Length == 0)
-                {
-                    continue;
-                }
-                string[] parts = line.Split(';');
-                if (parts.Length != 3)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "The program content line '{0}' is malformed.",
-                        line);
-                }
-                if (parts[0] == "step")
+                string kind = parts[0].Trim();
+                if (kind == "step")
                 {
                     if (stepName != null)
                     {
@@ -331,7 +319,7 @@ namespace Opc.Ua.LADS.Server
                     duration = TimeSpan.FromMilliseconds(ms);
                     setpoints.Clear();
                 }
-                else if (parts[0] == "set" && stepName != null)
+                else if (kind == "set" && stepName != null)
                 {
                     setpoints.Add(new LadsSetpoint(parts[1], ParseValue(parts[2])));
                 }
@@ -339,8 +327,8 @@ namespace Opc.Ua.LADS.Server
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidArgument,
-                        "The program content line '{0}' is malformed.",
-                        line);
+                        "The program content record type '{0}' is invalid.",
+                        kind);
                 }
             }
             if (stepName != null)
@@ -348,6 +336,127 @@ namespace Opc.Ua.LADS.Server
                 template.Step(new LadsProgramStep(stepName, duration, setpoints.ToArray()));
             }
             return template;
+        }
+
+        /// <summary>
+        /// Appends a semicolon-delimited CSV field, including embedded record separators.
+        /// </summary>
+        internal static void AppendCsvField(StringBuilder builder, string value)
+        {
+            bool needsQuotes = false;
+            foreach (char character in value)
+            {
+                if (character is ';' or '"' or '\r' or '\n')
+                {
+                    needsQuotes = true;
+                    break;
+                }
+            }
+            if (!needsQuotes)
+            {
+                builder.Append(value);
+                return;
+            }
+            builder.Append('"');
+            foreach (char character in value)
+            {
+                if (character == '"')
+                {
+                    builder.Append("\"\"");
+                }
+                else
+                {
+                    builder.Append(character);
+                }
+            }
+            builder.Append('"');
+        }
+
+        /// <summary>
+        /// Reads three-field records without splitting quoted names at delimiters or newlines.
+        /// </summary>
+        private static IEnumerable<string[]> ReadContentRecords(string text)
+        {
+            var fields = new List<string>(3);
+            var field = new StringBuilder();
+            bool quoted = false;
+            bool quoteClosed = false;
+            for (int index = 0; index <= text.Length; index++)
+            {
+                bool end = index == text.Length;
+                char character = end ? '\n' : text[index];
+                if (quoted)
+                {
+                    if (end)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument, "The program content contains an unclosed quoted field.");
+                    }
+                    if (character == '"')
+                    {
+                        if (index + 1 < text.Length && text[index + 1] == '"')
+                        {
+                            field.Append('"');
+                            index++;
+                        }
+                        else
+                        {
+                            quoted = false;
+                            quoteClosed = true;
+                        }
+                    }
+                    else
+                    {
+                        field.Append(character);
+                    }
+                    continue;
+                }
+                if (character is ';' or '\r' or '\n')
+                {
+                    fields.Add(field.ToString());
+                    field.Clear();
+                    quoteClosed = false;
+                    if (character == ';')
+                    {
+                        if (fields.Count >= 3)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidArgument, "The program content record has too many fields.");
+                        }
+                        continue;
+                    }
+                    if (character == '\r' && index + 1 < text.Length && text[index + 1] == '\n')
+                    {
+                        index++;
+                    }
+                    if (fields.Count != 1 || !string.IsNullOrWhiteSpace(fields[0]))
+                    {
+                        if (fields.Count != 3)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidArgument, "The program content record requires three fields.");
+                        }
+                        yield return fields.ToArray();
+                    }
+                    fields.Clear();
+                }
+                else if (quoteClosed)
+                {
+                    if (character is not (' ' or '\t'))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidArgument, "Unexpected text follows a quoted program content field.");
+                    }
+                }
+                else if (character == '"' && field.Length == 0)
+                {
+                    quoted = true;
+                }
+                else
+                {
+                    field.Append(character);
+                }
+            }
         }
 
         /// <summary>

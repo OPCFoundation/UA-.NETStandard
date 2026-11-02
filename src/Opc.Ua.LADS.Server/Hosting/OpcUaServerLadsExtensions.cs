@@ -115,6 +115,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.TryAddSingleton<ILadsDeviceProvider, InMemoryLadsDeviceProvider>();
             builder.Services.TryAddSingleton<ILadsFunctionProvider, InMemoryLadsFunctionProvider>();
             builder.Services.TryAddSingleton<ILadsProgramExecutor, InMemoryLadsProgramExecutor>();
+            builder.Services.TryAddSingleton<ILadsStore, InMemoryLadsStore>();
             builder.Services.TryAddSingleton<ILadsDeviceRegistry>(_ => new LadsDeviceRegistry());
             if (!assetManagement)
             {
@@ -218,6 +219,8 @@ namespace Microsoft.Extensions.DependencyInjection
             target.InstanceNamespaceUri = source.InstanceNamespaceUri;
             target.MaxResultFileBytes = source.MaxResultFileBytes;
             target.MaxRetainedResults = source.MaxRetainedResults;
+            target.Store = source.Store;
+            target.TimeProvider = source.TimeProvider;
         }
     }
 }

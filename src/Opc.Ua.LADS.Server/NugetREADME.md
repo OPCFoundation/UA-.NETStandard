@@ -54,7 +54,19 @@ execute it against hardware. An `ILadsProgramExecutor` receives a
 and files. In-memory providers are registered by default, so a device works
 without hardware.
 
+`RunningOperations()` opts a functional unit into Hold/Unhold,
+Suspend/Unsuspend, orderly completion and Complete-to-Reset. The executor must
+implement `ILadsControlledProgramExecutor` and acknowledge equipment operations
+before the corresponding stable state is published. The default executor
+pauses processing checkpoints and delays; an existing executor that implements
+only `ILadsProgramExecutor` retains its original contract.
+
 `LadsServerOptions` limits the result file size and the number of retained
-results.
+results. Its `Store` option accepts an injectable `ILadsStore`.
+`FileSystemLadsStore` retains templates, completed results and file bytes,
+maintenance records and counters across process restarts. Completed results
+and their files are saved before publication; storage errors are reported
+without substituting a memory provider. Interrupted execution is recorded but
+never resumed.
 
 See the [LADS guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/LADS.md).

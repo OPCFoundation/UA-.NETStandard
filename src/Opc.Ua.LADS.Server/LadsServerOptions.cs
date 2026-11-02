@@ -38,6 +38,17 @@ namespace Opc.Ua.LADS.Server
     public sealed class LadsServerOptions
     {
         /// <summary>
+        /// Gets or sets the clock for LADS execution and counters.
+        /// Null selects the registered clock; this override does not change transport or session timing.
+        /// </summary>
+        public TimeProvider? TimeProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the stored-data provider. Null selects the registered provider or memory default.
+        /// </summary>
+        public ILadsStore? Store { get; set; }
+
+        /// <summary>
         /// Gets or sets the standalone owner's application namespace.
         /// Composing into an existing Machinery owner uses that owner's namespace instead.
         /// </summary>
@@ -107,6 +118,7 @@ namespace Opc.Ua.LADS.Server
             target.InstanceNamespaceUri = InstanceNamespaceUri;
             target.MaxResultFileBytes = MaxResultFileBytes;
             target.MaxRetainedResults = MaxRetainedResults;
+            target.Store = Store;
         }
     }
 }

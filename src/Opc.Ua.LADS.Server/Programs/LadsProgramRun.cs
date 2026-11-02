@@ -73,6 +73,7 @@ namespace Opc.Ua.LADS.Server
             Samples = samples;
             Started = started;
             TimeProvider = timeProvider;
+            m_startedTimestamp = timeProvider.GetTimestamp();
             m_onStep = onStep;
         }
 
@@ -120,6 +121,186 @@ namespace Opc.Ua.LADS.Server
         /// The time provider used for delays and timestamps.
         /// </summary>
         public TimeProvider TimeProvider { get; }
+
+        /// <summary>
+        /// Gets whether the executor should finish its current process and write its result.
+        /// </summary>
+        public bool IsCompletionRequested
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_complete;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the accumulated pause duration, including the current acknowledged pause.
+        /// </summary>
+        public TimeSpan TotalPauseTime
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_pauseTime + (m_pauseStarted.HasValue
+                        ? TimeProvider.GetElapsedTime(m_pauseStarted.Value)
+                        : TimeSpan.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the accumulated pause duration of the current program run.
+        /// </summary>
+        public TimeSpan CurrentPauseTime
+        {
+            get => TotalPauseTime;
+        }
+
+        /// <summary>
+        /// Gets processing time since start, excluding acknowledged pauses.
+        /// </summary>
+        public TimeSpan CurrentRuntime
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return (m_finishedRuntime ?? TimeProvider.GetElapsedTime(m_startedTimestamp)) - TotalPauseTime;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets processing time since the current step was reported, excluding pauses.
+        /// </summary>
+        public TimeSpan CurrentStepRuntime
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_stepNumber == 0 ? TimeSpan.Zero : CurrentRuntime - m_stepStarted;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Acknowledges a cooperative pause and waits until processing may continue.
+        /// Returns false when orderly completion has been requested.
+        /// Executors must call this before each processing step and physical operation.
+        /// </summary>
+        public async ValueTask<bool> WaitForExecutionAsync(CancellationToken cancellationToken = default)
+        {
+            while (true)
+            {
+                Task changed;
+                lock (m_lock)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (m_complete || m_finished)
+                    {
+                        return false;
+                    }
+                    if (!m_paused)
+                    {
+                        return true;
+                    }
+                    m_pauseAcknowledged.TrySetResult(true);
+                    changed = m_changed.Task;
+                }
+                await changed.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Requests a cooperative pause or resume and waits for the executor's checkpoint.
+        /// Hardware executors must additionally acknowledge their equipment-specific operations.
+        /// </summary>
+        public async ValueTask SetPausedAsync(bool paused, CancellationToken cancellationToken = default)
+        {
+            Task<bool> acknowledged;
+            lock (m_lock)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_finished || m_complete)
+                {
+                    throw ServiceResultException.Create(StatusCodes.BadInvalidState, "The executor has finished.");
+                }
+                if (m_paused == paused)
+                {
+                    acknowledged = paused ? m_pauseAcknowledged.Task : Task.FromResult(true);
+                }
+                else
+                {
+                    m_paused = paused;
+                    if (paused)
+                    {
+                        m_pauseAcknowledged = NewSignal();
+                    }
+                    PulseLocked();
+                    acknowledged = paused ? m_pauseAcknowledged.Task : Task.FromResult(true);
+                }
+            }
+            if (!await acknowledged.WaitAsync(cancellationToken).ConfigureAwait(false))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState, "The executor finished before acknowledging the pause.");
+            }
+        }
+
+        /// <summary>
+        /// Requests orderly completion and wakes a waiting cooperative executor.
+        /// </summary>
+        public void RequestCompletion()
+        {
+            lock (m_lock)
+            {
+                m_complete = true;
+                EndPauseLocked();
+                PulseLocked();
+            }
+        }
+
+        /// <summary>
+        /// Completes pending pause acknowledgments before result publication takes the unit gate.
+        /// </summary>
+        internal void ExecutionFinished()
+        {
+            lock (m_lock)
+            {
+                if (m_finished)
+                {
+                    return;
+                }
+                m_finished = true;
+                m_finishedRuntime = TimeProvider.GetElapsedTime(m_startedTimestamp);
+                EndPauseLocked();
+                m_pauseAcknowledged.TrySetResult(false);
+                PulseLocked();
+            }
+        }
+
+        /// <summary>
+        /// Accounts only intervals published as Held or Suspended, as defined by the model.
+        /// </summary>
+        internal void SetPauseTiming(bool paused)
+        {
+            lock (m_lock)
+            {
+                if (paused)
+                {
+                    m_pauseStarted ??= TimeProvider.GetTimestamp();
+                }
+                else
+                {
+                    EndPauseLocked();
+                }
+            }
+        }
 
         /// <summary>
         /// The number of the current step, starting at 1, or 0 before the first step.
@@ -178,7 +359,9 @@ namespace Opc.Ua.LADS.Server
         {
             lock (m_lock)
             {
+                RequireWritableResult();
                 m_stepNumber = number;
+                m_stepStarted = CurrentRuntime;
             }
             m_onStep(number, name ?? string.Empty);
         }
@@ -194,9 +377,10 @@ namespace Opc.Ua.LADS.Server
         /// </exception>
         public void AddResultFile(string name, string mimeType, ByteString content)
         {
-            var file = new LadsResultFile(name, mimeType, content);
+            var file = new LadsResultFile(name, mimeType, ByteString.From(content.Span));
             lock (m_lock)
             {
+                RequireWritableResult();
                 foreach (LadsResultFile existing in m_files)
                 {
                     if (existing.Name == file.Name)
@@ -224,6 +408,7 @@ namespace Opc.Ua.LADS.Server
             }
             lock (m_lock)
             {
+                RequireWritableResult();
                 m_variables[name] = value ?? string.Empty;
             }
         }
@@ -244,6 +429,10 @@ namespace Opc.Ua.LADS.Server
             if (setpoint == null)
             {
                 throw new ArgumentNullException(nameof(setpoint));
+            }
+            if (!await WaitForExecutionAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
             }
             ILadsFunction function = FunctionalUnit.GetFunction<ILadsFunction>(setpoint.FunctionName);
             Variant value = setpoint.Value;
@@ -312,13 +501,85 @@ namespace Opc.Ua.LADS.Server
         /// <param name="delay">The duration.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes after the duration.</returns>
-        public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken = default)
+        public async Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken = default)
         {
-            if (delay <= TimeSpan.Zero)
+            cancellationToken.ThrowIfCancellationRequested();
+            TimeSpan remaining = delay;
+            while (remaining > TimeSpan.Zero &&
+                await WaitForExecutionAsync(cancellationToken).ConfigureAwait(false))
             {
-                return Task.CompletedTask;
+                Task changed;
+                long started;
+                lock (m_lock)
+                {
+                    if (m_paused || m_complete)
+                    {
+                        continue;
+                    }
+                    changed = m_changed.Task;
+                    started = TimeProvider.GetTimestamp();
+                }
+                using var delayCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task timer = TimeProvider.Delay(remaining, delayCancellation.Token);
+                Task winner = await Task.WhenAny(timer, changed).ConfigureAwait(false);
+                if (ReferenceEquals(winner, timer))
+                {
+                    await timer.ConfigureAwait(false);
+                    return;
+                }
+                delayCancellation.Cancel();
+                try
+                {
+                    await timer.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (delayCancellation.IsCancellationRequested)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                remaining -= TimeProvider.GetElapsedTime(started);
             }
-            return TimeProvider.Delay(delay, cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates a continuation-safe execution signal.
+        /// </summary>
+        private static TaskCompletionSource<bool> NewSignal()
+        {
+            return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// Rejects late executor writes after its result snapshot was finalized.
+        /// </summary>
+        private void RequireWritableResult()
+        {
+            if (m_finished)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState, "The program result has already been finalized.");
+            }
+        }
+
+        /// <summary>
+        /// Wakes the executor and replaces the signal while holding the run lock.
+        /// </summary>
+        private void PulseLocked()
+        {
+            TaskCompletionSource<bool> changed = m_changed;
+            m_changed = NewSignal();
+            changed.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Accumulates an acknowledged pause while holding the run lock.
+        /// </summary>
+        private void EndPauseLocked()
+        {
+            if (m_pauseStarted.HasValue)
+            {
+                m_pauseTime += TimeProvider.GetElapsedTime(m_pauseStarted.Value);
+                m_pauseStarted = null;
+            }
         }
 
         private readonly Action<uint, string> m_onStep;
@@ -326,5 +587,15 @@ namespace Opc.Ua.LADS.Server
         private readonly List<LadsResultFile> m_files = [];
         private readonly Dictionary<string, string> m_variables = new(StringComparer.Ordinal);
         private uint m_stepNumber;
+        private TaskCompletionSource<bool> m_changed = NewSignal();
+        private TaskCompletionSource<bool> m_pauseAcknowledged = NewSignal();
+        private readonly long m_startedTimestamp;
+        private long? m_pauseStarted;
+        private TimeSpan? m_finishedRuntime;
+        private TimeSpan m_stepStarted;
+        private TimeSpan m_pauseTime;
+        private bool m_paused;
+        private bool m_complete;
+        private bool m_finished;
     }
 }

@@ -88,6 +88,12 @@ namespace Opc.Ua.LADS.Client
         public const string ControlFunctionState = BrowseNames.ControlFunctionState + "/CurrentState";
 
         /// <summary>
+        /// The current state of the optional running submachine of a control function.
+        /// </summary>
+        public const string RunningState =
+            BrowseNames.ControlFunctionState + "/" + BrowseNames.RunningStateMachine + "/CurrentState";
+
+        /// <summary>
         /// <c>CoverState/CurrentState</c> of the cover function.
         /// </summary>
         public const string CoverState = BrowseNames.CoverState + "/CurrentState";
@@ -107,6 +113,7 @@ namespace Opc.Ua.LADS.Client
             DifferenceValue,
             CurrentMode,
             ControlFunctionState,
+            RunningState,
             CoverState
         ];
     }

@@ -42,7 +42,7 @@ namespace Opc.Ua.LADS.Server
     /// <summary>
     /// The base of all function handles.
     /// </summary>
-    internal abstract class LadsFunction : ILadsFunction, IDisposable
+    internal abstract class LadsFunction : ILadsFunction, IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Creates the handle of a function node.
@@ -92,6 +92,7 @@ namespace Opc.Ua.LADS.Server
             {
                 Volatile.Write(ref m_enabled, value);
                 Runtime.Update(Node.IsEnabled, Variant.From(value));
+                (this as LadsControlFunction)?.UpdateRunningExecutability();
             }
         }
 
@@ -175,6 +176,13 @@ namespace Opc.Ua.LADS.Server
             {
                 stateMachine.GetChildren(context, children);
                 members.AddRange(children.OfType<MethodState>());
+                foreach (RunningStateMachineState runningStateMachine in
+                    children.OfType<RunningStateMachineState>().ToArray())
+                {
+                    children.Clear();
+                    runningStateMachine.GetChildren(context, children);
+                    members.AddRange(children.OfType<MethodState>());
+                }
             }
             children.Clear();
             Node.GetChildren(context, children);
@@ -315,6 +323,15 @@ namespace Opc.Ua.LADS.Server
             m_gate.Dispose();
         }
 
+        /// <summary>
+        /// Releases the function after any specialized asynchronous cleanup.
+        /// </summary>
+        public virtual ValueTask DisposeAsync()
+        {
+            Dispose();
+            return default;
+        }
+
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private bool m_enabled = true;
     }
@@ -322,12 +339,16 @@ namespace Opc.Ua.LADS.Server
     /// <summary>
     /// The base of the control functions with a control function state machine.
     /// </summary>
-    internal abstract class LadsControlFunction : LadsFunction, ILadsControlFunction
+    internal abstract class LadsControlFunction : LadsFunction, ILadsControlFunction, ILadsRunningOperations
     {
         /// <summary>
         /// Creates the handle and binds the methods of the control function state machine.
         /// </summary>
-        protected LadsControlFunction(LadsFunctionalUnit unit, BaseControlFunctionState node, string path)
+        protected LadsControlFunction(
+            LadsFunctionalUnit unit,
+            BaseControlFunctionState node,
+            string path,
+            bool enableRunningOperations = false)
             : base(unit, node, path)
         {
             ISystemContext context = Runtime.Context;
@@ -357,6 +378,28 @@ namespace Opc.Ua.LADS.Server
             Runtime.Bind(
                 stateMachine.StartWithTargetValue,
                 (inputs, ct) => StartWithTargetVariantAsync(inputs.Count > 0 ? inputs[0] : default, ct));
+            if (enableRunningOperations)
+            {
+                stateMachine.AddRunningStateMachine(context);
+                RunningStateMachineState runningNode = stateMachine.RunningStateMachine!;
+                runningNode.AddHold(context).AddUnhold(context)
+                    .AddSuspend(context).AddUnsuspend(context)
+                    .AddReset(context).AddToComplete(context);
+                m_running = new LadsStateMachine<LadsRunningStateValue>(
+                    runningNode,
+                    context,
+                    LadsStateMaps.Running,
+                    LadsRunningStateValue.Idle);
+                m_running.StateChanged += _ => UpdateRunningExecutability();
+                Runtime.Bind(runningNode.Hold, (_, ct) => HoldAsync(ct));
+                Runtime.Bind(runningNode.Unhold, (_, ct) => UnholdAsync(ct));
+                Runtime.Bind(runningNode.Suspend, (_, ct) => SuspendAsync(ct));
+                Runtime.Bind(runningNode.Unsuspend, (_, ct) => UnsuspendAsync(ct));
+                Runtime.Bind(runningNode.Reset, (_, ct) => ResetAsync(ct));
+                Runtime.Bind(runningNode.ToComplete, (_, ct) => ToCompleteAsync(ct));
+                UpdateRunningExecutability();
+            }
+            m_machine.StateChanged += _ => UpdateRunningExecutability();
         }
 
         /// <inheritdoc/>
@@ -365,6 +408,158 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public event Action<LadsFunctionalStateValue>? StateChanged;
 
+        /// <summary>
+        /// Gets the optional running operations.
+        /// </summary>
+        public ILadsRunningOperations? RunningOperations => m_running == null ? null : this;
+
+        /// <summary>
+        /// Gets the optional running substate.
+        /// </summary>
+        public LadsRunningStateValue? RunningState => m_running?.Current;
+
+        /// <inheritdoc/>
+        public override async ValueTask DisposeAsync()
+        {
+            Task drained = Task.CompletedTask;
+            await ExclusiveAsync(
+                () =>
+                {
+                    lock (m_runningLock)
+                    {
+                        m_runningDisposed = true;
+                        m_runningCancellation?.Cancel();
+                        drained = m_runningIdle?.Task ?? Task.CompletedTask;
+                    }
+                    return default;
+                },
+                CancellationToken.None).ConfigureAwait(false);
+            await drained.ConfigureAwait(false);
+            m_runningCancellation?.Dispose();
+            m_runningGate.Dispose();
+            await base.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask HoldAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Holding,
+                LadsRunningStateValue.Held,
+                LadsRunningStateValue.Held,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnholdAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unholding,
+                LadsRunningStateValue.Execute,
+                LadsRunningStateValue.Execute,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask SuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Suspending,
+                LadsRunningStateValue.Suspended,
+                LadsRunningStateValue.Suspended,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask UnsuspendAsync(CancellationToken cancellationToken = default)
+        {
+            return ChangeRunningAsync(
+                LadsRunningStateValue.Unsuspending,
+                LadsRunningStateValue.Execute,
+                LadsRunningStateValue.Execute,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask ResetAsync(CancellationToken cancellationToken = default)
+        {
+            return ExclusiveAsync(
+                async () =>
+                {
+                    lock (m_runningLock)
+                    {
+                        if (m_runningDisposed)
+                        {
+                            throw new ObjectDisposedException(nameof(LadsControlFunction));
+                        }
+                    }
+                    RequireEnabled();
+                    m_machine.Require(LadsFunctionalStateValue.Running);
+                    LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+                    running.Require(LadsRunningStateValue.Complete);
+                    await TransitionRunningAsync(
+                        cancellationToken,
+                        LadsRunningStateValue.Resetting,
+                        LadsRunningStateValue.Idle).ConfigureAwait(false);
+                },
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask ToCompleteAsync(CancellationToken cancellationToken = default)
+        {
+            await ChangeRunningAsync(
+                LadsRunningStateValue.Completing,
+                LadsRunningStateValue.Complete,
+                LadsRunningStateValue.Completing,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recomputes the executability of optional running methods.
+        /// </summary>
+        internal void UpdateRunningExecutability()
+        {
+            if (m_running == null)
+            {
+                return;
+            }
+            RunningStateMachineState node = ((BaseControlFunctionState)Node).ControlFunctionState!
+                .RunningStateMachine!;
+            bool running = State == LadsFunctionalStateValue.Running;
+            bool providerAvailable = IsEnabled && Unit.FunctionProvider is ILadsControlFunctionRunningProvider;
+            if (node.CurrentState != null)
+            {
+                node.CurrentState.StatusCode = running ? StatusCodes.Good : StatusCodes.BadStateNotActive;
+                if (node.CurrentState.Id != null)
+                {
+                    node.CurrentState.Id.StatusCode = node.CurrentState.StatusCode;
+                }
+                node.CurrentState.ClearChangeMasks(Runtime.Context, true);
+            }
+            Set(node.Hold, running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Holding));
+            Set(node.Unhold,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unholding));
+            Set(node.Suspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Suspending));
+            Set(node.Unsuspend,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Unsuspending));
+            Set(
+                node.ToComplete,
+                running && providerAvailable && m_running.CanTransitionTo(LadsRunningStateValue.Completing));
+            Set(node.Reset, running && IsEnabled && m_running.Current == LadsRunningStateValue.Complete);
+
+            void Set(MethodState? method, bool executable)
+            {
+                if (method != null)
+                {
+                    method.Executable = executable;
+                    method.UserExecutable = executable;
+                    method.ClearChangeMasks(Runtime.Context, false);
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
@@ -372,11 +567,21 @@ namespace Opc.Ua.LADS.Server
                 async () =>
                 {
                     RequireEnabled();
-                    m_machine.Require(LadsFunctionalStateValue.Stopped);
+                    RequireStartable();
                     await InvokeProviderAsync(LadsFunctionCommandKind.Start, default, cancellationToken)
                         .ConfigureAwait(false);
-                    await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
-                        .ConfigureAwait(false);
+                    if (State == LadsFunctionalStateValue.Stopped)
+                    {
+                        await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
+                            .ConfigureAwait(false);
+                    }
+                    if (m_running != null)
+                    {
+                        await TransitionRunningAsync(
+                            cancellationToken,
+                            LadsRunningStateValue.Starting,
+                            LadsRunningStateValue.Execute).ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -384,6 +589,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask StopAsync(CancellationToken cancellationToken = default)
         {
+            CancelRunningCommand();
             return ExclusiveAsync(
                 async () =>
                 {
@@ -394,6 +600,7 @@ namespace Opc.Ua.LADS.Server
                         cancellationToken,
                         LadsFunctionalStateValue.Stopping,
                         LadsFunctionalStateValue.Stopped).ConfigureAwait(false);
+                    m_running?.SetState(LadsRunningStateValue.Idle);
                 },
                 cancellationToken);
         }
@@ -401,6 +608,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public ValueTask AbortAsync(CancellationToken cancellationToken = default)
         {
+            CancelRunningCommand();
             return ExclusiveAsync(
                 async () =>
                 {
@@ -411,6 +619,7 @@ namespace Opc.Ua.LADS.Server
                         cancellationToken,
                         LadsFunctionalStateValue.Aborting,
                         LadsFunctionalStateValue.Aborted).ConfigureAwait(false);
+                    m_running?.SetState(LadsRunningStateValue.Idle);
                 },
                 cancellationToken);
         }
@@ -468,14 +677,24 @@ namespace Opc.Ua.LADS.Server
                 {
                     RequireEnabled();
                     Variant target = NormalizeTarget(value);
-                    m_machine.Require(LadsFunctionalStateValue.Stopped);
+                    RequireStartable();
                     await InvokeProviderAsync(
                         LadsFunctionCommandKind.StartWithTargetValue,
                         target,
                         cancellationToken).ConfigureAwait(false);
                     ApplyTarget(target);
-                    await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
-                        .ConfigureAwait(false);
+                    if (State == LadsFunctionalStateValue.Stopped)
+                    {
+                        await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
+                            .ConfigureAwait(false);
+                    }
+                    if (m_running != null)
+                    {
+                        await TransitionRunningAsync(
+                            cancellationToken,
+                            LadsRunningStateValue.Starting,
+                            LadsRunningStateValue.Execute).ConfigureAwait(false);
+                    }
                 },
                 cancellationToken);
         }
@@ -496,7 +715,160 @@ namespace Opc.Ua.LADS.Server
             }
         }
 
+        /// <summary>
+        /// Applies an acknowledged running-state operation.
+        /// </summary>
+        private async ValueTask ChangeRunningAsync(
+            LadsRunningStateValue acting,
+            LadsRunningStateValue stable,
+            LadsRunningStateValue providerTarget,
+            CancellationToken cancellationToken)
+        {
+            CancellationTokenSource? command = null;
+            ILadsControlFunctionRunningProvider? provider = null;
+            await ExclusiveAsync(
+                async () =>
+                {
+                    lock (m_runningLock)
+                    {
+                        if (m_runningDisposed)
+                        {
+                            throw new ObjectDisposedException(nameof(LadsControlFunction));
+                        }
+                    }
+                    RequireEnabled();
+                    m_machine.Require(LadsFunctionalStateValue.Running);
+                    LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+                    if (Unit.FunctionProvider is not ILadsControlFunctionRunningProvider available)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotSupported,
+                            "Running operations are not supported by the function provider.");
+                    }
+                    provider = available;
+                    await TransitionRunningAsync(cancellationToken, acting).ConfigureAwait(false);
+                    lock (m_runningLock)
+                    {
+                        m_runningCancellation?.Cancel();
+                        command = CancellationTokenSource.CreateLinkedTokenSource(
+                            cancellationToken, Runtime.Stopping);
+                        m_runningCancellation = command;
+                        if (m_pendingRunningCommands++ == 0)
+                        {
+                            m_runningIdle = new TaskCompletionSource<bool>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                    }
+                },
+                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await m_runningGate.WaitAsync(command!.Token).ConfigureAwait(false);
+                ServiceResult acknowledgment;
+                try
+                {
+                    acknowledgment = await provider!.ChangeExecutionAsync(this, providerTarget, command.Token)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    m_runningGate.Release();
+                }
+                if (ServiceResult.IsBad(acknowledgment))
+                {
+                    throw new ServiceResultException(acknowledgment);
+                }
+                await ExclusiveAsync(
+                    async () =>
+                    {
+                        command.Token.ThrowIfCancellationRequested();
+                        m_machine.Require(LadsFunctionalStateValue.Running);
+                        RequireRunningStateMachine().Require(acting);
+                        if (acting != stable)
+                        {
+                            await TransitionRunningAsync(CancellationToken.None, stable).ConfigureAwait(false);
+                        }
+                        UpdateRunningExecutability();
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_runningLock)
+                {
+                    if (ReferenceEquals(m_runningCancellation, command))
+                    {
+                        m_runningCancellation = null;
+                    }
+                    command!.Dispose();
+                    if (--m_pendingRunningCommands == 0)
+                    {
+                        m_runningIdle!.TrySetResult(true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Cancels a pending physical operation before Stop or Abort takes the command gate.
+        /// </summary>
+        private void CancelRunningCommand()
+        {
+            lock (m_runningLock)
+            {
+                m_runningCancellation?.Cancel();
+            }
+        }
+
+        /// <summary>
+        /// Permits a first start or a new process after Complete-to-Reset.
+        /// </summary>
+        private void RequireStartable()
+        {
+            if (m_running != null && State == LadsFunctionalStateValue.Running)
+            {
+                m_running.Require(LadsRunningStateValue.Idle);
+                return;
+            }
+            m_machine.Require(LadsFunctionalStateValue.Stopped);
+        }
+
+        /// <summary>
+        /// Gets the running state machine or rejects an operation when it was not configured.
+        /// </summary>
+        private LadsStateMachine<LadsRunningStateValue> RequireRunningStateMachine()
+        {
+            return m_running ?? throw ServiceResultException.Create(
+                StatusCodes.BadNotSupported,
+                "Running operations are not configured for the function '{0}'.",
+                Path);
+        }
+
+        /// <summary>
+        /// Applies running-state transitions and rejects a vetoed transition.
+        /// </summary>
+        private async ValueTask TransitionRunningAsync(
+            CancellationToken cancellationToken,
+            params LadsRunningStateValue[] states)
+        {
+            LadsStateMachine<LadsRunningStateValue> running = RequireRunningStateMachine();
+            if (!await running.TransitionThroughAsync(cancellationToken, states).ConfigureAwait(false))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidState,
+                    "A running-state transition of the function '{0}' was vetoed.",
+                    Path);
+            }
+        }
+
         private readonly LadsStateMachine<LadsFunctionalStateValue> m_machine;
+        private readonly LadsStateMachine<LadsRunningStateValue>? m_running;
+        private readonly Lock m_runningLock = new();
+        private readonly SemaphoreSlim m_runningGate = new(1, 1);
+        private CancellationTokenSource? m_runningCancellation;
+        private TaskCompletionSource<bool>? m_runningIdle;
+        private int m_pendingRunningCommands;
+        private bool m_runningDisposed;
     }
 
     /// <summary>
@@ -512,7 +884,7 @@ namespace Opc.Ua.LADS.Server
             AnalogControlFunctionState node,
             string path,
             LadsAnalogControlOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations)
         {
             m_node = node;
             m_options = options;
@@ -764,7 +1136,7 @@ namespace Opc.Ua.LADS.Server
             MultiModeAnalogControlFunctionState node,
             string path,
             LadsMultiModeAnalogControlOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations)
         {
             if (options.Modes.Count == 0)
             {
@@ -906,7 +1278,7 @@ namespace Opc.Ua.LADS.Server
             TwoStateDiscreteControlFunctionState node,
             string path,
             LadsTwoStateDiscreteOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations)
         {
             m_current = Configure(node.CurrentValue, options);
             m_target = Configure(node.TargetValue, options);
@@ -1001,7 +1373,7 @@ namespace Opc.Ua.LADS.Server
             MultiStateDiscreteControlFunctionState node,
             string path,
             LadsMultiStateDiscreteOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations)
         {
             m_states = Validate(options);
             m_current = Configure(Runtime, node.CurrentValue, options);
@@ -1127,7 +1499,7 @@ namespace Opc.Ua.LADS.Server
             TimerControlFunctionState node,
             string path,
             LadsTimerOptions options)
-            : base(unit, node, path)
+            : base(unit, node, path, options.EnableRunningOperations)
         {
             m_node = node;
             m_options = options;

@@ -331,6 +331,12 @@ namespace Opc.Ua.LADS.Server
         ILadsFunctionalUnitBuilder Programs(Action<ILadsProgramManagerBuilder>? configure = null);
 
         /// <summary>
+        /// Enables the complete running lifecycle and the optional execution-control methods.
+        /// Program executors must implement <see cref="ILadsControlledProgramExecutor"/>.
+        /// </summary>
+        ILadsFunctionalUnitBuilder RunningOperations();
+
+        /// <summary>
         /// Adds an entry to the supported properties of the functional unit.
         /// </summary>
         /// <param name="name">The key of the property.</param>

@@ -287,8 +287,11 @@ namespace Opc.Ua.LADS.Server
         {
             get
             {
-                long started = Interlocked.Read(ref m_powerOnTimestamp);
-                return started == 0 ? TimeSpan.Zero : Runtime.TimeProvider.GetElapsedTime(started);
+                bool started = Volatile.Read(ref m_powerOnStarted);
+                return TimeSpan.FromTicks(Interlocked.Read(ref m_restoredPowerOnTicks)) +
+                    (started
+                        ? Runtime.TimeProvider.GetElapsedTime(Interlocked.Read(ref m_powerOnTimestamp))
+                        : TimeSpan.Zero);
             }
         }
 
@@ -414,6 +417,160 @@ namespace Opc.Ua.LADS.Server
             long ticks = Interlocked.Add(ref m_operationTicks, duration.Ticks);
             Runtime.Update(Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
         }
+
+        /// <inheritdoc/>
+        public async ValueTask SaveStoredDataAsync(CancellationToken cancellationToken = default)
+        {
+            await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Runtime.Store.SaveAsync(StoreIdentity, CaptureStoredData(), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                m_storeGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Commits prepared program data and optional completion counters before publishing changes.
+        /// Other device checkpoints cannot observe a partly applied program-data change.
+        /// </summary>
+        internal async ValueTask CommitProgramDataAsync(
+            LadsStoredFunctionalUnitData unit,
+            bool completed,
+            TimeSpan duration,
+            Action commit,
+            CancellationToken cancellationToken)
+        {
+            await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                LadsStoredDeviceData snapshot = CaptureStoredData(unit);
+                snapshot.OperationCycles = completed
+                    ? unchecked(snapshot.OperationCycles + 1) : snapshot.OperationCycles;
+                snapshot.OperationDurationMilliseconds += duration.TotalMilliseconds;
+                await Runtime.Store.SaveAsync(StoreIdentity, snapshot, cancellationToken).ConfigureAwait(false);
+                commit();
+                if (completed)
+                {
+                    IncrementOperationCycles();
+                }
+                AddOperationDuration(duration);
+            }
+            finally
+            {
+                m_storeGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Captures a device record, optionally substituting a prepared unit transaction.
+        /// </summary>
+        private LadsStoredDeviceData CaptureStoredData(LadsStoredFunctionalUnitData? replacement = null)
+        {
+            LadsFunctionalUnit[] units;
+            LadsMaintenanceTask[] tasks;
+            lock (m_lock)
+            {
+                units = [.. m_units];
+                tasks = [.. m_tasks];
+            }
+            var storedUnits = new List<LadsStoredFunctionalUnitData>();
+            foreach (LadsFunctionalUnit unit in units)
+            {
+                if (unit.ProgramManager is LadsProgramManager programs)
+                {
+                    storedUnits.Add(replacement != null && replacement.Name == unit.Name
+                        ? replacement
+                        : programs.CaptureStoredData());
+                }
+            }
+            var maintenance = new LadsStoredMaintenanceData[tasks.Length];
+            for (int index = 0; index < tasks.Length; index++)
+            {
+                maintenance[index] = tasks[index].CaptureStoredData();
+            }
+            return new LadsStoredDeviceData
+            {
+                Identity = StoreIdentity,
+                FunctionalUnits = storedUnits.ToArray(),
+                MaintenanceTasks = maintenance,
+                OperationCycles = OperationCycleCounter,
+                OperationDurationMilliseconds = OperationDuration.TotalMilliseconds,
+                PowerOnDurationMilliseconds = PowerOnDuration.TotalMilliseconds
+            };
+        }
+
+        /// <summary>
+        /// Restores only stored records before this device is published.
+        /// Interrupted runs remain records; no executor or hardware command is invoked.
+        /// </summary>
+        internal async ValueTask RestoreStoredDataAsync(CancellationToken cancellationToken)
+        {
+            LadsStoredDeviceData? stored = await Runtime.Store.LoadAsync(StoreIdentity, cancellationToken)
+                .ConfigureAwait(false);
+            if (stored == null)
+            {
+                return;
+            }
+            if (stored.SchemaVersion != 1 || !string.Equals(stored.Identity, StoreIdentity, StringComparison.Ordinal))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError, "The LADS store identity is invalid.");
+            }
+            Interlocked.Exchange(ref m_cycles, unchecked((int)stored.OperationCycles));
+            Interlocked.Exchange(ref m_operationTicks, TimeSpan.FromMilliseconds(
+                stored.OperationDurationMilliseconds).Ticks);
+            Interlocked.Exchange(ref m_restoredPowerOnTicks, TimeSpan.FromMilliseconds(
+                stored.PowerOnDurationMilliseconds).Ticks);
+            Runtime.Update(Counters.OperationCycleCounter, Variant.From(stored.OperationCycles));
+            Runtime.Update(Counters.OperationDuration, Variant.From(stored.OperationDurationMilliseconds));
+            ArrayOf<LadsStoredFunctionalUnitData> units = stored.FunctionalUnits;
+            for (int index = 0; index < units.Count; index++)
+            {
+                LadsStoredFunctionalUnitData data = units[index];
+                LadsFunctionalUnit? unit;
+                lock (m_lock)
+                {
+                    unit = m_units.Find(candidate => candidate.Name == data.Name);
+                }
+                if (unit == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Stored functional unit '{0}' is not configured.", data.Name);
+                }
+                await unit.EnsureProgramManager().RestoreStoredDataAsync(data, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            ArrayOf<LadsStoredMaintenanceData> tasks = stored.MaintenanceTasks;
+            for (int index = 0; index < tasks.Count; index++)
+            {
+                LadsStoredMaintenanceData data = tasks[index];
+                LadsMaintenanceTask? task;
+                lock (m_lock)
+                {
+                    task = m_tasks.Find(candidate => candidate.Name == data.Name);
+                }
+                if (task == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Stored maintenance task '{0}' is not configured.", data.Name);
+                }
+                task.RestoreStoredData(data);
+            }
+        }
+
+        /// <summary>
+        /// Gets the stable data identity independently of session namespace indexes.
+        /// </summary>
+        private string StoreIdentity => Node.Identification?.ProductInstanceUri?.Value is { Length: > 0 } uri
+            ? uri
+            : (Runtime.NamespaceUris.GetString(Runtime.InstanceNamespaceIndex) ??
+                throw new InvalidOperationException("The LADS instance namespace is not registered.")) + "#" + Name;
 
         /// <summary>
         /// Rejects a command unless the device is in the Operate state.
@@ -559,7 +716,8 @@ namespace Opc.Ua.LADS.Server
         public ValueTask StartAsync(CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Interlocked.Exchange(ref m_powerOnTimestamp, Math.Max(1, Runtime.TimeProvider.GetTimestamp()));
+            Interlocked.Exchange(ref m_powerOnTimestamp, Runtime.TimeProvider.GetTimestamp());
+            Volatile.Write(ref m_powerOnStarted, true);
             Volatile.Write(ref m_published, true);
             OperationModeMachine.SetState(InitialOperationMode);
             LadsDeviceStateValue initial = InitialDeviceState;
@@ -575,6 +733,24 @@ namespace Opc.Ua.LADS.Server
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (IsPublished)
+                {
+                    await SaveStoredDataAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Releases execution and bindings even when the final stored-data checkpoint fails.
+        /// </summary>
+        private async ValueTask DisposeCoreAsync()
         {
             LadsFunctionalUnit[] units;
             lock (m_lock)
@@ -596,6 +772,7 @@ namespace Opc.Ua.LADS.Server
             }
             Volatile.Write(ref m_published, false);
             m_gate.Dispose();
+            m_storeGate.Dispose();
         }
 
         /// <summary>
@@ -743,5 +920,8 @@ namespace Opc.Ua.LADS.Server
         private int m_cycles;
         private long m_operationTicks;
         private long m_powerOnTimestamp;
+        private bool m_powerOnStarted;
+        private long m_restoredPowerOnTicks;
+        private readonly SemaphoreSlim m_storeGate = new(1, 1);
     }
 }

@@ -57,6 +57,7 @@ namespace LadsSample.Server
                     id.Manufacturer = new LocalizedText("OPC Foundation");
                     id.Model = new LocalizedText("Shaking incubator");
                     id.SerialNumber = "SN-0001";
+                    id.ProductInstanceUri = "urn:opcfoundation.org:LadsServer:Incubator:SN-0001";
                     id.SoftwareRevision = "1.0.0";
                 })
                 .Location("Lab 1", "Site/Building A/Lab 1")
@@ -66,6 +67,7 @@ namespace LadsSample.Server
                     task.RecurrencePeriod = TimeSpan.FromDays(30);
                 })
                 .FunctionalUnit(UnitName, unit => unit
+                    .RunningOperations()
                     .AnalogControl("Temperature", options =>
                     {
                         options.EngineeringUnits = LadsUnits.Celsius;

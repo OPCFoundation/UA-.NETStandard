@@ -81,10 +81,14 @@ and a missing optional member returns a null `Variant` instead of an error.
 `HoldAsync`, `UnholdAsync`, `SuspendAsync`, `UnsuspendAsync`, `ResetAsync` and
 `ToCompleteAsync`. `StartProgramAsync` returns the device program run id,
 which `FindResultAsync` uses to locate the result after the run.
+`GetRunningMethodsAsync` returns the optional methods that exist, with their
+current executable and user-executable attributes. A snapshot is not a
+reservation to issue a physical command.
 
 `LadsFunction` exposes the methods of control functions (`StartAsync`,
 `StartAsync(targetValue)`, `StopAsync`, `AbortAsync`,
-`ModifyTargetValueByAsync`, `ResetTotalizerAsync`) and of covers
+`ModifyTargetValueByAsync`, `ResetTotalizerAsync`, plus optional running
+Hold/Unhold, Suspend/Unsuspend, ToComplete and Reset) and of covers
 (`OpenAsync`, `CloseAsync`, `LockAsync`, `UnlockAsync`, `ResetAsync`).
 `LadsDevice` calls the device state and operation mode transitions
 (`GotoOperateAsync`, `GotoProcessingAsync` and so on). The client calls
@@ -103,6 +107,9 @@ sensor, control and state variables of a function and return an
 `LadsFunctionalUnit.ObserveStateAsync` returns the state changes of the
 functional unit, and `WaitForStateAsync` completes when the state machine
 reaches the named state or throws `TimeoutException`.
+`ObserveRunningStateAsync` and `WaitForRunningStateAsync` address the running
+substate. On a server configured to retain `Complete`, wait for that substate,
+then use Reset, Stop or Abort rather than waiting for an automatic stop.
 
 ```csharp
 LadsFunction temperature = await unit.GetFunctionAsync("Temperature", ct);
