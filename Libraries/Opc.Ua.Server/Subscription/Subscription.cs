@@ -483,63 +483,7 @@ namespace Opc.Ua.Server
                 // check for monitored items.
                 if (m_publishingEnabled && Session != null)
                 {
-                    // check for monitored items that are ready to publish.
-                    LinkedListNode<IMonitoredItem> current = m_itemsToCheck.First;
-                    bool itemsTriggered = false;
-
-                    while (current != null)
-                    {
-                        LinkedListNode<IMonitoredItem> next = current.Next;
-                        IMonitoredItem monitoredItem = current.Value;
-
-                        // check if the item is ready to publish.
-                        if (monitoredItem.IsReadyToPublish || monitoredItem.IsResendData)
-                        {
-                            m_itemsToCheck.Remove(current);
-                            m_itemsToPublish.AddLast(current);
-                        }
-
-                        // update any triggered items.
-
-                        if (monitoredItem.IsReadyToTrigger &&
-                            m_itemsToTrigger.TryGetValue(
-                                current.Value.Id,
-                                out List<ITriggeredMonitoredItem> triggeredItems))
-                        {
-                            for (int ii = 0; ii < triggeredItems.Count; ii++)
-                            {
-                                if (triggeredItems[ii].SetTriggered())
-                                {
-                                    itemsTriggered = true;
-                                }
-                            }
-
-                            // clear ReadyToTrigger flag after trigger
-                            monitoredItem.IsReadyToTrigger = false;
-                        }
-
-                        current = next;
-                    }
-
-                    // need to go through the list again if items were triggered.
-                    if (itemsTriggered)
-                    {
-                        current = m_itemsToCheck.First;
-
-                        while (current != null)
-                        {
-                            LinkedListNode<IMonitoredItem> next = current.Next;
-                            IMonitoredItem monitoredItem = current.Value;
-
-                            if (monitoredItem.IsReadyToPublish)
-                            {
-                                m_itemsToCheck.Remove(current);
-                                m_itemsToPublish.AddLast(current);
-                            }
-
-                            current = next;
-                        }
-                    }
+                    CheckItemsToPublish();
 
                     if (m_itemsToPublish.Count > 0)
                     {
@@ -568,6 +512,104 @@ namespace Opc.Ua.Server
                 // do nothing.
                 return PublishingState.Idle;
             }
+        }
+
+        /// <summary>
+        /// Moves the monitored items that are ready to publish from m_itemsToCheck to
+        /// m_itemsToPublish and sets the items they trigger.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void CheckItemsToPublish()
+        {
+            bool itemsTriggered = false;
+
+            // items already waiting in m_itemsToPublish (queued by ResendData, or by a
+            // cycle without a waiting Publish request) can get new values that trigger
+            // linked items. Publishing clears the trigger flag, so set them now.
+            LinkedListNode<IMonitoredItem> current = m_itemsToPublish.First;
+
+            while (current != null)
+            {
+                if (TriggerLinkedItems(current.Value))
+                {
+                    itemsTriggered = true;
+                }
+
+                current = current.Next;
+            }
+
+            // check for monitored items that are ready to publish.
+            current = m_itemsToCheck.First;
+
+            while (current != null)
+            {
+                LinkedListNode<IMonitoredItem> next = current.Next;
+                IMonitoredItem monitoredItem = current.Value;
+
+                // check if the item is ready to publish.
+                if (monitoredItem.IsReadyToPublish || monitoredItem.IsResendData)
+                {
+                    m_itemsToCheck.Remove(current);
+                    m_itemsToPublish.AddLast(current);
+                }
+
+                // update any triggered items.
+                if (TriggerLinkedItems(monitoredItem))
+                {
+                    itemsTriggered = true;
+                }
+
+                current = next;
+            }
+
+            // need to go through the list again if items were triggered.
+            if (itemsTriggered)
+            {
+                current = m_itemsToCheck.First;
+
+                while (current != null)
+                {
+                    LinkedListNode<IMonitoredItem> next = current.Next;
+                    IMonitoredItem monitoredItem = current.Value;
+
+                    if (monitoredItem.IsReadyToPublish)
+                    {
+                        m_itemsToCheck.Remove(current);
+                        m_itemsToPublish.AddLast(current);
+                    }
+
+                    current = next;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the items linked to a triggering item that is ready to trigger.
+        /// </summary>
+        /// <returns>True if at least one linked item was triggered.</returns>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private bool TriggerLinkedItems(IMonitoredItem monitoredItem)
+        {
+            bool itemsTriggered = false;
+
+            if (monitoredItem.IsReadyToTrigger &&
+                m_itemsToTrigger.TryGetValue(
+                    monitoredItem.Id,
+                    out List<ITriggeredMonitoredItem> triggeredItems))
+            {
+                for (int ii = 0; ii < triggeredItems.Count; ii++)
+                {
+                    if (triggeredItems[ii].SetTriggered())
+                    {
+                        itemsTriggered = true;
+                    }
+                }
+
+                // clear ReadyToTrigger flag after trigger
+                monitoredItem.IsReadyToTrigger = false;
+            }
+
+            return itemsTriggered;
         }
 
         /// <summary>
@@ -636,6 +678,17 @@ namespace Opc.Ua.Server
                     .ToList())
                 {
                     monitoredItem.SetupResendDataTrigger();
+                }
+
+                // Queue the items for the next Publish response. If a publishing cycle
+                // has already moved changed items to m_itemsToPublish while no Publish
+                // request was waiting, the next request is answered from that list
+                // without another check of m_itemsToCheck, and unchanged items would
+                // miss the resent values. The regular check also sets the items that
+                // are triggered by items leaving m_itemsToCheck here.
+                if (m_publishingEnabled)
+                {
+                    CheckItemsToPublish();
                 }
             }
         }
