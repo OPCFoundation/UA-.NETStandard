@@ -90,10 +90,12 @@ namespace Opc.Ua.LADS.Server
             get => Volatile.Read(ref m_enabled);
             set
             {
-                Unit.Device.RequireStorageHealthy();
-                Volatile.Write(ref m_enabled, value);
-                Runtime.Update(Node.IsEnabled, Variant.From(value));
-                (this as LadsControlFunction)?.UpdateRunningExecutability();
+                Unit.Device.ApplyMutation(() =>
+                {
+                    Volatile.Write(ref m_enabled, value);
+                    Runtime.Update(Node.IsEnabled, Variant.From(value));
+                    (this as LadsControlFunction)?.UpdateRunningExecutability();
+                });
             }
         }
 
@@ -369,7 +371,8 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Functional,
-                LadsFunctionalStateValue.Stopped);
+                LadsFunctionalStateValue.Stopped,
+                Unit.Device.ApplyMutation);
             m_machine.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -396,7 +399,8 @@ namespace Opc.Ua.LADS.Server
                     runningNode,
                     context,
                     LadsStateMaps.Running,
-                    LadsRunningStateValue.Idle);
+                    LadsRunningStateValue.Idle,
+                    Unit.Device.ApplyMutation);
                 m_running.StateChanged += _ => UpdateRunningExecutability();
                 Runtime.Bind(runningNode.Hold, (_, ct) => HoldAsync(ct));
                 Runtime.Bind(runningNode.Unhold, (_, ct) => UnholdAsync(ct));
@@ -692,7 +696,7 @@ namespace Opc.Ua.LADS.Server
                     Variant target = NormalizeTarget(value);
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetTargetValue, target, cancellationToken)
                         .ConfigureAwait(false);
-                    ApplyTarget(target);
+                    Unit.Device.ApplyMutation(() => ApplyTarget(target));
                 },
                 cancellationToken);
         }
@@ -712,7 +716,7 @@ namespace Opc.Ua.LADS.Server
                         LadsFunctionCommandKind.StartWithTargetValue,
                         target,
                         cancellationToken).ConfigureAwait(false);
-                    ApplyTarget(target);
+                    Unit.Device.ApplyMutation(() => ApplyTarget(target));
                     if (State == LadsFunctionalStateValue.Stopped)
                     {
                         await TransitionAsync(cancellationToken, LadsFunctionalStateValue.Running)
@@ -1023,25 +1027,27 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
-            Unit.Device.RequireStorageHealthy();
-            double total;
-            lock (m_lock)
+            Unit.Device.ApplyMutation(() =>
             {
-                long now = Runtime.TimeProvider.GetTimestamp();
-                if (State == LadsFunctionalStateValue.Running)
+                double total;
+                lock (m_lock)
                 {
-                    m_total += m_current *
-                        Runtime.TimeProvider.GetElapsedTime(m_lastUpdate, now).TotalSeconds;
+                    long now = Runtime.TimeProvider.GetTimestamp();
+                    if (State == LadsFunctionalStateValue.Running)
+                    {
+                        m_total += m_current *
+                            Runtime.TimeProvider.GetElapsedTime(m_lastUpdate, now).TotalSeconds;
+                    }
+                    m_lastUpdate = now;
+                    m_current = value;
+                    total = m_total;
                 }
-                m_lastUpdate = now;
-                m_current = value;
-                total = m_total;
-            }
-            Runtime.Update(m_node.CurrentValue, Variant.From(value));
-            if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
-            {
-                Runtime.Update(totalizer.TotalizedValue, Variant.From(total));
-            }
+                Runtime.Update(m_node.CurrentValue, Variant.From(value));
+                if (m_node is AnalogControlFunctionWithTotalizerState totalizer)
+                {
+                    Runtime.Update(totalizer.TotalizedValue, Variant.From(total));
+                }
+            });
         }
 
         /// <inheritdoc/>
@@ -1069,7 +1075,7 @@ namespace Opc.Ua.LADS.Server
                         LadsFunctionCommandKind.ModifyTargetValueBy,
                         Variant.From(delta),
                         cancellationToken).ConfigureAwait(false);
-                    ApplyTarget(Variant.From(target));
+                    Unit.Device.ApplyMutation(() => ApplyTarget(Variant.From(target)));
                 },
                 cancellationToken);
         }
@@ -1083,14 +1089,17 @@ namespace Opc.Ua.LADS.Server
                 {
                     await InvokeProviderAsync(LadsFunctionCommandKind.ResetTotalizer, default, cancellationToken)
                         .ConfigureAwait(false);
-                    lock (m_lock)
+                    Unit.Device.ApplyMutation(() =>
                     {
-                        m_total = 0;
-                        m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
-                    }
-                    Runtime.Update(
-                        ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue,
-                        Variant.From(0.0));
+                        lock (m_lock)
+                        {
+                            m_total = 0;
+                            m_lastUpdate = Runtime.TimeProvider.GetTimestamp();
+                        }
+                        Runtime.Update(
+                            ((AnalogControlFunctionWithTotalizerState)m_node).TotalizedValue,
+                            Variant.From(0.0));
+                    });
                 },
                 cancellationToken);
         }
@@ -1109,7 +1118,7 @@ namespace Opc.Ua.LADS.Server
             }
             BaseVariableState variable = Runtime.FindChild<BaseVariableState>(composed.TargetValueSet, name) ??
                 throw ServiceResultException.Create(StatusCodes.BadNotFound, "No target value '{0}'.", name);
-            Runtime.Update(variable, Variant.From(value));
+            Unit.Device.ApplyMutation(() => Runtime.Update(variable, Variant.From(value)));
         }
 
         /// <inheritdoc/>
@@ -1235,8 +1244,11 @@ namespace Opc.Ua.LADS.Server
                     }
                     await InvokeProviderAsync(LadsFunctionCommandKind.SetMode, Variant.From(mode), cancellationToken)
                         .ConfigureAwait(false);
-                    Volatile.Write(ref m_mode, mode);
-                    Runtime.Update(m_node.CurrentMode, Variant.From(mode));
+                    Unit.Device.ApplyMutation(() =>
+                    {
+                        Volatile.Write(ref m_mode, mode);
+                        Runtime.Update(m_node.CurrentMode, Variant.From(mode));
+                    });
                 },
                 cancellationToken);
         }
@@ -1253,14 +1265,13 @@ namespace Opc.Ua.LADS.Server
         {
             Unit.Device.RequireStorageHealthy();
             CheckRange(m_options.Range, value);
-            Runtime.Update(Find(mode).TargetValue, Variant.From(value));
+            Unit.Device.ApplyMutation(() => Runtime.Update(Find(mode).TargetValue, Variant.From(value)));
         }
 
         /// <inheritdoc/>
         public void UpdateCurrentValue(string mode, double value)
         {
-            Unit.Device.RequireStorageHealthy();
-            Runtime.Update(Find(mode).CurrentValue, Variant.From(value));
+            Unit.Device.ApplyMutation(() => Runtime.Update(Find(mode).CurrentValue, Variant.From(value)));
         }
 
         /// <inheritdoc/>
@@ -1331,9 +1342,11 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(bool value)
         {
-            Unit.Device.RequireStorageHealthy();
-            Volatile.Write(ref m_currentValue, value);
-            Runtime.Update(m_current, Variant.From(value));
+            Unit.Device.ApplyMutation(() =>
+            {
+                Volatile.Write(ref m_currentValue, value);
+                Runtime.Update(m_current, Variant.From(value));
+            });
         }
 
         /// <inheritdoc/>
@@ -1428,10 +1441,12 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(uint value)
         {
-            Unit.Device.RequireStorageHealthy();
-            Check(m_states, value);
-            Volatile.Write(ref m_currentValue, value);
-            Runtime.Update(m_current, Variant.From(value));
+            Unit.Device.ApplyMutation(() =>
+            {
+                Check(m_states, value);
+                Volatile.Write(ref m_currentValue, value);
+                Runtime.Update(m_current, Variant.From(value));
+            });
         }
 
         /// <inheritdoc/>
@@ -1588,12 +1603,14 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
-            Unit.Device.RequireStorageHealthy();
-            lock (m_lock)
+            Unit.Device.ApplyMutation(() =>
             {
-                m_current = value;
-            }
-            Publish();
+                lock (m_lock)
+                {
+                    m_current = value;
+                }
+                Publish();
+            });
         }
 
         /// <inheritdoc/>

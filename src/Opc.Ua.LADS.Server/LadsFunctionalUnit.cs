@@ -60,12 +60,14 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Functional,
-                LadsFunctionalStateValue.Stopped);
+                LadsFunctionalStateValue.Stopped,
+                Device.ApplyMutation);
             Running = new LadsStateMachine<LadsRunningStateValue>(
                 stateMachine.RunningStateMachine!,
                 context,
                 LadsStateMaps.Running,
-                LadsRunningStateValue.Idle);
+                LadsRunningStateValue.Idle,
+                Device.ApplyMutation);
             Functional.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -249,6 +251,7 @@ namespace Opc.Ua.LADS.Server
             await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Functional.Require(LadsFunctionalStateValue.Aborted);
                 await TransitionAsync(
                     Functional,

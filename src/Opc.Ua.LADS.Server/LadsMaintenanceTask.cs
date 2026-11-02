@@ -76,7 +76,8 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Maintenance,
-                LadsMaintenanceStateValue.Planned);
+                LadsMaintenanceStateValue.Planned,
+                Device.ApplyMutation);
             Machine.StateChanged += state =>
             {
                 Runtime.Logger.MaintenanceStateChanged(Device.Name, Name, state);
@@ -182,10 +183,14 @@ namespace Opc.Ua.LADS.Server
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Planned);
                 await AskProviderAsync(LadsMaintenanceCommand.Start, cancellationToken).ConfigureAwait(false);
-                Transition(LadsMaintenanceStateValue.Executing);
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                Device.ApplyMutation(() =>
+                {
+                    Transition(LadsMaintenanceStateValue.Executing);
+                    ApplyCondition(Runtime.Context, active: true, message: default);
+                });
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -204,17 +209,21 @@ namespace Opc.Ua.LADS.Server
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Executing);
                 await AskProviderAsync(LadsMaintenanceCommand.Stop, cancellationToken).ConfigureAwait(false);
-                DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
-                lock (m_lock)
+                Device.ApplyMutation(() =>
                 {
-                    m_lastExecution = now;
-                    m_lastResult = result;
-                }
-                Runtime.Update(Node.LastExecutionDate, Variant.From(now));
-                Transition(LadsMaintenanceStateValue.Finished);
-                ApplyCondition(Runtime.Context, active: false, comment);
+                    DateTimeUtc now = Runtime.TimeProvider.GetUtcNow();
+                    lock (m_lock)
+                    {
+                        m_lastExecution = now;
+                        m_lastResult = result;
+                    }
+                    Runtime.Update(Node.LastExecutionDate, Variant.From(now));
+                    Transition(LadsMaintenanceStateValue.Finished);
+                    ApplyCondition(Runtime.Context, active: false, comment);
+                });
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -230,15 +239,19 @@ namespace Opc.Ua.LADS.Server
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                Device.RequireStorageHealthy();
                 Machine.Require(LadsMaintenanceStateValue.Finished);
                 await AskProviderAsync(LadsMaintenanceCommand.Reset, cancellationToken).ConfigureAwait(false);
-                if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                Device.ApplyMutation(() =>
                 {
-                    DateTime next = LastExecutionDate.ToDateTime() + recurrence;
-                    Runtime.Update(Node.PlannedDate, Variant.From((DateTimeUtc)next));
-                }
-                Transition(LadsMaintenanceStateValue.Planned);
-                ApplyCondition(Runtime.Context, active: true, message: default);
+                    if (m_options.RecurrencePeriod is TimeSpan recurrence && Node.PlannedDate != null)
+                    {
+                        DateTime next = LastExecutionDate.ToDateTime() + recurrence;
+                        Runtime.Update(Node.PlannedDate, Variant.From((DateTimeUtc)next));
+                    }
+                    Transition(LadsMaintenanceStateValue.Planned);
+                    ApplyCondition(Runtime.Context, active: true, message: default);
+                });
                 await Device.SaveStoredDataAsync(cancellationToken).ConfigureAwait(false);
             }
             finally

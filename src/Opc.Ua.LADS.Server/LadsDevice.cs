@@ -67,7 +67,8 @@ namespace Opc.Ua.LADS.Server
                 deviceState,
                 context,
                 LadsStateMaps.Device,
-                LadsDeviceStateValue.Initialization);
+                LadsDeviceStateValue.Initialization,
+                ApplyMutation);
             DeviceState.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -96,7 +97,8 @@ namespace Opc.Ua.LADS.Server
                 itemState,
                 context,
                 LadsStateMaps.ItemState,
-                MachineryItemStateValue.NotAvailable);
+                MachineryItemStateValue.NotAvailable,
+                ApplyMutation);
 
             LADSOperationModeStateMachineState operationMode = AddBlock(
                 blocks,
@@ -109,7 +111,8 @@ namespace Opc.Ua.LADS.Server
                 operationMode,
                 context,
                 LadsStateMaps.OperationMode,
-                MachineryOperationModeValue.None);
+                MachineryOperationModeValue.None,
+                ApplyMutation);
             OperationModeMachine.StateChanged += mode =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))
@@ -368,6 +371,7 @@ namespace Opc.Ua.LADS.Server
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                RequireStorageHealthy();
                 if (OperationModeMachine.Current == mode)
                 {
                     return;
@@ -384,6 +388,7 @@ namespace Opc.Ua.LADS.Server
                 ServiceResult result = await Provider
                     .OnOperationModeChangingAsync(this, mode, cancellationToken)
                     .ConfigureAwait(false);
+                RequireStorageHealthy();
                 Reject(result, "SetOperationMode");
                 if (!OperationModeMachine.TransitionTo(mode))
                 {
@@ -402,9 +407,11 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void IncrementOperationCycles()
         {
-            RequireStorageHealthy();
-            uint cycles = (uint)Interlocked.Increment(ref m_cycles);
-            Runtime.Update(Counters.OperationCycleCounter, Variant.From(cycles));
+            ApplyMutation(() =>
+            {
+                uint cycles = (uint)Interlocked.Increment(ref m_cycles);
+                Runtime.Update(Counters.OperationCycleCounter, Variant.From(cycles));
+            });
         }
 
         /// <summary>
@@ -412,13 +419,15 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public void AddOperationDuration(TimeSpan duration)
         {
-            RequireStorageHealthy();
-            if (duration <= TimeSpan.Zero)
+            ApplyMutation(() =>
             {
-                return;
-            }
-            long ticks = Interlocked.Add(ref m_operationTicks, duration.Ticks);
-            Runtime.Update(Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
+                if (duration <= TimeSpan.Zero)
+                {
+                    return;
+                }
+                long ticks = Interlocked.Add(ref m_operationTicks, duration.Ticks);
+                Runtime.Update(Counters.OperationDuration, Variant.From(TimeSpan.FromTicks(ticks).TotalMilliseconds));
+            });
         }
 
         /// <inheritdoc/>
@@ -492,19 +501,7 @@ namespace Opc.Ua.LADS.Server
                     }
                     if (failures.Count > 1)
                     {
-                        Volatile.Write(ref m_storageFailure, new AggregateException(failures));
-                        try
-                        {
-                            DeviceState.SetState(LadsDeviceStateValue.Shutdown);
-                        }
-                        catch (Exception stateFailure)
-                        {
-                            failures.Add(stateFailure);
-                        }
-                        var failure = new AggregateException(
-                            "LADS publication compensation failed; the device requires restart.", failures);
-                        Volatile.Write(ref m_storageFailure, failure);
-                        throw failure;
+                        throw Quarantine(failures);
                     }
                     throw;
                 }
@@ -655,6 +652,32 @@ namespace Opc.Ua.LADS.Server
             {
                 throw new InvalidOperationException(
                     "The LADS device requires restart after a failed stored-data transaction.", failure);
+            }
+        }
+
+        /// <summary>
+        /// Orders a synchronous mutation against quarantine without holding admission across provider awaits.
+        /// </summary>
+        internal void ApplyMutation(Action mutation)
+        {
+            lock (m_mutationLock)
+            {
+                RequireStorageHealthy();
+                mutation();
+            }
+        }
+
+        /// <summary>
+        /// Marks a failed execution only while state writes remain admitted; quarantined cleanup still drains.
+        /// </summary>
+        internal void RecordExecutionFailure(LadsFunctionalUnit unit)
+        {
+            lock (m_mutationLock)
+            {
+                if (m_storageFailure == null)
+                {
+                    unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+                }
             }
         }
 
@@ -913,6 +936,7 @@ namespace Opc.Ua.LADS.Server
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                RequireStorageHealthy();
                 if (!DeviceState.CanTransitionTo(target))
                 {
                     throw ServiceResultException.Create(
@@ -941,6 +965,7 @@ namespace Opc.Ua.LADS.Server
                 ServiceResult result = await Provider
                     .OnDeviceStateChangingAsync(this, target, cancellationToken)
                     .ConfigureAwait(false);
+                RequireStorageHealthy();
                 Reject(result, "Goto" + target);
                 if (!DeviceState.TransitionTo(target))
                 {
@@ -953,6 +978,37 @@ namespace Opc.Ua.LADS.Server
             finally
             {
                 m_gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Publishes shutdown and the retained failure before any later mutation can be admitted.
+        /// </summary>
+        private AggregateException Quarantine(List<Exception> failures)
+        {
+            lock (m_mutationLock)
+            {
+                Volatile.Write(ref m_storageFailure, new AggregateException(failures));
+                try
+                {
+                    ItemStateMachine.SetQuarantinedState(MachineryItemStateValue.OutOfService);
+                }
+                catch (Exception stateFailure)
+                {
+                    failures.Add(stateFailure);
+                }
+                try
+                {
+                    DeviceState.SetQuarantinedState(LadsDeviceStateValue.Shutdown);
+                }
+                catch (Exception stateFailure)
+                {
+                    failures.Add(stateFailure);
+                }
+                var failure = new AggregateException(
+                    "LADS publication compensation failed; the device requires restart.", failures);
+                Volatile.Write(ref m_storageFailure, failure);
+                return failure;
             }
         }
 
@@ -994,17 +1050,17 @@ namespace Opc.Ua.LADS.Server
                     target = MachineryItemStateValue.NotAvailable;
                     break;
             }
-            lock (m_itemLock)
+            if (ItemStateMachine.Current == target)
             {
-                if (ItemStateMachine.Current == target)
-                {
-                    return;
-                }
+                return;
+            }
+            ApplyMutation(() =>
+            {
                 if (!ItemStateMachine.CanTransitionTo(target) || !ItemStateMachine.TransitionTo(target))
                 {
                     ItemStateMachine.SetState(target);
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -1041,7 +1097,8 @@ namespace Opc.Ua.LADS.Server
         }
 
         private readonly Lock m_lock = new();
-        private readonly Lock m_itemLock = new();
+        /// <summary>Orders local writes and the transition to an unusable device.</summary>
+        private readonly Lock m_mutationLock = new();
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly List<LadsFunctionalUnit> m_units = [];
         private readonly List<LadsMaintenanceTask> m_tasks = [];

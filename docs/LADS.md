@@ -526,7 +526,10 @@ indexes and session NodeIds are not storage keys. Keep this identity stable
 across restarts and use a distinct identity for each physical device.
 Registration reserves the key before any load or save and rejects a second
 device using the same key, including a configured URI equal to another device's
-namespace-and-name fallback. A failed registration releases that reservation.
+namespace-and-name fallback. A failed registration releases its name and storage
+key only after its registered nodes have been removed. If cleanup leaves any
+node registered, both reservations remain held until the runtime is restarted;
+a different device cannot adopt the orphaned nodes or overwrite their snapshot.
 The key is fixed for the registered device's lifetime; changing its
 identification node does not move its stored data.
 The file provider hashes it for the file name and stores a bounded, versioned
@@ -552,7 +555,8 @@ and retention pruning save a prepared snapshot, update the address space, then
 commit their in-memory records and counters. The device keeps other checkpoints
 and program-data transactions excluded until publication or compensation
 finishes. If node registration or removal throws, the runtime restores the
-previous nodes and snapshot before reporting the original error; a retry can
+previous nodes, including generated child slots and result-file methods, and
+snapshot before reporting the original error; a retry can
 then repeat the operation without a duplicate template or missing result file.
 Removed file bindings are released only after the removal commits.
 
@@ -563,6 +567,13 @@ the last snapshot the provider successfully retained and rebuilds its nodes;
 the failed call does not establish whether the new or previous snapshot remains
 durable. A file-binding cleanup error after committed removal is reported
 without reversing the removal.
+Quarantine and local state/value writes share one device-private admission.
+Commands already waiting for their command gate recheck the device on entry;
+a provider acknowledgement or transition guard returning after quarantine
+cannot commit another local write. Asynchronous provider calls run outside
+that admission, so a delayed hardware callback does not prevent another unit's
+failed transaction from quarantining the device. The runtime cannot reverse
+physical actions a provider has already performed.
 
 Before calling an executor, the runtime stores its run id as an interrupted-run
 marker. Completion replaces that marker with the result in one snapshot.
@@ -583,6 +594,9 @@ Checkpoint and cleanup errors are preserved together. Cleanup still attempts
 every functional unit, result file and maintenance task, and releases owned
 gates when an earlier owner fails. Repeated disposal observes the same completion
 or error without attempting those releases again.
+Cleanup still cancels and drains an active executor on a quarantined device,
+but does not rewrite its unit state or checkpoint its interrupted execution.
+Recovery uses the interruption record retained before execution began.
 If maintenance hardware has already acknowledged an action when its checkpoint
 fails, the storage error is reported without reversing the physical action.
 Inspect the equipment state before retrying that command.

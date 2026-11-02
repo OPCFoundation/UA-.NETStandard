@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -282,7 +283,10 @@ namespace Opc.Ua.LADS.Server
         {
             lock (m_lock)
             {
-                m_reservedNames.Remove(name);
+                if (!m_orphanedNames.Contains(name))
+                {
+                    m_reservedNames.Remove(name);
+                }
             }
         }
 
@@ -295,7 +299,9 @@ namespace Opc.Ua.LADS.Server
             await m_registrationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             bool reserved = false;
             bool registered = false;
+            bool orphaned = false;
             NodeState? attachedParent = null;
+            List<NodeState>? registrationNodes = null;
             try
             {
                 ThrowIfDisposed();
@@ -313,6 +319,7 @@ namespace Opc.Ua.LADS.Server
                 deviceSet.AddChild(node);
                 attachedParent = deviceSet;
                 node.EventNotifier |= EventNotifiers.SubscribeToEvents;
+                registrationNodes = CaptureSubtree(node);
                 await m_nodeOperations.AddAsync(Manager, node, cancellationToken).ConfigureAwait(false);
                 device.OrganizeOperationalGroups();
                 await Manager.RegisterRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
@@ -344,6 +351,15 @@ namespace Opc.Ua.LADS.Server
                     {
                         failures.Add(cleanupFailure);
                     }
+                    orphaned = registrationNodes != null && registrationNodes.Any(candidate =>
+                        ReferenceEquals(Manager.FindPredefinedNode(candidate.NodeId), candidate));
+                    if (orphaned)
+                    {
+                        lock (m_lock)
+                        {
+                            m_orphanedNames.Add(device.Name);
+                        }
+                    }
                 }
                 try
                 {
@@ -361,7 +377,7 @@ namespace Opc.Ua.LADS.Server
             }
             finally
             {
-                if (reserved && !registered)
+                if (reserved && !registered && !orphaned)
                 {
                     m_storageIdentities.Remove(device.StoreIdentity);
                 }
@@ -386,7 +402,8 @@ namespace Opc.Ua.LADS.Server
             {
                 parent.AddChild(child);
             }
-            if (!ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+            if (CaptureSubtree(child).Any(candidate =>
+                !ReferenceEquals(Manager.FindPredefinedNode(candidate.NodeId), candidate)))
             {
                 await m_nodeOperations.AddAsync(Manager, child, cancellationToken).ConfigureAwait(false);
             }
@@ -452,11 +469,55 @@ namespace Opc.Ua.LADS.Server
             BaseInstanceState child,
             CancellationToken cancellationToken)
         {
-            if (ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+            var containment = new List<(NodeState Parent, BaseInstanceState[] Children)>();
+            foreach (NodeState node in CaptureSubtree(child))
             {
-                await m_nodeOperations.RemoveAsync(Manager, child, cancellationToken).ConfigureAwait(false);
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(Context, children);
+                containment.Add((node, children.ToArray()));
             }
-            parent.RemoveChild(child);
+            Exception? removalFailure = null;
+            try
+            {
+                if (ReferenceEquals(Manager.FindPredefinedNode(child.NodeId), child))
+                {
+                    await m_nodeOperations.RemoveAsync(Manager, child, cancellationToken).ConfigureAwait(false);
+                }
+                parent.RemoveChild(child);
+            }
+            catch (Exception failure)
+            {
+                removalFailure = failure;
+            }
+            // Deletion clears generated child slots as well as ordinary containment.
+            // Keep the detached object complete so compensation can register the same handles.
+            var failures = new List<Exception>();
+            foreach ((NodeState owner, BaseInstanceState[] children) in containment)
+            {
+                foreach (BaseInstanceState descendant in children)
+                {
+                    try
+                    {
+                        owner.ReplaceChild(Context, descendant);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
+            if (failures.Count > 0)
+            {
+                if (removalFailure != null)
+                {
+                    failures.Insert(0, removalFailure);
+                }
+                throw new AggregateException("The detached LADS subtree could not be retained.", failures);
+            }
+            if (removalFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(removalFailure).Throw();
+            }
         }
 
         /// <summary>
@@ -659,6 +720,21 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Captures the handles of a subtree before registration or destructive removal.
+        /// </summary>
+        private List<NodeState> CaptureSubtree(NodeState root)
+        {
+            var nodes = new List<NodeState> { root };
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                var children = new List<BaseInstanceState>();
+                nodes[index].GetChildren(Context, children);
+                nodes.AddRange(children);
+            }
+            return nodes;
+        }
+
+        /// <summary>
         /// Rejects use after the runtime was released.
         /// </summary>
         private void ThrowIfDisposed()
@@ -674,6 +750,8 @@ namespace Opc.Ua.LADS.Server
         private readonly SemaphoreSlim m_registrationGate = new(1, 1);
         private readonly CancellationTokenSource m_stopping = new();
         private readonly HashSet<string> m_reservedNames = new(StringComparer.Ordinal);
+        /// <summary>The names retained while failed registrations still have indexed nodes.</summary>
+        private readonly HashSet<string> m_orphanedNames = new(StringComparer.Ordinal);
         /// <summary>The stored-data keys reserved by registering or published devices.</summary>
         private readonly HashSet<string> m_storageIdentities = new(StringComparer.Ordinal);
         /// <summary>The dynamic node registration and deletion dispatcher.</summary>

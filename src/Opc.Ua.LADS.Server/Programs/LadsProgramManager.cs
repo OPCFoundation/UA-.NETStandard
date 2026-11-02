@@ -405,26 +405,55 @@ namespace Opc.Ua.LADS.Server
                             m_storedInterruptedRunId = runId;
                         }
                     }, cancellationToken).ConfigureAwait(false);
+                    m_unit.Device.ApplyMutation(() =>
+                    {
+                        PublishActiveProgram(run);
+                        lock (m_lock)
+                        {
+                            m_waiters[runId] = new TaskCompletionSource<ILadsResult>(
+                                TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                        Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
+                        active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
+                        lock (m_lock)
+                        {
+                            m_active = active;
+                        }
+                        m_unit.UpdateRunningExecutability();
+                    });
                 }
-                catch
+                catch (Exception startFailure)
                 {
-                    active.Cancellation.Dispose();
-                    m_unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+                    var failures = new List<Exception> { startFailure };
+                    try
+                    {
+                        if (active.Completion == null)
+                        {
+                            active.Cancellation.Dispose();
+                        }
+                        else
+                        {
+                            active.RequestEnd(LadsProgramOutcome.Aborted);
+                        }
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        failures.Add(cleanupFailure);
+                    }
+                    try
+                    {
+                        m_unit.Device.RecordExecutionFailure(m_unit);
+                    }
+                    catch (Exception stateFailure)
+                    {
+                        failures.Add(stateFailure);
+                    }
+                    if (failures.Count > 1)
+                    {
+                        throw new AggregateException("The LADS program start and cleanup failed.", failures);
+                    }
                     throw;
                 }
-                PublishActiveProgram(run);
-                lock (m_lock)
-                {
-                    m_waiters[runId] = new TaskCompletionSource<ILadsResult>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                }
-                Runtime.Logger.ProgramStarted(m_unit.Name, runId, template.Id);
-                active.Completion = Task.Run(() => ExecuteAsync(active), CancellationToken.None);
-                lock (m_lock)
-                {
-                    m_active = active;
-                }
-                m_unit.UpdateRunningExecutability();
                 return runId;
             }
             finally
@@ -849,6 +878,7 @@ namespace Opc.Ua.LADS.Server
             LadsProgramOutcome outcome;
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 await Executor.ExecuteAsync(active.Run, active.Cancellation.Token).ConfigureAwait(false);
                 if (active.Cancellation.IsCancellationRequested)
                 {
@@ -1028,7 +1058,16 @@ namespace Opc.Ua.LADS.Server
             catch (Exception ex)
             {
                 failure = ex;
-                m_unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+                try
+                {
+                    m_unit.Device.RecordExecutionFailure(m_unit);
+                }
+                catch (Exception stateFailure)
+                {
+                    var combined = new AggregateException(ex, stateFailure);
+                    failure = combined;
+                    throw combined;
+                }
                 throw;
             }
             finally
@@ -1366,17 +1405,21 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void ResetActiveProgram()
         {
-            ActiveProgramState active = Node.ActiveProgram!;
-            Runtime.Update(active.DeviceProgramRunId, Variant.From(string.Empty));
-            Runtime.Update(active.CurrentProgramTemplate, Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
-            Runtime.Update(active.EstimatedRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepNumbers, Variant.From(0u));
-            Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
-            Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
-            Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
-            Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
+            m_unit.Device.ApplyMutation(() =>
+            {
+                ActiveProgramState active = Node.ActiveProgram!;
+                Runtime.Update(active.DeviceProgramRunId, Variant.From(string.Empty));
+                Runtime.Update(active.CurrentProgramTemplate,
+                    Variant.FromStructure(new Opc.Ua.AMB.NameNodeIdDataType()));
+                Runtime.Update(active.EstimatedRuntime, Variant.From(0.0));
+                Runtime.Update(active.EstimatedStepNumbers, Variant.From(0u));
+                Runtime.Update(active.CurrentStepNumber, Variant.From(0u));
+                Runtime.Update(active.CurrentStepName, Variant.From(LocalizedText.Null));
+                Runtime.Update(active.CurrentRuntime, Variant.From(0.0));
+                Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
+                Runtime.Update(active.EstimatedStepRuntime, Variant.From(0.0));
+                Runtime.Update(active.CurrentPauseTime, Variant.From(0.0));
+            });
         }
 
         /// <summary>
@@ -1384,22 +1427,24 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private void OnStep(LadsProgramRun? run, uint number, string name)
         {
-            ActiveProgramState active = Node.ActiveProgram!;
-            Runtime.Update(active.CurrentStepNumber, Variant.From(number));
-            Runtime.Update(active.CurrentStepName, Variant.From(new LocalizedText(name)));
-            Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
-            if (run != null)
+            m_unit.Device.ApplyMutation(() =>
             {
-                int index = (int)number - 1;
-                ArrayOf<LadsProgramStep> steps = run.Template.Steps;
-                if (index >= 0 && index < steps.Count)
+                ActiveProgramState active = Node.ActiveProgram!;
+                Runtime.Update(active.CurrentStepNumber, Variant.From(number));
+                Runtime.Update(active.CurrentStepName, Variant.From(new LocalizedText(name)));
+                Runtime.Update(active.CurrentStepRuntime, Variant.From(0.0));
+                if (run != null)
                 {
-                    Runtime.Update(active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
+                    int index = (int)number - 1;
+                    ArrayOf<LadsProgramStep> steps = run.Template.Steps;
+                    if (index >= 0 && index < steps.Count)
+                    {
+                        Runtime.Update(
+                            active.EstimatedStepRuntime, Variant.From(steps[index].Duration.TotalMilliseconds));
+                    }
+                    Runtime.Update(active.CurrentRuntime, Variant.From(run.CurrentRuntime.TotalMilliseconds));
                 }
-                Runtime.Update(
-                    active.CurrentRuntime,
-                    Variant.From(run.CurrentRuntime.TotalMilliseconds));
-            }
+            });
         }
 
         /// <summary>
@@ -1407,12 +1452,16 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         internal void UpdateRuntime(LadsProgramRun run)
         {
-            Runtime.Update(
-                Node.ActiveProgram!.CurrentRuntime,
-                Variant.From(run.CurrentRuntime.TotalMilliseconds));
-            Runtime.Update(Node.ActiveProgram.CurrentPauseTime, Variant.From(run.CurrentPauseTime.TotalMilliseconds));
-            Runtime.Update(
-                Node.ActiveProgram.CurrentStepRuntime, Variant.From(run.CurrentStepRuntime.TotalMilliseconds));
+            m_unit.Device.ApplyMutation(() =>
+            {
+                Runtime.Update(
+                    Node.ActiveProgram!.CurrentRuntime,
+                    Variant.From(run.CurrentRuntime.TotalMilliseconds));
+                Runtime.Update(
+                    Node.ActiveProgram.CurrentPauseTime, Variant.From(run.CurrentPauseTime.TotalMilliseconds));
+                Runtime.Update(
+                    Node.ActiveProgram.CurrentStepRuntime, Variant.From(run.CurrentStepRuntime.TotalMilliseconds));
+            });
         }
 
         /// <summary>

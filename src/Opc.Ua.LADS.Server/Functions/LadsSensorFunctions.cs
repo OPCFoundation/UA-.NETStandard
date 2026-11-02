@@ -93,15 +93,17 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(double value, double? rawValue = null)
         {
-            Unit.Device.RequireStorageHealthy();
-            double raw = rawValue ?? value;
-            lock (m_lock)
+            Unit.Device.ApplyMutation(() =>
             {
-                m_value = value;
-                m_raw = raw;
-            }
-            Runtime.Update(m_node.SensorValue, Variant.From(value));
-            Runtime.Update(m_node.RawValue, Variant.From(raw));
+                double raw = rawValue ?? value;
+                lock (m_lock)
+                {
+                    m_value = value;
+                    m_raw = raw;
+                }
+                Runtime.Update(m_node.SensorValue, Variant.From(value));
+                Runtime.Update(m_node.RawValue, Variant.From(raw));
+            });
         }
 
         /// <inheritdoc/>
@@ -115,7 +117,7 @@ namespace Opc.Ua.LADS.Server
                     "The sensor '{0}' has no compensation value.",
                     Path);
             }
-            Runtime.Update(compensated.CompensationValue, Variant.From(value));
+            Unit.Device.ApplyMutation(() => Runtime.Update(compensated.CompensationValue, Variant.From(value)));
         }
 
         private readonly AnalogScalarSensorFunctionState m_node;
@@ -160,14 +162,16 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(ArrayOf<double> values, ArrayOf<double> rawValues = default)
         {
-            Unit.Device.RequireStorageHealthy();
-            ArrayOf<double> raw = rawValues.IsNull ? values : rawValues;
-            lock (m_lock)
+            Unit.Device.ApplyMutation(() =>
             {
-                m_values = values;
-            }
-            Runtime.Update(m_node.SensorValue, Variant.From(values));
-            Runtime.Update(m_node.RawValue, Variant.From(raw));
+                ArrayOf<double> raw = rawValues.IsNull ? values : rawValues;
+                lock (m_lock)
+                {
+                    m_values = values;
+                }
+                Runtime.Update(m_node.SensorValue, Variant.From(values));
+                Runtime.Update(m_node.RawValue, Variant.From(raw));
+            });
         }
 
         private readonly AnalogArraySensorFunctionState m_node;
@@ -200,9 +204,11 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(bool value)
         {
-            Unit.Device.RequireStorageHealthy();
-            Volatile.Write(ref m_value, value);
-            Runtime.Update(m_variable, Variant.From(value));
+            Unit.Device.ApplyMutation(() =>
+            {
+                Volatile.Write(ref m_value, value);
+                Runtime.Update(m_variable, Variant.From(value));
+            });
         }
 
         private readonly TwoStateDiscreteState? m_variable;
@@ -235,10 +241,12 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(uint value)
         {
-            Unit.Device.RequireStorageHealthy();
-            LadsMultiStateDiscreteControlFunction.Check(m_states, value);
-            Volatile.Write(ref m_value, value);
-            Runtime.Update(m_variable, Variant.From(value));
+            Unit.Device.ApplyMutation(() =>
+            {
+                LadsMultiStateDiscreteControlFunction.Check(m_states, value);
+                Volatile.Write(ref m_value, value);
+                Runtime.Update(m_variable, Variant.From(value));
+            });
         }
 
         private readonly int m_states;
@@ -308,7 +316,8 @@ namespace Opc.Ua.LADS.Server
                 stateMachine,
                 context,
                 LadsStateMaps.Cover,
-                options.InitialState);
+                options.InitialState,
+                Unit.Device.ApplyMutation);
             m_machine.StateChanged += state =>
             {
                 if (Runtime.Logger.IsEnabled(LogLevel.Debug))

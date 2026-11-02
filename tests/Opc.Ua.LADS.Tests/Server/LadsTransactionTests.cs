@@ -90,6 +90,11 @@ namespace Opc.Ua.LADS.Tests.Server
                 Is.EqualTo(remove));
             Assert.That(saved.FunctionalUnits[0].RemovedTemplateIds.Count, Is.Zero);
             AssertTemplateNode(device, programs, id, remove);
+            if (!remove)
+            {
+                Assert.That(nodes.LastAdded, Is.Not.Null);
+                AssertSubtreeRegistration(device, nodes.LastAdded!, present: false);
+            }
             if (remove)
             {
                 Assert.That(await programs.RemoveTemplateAsync(id).ConfigureAwait(false), Is.True);
@@ -154,9 +159,13 @@ namespace Opc.Ua.LADS.Tests.Server
             Opc.Ua.LADS.Client.LadsFunctionalUnit remoteUnit = await connection.ChamberAsync().ConfigureAwait(false);
             Opc.Ua.LADS.Client.LadsResult? remote = await remoteUnit.FindResultAsync(retainedId).ConfigureAwait(false);
             Assert.That(remote, Is.Not.Null);
-            ByteString downloaded = await connection.Client.ReadResultFileAsync(remote!.Files[0])
-                .ConfigureAwait(false);
-            Assert.That(downloaded.ToArray(), Is.EqualTo(retained.Files[0].Content.ToArray()));
+            Assert.That(remote!.Files.Count, Is.EqualTo(retained.Files.Count));
+            for (int index = 0; index < retained.Files.Count; index++)
+            {
+                ByteString downloaded = await connection.Client.ReadResultFileAsync(remote.Files[index])
+                    .ConfigureAwait(false);
+                Assert.That(downloaded.ToArray(), Is.EqualTo(retained.Files[index].Content.ToArray()));
+            }
             if (operation != "remove")
             {
                 await unit.ClearAsync().ConfigureAwait(false);
@@ -243,6 +252,271 @@ namespace Opc.Ua.LADS.Tests.Server
             AssertTemplateNode(recovered, recoveredPrograms, "Uncertain", storageRollback);
             await recoveredPrograms.AddTemplateAsync(Template("Recovered")).ConfigureAwait(false);
             AssertTemplateNode(recovered, recoveredPrograms, "Recovered", true);
+        }
+
+        /// <summary>
+        /// Rejects both a provider's delayed acknowledgement and the command waiting behind that provider.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QuarantineRejectsDeviceCommandsWaitingOnProviderAndGateAsync(bool modeFirst)
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            var provider = new Mock<ILadsDeviceProvider>();
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineRejectsDeviceCommandsWaitingOnProviderAndGateAsync), new FaultingStore(), nodes,
+                extra: device => device.Provider(provider.Object)).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            MachineryOperationModeValue originalMode = device.OperationMode;
+            MachineryOperationModeValue target = originalMode == MachineryOperationModeValue.Setup
+                ? MachineryOperationModeValue.Maintenance : MachineryOperationModeValue.Setup;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            async ValueTask<ServiceResult> PauseAsync()
+            {
+                Interlocked.Increment(ref calls);
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            provider.Setup(value => value.OnOperationModeChangingAsync(
+                device, target, It.IsAny<CancellationToken>())).Returns(PauseAsync);
+            provider.Setup(value => value.OnDeviceStateChangingAsync(
+                device, LadsDeviceStateValue.Sleep, It.IsAny<CancellationToken>())).Returns(PauseAsync);
+            Task first = modeFirst
+                ? device.SetOperationModeAsync(target).AsTask() : device.GotoSleepAsync().AsTask();
+            Task? queued = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                queued = modeFirst
+                    ? device.GotoSleepAsync().AsTask() : device.SetOperationModeAsync(target).AsTask();
+                Assert.That(queued.IsCompleted, Is.False);
+                await QuarantineAsync(device, nodes).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await first.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                if (queued != null)
+                {
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await queued.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                }
+            }
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+            Assert.That(device.OperationMode, Is.EqualTo(originalMode));
+        }
+
+        /// <summary>
+        /// Rejects Clear after its unit gate becomes available on an already quarantined device.
+        /// </summary>
+        [Test]
+        public async Task QuarantineRejectsClearAlreadyWaitingOnUnitGateAsync()
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            var store = new FaultingStore();
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineRejectsClearAlreadyWaitingOnUnitGateAsync), store, nodes,
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+            await unit.Gate.WaitAsync().ConfigureAwait(false);
+            Task clear = unit.ClearAsync().AsTask();
+            try
+            {
+                Assert.That(clear.IsCompleted, Is.False);
+                await QuarantineAsync(device, nodes, "Second").ConfigureAwait(false);
+            }
+            finally
+            {
+                unit.Gate.Release();
+            }
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await clear.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+        }
+
+        /// <summary>
+        /// Rejects retained values and maintenance records after their providers return into quarantine.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task QuarantineRejectsFunctionAndMaintenanceProviderCompletionAsync(bool maintenance)
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            var store = new FaultingStore();
+            var provider = new Mock<ILadsDeviceProvider>();
+            var functions = new Mock<ILadsFunctionProvider>();
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineRejectsFunctionAndMaintenanceProviderCompletionAsync), store, nodes,
+                extra: device => device.Provider(provider.Object)).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            unit.SetFunctionProvider(functions.Object);
+            IAnalogControlFunction temperature = unit.GetFunction<IAnalogControlFunction>("Temperature");
+            ILadsMaintenanceTask task = device.GetMaintenanceTask(LadsIncubator.MaintenanceName);
+            await task.StartAsync().ConfigureAwait(false);
+            double originalTarget = temperature.TargetValue;
+            DateTimeUtc originalDate = task.LastExecutionDate;
+            MaintenanceTaskResultEnum originalResult = task.LastResult;
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            async ValueTask<ServiceResult> PauseAsync()
+            {
+                entered.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return ServiceResult.Good;
+            }
+            provider.Setup(value => value.OnMaintenanceTaskAsync(
+                task, LadsMaintenanceCommand.Stop, It.IsAny<CancellationToken>())).Returns(PauseAsync);
+            functions.Setup(value => value.OnCommandAsync(
+                It.IsAny<LadsFunctionCommand>(), It.IsAny<CancellationToken>())).Returns(PauseAsync);
+            Task pending = maintenance ? task.StopAsync().AsTask()
+                : temperature.SetTargetValueAsync(originalTarget + 1).AsTask();
+            int saves = 0;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                await QuarantineAsync(device, nodes).ConfigureAwait(false);
+                saves = store.Saves;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await pending.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+            }
+            Assert.That(temperature.TargetValue, Is.EqualTo(originalTarget));
+            Assert.That(task.State, Is.EqualTo(LadsMaintenanceStateValue.Executing));
+            Assert.That(task.LastExecutionDate, Is.EqualTo(originalDate));
+            Assert.That(task.LastResult, Is.EqualTo(originalResult));
+            Assert.That(store.Saves, Is.EqualTo(saves));
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+        }
+
+        /// <summary>
+        /// Orders the actual state write after a synchronous transition guard against quarantine.
+        /// </summary>
+        [TestCase("device")]
+        [TestCase("mode")]
+        [TestCase("clear")]
+        public async Task QuarantineRejectsStateCommitAfterTransitionGuardAsync(string command)
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantineRejectsStateCommitAfterTransitionGuardAsync), new FaultingStore(), nodes,
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            unit.Functional.SetState(LadsFunctionalStateValue.Aborted);
+            MachineryOperationModeValue originalMode = device.OperationMode;
+            MachineryOperationModeValue target = originalMode == MachineryOperationModeValue.Setup
+                ? MachineryOperationModeValue.Maintenance : MachineryOperationModeValue.Setup;
+            FiniteStateMachineState machine = command switch
+            {
+                "mode" => device.OperationModeMachine.Driver.StateMachine,
+                "clear" => unit.Functional.Driver.StateMachine,
+                _ => device.DeviceState.Driver.StateMachine
+            };
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim();
+            machine.OnBeforeTransition = (_, _, _, _, _, _) =>
+            {
+                entered.TrySetResult(true);
+                if (!release.Wait(TimeSpan.FromSeconds(30)))
+                {
+                    throw new TimeoutException("The transition guard was not released.");
+                }
+                return ServiceResult.Good;
+            };
+            Task pending = Task.Run(async () =>
+            {
+                switch (command)
+                {
+                    case "mode":
+                        await device.SetOperationModeAsync(target).ConfigureAwait(false);
+                        break;
+                    case "clear":
+                        await unit.ClearAsync().ConfigureAwait(false);
+                        break;
+                    default:
+                        await device.GotoSleepAsync().ConfigureAwait(false);
+                        break;
+                }
+            });
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                await QuarantineAsync(device, nodes, "Second").ConfigureAwait(false);
+            }
+            finally
+            {
+                release.Set();
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await pending.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+                machine.OnBeforeTransition = null;
+            }
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+            Assert.That(device.OperationMode, Is.EqualTo(originalMode));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+        }
+
+        /// <summary>
+        /// Drains owned execution during disposal without rewriting a quarantined unit's state.
+        /// </summary>
+        [Test]
+        public async Task QuarantinedShutdownStillCancelsAndDrainsActiveExecutionAsync()
+        {
+            var nodes = new FaultingNodeOperations { FailAfterChange = true, FailRemovalBeforeChange = true };
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var executor = new Mock<ILadsProgramExecutor>();
+            executor.Setup(value => value.ExecuteAsync(It.IsAny<LadsProgramRun>(), It.IsAny<CancellationToken>()))
+                .Returns(async (LadsProgramRun _, CancellationToken cancellationToken) =>
+                {
+                    entered.TrySetResult(true);
+                    try
+                    {
+                        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        cancelled.TrySetResult(true);
+                        throw;
+                    }
+                });
+            await using LadsHostedServer server = await StartAsync(
+                nameof(QuarantinedShutdownStillCancelsAndDrainsActiveExecutionAsync), new FaultingStore(), nodes,
+                compose: builder => builder.Services.AddSingleton(executor.Object),
+                extra: device => device.FunctionalUnit("Second", unit => unit.Programs(_ => { })))
+                .ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            var unit = (LadsFunctionalUnit)device.GetFunctionalUnit(LadsIncubator.UnitName);
+            string id = await unit.Programs!.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            Task<ILadsResult> result = unit.Programs.WaitForResultAsync(id).AsTask();
+            await QuarantineAsync(device, nodes, "Second").ConfigureAwait(false);
+            await Assert.ThrowsAsync<AggregateException>(async () =>
+                await device.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await result.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Running));
+            foreach (ILadsFunctionalUnit owned in device.FunctionalUnits.ToArray())
+            {
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await ((LadsFunctionalUnit)owned).Gate.WaitAsync().ConfigureAwait(false));
+            }
         }
 
         /// <summary>
@@ -387,6 +661,56 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Retains both reservations when add registered nodes but cleanup failed before deleting them.
+        /// </summary>
+        [Test]
+        public async Task FailedRegistrationWithOrphanedNodesRetainsNameAndStorageIdentityAsync()
+        {
+            var store = new FaultingStore();
+            var nodes = new FaultingNodeOperations
+            {
+                FailAfterChange = true,
+                FailRemovalBeforeChange = true
+            };
+            ILadsSetupContext? setup = null;
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(FailedRegistrationWithOrphanedNodesRetainsNameAndStorageIdentityAsync),
+                builder =>
+                {
+                    builder.Services.AddSingleton<ILadsNodeOperations>(nodes);
+                    builder.AddLads(options => options.Store = store).ConfigureLads(context =>
+                    {
+                        setup = context;
+                        LadsIncubator.Configure(context);
+                    });
+                }).ConfigureAwait(false);
+            nodes.FailNextAdd = true;
+            nodes.FailNextRemove = true;
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await setup!.AddDeviceAsync("Orphan", device => device.Identification(id =>
+                    id.ProductInstanceUri = "urn:tests:lads:orphan")).ConfigureAwait(false));
+            Assert.That(failure!.Flatten().InnerExceptions.Select(error => error.Message),
+                Does.Contain("Node add failed.").And.Contain("Node remove failed."));
+            Assert.That(nodes.LastAdded, Is.Not.Null);
+            var first = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            Assert.That(first.Runtime.Manager.FindPredefinedNode(nodes.LastAdded!.NodeId),
+                Is.SameAs(nodes.LastAdded));
+            int loads = store.Loads;
+            int saves = store.Saves;
+            ServiceResultException? duplicateName = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await setup!.AddDeviceAsync("Orphan", _ => { }).ConfigureAwait(false));
+            Assert.That(duplicateName!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
+            ServiceResultException? duplicateIdentity = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await setup!.AddDeviceAsync("Different", device => device.Identification(id =>
+                    id.ProductInstanceUri = "urn:tests:lads:orphan")).ConfigureAwait(false));
+            Assert.That(duplicateIdentity!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(store.Loads, Is.EqualTo(loads));
+            Assert.That(store.Saves, Is.EqualTo(saves));
+            ILadsDevice independent = await setup!.AddDeviceAsync("Different", _ => { }).ConfigureAwait(false);
+            Assert.That(independent.Name, Is.EqualTo("Different"));
+        }
+
+        /// <summary>
         /// Reports checkpoint and disposal failures while attempting every remaining owner exactly once.
         /// </summary>
         [Test]
@@ -498,6 +822,22 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Leaves a registered template behind when compensating a real node add failure.
+        /// </summary>
+        private static async Task QuarantineAsync(
+            LadsDevice device, FaultingNodeOperations nodes, string unitName = LadsIncubator.UnitName)
+        {
+            nodes.FailNextAdd = true;
+            nodes.FailNextRemove = true;
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await device.GetFunctionalUnit(unitName).Programs!.AddTemplateAsync(Template("Uncertain"))
+                    .ConfigureAwait(false));
+            Assert.That(failure!.Flatten().InnerExceptions.Select(error => error.Message),
+                Does.Contain("Node add failed.").And.Contain("Node remove failed."));
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
+        }
+
+        /// <summary>
         /// Checks both browse containment and node-manager registration.
         /// </summary>
         private static void AssertTemplateNode(
@@ -509,8 +849,30 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(matches.Length, Is.EqualTo(present ? 1 : 0));
             if (present)
             {
-                Assert.That(device.Runtime.Manager.FindPredefinedNode(matches[0].NodeId), Is.SameAs(matches[0]));
+                AssertSubtreeRegistration(device, matches[0], present: true);
             }
+        }
+
+        /// <summary>
+        /// Checks every generated slot, dynamic child and native node index of the retained handles.
+        /// </summary>
+        private static void AssertSubtreeRegistration(LadsDevice device, NodeState root, bool present)
+        {
+            var nodes = new List<NodeState> { root };
+            for (int index = 0; index < nodes.Count; index++)
+            {
+                NodeState node = nodes[index];
+                NodeState? indexed = device.Runtime.Manager.FindPredefinedNode(node.NodeId);
+                Assert.That(ReferenceEquals(indexed, node), Is.EqualTo(present), node.BrowseName.ToString());
+                var children = new List<BaseInstanceState>();
+                node.GetChildren(device.Runtime.Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    Assert.That(child.Parent, Is.SameAs(node));
+                }
+                nodes.AddRange(children);
+            }
+            Assert.That(nodes.Count, Is.GreaterThan(1));
         }
 
         /// <summary>
@@ -614,6 +976,11 @@ namespace Opc.Ua.LADS.Tests.Server
         private sealed class FaultingNodeOperations : ILadsNodeOperations
         {
             /// <summary>
+            /// Gets the last subtree passed to the actual registration path.
+            /// </summary>
+            public BaseInstanceState? LastAdded { get; private set; }
+
+            /// <summary>
             /// Gets or sets whether to fail the next add.
             /// </summary>
             public bool FailNextAdd { get; set; }
@@ -654,6 +1021,7 @@ namespace Opc.Ua.LADS.Tests.Server
             public async ValueTask AddAsync(
                 DiNodeManager manager, BaseInstanceState node, CancellationToken cancellationToken)
             {
+                LastAdded = node;
                 bool fail = FailNextAdd;
                 FailNextAdd = false;
                 if (!fail || FailAfterChange)

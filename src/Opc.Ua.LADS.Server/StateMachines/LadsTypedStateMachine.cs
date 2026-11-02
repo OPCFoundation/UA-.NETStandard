@@ -47,14 +47,16 @@ namespace Opc.Ua.LADS.Server.StateMachines
         /// <param name="context">The system context.</param>
         /// <param name="map">The enumeration map.</param>
         /// <param name="initial">The initial state.</param>
+        /// <param name="applyMutation">The owning device's admission for synchronous state writes.</param>
         public LadsStateMachine(
             FiniteStateMachineState stateMachine,
             ISystemContext context,
             LadsStateMap<TEnum> map,
-            TEnum initial)
+            TEnum initial,
+            Action<Action>? applyMutation = null)
         {
             m_map = map;
-            Driver = new LadsStateMachine(stateMachine, context, map.Table);
+            Driver = new LadsStateMachine(stateMachine, context, map.Table, applyMutation);
             Driver.StateChanged += id => StateChanged?.Invoke(m_map.ToValue(id));
             Driver.SetInitialState(map.ToId(initial));
         }
@@ -151,6 +153,14 @@ namespace Opc.Ua.LADS.Server.StateMachines
                 "The state machine '{0}' is in state '{1}'.",
                 Driver.StateMachine.BrowseName,
                 current);
+        }
+
+        /// <summary>
+        /// Publishes a terminal state while the owning device is quarantining all normal writes.
+        /// </summary>
+        internal void SetQuarantinedState(TEnum state)
+        {
+            Driver.SetQuarantinedState(m_map.ToId(state));
         }
 
         private readonly LadsStateMap<TEnum> m_map;
