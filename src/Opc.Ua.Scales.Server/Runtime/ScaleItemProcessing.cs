@@ -411,23 +411,32 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 throw new ArgumentNullException(nameof(report));
             }
+            return new ValueTask<ServiceResult>(ReportCompletedFill(report, cancellationToken));
+        }
+
+        /// <summary>
+        /// Validates and commits one completed fill, then notifies acquisition observers outside
+        /// the product reservation.
+        /// </summary>
+        private ServiceResult ReportCompletedFill(ScaleItemReport report, CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
             m_owner.Services.StoppingToken.ThrowIfCancellationRequested();
             ServiceResult validation = ScaleItemPublisher.Normalize(report, m_owner.Unit, out ScaleItemReport normalized);
             if (ServiceResult.IsBad(validation))
             {
-                return new ValueTask<ServiceResult>(validation);
+                return validation;
             }
             if (report.Price != null)
             {
-                return new ValueTask<ServiceResult>(ServiceResult.Create(
-                    StatusCodes.BadNotSupported, "A totalizing hopper does not publish item prices."));
+                return ServiceResult.Create(
+                    StatusCodes.BadNotSupported, "A totalizing hopper does not publish item prices.");
             }
             ScaleProductionPreset? preset = m_owner.ProductionPreset;
             if (preset == null)
             {
-                return new ValueTask<ServiceResult>(ServiceResult.Create(
-                    StatusCodes.BadInvalidState, "No production preset is configured."));
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidState, "No production preset is configured.");
             }
             using ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
             ServiceResult result = m_owner.Locked(() =>
@@ -468,7 +477,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 m_owner.NotifyAcquisition(normalized.Weight);
             }
-            return new ValueTask<ServiceResult>(result);
+            return result;
         }
 
         /// <summary>The owning totalizing hopper.</summary>

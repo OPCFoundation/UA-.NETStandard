@@ -315,7 +315,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Marks the controller disposed, once, and returns the shared task that completes when
         /// the timer is disposed and every running notification drain has ended.
         /// </summary>
-        private Task Stop()
+        private Task<bool> Stop()
         {
             ITimer? timer;
             TaskCompletionSource<bool> quiesced;
