@@ -55,7 +55,7 @@ namespace Opc.Ua.ECM.IntegrationTests
     [NonParallelizable]
     [Category("ECM")]
     [Category("Integration")]
-    public sealed class EcmPowerIntegrationTests
+    public sealed class EcmPowerIntegrationTests : IAsyncDisposable
     {
         /// <summary>
         /// Starts a real ECM owner and client using isolated temporary PKI stores.
@@ -111,7 +111,13 @@ namespace Opc.Ua.ECM.IntegrationTests
         /// Releases subscriptions, client/server resources and the specific fixture's temporary stores.
         /// </summary>
         [TearDown]
-        public async Task TearDownAsync()
+        public Task TearDownAsync()
+        {
+            return DisposeAsync().AsTask();
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
         {
             try
             {
@@ -147,9 +153,19 @@ namespace Opc.Ua.ECM.IntegrationTests
                     }
                     finally
                     {
-                        if (Directory.Exists(m_pkiRoot))
+                        try
                         {
-                            Directory.Delete(m_pkiRoot, recursive: true);
+                            if (m_manager != null)
+                            {
+                                await m_manager.DisposeAsync().ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            if (Directory.Exists(m_pkiRoot))
+                            {
+                                Directory.Delete(m_pkiRoot, recursive: true);
+                            }
                         }
                     }
                 }
@@ -163,7 +179,8 @@ namespace Opc.Ua.ECM.IntegrationTests
         public async Task PauseWriteAndEndPausePublishMovingAndArrivedStates()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            Assert.That(m_session.TryGetSubscriptionManager(out ISubscriptionManager? manager), Is.True);
+            Assert.That(m_session.TryGetSubscriptionManager(
+                out global::Opc.Ua.Client.Subscriptions.ISubscriptionManager? manager), Is.True);
             await using var streaming = new StreamingSubscription(manager!);
             int stage = 0;
             var observed = new List<byte>();
