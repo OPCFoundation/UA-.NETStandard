@@ -108,6 +108,7 @@ if (StatusCode.IsGood(parameters.Status.Duration))
         Console.Error.WriteLine($"ScanActive start rejected: {started}");
         return 1;
     }
+    StatusCode stopped = StatusCodes.Good;
     try
     {
         AutoIdDeviceSnapshot acquired;
@@ -125,11 +126,15 @@ if (StatusCode.IsGood(parameters.Status.Duration))
     }
     finally
     {
-        StatusCode stopped = await autoId.SetScanActiveAsync(rfid, false, CancellationToken.None).ConfigureAwait(false);
+        stopped = await autoId.SetScanActiveAsync(rfid, false, CancellationToken.None).ConfigureAwait(false);
         if (StatusCode.IsBad(stopped))
         {
-            throw new ServiceResultException(stopped);
+            Console.Error.WriteLine($"ScanActive stop rejected: {stopped}");
         }
+    }
+    if (StatusCode.IsBad(stopped))
+    {
+        return 1;
     }
 }
 
