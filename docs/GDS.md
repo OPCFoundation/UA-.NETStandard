@@ -285,6 +285,26 @@ factory resolution. A direct host can construct the factory with those
 dependencies. Do not register another node manager for the same onboarding
 namespace.
 
+For an in-memory supervised push queue, register
+`services.AddDeviceRegistrarPushScheduler<MyPushProcessor>(capacity: 32)` before
+the registrar's provider check. `MyPushProcessor` implements
+`IDeviceRegistrarPushProcessor`; it owns real channel authentication, certificate
+operations, software approval and retained lifecycle recovery. The registration
+shares one `DeviceRegistrarPushScheduler` between runtime acceptance and the
+hosted worker. Direct hosts can construct that worker and call its asynchronous
+start/stop methods.
+
+The worker processes one attempt at a time and copies each accepted application
+description. A full queue returns `BadTooManyOperations` without waiting; before
+startup and after shutdown, acceptance returns `BadServerHalted`. Cancelling a
+call after acceptance does not cancel its queued attempt. Host shutdown cancels
+the running processor and reports registrations that were accepted but never
+processed. Processor failures are logged with a classified application identity
+and are not retried automatically: an uncertain certificate operation must first
+be reconciled against the processor's retained request state. Queue acceptance
+does not survive process termination. Hosts requiring durable acceptance must
+supply their own `IDeviceRegistrarPushScheduler`.
+
 For an existing GDS application, the runtime records the device relation before
 refreshing shared application metadata. A conflicting relation therefore cannot
 change another device's registration. The GDS database and lifecycle provider

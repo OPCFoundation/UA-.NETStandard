@@ -22,6 +22,12 @@ surface. Load the generated `Opc.Ua.Onboarding` nodes from
 for samples and tests; production hosts should inject a persistent,
 concurrency-safe implementation.
 
+`AddDeviceRegistrarPushScheduler<TProcessor>` connects one bounded in-memory
+queue to the host lifetime and `IDeviceRegistrarPushScheduler`. The processor
+owns actual provisioning and retained recovery state. Queue failures are
+reported; uncertain remote operations are not automatically repeated.
+Durable acceptance requires a separately supplied scheduler.
+
 `OnboardingPushIdentityValidator` uses the registrar's ticket-scoped identity
 selector to check the actual authenticated server certificate of a push device.
 It reads `RequestTickets` through a generation-bound encrypted session; discovery

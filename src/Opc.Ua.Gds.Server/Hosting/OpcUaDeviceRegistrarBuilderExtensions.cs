@@ -26,6 +26,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Opc.Ua;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
@@ -304,6 +305,46 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(),
                 sp.GetRequiredService<IDeviceRegistrarOnboardingPolicy>()));
             services.TryAddSingleton<IDeviceRegistrarRuntime>(sp => sp.GetRequiredService<DeviceRegistrarRuntime>());
+            return services;
+        }
+
+        /// <summary>
+        /// Selects an in-memory bounded push queue and registers its processor and host-owned worker as singletons.
+        /// Register before AddDeviceRegistrarRuntime validates its provider set. The processor owns authentication,
+        /// persistent provisioning state, and recovery of uncertain remote effects; this queue does not retry them.
+        /// Durable queue acceptance requires a different IDeviceRegistrarPushScheduler implementation.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarPushScheduler<TProcessor>(
+            this IServiceCollection services,
+            int capacity = 32)
+            where TProcessor : class, IDeviceRegistrarPushProcessor
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (capacity < 1 || capacity > 1024)
+            {
+                throw new ArgumentOutOfRangeException(nameof(capacity));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    (descriptor.ServiceType == typeof(IDeviceRegistrarPushScheduler) ||
+                    descriptor.ServiceType == typeof(DeviceRegistrarPushScheduler) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarPushProcessor)))
+                {
+                    throw new InvalidOperationException("Select only one registrar push scheduler and processor.");
+                }
+            }
+            services.AddSingleton<IDeviceRegistrarPushProcessor, TProcessor>();
+            services.AddSingleton(provider => new DeviceRegistrarPushScheduler(
+                provider.GetRequiredService<IDeviceRegistrarPushProcessor>(),
+                provider.GetRequiredService<ITelemetryContext>(), capacity));
+            services.AddSingleton<IDeviceRegistrarPushScheduler>(provider =>
+                provider.GetRequiredService<DeviceRegistrarPushScheduler>());
+            services.AddSingleton<IHostedService>(provider =>
+                provider.GetRequiredService<DeviceRegistrarPushScheduler>());
             return services;
         }
 
