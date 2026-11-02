@@ -38,6 +38,7 @@ using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Tests;
+using MonitoringOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 
 namespace Opc.Ua.Client.Tests.Network
 {
@@ -133,7 +134,7 @@ namespace Opc.Ua.Client.Tests.Network
             var subscription = new Mock<IStreamingSubscription>(MockBehavior.Strict);
             var changes = new Mock<IAsyncEnumerable<DataValueChange>>().Object;
             NodeId variable = new("speed", 2);
-            var options = new MonitoredItemOptions { SamplingInterval = TimeSpan.FromMilliseconds(100) };
+            var options = new MonitoringOptions { SamplingInterval = TimeSpan.FromMilliseconds(100) };
             using var cancellation = new CancellationTokenSource();
             subscription.Setup(value => value.SubscribeDataChangesAsync(variable, options, cancellation.Token))
                 .Returns(changes);

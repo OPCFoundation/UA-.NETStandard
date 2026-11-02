@@ -298,7 +298,7 @@ namespace Opc.Ua.Client.Tests.Network
                 s_table, "urn:test", "Control").ConfigureAwait(false);
 
             Assert.That(result, Is.SameAs(m_callResult));
-            Assert.That(m_calls.Count, Is.EqualTo(1));
+            Assert.That(m_calls, Has.Count.EqualTo(1));
             Assert.That(m_calls[0].ObjectId, Is.EqualTo(s_table));
             Assert.That(m_calls[0].MethodId,
                 Is.EqualTo(MethodIds.PriorityMappingTableType_AddPriorityMappingEntry));
@@ -322,7 +322,7 @@ namespace Opc.Ua.Client.Tests.Network
                 s_table, "urn:test", "Control").ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
-            Assert.That(m_calls.Count, Is.EqualTo(1));
+            Assert.That(m_calls, Has.Count.EqualTo(1));
             Assert.That(m_calls[0].MethodId,
                 Is.EqualTo(MethodIds.PriorityMappingTableType_DeletePriorityMappingEntry));
             Assert.That(m_calls[0].InputArguments.ToArray(),
@@ -491,7 +491,11 @@ namespace Opc.Ua.Client.Tests.Network
         public async Task ReadServiceFailureIsNotConvertedToMissingParameters()
         {
             SetBrowse(s_interface, ReferenceTypeIds.HasChild,
-                new ReferenceDescription { NodeId = new NodeId("speed", 2), BrowseName = BrowseNames.Speed });
+                new ReferenceDescription
+                {
+                    NodeId = new NodeId("speed", 2),
+                    BrowseName = new QualifiedName(BrowseNames.Speed, 0)
+                });
             m_session.Setup(session => session.ReadAsync(
                     It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
