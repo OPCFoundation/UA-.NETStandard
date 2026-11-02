@@ -172,46 +172,57 @@ namespace Opc.Ua.Gds.Client
         /// Obtaining the registrar-owned connection.
         /// </summary>
         Connecting,
+
         /// <summary>
         /// Providing device identities and tickets.
         /// </summary>
         ProvidingIdentities,
+
         /// <summary>
         /// Installing and proving the selected SecureChannel identity.
         /// </summary>
         ActivatingIdentity,
+
         /// <summary>
         /// Waiting for the real software manager to complete its gate.
         /// </summary>
         UpdatingSoftware,
+
         /// <summary>
         /// Starting a certificate signing request.
         /// </summary>
         RequestingCertificate,
+
         /// <summary>
         /// Checking a specific outstanding certificate request.
         /// </summary>
         FinishingCertificate,
+
         /// <summary>
         /// Downloading the application's trust list.
         /// </summary>
         ReadingTrustList,
+
         /// <summary>
         /// Installing the issued credentials through the host.
         /// </summary>
         InstallingCredentials,
+
         /// <summary>
         /// Reconnecting with the newly installed DCA certificate.
         /// </summary>
         ActivatingDca,
+
         /// <summary>
         /// Obtaining managers accessible to the credentialled DCA.
         /// </summary>
         GettingManagers,
+
         /// <summary>
         /// Registering a managed application.
         /// </summary>
         RegisteringApplication,
+
         /// <summary>
         /// All requested operations succeeded.
         /// </summary>

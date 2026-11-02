@@ -1369,6 +1369,68 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
+        /// <summary>
+        /// Transfer cancellation and transport errors retain their original exception when cleanup succeeds,
+        /// and remain observable together with a cleanup error when both operations fail.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task TrustDownloadPreservesTransferExceptionAndIndependentCleanupFailure(
+            bool canceled, bool cleanupFails)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            Exception transfer = canceled
+                ? new OperationCanceledException("Transfer canceled.")
+                : new ServiceResultException(StatusCodes.BadCommunicationError);
+            var cleanup = new ServiceResultException(StatusCodes.BadConnectionClosed);
+            var requests = new List<CallMethodRequest>();
+            Mock<ISession> session = CreateSession(context, request =>
+            {
+                requests.Add(request);
+                return requests.Count switch
+                {
+                    1 => Good(new NodeId("trust", 2)),
+                    2 => Good(42u),
+                    3 => throw transfer,
+                    _ when cleanupFails => throw cleanup,
+                    _ => Good()
+                };
+            });
+            var adapter = new PullDcaConnection(session.Object, kRegistrar, telemetry, 1024, _ => default);
+
+            if (cleanupFails)
+            {
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await adapter.ReadTrustListAsync(
+                        new NodeId("app", 2), kProfile.CertificateGroupId, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(error!.InnerExceptions, Is.EqualTo(new[] { transfer, cleanup }));
+            }
+            else if (canceled)
+            {
+                OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await adapter.ReadTrustListAsync(
+                        new NodeId("app", 2), kProfile.CertificateGroupId, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(transfer));
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await adapter.ReadTrustListAsync(
+                        new NodeId("app", 2), kProfile.CertificateGroupId, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(transfer));
+            }
+            Assert.That(requests.Count, Is.EqualTo(4));
+            Assert.That(requests[3].MethodId, Is.EqualTo(new NodeId(Opc.Ua.MethodIds.FileType_Close)));
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
         private static Mock<ISession> CreateSession(
             IServiceMessageContext context,
             Func<CallMethodRequest, CallMethodResult> handler)

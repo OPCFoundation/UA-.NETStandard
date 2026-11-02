@@ -25,6 +25,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.Onboarding;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Gds.Server.Onboarding

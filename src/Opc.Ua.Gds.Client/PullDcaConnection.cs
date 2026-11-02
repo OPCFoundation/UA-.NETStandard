@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -195,32 +196,31 @@ namespace Opc.Ua.Gds.Client
             }
             var file = new FileTypeClient(m_session, trustListId, m_telemetry);
             uint handle = await file.OpenAsync((byte)OpenFileMode.Read, ct).ConfigureAwait(false);
-            Exception? transferError = null;
+            ExceptionDispatchInfo? transferError = null;
+            TrustListDataType? trustList = null;
             try
             {
-                return await TrustListFileTransferHelper.ReadAsync(
+                trustList = await TrustListFileTransferHelper.ReadAsync(
                     file, handle, m_session.MessageContext, m_maximumTrustListSize, 4096, ct).ConfigureAwait(false);
             }
             catch (Exception error)
             {
-                transferError = error;
-                throw;
+                transferError = ExceptionDispatchInfo.Capture(error);
             }
-            finally
+            // Cleanup has a separate finite budget even when the workflow token was cancelled.
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
             {
-                // Cleanup has a separate finite budget even when the workflow token was cancelled.
-                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                try
-                {
-                    await file.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
-                }
-                catch (Exception cleanupError) when (transferError != null)
-                {
-                    throw new AggregateException(
-                        "Downloading the trust list and closing its file handle both failed.",
-                        transferError, cleanupError);
-                }
+                await file.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
             }
+            catch (Exception cleanupError) when (transferError != null)
+            {
+                throw new AggregateException(
+                    "Downloading the trust list and closing its file handle both failed.",
+                    transferError.SourceException, cleanupError);
+            }
+            transferError?.Throw();
+            return trustList ?? throw new ServiceResultException(StatusCodes.BadUnexpectedError);
         }
 
         private static async ValueTask ReloadAndReconnectAsync(ManagedSession session, CancellationToken ct)

@@ -53,14 +53,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// No registrar has installed DCA credentials.
         /// </summary>
         Unconfigured,
+
         /// <summary>
         /// One authenticated registrar has claimed installation; the same operation must be recovered.
         /// </summary>
         Installing,
+
         /// <summary>
         /// The installer completed and subsequent registrars must validate against installed trust.
         /// </summary>
         Installed,
+
         /// <summary>
         /// Security reset was requested and must finish before any new registrar is accepted.
         /// </summary>

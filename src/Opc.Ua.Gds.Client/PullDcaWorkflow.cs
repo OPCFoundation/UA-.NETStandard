@@ -106,7 +106,7 @@ namespace Opc.Ua.Gds.Client
             m_discovery = discovery;
             m_receipts = receipts;
             m_signingRecovery = signingRecovery;
-            m_registrars = options.Registrars.ToArray();
+            m_registrars = options.Registrars.ToArray() ?? [];
             m_maximumFinishAttempts = options.MaximumFinishAttempts;
             m_finishRetryDelay = options.FinishRetryDelay;
             m_operationTimeout = options.OperationTimeout;
@@ -496,7 +496,7 @@ namespace Opc.Ua.Gds.Client
             {
                 if (application == null || application.Application == null ||
                     !Uri.TryCreate(application.Application.ApplicationUri, UriKind.Absolute, out _) ||
-                    (application.ProtocolUri != string.Empty &&
+                    (application.ProtocolUri?.Length != 0 &&
                         !Uri.TryCreate(application.ProtocolUri, UriKind.Absolute, out _)))
                 {
                     throw new ArgumentException("Managed applications require valid application and protocol URIs.",
