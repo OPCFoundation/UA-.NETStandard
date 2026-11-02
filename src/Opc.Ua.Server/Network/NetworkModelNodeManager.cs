@@ -222,7 +222,10 @@ namespace Opc.Ua.Server.Network
             IDictionary<NodeId, IList<IReference>>? externalReferences,
             CancellationToken cancellationToken)
         {
-            ArgumentNullException.ThrowIfNull(snapshot);
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
             await m_applyGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

@@ -52,8 +52,14 @@ namespace Opc.Ua.Server.Network
             INetworkModelProvider provider,
             Func<ISystemContext, bool>? authorizeMappingEdits = null)
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(provider);
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider is null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
 
             var factory = new NetworkModelNodeManagerFactory(
                 provider,
@@ -70,8 +76,14 @@ namespace Opc.Ua.Server.Network
             Func<IServiceProvider, INetworkModelProvider> providerFactory,
             Func<ISystemContext, bool>? authorizeMappingEdits = null)
         {
-            ArgumentNullException.ThrowIfNull(builder);
-            ArgumentNullException.ThrowIfNull(providerFactory);
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (providerFactory is null)
+            {
+                throw new ArgumentNullException(nameof(providerFactory));
+            }
             return builder.AddNodeManagers((services, _) =>
             [
                 new NetworkModelNodeManagerFactory(

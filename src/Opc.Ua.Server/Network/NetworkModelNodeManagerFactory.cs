@@ -59,27 +59,18 @@ namespace Opc.Ua.Server.Network
         public ArrayOf<string> NamespacesUris => [NetworkModelNodeManager.NamespaceUri];
 
         /// <inheritdoc/>
-        public async ValueTask<IAsyncNodeManager> CreateAsync(
+        public ValueTask<IAsyncNodeManager> CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            NetworkModelNodeManager? manager = null;
-            try
-            {
-                manager = new NetworkModelNodeManager(server, configuration, m_provider, m_authorizeMappingEdits);
-                IAsyncNodeManager result = manager;
-                manager = null;
-                return result;
-            }
-            finally
-            {
-                if (manager is not null)
-                {
-                    await manager.DisposeAsync().ConfigureAwait(false);
-                }
-            }
+            // No fallible work follows construction; the caller owns the returned manager.
+            // TODO: teach ownership analysis about the ValueTask result transfer.
+#pragma warning disable CA2000
+            return new ValueTask<IAsyncNodeManager>(
+                new NetworkModelNodeManager(server, configuration, m_provider, m_authorizeMappingEdits));
+#pragma warning restore CA2000
         }
 
         /// <summary>

@@ -48,7 +48,10 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         public NetworkModelBuilder AddInterface(NetworkInterfaceSnapshot networkInterface)
         {
-            ArgumentNullException.ThrowIfNull(networkInterface);
+            if (networkInterface is null)
+            {
+                throw new ArgumentNullException(nameof(networkInterface));
+            }
             m_interfaces.Add(networkInterface);
             return this;
         }
@@ -58,7 +61,10 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         public NetworkModelBuilder AddMappingTable(NetworkMappingTableSnapshot table)
         {
-            ArgumentNullException.ThrowIfNull(table);
+            if (table is null)
+            {
+                throw new ArgumentNullException(nameof(table));
+            }
             m_tables.Add(table);
             return this;
         }
@@ -68,7 +74,10 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         public NetworkModelBuilder AddStream(NetworkStreamSnapshot stream)
         {
-            ArgumentNullException.ThrowIfNull(stream);
+            if (stream is null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
             m_streams.Add(stream);
             return this;
         }

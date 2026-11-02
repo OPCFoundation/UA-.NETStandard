@@ -47,7 +47,10 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         public ReferenceNetworkModelProvider(NetworkModelSnapshot initial)
         {
-            ArgumentNullException.ThrowIfNull(initial);
+            if (initial is null)
+            {
+                throw new ArgumentNullException(nameof(initial));
+            }
             ValidateSnapshot(initial);
             NetworkModelSnapshot copy = Copy(initial);
             ValidateSnapshot(copy);
@@ -104,7 +107,10 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         public void Publish(NetworkModelSnapshot snapshot)
         {
-            ArgumentNullException.ThrowIfNull(snapshot);
+            if (snapshot is null)
+            {
+                throw new ArgumentNullException(nameof(snapshot));
+            }
             ValidateSnapshot(snapshot);
             NetworkModelSnapshot copy = Copy(snapshot);
             ValidateSnapshot(copy);
@@ -127,8 +133,14 @@ namespace Opc.Ua.Server.Network
             bool delete,
             CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(tableId);
-            ArgumentNullException.ThrowIfNull(entry);
+            if (tableId is null)
+            {
+                throw new ArgumentNullException(nameof(tableId));
+            }
+            if (entry is null)
+            {
+                throw new ArgumentNullException(nameof(entry));
+            }
             cancellationToken.ThrowIfCancellationRequested();
             PriorityMappingEntryType entryCopy = (PriorityMappingEntryType)entry.Clone();
             lock (m_gate)
