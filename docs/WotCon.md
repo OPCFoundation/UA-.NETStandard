@@ -638,8 +638,8 @@ The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
   registry snapshot (see §11.7).
 * Registry documents are projected into the AddressSpace as **separate
   runtime NodeManagers** through the public `INodeManagerLifecycle`
-  (`AddRuntimeNodeSetAsync` for first activation and
-  `ReloadRuntimeNodeSetAsync` for updates). Compatible monitored items migrate
+  transaction provider (`LifecycleChange.Add` for first activation and
+  `LifecycleChange.Reload` for updates). Compatible monitored items migrate
   to the replacement with their identity preserved; items whose Nodes are no
   longer available receive `BadNodeIdUnknown`. Invalidation is available when
   clients must recreate every affected monitored item.
