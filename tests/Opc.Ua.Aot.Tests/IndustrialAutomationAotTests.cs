@@ -45,7 +45,7 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             ServiceMessageContext messages = ServiceMessageContext.Create(telemetry);
-            messages.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUaDi);
+            messages.NamespaceUris.GetIndexOrAppend(DiNodeManager.DiNamespaceUri);
             messages.NamespaceUris.GetIndexOrAppend(IA.Namespaces.IA);
             var context = new SystemContext(telemetry)
             {
