@@ -58,7 +58,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
             builder.Services.AddDeviceRegistrarRuntime(configureProviders);
-            AddNodeManagerFactory(builder.Services);
+            AddNodeManagerFactory(builder.Services, isGds: true);
             return builder;
         }
 
@@ -75,7 +75,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(builder));
             }
             builder.Services.AddDeviceRegistrarRuntime(configureProviders);
-            AddNodeManagerFactory(builder.Services);
+            AddNodeManagerFactory(builder.Services, isGds: false);
             return builder;
         }
 
@@ -442,11 +442,20 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Registers the standard model host without constructing server-bound nodes during DI registration.
         /// </summary>
-        private static void AddNodeManagerFactory(IServiceCollection services)
+        private static void AddNodeManagerFactory(IServiceCollection services, bool isGds)
         {
             services.TryAddSingleton<DeviceRegistrarNodeManagerFactory>();
-            services.TryAddEnumerable(
-                ServiceDescriptor.Singleton<IAsyncNodeManagerFactory, DeviceRegistrarNodeManagerFactory>());
+            if (isGds)
+            {
+                services.TryAddSingleton(provider => new GdsDeviceRegistrarRegistration(
+                    provider.GetRequiredService<DeviceRegistrarNodeManagerFactory>(),
+                    provider.GetRequiredService<IDeviceRegistrarCertificateAuthorization>()));
+            }
+            else
+            {
+                services.TryAddEnumerable(
+                    ServiceDescriptor.Singleton<IAsyncNodeManagerFactory, DeviceRegistrarNodeManagerFactory>());
+            }
         }
 
         private static void RequireProvider<T>(IServiceCollection services)

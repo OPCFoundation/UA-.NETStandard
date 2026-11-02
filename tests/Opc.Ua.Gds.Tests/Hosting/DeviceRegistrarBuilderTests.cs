@@ -190,6 +190,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(provider.GetRequiredService<IDeviceRegistrarRuntime>(), Is.TypeOf<DeviceRegistrarRuntime>());
         }
 
+        /// <summary>
+        /// Repeated selection registers the model only for the chosen server kind.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void FluentRegistrationIncludesStandardRegistrarModelFactoryWithoutDuplicatingGds(bool gds)
@@ -217,7 +220,49 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(factory.NamespacesUris.ToArray(),
                 Is.EqualTo(new[] { Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding }));
             Assert.That(provider.GetServices<IAsyncNodeManagerFactory>()
-                .Count(f => f is DeviceRegistrarNodeManagerFactory), Is.EqualTo(1));
+                .Count(f => f is DeviceRegistrarNodeManagerFactory), Is.EqualTo(gds ? 0 : 1));
+            GdsDeviceRegistrarRegistration? registration = provider.GetService<GdsDeviceRegistrarRegistration>();
+            if (gds)
+            {
+                Assert.That(registration, Is.Not.Null);
+                Assert.That(registration!.Factory, Is.SameAs(factory));
+                Assert.That(registration.CertificateAuthorization,
+                    Is.SameAs(provider.GetRequiredService<IDeviceRegistrarCertificateAuthorization>()));
+            }
+            else
+            {
+                Assert.That(registration, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// A registrar added to one builder does not publish its namespace through the other builder.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RegistrarModelAndIssuanceGateRemainOnSelectedHost(bool gds)
+        {
+            var services = new ServiceCollection();
+            ConfigureProviders(services);
+            services.AddSingleton(new Mock<ITicketStore>().Object);
+            services.AddSingleton(new Mock<IOnboardingTicketValidator>().Object);
+            services.AddSingleton(new Mock<ICertificateManager>().Object);
+            IOpcUaBuilder root = services.AddOpcUa();
+            IOpcUaServerBuilder server = root.AddServer(_ => { });
+            IGdsServerBuilder directory = root.AddGdsServer(_ => { });
+            if (gds)
+            {
+                directory.AddDeviceRegistrar(_ => { });
+            }
+            else
+            {
+                server.AddDeviceRegistrar(_ => { });
+            }
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetServices<IAsyncNodeManagerFactory>()
+                .Count(factory => factory is DeviceRegistrarNodeManagerFactory), Is.EqualTo(gds ? 0 : 1));
+            Assert.That(provider.GetServices<GdsDeviceRegistrarRegistration>().Count(), Is.EqualTo(gds ? 1 : 0));
         }
 
         [TestCase(0)]

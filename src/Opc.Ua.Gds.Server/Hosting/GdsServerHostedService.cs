@@ -284,10 +284,11 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_configurationStore,
                 m_options.AutoApprove,
                 m_enableBuiltInApplicationSelfAdminProvider);
-            m_server.DeviceRegistrarCertificateAuthorization =
-                m_services.GetService<IDeviceRegistrarCertificateAuthorization>();
+            GdsDeviceRegistrarRegistration? registrar =
+                m_services.GetService<GdsDeviceRegistrarRegistration>();
+            m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
             m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
-            m_server.DeviceRegistrarFactory = m_services.GetService<DeviceRegistrarNodeManagerFactory>();
+            m_server.DeviceRegistrarFactory = registrar?.Factory;
 
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {

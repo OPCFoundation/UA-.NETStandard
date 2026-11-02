@@ -278,6 +278,12 @@ The builder rejects missing runtime providers and registers
 `DeviceRegistrarNodeManagerFactory`. The GDS host loads the registrar namespace
 through this factory, binds the runtime and ticket administration, attaches
 the managed authority lists, and restricts registration-event permissions.
+When both server kinds share a service collection, the GDS builder selects the
+registrar namespace and certificate-issuance gate only for the GDS. The regular
+server builder selects its namespace factory only for that server; it does not
+enable onboarding certificate authorization on the cohosted GDS. This routing
+does not create independent runtime or trust-provider instances for two
+registrars in the same service collection.
 The existing GDS directory retains ownership of its application model nodes.
 Ticket hosting also requires the registered `ITicketStore`,
 `IOnboardingTicketValidator`, and `ICertificateManager`; missing services reject
