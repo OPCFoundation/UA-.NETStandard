@@ -56,11 +56,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Throws.ArgumentNullException);
         }
 
-        [TestCase(StatusCodes.Good)]
-        [TestCase(StatusCodes.GoodClamped)]
-        [TestCase(StatusCodes.Uncertain)]
-        public async Task CallWithStatusPreservesStatusAndOutputsWithoutRetry(uint status)
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task CallWithStatusPreservesStatusAndOutputsWithoutRetry(int scenario)
         {
+            StatusCode status = scenario switch
+            {
+                0 => StatusCodes.Good,
+                1 => StatusCodes.GoodClamped,
+                _ => StatusCodes.Uncertain
+            };
             Mock<ISessionClient> session = CreateSession();
             ArrayOf<Variant> expected = [new Variant(17)];
             session.Setup(s => s.CallAsync(
@@ -71,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             (StatusCode callStatus, ArrayOf<Variant> outputs) = await client
                 .CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(callStatus, Is.EqualTo(new StatusCode(status)));
+            Assert.That(callStatus, Is.EqualTo(status));
             Assert.That(outputs, Is.EqualTo(expected));
             session.Verify(s => s.CallAsync(
                 null, It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()), Times.Once());
@@ -136,9 +142,9 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var first = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
             var second = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(first.CallStatus, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(first.CallStatus, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(first.OutputArguments, Is.EqualTo(new ArrayOf<Variant>([new Variant(7)])));
-            Assert.That(second.CallStatus, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(second.CallStatus, Is.EqualTo(StatusCodes.Good));
             Assert.That(second.OutputArguments, Is.EqualTo(new ArrayOf<Variant>([new Variant(8)])));
             session.Verify(s => s.CallAsync(
                 null, It.Is<ArrayOf<CallMethodRequest>>(r => r[0].MethodId == new NodeId(2000)),

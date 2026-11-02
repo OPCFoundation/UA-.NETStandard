@@ -63,7 +63,7 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult write = await pauseTime.OnSimpleWriteValueAsync!(
                 context, pauseTime, new Variant(10000d), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(write.Result.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(write.SuppressCacheUpdate, Is.True);
             Assert.That(pauseTime.Value, Is.EqualTo(10000));
             Assert.That(status.Value,
@@ -72,7 +72,7 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult reverse = await pauseTime.OnSimpleWriteValueAsync!(
                 context, pauseTime, new Variant(0d), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(reverse.Result.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(reverse.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(reverse.SuppressCacheUpdate, Is.True);
             Assert.That(pauseTime.Value, Is.Zero);
             Assert.That(status.Value,
@@ -95,7 +95,7 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult rejected = await pauseTime.OnSimpleWriteValueAsync!(
                 context, pauseTime, new Variant(1d), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(rejected.Result.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(rejected.Result.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(rejected.SuppressCacheUpdate, Is.True);
             Assert.That(pauseTime.Value, Is.EqualTo(10000));
             Assert.That(pauseTime.Timestamp, Is.EqualTo(timestamp));
@@ -110,7 +110,7 @@ namespace Opc.Ua.ECM.Tests
             SystemContext context = CreateContext();
             var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             await using var binding = new EcmPowerBinding(context, standby, provider.Object);
 
             var startPause = Required(standby.StartPause);
@@ -120,8 +120,8 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult write = await pauseTime.OnSimpleWriteValueAsync!(
                 context, pauseTime, new Variant(10000d), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
-            Assert.That(write.Result.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             provider.VerifyNoOtherCalls();
         }
 
@@ -138,7 +138,7 @@ namespace Opc.Ua.ECM.Tests
             SystemContext context = CreateContext();
             var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             using var cancellation = new CancellationTokenSource();
             int checks = 0;
             await using var binding = new EcmPowerBinding(context, standby, provider.Object,
@@ -200,7 +200,7 @@ namespace Opc.Ua.ECM.Tests
             };
             SystemContext context = CreateContext();
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             await using var binding = new EcmPowerBinding(context, standby, CreateProvider());
             await binding.RefreshAsync();
             var identity = new Mock<IUserIdentity>(MockBehavior.Strict);
@@ -213,9 +213,9 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult write = await Required(standby.PauseTime).OnSimpleWriteValueAsync!(
                 caller.Object, Required(standby.PauseTime), new Variant(0d), CancellationToken.None);
 
-            uint expected = allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied;
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(expected)));
-            Assert.That(write.Result.StatusCode, Is.EqualTo(new StatusCode(expected)));
+            StatusCode expected = allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied;
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(expected));
+            Assert.That(write.Result.StatusCode, Is.EqualTo(expected));
             Assert.That(Required(standby.StandbyManagementStatus).Value, Is.EqualTo((byte)(allowed
                 ? EcmStandbyStatus.MovingToReadyToOperate
                 : EcmStandbyStatus.ReadyToOperate)));
@@ -243,8 +243,8 @@ namespace Opc.Ua.ECM.Tests
             AttributeWriteResult write = await Required(binding.Standby.PauseTime).OnSimpleWriteValueAsync!(context,
                 Required(binding.Standby.PauseTime), new Variant(0d), CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
-            Assert.That(write.Result.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(write.Result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             provider.VerifyNoOtherCalls();
             if (supportsOwnership)
             {
@@ -277,9 +277,9 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(status.Value, Is.EqualTo(state));
             Assert.That(status.Timestamp, Is.EqualTo(timestamp));
             Assert.That(status.StatusCode,
-                Is.EqualTo(new StatusCode(StatusCodes.BadNoCommunication)));
+                Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(Required(status.EnumStrings).StatusCode,
-                Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -312,7 +312,7 @@ namespace Opc.Ua.ECM.Tests
             SystemContext context = CreateContext();
             SimulatedEcmPowerProvider provider = CreateProvider();
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             EnergyDevicePowerOffState powerOff = context.CreateInstanceOfEnergyDevicePowerOffType(
                 standby, new QualifiedName("Sleep", 4));
             await using var binding = new EcmPowerBinding(context, standby, provider, powerOff, provider,
@@ -328,7 +328,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(Required(powerOff.RegularTimeToOperate).Value, Is.EqualTo(provider.RegularTimeToOperate));
             Assert.That(Required(powerOff.TimeMinPause).Value, Is.EqualTo(provider.TimeMinPause));
             Assert.That(Required(powerOff.ModePowerConsumption).Value, Is.EqualTo(provider.ModePowerConsumption));
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(call.ReturnCode, Is.Zero);
             Assert.That(call.ModeID, Is.EqualTo(0xFE));
             Assert.That(call.CurrentTimeToDestination, Is.EqualTo(1000));
@@ -350,7 +350,7 @@ namespace Opc.Ua.ECM.Tests
         {
             SystemContext context = CreateContext();
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             EnergyDevicePowerOffState powerOff = context.CreateInstanceOfEnergyDevicePowerOffType(
                 standby, new QualifiedName("Sleep", 4));
             var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
@@ -465,7 +465,7 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(information.IDDestination, Is.EqualTo(0xFF));
             Assert.That(Required(binding.Standby.PauseTime).Value, Is.Zero);
             Assert.That(status.StatusCode,
-                Is.EqualTo(new StatusCode(StatusCodes.BadNoCommunication)));
+                Is.EqualTo(StatusCodes.BadNoCommunication));
         }
 
         /// <summary>
@@ -504,7 +504,7 @@ namespace Opc.Ua.ECM.Tests
                 await binding.RefreshAsync().ConfigureAwait(false);
                 Assert.That(power.Value, Is.EqualTo(0.5f));
                 Assert.That(power.StatusCode,
-                    Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                    Is.EqualTo(StatusCodes.Good));
             }
             else
             {
@@ -512,12 +512,12 @@ namespace Opc.Ua.ECM.Tests
                     await binding.RefreshAsync().ConfigureAwait(false));
                 Assert.That(power.Value, Is.EqualTo(1f));
                 Assert.That(power.StatusCode,
-                    Is.EqualTo(new StatusCode(StatusCodes.BadNoCommunication)));
+                    Is.EqualTo(StatusCodes.BadNoCommunication));
             }
             Assert.That(savingMode.NodeId, Is.EqualTo(identity));
             Assert.That(Required(power.EngineeringUnits).Value.UnitId, Is.EqualTo(0x4B5754));
             Assert.That(Required(power.EngineeringUnits).StatusCode,
-                Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -549,7 +549,7 @@ namespace Opc.Ua.ECM.Tests
                     await command.ConfigureAwait(false));
                 await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await queued.ConfigureAwait(false));
-                Assert.That(cancellationObserved.Task.IsCompletedSuccessfully, Is.True);
+                Assert.That(cancellationObserved.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(startPause.OnCallAsync, Is.Null);
                 provider.Verify(service => service.StartPauseAsync(10000,
                     It.IsAny<CancellationToken>()), Times.Once);
@@ -580,7 +580,7 @@ namespace Opc.Ua.ECM.Tests
             ILockService? locks = null)
         {
             EnergyStandbyManagementState standby = context.CreateInstanceOfEnergyStandbyManagementType(
-                null, new QualifiedName("Power", 4));
+                browseName: new QualifiedName("Power", 4));
             return new EcmPowerBinding(context, standby, provider, exclusiveAccess: locks,
                 authorize: static (_, ct) =>
                 {

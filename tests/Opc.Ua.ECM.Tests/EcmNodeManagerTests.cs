@@ -183,12 +183,12 @@ namespace Opc.Ua.ECM.Tests
             }
             await disposing.WaitAsync(TimeSpan.FromSeconds(10));
 
-            Assert.That(firstBinding.Standby.StartPause.OnCallAsync, Is.Null);
-            Assert.That(firstBinding.Standby.PauseTime.OnSimpleWriteValueAsync, Is.Null);
+            Assert.That(Required(firstBinding.Standby.StartPause).OnCallAsync, Is.Null);
+            Assert.That(Required(firstBinding.Standby.PauseTime).OnSimpleWriteValueAsync, Is.Null);
             if (secondBinding != null)
             {
-                Assert.That(secondBinding.Standby.StartPause.OnCallAsync, Is.Null);
-                Assert.That(secondBinding.Standby.PauseTime.OnSimpleWriteValueAsync, Is.Null);
+                Assert.That(Required(secondBinding.Standby.StartPause).OnCallAsync, Is.Null);
+                Assert.That(Required(secondBinding.Standby.PauseTime).OnSimpleWriteValueAsync, Is.Null);
             }
             provider.Verify(service => service.ReadAsync(It.IsAny<CancellationToken>()),
                 Times.Exactly(duplicateName ? 1 : 2));
@@ -216,7 +216,7 @@ namespace Opc.Ua.ECM.Tests
             await using EcmNodeManager manager = CreateManager(telemetry, queues);
             var provider = new Mock<IEcmStandbyProvider>(MockBehavior.Strict);
 
-            Assert.Throws<ArgumentException>(() => manager.CreatePowerAsync(
+            await Assert.ThrowsAsync<ArgumentException>(async () => await manager.CreatePowerAsync(
                 new QualifiedName(name, manager.InstanceNamespaceIndex), provider.Object));
 
             provider.VerifyNoOtherCalls();
@@ -236,7 +236,7 @@ namespace Opc.Ua.ECM.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.Throws<ArgumentNullException>(() => manager.CreatePowerAsync(name, null!));
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await manager.CreatePowerAsync(name, null!));
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await manager.CreatePowerAsync(name, provider.Object, cancellationToken: cancellation.Token));
 

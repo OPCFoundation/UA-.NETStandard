@@ -150,7 +150,7 @@ namespace Opc.Ua.Aot.Tests
 
             var pause = await standby.StartPause.OnCallAsync!(
                 context, standby.StartPause, standby.NodeId, 10000, CancellationToken.None).ConfigureAwait(false);
-            await Assert.That(pause.ServiceResult.StatusCode.Code).IsEqualTo(StatusCodes.Good);
+            await Assert.That(pause.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(pause.ReturnCode).IsEqualTo((byte)0);
             await Assert.That(pause.ModeID).IsEqualTo((byte)1);
             await Assert.That(pause.CurrentTimeToDestination).IsEqualTo(2000d);
@@ -162,7 +162,7 @@ namespace Opc.Ua.Aot.Tests
             await binding.RefreshAsync().ConfigureAwait(false);
             var sleep = await wol.SwitchOffWOL.OnCallAsync!(
                 context, wol.SwitchOffWOL, wol.NodeId, CancellationToken.None).ConfigureAwait(false);
-            await Assert.That(sleep.ServiceResult.StatusCode.Code).IsEqualTo(StatusCodes.Good);
+            await Assert.That(sleep.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(sleep.ReturnCode).IsEqualTo((byte)0);
             await Assert.That(sleep.ModeID).IsEqualTo((byte)0xFE);
             await Assert.That(sleep.CurrentTimeToDestination).IsEqualTo(1000d);
@@ -173,7 +173,7 @@ namespace Opc.Ua.Aot.Tests
             clock.Advance(2000);
             await binding.RefreshAsync().ConfigureAwait(false);
             EcmControlResult wake = await provider.SimulateWakeAsync().ConfigureAwait(false);
-            await Assert.That(wake.Status.Code).IsEqualTo(StatusCodes.Good);
+            await Assert.That(wake.Status).IsEqualTo(StatusCodes.Good);
             await Assert.That(wake.CurrentTimeToOperate).IsEqualTo(2000d);
             await binding.RefreshAsync().ConfigureAwait(false);
             await Assert.That(standby.StandbyManagementStatus.Value)
@@ -184,7 +184,7 @@ namespace Opc.Ua.Aot.Tests
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
             var rejected = await standby.StartPause.OnCallAsync!(
                 context, standby.StartPause, standby.NodeId, 1, CancellationToken.None).ConfigureAwait(false);
-            await Assert.That(rejected.ServiceResult.StatusCode.Code).IsEqualTo(StatusCodes.Uncertain);
+            await Assert.That(rejected.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Uncertain);
             await Assert.That(rejected.ReturnCode).IsEqualTo((byte)0x50);
             await Assert.That(rejected.ModeID).IsEqualTo((byte)0);
             await Assert.That(rejected.CurrentTimeToDestination).IsEqualTo(0d);
@@ -193,9 +193,9 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(standby.StandbyManagementStatus.Value)
                 .IsEqualTo((byte)EcmStandbyStatus.ReadyToOperate);
             await binding.DisposeAsync().ConfigureAwait(false);
-            await Assert.That(standby.StartPause.OnCallAsync).IsNull();
-            await Assert.That(standby.PauseTime.OnSimpleWriteValueAsync).IsNull();
-            await Assert.That(wol.SwitchOffWOL.OnCallAsync).IsNull();
+            await Assert.That(standby.StartPause.OnCallAsync == null).IsTrue();
+            await Assert.That(standby.PauseTime.OnSimpleWriteValueAsync == null).IsTrue();
+            await Assert.That(wol.SwitchOffWOL.OnCallAsync == null).IsTrue();
 
             EnergyDevicePowerOffState standalone = context.CreateInstanceOfEnergyDevicePowerOffType(
                 null, new QualifiedName("StandaloneSleep", instances));
@@ -203,7 +203,7 @@ namespace Opc.Ua.Aot.Tests
                 authorize: static (_, _) => new ValueTask<bool>(true));
             var standaloneCall = await standalone.SwitchOffWOL.OnCallAsync!(
                 context, standalone.SwitchOffWOL, standalone.NodeId, CancellationToken.None).ConfigureAwait(false);
-            await Assert.That(standaloneCall.ServiceResult.StatusCode.Code).IsEqualTo(StatusCodes.Good);
+            await Assert.That(standaloneCall.ServiceResult.StatusCode).IsEqualTo(StatusCodes.Good);
             await Assert.That(standaloneCall.ModeID).IsEqualTo((byte)0xFE);
             await Assert.That(standaloneCall.ReturnCode).IsEqualTo((byte)0);
             await Assert.That(standalone.Parent).IsNull();

@@ -340,16 +340,19 @@ namespace Opc.Ua.Di.Tests
             Assert.That(service.IsLockOwner(owner, s_elementId), Is.False);
         }
 
-        [TestCase(UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, false, StatusCodes.BadUserAccessDenied)]
-        [TestCase(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt, true, StatusCodes.BadUserAccessDenied)]
-        [TestCase(UserTokenType.UserName, MessageSecurityMode.Sign, true, StatusCodes.BadSecurityModeInsufficient)]
-        [TestCase(UserTokenType.UserName, MessageSecurityMode.None, true, StatusCodes.BadSecurityModeInsufficient)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.SignAndEncrypt, false, false)]
+        [TestCase(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt, true, false)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.Sign, true, true)]
+        [TestCase(UserTokenType.UserName, MessageSecurityMode.None, true, true)]
         public void BreakLockRejectsUnauthorizedCallerWithoutChangingLock(
             UserTokenType tokenType,
             MessageSecurityMode securityMode,
             bool grantAdmin,
-            uint expectedStatus)
+            bool insufficientSecurity)
         {
+            StatusCode expectedStatus = insufficientSecurity
+                ? StatusCodes.BadSecurityModeInsufficient
+                : StatusCodes.BadUserAccessDenied;
             var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
             using var service = new DefaultLockService(TimeSpan.FromMinutes(2), time);
             ServerSystemContext owner = TestSystemContext("session-A", "alice");

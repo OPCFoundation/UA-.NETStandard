@@ -52,7 +52,7 @@ namespace Opc.Ua.ECM.Tests
             SimulatedEcmPowerProvider provider = Create(clock);
             EcmControlResult result = await provider.StartPauseAsync(10000).ConfigureAwait(false);
             EcmPowerSnapshot moving = await provider.ReadAsync().ConfigureAwait(false);
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.ReturnCode, Is.Zero);
             Assert.That(result.ModeId, Is.EqualTo(2));
             Assert.That(result.CurrentTimeToDestination, Is.EqualTo(2000));
@@ -100,7 +100,7 @@ namespace Opc.Ua.ECM.Tests
             SimulatedEcmPowerProvider provider = Create(new DeviceClock());
             EcmControlResult rejected = await provider.StartPauseAsync(1).ConfigureAwait(false);
             EcmPowerSnapshot snapshot = await provider.ReadAsync().ConfigureAwait(false);
-            Assert.That(rejected.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(rejected.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(rejected.ReturnCode, Is.EqualTo(0x50));
             Assert.That(rejected.ModeId, Is.Zero);
             Assert.That(snapshot.Status, Is.EqualTo(EcmStandbyStatus.ReadyToOperate));
@@ -120,7 +120,7 @@ namespace Opc.Ua.ECM.Tests
         {
             SimulatedEcmPowerProvider provider = Create(new DeviceClock());
             EcmControlResult result = await provider.SwitchToEnergySavingModeAsync(id).ConfigureAwait(false);
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(result.ReturnCode, Is.EqualTo(0x52));
             Assert.That(result.ModeId, Is.EqualTo(0xFF));
             Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Status,
@@ -136,7 +136,7 @@ namespace Opc.Ua.ECM.Tests
             SimulatedEcmPowerProvider provider = Create(new DeviceClock());
             await provider.SwitchToEnergySavingModeAsync(1).ConfigureAwait(false);
             EcmControlResult result = await provider.SwitchToEnergySavingModeAsync(2).ConfigureAwait(false);
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(result.ReturnCode, Is.EqualTo(0x54));
             Assert.That((await provider.ReadAsync().ConfigureAwait(false)).DestinationModeId, Is.EqualTo(1));
         }
@@ -154,13 +154,13 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult switchMode = await provider.SwitchToEnergySavingModeAsync(2).ConfigureAwait(false);
             EcmPowerSnapshot state = await provider.ReadAsync().ConfigureAwait(false);
 
-            Assert.That(pause.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(pause.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(pause.ReturnCode, Is.EqualTo(0x54));
             Assert.That(pause.ModeId, Is.Zero);
             Assert.That(pause.CurrentTimeToDestination, Is.Zero);
             Assert.That(pause.RegularTimeToOperate, Is.Zero);
             Assert.That(pause.TimeMinLengthOfStay, Is.Zero);
-            Assert.That(switchMode.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(switchMode.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(switchMode.ReturnCode, Is.EqualTo(0x54));
             Assert.That(switchMode.ModeId, Is.EqualTo(0xFF));
             Assert.That(switchMode.CurrentTimeToDestination, Is.Zero);
@@ -224,7 +224,7 @@ namespace Opc.Ua.ECM.Tests
             var clock = new DeviceClock();
             SimulatedEcmPowerProvider provider = Create(clock);
             EcmControlResult sleep = await provider.SwitchOffWolAsync().ConfigureAwait(false);
-            Assert.That(sleep.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(sleep.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(sleep.ReturnCode, Is.Zero);
             Assert.That(sleep.ModeId, Is.EqualTo(0xFE));
             Assert.That(sleep.CurrentTimeToDestination, Is.EqualTo(1000));
@@ -308,7 +308,7 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult result = await provider.StartPauseAsync(pause);
             EcmPowerSnapshot state = await provider.ReadAsync();
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(accepted ? StatusCodes.Good : StatusCodes.Uncertain)));
+            Assert.That(result.Status, Is.EqualTo(accepted ? StatusCodes.Good : StatusCodes.Uncertain));
             Assert.That(result.ReturnCode, Is.EqualTo(accepted ? 0 : 0x50));
             Assert.That(state.Status, Is.EqualTo(accepted
                 ? EcmStandbyStatus.MovingToEnergySavingMode : EcmStandbyStatus.ReadyToOperate));
@@ -336,7 +336,7 @@ namespace Opc.Ua.ECM.Tests
 
             Assert.That(state.CurrentTimeToOperate, Is.EqualTo(expected));
             Assert.That(result.CurrentTimeToOperate, Is.EqualTo(expected));
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
         }
 
         /// <summary>
@@ -398,7 +398,7 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult repeated = await provider.SwitchOffWolAsync();
             EcmPowerSnapshot state = await provider.ReadAsync();
 
-            Assert.That(repeated.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(repeated.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(repeated.ReturnCode, Is.Zero);
             Assert.That(repeated.ModeId, Is.EqualTo(0xFE));
             Assert.That(repeated.CurrentTimeToDestination, Is.EqualTo(remaining));
@@ -427,7 +427,7 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult repeated = await provider.SimulateWakeAsync();
             EcmPowerSnapshot moving = await provider.ReadAsync();
 
-            Assert.That(wake.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(wake.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(wake.ReturnCode, Is.Zero);
             Assert.That(wake.CurrentTimeToOperate, Is.EqualTo(recovery));
             Assert.That(repeated.CurrentTimeToOperate, Is.EqualTo(recovery - 1));
@@ -460,7 +460,7 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult rejected = await provider.SimulateWakeAsync();
             EcmPowerSnapshot state = await provider.ReadAsync();
 
-            Assert.That(rejected.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(rejected.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(rejected.ReturnCode, Is.EqualTo(0x54));
             Assert.That(rejected.ModeId, Is.Zero);
             Assert.That(rejected.CurrentTimeToOperate, Is.Zero);
@@ -482,7 +482,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult pause = await provider.SwitchToEnergySavingModeAsync(1);
             EcmPowerSnapshot paused = await provider.ReadAsync();
-            Assert.That(pause.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(pause.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(paused.Status, Is.EqualTo(EcmStandbyStatus.EnergySavingMode));
             Assert.That(paused.SourceModeId, Is.EqualTo(1));
             Assert.That(paused.CurrentTimeToDestination, Is.Zero);
@@ -492,11 +492,11 @@ namespace Opc.Ua.ECM.Tests
             Assert.That(end.CurrentTimeToOperate, Is.Zero);
             Assert.That((await provider.ReadAsync()).Status, Is.EqualTo(EcmStandbyStatus.ReadyToOperate));
             EcmControlResult sleep = await provider.SwitchOffWolAsync();
-            Assert.That(sleep.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(sleep.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(sleep.ModeId, Is.EqualTo(0xFE));
             Assert.That((await provider.ReadAsync()).Status, Is.EqualTo(EcmStandbyStatus.SleepWol));
             EcmControlResult wake = await provider.SimulateWakeAsync();
-            Assert.That(wake.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(wake.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(wake.CurrentTimeToOperate, Is.Zero);
             Assert.That((await provider.ReadAsync()).Status, Is.EqualTo(EcmStandbyStatus.ReadyToOperate));
         }
@@ -522,7 +522,7 @@ namespace Opc.Ua.ECM.Tests
             clock.Advance(499);
             EcmPowerSnapshot state = await provider.ReadAsync();
 
-            Assert.That(accepted.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(accepted.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(accepted.CurrentTimeToDestination, Is.EqualTo(duration));
             Assert.That(state.CurrentTimeToDestination, Is.EqualTo(duration - 499).Within(1));
             Assert.That(state.CurrentTimeToOperate, Is.EqualTo(duration - 499 + 3000).Within(1));
@@ -534,7 +534,7 @@ namespace Opc.Ua.ECM.Tests
             {
                 EcmControlResult reverse = await provider.EndPauseAsync();
                 EcmPowerSnapshot recovering = await provider.ReadAsync();
-                Assert.That(reverse.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                Assert.That(reverse.Status, Is.EqualTo(StatusCodes.Good));
                 Assert.That(reverse.CurrentTimeToOperate, Is.EqualTo(duration - 499 + 3000).Within(1));
                 Assert.That(recovering.Status, Is.EqualTo(EcmStandbyStatus.MovingToReadyToOperate));
                 Assert.That(recovering.CurrentTimeToDestination,

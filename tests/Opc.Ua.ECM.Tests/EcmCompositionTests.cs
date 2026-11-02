@@ -93,7 +93,7 @@ namespace Opc.Ua.ECM.Tests
                 ObjectTypeIds.EnergyStandbyManagementType, context.NamespaceUris));
             provider.AddPredefinedNodes(nodes, context);
 
-            Assert.That(nodes.Count, Is.EqualTo(count));
+            Assert.That(nodes, Has.Count.EqualTo(count));
             Assert.That(nodes.Single(node => node.NodeId == standby.NodeId), Is.SameAs(standby));
             Assert.That(nodes.Count(node => node.NodeId == ExpandedNodeId.ToNodeId(
                 IA.ObjectTypeIds.StacklightType, context.NamespaceUris)), Is.EqualTo(1));

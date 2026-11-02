@@ -163,7 +163,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(3)]
         public async Task PauseTimeWritePreservesOperationStatus(int scenario)
         {
-            uint status = scenario switch
+            StatusCode status = scenario switch
             {
                 0 => StatusCodes.Good,
                 1 => StatusCodes.GoodClamped,
@@ -178,7 +178,7 @@ namespace Opc.Ua.ECM.Tests
                 .Returns(new ValueTask<WriteResponse>(new WriteResponse
                 {
                     ResponseHeader = new ResponseHeader(),
-                    Results = [new StatusCode(status)],
+                    Results = [status],
                     DiagnosticInfos = []
                 }));
             var client = new EcmClient(session.Object, new NodeId("standby", 2), NUnitTelemetryContext.Create());
@@ -192,7 +192,7 @@ namespace Opc.Ua.ECM.Tests
             {
                 StatusCode result = await client.Standby.PauseTimeVariable()
                     .WriteWithStatusAsync(12000).ConfigureAwait(false);
-                Assert.That(result, Is.EqualTo(new StatusCode(status)));
+                Assert.That(result, Is.EqualTo(status));
             }
             session.Verify(value => value.WriteAsync(null,
                 It.Is<ArrayOf<WriteValue>>(items => items.Count == 1 && items[0].NodeId == pause &&
@@ -268,7 +268,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(2)]
         public async Task StandbyReadPreservesQualityAndBothTimestamps(int scenario)
         {
-            uint quality = scenario switch
+            StatusCode quality = scenario switch
             {
                 0 => StatusCodes.Good,
                 1 => StatusCodes.Uncertain,
@@ -293,7 +293,7 @@ namespace Opc.Ua.ECM.Tests
 
             Assert.That(result.HasValue, Is.True);
             Assert.That(result.Value, Is.EqualTo(3));
-            Assert.That(result.DataValue.StatusCode, Is.EqualTo(new StatusCode(quality)));
+            Assert.That(result.DataValue.StatusCode, Is.EqualTo(quality));
             Assert.That(result.DataValue.SourceTimestamp, Is.EqualTo(source));
             Assert.That(result.DataValue.ServerTimestamp, Is.EqualTo(server));
             session.Verify(value => value.ReadAsync(null, 0, TimestampsToReturn.Both,
@@ -314,7 +314,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult result = await client.StartPauseAsync(12000).ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.ReturnCode, Is.Zero);
             Assert.That(result.ModeId, Is.EqualTo(2));
             Assert.That(result.CurrentTimeToDestination, Is.EqualTo(1250));
@@ -339,7 +339,7 @@ namespace Opc.Ua.ECM.Tests
             EcmControlResult result = await CreateClient(session).SwitchToEnergySavingModeAsync(99)
                 .ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(result.ReturnCode, Is.EqualTo(0x52));
             Assert.That(result.ModeId, Is.EqualTo(1));
             Assert.That(result.CurrentTimeToDestination, Is.Zero);
@@ -358,7 +358,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult result = await CreateClient(session).StartPauseAsync(12000).ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadDecodingError)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             Assert.That(result.ModeId, Is.Zero);
             session.Verify(value => value.CallAsync(null, It.IsAny<ArrayOf<CallMethodRequest>>(),
@@ -373,7 +373,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(2)]
         public async Task BadCallDoesNotInterpretDeviceOutputsOrReplay(int scenario)
         {
-            uint status = scenario switch
+            StatusCode status = scenario switch
             {
                 0 => StatusCodes.BadUserAccessDenied,
                 1 => StatusCodes.BadUnexpectedError,
@@ -382,7 +382,7 @@ namespace Opc.Ua.ECM.Tests
             Mock<ISessionClient> session = CreateSession(status, [new Variant("malformed")]);
             EcmControlResult result = await CreateClient(session).StartPauseAsync(12000).ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(status)));
+            Assert.That(result.Status, Is.EqualTo(status));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             Assert.That(result.ModeId, Is.Zero);
             Assert.That(result.CurrentTimeToDestination, Is.Zero);
@@ -399,13 +399,13 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(true)]
         public async Task InconsistentCallAndDeviceStatusReportsDecodingError(bool uncertain)
         {
-            uint status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
+            StatusCode status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
             byte code = uncertain ? (byte)0 : (byte)0x50;
             Mock<ISessionClient> session = CreateSession(status,
                 [new Variant((byte)0), new Variant(0d), new Variant(0d), new Variant(0d), new Variant(code)]);
             EcmControlResult result = await CreateClient(session).StartPauseAsync(12000).ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadDecodingError)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(result.ReturnCode.HasValue, Is.False);
         }
 
@@ -458,7 +458,7 @@ namespace Opc.Ua.ECM.Tests
                 [new Variant(2750d), new Variant((byte)0)]);
             EcmControlResult result = await CreateClient(session).EndPauseAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.ReturnCode, Is.Zero);
             Assert.That(result.CurrentTimeToOperate, Is.EqualTo(2750));
             Assert.That(result.RegularTimeToOperate, Is.Zero);
@@ -481,7 +481,7 @@ namespace Opc.Ua.ECM.Tests
                 await new EcmClient(session.Object, new NodeId("standby", 2),
                     NUnitTelemetryContext.Create(), new NodeId("wol", 2)).SwitchOffWolAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(result.ReturnCode, Is.Zero);
             Assert.That(result.ModeId, Is.EqualTo(0xFE));
             Assert.That(result.CurrentTimeToDestination, Is.EqualTo(1000));
@@ -500,7 +500,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(2)]
         public async Task StandaloneWolPreservesRejectedAndBadCalls(int scenario)
         {
-            uint status = scenario switch
+            StatusCode status = scenario switch
             {
                 0 => StatusCodes.Uncertain,
                 1 => StatusCodes.BadConnectionClosed,
@@ -513,7 +513,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult result = await client.SwitchOffWolAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(status)));
+            Assert.That(result.Status, Is.EqualTo(status));
             Assert.That(result.ReturnCode, Is.EqualTo(StatusCode.IsBad(status) ? (byte?)null : (byte)0x54));
             Assert.That(result.ModeId, Is.Zero);
             Assert.That(result.CurrentTimeToDestination, Is.Zero);
@@ -537,7 +537,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult result = await client.SwitchOffWolAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadDecodingError)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             session.Verify(value => value.CallAsync(null, It.IsAny<ArrayOf<CallMethodRequest>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
@@ -556,7 +556,7 @@ namespace Opc.Ua.ECM.Tests
 
             EcmControlResult result = await client.SwitchOffWolAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadDecodingError)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             Assert.That(result.ModeId, Is.Zero);
             session.Verify(value => value.CallAsync(null, It.IsAny<ArrayOf<CallMethodRequest>>(),
@@ -626,7 +626,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(4, true)]
         public async Task TransportFailureDoesNotReplayPowerCommand(int command, bool timeout)
         {
-            uint status = timeout ? StatusCodes.BadTimeout : StatusCodes.BadConnectionClosed;
+            StatusCode status = timeout ? StatusCodes.BadTimeout : StatusCodes.BadConnectionClosed;
             Mock<ISessionClient> session = CreateSession(StatusCodes.Good, []);
             session.Setup(value => value.CallAsync(null, It.IsAny<ArrayOf<CallMethodRequest>>(),
                 It.IsAny<CancellationToken>())).Throws(new ServiceResultException(status));
@@ -643,7 +643,7 @@ namespace Opc.Ua.ECM.Tests
                     .SwitchOffWolAsync().ConfigureAwait(false)
             };
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(status)));
+            Assert.That(result.Status, Is.EqualTo(status));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             Assert.That(result.ModeId, Is.Zero);
             Assert.That(result.CurrentTimeToDestination, Is.Zero);
@@ -665,7 +665,7 @@ namespace Opc.Ua.ECM.Tests
             Mock<ISessionClient> session = CreateSession(StatusCodes.Good, []);
             EcmControlResult result = await CreateClient(session).SwitchOffWolAsync().ConfigureAwait(false);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadNotSupported)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             session.Verify(value => value.CallAsync(null, It.IsAny<ArrayOf<CallMethodRequest>>(),
                 It.IsAny<CancellationToken>()), Times.Never);

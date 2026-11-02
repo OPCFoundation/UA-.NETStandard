@@ -157,7 +157,9 @@ internal sealed class SamplePower : BackgroundService
         {
             return;
         }
-        if (binding.Standby.StandbyManagementStatus.Value != (byte)EcmStandbyStatus.SleepWol)
+        var status = binding.Standby.StandbyManagementStatus
+            ?? throw new InvalidOperationException("The standby graph is missing StandbyManagementStatus.");
+        if (status.Value != (byte)EcmStandbyStatus.SleepWol)
         {
             m_sleepStarted = null;
             return;

@@ -170,7 +170,7 @@ namespace Opc.Ua.ECM.IntegrationTests
             await foreach (var value in m_client.Standby.StandbyManagementStatusVariable()
                 .ObserveAsync(streaming, cancellationToken: timeout.Token).ConfigureAwait(false))
             {
-                Assert.That(value.DataValue.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                Assert.That(value.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(value.HasValue, Is.True);
                 byte state = value.Value;
                 if ((stage == 0 && state == (byte)EcmStandbyStatus.ReadyToOperate) ||
@@ -185,7 +185,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                         case 0:
                             StatusCode write = await m_client.Standby.PauseTimeVariable()
                                 .WriteWithStatusAsync(10000, timeout.Token).ConfigureAwait(false);
-                            Assert.That(write, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                            Assert.That(write, Is.EqualTo(StatusCodes.Good));
                             break;
                         case 1:
                             m_clock.Advance(2000);
@@ -193,7 +193,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                             break;
                         case 2:
                             EcmControlResult end = await m_client.EndPauseAsync(timeout.Token).ConfigureAwait(false);
-                            Assert.That(end.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+                            Assert.That(end.Status, Is.EqualTo(StatusCodes.Good));
                             Assert.That(end.ReturnCode, Is.Zero);
                             Assert.That(end.CurrentTimeToOperate, Is.EqualTo(5000));
                             break;
@@ -223,7 +223,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         public async Task DeviceRejectionAndRoleDenialRemainDistinctAcrossTheWire()
         {
             EcmControlResult rejected = await m_client.StartPauseAsync(1).ConfigureAwait(false);
-            Assert.That(rejected.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(rejected.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(rejected.ReturnCode, Is.EqualTo(0x50));
             Assert.That(rejected.ModeId, Is.Zero);
             Assert.That(rejected.CurrentTimeToDestination, Is.Zero);
@@ -235,7 +235,7 @@ namespace Opc.Ua.ECM.IntegrationTests
                 .ConfigureAwait(false);
             var client = new EcmWolClient(m_session, denied.PowerOff.NodeId, NUnitTelemetryContext.Create());
             EcmControlResult result = await client.SwitchOffWolAsync().ConfigureAwait(false);
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(result.ReturnCode.HasValue, Is.False);
             Assert.That((await m_power.ReadAsync().ConfigureAwait(false)).Status,
                 Is.EqualTo(EcmStandbyStatus.ReadyToOperate));
@@ -260,7 +260,7 @@ namespace Opc.Ua.ECM.IntegrationTests
             Assert.That(mac.HasValue, Is.True);
             Assert.That(mac.Value.ToArray(), Is.EqualTo(new byte[] { 2, 0, 0, 0, 0, 1 }));
             EcmControlResult sleep = await found[0].SwitchOffWolAsync().ConfigureAwait(false);
-            Assert.That(sleep.Status, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(sleep.Status, Is.EqualTo(StatusCodes.Good));
             Assert.That(sleep.ReturnCode, Is.Zero);
             Assert.That(sleep.ModeId, Is.EqualTo(0xFE));
             Assert.That(sleep.CurrentTimeToDestination, Is.EqualTo(1000));
@@ -299,7 +299,7 @@ namespace Opc.Ua.ECM.IntegrationTests
         private ClientFixture m_clientFixture = null!;
 
         /// <summary>The live session owned by this fixture.</summary>
-        private ISession m_session = null!;
+        private Client.ISession m_session = null!;
 
         /// <summary>The typed client borrowing the fixture's session.</summary>
         private EcmClient m_client = null!;

@@ -99,7 +99,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(2)]
         public async Task StandaloneWolRetainsMetadataAndControlStatus(int scenario)
         {
-            uint status = scenario switch
+            StatusCode status = scenario switch
             {
                 0 => StatusCodes.Good,
                 1 => StatusCodes.Uncertain,
@@ -123,7 +123,7 @@ namespace Opc.Ua.ECM.Tests
             var call = await Required(node.SwitchOffWOL).OnCallAsync!(
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(status)));
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(status));
             Assert.That(call.ReturnCode, Is.EqualTo(code));
             Assert.That(call.ModeID, Is.EqualTo(result.ModeId));
             Assert.That(call.CurrentTimeToDestination, Is.EqualTo(result.CurrentTimeToDestination));
@@ -153,7 +153,7 @@ namespace Opc.Ua.ECM.Tests
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
             Assert.That(call.ServiceResult.StatusCode,
-                Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
             provider.Verify(value => value.SwitchOffWolAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -178,8 +178,8 @@ namespace Opc.Ua.ECM.Tests
             var call = await Required(node.SwitchOffWOL).OnCallAsync!(
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(
-                owns ? StatusCodes.Good : StatusCodes.BadUserAccessDenied)));
+            Assert.That(call.ServiceResult.StatusCode,
+                Is.EqualTo(owns ? StatusCodes.Good : StatusCodes.BadUserAccessDenied));
             ownership.Verify(value => value.IsLockOwner(context, node.NodeId), Times.Once);
             ownership.VerifyNoOtherCalls();
             locks.VerifyNoOtherCalls();
@@ -207,10 +207,10 @@ namespace Opc.Ua.ECM.Tests
             var accepted = await Required(node.SwitchOffWOL).OnCallAsync!(
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
-            Assert.That(failed.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUnexpectedError)));
+            Assert.That(failed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(failed.ModeID, Is.Zero);
             Assert.That(failed.CurrentTimeToDestination, Is.Zero);
-            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(accepted.ModeID, Is.EqualTo(0xFE));
             provider.Verify(value => value.SwitchOffWolAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
@@ -247,7 +247,7 @@ namespace Opc.Ua.ECM.Tests
             var accepted = await Required(node.SwitchOffWOL).OnCallAsync!(
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
-            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.Good)));
+            Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(accepted.ModeID, Is.EqualTo(0xFE));
             Assert.That(calls, Is.EqualTo(2));
 
@@ -300,7 +300,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(true, (byte)0xFE)]
         public async Task IncorrectDestinationReportsProviderError(bool uncertain, byte mode)
         {
-            uint status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
+            StatusCode status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
             SystemContext context = CreateContext();
             EnergyDevicePowerOffState node = CreateNode(context);
             Mock<IEcmWolProvider> provider = CreateProvider();
@@ -313,7 +313,7 @@ namespace Opc.Ua.ECM.Tests
             var call = await Required(node.SwitchOffWOL).OnCallAsync!(
                 context, Required(node.SwitchOffWOL), node.NodeId, CancellationToken.None);
 
-            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUnexpectedError)));
+            Assert.That(call.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(call.ModeID, Is.Zero);
             Assert.That(call.CurrentTimeToDestination, Is.Zero);
             provider.Verify(value => value.SwitchOffWolAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -456,7 +456,7 @@ namespace Opc.Ua.ECM.Tests
         /// </summary>
         private static EnergyDevicePowerOffState CreateNode(SystemContext context)
         {
-            return context.CreateInstanceOfEnergyDevicePowerOffType(null, new QualifiedName("Sleep", 4));
+            return context.CreateInstanceOfEnergyDevicePowerOffType(browseName: new QualifiedName("Sleep", 4));
         }
 
         /// <summary>

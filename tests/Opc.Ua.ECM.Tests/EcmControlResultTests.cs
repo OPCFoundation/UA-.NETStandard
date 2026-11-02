@@ -46,11 +46,11 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(true)]
         public void NonBadResultRetainsIndependentOutputs(bool clamped)
         {
-            uint status = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
+            StatusCode status = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
             const byte code = 0;
             var result = new EcmControlResult(status, code, 2, 100, 200, 300, 400);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(status)));
+            Assert.That(result.Status, Is.EqualTo(status));
             Assert.That(result.ReturnCode, Is.EqualTo(code));
             Assert.That(result.ModeId, Is.EqualTo(2));
             Assert.That(result.CurrentTimeToDestination, Is.EqualTo(100));
@@ -66,7 +66,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(true)]
         public void InconsistentDeviceCodeIsRejected(bool uncertain)
         {
-            uint status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
+            StatusCode status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
             byte code = uncertain ? (byte)0 : (byte)0x50;
             Assert.That(() => new EcmControlResult(status, code), Throws.TypeOf<ArgumentException>());
         }
@@ -79,7 +79,7 @@ namespace Opc.Ua.ECM.Tests
         {
             var result = new EcmControlResult(StatusCodes.Uncertain, 0x52, 2);
 
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.Uncertain)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(result.ReturnCode, Is.EqualTo(0x52));
             Assert.That(result.ModeId, Is.EqualTo(2));
             Assert.That(result.CurrentTimeToDestination, Is.Zero);
@@ -104,7 +104,7 @@ namespace Opc.Ua.ECM.Tests
         {
             var result = new EcmControlResult(StatusCodes.BadUserAccessDenied, null);
             Assert.That(result.ReturnCode.HasValue, Is.False);
-            Assert.That(result.Status, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(() => new EcmControlResult(StatusCodes.BadUnexpectedError, 0),
                 Throws.TypeOf<ArgumentException>());
             Assert.That(() => new EcmControlResult(StatusCodes.BadUnexpectedError, null, modeId: 2),
@@ -126,7 +126,7 @@ namespace Opc.Ua.ECM.Tests
         [TestCase(true)]
         public void NonBadResultRequiresDeviceCode(bool uncertain)
         {
-            uint status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
+            StatusCode status = uncertain ? StatusCodes.Uncertain : StatusCodes.Good;
             Assert.That(() => new EcmControlResult(status, null), Throws.TypeOf<ArgumentException>());
         }
 
