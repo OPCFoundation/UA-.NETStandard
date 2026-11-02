@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
@@ -107,6 +108,102 @@ namespace Opc.Ua.Server.Tests.NodeManager
             completedResource.Verify(value => value.Dispose(), Times.Once);
             resource.Verify(value => value.Dispose(), Times.Exactly(failFirst ? 2 : 1));
             Assert.That(reclaimer.Contains(retired), Is.False);
+        }
+
+        /// <summary>
+        /// A staged cleanup retry does not repeat the manager's successful disposal callback.
+        /// </summary>
+        [Test]
+        public async Task RetirementRetriesStagedResourceAfterManagerDisposalWithoutRepeatingManagerDisposeAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            var context = new ReclamationContext();
+            var retired = context.CreateRetirement();
+
+            var namespaceUris = new NamespaceTable();
+            var serverUris = new StringTable();
+            var typeTree = new TypeTable(namespaceUris);
+            EncodeableFactory factory = (EncodeableFactory)EncodeableFactory.Create();
+            using var servingRegistry = new HistorianProviderRegistry(namespaceUris);
+            context.Server.SetupGet(value => value.NamespaceUris).Returns(namespaceUris);
+            context.Server.SetupGet(value => value.ServerUris).Returns(serverUris);
+            context.Server.SetupGet(value => value.TypeTree).Returns(typeTree);
+            context.Server.SetupGet(value => value.Factory).Returns(factory);
+            context.Server.SetupGet(value => value.MessageContext).Returns(
+                new ServiceMessageContext(context.Server.Object.Telemetry, factory)
+                {
+                    NamespaceUris = namespaceUris,
+                    ServerUris = serverUris
+                });
+            context.Server.SetupGet(value => value.DefaultSystemContext)
+                .Returns(() => new ServerSystemContext(context.Server.Object));
+            context.Server.As<IHistorianRegistryProvider>()
+                .SetupGet(value => value.HistorianRegistry).Returns(servingRegistry);
+
+            int stagedCleanupAttempts = 0;
+            var failure = new InvalidOperationException("Staged cleanup failed once.");
+            context.Server.As<IHistorianBuilderRegistry>()
+                .Setup(value => value.RegisterHistorianBuilder(It.IsAny<HistorianBuilder>()));
+            context.Server.As<IHistorianBuilderRegistry>()
+                .Setup(value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()))
+                .Callback(() =>
+                {
+                    if (Interlocked.Increment(ref stagedCleanupAttempts) == 1)
+                    {
+                        throw failure;
+                    }
+                });
+
+            var preparation = new ChangePreparer(context.Server.Object);
+            await using ChangePreparer.StagingServer stagingServer = preparation.CreateServer();
+            stagingServer.Attach(retired.NodeManager);
+            _ = new HistorianBuilder(stagingServer)
+                .UseProvider(Mock.Of<IHistorianProvider>())
+                .RegisterAsDefault();
+
+            Mock<IAsyncDisposable> managerDisposal = Mock.Get(retired.NodeManager).As<IAsyncDisposable>();
+            int managerDisposeCount = 0;
+            managerDisposal.Setup(value => value.DisposeAsync()).Returns(() =>
+            {
+                managerDisposeCount++;
+                return default;
+            });
+            retired.Generation.Gate.Retire();
+
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            Exception cleanupFailure = await Assert.CatchAsync<Exception>(
+                async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false)).ConfigureAwait(false) ??
+                throw new AssertionException("The first retirement cleanup attempt did not fail.");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(cleanupFailure, Is.TypeOf<AggregateException>());
+                Assert.That(
+                    ((AggregateException)cleanupFailure).Flatten().InnerExceptions,
+                    Has.Member(failure));
+                Assert.That(retired.Retirement.IsCompleted, Is.False);
+                Assert.That(reclaimer.Contains(retired), Is.True);
+                Assert.That(managerDisposeCount, Is.EqualTo(1));
+                Assert.That(stagedCleanupAttempts, Is.EqualTo(1));
+            }
+            managerDisposal.Verify(value => value.DisposeAsync(), Times.Once);
+
+            await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
+            await AssertRetirementOutcomeAsync(retired.Retirement, cleanupFailure, timeout.Token)
+                .ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(reclaimer.Count, Is.Zero);
+                Assert.That(managerDisposeCount, Is.EqualTo(1));
+                Assert.That(stagedCleanupAttempts, Is.EqualTo(2));
+            }
+            managerDisposal.Verify(value => value.DisposeAsync(), Times.Once);
+            context.Server.As<IHistorianBuilderRegistry>().Verify(
+                value => value.UnregisterHistorianBuilder(It.IsAny<HistorianBuilder>()),
+                Times.Exactly(2));
         }
 
         /// <summary>
@@ -606,6 +703,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             internal ReclamationContext()
             {
+                _ = m_server.As<IHistorianRegistryProvider>();
+                _ = m_server.As<IHistorianBuilderRegistry>();
                 var sessions = new Mock<ISessionManager>();
                 sessions.Setup(value => value.GetSessions()).Returns([]);
                 var subscriptions = new Mock<ISubscriptionManager>();
@@ -628,6 +727,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets the dynamic host callback mock.
             /// </summary>
             internal Mock<IDynamicNodeManagerHost> Host { get; }
+
+            /// <summary>
+            /// Gets the server mock used to construct candidate staging metadata.
+            /// </summary>
+            internal Mock<IServerInternal> Server => m_server;
 
             /// <summary>
             /// Gets the cleanup diagnostic logger.

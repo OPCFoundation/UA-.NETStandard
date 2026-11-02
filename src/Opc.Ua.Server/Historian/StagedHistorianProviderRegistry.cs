@@ -251,6 +251,10 @@ namespace Opc.Ua.Server.Historian
                 }
                 m_published = false;
                 m_retired = true;
+                if (m_servingRegistry is IHistorianOwnedProviderRegistry servingOwner)
+                {
+                    m_candidateRegistry.ExcludeSharedProviderOwnership(servingOwner);
+                }
                 m_candidateRegistry.Dispose();
                 m_disposed = true;
             }
@@ -275,7 +279,7 @@ namespace Opc.Ua.Server.Historian
             m_servingHasRegistrations = registrations.Length != 0;
             if (registrations.Length != 0)
             {
-                m_candidateRegistry.TransferProviderOwnership();
+                m_candidateRegistry.TransferProviderOwnership(registrations);
             }
         }
 

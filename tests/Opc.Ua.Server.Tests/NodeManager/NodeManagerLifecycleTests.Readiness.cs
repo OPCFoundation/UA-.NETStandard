@@ -686,6 +686,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Historian bindings created with the address space require readiness before publication.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task HistorianRegistrationDuringAddressSpaceCreationRequiresReadinessBeforePublicationAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var baselineProvider = new LifecycleHistorianProvider();
+            var candidateProvider = new LifecycleHistorianProvider();
+            IHistorianProviderRegistry serving =
+                ((IHistorianRegistryProvider)m_server.CurrentInstance).HistorianRegistry;
+            serving.RegisterDefault(baselineProvider);
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            long revisionBeforePreparation = lifecycle.Revision;
+            var probeNode = new NodeId("address-space-historian", 0);
+            AddressSpaceHistorianNodeManager? manager = null;
+            var factory = new CountingNodeManagerFactory(
+                [kModelNamespaceUri],
+                (server, configuration, _) =>
+                {
+                    var created = new AddressSpaceHistorianNodeManager(
+                        server,
+                        configuration,
+                        m_logger,
+                        candidateProvider);
+                    manager = created;
+                    return new ValueTask<IAsyncNodeManager>(created);
+                });
+
+            ServiceResultException? caughtFailure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await lifecycle.AddAsync(factory, null, timeout.Token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            ServiceResultException failure = caughtFailure ??
+                throw new AssertionException("Historian registration did not require a readiness participant.");
+
+            AddressSpaceHistorianNodeManager actualManager = manager ??
+                throw new AssertionException("The historian candidate factory did not create its manager.");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(actualManager.AddressSpaceRegistrationCount, Is.EqualTo(1));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(failure.Message, Does.Contain("requires").And.Contain("OnServerReadyAsync"));
+                Assert.That(lifecycle.Revision, Is.EqualTo(revisionBeforePreparation));
+                Assert.That(serving.Resolve(probeNode), Is.SameAs(baselineProvider));
+                Assert.That(serving.Providers.Contains(candidateProvider), Is.False);
+                Assert.That(actualManager.DisposeCount, Is.EqualTo(1));
+                Assert.That(candidateProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(baselineProvider.DisposeCount, Is.Zero);
+            }
+        }
+
+        /// <summary>
         /// A readiness retry owns its pending registration until the callback attempt completes.
         /// </summary>
         [Test]
@@ -1743,6 +1796,64 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_deleteAddressSpaceCount;
             private int m_disposeCount;
             private int m_historyUpdateCount;
+        }
+
+        /// <summary>
+        /// Registers historian state during address-space creation without participating in readiness.
+        /// </summary>
+        private sealed class AddressSpaceHistorianNodeManager : NodeManagementLifecycleNodeManager
+        {
+            /// <summary>
+            /// Creates a manager that stages the supplied provider during address-space creation.
+            /// </summary>
+            internal AddressSpaceHistorianNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ILogger logger,
+                IHistorianProvider provider)
+                : base(server, configuration, logger, kModelNamespaceUri, kGeneration1Value)
+            {
+                m_provider = provider;
+            }
+
+            /// <summary>
+            /// Gets the number of historian registrations made during address-space creation.
+            /// </summary>
+            internal int AddressSpaceRegistrationCount => Volatile.Read(ref m_addressSpaceRegistrationCount);
+
+            /// <summary>
+            /// Gets the number of completed manager disposal callbacks.
+            /// </summary>
+            internal int DisposeCount => Volatile.Read(ref m_disposeCount);
+
+            /// <inheritdoc/>
+            public override async ValueTask CreateAddressSpaceAsync(
+                IDictionary<NodeId, IList<IReference>> externalReferences,
+                CancellationToken cancellationToken = default)
+            {
+                await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+                new HistorianBuilder(SystemContext.Server)
+                    .UseProvider(m_provider)
+                    .RegisterAsDefault();
+                Interlocked.Increment(ref m_addressSpaceRegistrationCount);
+            }
+
+            /// <inheritdoc/>
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                if (disposing)
+                {
+                    Interlocked.Increment(ref m_disposeCount);
+                }
+            }
+
+            /// <summary>The provider staged during address-space creation.</summary>
+            private readonly IHistorianProvider m_provider;
+            /// <summary>The number of historian registrations made during creation.</summary>
+            private int m_addressSpaceRegistrationCount;
+            /// <summary>The number of completed disposal callbacks.</summary>
+            private int m_disposeCount;
         }
 
         private sealed record StagedHistorianState(

@@ -1260,7 +1260,10 @@ become visible. Their local overlays remain available to already-admitted work
 until cleanup. Retirement removes only that owner's bindings; other generations
 and direct server registrations remain. Published providers stay owned by the
 serving registry until shutdown. Abort and retirement dispose candidate capture
-handlers.
+handlers and providers that were never published, including providers displaced
+or unregistered within the candidate before readiness. A provider already owned
+by the serving registry is borrowed; aborting a candidate does not dispose it,
+even if its serving bindings have been removed.
 
 `UnregisterForNode`, `UnregisterForNamespace` and `ClearDefault` on the serving
 registry remove matching direct and generation-owned bindings for that scope.

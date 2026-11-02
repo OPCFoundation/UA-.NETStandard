@@ -176,10 +176,12 @@ namespace Opc.Ua.Server
                 await server.DisposeAsync().ConfigureAwait(false);
                 throw new NodeManagerAlreadyRegisteredException();
             }
-            if (server.HasPendingHistorianState && !server.CanPublishHistorianRegistrations)
+            try
             {
-                var failure = new NotSupportedException(
-                    "The serving historian registry does not support candidate-owned registrations.");
+                ValidateHistorianReadiness(manager);
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
                 try
                 {
                     await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
@@ -188,34 +190,38 @@ namespace Opc.Ua.Server
                 catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                 {
                     throw new AggregateException(
-                        "Candidate historian publication is unsupported and candidate cleanup failed.",
+                        "Candidate historian validation and cleanup both failed.",
                         failure,
                         cleanupFailure);
                 }
-                throw failure;
+                throw;
             }
-            if (server.HasPendingHistorianState && !NodeManagerReadiness.IsParticipant(manager))
+            return manager;
+        }
+
+        /// <summary>
+        /// Rejects staged historian state that cannot be published through a readiness callback.
+        /// </summary>
+        internal static void ValidateHistorianReadiness(IAsyncNodeManager manager)
+        {
+            StagingServer? server = GetServer(manager);
+            if (server?.HasPendingHistorianState != true)
             {
-                var failure = ServiceResultException.Create(
+                return;
+            }
+            if (!server.CanPublishHistorianRegistrations)
+            {
+                throw new NotSupportedException(
+                    "The serving historian registry does not support candidate-owned registrations.");
+            }
+            if (!NodeManagerReadiness.IsParticipant(manager))
+            {
+                throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
                     "Historian registration during preparation requires {0} to implement " +
                     "INodeManagerReadinessNotification.OnServerReadyAsync.",
                     manager.GetType().FullName ?? "(unknown)");
-                try
-                {
-                    await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
-                    await server.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-                {
-                    throw new AggregateException(
-                        "Historian registration requires readiness and candidate cleanup failed.",
-                        failure,
-                        cleanupFailure);
-                }
-                throw failure;
             }
-            return manager;
         }
 
         private static async ValueTask DisposeCreatedManagerAsync(IAsyncNodeManager manager)

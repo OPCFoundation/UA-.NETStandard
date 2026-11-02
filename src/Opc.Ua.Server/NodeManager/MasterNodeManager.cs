@@ -737,6 +737,7 @@ namespace Opc.Ua.Server
                 await nodeManager
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
+                ChangePreparer.ValidateHistorianReadiness(nodeManager);
                 ChangePreparer.GetServer(nodeManager)?.AppendRootNotifierReferences(externalReferences);
                 ChangePreparer.GetServer(nodeManager)?.CaptureExternalReferences(externalReferences);
                 prepared = true;

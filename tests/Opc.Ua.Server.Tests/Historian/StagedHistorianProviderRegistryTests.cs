@@ -444,6 +444,156 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(sharedProvider.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Abort preserves serving-owned provider lifetimes and disposes only candidate-exclusive providers.
+        /// </summary>
+        [Test]
+        public void AbortedCandidatePreservesServingOwnedProvidersAndDisposesExclusiveProviderOnce()
+        {
+            var namespaceTable = new NamespaceTable();
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var boundSharedProvider = new TrackingProvider();
+            var unregisteredSharedProvider = new TrackingProvider();
+            var exclusiveProvider = new TrackingProvider();
+            var unregisteredNode = new NodeId("unregistered-serving-provider", 0);
+            var candidateNode = new NodeId("shared-candidate", 0);
+            var unregisteredCandidateNode = new NodeId("unregistered-shared-candidate", 0);
+            serving.RegisterDefault(boundSharedProvider);
+            serving.RegisterForNode(unregisteredNode, unregisteredSharedProvider);
+            Assert.That(serving.UnregisterForNode(unregisteredNode), Is.True);
+            Assert.That(serving.Providers.Contains(unregisteredSharedProvider), Is.False);
+
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            candidate.RegisterForNode(candidateNode, boundSharedProvider);
+            candidate.RegisterForNode(unregisteredCandidateNode, unregisteredSharedProvider);
+            candidate.RegisterDefault(exclusiveProvider);
+
+            candidate.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(serving.Resolve(candidateNode), Is.SameAs(boundSharedProvider));
+                Assert.That(serving.Resolve(unregisteredCandidateNode), Is.SameAs(boundSharedProvider));
+                Assert.That(serving.Providers.Contains(unregisteredSharedProvider), Is.False);
+                Assert.That(boundSharedProvider.DisposeCount, Is.Zero);
+                Assert.That(unregisteredSharedProvider.DisposeCount, Is.Zero);
+                Assert.That(exclusiveProvider.DisposeCount, Is.EqualTo(1));
+            }
+
+            serving.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(boundSharedProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(unregisteredSharedProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(exclusiveProvider.DisposeCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Publication transfers current bindings without abandoning superseded candidate providers.
+        /// </summary>
+        [TestCase("Node", false)]
+        [TestCase("Node", true)]
+        [TestCase("Namespace", false)]
+        [TestCase("Namespace", true)]
+        [TestCase("Default", false)]
+        [TestCase("Default", true)]
+        public void CandidateRetainsSupersededProvidersUntilCleanupAcrossScopes(
+            string scope,
+            bool unregisterBeforeReplacement)
+        {
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(kNamespaceUri);
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var candidateProvider = new TrackingProvider();
+            var publishedProvider = new TrackingProvider();
+            var nodeId = new NodeId("candidate-superseded", 1);
+            using var candidate =
+                new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+
+            Register(scope, candidate, candidateProvider);
+            if (unregisterBeforeReplacement)
+            {
+                Assert.That(Unregister(scope, candidate), Is.True);
+            }
+            Register(scope, candidate, publishedProvider);
+            candidate.Publish();
+
+            Assert.That(Resolve(scope, serving, nodeId), Is.SameAs(publishedProvider));
+            Assert.That(candidateProvider.DisposeCount, Is.Zero);
+            Assert.That(publishedProvider.DisposeCount, Is.Zero);
+
+            candidate.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidateProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(publishedProvider.DisposeCount, Is.Zero);
+            }
+
+            serving.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidateProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(publishedProvider.DisposeCount, Is.EqualTo(1));
+            }
+
+            void Register(
+                string registrationScope,
+                IHistorianProviderRegistry registry,
+                IHistorianProvider provider)
+            {
+                switch (registrationScope)
+                {
+                    case "Node":
+                        registry.RegisterForNode(nodeId, provider);
+                        break;
+                    case "Namespace":
+                        registry.RegisterForNamespace(kNamespaceUri, provider);
+                        break;
+                    case "Default":
+                        registry.RegisterDefault(provider);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(registrationScope));
+                }
+            }
+
+            bool Unregister(string registrationScope, IHistorianProviderRegistry registry)
+            {
+                return registrationScope switch
+                {
+                    "Node" => registry.UnregisterForNode(nodeId),
+                    "Namespace" => registry.UnregisterForNamespace(kNamespaceUri),
+                    "Default" => ClearDefaultAndReturnTrue(registry),
+                    _ => throw new ArgumentOutOfRangeException(nameof(registrationScope))
+                };
+            }
+
+            IHistorianProvider? Resolve(
+                string registrationScope,
+                IHistorianProviderRegistry registry,
+                NodeId targetNode)
+            {
+                return registrationScope switch
+                {
+                    "Node" => registry.Resolve(targetNode),
+                    "Namespace" => registry.Resolve(new NodeId("namespace-scope", 1)),
+                    "Default" => registry.Resolve(new NodeId("default-scope", 0)),
+                    _ => throw new ArgumentOutOfRangeException(nameof(registrationScope))
+                };
+            }
+
+            static bool ClearDefaultAndReturnTrue(IHistorianProviderRegistry registry)
+            {
+                registry.ClearDefault();
+                return true;
+            }
+        }
+
         private sealed class TrackingProvider : IHistorianProvider, IDisposable
         {
             public int DisposeCount { get; private set; }

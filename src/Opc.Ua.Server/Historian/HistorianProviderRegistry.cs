@@ -78,6 +78,11 @@ namespace Opc.Ua.Server.Historian
         IHistorianProvider? ResolveDefault();
 
         /// <summary>
+        /// Gets whether the registry retains disposal ownership, including providers no longer bound.
+        /// </summary>
+        bool OwnsProvider(IHistorianProvider provider);
+
+        /// <summary>
         /// Replaces all registrations currently contributed by <paramref name="owner"/>.
         /// </summary>
         void ReplaceOwnedRegistrations(object owner, HistorianProviderRegistration[] registrations);
@@ -500,13 +505,36 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
-        /// Transfers ownership of locally registered providers after publication to the serving registry.
+        /// Transfers disposal ownership of the published registrations to the serving registry.
         /// </summary>
-        internal void TransferProviderOwnership()
+        internal void TransferProviderOwnership(HistorianProviderRegistration[] registrations)
         {
             lock (m_lock)
             {
-                m_ownedProviders.Clear();
+                foreach (HistorianProviderRegistration registration in registrations)
+                {
+                    m_ownedProviders.Remove(registration.Provider);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IHistorianOwnedProviderRegistry.OwnsProvider(IHistorianProvider provider)
+        {
+            lock (m_lock)
+            {
+                return m_ownedProviders.Contains(provider);
+            }
+        }
+
+        /// <summary>
+        /// Relinquishes providers whose disposal lifetime belongs to the serving registry.
+        /// </summary>
+        internal void ExcludeSharedProviderOwnership(IHistorianOwnedProviderRegistry sharedOwner)
+        {
+            lock (m_lock)
+            {
+                m_ownedProviders.RemoveWhere(sharedOwner.OwnsProvider);
             }
         }
 
