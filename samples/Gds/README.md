@@ -129,7 +129,8 @@ dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
   --pkiRoot "D:\temp\configured-device-pki" `
   --anonymous true `
   --pull true `
-  --deviceTicket "D:\temp\device-ticket.json"
+  --deviceTicket "D:\temp\device-ticket.json" `
+  --exportSigningKeyCertificate "D:\temp\original-signing-identity.der"
 ```
 
 `--anonymous true` selects the session user identity, not an unsecured
@@ -137,12 +138,42 @@ channel: the connection still requires `SignAndEncrypt` and configured
 registrar trust. A registrar requiring a named user can instead use the
 environment-variable credentials described above.
 
-This sample mode provisions one DCA, not other device applications.
-It retains keys in the certificate store but does not persist workflow
-checkpoints or make certificate-store, TrustList, and configuration writes
-one transaction. Installation errors propagate and may leave completed
-store writes. Do not treat this mode as restart recovery or rerun it to
-recover a lost accepted `FinishRequest` response.
+`--exportSigningKeyCertificate` saves the public certificate identifying
+the signing key before the request starts. It does not export the private
+key, which must remain in the original PKI root. If approval remains
+pending when the bounded polling period ends, the client prints
+`PULL_DCA_PENDING_APPLICATION` and `PULL_DCA_PENDING_REQUEST` with
+namespace-URI-qualified identifiers. Save both values.
+
+Resume that pending request without calling `ProvideIdentities` or
+starting another signing request:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
+  --endpoint "opc.tcp://registrar.example:4840" `
+  --pkiRoot "D:\temp\configured-device-pki" `
+  --anonymous true `
+  --pull true `
+  --resumeApplicationId "<saved PULL_DCA_PENDING_APPLICATION value>" `
+  --resumeRequestId "<saved PULL_DCA_PENDING_REQUEST value>" `
+  --resumeSigningKeyCertificate "D:\temp\original-signing-identity.der"
+```
+
+Use the original endpoint, application configuration and PKI root. The
+client proves that the original private key remains available, restores
+the application/group/type binding, and polls the existing request. After
+installation it reconnects with the DCA certificate.
+All three resumption options are required together. An exported public
+certificate alone cannot restore a missing private key.
+
+This sample mode provisions one DCA, not other device applications. It
+does not persist workflow checkpoints or make certificate-store,
+TrustList, and configuration writes one transaction. Installation errors
+propagate and may leave completed store writes. Manual pending-request
+resumption is not recovery of a lost accepted `FinishRequest` response:
+the sample has no durable request evidence or stale-assignment validator
+for `GetCertificates`. A consumed request therefore returns its error
+rather than accepting an unrelated assigned certificate.
 
 ## Wire contract
 

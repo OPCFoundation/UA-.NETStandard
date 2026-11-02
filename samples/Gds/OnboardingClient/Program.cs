@@ -170,8 +170,6 @@ try
             .ConfigureAwait(false);
         if (runPull)
         {
-            string ticketPath = builder.Configuration["deviceTicket"] ??
-                throw new InvalidOperationException("Set --deviceTicket to this device's signed ticket.");
             ApplicationConfiguration configuration = await host.Services
                 .GetRequiredService<IOpcUaApplicationConfigurationProvider>().GetAsync(ct)
                 .ConfigureAwait(false);
@@ -191,13 +189,61 @@ try
             NodeId group = ExpandedNodeId.ToNodeId(
                 Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
             var registrar = new PullDcaRegistrar(new Uri(endpoint), deviceRegistrar, directory);
+            var profile = new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            string? resumeApplication = builder.Configuration["resumeApplicationId"];
+            string? resumeRequest = builder.Configuration["resumeRequestId"];
+            string? resumeKey = builder.Configuration["resumeSigningKeyCertificate"];
+            if (resumeApplication != null || resumeRequest != null || resumeKey != null)
+            {
+                if (string.IsNullOrWhiteSpace(resumeApplication) || string.IsNullOrWhiteSpace(resumeRequest) ||
+                    string.IsNullOrWhiteSpace(resumeKey))
+                {
+                    throw new ArgumentException(
+                        "Resumption requires --resumeApplicationId, --resumeRequestId and " +
+                        "--resumeSigningKeyCertificate from the original local signing request.");
+                }
+                NodeId applicationId = ExpandedNodeId.ToNodeId(
+                    ExpandedNodeId.Parse(resumeApplication), session.NamespaceUris);
+                NodeId requestId = ExpandedNodeId.ToNodeId(
+                    ExpandedNodeId.Parse(resumeRequest), session.NamespaceUris);
+                ByteString original = ByteString.From(
+                    await File.ReadAllBytesAsync(resumeKey, ct).ConfigureAwait(false));
+                await host.Services.GetRequiredService<OnboardingDeviceCredentials>()
+                    .RestoreSigningRequestAsync(applicationId, profile, original, ct).ConfigureAwait(false);
+                await host.Services.GetRequiredService<PullDcaWorkflow>()
+                    .CompleteCertificateRequestAsync(registrar, applicationId, requestId, profile,
+                        cancellationToken: ct).ConfigureAwait(false);
+                await session.ReloadInstanceCertificateAsync(ct).ConfigureAwait(false);
+                await session.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+                Console.WriteLine($"PULL_DCA_REQUEST_INSTALLED {applicationId}");
+                return 0;
+            }
+            string ticketPath = builder.Configuration["deviceTicket"] ??
+                throw new InvalidOperationException("Set --deviceTicket to this device's signed ticket.");
+            string? signingKeySnapshot = builder.Configuration["exportSigningKeyCertificate"];
+            if (signingKeySnapshot != null)
+            {
+                await File.WriteAllBytesAsync(signingKeySnapshot, identity.Certificate.RawData, ct)
+                    .ConfigureAwait(false);
+            }
             var offer = new PullDcaIdentityOffer(
                 [ByteString.From(identity.Certificate.RawData.AsSpan())], issuerBytes,
                 [await File.ReadAllTextAsync(ticketPath, ct).ConfigureAwait(false)]);
-            var request = new PullDcaRequest(offer,
-                new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType), []);
-            PullDcaResult result = await host.Services.GetRequiredService<PullDcaWorkflow>()
-                .RunAsync(registrar, request, cancellationToken: ct).ConfigureAwait(false);
+            var request = new PullDcaRequest(offer, profile, []);
+            PullDcaResult result;
+            try
+            {
+                result = await host.Services.GetRequiredService<PullDcaWorkflow>()
+                    .RunAsync(registrar, request, cancellationToken: ct).ConfigureAwait(false);
+            }
+            catch (PullDcaCertificatePendingException pending)
+            {
+                Console.WriteLine("PULL_DCA_PENDING_APPLICATION " +
+                    NodeId.ToExpandedNodeId(pending.ApplicationId, session.NamespaceUris));
+                Console.WriteLine("PULL_DCA_PENDING_REQUEST " +
+                    NodeId.ToExpandedNodeId(pending.RequestId, session.NamespaceUris));
+                throw;
+            }
             Console.WriteLine($"PULL_DCA_INSTALLED {result.Identity.ApplicationId}");
             return 0;
         }

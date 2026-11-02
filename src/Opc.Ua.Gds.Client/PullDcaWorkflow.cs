@@ -320,7 +320,8 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
-        /// Receives signing output for one retained request without downloading trust or installing credentials.
+        /// Receives signing output for one retained request without installing credentials.
+        /// Consumed-request recovery also reads trust before the host validates the recovered assignment.
         /// </summary>
         private async ValueTask<PullDcaCertificateReceipt> ReceiveCertificateAsync(
             PullDcaRegistrar registrar,
