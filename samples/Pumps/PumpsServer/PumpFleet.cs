@@ -316,7 +316,7 @@ namespace PumpsSample
                         Shelving = true,
                         MaximumShelvingTime = TimeSpan.FromMinutes(5)
                     },
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                    cancellationToken: cancellationToken);
             }
         }
 
