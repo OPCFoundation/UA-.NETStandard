@@ -14,6 +14,14 @@ Reference this package from any application or tool that needs to
 talk to a GDS — typically a provisioning utility, a certificate
 authority bridge, or a server that uses GDS-driven push management.
 
+`ServerPushConfigurationClient.CaptureAsync` runs the existing certificate and
+TrustList operations on an already authorized encrypted session generation. It
+does not reconnect, change user credentials, or close the caller's connection.
+`AddGdsClient` registers a
+`Func<ISession, CancellationToken, ValueTask<ServerPushConfigurationClient>>`
+capture factory alongside the existing connection-owning client. Dispose each
+captured client asynchronously after its operations.
+
 For OPC 10000-21 registrar administration, `OnboardingClient` calls the
 standard `DeviceRegistrarAdminType` instance with specification-native
 `ArrayOf<string>` signed JSON ticket inputs and returns `ArrayOf<StatusCode>`.

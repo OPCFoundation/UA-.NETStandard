@@ -87,6 +87,49 @@ namespace Opc.Ua.Gds.Client
         }
 
         /// <summary>
+        /// Borrows an already authorized encrypted session generation without owning its connection.
+        /// </summary>
+        private ServerPushConfigurationClient(
+            ApplicationConfiguration configuration,
+            SessionRequestContext requestContext,
+            GdsClientOptions? options)
+            : this(configuration, options)
+        {
+            m_requestContext = requestContext;
+            Session = requestContext.Session;
+            InitializeSessionClients(Session);
+        }
+
+        /// <summary>
+        /// Captures an already authorized encrypted session for push certificate and TrustList operations.
+        /// The client never connects, reconnects, changes user identity, or closes the supplied session.
+        /// Each dispatch checks the captured generation; callers must authenticate and validate the device first.
+        /// Use DisposeAsync to release the local context, not DisconnectAsync.
+        /// </summary>
+        public static async ValueTask<ServerPushConfigurationClient> CaptureAsync(
+            ApplicationConfiguration configuration,
+            ISession session,
+            GdsClientOptions? options = null,
+            CancellationToken ct = default)
+        {
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            SessionRequestContext context = await SessionRequestContext.CaptureConfidentialAsync(session, ct)
+                .ConfigureAwait(false);
+            try
+            {
+                return new ServerPushConfigurationClient(configuration, context, options);
+            }
+            catch
+            {
+                await context.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Creates and connects a push configuration client using a supplied session factory.
         /// </summary>
         /// <param name="sessionFactory">The session factory used to create the client session.</param>
@@ -288,6 +331,7 @@ namespace Opc.Ua.Gds.Client
             }
             set
             {
+                RequireOwnedConnection();
                 if (IsConnected)
                 {
                     throw new InvalidOperationException(
@@ -336,7 +380,14 @@ namespace Opc.Ua.Gds.Client
                 await m_lock.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    Session?.Dispose();
+                    if (m_requestContext != null)
+                    {
+                        await m_requestContext.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        Session?.Dispose();
+                    }
                     Session = null;
                     m_serverConfiguration = null;
                 }
@@ -362,6 +413,7 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(string endpointUrl, CancellationToken ct = default)
         {
+            RequireOwnedConnection();
             if (string.IsNullOrEmpty(endpointUrl))
             {
                 throw new ArgumentNullException(nameof(endpointUrl));
@@ -423,6 +475,7 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public async ValueTask ConnectAsync(ConfiguredEndpoint? endpoint, CancellationToken ct = default)
         {
+            RequireOwnedConnection();
             endpoint ??= m_endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
             int maxAttempts = m_options.MaxConnectAttempts;
@@ -458,6 +511,7 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public async ValueTask DisconnectAsync(CancellationToken ct = default)
         {
+            RequireOwnedConnection();
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -490,7 +544,7 @@ namespace Opc.Ua.Gds.Client
         /// <inheritdoc/>
         public async ValueTask<ArrayOf<string>> GetSupportedKeyFormatsAsync(CancellationToken ct = default)
         {
-            if (AdminCredentials == null || Endpoint == null)
+            if (m_requestContext == null && (AdminCredentials == null || Endpoint == null))
             {
                 return default;
             }
@@ -975,6 +1029,11 @@ namespace Opc.Ua.Gds.Client
             ISession session,
             CancellationToken ct = default)
         {
+            if (m_requestContext != null)
+            {
+                ct.ThrowIfCancellationRequested();
+                return session.Identity;
+            }
             IUserIdentity? oldUser = session.Identity;
 
             if (AdminCredentials == null || !ReferenceEquals(session.Identity, AdminCredentials))
@@ -1021,6 +1080,10 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity? oldUser,
             CancellationToken ct = default)
         {
+            if (m_requestContext != null)
+            {
+                return;
+            }
             try
             {
                 if (!ReferenceEquals(session.Identity, oldUser))
@@ -1120,6 +1183,7 @@ namespace Opc.Ua.Gds.Client
             Uri? expectedEndpoint,
             CancellationToken ct)
         {
+            RequireOwnedConnection();
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -1169,21 +1233,7 @@ namespace Opc.Ua.Gds.Client
 
                 RaiseConnectionStatusChangedEvent();
 
-                // init some helpers
-                DefaultApplicationGroup = ExpandedNodeId.ToNodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
-                    Session.NamespaceUris);
-                DefaultHttpsGroup = ExpandedNodeId.ToNodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
-                    Session.NamespaceUris);
-                DefaultUserTokenGroup = ExpandedNodeId.ToNodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
-                    Session.NamespaceUris);
-
-                m_serverConfiguration = new ServerConfigurationTypeClient(
-                    Session,
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
-                    MessageContext.Telemetry);
+                InitializeSessionClients(Session);
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }
@@ -1200,6 +1250,19 @@ namespace Opc.Ua.Gds.Client
         /// <returns></returns>
         private async Task<ISession> ConnectIfNeededAsync(CancellationToken ct)
         {
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(ServerPushConfigurationClient));
+            }
+            if (m_requestContext != null)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (m_requestContext.Invalidated.IsCompleted)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+                return m_requestContext.Session;
+            }
             // Either connect or ct will throw or Session will be valid
             while (true)
             {
@@ -1219,6 +1282,38 @@ namespace Opc.Ua.Gds.Client
                 await ConnectAsync(ct).ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// Resolves standard group identifiers and the generated proxy on one selected session.
+        /// </summary>
+        private void InitializeSessionClients(ISession session)
+        {
+            DefaultApplicationGroup = ExpandedNodeId.ToNodeId(
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
+            DefaultHttpsGroup = ExpandedNodeId.ToNodeId(
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup, session.NamespaceUris);
+            DefaultUserTokenGroup = ExpandedNodeId.ToNodeId(
+                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup, session.NamespaceUris);
+            m_serverConfiguration = new ServerConfigurationTypeClient(
+                session, ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, session.NamespaceUris),
+                MessageContext.Telemetry);
+        }
+
+        /// <summary>
+        /// Rejects connection management on a borrowed generation before discovery or remote side effects.
+        /// </summary>
+        private void RequireOwnedConnection()
+        {
+            if (m_requestContext != null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A borrowed push configuration client cannot manage the caller's connection.");
+            }
+        }
+
+        /// <summary>The locally owned capture, when the caller owns the connection and authorized identity.</summary>
+        private readonly SessionRequestContext? m_requestContext;
 
         private readonly SemaphoreSlim m_lock = new(1, 1);
         private readonly ISessionFactory m_sessionFactory;

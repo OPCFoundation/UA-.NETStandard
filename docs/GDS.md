@@ -357,6 +357,27 @@ connection. `ValidateAsync` remains available for an identity check without a
 retained context, but its result does not authorize requests through another
 session.
 
+`ServerPushConfigurationClient.CaptureAsync` reuses the existing certificate and
+TrustList implementation on an already authorized encrypted session. Pass
+`admitted.Session` to retain the device admission through those operations:
+
+```csharp
+await using ServerPushConfigurationClient push = await ServerPushConfigurationClient.CaptureAsync(
+    registrarConfiguration, admitted.Session, ct: cancellationToken);
+ByteString csr = await push.CreateSigningRequestAsync(
+    certificateGroupId, certificateTypeId, subjectName,
+    regeneratePrivateKey: false, nonce: default, ct: cancellationToken);
+```
+
+The borrowed client does not elevate or restore user credentials, reconnect, or
+close the remote session. The server evaluates the identity that the host
+authenticated before capture. Connection-management methods and endpoint
+retargeting reject borrowed clients; `DisposeAsync` releases only the local
+capture. `AddGdsClient` also registers
+`Func<ISession, CancellationToken, ValueTask<ServerPushConfigurationClient>>` for
+hosts that inject the capture factory. The caller disposes each returned client;
+the existing singleton push client retains its connection-owning behavior.
+
 The host still owns initial channel trust. This helper does
 not approve an application, install credentials, satisfy a software-update gate,
 or implement the supervised `IDeviceRegistrarPushScheduler`. Connected push

@@ -464,6 +464,12 @@ namespace Microsoft.Extensions.DependencyInjection
             });
             services.TryAddSingleton<IServerPushConfigurationClient>(sp =>
                 sp.GetRequiredService<ServerPushConfigurationClient>());
+            services.TryAddSingleton<Func<ISession, CancellationToken, ValueTask<ServerPushConfigurationClient>>>(sp =>
+            {
+                ApplicationConfiguration configuration = sp.GetRequiredService<ApplicationConfiguration>();
+                GdsClientOptions options = sp.GetRequiredService<IOptions<GdsClientOptions>>().Value;
+                return (session, ct) => ServerPushConfigurationClient.CaptureAsync(configuration, session, options, ct);
+            });
 
             services.AddOpcUa();
         }
