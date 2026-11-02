@@ -214,6 +214,10 @@ namespace Opc.Ua.PackML.Server
                 ? context.CreateInstanceOfPackMLBaseObjectType(browseName: browseName)
                 : context.CreateInstanceOfPackMLBaseObjectType(parent, browseName);
             Materialize(context, node, captured);
+            // The state machines resolve state NodeIds in the namespace that
+            // OnAfterCreate selects, so complete the lifecycle before the
+            // controller publishes its first state rather than at registration.
+            node.CreateAsPredefinedNode(context, cancellationToken);
             DataTypeState modeDataType = CreateModeDataType(context, node, captured.Modes);
             PackMLStatusObjectState status = Require(node.Status);
             Require(status.UnitModeCurrent).DataType = modeDataType.NodeId;

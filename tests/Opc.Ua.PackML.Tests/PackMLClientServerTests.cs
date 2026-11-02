@@ -297,9 +297,12 @@ namespace Opc.Ua.PackML.Tests
         [Test]
         public async Task ResetOnWrongNestedMachineIsRejectedBeforeProviderExecution()
         {
+            // The runtime keeps Executable false on methods of inactive or
+            // non-permitting machines, so the Call service rejects them with
+            // BadNotExecutable (OPC 10000-4 5.11.2) before the handler runs.
             ServiceResultException inactive = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.CommandAsync(m_unit.Node.NodeId, PackMLStateCommand.ResetExecute)))!;
-            Assert.That(inactive.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(inactive.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotExecutable));
             Assert.That(m_equipment.Executed, Is.Empty);
             await m_client.CommandAsync(m_unit.Node.NodeId, PackMLStateCommand.Reset);
             await m_unit.CompleteActingStateAsync(m_unit.PendingRequestId, PackMLStateNumbers.Resetting);
@@ -310,7 +313,7 @@ namespace Opc.Ua.PackML.Tests
             int calls = m_equipment.Executed.Count;
             ServiceResultException wrong = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.CommandAsync(m_unit.Node.NodeId, PackMLStateCommand.Reset)))!;
-            Assert.That(wrong.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(wrong.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotExecutable));
             Assert.That(m_equipment.Executed, Has.Count.EqualTo(calls));
             Assert.That(m_unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Complete));
         }

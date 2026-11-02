@@ -88,7 +88,11 @@ namespace Opc.Ua.PackML.Server
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaPackML(context));
+            NodeStateCollection nodes = new NodeStateCollection().AddOpcUaPackML(context);
+            // Method arguments and status values carry PackML structures, which
+            // decode to typed values only after the server factory knows them.
+            context.EncodeableFactory.Builder.AddOpcUaPackML().Commit();
+            return new ValueTask<NodeStateCollection>(nodes);
         }
 
         /// <inheritdoc/>

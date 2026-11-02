@@ -112,6 +112,12 @@ duplicate completion or completion for a superseded request returns
 `BadInvalidState` without advancing the machine. Abort can supersede an active
 command; its completion uses the new identity.
 
+The runtime sets `Executable` to false on every state command that the current
+state does not permit. A client calling such a method receives
+`BadNotExecutable` from the Call service (OPC 10000-4 §5.11.2), and the provider
+never sees the request. An in-process `RequestAsync` for the same command
+returns `BadInvalidState`.
+
 Operations on one unit are serialized, including provider calls, snapshots,
 completion and checkpoints. No synchronization primitive is held while
 application callbacks execute. Operations already admitted execute in admission

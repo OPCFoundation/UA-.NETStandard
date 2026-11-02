@@ -54,6 +54,7 @@ namespace Opc.Ua.PackML.Tests
                 context.NamespaceUris.GetIndexOrAppend("urn:packml:test:padding:" + i);
             }
             ushort index = context.NamespaceUris.GetIndexOrAppend("urn:packml:test:units");
+            context.NamespaceUris.GetIndexOrAppend(Namespaces.PackML);
             context.NodeIdFactory = new DefaultNodeIdFactory(NodeIdAssignmentMode.Numeric, index);
             _ = new NodeStateCollection().AddOpcUaPackML(context);
             return context;
