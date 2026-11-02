@@ -227,6 +227,12 @@ namespace Opc.Ua.AMB.Server.Assets
                     Logger,
                     cancellationToken).ConfigureAwait(false);
 
+                handle.History = await AssetHistoryBinding.CreateAsync(
+                    handle,
+                    manager.Server,
+                    builder.HistoryConfigured ? builder.History : Options.History,
+                    cancellationToken).ConfigureAwait(false);
+
                 lock (m_lock)
                 {
                     m_assets.Add(node.NodeId, handle);
@@ -236,7 +242,17 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             catch
             {
-                Release(handle);
+                try
+                {
+                    if (handle.History != null)
+                    {
+                        await handle.History.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    Release(handle);
+                }
                 throw;
             }
             finally
@@ -398,12 +414,21 @@ namespace Opc.Ua.AMB.Server.Assets
                 manager = m_manager;
             }
             handle.UnwatchIdentification();
-            Release(handle);
-            Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
-
-            if (manager != null)
+            try
             {
-                await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                if (handle.History != null)
+                {
+                    await handle.History.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                Release(handle);
+                Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
+                if (manager != null)
+                {
+                    await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
+                }
             }
         }
 

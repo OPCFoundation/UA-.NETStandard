@@ -245,7 +245,7 @@ limitations and the actual configured instance before claiming a facet.
 | Model or family | Implemented support | Conditions and limits |
 | --- | --- | --- |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Device composition, locking and software-update server/client interfaces | Equipment and storage behavior use application providers |
-| [Asset Management Basics](AMB.md), OPC 10000-110 | Asset discovery/identity, health, maintenance, documentation and location | Sidecar registry composes with the asset's existing namespace owner |
+| [Asset Management Basics](AMB.md), OPC 10000-110 | Asset discovery/identity, health, maintenance, documentation and location; opt-in health values, health-event and past-maintenance history | Sidecar registry composes with the asset's existing namespace owner; shared Part 11 providers supply history, retention and persistence |
 | [Industrial Automation](Robotics.md), OPC 10000-200 | Shared generated IA model used by companion builders | Loading the model does not by itself implement every IA facet |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Building blocks, process values, jobs, energy and result-transfer runtime/client interfaces | Select capabilities and providers; durable result storage is application-supplied |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Native monitoring, tools, retained/modern production, files, peripheral measurements/configuration/records and typed clients/MCP | WMTP is bundled but independently modeled; no included Bluetooth driver or physical CNC executor |

@@ -152,6 +152,12 @@ namespace Opc.Ua.AMB.Server.Assets
         IAssetBuilder WithConfigurableAssetId(string? defaultAssetId = null);
 
         /// <summary>
+        /// Overrides the registry's history configuration for this asset.
+        /// Null disables AMB history; existing owner-provided history is left unchanged.
+        /// </summary>
+        IAssetBuilder WithHistory(AssetHistoryOptions? history);
+
+        /// <summary>
         /// Gives the asset the OPC 10000-100 <c>DeviceHealth</c> variable
         /// (OPC 10000-110 §9.2, "AMB Asset Health Status Base").
         /// </summary>

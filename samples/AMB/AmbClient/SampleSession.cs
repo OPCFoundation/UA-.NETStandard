@@ -62,7 +62,7 @@ namespace AmbSample.Client
             ITelemetryContext telemetry,
             CancellationToken cancellationToken)
         {
-            string pkiRoot = GetPrivateStateRoot();
+            string pkiRoot = options.PkiRoot ?? GetPrivateStateRoot();
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ApplicationName = "AmbClient",

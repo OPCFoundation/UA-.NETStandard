@@ -97,6 +97,13 @@ This release ships the following Part 11 capabilities:
 
 ## Server developer guide
 
+Asset Management Basics composes health and maintenance history onto assets
+owned by DI, Machinery, Pumps or Scales. Configure
+`AddAssetManagement(options => options.UseHistory(provider))` to use the same
+provider model and capture pipeline. The [AMB history guide](AMB.md#history)
+describes per-asset selection, event fields, source timestamps and typed client
+queries. History remains disabled when it is not configured.
+
 ### Quick start: in-memory provider
 
 ```csharp

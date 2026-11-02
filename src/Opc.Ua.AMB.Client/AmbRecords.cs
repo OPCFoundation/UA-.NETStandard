@@ -85,6 +85,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record AssetAlarmRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition, which is also the NodeId of the alarm.</summary>
         public NodeId ConditionId { get; init; }
 
@@ -156,6 +162,12 @@ namespace Opc.Ua.AMB.Client
     /// </summary>
     public sealed record MaintenanceActivityRecord
     {
+        /// <summary>
+        /// Gets original historical select-clause values, including nulls and per-field StatusCodes.
+        /// Empty for a live or current-value record.
+        /// </summary>
+        public ArrayOf<Variant> HistoryFields { get; init; }
+
         /// <summary>Gets the condition.</summary>
         public NodeId ConditionId { get; init; }
 

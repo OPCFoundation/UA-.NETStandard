@@ -21,11 +21,25 @@ dotnet run --project samples/AMB/AmbServer -- --port 62553
 dotnet run --project samples/AMB/AmbClient -- --insecure --seconds 60
 ```
 
+For historical reads, start the server with `--history true`. The client reads
+the preceding hour of health values, health events and maintenance events after
+the live observation interval. Use `--seconds 400` to observe maintenance
+execution, actual-detail updates, completion and replanning. The server uses
+the shared in-memory historian: raw health values retain one hour and at most
+3600 samples per node, while events remain for the server process lifetime.
+Stopping the server discards history; `--state` persists asset configuration
+only. Production retention and restart history require a persistent Part 11
+provider.
+
 `--insecure` makes the client accept the server's self-signed certificate;
 never use it in production. The client also takes `--url <endpoint>` (default
 `opc.tcp://localhost:62553/AmbServer`), `--seconds <n>` (how long to stream,
 `0` to skip) and `--asset-id <id>` (writes a new AssetId to the first asset
 that has one and finds the asset by it).
+
+Both applications accept `--pki-root <absolute-directory>` to place certificate
+stores outside local application data. Use separate roots for the server and
+client when running isolated examples.
 
 The server keeps what clients write - AssetIds, edited and added
 documentation links, the writable location and local time - below the local
@@ -59,6 +73,8 @@ manager builds its address space, which is why `Plant` and
 | `WriteAssetIdAsync`, `FindAssetsAsync` | Configuring an AssetId and finding the asset by it |
 | `ObserveHealthAlarmsAsync`, `AcknowledgeAsync` | Health alarms with severity, fault category and root causes; a cleared alarm is acknowledged |
 | `ObserveMaintenanceAsync` | Maintenance activities moving through Planned, Executing and Finished |
+| `GetHistoryCapabilitiesAsync` | History-read attributes for the asset's health variable and event notifier |
+| `ReadHealthHistoryAsync`, `ReadHealthEventsAsync`, `ReadPastMaintenanceAsync` | Earlier health values and immutable events through Part 11, when the server opts into history |
 
 [`SampleSession.cs`](AmbClient/SampleSession.cs) is the session setup. It
 keeps the `ApplicationInstance` alive until the session closes, because the

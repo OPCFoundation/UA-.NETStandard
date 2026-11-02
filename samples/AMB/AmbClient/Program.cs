@@ -138,6 +138,40 @@ if (options.WatchSeconds > 0)
     Task maintenance = WatchMaintenanceAsync(amb, watch.Token);
     await Task.WhenAll(alarms, maintenance).ConfigureAwait(false);
 }
+foreach (NodeId asset in assets.ToList())
+{
+    AssetHistoryCapabilities capabilities = await amb.GetHistoryCapabilitiesAsync(
+        asset, cancellationToken: ct).ConfigureAwait(false);
+    DateTime end = DateTime.UtcNow;
+    DateTime start = end.AddHours(-1);
+    if (capabilities.HealthValues)
+    {
+        await foreach (AssetHealthHistoryValue value in amb.ReadHealthHistoryAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  health history {asset}: {value.Value.SourceTimestamp} " +
+                $"{value.DeviceHealth} ({value.Value.StatusCode})");
+        }
+    }
+    if (capabilities.Events)
+    {
+        await foreach (AssetAlarmRecord alarm in amb.ReadHealthEventsAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  alarm history {alarm.Time}: {alarm.ConditionName} " +
+                $"{alarm.Message.Text} ({alarm.EventId})");
+        }
+        await foreach (MaintenanceActivityRecord activity in amb.ReadPastMaintenanceAsync(
+            asset, start, end, maxValuesPerNode: 100, cancellationToken: ct).ConfigureAwait(false))
+        {
+            Console.WriteLine(
+                $"  maintenance history {activity.Time}: {activity.ConditionName} {activity.State}, " +
+                $"planned {Format(activity.PlannedDate)}, configuration changed {activity.ConfigurationChanged}");
+        }
+    }
+}
 return 0;
 
 static void Print(AssetSnapshot snapshot)
