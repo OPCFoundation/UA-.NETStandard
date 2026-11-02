@@ -47,6 +47,7 @@ using Opc.Ua.Server;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Tests;
+using ConformanceUnitNames = Opc.Ua.AMB.Server.ConformanceUnits;
 using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.AMB.Tests
@@ -221,7 +222,7 @@ namespace Opc.Ua.AMB.Tests
             DateTime start = DateTime.UtcNow.AddHours(-1);
             var handle = (AssetHandle)asset;
             var vendorClass = new NodeId("VendorInspectionConditionClass", device.NodeId.NamespaceIndex);
-            handle.Owner.AddNode(new BaseObjectTypeState(null)
+            handle.Owner.AddNode(new BaseObjectTypeState
             {
                 NodeId = vendorClass,
                 BrowseName = new QualifiedName("VendorInspectionConditionClass", device.NodeId.NamespaceIndex),
@@ -350,8 +351,8 @@ namespace Opc.Ua.AMB.Tests
             }).ConfigureAwait(false);
             List<AssetAlarmRecord> equal = values.Where(value => value.Time == (DateTimeUtc)timestamp).ToList();
             Assert.That(equal.Select(value => value.EventId), Is.EqualTo(new[] { first, second }));
-            Assert.That(
-                equal.Select(value => value.Message.Text), Is.EqualTo(new[] { "same-time-one", "same-time-two" }));
+            Assert.That(equal[0].Message.Text, Is.EqualTo("same-time-one"));
+            Assert.That(equal[1].Message.Text, Is.EqualTo("same-time-two"));
             Assert.That(values.Any(value => value.Message.Text == "other-asset"), Is.False);
             List<AssetAlarmRecord> reverse = await CollectAsync(client.ReadHealthEventsAsync(
                 asset.NodeId, timestamp.AddSeconds(1), timestamp.AddSeconds(-1),
@@ -822,7 +823,7 @@ namespace Opc.Ua.AMB.Tests
                 }
                 else if (defect == 5)
                 {
-                    configuration.AddChild(new PropertyState<int>(configuration)
+                    configuration.AddChild(new PropertyState(configuration)
                     {
                         NodeId = new NodeId(Guid.NewGuid(), parent.NodeId.NamespaceIndex),
                         BrowseName = new QualifiedName("VendorSetting", parent.NodeId.NamespaceIndex),
@@ -856,7 +857,7 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(configuration.TypeDefinitionId, Is.EqualTo(originalType));
             var remainingConfigurationReferences = new List<IReference>();
             configuration.GetReferences(handle.Context, remainingConfigurationReferences);
-            Assert.That(remainingConfigurationReferences.Count, Is.EqualTo(configurationReferences.Count));
+            Assert.That(remainingConfigurationReferences, Has.Count.EqualTo(configurationReferences.Count));
             foreach (IReference reference in configurationReferences)
             {
                 Assert.That(configuration.ReferenceExists(
@@ -867,7 +868,7 @@ namespace Opc.Ua.AMB.Tests
                 Is.SameAs(configuration));
             var referencesAfter = new List<IReference>();
             parent.GetReferences(handle.Context, referencesAfter);
-            Assert.That(referencesAfter.Count, Is.EqualTo(referencesBefore.Count));
+            Assert.That(referencesAfter, Has.Count.EqualTo(referencesBefore.Count));
             foreach (IReference reference in referencesBefore)
             {
                 Assert.That(parent.ReferenceExists(
