@@ -146,7 +146,8 @@ namespace Microsoft.Extensions.DependencyInjection
                     (descriptor.ServiceType == typeof(FileSystemDeviceRegistrarLifecycle) ||
                     descriptor.ServiceType == typeof(IDeviceRegistrarLifecycle) ||
                     descriptor.ServiceType == typeof(IDeviceRegistrarIdentityLifecycle) ||
-                    descriptor.ServiceType == typeof(IDeviceRegistrarCertificateLifecycle)))
+                    descriptor.ServiceType == typeof(IDeviceRegistrarCertificateLifecycle) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarApplicationScopeLifecycle)))
                 {
                     throw new InvalidOperationException("Select only one registrar lifecycle provider.");
                 }
@@ -158,6 +159,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(provider =>
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            services.AddSingleton<IDeviceRegistrarApplicationScopeLifecycle>(provider =>
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
             return services;
         }
@@ -406,6 +409,28 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Selects the concrete generated-client push processor and its supervised bounded queue.
+        /// The host must explicitly provide authenticated connections, durable enrollment/request recovery,
+        /// the shared lifecycle, and the existing GDS issuance store. No trust or software approval is inferred.
+        /// Register before AddDeviceRegistrarRuntime validates the remaining registrar providers.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarPush(
+            this IServiceCollection services,
+            int capacity = 32)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            RequireProvider<IDeviceRegistrarPushConnectionProvider>(services);
+            RequireProvider<IDeviceRegistrarPushEnrollmentProvider>(services);
+            RequireProvider<IDeviceRegistrarCertificateLifecycle>(services);
+            RequireProvider<ICertificateRequestIssuanceStore>(services);
+            services.TryAddSingleton<OnboardingPushIdentityValidator>();
+            return services.AddDeviceRegistrarPushScheduler<DeviceRegistrarPushProcessor>(capacity);
+        }
+
+        /// <summary>
         /// Selects an in-memory bounded push queue and registers its processor and host-owned worker as singletons.
         /// Register before AddDeviceRegistrarRuntime validates its provider set. The processor owns authentication,
         /// persistent provisioning state, and recovery of uncertain remote effects; this queue does not retry them.
@@ -475,7 +500,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (descriptor.ServiceType == typeof(FileSystemDeviceRegistrarLifecycle) ||
                     descriptor.ServiceType == typeof(IDeviceRegistrarLifecycle) ||
                     descriptor.ServiceType == typeof(IDeviceRegistrarIdentityLifecycle) ||
-                    descriptor.ServiceType == typeof(IDeviceRegistrarCertificateLifecycle))
+                    descriptor.ServiceType == typeof(IDeviceRegistrarCertificateLifecycle) ||
+                    descriptor.ServiceType == typeof(IDeviceRegistrarApplicationScopeLifecycle))
                 {
                     throw new InvalidOperationException(
                         "Select persistent lifecycle storage before registering another lifecycle provider.");
@@ -488,6 +514,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(provider =>
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(provider =>
+                provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
+            services.AddSingleton<IDeviceRegistrarApplicationScopeLifecycle>(provider =>
                 provider.GetRequiredService<FileSystemDeviceRegistrarLifecycle>());
             return services;
         }

@@ -899,6 +899,108 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 DeviceRegistrarRuntimeExtensions.BindToRuntime(null!, new Mock<IDeviceRegistrarRuntime>().Object));
         }
 
+        /// <summary>
+        /// Legacy lifecycle implementations cannot authorize managed applications through a permissive policy.
+        /// </summary>
+        [Test]
+        public async Task ManagedRegistrationRejectsLifecycleWithoutPersistedScopeBeforeDatabaseMutation()
+        {
+            var lifecycle = new Mock<IDeviceRegistrarLifecycle>(MockBehavior.Strict);
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+            var authorization = new Mock<IDeviceRegistrarAuthorization>(MockBehavior.Strict);
+            authorization.Setup(value => value.RequireDcaAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>())).ReturnsAsync(Device);
+            var runtime = new DeviceRegistrarRuntime(database.Object, lifecycle.Object, authorization.Object,
+                new Mock<IDeviceRegistrarPushScheduler>().Object,
+                new Mock<IDeviceRegistrarManagerProvider>().Object,
+                new Mock<IDeviceRegistrarAuditReporter>().Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await runtime.RegisterManagedApplicationAsync(CreateContext(), CreateApplication(), "")
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            database.VerifyNoOtherCalls();
+            lifecycle.VerifyNoOtherCalls();
+            authorization.Verify(value => value.RequireApplicationAsync(
+                It.IsAny<string>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<string>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Legacy lifecycle implementations also cannot bypass scope through the direct application-policy gate.
+        /// </summary>
+        [Test]
+        public async Task ApplicationAuthorizationRejectsLifecycleWithoutPersistedScope()
+        {
+            var lifecycle = new Mock<IDeviceRegistrarLifecycle>(MockBehavior.Strict);
+            var policy = new Mock<IDeviceRegistrarApplicationAuthorization>(MockBehavior.Strict);
+            var authorization = new DeviceRegistrarAuthorization(lifecycle.Object, policy.Object);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.RequireApplicationAsync(Device, CreateApplication(), "").ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            policy.VerifyNoOtherCalls();
+            lifecycle.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Proved singleton DCA credentials keep their own issuance rights but cannot configure other applications.
+        /// </summary>
+        [Test]
+        public async Task InstalledSingletonCannotRegisterOrAuthorizeManagedApplicationEvenWhenPolicyApproves()
+        {
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            var dcaId = new NodeId("singleton-dca", 2);
+            var managedId = new NodeId("existing-managed", 2);
+            ByteString selected = ByteString.From(new byte[] { 4, 5, 6 });
+            ByteString installed = ByteString.From(new byte[] { 1, 2, 3 });
+            await lifecycle.RecordCandidateAsync(Device, dcaId, selected, false).ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(Device, managedId, "").ConfigureAwait(false);
+            await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+            await lifecycle.RecordIssuedDcaCertificateAsync(Device, dcaId, installed).ConfigureAwait(false);
+            var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
+            var policy = new Mock<IDeviceRegistrarApplicationAuthorization>(MockBehavior.Strict);
+            policy.Setup(value => value.CanManageAsync(It.IsAny<string>(), It.IsAny<ApplicationRecordDataType>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            var authorization = new DeviceRegistrarAuthorization(lifecycle, policy.Object);
+            var runtime = new DeviceRegistrarRuntime(database.Object, lifecycle, authorization,
+                new Mock<IDeviceRegistrarPushScheduler>().Object,
+                new Mock<IDeviceRegistrarManagerProvider>().Object,
+                new Mock<IDeviceRegistrarAuditReporter>().Object);
+            SessionSystemContext context = CreateContext();
+
+            // This is the authenticated installed peer; RequireDcaAsync commits pending-credential promotion.
+            Assert.That(await authorization.RequireDcaAsync(context).ConfigureAwait(false), Is.EqualTo(Device));
+            DeviceRegistrarDevice? confirmed = await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false);
+            Assert.That(confirmed!.DcaCertificate, Is.EqualTo(installed));
+            Assert.That(confirmed.PendingDcaCertificate.IsEmpty, Is.True);
+            Assert.That(confirmed.IsSingletonRestricted, Is.True);
+            await authorization.RequireDcaCertificateIssuanceAsync(context, dcaId).ConfigureAwait(false);
+            ServiceResultException? registration = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await runtime.RegisterManagedApplicationAsync(context, CreateApplication(), "").ConfigureAwait(false));
+            var managed = CreateApplication();
+            managed.ApplicationId = managedId;
+            ServiceResultException? issuance = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.RequireManagedCertificateIssuanceAsync(context, managed, "")
+                    .ConfigureAwait(false));
+            ServiceResultException? certificateAccess = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.AuthorizeApplicationAsync(context, managed).ConfigureAwait(false));
+
+            Assert.That(registration!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(issuance!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(certificateAccess!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            ArrayOf<DeviceRegistrarApplicationBinding> visible =
+                await authorization.GetChannelApplicationsAsync(context).ConfigureAwait(false);
+            Assert.That(visible.Count, Is.EqualTo(1));
+            Assert.That(visible[0].ApplicationId, Is.EqualTo(dcaId));
+            Assert.That(visible[0].IsDca, Is.True);
+            database.VerifyNoOtherCalls();
+            policy.Verify(value => value.CanManageAsync(It.IsAny<string>(), It.IsAny<ApplicationRecordDataType>(),
+                It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static async ValueTask InvokeAsync(
             Harness harness,
             string operation,
@@ -1019,6 +1121,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             public Harness()
             {
+                Lifecycle.As<IDeviceRegistrarApplicationScopeLifecycle>()
+                    .Setup(scope => scope.RequireManagedApplicationAllowedAsync(
+                        It.IsAny<string>(), It.IsAny<CancellationToken>())).Returns(default(ValueTask));
                 Lifecycle.Setup(l => l.FindDeviceByCertificateAsync(
                     It.IsAny<ByteString>(), It.IsAny<CancellationToken>())).ReturnsAsync(Device);
                 Lifecycle.Setup(l => l.UpdateSoftwareStatusAsync(

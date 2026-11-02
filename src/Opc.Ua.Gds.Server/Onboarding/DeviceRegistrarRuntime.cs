@@ -215,6 +215,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument);
             }
+            if (m_lifecycle is not IDeviceRegistrarApplicationScopeLifecycle scope)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Managed applications require persisted device application scope.");
+            }
+            await scope.RequireManagedApplicationAllowedAsync(device, cancellationToken).ConfigureAwait(false);
             protocolUri ??= string.Empty;
             RequireUri(application.ApplicationUri);
             if (!string.IsNullOrEmpty(protocolUri))
@@ -228,6 +234,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 application,
                 protocolUri,
                 cancellationToken).ConfigureAwait(false);
+            await scope.RequireManagedApplicationAllowedAsync(device, cancellationToken).ConfigureAwait(false);
             return await RegisterSharedApplicationAsync(
                 application,
                 (id, ct) => m_lifecycle.AssociateApplicationAsync(device, id, protocolUri, ct),

@@ -44,6 +44,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Gets the issued credential awaiting proof on an authenticated channel; it does not retire the active key.
         /// </summary>
         public ByteString PendingDcaCertificate { get; init; }
+
+        /// <summary>
+        /// Gets whether all current and future DCA credentials are prohibited from configuring other applications.
+        /// </summary>
+        public bool IsSingletonRestricted { get; init; }
     }
 
     /// <summary>
@@ -58,7 +63,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
     public sealed class MemoryDeviceRegistrarLifecycle :
         IDeviceRegistrarLifecycle,
         IDeviceRegistrarIdentityLifecycle,
-        IDeviceRegistrarCertificateLifecycle
+        IDeviceRegistrarCertificateLifecycle,
+        IDeviceRegistrarApplicationScopeLifecycle
     {
         /// <inheritdoc/>
         public ValueTask RecordCandidateAsync(
@@ -410,6 +416,51 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <inheritdoc/>
+        public ValueTask RestrictToDcaApplicationAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default)
+        {
+            if (productInstanceUri == null)
+            {
+                throw new ArgumentNullException(nameof(productInstanceUri));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                if (!m_devices.TryGetValue(productInstanceUri, out DeviceRegistrarDevice? device))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                m_devices[productInstanceUri] = device with { IsSingletonRestricted = true };
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RequireManagedApplicationAllowedAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default)
+        {
+            if (productInstanceUri == null)
+            {
+                throw new ArgumentNullException(nameof(productInstanceUri));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                if (!m_devices.TryGetValue(productInstanceUri, out DeviceRegistrarDevice? device))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                if (device.IsSingletonRestricted)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                }
+            }
+            return default;
+        }
+
+        /// <inheritdoc/>
         public ValueTask AssociateApplicationAsync(
             string productInstanceUri,
             NodeId applicationId,
@@ -434,6 +485,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 if (!m_devices.TryGetValue(productInstanceUri, out DeviceRegistrarDevice? device))
                 {
                     throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                if (device.IsSingletonRestricted)
+                {
+                    throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
                 }
                 foreach (DeviceRegistrarDevice candidate in m_devices.Values)
                 {

@@ -462,8 +462,60 @@ the existing singleton push client retains its connection-owning behavior.
 
 The host still owns initial channel trust. This helper does
 not approve an application, install credentials, satisfy a software-update gate,
-or implement the supervised `IDeviceRegistrarPushScheduler`. Connected push
-orchestration remains incomplete.
+or implement the supervised `IDeviceRegistrarPushScheduler`.
+
+`DeviceRegistrarPushProcessor` supplies the registrar's generated-client
+operation sequence. It validates the actual device peer and tickets, records
+the policy-selected application in the shared GDS database, and checks persisted
+software approval before requesting a CSR or changing credentials. It writes the
+complete trust list and issued certificate, applies changes when required, then
+opens a new connection to prove the exact installed certificate before
+confirming the lifecycle transition. A transport failure leaves the retained
+request and pending certificate available for explicit recovery; the scheduler
+does not repeat an uncertain operation automatically.
+
+When the device reports `IsSingleton`, the processor records a restriction in
+the shared lifecycle before issuance or credential promotion. The restriction
+survives identity refresh, software approval, certificate replacement and
+restart; a later `IsSingleton = false` response does not remove it. Its
+certificate can access its own application, but cannot register or configure
+other applications even when the host's per-application policy approves.
+Existing managed-application relations remain recorded without granting access.
+Custom lifecycle providers must implement
+`IDeviceRegistrarApplicationScopeLifecycle`; managed-application operations
+return `BadNotSupported` when that capability is unavailable.
+
+The filesystem lifecycle checkpoint includes this restriction in version 2.
+Version 1 checkpoints have no application-scope evidence, so their devices load
+with managed-application access prohibited. Loading does not rewrite the file;
+the next successful mutation publishes version 2. A host must review legacy
+device scope rather than infer unrestricted DCA privilege from missing evidence.
+
+The host must supply `IDeviceRegistrarPushConnectionProvider` and
+`IDeviceRegistrarPushEnrollmentProvider`. The connection provider owns endpoint
+selection, initial channel trust, registrar authentication and each returned
+connection lease. The enrollment provider must retain the validated identity,
+CSR and request correlation across restart and use the existing GDS request,
+approval and issuance services. The processor reads the exact
+`ICertificateRequestIssuanceStore` receipt; it does not create an authority or
+forge a device-authenticated pull request. Missing approved issuance rejects the
+attempt before trust or certificate upload. These adapters are not supplied by
+the library, so this is not a ready-to-run push registrar.
+
+Select both providers and the shared lifecycle and issuance store before
+registering the processor:
+
+```csharp
+services.AddSingleton<IDeviceRegistrarPushConnectionProvider>(connections);
+services.AddSingleton<IDeviceRegistrarPushEnrollmentProvider>(enrollments);
+services.AddDeviceRegistrarPush(capacity: 32);
+```
+
+`AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
+register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
+process-local. A durable deployment must also retain accepted work or arrange
+for an explicit retry after restart. Device-side credential activation,
+endpoint transition and security reset still require a connected installer.
 
 `ProvideIdentities` requires an authenticated SecureChannel, as specified by
 [Part 21 §9.2.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/9.2.3).

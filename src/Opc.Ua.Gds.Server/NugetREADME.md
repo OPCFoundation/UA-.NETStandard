@@ -39,9 +39,24 @@ metadata cannot substitute for the channel peer. `CaptureAsync` retains that
 generation for subsequent generated clients through `OnboardingPushSession.Session`;
 replacement sessions and channels cannot receive requests authorized by the
 earlier admission. Disposing the context never closes the caller's connection.
-The host still supplies channel trust, software-update policy and supervised push
-orchestration. This validator
-does not install certificates or complete the push onboarding flow.
+This validator does not install certificates or complete the push onboarding flow.
+
+`AddDeviceRegistrarPush` selects a generated-client processor and the bounded
+queue. The processor checks actual-peer identity and persisted software approval,
+uploads an existing request-correlated certificate and complete trust list, and
+requires a new channel proving the installed credential before promotion. Hosts
+must supply authenticated connection and durable enrollment adapters through
+`IDeviceRegistrarPushConnectionProvider` and
+`IDeviceRegistrarPushEnrollmentProvider`, together with the shared lifecycle and
+GDS issuance store. The package does not supply these adapters or a device-side
+credential/reset installer.
+
+Singleton application scope is retained in the shared lifecycle and enforced
+for subsequent managed-application registration and certificate access.
+The filesystem provider writes version 2 checkpoints; version 1 devices load
+with managed-application access prohibited because those checkpoints contain no
+scope evidence. Custom lifecycle providers need
+`IDeviceRegistrarApplicationScopeLifecycle` to authorize managed applications.
 
 ## Target frameworks
 

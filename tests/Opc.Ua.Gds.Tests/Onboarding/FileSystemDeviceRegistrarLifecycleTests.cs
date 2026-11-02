@@ -43,6 +43,121 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class FileSystemDeviceRegistrarLifecycleTests
     {
         /// <summary>
+        /// Singleton scope survives namespace reordering, candidate refresh, approval and installed-peer promotion.
+        /// </summary>
+        [Test]
+        public async Task SingletonScopeSurvivesRestartAndInstalledCredentialPromotion()
+        {
+            using var files = new VirtualFileSystem();
+            NamespaceTable original = NamespacesWithApplications(false);
+            var dca = new NodeId("singleton-dca", (ushort)original.GetIndex(ApplicationNamespace));
+            using (var first = new FileSystemDeviceRegistrarLifecycle(Path, original, files))
+            {
+                await first.RecordCandidateAsync(Device, dca, Identity, false).ConfigureAwait(false);
+                await first.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+                await first.RecordIssuedDcaCertificateAsync(Device, dca, DcaCertificate).ConfigureAwait(false);
+            }
+            NamespaceTable reordered = NamespacesWithApplications(true);
+            var restoredDca = new NodeId("singleton-dca", (ushort)reordered.GetIndex(ApplicationNamespace));
+            using (var restarted = new FileSystemDeviceRegistrarLifecycle(Path, reordered, files))
+            {
+                await restarted.RecordCandidateAsync(Device, restoredDca, Identity, false).ConfigureAwait(false);
+                await restarted.UpdateSoftwareStatusAsync(Device, true, "installed").ConfigureAwait(false);
+                Assert.That(await restarted.ConfirmDcaCertificateAsync(DcaCertificate).ConfigureAwait(false), Is.True);
+            }
+            using var confirmed = new FileSystemDeviceRegistrarLifecycle(Path, reordered, files);
+            DeviceRegistrarDevice? state = await confirmed.FindDeviceAsync(Device).ConfigureAwait(false);
+            Assert.That(state!.IsSingletonRestricted, Is.True);
+            Assert.That(state.DcaApplicationId, Is.EqualTo(restoredDca));
+            Assert.That(state.DcaCertificate, Is.EqualTo(DcaCertificate));
+            byte[] checkpoint = files.Get(Path);
+            ServiceResultException? permission = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await confirmed.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
+            ServiceResultException? mutation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await confirmed.AssociateApplicationAsync(Device, new NodeId("forbidden", 1), "")
+                    .ConfigureAwait(false));
+            Assert.That(permission!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(mutation!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(files.Get(Path), Is.EqualTo(checkpoint));
+        }
+
+        /// <summary>
+        /// Old checkpoints cannot silently grant application-management privilege without retained scope evidence.
+        /// </summary>
+        [Test]
+        public async Task LegacyCheckpointWithoutApplicationScopeFailsClosed()
+        {
+            using var files = new VirtualFileSystem();
+            const string checkpoint =
+                "{\"version\":1,\"candidates\":[],\"devices\":[{\"product\":\"urn:test:device:7\"," +
+                "\"application\":\"i=101\",\"certificate\":\"AQID\",\"softwareStatus\":false," +
+                "\"softwareRevision\":\"\",\"applications\":[]}]}";
+            files.Add(Path, Encoding.UTF8.GetBytes(checkpoint));
+            using var lifecycle = new FileSystemDeviceRegistrarLifecycle(
+                Path, NamespacesWithApplications(false), files);
+
+            DeviceRegistrarDevice? device = await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
+
+            Assert.That(device!.IsSingletonRestricted, Is.True);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(Encoding.UTF8.GetString(files.Get(Path)), Is.EqualTo(checkpoint));
+        }
+
+        /// <summary>
+        /// A failed scope publication is reported, not treated as an installed singleton credential restriction.
+        /// </summary>
+        [Test]
+        public async Task SingletonScopePublicationFailurePreservesPriorCheckpointAndReportsFailure()
+        {
+            using var files = new VirtualFileSystem();
+            NamespaceTable namespaces = NamespacesWithApplications(false);
+            using (var original = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, files))
+            {
+                await original.RecordCandidateAsync(Device, new NodeId("dca", 1), Identity, false)
+                    .ConfigureAwait(false);
+            }
+            byte[] previous = files.Get(Path).ToArray();
+            Mock<IFileSystem> provider = ForwardingFileSystem(files);
+            var failure = new IOException("scope publication unavailable");
+            provider.Setup(value => value.Replace(It.IsAny<string>(), Path)).Throws(failure);
+            using var lifecycle = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, provider.Object);
+
+            IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(files.Get(Path), Is.EqualTo(previous));
+            DeviceRegistrarDevice? state = await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false);
+            Assert.That(state!.IsSingletonRestricted, Is.False);
+            Assert.That(files.Files, Is.EquivalentTo(new[] { Path }));
+        }
+
+        /// <summary>
+        /// Corrupt scope evidence must not be interpreted as unrestricted application-management permission.
+        /// </summary>
+        [Test]
+        public async Task MalformedSingletonScopeRejectsCheckpointWithoutOverwritingIt()
+        {
+            using var files = new VirtualFileSystem();
+            const string checkpoint =
+                "{\"version\":2,\"candidates\":[],\"devices\":[{\"product\":\"urn:test:device:7\"," +
+                "\"application\":\"i=101\",\"certificate\":\"AQID\",\"softwareStatus\":false," +
+                "\"softwareRevision\":\"\",\"singletonRestricted\":\"false\",\"applications\":[]}]}";
+            files.Add(Path, Encoding.UTF8.GetBytes(checkpoint));
+            using var lifecycle = new FileSystemDeviceRegistrarLifecycle(
+                Path, NamespacesWithApplications(false), files);
+
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false));
+
+            Assert.That(Encoding.UTF8.GetString(files.Get(Path)), Is.EqualTo(checkpoint));
+        }
+
+        /// <summary>
         /// Hosted persistence cannot read or change authorization state before the actual model binds its table.
         /// </summary>
         [Test]
@@ -350,7 +465,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("")]
         [TestCase("{}")]
         [TestCase("null")]
-        [TestCase("{\"version\":2,\"devices\":[],\"candidates\":[]}")]
+        [TestCase("{\"version\":3,\"devices\":[],\"candidates\":[]}")]
         [TestCase("{\"version\":1,\"version\":1,\"devices\":[],\"candidates\":[]}")]
         public async Task CorruptOrIncompatibleCheckpointRejectsReadsAndWritesWithoutReplacingData(string checkpoint)
         {
@@ -560,15 +675,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
-        /// Fluent registration shares one persistent instance between both lifecycle contracts.
+        /// Fluent registration shares one persistent instance across all lifecycle capabilities.
         /// </summary>
-        [Test]
-        public void FluentRegistrationUsesOneContainerOwnedLifecycleWithoutOpeningFiles()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FluentRegistrationUsesOneContainerOwnedLifecycleWithoutOpeningFiles(bool hosted)
         {
             var files = new Mock<IFileSystem>(MockBehavior.Strict);
             var services = new ServiceCollection();
-            IServiceCollection result = services.AddFileSystemDeviceRegistrarLifecycle(
-                Path, NamespacesWithApplications(false), files.Object);
+            IServiceCollection result = hosted ?
+                services.AddHostedFileSystemDeviceRegistrarLifecycle(Path, files.Object) :
+                services.AddFileSystemDeviceRegistrarLifecycle(Path, NamespacesWithApplications(false), files.Object);
             Assert.That(result, Is.SameAs(services));
             using ServiceProvider provider = services.BuildServiceProvider();
             FileSystemDeviceRegistrarLifecycle concrete =
@@ -576,6 +693,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(provider.GetRequiredService<IDeviceRegistrarLifecycle>(), Is.SameAs(concrete));
             Assert.That(provider.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(), Is.SameAs(concrete));
             Assert.That(provider.GetRequiredService<IDeviceRegistrarCertificateLifecycle>(), Is.SameAs(concrete));
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarApplicationScopeLifecycle>(), Is.SameAs(concrete));
             files.VerifyNoOtherCalls();
         }
 

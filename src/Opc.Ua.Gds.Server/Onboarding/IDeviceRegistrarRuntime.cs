@@ -290,6 +290,30 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Persists the monotonic OPC 10000-21 singleton application-scope restriction in the shared lifecycle.
+    /// Providers without this capability cannot onboard singletons or authorize managed-application operations.
+    /// </summary>
+    public interface IDeviceRegistrarApplicationScopeLifecycle
+    {
+        /// <summary>
+        /// Permanently restricts this device's DCA credentials to their own application.
+        /// Repeated calls are idempotent; identity refresh, software changes and credential rotation never clear it.
+        /// Existing managed relations remain recorded but cannot be used to configure their applications.
+        /// </summary>
+        ValueTask RestrictToDcaApplicationAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Throws BadRequestNotAllowed for restricted devices and BadNotFound for unknown devices.
+        /// Implementations also enforce this gate atomically inside AssociateApplicationAsync.
+        /// </summary>
+        ValueTask RequireManagedApplicationAllowedAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// A shared GDS identifier's persisted device owner and onboarding role.
     /// </summary>
     public sealed record DeviceRegistrarApplicationBinding(

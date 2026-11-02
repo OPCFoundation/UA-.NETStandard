@@ -41,6 +41,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         IDeviceRegistrarLifecycle,
         IDeviceRegistrarIdentityLifecycle,
         IDeviceRegistrarCertificateLifecycle,
+        IDeviceRegistrarApplicationScopeLifecycle,
         IDisposable
     {
         /// <summary>
@@ -201,6 +202,30 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <inheritdoc/>
+        public async ValueTask RestrictToDcaApplicationAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default)
+        {
+            await ExecuteAsync(async (state, ct) =>
+            {
+                await state.RestrictToDcaApplicationAsync(productInstanceUri, ct).ConfigureAwait(false);
+                return true;
+            }, write: true, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask RequireManagedApplicationAllowedAsync(
+            string productInstanceUri,
+            CancellationToken cancellationToken = default)
+        {
+            await ExecuteAsync(async (state, ct) =>
+            {
+                await state.RequireManagedApplicationAllowedAsync(productInstanceUri, ct).ConfigureAwait(false);
+                return true;
+            }, write: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public async ValueTask AssociateApplicationAsync(
             string productInstanceUri,
             NodeId applicationId,
@@ -296,7 +321,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using JsonDocument document = JsonDocument.Parse(buffer.ToArray());
                 JsonElement root = document.RootElement;
                 RequireUniqueObject(root);
-                if (root.GetProperty("version").GetInt32() != 1)
+                int version = root.GetProperty("version").GetInt32();
+                if (version is not (1 or 2))
                 {
                     throw new InvalidDataException("The registrar lifecycle checkpoint version is not supported.");
                 }
@@ -368,6 +394,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         await state.AssociateApplicationAsync(
                             product, id, Text(application, "protocol"), cancellationToken).ConfigureAwait(false);
                     }
+                    // Legacy checkpoints lack scope evidence; absence must not imply composite privilege.
+                    if (version == 1 || device.GetProperty("singletonRestricted").GetBoolean())
+                    {
+                        await state.RestrictToDcaApplicationAsync(product, cancellationToken).ConfigureAwait(false);
+                    }
                 }
                 if (!candidateProducts.IsSubsetOf(devices))
                 {
@@ -392,7 +423,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using (var writer = new Utf8JsonWriter(buffer))
             {
                 writer.WriteStartObject();
-                writer.WriteNumber("version", 1);
+                writer.WriteNumber("version", 2);
                 writer.WriteStartArray("candidates");
                 foreach (DeviceRegistrarIdentityCandidate candidate in state.Candidates)
                 {
@@ -413,6 +444,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     writer.WriteBase64String("certificate", device.DcaCertificate.Span);
                     writer.WriteBase64String("pendingCertificate", device.PendingDcaCertificate.Span);
                     writer.WriteBoolean("softwareStatus", device.SoftwareStatus);
+                    writer.WriteBoolean("singletonRestricted", device.IsSingletonRestricted);
                     writer.WriteString("softwareRevision", device.SoftwareRevision);
                     writer.WriteStartArray("applications");
                     foreach (DeviceRegistrarApplication application in device.Applications)

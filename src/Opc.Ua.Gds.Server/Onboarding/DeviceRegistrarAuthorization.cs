@@ -210,8 +210,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 new(device.ProductInstanceUri, device.DcaApplicationId, true, string.Empty)
             };
+            if (device.IsSingletonRestricted)
+            {
+                return bindings.ToArray().ToArrayOf();
+            }
             foreach (DeviceRegistrarApplication application in device.Applications)
             {
+                await RequireManagedScopeAsync(device.ProductInstanceUri, cancellationToken).ConfigureAwait(false);
                 bindings.Add(new DeviceRegistrarApplicationBinding(
                     device.ProductInstanceUri, application.ApplicationId, false, application.ProtocolUri));
             }
@@ -307,6 +312,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ArgumentNullException(nameof(application));
             }
             cancellationToken.ThrowIfCancellationRequested();
+            await RequireManagedScopeAsync(productInstanceUri, cancellationToken).ConfigureAwait(false);
             if (!await m_applications.CanManageAsync(
                 productInstanceUri,
                 application,
@@ -315,6 +321,20 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
             }
+            await RequireManagedScopeAsync(productInstanceUri, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies persisted scope independently of per-application approval, including after credential promotion.
+        /// </summary>
+        private ValueTask RequireManagedScopeAsync(string productInstanceUri, CancellationToken cancellationToken)
+        {
+            if (m_lifecycle is not IDeviceRegistrarApplicationScopeLifecycle scope)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Managed applications require persisted device application scope.");
+            }
+            return scope.RequireManagedApplicationAllowedAsync(productInstanceUri, cancellationToken);
         }
 
         /// <summary>

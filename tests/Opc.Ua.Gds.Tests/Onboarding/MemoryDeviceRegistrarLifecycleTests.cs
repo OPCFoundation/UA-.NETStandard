@@ -38,6 +38,99 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class MemoryDeviceRegistrarLifecycleTests
     {
+        /// <summary>
+        /// Singleton scope is monotonic across identity refresh, software approval and credential replacement.
+        /// </summary>
+        [Test]
+        public async Task SingletonScopeSurvivesRefreshApprovalRotationAndInstalledCredentialProof()
+        {
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            var applicationId = new NodeId("dca", 2);
+            ByteString replacement = ByteString.From(new byte[] { 4, 5, 6 });
+            await lifecycle.RecordCandidateAsync(Device, applicationId, Certificate, false).ConfigureAwait(false);
+            await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+            await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+            await lifecycle.RecordCandidateAsync(Device, applicationId, Certificate, false).ConfigureAwait(false);
+            await lifecycle.UpdateSoftwareStatusAsync(Device, true, "approved").ConfigureAwait(false);
+            await lifecycle.RegisterDeviceAsync(Device, applicationId, Certificate).ConfigureAwait(false);
+            await lifecycle.RecordIssuedDcaCertificateAsync(Device, applicationId, replacement).ConfigureAwait(false);
+            Assert.That(await lifecycle.ConfirmDcaCertificateAsync(replacement).ConfigureAwait(false), Is.True);
+
+            ServiceResultException? permission = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
+            ServiceResultException? mutation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.AssociateApplicationAsync(Device, new NodeId("other", 2), "").ConfigureAwait(false));
+
+            Assert.That(permission!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(mutation!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            DeviceRegistrarDevice? state = await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false);
+            Assert.That(state!.IsSingletonRestricted, Is.True);
+            Assert.That(state.DcaCertificate, Is.EqualTo(replacement));
+            Assert.That(state.Applications.IsEmpty, Is.True);
+            Assert.That(state.SoftwareRevision, Is.EqualTo("approved"));
+        }
+
+        /// <summary>
+        /// Tightening scope retains prior relations as history but rejects reuse and further associations.
+        /// </summary>
+        [Test]
+        public async Task SingletonRestrictionRevokesExistingManagedRelationsWithoutErasingOwnership()
+        {
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            var applicationId = new NodeId("dca", 2);
+            var managedId = new NodeId("managed", 2);
+            await lifecycle.RegisterDeviceAsync(Device, applicationId, Certificate).ConfigureAwait(false);
+            await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(Device, managedId, "").ConfigureAwait(false);
+            await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lifecycle.AssociateApplicationAsync(Device, managedId, "urn:updated").ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            DeviceRegistrarApplicationBinding? binding = await lifecycle.FindApplicationAsync(managedId)
+                .ConfigureAwait(false);
+            Assert.That(binding!.ProductInstanceUri, Is.EqualTo(Device));
+            Assert.That(binding.ProtocolUri, Is.Empty);
+        }
+
+        /// <summary>
+        /// Missing identity state or cancellation never creates a new unrestricted authorization record.
+        /// </summary>
+        [TestCase("restrict")]
+        [TestCase("require")]
+        public async Task ScopeOperationsRejectUnknownDeviceAndCancellation(string operation)
+        {
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (operation == "restrict")
+                {
+                    await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
+                }
+                else
+                {
+                    await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false);
+                }
+            });
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            {
+                if (operation == "restrict")
+                {
+                    await lifecycle.RestrictToDcaApplicationAsync(Device, cancellation.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await lifecycle.RequireManagedApplicationAllowedAsync(Device, cancellation.Token)
+                        .ConfigureAwait(false);
+                }
+            });
+            Assert.That(await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false), Is.Null);
+        }
+
         [Test]
         public async Task UnknownDeviceDoesNotAcquireSoftwareStatusOrDcaPrivilege()
         {
