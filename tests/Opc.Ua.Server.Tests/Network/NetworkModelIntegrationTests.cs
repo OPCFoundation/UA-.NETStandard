@@ -355,7 +355,10 @@ namespace Opc.Ua.Server.Tests.Network
                     {
                         Assert.That(failure.DataValue.WrappedValue.TryGetValue(out MatrixOf<byte> identifiers),
                             Is.True);
-                        Assert.That(identifiers.Dimensions, Is.EqualTo(new[] { 1, 8 }));
+                        int[] dimensions = identifiers.Dimensions;
+                        Assert.That(dimensions, Has.Length.EqualTo(2));
+                        Assert.That(dimensions[0], Is.EqualTo(1));
+                        Assert.That(dimensions[1], Is.EqualTo(8));
                         Assert.That(identifiers.Span.ToArray(),
                             Is.EqualTo(new byte[] { 2, 0, 0, 0, 0, 2, 0, 1 }));
                     }
