@@ -346,11 +346,13 @@ namespace Opc.Ua.LADS.Server
         /// Removes the references an instance subtree keeps to instance declarations of its types.
         /// </summary>
         /// <remarks>
-        /// The generated factories copy the non-child references of a type, such as the
-        /// <c>HasAddIn</c> references of the Machinery building blocks, into every instance.
-        /// The NodeId rebase redirects those that target an instantiated child, but the ones that
-        /// target an optional child the instance never created still point at the declaration,
-        /// so clients would browse from the instance into the type.
+        /// The generated instance factories omit references to optional declarations they do not
+        /// create, but the generated child factories still copy the non-child references of a
+        /// type, such as the <c>HasAddIn</c> and identification references of the Machinery
+        /// building blocks, into every instance. The NodeId rebase redirects those that target an
+        /// instantiated child, but the ones that target an optional child the instance never
+        /// created still point at the declaration, so clients would browse from the instance into
+        /// the type.
         /// </remarks>
         /// <param name="root">The root of the instance subtree.</param>
         internal void RemoveDeclarationReferences(NodeState root)

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Di.Server;
 using Opc.Ua.LADS.Server.StateMachines;
 using Opc.Ua.Server;
 
@@ -116,9 +117,28 @@ namespace Opc.Ua.LADS.Server
             {
                 if (child is MethodState)
                 {
+                    ReleaseNodeIdReservations(context, child);
                     operational.RemoveChild(child);
                 }
             }
+        }
+
+        /// <summary>
+        /// Releases the NodeIds the factory reserved for a removed node and its children.
+        /// </summary>
+        private static void ReleaseNodeIdReservations(ISystemContext context, NodeState node)
+        {
+            if (context.NodeIdFactory is not ICompanionNodeIdReservationOwner owner)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                ReleaseNodeIdReservations(context, child);
+            }
+            owner.ReleaseNodeIdReservation(node);
         }
 
         /// <summary>
@@ -127,8 +147,9 @@ namespace Opc.Ua.LADS.Server
         /// <remarks>
         /// The specification requires the Operational group of a control or cover function to
         /// organize the CurrentState of its state machine, all of the state machine's remote
-        /// invocable methods, and the CurrentValue and TargetValue variables. This runs after
-        /// the device is registered, when the nodes have their NodeIds.
+        /// invocable methods, and the CurrentValue and TargetValue variables. Members already
+        /// organized by the generated type retain their inverse references. This runs after the
+        /// device is registered, when the nodes have their NodeIds.
         /// </remarks>
         internal void OrganizeOperational()
         {
@@ -144,25 +165,24 @@ namespace Opc.Ua.LADS.Server
                 CoverFunctionState cover => cover.CoverState,
                 _ => null
             };
-            if (stateMachine == null)
-            {
-                return;
-            }
             var children = new List<BaseInstanceState>();
             var members = new List<BaseInstanceState>();
             if (stateMachine is FiniteStateMachineState { CurrentState: { } currentState })
             {
                 members.Add(currentState);
             }
-            children.Clear();
-            stateMachine.GetChildren(context, children);
-            members.AddRange(children.OfType<MethodState>());
+            if (stateMachine != null)
+            {
+                stateMachine.GetChildren(context, children);
+                members.AddRange(children.OfType<MethodState>());
+            }
             children.Clear();
             Node.GetChildren(context, children);
             members.AddRange(children.Where(child =>
-                child is BaseVariableState &&
-                child.BrowseName.NamespaceIndex == Runtime.LadsNamespaceIndex &&
-                child.BrowseName.Name is "CurrentValue" or "TargetValue"));
+                operational.ReferenceExists(ReferenceTypeIds.Organizes, false, child.NodeId) ||
+                (child is BaseVariableState &&
+                    child.BrowseName.NamespaceIndex == Runtime.LadsNamespaceIndex &&
+                    child.BrowseName.Name is "CurrentValue" or "TargetValue")));
             foreach (BaseInstanceState member in members)
             {
                 if (!operational.ReferenceExists(ReferenceTypeIds.Organizes, false, member.NodeId))

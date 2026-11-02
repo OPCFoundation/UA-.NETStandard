@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
 
@@ -146,6 +147,9 @@ namespace Opc.Ua.LADS.Tests.Server
             await AssertChildrenAsync(server, variables, "Steps").ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that hierarchical instance references do not lead to type declarations.
+        /// </summary>
         [Test]
         public async Task InstanceTreeDoesNotReferenceTypeDeclarationsAsync()
         {
@@ -181,6 +185,9 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(leaks, Is.Empty, string.Join("\n", leaks));
         }
 
+        /// <summary>
+        /// Verifies that Operational organizes the registered state-machine members and values.
+        /// </summary>
         [TestCase("Temperature", "ControlFunctionState", "CurrentValue", "TargetValue")]
         [TestCase("Timer", "ControlFunctionState", "CurrentValue", "TargetValue")]
         [TestCase("Door", "CoverState")]
@@ -224,6 +231,47 @@ namespace Opc.Ua.LADS.Tests.Server
                 {
                     Assert.That(expected, Does.Contain(server.ToNodeId(reference.NodeId)), reference.BrowseName.Name);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Preserves the Operational members declared by specialized controls and sensors.
+        /// </summary>
+        [TestCase("Totalizer", "TotalizedValue", "ResetTotalizer")]
+        [TestCase("Relative", "IncreaseRate", "DecreaseRate", "ModifyTargetValueBy")]
+        [TestCase("Sensor", "SensorValue", "RawValue")]
+        public async Task OperationalPreservesTypeSpecificMembersAsync(string function, params string[] members)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(OperationalPreservesTypeSpecificMembersAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device",
+                    device => device.FunctionalUnit("Unit", unit => unit
+                        .AnalogControl("Totalizer", options => options.Kind = LadsAnalogControlKind.Totalizer)
+                        .AnalogControl("Relative", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Relative;
+                            options.IncreaseRate = 1;
+                            options.DecreaseRate = 1;
+                        })
+                        .AnalogScalarSensor("Sensor")))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit("Unit");
+            NodeId node = await server.ChildAsync(unit.NodeId, "FunctionSet", function).ConfigureAwait(false);
+            NodeId operational = await server.ChildAsync(node, "Operational").ConfigureAwait(false);
+            var organized = (await server.BrowseAsync(operational, ReferenceTypeIds.Organizes).ConfigureAwait(false))
+                .Select(reference => server.ToNodeId(reference.NodeId))
+                .ToHashSet();
+
+            foreach (string member in members)
+            {
+                NodeId expected = await server.ChildAsync(node, member).ConfigureAwait(false);
+                Assert.That(organized, Does.Contain(expected), $"{function}/{member}");
+                var inverse = (await server.BrowseAsync(
+                    expected, ReferenceTypeIds.Organizes, BrowseDirection.Inverse).ConfigureAwait(false))
+                    .Select(reference => server.ToNodeId(reference.NodeId));
+                Assert.That(inverse, Does.Contain(operational), $"{function}/{member}");
             }
         }
 
