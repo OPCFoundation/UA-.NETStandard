@@ -275,10 +275,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await harness.Manager.AddPredefinedNodeAsync(node, token);
                 }
-                Assert.That(harness.Manager.FindPredefinedNode(node.NodeId), Is.SameAs(node));
-                Assert.That(await harness.Manager.DeleteNodeAsync(harness.Manager.SystemContext, node.NodeId),
+                Assert.That(harness.Manager.FindPredefinedNode<BaseObjectState>(node.NodeId), Is.SameAs(node));
+                Assert.That(await harness.Manager.DeleteNodeAsync(harness.Manager.SystemContext, node.NodeId, token),
                     Is.True);
-                Assert.That(harness.Manager.FindPredefinedNode(node.NodeId), Is.Null);
+                Assert.That(harness.Manager.FindPredefinedNode<BaseObjectState>(node.NodeId), Is.Null);
                 return 42;
             }).AsTask();
             Task? disposing = null;
