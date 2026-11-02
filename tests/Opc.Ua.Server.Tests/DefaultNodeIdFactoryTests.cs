@@ -42,6 +42,7 @@ namespace Opc.Ua.Server.Tests
     [TestFixture]
     [Category("DefaultNodeIdFactory")]
     [Parallelizable(ParallelScope.All)]
+    [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
     public class DefaultNodeIdFactoryTests
     {
         private const string kNamespaceUri = "http://test.org/UA/factory/";
