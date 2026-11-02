@@ -29,6 +29,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
@@ -405,6 +406,38 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<HostedDeviceRegistrarAuditReporter>();
             services.TryAddSingleton<IDeviceRegistrarAuditReporter>(provider =>
                 provider.GetRequiredService<HostedDeviceRegistrarAuditReporter>());
+            return services;
+        }
+
+        /// <summary>
+        /// Selects fresh authenticated stack sessions for registrar push attempts.
+        /// Target selection supplies authorized encrypted endpoints, credentials and namespace-stable model addresses.
+        /// This does not register enrollment, discover Resources or accept untrusted certificates.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarPushConnections(
+            this IServiceCollection services,
+            ApplicationConfiguration configuration,
+            Func<ApplicationDescription, CancellationToken, ValueTask<DeviceRegistrarPushTarget>> selectTarget,
+            ISessionFactory? sessionFactory = null)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            if (selectTarget == null)
+            {
+                throw new ArgumentNullException(nameof(selectTarget));
+            }
+            services.AddSingleton<IDeviceRegistrarPushConnectionProvider>(provider =>
+                new SessionDeviceRegistrarPushConnectionProvider(
+                    configuration,
+                    sessionFactory ?? provider.GetService<ISessionFactory>() ??
+                        new DefaultSessionFactory(provider.GetRequiredService<ITelemetryContext>()),
+                    selectTarget));
             return services;
         }
 

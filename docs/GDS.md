@@ -491,22 +491,33 @@ with managed-application access prohibited. Loading does not rewrite the file;
 the next successful mutation publishes version 2. A host must review legacy
 device scope rather than infer unrestricted DCA privilege from missing evidence.
 
-The host must supply `IDeviceRegistrarPushConnectionProvider` and
-`IDeviceRegistrarPushEnrollmentProvider`. The connection provider owns endpoint
-selection, initial channel trust, registrar authentication and each returned
-connection lease. The enrollment provider must retain the validated identity,
+`AddDeviceRegistrarPushConnections` selects
+`SessionDeviceRegistrarPushConnectionProvider`, which creates a fresh session
+through the existing `ISessionFactory` for each attempt and installed-certificate
+proof. The host supplies a target selector returning a `DeviceRegistrarPushTarget`
+with an authorized encrypted endpoint, registrar user identity and
+namespace-URI-based model addresses. The adapter enables domain checking,
+rejects automatic acceptance of untrusted certificates, and checks the actual
+transport leaf against the expected installed certificate. Discovery certificate
+bytes cannot satisfy that check. The host must configure the initial
+manufacturer or device trust before connecting; signed-ticket admission remains
+the processor's separate authorization step. Disposing a connection closes only
+its freshly created session. Close and disposal failures are retained.
+
+The host still supplies `IDeviceRegistrarPushEnrollmentProvider`.
+The enrollment provider must retain the validated identity,
 CSR and request correlation across restart and use the existing GDS request,
 approval and issuance services. The processor reads the exact
 `ICertificateRequestIssuanceStore` receipt; it does not create an authority or
 forge a device-authenticated pull request. Missing approved issuance rejects the
-attempt before trust or certificate upload. These adapters are not supplied by
-the library, so this is not a ready-to-run push registrar.
+attempt before trust or certificate upload. The library does not yet supply
+this enrollment adapter, so this is not a ready-to-run push registrar.
 
 Select both providers and the shared lifecycle and issuance store before
 registering the processor:
 
 ```csharp
-services.AddSingleton<IDeviceRegistrarPushConnectionProvider>(connections);
+services.AddDeviceRegistrarPushConnections(configuration, selectTarget);
 services.AddSingleton<IDeviceRegistrarPushEnrollmentProvider>(enrollments);
 services.AddDeviceRegistrarPush(capacity: 32);
 ```
@@ -843,7 +854,7 @@ has passed.
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
-| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, existing Part 12 push client | device-security and push-identity fixtures; supervised push orchestration, credential endpoint transition, singleton privilege handling and multi-application provisioning remain incomplete |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, generated-client push processor, fresh-session connection adapter and retained singleton scope | `DeviceRegistrarPushProcessorTests`, `SessionDeviceRegistrarPushConnectionProviderTests` and lifecycle fixtures authored; durable enrollment, credential endpoint transition and multi-application provisioning remain incomplete; no executed push integration evidence |
 | §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |

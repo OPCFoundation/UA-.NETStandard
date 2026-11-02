@@ -44,12 +44,14 @@ This validator does not install certificates or complete the push onboarding flo
 `AddDeviceRegistrarPush` selects a generated-client processor and the bounded
 queue. The processor checks actual-peer identity and persisted software approval,
 uploads an existing request-correlated certificate and complete trust list, and
-requires a new channel proving the installed credential before promotion. Hosts
-must supply authenticated connection and durable enrollment adapters through
-`IDeviceRegistrarPushConnectionProvider` and
-`IDeviceRegistrarPushEnrollmentProvider`, together with the shared lifecycle and
-GDS issuance store. The package does not supply these adapters or a device-side
-credential/reset installer.
+requires a new channel proving the installed credential before promotion.
+`AddDeviceRegistrarPushConnections` supplies fresh authenticated sessions through
+the existing session factory, with host-selected endpoints, credentials and
+namespace-stable model addresses. It checks the actual installed peer and
+retains cleanup failures without changing global certificate trust. Hosts still
+supply `IDeviceRegistrarPushEnrollmentProvider`, together with the shared
+lifecycle and GDS issuance store. The package does not yet supply the durable
+enrollment adapter or a device-side credential/reset installer.
 
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.

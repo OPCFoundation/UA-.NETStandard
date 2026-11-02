@@ -1,0 +1,320 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Client.Tests.SessionContexts;
+using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
+using Ua = global::Opc.Ua;
+
+namespace Opc.Ua.Gds.Tests.Onboarding
+{
+    /// <summary>
+    /// Exercises fresh-session ownership, actual peer pinning and namespace-stable push addresses.
+    /// </summary>
+    [TestFixture]
+    [Category("Onboarding")]
+    public sealed class SessionDeviceRegistrarPushConnectionProviderTests
+    {
+        /// <summary>
+        /// Creates the fixture's public channel identity.
+        /// </summary>
+        [OneTimeSetUp]
+        public void SetUp()
+        {
+            m_certificate = CertificateBuilder.Create("CN=Push Connection Device")
+                .SetRSAKeySize(2048).CreateForRSA();
+        }
+
+        /// <summary>
+        /// Releases the fixture-owned key.
+        /// </summary>
+        [OneTimeTearDown]
+        public void TearDown()
+        {
+            m_certificate.Dispose();
+        }
+
+        /// <summary>
+        /// The actual peer leaf is checked even when discovery contains different certificate bytes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ActualPeerPinAndNamespaceUriDetermineReturnedConnection(bool chainBlob)
+        {
+            await using var context = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            byte[] peer = chainBlob ?
+                m_certificate.RawData.Concat(m_certificate.RawData).ToArray() : m_certificate.RawData;
+            context.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(peer);
+            DeviceRegistrarPushTarget target = Target(context);
+            target.Endpoint.Description.ServerCertificate = ByteString.From(new byte[] { 1, 2, 3 });
+            var factory = Factory(context.InnerSession);
+            var provider = Provider(factory.Object, target);
+
+            IDeviceRegistrarPushConnection connection = await provider.ConnectAsync(
+                Application(), ByteString.From(m_certificate.RawData.AsSpan())).ConfigureAwait(false);
+
+            Assert.That(connection.Session, Is.SameAs(context.InnerSession));
+            Assert.That(connection.ProvisionableDeviceId, Is.EqualTo(new NodeId("device", 1)));
+            Assert.That(connection.CertificateGroupId, Is.EqualTo(new NodeId("group", 1)));
+            Assert.That(connection.CertificateTypeId,
+                Is.EqualTo(new NodeId(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)));
+            Assert.That(connection.OfferedEndpoint, Is.Not.SameAs(target.Endpoint.Description));
+            Assert.That(connection.OfferedEndpoint.ServerCertificate.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            factory.Verify(value => value.CreateAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(), false, true,
+                It.IsAny<string>(), 60000, target.UserIdentity, It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            await connection.DisposeAsync().ConfigureAwait(false);
+            int calls = context.Requests.Count;
+            await connection.DisposeAsync().ConfigureAwait(false);
+            Assert.That(context.Requests.Count, Is.EqualTo(calls));
+            Assert.That(context.Requests.OfType<CloseSessionRequest>().Count(), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// An unexpected actual certificate or unresolved model address closes the owned session before returning.
+        /// </summary>
+        [TestCase("peer")]
+        [TestCase("unknown-namespace")]
+        [TestCase("indexed-namespace")]
+        [TestCase("remote-server")]
+        [TestCase("missing-peer")]
+        [TestCase("actual-application")]
+        public async Task InvalidPeerOrModelAddressReleasesOwnedSession(string scenario)
+        {
+            await using var context = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            context.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_certificate.RawData);
+            DeviceRegistrarPushTarget target = Target(context);
+            if (scenario == "missing-peer")
+            {
+                context.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(Array.Empty<byte>());
+            }
+            else if (scenario == "actual-application")
+            {
+                context.Channel.Object.EndpointDescription.Server.ApplicationUri = "urn:other-actual-peer";
+            }
+            target = scenario switch
+            {
+                "unknown-namespace" => target with
+                {
+                    TrustListId = ExpandedNodeId.Parse("nsu=urn:missing;s=trust")
+                },
+                "indexed-namespace" => target with { TrustListId = new ExpandedNodeId("trust", 1) },
+                "remote-server" => target with
+                {
+                    TrustListId = ExpandedNodeId.Parse("svr=1;nsu=urn:request-context:original;s=trust")
+                },
+                _ => target
+            };
+            var provider = Provider(Factory(context.InnerSession).Object, target);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.ConnectAsync(Application(), scenario == "peer" ?
+                    ByteString.From(new byte[] { 7, 8, 9 }) : ByteString.Empty).ConfigureAwait(false));
+
+            uint expected = scenario is "peer" or "missing-peer" ? StatusCodes.BadCertificateInvalid :
+                scenario == "actual-application" ? StatusCodes.BadSecurityChecksFailed :
+                scenario == "unknown-namespace" ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadNodeIdInvalid;
+            Assert.That(error!.StatusCode, Is.EqualTo(expected));
+            Assert.That(context.Requests.OfType<CloseSessionRequest>().Count(), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Insecure selection and application substitution are rejected before creating any authenticated session.
+        /// </summary>
+        [TestCase("unencrypted")]
+        [TestCase("none-policy")]
+        [TestCase("application")]
+        public async Task InvalidEndpointDoesNotInvokeSessionFactory(string scenario)
+        {
+            await using var context = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            DeviceRegistrarPushTarget target = Target(context);
+            if (scenario == "unencrypted")
+            {
+                target.Endpoint.Description.SecurityMode = MessageSecurityMode.Sign;
+            }
+            else if (scenario == "none-policy")
+            {
+                target.Endpoint.Description.SecurityPolicyUri = SecurityPolicies.None;
+            }
+            else
+            {
+                target.Endpoint.Description.Server.ApplicationUri = "urn:substituted";
+            }
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            var provider = Provider(factory.Object, target);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.ConnectAsync(Application(), ByteString.Empty).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A failed admission preserves both the close status and disposal error while attempting every cleanup.
+        /// </summary>
+        [Test]
+        public async Task AdmissionAndAllCleanupFailuresAreRetained()
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            session.Setup(value => value.CloseAsync(5000, true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new StatusCode(StatusCodes.BadCommunicationError));
+            var disposal = new IOException("dispose failure");
+            session.Setup(value => value.DisposeAsync()).Throws(disposal);
+            await using var context = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            var provider = Provider(Factory(session.Object).Object, Target(context));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await provider.ConnectAsync(Application(), ByteString.Empty).ConfigureAwait(false));
+
+            Exception[] failures = error!.Flatten().InnerExceptions.ToArray();
+            Assert.That(failures.Length, Is.EqualTo(3));
+            Assert.That(failures.OfType<ServiceResultException>().Select(value => value.StatusCode),
+                Is.EquivalentTo(new StatusCode[] { StatusCodes.BadNotSupported, StatusCodes.BadCommunicationError }));
+            Assert.That(failures, Does.Contain(disposal));
+            session.Verify(value => value.DisposeAsync(), Times.Once);
+        }
+
+        /// <summary>
+        /// Precancellation does not invoke target selection or session creation.
+        /// </summary>
+        [Test]
+        public async Task CancellationPreventsTargetSelection()
+        {
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            var provider = new SessionDeviceRegistrarPushConnectionProvider(Configuration(), factory.Object,
+                static (_, _) => throw new AssertionException("Target selection must not run."));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await provider.ConnectAsync(Application(), ByteString.Empty, cancellation.Token).ConfigureAwait(false));
+
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Fluent selection constructs the adapter without creating sessions, accepting trust or owning the factory.
+        /// </summary>
+        [Test]
+        public void FluentRegistrationDefersConnectionsAndRejectsAutoAcceptance()
+        {
+            var services = new ServiceCollection();
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            services.AddDeviceRegistrarPushConnections(Configuration(),
+                static (_, _) => throw new AssertionException("Target selection must not run."), factory.Object);
+            using ServiceProvider container = services.BuildServiceProvider();
+            Assert.That(container.GetRequiredService<IDeviceRegistrarPushConnectionProvider>(),
+                Is.TypeOf<SessionDeviceRegistrarPushConnectionProvider>());
+            ApplicationConfiguration configuration = Configuration();
+            configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                new SessionDeviceRegistrarPushConnectionProvider(configuration, factory.Object,
+                    static (_, _) => throw new AssertionException("Target selection must not run.")));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Supplies a configured factory that returns one owned session without opening a socket.
+        /// </summary>
+        private static Mock<ISessionFactory> Factory(ISession session)
+        {
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<ApplicationConfiguration>(), It.IsAny<ConfiguredEndpoint>(), false, true,
+                It.IsAny<string>(), 60000, It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(),
+                It.IsAny<CancellationToken>())).ReturnsAsync(session);
+            return factory;
+        }
+
+        /// <summary>
+        /// Constructs the adapter with an explicit target rather than enabling discovery trust.
+        /// </summary>
+        private static SessionDeviceRegistrarPushConnectionProvider Provider(
+            ISessionFactory factory, DeviceRegistrarPushTarget target)
+        {
+            return new SessionDeviceRegistrarPushConnectionProvider(Configuration(), factory,
+                (_, _) => new ValueTask<DeviceRegistrarPushTarget>(target));
+        }
+
+        /// <summary>
+        /// Creates a client configuration with no automatic trust acceptance.
+        /// </summary>
+        private static ApplicationConfiguration Configuration()
+        {
+            return new ApplicationConfiguration(NUnitTelemetryContext.Create())
+            {
+                ApplicationName = "Push connection tests",
+                ClientConfiguration = new ClientConfiguration(),
+                SecurityConfiguration = new SecurityConfiguration { AutoAcceptUntrustedCertificates = false }
+            };
+        }
+
+        /// <summary>
+        /// Returns the application whose actual endpoint must match host selection.
+        /// </summary>
+        private static ApplicationDescription Application()
+        {
+            return new ApplicationDescription { ApplicationUri = "urn:request-context:server" };
+        }
+
+        /// <summary>
+        /// Creates URI-addressed model targets independent of a prior connection's namespace indexes.
+        /// </summary>
+        private static DeviceRegistrarPushTarget Target(SessionRequestContextTestContext context)
+        {
+            return new DeviceRegistrarPushTarget(
+                new ConfiguredEndpoint(null, CoreUtils.Clone(context.Channel.Object.EndpointDescription)!),
+                new UserIdentity(),
+                ExpandedNodeId.Parse("nsu=urn:request-context:original;s=device"),
+                ExpandedNodeId.Parse("nsu=urn:request-context:original;s=singleton"),
+                new ExpandedNodeId(Ua.ObjectIds.ServerConfiguration),
+                ExpandedNodeId.Parse("nsu=urn:request-context:original;s=group"),
+                new ExpandedNodeId(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                ExpandedNodeId.Parse("nsu=urn:request-context:original;s=trust"));
+        }
+
+        /// <summary>The fixture-owned key and actual peer certificate.</summary>
+        private Certificate m_certificate = null!;
+    }
+}
