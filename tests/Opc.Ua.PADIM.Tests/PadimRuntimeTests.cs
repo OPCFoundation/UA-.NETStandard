@@ -476,7 +476,7 @@ namespace Opc.Ua.PADIM.Tests
             Task refresh = binding.RefreshAsync().AsTask();
             await started.Task;
             await device.DisposeAsync();
-            await Assert.ThrowsAsync<OperationCanceledException>(async () => await refresh);
+            await Assert.CatchAsync<OperationCanceledException>(async () => await refresh);
             await Assert.ThrowsAsync<ObjectDisposedException>(async () => await binding.RefreshAsync());
             await device.DisposeAsync();
         }

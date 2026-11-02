@@ -116,7 +116,8 @@ namespace Opc.Ua.PADIM.Server
             {
                 var name = new QualifiedName(
                     declarationName, (ushort)Context.NamespaceUris.GetIndex(Namespaces.PADIM));
-                BaseObjectState declaration = FindGroupDeclaration(parent.TypeDefinitionId, name);
+                ArrayOf<BaseObjectState> declarations = FindGroupDeclarations(parent.TypeDefinitionId, name);
+                BaseObjectState declaration = declarations[0];
                 QualifiedName actualName = instanceName.IsNull ? name : instanceName;
                 if (parent.FindChild(Context, actualName) != null)
                 {
@@ -126,7 +127,7 @@ namespace Opc.Ua.PADIM.Server
                 DisableUnboundWrites(group);
                 try
                 {
-                    configure(new PadimGroupBuilder(this, group, declaration));
+                    configure(new PadimGroupBuilder(this, group, declarations));
                     await Manager.AddPredefinedNodeAsync(State, ct).ConfigureAwait(false);
                 }
                 catch (Exception failure)
@@ -155,16 +156,21 @@ namespace Opc.Ua.PADIM.Server
         /// <summary>
         /// Resolves inherited or overridden instance declarations using the configured type table.
         /// </summary>
-        private BaseObjectState FindGroupDeclaration(NodeId typeId, QualifiedName name)
+        private ArrayOf<BaseObjectState> FindGroupDeclarations(NodeId typeId, QualifiedName name)
         {
+            var declarations = new List<BaseObjectState>();
             var visited = new HashSet<NodeId>();
             while (!typeId.IsNull && visited.Add(typeId))
             {
                 if (Manager.FindPredefinedNode(typeId)?.FindChild(Context, name) is BaseObjectState declaration)
                 {
-                    return declaration;
+                    declarations.Add(declaration);
                 }
                 typeId = Context.TypeTable.FindSuperType(typeId);
+            }
+            if (declarations.Count != 0)
+            {
+                return [.. declarations];
             }
             throw ServiceResultException.Create(
                 StatusCodes.BadNotSupported,

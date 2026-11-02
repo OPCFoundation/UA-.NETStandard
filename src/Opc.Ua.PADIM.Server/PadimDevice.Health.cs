@@ -66,6 +66,7 @@ namespace Opc.Ua.PADIM.Server
             for (int ii = 0; ii < m_healthAlarms.Length; ii++)
             {
                 AlarmConditionState alarm = m_healthAlarms[ii];
+                alarm.AutoReportStateChanges = true;
                 alarm.RetainStateProvider = static condition =>
                     condition is AlarmConditionState activeAlarm && activeAlarm.ActiveState!.Id!.Value;
                 alarm.SetActiveState(Context, false);

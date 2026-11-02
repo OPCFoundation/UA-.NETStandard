@@ -232,9 +232,22 @@ namespace Opc.Ua.SourceGeneration
                         {
                             return "Dictionary entry identity or display name changed";
                         }
+                        var matrixNode = state.FindChild(context, new QualifiedName("MatrixEntries", ns))
+                            as BaseVariableState;
+                        if (matrixNode == null)
+                        {
+                            return "Matrix initializer missing";
+                        }
+                        var matrix = matrixNode.WrappedValue.GetNodeIdMatrix();
+                        if (!matrix.Dimensions.SequenceEqual(new[] { 1, 2 }) ||
+                            matrix.Span[0] != new NodeId("0112/2///61987#RootBase", ns) ||
+                            matrix.Span[1] != new NodeId(42))
+                        {
+                            return "Matrix initializer lost dimensions or namespace identity";
+                        }
                         var children = new List<BaseInstanceState>();
                         state.GetChildren(context, children);
-                        if (children.Count != 2)
+                        if (children.Count != 3)
                         {
                             return "Semantic targets were copied into the instance";
                         }
@@ -361,6 +374,19 @@ namespace Opc.Ua.SourceGeneration
               </opc:VariableType>
               <opc:ObjectType SymbolicName="BaseDeviceType" BaseType="ua:BaseObjectType">
                 <opc:Children>
+                  <opc:Variable SymbolicName="MatrixEntries" TypeDefinition="ua:BaseDataVariableType"
+                      DataType="ua:NodeId" ValueRank="OneOrMoreDimensions" ArrayDimensions="1,2"
+                      ModellingRule="Mandatory">
+                    <opc:DefaultValue>
+                      <uax:Matrix xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                        <uax:Dimensions><uax:Int32>1</uax:Int32><uax:Int32>2</uax:Int32></uax:Dimensions>
+                        <uax:Elements>
+                          <uax:NodeId><uax:Identifier>ns=1;s=0112/2///61987#RootBase</uax:Identifier></uax:NodeId>
+                          <uax:NodeId><uax:Identifier>i=42</uax:Identifier></uax:NodeId>
+                        </uax:Elements>
+                      </uax:Matrix>
+                    </opc:DefaultValue>
+                  </opc:Variable>
                   <opc:Variable SymbolicName="Value" TypeDefinition="SemanticVariableType"
                       ModellingRule="Mandatory">
                     <opc:References>

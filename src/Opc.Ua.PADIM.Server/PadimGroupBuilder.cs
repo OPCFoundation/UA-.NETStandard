@@ -44,11 +44,28 @@ namespace Opc.Ua.PADIM.Server
         /// <summary>
         /// Creates a selector over the compiled declaration and its configured instance.
         /// </summary>
-        internal PadimGroupBuilder(PadimDevice device, BaseObjectState node, BaseObjectState declaration)
+        internal PadimGroupBuilder(
+            PadimDevice device,
+            BaseObjectState node,
+            ArrayOf<BaseObjectState> declarations)
         {
             m_device = device;
             Node = node;
-            m_declaration = declaration;
+            m_declarations = declarations;
+            foreach (BaseObjectState declaration in declarations)
+            {
+                var references = new List<IReference>();
+                declaration.GetReferences(device.Context, references);
+                foreach (IReference reference in references)
+                {
+                    if (!reference.IsInverse &&
+                        reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasInterface &&
+                        !node.ReferenceExists(reference.ReferenceTypeId, false, reference.TargetId))
+                    {
+                        node.AddReference(reference.ReferenceTypeId, false, reference.TargetId);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -111,7 +128,15 @@ namespace Opc.Ua.PADIM.Server
                 throw new ArgumentException("Only a placeholder may be renamed.", nameof(instanceName));
             }
             var group = (BaseObjectState)GetOrCreate(objectDeclaration, name);
-            var builder = new PadimGroupBuilder(m_device, group, objectDeclaration);
+            var declarations = new List<BaseObjectState>();
+            foreach (BaseInstanceState candidate in FindDeclarations(declarationName))
+            {
+                if (candidate is BaseObjectState objectCandidate)
+                {
+                    declarations.Add(objectCandidate);
+                }
+            }
+            var builder = new PadimGroupBuilder(m_device, group, [.. declarations]);
             configure(builder);
             return this;
         }
@@ -174,11 +199,47 @@ namespace Opc.Ua.PADIM.Server
             {
                 throw new ArgumentException("A declared browse name is required.", nameof(name));
             }
-            return m_declaration.FindChild(m_device.Context, name) ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The selected family does not declare member '{0}'.",
-                    name);
+            foreach (BaseInstanceState declaration in FindDeclarations(name))
+            {
+                return declaration;
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadNotSupported,
+                "The selected family does not declare member '{0}'.",
+                name);
+        }
+
+        /// <summary>
+        /// Resolves explicit overrides before inherited declarations and their declared object types.
+        /// </summary>
+        private List<BaseInstanceState> FindDeclarations(QualifiedName name)
+        {
+            var result = new List<BaseInstanceState>();
+            var visited = new HashSet<NodeId>();
+            foreach (BaseObjectState declaration in m_declarations)
+            {
+                Include(declaration);
+            }
+            return result;
+
+            void Include(NodeState declaration)
+            {
+                if (!visited.Add(declaration.NodeId))
+                {
+                    return;
+                }
+                if (declaration.FindChild(m_device.Context, name) is BaseInstanceState child)
+                {
+                    result.Add(child);
+                }
+                NodeId typeId = declaration is BaseInstanceState instance
+                    ? instance.TypeDefinitionId
+                    : m_device.Context.TypeTable.FindSuperType(declaration.NodeId);
+                if (!typeId.IsNull && m_device.Manager.FindPredefinedNode(typeId) is NodeState type)
+                {
+                    Include(type);
+                }
+            }
         }
 
         /// <summary>
@@ -199,7 +260,7 @@ namespace Opc.Ua.PADIM.Server
         /// <summary>The owning device and provider pipeline.</summary>
         private readonly PadimDevice m_device;
 
-        /// <summary>The original generated declaration, never mutated by configuration.</summary>
-        private readonly BaseObjectState m_declaration;
+        /// <summary>The generated declarations in override order, never mutated by configuration.</summary>
+        private readonly ArrayOf<BaseObjectState> m_declarations;
     }
 }
