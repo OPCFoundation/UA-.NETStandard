@@ -145,7 +145,11 @@ namespace Opc.Ua.Server.Tests.Network
                     .Single(value => value.BrowseName == new QualifiedName(BrowseNames.EngineeringUnits, 0));
                 Assert.That(engineeringUnits.DataValue.WrappedValue
                     .TryGetStructure<EUInformation>(out EUInformation? unit), Is.True);
-                Assert.That(unit!.DisplayName.Text, Is.EqualTo("bit/s"));
+                if (unit is null)
+                {
+                    throw new InvalidOperationException("Decoded IETF engineering units are null.");
+                }
+                Assert.That(unit.DisplayName.Text, Is.EqualTo("bit/s"));
                 Assert.That(unit.UnitId, Is.EqualTo(4337968));
                 Assert.That(unit.NamespaceUri,
                     Is.EqualTo("http://www.opcfoundation.org/UA/units/un/cefact"));
@@ -373,7 +377,11 @@ namespace Opc.Ua.Server.Tests.Network
                 speed.NodeId, cancellationToken).ConfigureAwait(false);
             Assert.That(Parameter(units, BrowseNames.EngineeringUnits).DataValue.WrappedValue
                 .TryGetStructure<EUInformation>(out EUInformation? unit), Is.True);
-            Assert.That(unit!.UnitId, Is.EqualTo(4534832));
+            if (unit is null)
+            {
+                throw new InvalidOperationException("Decoded IEEE engineering units are null.");
+            }
+            Assert.That(unit.UnitId, Is.EqualTo(4534832));
             Assert.That(unit.DisplayName.Text, Is.EqualTo("Mbit/s"));
             ArrayOf<NetworkParameterValue> negotiation = await ReadParameterSetAsync(
                 physical, ObjectTypeIds.IIeeeAutoNegotiationStatusType, cancellationToken).ConfigureAwait(false);
@@ -404,7 +412,11 @@ namespace Opc.Ua.Server.Tests.Network
                 Is.EqualTo(new Variant(512u)));
             Assert.That(Parameter(traffic, BrowseNames.Interval).DataValue.WrappedValue
                 .TryGetStructure<UnsignedRationalNumber>(out UnsignedRationalNumber? interval), Is.True);
-            Assert.That(interval!.Numerator, Is.EqualTo(1));
+            if (interval is null)
+            {
+                throw new InvalidOperationException("Decoded TSN traffic interval is null.");
+            }
+            Assert.That(interval.Numerator, Is.EqualTo(1));
             Assert.That(interval.Denominator, Is.EqualTo(8000));
             ArrayOf<NetworkParameterValue> mac = await ReadParameterSetAsync(
                 talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
