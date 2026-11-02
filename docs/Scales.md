@@ -364,6 +364,13 @@ failures are logged at Error level with event ID 8240
 (`ScalesServerEventIds.ScaleRuntimeServices`), including when only synchronous
 disposal was requested.
 
+Shared services stop every controller before awaiting any resource's
+asynchronous drain. An overlapping synchronous `Dispose` also stops every
+controller before returning, even if the first caller has not yet reached it.
+These stops run outside service synchronization and can repeat; they do not
+wait for subscriber callbacks. Asynchronous callers still share one drain
+completion.
+
 ### Options
 
 | `ScalesServerOptions` | Default | Meaning |
@@ -915,6 +922,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |
 | Equipment cancellation and shared resource shutdown | 🧪 | `ThrowingProviderCancellationStillDrainsCreationsAndReleasesResourcesAsync`; `RuntimeServicesShareTimerDrainAndFailureAcrossShutdownCallersAsync` |
+| Overlapping resource stops | 🧪 | `ConcurrentServicesDisposeStopsEveryControllerBeforeReturningAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 

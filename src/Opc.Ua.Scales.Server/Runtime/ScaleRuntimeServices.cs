@@ -136,6 +136,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>
         /// Adopts controller resources before publication so failed constructions also release timers at shutdown.
+        /// Resources must support repeated concurrent Dispose calls to stop admission independently of draining.
         /// </summary>
         internal void OwnResource(IDisposable resource)
         {
@@ -177,35 +178,46 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             IDisposable[] resources;
             TaskCompletionSource<bool> completion;
+            bool first;
             lock (m_resourceGate)
             {
-                if (m_disposal != null)
+                first = m_disposal == null;
+                if (!first && (!synchronous || m_disposal!.Task.IsCompleted))
                 {
-                    return m_disposal.Task;
+                    return m_disposal!.Task;
                 }
-                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                m_disposal = completion;
-                m_disposed = true;
-                resources = [.. m_resources];
-                m_resources.Clear();
+                if (first)
+                {
+                    m_disposal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposed = true;
+                    m_stoppingResources = [.. m_resources];
+                    m_resources.Clear();
+                }
+                completion = m_disposal!;
+                resources = m_stoppingResources;
             }
             List<Exception>? failures = null;
-            if (synchronous)
+            // Every synchronous caller stops every resource itself. Another caller may be
+            // paused before reaching a controller, so sharing only the drain task is insufficient.
+            for (int index = resources.Length - 1; index >= 0; index--)
             {
-                for (int index = resources.Length - 1; index >= 0; index--)
+                try
                 {
-                    try
-                    {
-                        resources[index].Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        (failures ??= []).Add(ex);
-                    }
+                    resources[index].Dispose();
+                }
+                catch (Exception ex)
+                {
+                    (failures ??= []).Add(ex);
                 }
             }
-            _ = CompleteDisposalAsync(resources, synchronous, failures, completion);
-            ThrowFailures(failures);
+            if (first)
+            {
+                _ = CompleteDisposalAsync(resources, failures, completion);
+            }
+            if (synchronous)
+            {
+                ThrowFailures(failures);
+            }
             return completion.Task;
         }
 
@@ -214,7 +226,6 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private async Task CompleteDisposalAsync(
             IDisposable[] resources,
-            bool stoppedSynchronously,
             List<Exception>? failures,
             TaskCompletionSource<bool> completion)
         {
@@ -228,15 +239,15 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         await asyncResource.DisposeAsync().ConfigureAwait(false);
                     }
-                    else if (!stoppedSynchronously)
-                    {
-                        resources[index].Dispose();
-                    }
                 }
                 catch (Exception ex)
                 {
                     (allFailures ??= []).Add(ex);
                 }
+            }
+            lock (m_resourceGate)
+            {
+                m_stoppingResources = [];
             }
             try
             {
@@ -301,6 +312,9 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>The shared completion of resource shutdown and callback draining.</summary>
         private TaskCompletionSource<bool>? m_disposal;
+
+        /// <summary>Idempotently disposable resources retained until every synchronous caller can stop them.</summary>
+        private IDisposable[] m_stoppingResources = [];
 
         /// <summary>Whether resources have been released.</summary>
         private bool m_disposed;

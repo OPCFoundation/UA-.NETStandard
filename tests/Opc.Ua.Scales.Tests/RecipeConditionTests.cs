@@ -850,6 +850,59 @@ namespace Opc.Ua.Scales.Tests
             }
         }
 
+        /// <summary>
+        /// Every synchronous shutdown caller stops later controllers even while another caller is paused.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ConcurrentServicesDisposeStopsEveryControllerBeforeReturningAsync(
+            bool asyncFirst, bool pauseDuringStop)
+        {
+            Enable(BuiltInType.Double);
+            Analog(0, 10.0);
+            int notifications = 0;
+            m_controller.ElementStarted += (_, _) => notifications++;
+            using var stopGate = new ManualResetEventSlim(false);
+            var resource = new GatedShutdownResource(pauseDuringStop, stopGate);
+            ScaleRuntimeServices services = m_scale.Services;
+            services.OwnResource(resource);
+            Task first = Task.Run(async () =>
+            {
+                if (asyncFirst)
+                {
+                    await services.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    services.Dispose();
+                }
+            });
+            Task? drain = null;
+            try
+            {
+                await resource.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await Task.Run(services.Dispose).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Assert.That(m_controller.Start(m_recipe.NodeId).StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                    "the later controller must be stopped before the overlapping Dispose returns");
+                Assert.That(notifications, Is.Zero, "no new notification can be admitted");
+                drain = services.DisposeAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False, "all asynchronous callers retain the pending drain");
+            }
+            finally
+            {
+                resource.Release();
+                await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await services.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (drain != null)
+                {
+                    await drain.ConfigureAwait(false);
+                }
+            }
+        }
+
         [Test]
         public async Task DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync()
         {
@@ -1108,6 +1161,55 @@ namespace Opc.Ua.Scales.Tests
             private readonly Action m_callback;
             private DateTimeOffset m_due;
             private bool m_disposed;
+        }
+
+        /// <summary>
+        /// Pauses only the first stop or the asynchronous drain, allowing another caller to stop later resources.
+        /// </summary>
+        private sealed class GatedShutdownResource(bool pauseDuringStop, ManualResetEventSlim stopGate)
+            : IDisposable, IAsyncDisposable
+        {
+            /// <summary>
+            /// Signals that the first shutdown has reached the selected pause.
+            /// </summary>
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                if (Interlocked.Increment(ref m_stops) == 1 && pauseDuringStop)
+                {
+                    Entered.TrySetResult(true);
+                    if (!stopGate.Wait(TimeSpan.FromSeconds(15)))
+                    {
+                        throw new TimeoutException("The synchronous resource stop was not released.");
+                    }
+                }
+            }
+
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync()
+            {
+                Entered.TrySetResult(true);
+                return new ValueTask(m_drained.Task);
+            }
+
+            /// <summary>
+            /// Releases both shutdown phases without blocking asynchronous disposal.
+            /// </summary>
+            public void Release()
+            {
+                stopGate.Set();
+                m_drained.TrySetResult(true);
+            }
+
+            /// <summary>The asynchronous drain gate.</summary>
+            private readonly TaskCompletionSource<bool> m_drained =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>The number of idempotent stop calls.</summary>
+            private int m_stops;
         }
 
         /// <summary>The ScalesServerEventIds.ScaleRecipes event id of a failed timer-driven evaluation.</summary>
