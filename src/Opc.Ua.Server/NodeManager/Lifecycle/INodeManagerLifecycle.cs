@@ -41,6 +41,10 @@ namespace Opc.Ua.Server
     /// Its result describes the authoritative published revision, registrations, slots, post-commit
     /// failures, and asynchronous retirement. Dispose an uncommitted owner to release its candidates.
     /// Request callbacks use the same context-free transaction API as external callers.
+    /// Slot-based consumers use <see cref="LifecycleChangeExtensions.ApplyAsync"/> or
+    /// <see cref="LifecycleChangeExtensions.BeginAsync"/>. These are additive extensions, not required interface
+    /// members. Providers adopting these calls resolve <see cref="NodeManagerBatchChange.TargetSlot"/> during
+    /// preparation; the existing <see cref="PrepareAsync"/> member also preserves exact-generation changes.
     /// </remarks>
     public interface INodeManagerLifecycle
     {

@@ -1760,12 +1760,17 @@ namespace Opc.Ua.Server
                 {
                     throw new ArgumentException("A publication change cannot be null.", nameof(changes));
                 }
+                Guid? targetId = change.TargetSlot?.Id ?? change.Current?.Id;
+                if (targetId is { } id && !identities.Add(id))
+                {
+                    throw new ArgumentException(
+                        change.TargetSlot is null
+                            ? "A registration occurs twice in the same unit."
+                            : "A slot occurs twice in the same unit.",
+                        nameof(changes));
+                }
                 if (change.Current is { } current)
                 {
-                    if (!identities.Add(current.Id))
-                    {
-                        throw new ArgumentException("A registration occurs twice in the same unit.", nameof(changes));
-                    }
                     RegistrationState state = GetCurrentState(
                         current,
                         shutdown is not null,
@@ -1775,7 +1780,7 @@ namespace Opc.Ua.Server
                         throw new InvalidOperationException("System slots can only be withdrawn by server shutdown.");
                     }
                 }
-                if (change.Factory is { } factory)
+                if (change.TargetSlot is null && change.Factory is { } factory)
                 {
                     ValidateFactoryRegistration(factory, change.Current);
                 }
@@ -1817,12 +1822,35 @@ namespace Opc.Ua.Server
                     for (int index = 0; index < changes.Count; index++)
                     {
                         NodeManagerBatchChange change = changes[index];
-                        RegistrationState? current = change.Current is null
+                        NodeManagerRegistration? target = change.Current;
+                        if (change.TargetSlot is { } slot)
+                        {
+                            lock (m_registrationLock)
+                            {
+                                if (!m_registrations.TryGetValue(slot.Id, out RegistrationState? state) ||
+                                    !ReferenceEquals(state.Registration.Slot, slot))
+                                {
+                                    throw new InvalidOperationException(
+                                        "The target slot is not owned by this lifecycle.");
+                                }
+                                target = state.Registration;
+                            }
+                        }
+                        RegistrationState? current = target is null
                             ? null
                             : GetCurrentState(
-                                change.Current,
+                                target,
                                 shutdown is not null,
                                 allowRemovalAfterFailedReadiness: change.Factory is null);
+                        if (current?.IsSystem == true && shutdown is null)
+                        {
+                            throw new InvalidOperationException(
+                                "System slots can only be withdrawn by server shutdown.");
+                        }
+                        if (change.TargetSlot is not null && change.Factory is { } slotFactory)
+                        {
+                            ValidateFactoryRegistration(slotFactory, target);
+                        }
                         if (current is not null)
                         {
                             NodeManagerGeneration generation = current.Registration.Identity;
@@ -1987,6 +2015,7 @@ namespace Opc.Ua.Server
             bool readinessClaimed = false;
             long publishedRevision = 0;
             NodeManagerSlot[] publishedSlots = [];
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlotSnapshots = [];
             GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
             GenerationReconciler.ReconciliationWork reconciliation =
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
@@ -2148,6 +2177,11 @@ namespace Opc.Ua.Server
                         .Where(state => !state.IsSystem)
                         .Select(state => state.Registration.Slot)
                         .ToArray();
+                    publishedSlotSnapshots = committedRegistrations.Values
+                        .Where(state => !state.IsSystem)
+                        .Select(state => new NodeManagerSlotSnapshot(
+                            state.Registration.Slot, state.Registration.Generation, state.Registration.NodeManager))
+                        .ToArrayOf();
                     m_reclaimer.Reserve(retired.Count);
                 }
 
@@ -2413,7 +2447,8 @@ namespace Opc.Ua.Server
                     publishedRevision,
                     publishedSlots,
                     Task.WhenAll(retired.Select(item => item.Retirement)),
-                    reconciliation.Ticket);
+                    reconciliation.Ticket,
+                    publishedSlotSnapshots);
             }
             finally
             {
