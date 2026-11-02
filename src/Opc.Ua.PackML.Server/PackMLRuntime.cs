@@ -204,7 +204,7 @@ namespace Opc.Ua.PackML.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
-            return m_lifetime.StopAsync(DisposeUnitsAsync);
+            return PackMLLifetime.CompleteShutdownAsync(() => m_lifetime.DisposeAsync(), DisposeUnitsAsync);
         }
 
         /// <summary>

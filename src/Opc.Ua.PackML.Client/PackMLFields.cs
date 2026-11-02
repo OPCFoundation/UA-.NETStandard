@@ -224,7 +224,10 @@ namespace Opc.Ua.PackML.Client
             public static PackMLField<PackMLAlarmDataType> StopReason { get; } = new(
                 "Admin/StopReason",
                 static (v, context) =>
-                    (v.TryGetStructure(context, out PackMLAlarmDataType value), value));
+                {
+                    bool decoded = v.TryGetStructure<PackMLAlarmDataType>(context, out PackMLAlarmDataType? value);
+                    return (decoded && value is not null, value ?? new PackMLAlarmDataType());
+                });
 
             /// <summary>
             /// Gets the stop reason extent.

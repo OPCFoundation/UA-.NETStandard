@@ -118,7 +118,7 @@ namespace Opc.Ua.PackML.Server
                 ];
                 foreach ((string name, uint state) in commands)
                 {
-                    if (m_modes.Values.Any(mode => mode.States.Count == 0 || mode.States.Span.Contains(state)))
+                    if (m_modes.Values.Any(mode => mode.States.Count == 0 || mode.States.Contains(state)))
                     {
                         names.Add($"PackML State {name}");
                     }
@@ -569,7 +569,7 @@ namespace Opc.Ua.PackML.Server
                         return ServiceResult.Create(
                             StatusCodes.BadInvalidArgument, "The requested mode is not configured.");
                     }
-                    if (!m_options.ModeChangeStates.Span.Contains(CurrentState))
+                    if (!m_options.ModeChangeStates.Contains(CurrentState))
                     {
                         return ServiceResult.Create(StatusCodes.BadInvalidState, "A mode change is not allowed here.");
                     }
