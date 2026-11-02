@@ -282,6 +282,7 @@ namespace Microsoft.Extensions.DependencyInjection
             RequireProvider<IDeviceRegistrarIdentityLifecycle>(services);
             RequireProvider<IDeviceRegistrarOnboardingPolicy>(services);
 
+            services.TryAddSingleton<OnboardingPushIdentityValidator>();
             services.TryAddSingleton(sp => new DeviceRegistrarAuthorization(
                 sp.GetRequiredService<IDeviceRegistrarLifecycle>(),
                 sp.GetRequiredService<IDeviceRegistrarApplicationAuthorization>(),

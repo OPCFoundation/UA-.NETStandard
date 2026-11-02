@@ -22,6 +22,13 @@ surface. Load the generated `Opc.Ua.Onboarding` nodes from
 for samples and tests; production hosts should inject a persistent,
 concurrency-safe implementation.
 
+`OnboardingPushIdentityValidator` uses the registrar's ticket-scoped identity
+selector to check the actual authenticated server certificate of a push device.
+It reads `RequestTickets` through a generation-bound encrypted session; discovery
+metadata cannot substitute for the channel peer. The host still supplies channel
+trust, software-update policy and supervised push orchestration. This validator
+does not install certificates or complete the push onboarding flow.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`,

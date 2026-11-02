@@ -312,6 +312,26 @@ Provision issuer certificates and applicable CRLs in the managed stores.
 Ticket validation does not verify RFC 3161 signing timestamps; an expired
 signing authority is rejected rather than accepted on an unverified timestamp.
 
+For push admission, `OnboardingPushIdentityValidator` reads the device's
+`RequestTickets` through a generation-bound encrypted session and passes only
+the transport's actual server certificate to that same identity selector.
+Additional certificates from the channel chain supply issuers, not alternative
+device identities. A discovery certificate is not used as proof. Validation
+rejects a selector that returns a different certificate and rejects a channel
+generation change before returning. `AddDeviceRegistrar` registers the validator;
+direct hosts can construct it with their selector and telemetry.
+
+```csharp
+OnboardingIdentitySelection identity = await pushIdentityValidator.ValidateAsync(
+    deviceSession, provisionableDeviceId, cancellationToken);
+```
+
+The host still owns initial channel trust and must keep subsequent push operations
+on the validated generation or validate again after reconnecting. This helper does
+not approve an application, install credentials, satisfy a software-update gate,
+or implement the supervised `IDeviceRegistrarPushScheduler`. Connected push
+orchestration remains incomplete.
+
 `ProvideIdentities` requires an authenticated SecureChannel, as specified by
 [Part 21 §9.2.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/9.2.3).
 It records a candidate identity and returns the shared certificate-manager
@@ -605,6 +625,39 @@ representation is never changed back to ByteString.
 See the runnable
 [`samples/Gds` onboarding demo](../samples/Gds/README.md) for a secure
 registrar/client round trip.
+
+### Part 21 requirements and implementation boundaries
+
+Part 21 support remains partial. The following map uses
+[OPC 10000-21 v1.05.04](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/)
+and distinguishes implementation sources from completed interoperability evidence.
+The named regression fixtures contain tests for these components; their presence
+does not establish that the complete onboarding workflow or a conformance unit
+has passed.
+
+| Requirement | Implementation | Regression sources and remaining boundary |
+|---|---|---|
+| §§4.2.2, 4.3.2: software approval before operational provisioning | `DeviceRegistrarRuntime`, lifecycle providers, `IPullDcaSoftwareUpdateProvider` | `ProvideIdentitiesRuntimeTests`, `PullDcaWorkflowTests`; a connected software-update provider and endpoint gate remain required |
+| §§4.3.3, 7.2: DCA and managed-application credentials | `PullDcaWorkflow`, generated certificate-directory proxies, application-specific authorization | `PullDcaWorkflowTests`, `ApplicationsNodeManagerOnboardingTests`; the sample serves one DCA and does not demonstrate multi-application setup |
+| §§4.3.6, 7.3: security reset and return to onboarding | `ProvisionableDeviceSecurity`, existing `IServerConfigurationResetProvider` path | `ProvisionableDeviceSecurityTests`; platform reset, preservation of device-identity keys and installed software, and connected re-onboarding still need an installer and integration evidence |
+| §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
+| §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
+| §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, explicit `IPullDcaSigningRecoveryProvider` | issuance-store, receipt-store and pull-workflow fixtures; concrete durable request evidence and stale-assignment validation remain required for accepted-response loss |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, existing Part 12 push client | device-security and push-identity fixtures; supervised push orchestration, credential endpoint transition, singleton privilege handling and multi-application provisioning remain incomplete |
+| §7.4: alternate authentication/FDO | no FDO protocol implementation | no FDO interoperability evidence; an external authentication service is not treated as an implemented onboarding flow |
+| §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; RFC 3161 timestamp verification is not implemented |
+| §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
+| §§9.2.9-9.2.15: administration, managed authorities and restricted audit delivery | ticket administration bindings, managed authority file services, `DeviceRegistrarAuditReporter` | administration, authority-list and audit-reporter fixtures; connected authorized/unauthorized event delivery still needs remote execution |
+| §§9.3.1-9.3.5: provisionable resource, singleton layout, tickets and registrar endpoints | `ProvisionableDeviceRuntime` and generated node bindings | `ProvisionableDeviceRuntimeTests`; shared Part 22 Resources placement and non-singleton `ApplicationConfiguration` hosting remain incomplete |
+
+The published model associates `EncodedTicket` with **Onboarding Ticket Reader**,
+`DeviceRegistrarType` with
+[**Onboarding Registrar PullManagement**](https://profiles.opcfoundation.org/conformanceunit/4437),
+and `ProvisionableDeviceType` with **Onboarding Server PushManagement**.
+These are coverage targets, not declarations of conformance. Their full
+mandatory-unit expansion and passing interoperability evidence are still
+required before declaring them supported. No FDO integration is established by
+the native pull/push components.
 
 ---
 

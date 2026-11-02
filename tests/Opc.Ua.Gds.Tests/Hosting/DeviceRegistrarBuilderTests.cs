@@ -161,6 +161,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void GdsBuilderSupportsFluentRegistrationAndSharedSingletonAliases()
         {
             var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
             IGdsServerBuilder builder = services.AddOpcUa().AddGdsServer(_ => { });
             IGdsServerBuilder returned = builder.AddDeviceRegistrar(s => ConfigureProviders(s));
             Assert.That(returned, Is.SameAs(builder));
@@ -173,6 +174,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Is.SameAs(provider.GetRequiredService<DeviceRegistrarAuthorization>()));
             Assert.That(provider.GetRequiredService<IDeviceRegistrarRuntime>(),
                 Is.SameAs(provider.GetRequiredService<IDeviceRegistrarRuntime>()));
+            OnboardingPushIdentityValidator pushIdentity =
+                provider.GetRequiredService<OnboardingPushIdentityValidator>();
+            Assert.That(provider.GetRequiredService<OnboardingPushIdentityValidator>(), Is.SameAs(pushIdentity));
         }
 
         [Test]
