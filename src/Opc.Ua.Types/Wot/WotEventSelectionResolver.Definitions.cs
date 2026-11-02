@@ -289,9 +289,9 @@ namespace Opc.Ua.Wot
         /// make the same document mean different things to different readers.
         /// </remarks>
         /// <param name="document">The WoT document.</param>
-        /// <param name="carryingNode">The carrying node.</param>
         /// <param name="value">The authored identifier text to expand.</param>
         /// <param name="expanded">Receives the expanded IRI when the value is an identifier.</param>
+        /// <param name="carryingNode">The carrying node.</param>
         internal static bool TryExpandLogicalId(
             WotDocument document, string value, out string expanded, JsonElement carryingNode = default)
         {
@@ -355,6 +355,10 @@ namespace Opc.Ua.Wot
             CollectReferencedLocations(document, locations);
             foreach ((JsonElement carrier, string reference) in locations)
             {
+                if (WotVersionedReference.IsDocumentLocalReference(document, reference))
+                {
+                    continue;
+                }
                 string location = ResolveLocationReference(document, carrier, string.Empty, reference);
                 if (!WotEventSelectClauses.TrySplitEventTypeReference(
                         location, out string documentUri, out _) ||
@@ -489,13 +493,10 @@ namespace Opc.Ua.Wot
             CancellationToken cancellationToken)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
-
-            if (reference.StartsWith("#/", StringComparison.Ordinal) &&
-                WotEventSelectClauses.IsEventTypeReference(reference) &&
-                WotDocument.TryEvaluatePointer(document.RootElement, reference[1..], out JsonElement local) &&
-                local.ValueKind == JsonValueKind.Object)
+            bool documentLocal = WotVersionedReference.IsDocumentLocalReference(document, reference, origin);
+            if (documentLocal)
             {
-                return new DefinitionCandidate(document, origin, reference[1..], local);
+                reference = reference[reference.IndexOf('#', StringComparison.Ordinal)..];
             }
 
             string? requiredVersion;
@@ -503,6 +504,10 @@ namespace Opc.Ua.Wot
             try
             {
                 requiredVersion = WotVersionedReference.GetRequiredVersion(document, carryingNode, "ref");
+                if (documentLocal)
+                {
+                    WotVersionedReference.ValidateSelectedVersion(document, requiredVersion);
+                }
             }
             catch (WotVersionException exception)
             {
@@ -510,6 +515,14 @@ namespace Opc.Ua.Wot
                     $"The minimum version of the EventType reference '{reference}' is not valid: {exception.Code}.",
                     where);
                 return default;
+            }
+
+            if (reference.StartsWith("#/", StringComparison.Ordinal) &&
+                WotEventSelectClauses.IsEventTypeReference(reference) &&
+                WotDocument.TryEvaluatePointer(document.RootElement, reference[1..], out JsonElement local) &&
+                local.ValueKind == JsonValueKind.Object)
+            {
+                return new DefinitionCandidate(document, origin, reference[1..], local);
             }
 
             // Held documents, by logical identifier, expanded in the active
@@ -524,6 +537,13 @@ namespace Opc.Ua.Wot
             }
             if (ambiguous)
             {
+                return default;
+            }
+            if (heldFloorMiss is not null && ReferenceEquals(held.Document, document))
+            {
+                AddError(diagnostics,
+                    $"The containing EventType document does not satisfy the reference floor: {heldFloorMiss}.",
+                    where);
                 return default;
             }
 
@@ -678,13 +698,12 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Gets whether a held definition comes from a Version the reference's
-        /// floor accepts. A definition of the referencing document itself has
-        /// no Version to select.
+        /// floor accepts, including definitions in the containing document.
         /// </summary>
         private static bool SatisfiesFloor(DefinitionCandidate candidate, string? requiredVersion, out string? code)
         {
             code = null;
-            if (requiredVersion is null || candidate.Origin.Length == 0)
+            if (requiredVersion is null)
             {
                 return true;
             }

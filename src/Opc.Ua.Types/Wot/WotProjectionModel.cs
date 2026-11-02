@@ -163,6 +163,11 @@ namespace Opc.Ua.Wot
         public string? SourceDigest { get; init; }
 
         /// <summary>
+        /// Gets the minimum authored revision required from this source, or null when unconstrained.
+        /// </summary>
+        public string? RequiredVersion { get; init; }
+
+        /// <summary>
         /// Gets the prefix applied to bulk-selected affordance names, or
         /// <c>null</c> when names are taken unchanged.
         /// </summary>

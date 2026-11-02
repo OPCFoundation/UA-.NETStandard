@@ -62,7 +62,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             string error = string.Empty;
             try
             {
-                using WotDocument document = WotDocument.Parse(content.Memory, new WotNodeSetConverterOptions
+                using var document = WotDocument.Parse(content.Memory, new WotNodeSetConverterOptions
                 {
                     MaxJsonDepth = maxJsonDepth,
                     MaxJsonDocumentSize = Math.Max(content.Length, 1)
@@ -139,7 +139,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                 }
-                if (!explicitIdentity && declaredName is not null &&
+                if (!explicitIdentity &&
+                    declaredName is not null &&
                     WotNodeSetConverter.TryDeriveDataTypeNodeId(
                         document, declaredName, out ExpandedNodeId derived, element))
                 {
@@ -159,7 +160,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     (document.TryGetContextTerm(property.Name, out JsonElement definition, element) &&
                         definition.ValueKind == JsonValueKind.Object &&
                         definition.TryGetProperty("@type", out JsonElement type) &&
-                        type.ValueKind == JsonValueKind.String && type.GetString() == "@json"))
+                        type.ValueKind == JsonValueKind.String &&
+                        type.GetString() == "@json"))
                 {
                     continue;
                 }
@@ -348,7 +350,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 string term = SemanticTerm(document, relation.GetString()!, link);
                 if (term is "type" or "collection" or "item" or "tm:extends" or "tm:submodel" or
                     "td:extends" or "td:subthing" ||
-                    term.StartsWith("ua:", StringComparison.Ordinal) || IsContainmentRelation(term) ||
+                    term.StartsWith("ua:", StringComparison.Ordinal) ||
+                    IsContainmentRelation(term) ||
                     Uri.TryCreate(term, UriKind.Absolute, out _) ||
                     link.EnumerateObject().Any(member => SemanticTerm(document, member.Name, link) == "uav:refId"))
                 {
@@ -388,12 +391,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return;
             }
+            string floorKind = relation == "uav:projects" &&
+                carryingNode.TryGetProperty("type", out JsonElement mediaType) &&
+                mediaType.ValueKind == JsonValueKind.String &&
+                mediaType.GetString() == "application/td+json"
+                ? "td-ref" : relation;
             references.Add(new WotResourceReference(raw, lookup, relation, IsOrderingReference(relation))
             {
                 RequiredVersion = relation is "tm:extends" or "tm:submodel" or "tm:ref" or "type" or
-                    "td:extends" or "td:subthing" or "td:ref" ||
-                    relation == EventTypeRefType || relation == EventSelectClauseRefType
-                    ? WotVersionedReference.GetRequiredVersion(document, carryingNode, relation) : null
+                    "td:extends" or "td:subthing" or "td:ref" or "uav:projects" or
+                    EventTypeRefType or EventSelectClauseRefType
+                    ? WotVersionedReference.GetRequiredVersion(document, carryingNode, floorKind) : null
             });
         }
 
@@ -442,7 +450,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         : definition.ValueKind == JsonValueKind.Object &&
                             definition.TryGetProperty("@id", out JsonElement id) &&
                             id.ValueKind == JsonValueKind.String ? id.GetString() : null;
-                    if (identity is null && definition.ValueKind == JsonValueKind.Object &&
+                    if (identity is null &&
+                        definition.ValueKind == JsonValueKind.Object &&
                         !definition.TryGetProperty("@id", out _))
                     {
                         return value;
@@ -487,7 +496,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private static string ExpandReference(WotDocument document, string value, JsonElement carryingNode)
         {
             string expanded = ExpandTerm(document, value, carryingNode);
-            if (expanded.Length == 0 || expanded[0] is '#' or '/' ||
+            if (expanded.Length == 0 ||
+                expanded[0] is '#' or '/' ||
                 ExpandedNodeId.TryParse(expanded, out _) ||
                 Uri.TryCreate(expanded, UriKind.Absolute, out _))
             {

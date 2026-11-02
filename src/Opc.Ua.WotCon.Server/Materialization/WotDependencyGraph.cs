@@ -627,11 +627,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Thing Model lands in a single closure), then each component is
         /// topologically ordered.
         /// </summary>
-        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         /// <param name="snapshot">The WoT registry snapshot.</param>
         /// <param name="selected">The resources to build closures for.</param>
         /// <param name="maxJsonDepth">The max JSON depth.</param>
         /// <param name="readContent">The read content.</param>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
         public static ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
@@ -651,6 +651,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="readContent">The read content.</param>
         /// <param name="replacementClosures">The replacement closures.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <exception cref="ServiceResultException"></exception>
         internal static async ValueTask<ImmutableArray<WotDependencyClosure>> BuildClosuresAsync(
             WotRegistrySnapshot snapshot,
             IReadOnlyCollection<WotResource> selected,
@@ -794,7 +795,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                                 : ", minimum version " + reference.RequiredVersion) +
                             $") selects no Version: {versionError}."));
                     }
-                    else if (target is null && reference.Lookup != WotResourceReferenceLookup.Document &&
+                    else if (target is null &&
+                        reference.Lookup != WotResourceReferenceLookup.Document &&
                         !snapshot.AllResources().Any(candidate => DefinesReferencedNode(candidate, reference)))
                     {
                         continue;
@@ -805,7 +807,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     list.Add(new WotDependency(
                         resource.Xid, reference.TargetUri, target?.Xid, reference.RefType,
-                        target?.DefaultVersion?.HasContent == true) { RequiredVersion = reference.RequiredVersion });
+                        target?.DefaultVersion?.HasContent == true)
+                    { RequiredVersion = reference.RequiredVersion });
                     if (target is not null)
                     {
                         AddResource(target);
@@ -941,7 +944,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (root.TryGetProperty("uav:nodes", out JsonElement native) &&
                     native.ValueKind == JsonValueKind.Object &&
                     native.TryGetProperty("profileVersion", out JsonElement profile) &&
-                    profile.ValueKind == JsonValueKind.String && profile.GetString() == "1.0" &&
+                    profile.ValueKind == JsonValueKind.String &&
+                    profile.GetString() == "1.0" &&
                     native.TryGetProperty("models", out JsonElement models) &&
                     models.ValueKind == JsonValueKind.Array)
                 {
@@ -971,7 +975,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         }
                     }
                 }
-                if (owned.Count == 0 && root.TryGetProperty("uav:id", out JsonElement identity) &&
+                if (owned.Count == 0 &&
+                    root.TryGetProperty("uav:id", out JsonElement identity) &&
                     identity.ValueKind == JsonValueKind.String &&
                     identity.GetString() is string identifier &&
                     ExpandedNodeId.TryParse(identifier, out ExpandedNodeId nodeId) &&
@@ -1031,7 +1036,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             $"Unresolved {edge.RefType} dependency '{edge.TargetHref}' " +
                             $"referenced by '{edge.SourceXid}'.");
                     }
-                    else if (edge.TargetXid is not null && memberXids.Contains(edge.TargetXid) &&
+                    else if (edge.TargetXid is not null &&
+                        memberXids.Contains(edge.TargetXid) &&
                         IsOrderingReference(edge.RefType) &&
                         (edge.TargetXid != member.Xid || edge.RefType != "uav:dataTypeSubtypeOf"))
                     {
@@ -1124,7 +1130,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     StringComparer.Ordinal);
             WotDependencyClosure ordered = BuildClosure(
                 members, edges, members.ToDictionary(member => member.Xid, StringComparer.Ordinal));
-            ArrayOf<WotResource> active = closures.SelectMany(closure => closure.ActivationMembers.ToList())
+            var active = closures.SelectMany(closure => closure.ActivationMembers.ToList())
                 .GroupBy(member => member.Xid, StringComparer.Ordinal).Select(group => group.First())
                 .OrderBy(member => member.Xid, StringComparer.Ordinal).ToArrayOf();
             return new WotDependencyClosure(
@@ -1288,8 +1294,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResource source, string href, string relation, WotResource? target)
         {
             int fragment = href.IndexOf('#', StringComparison.Ordinal);
-            return fragment >= 0 && fragment + 1 < href.Length &&
-                relation is "tm:ref" or EventTypeRefType or EventSelectClauseRefType &&
+            return fragment >= 0 &&
+                relation is "tm:ref" or "td:ref" or EventTypeRefType or EventSelectClauseRefType &&
                 (fragment == 0 || target?.Xid == source.Xid);
         }
 

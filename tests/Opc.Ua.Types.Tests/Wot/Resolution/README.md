@@ -1,10 +1,12 @@
-# WoT Registry Resolution Vectors
+# WoT implementation regression vectors
 
 <!-- words: allowprerelease bytewise contentdigest gitattributes hashlib hexdigest iterdir minversion pathlib prereleases py submodel typelinks versionorigin workingdrafts wotid -->
 
-These 64 fixtures cover [specification Section 1.3](../../spec.md#13-versioning)
-and [Section 5.4](../../spec.md#54-versioned-reference-resolution). Each
-numbered JSON file describes one case. The `sha256:` values are syntactically
+These 64 fixtures retain implementation regression coverage from the shared
+corpus at xRegistry source commit `222527c643364d70bdf4ec687f6421397a96800a`.
+They are not the current canonical example collection. The current shared
+cases and their source manifest are in `../SharedResolution`. Each numbered
+JSON file describes one case. The `sha256:` values are syntactically
 valid placeholders; they identify fixture values and are not computed from a
 WoT document. `MANIFEST.sha256` hashes the committed bytes of every file in this
 directory except itself, including this README, the schema and the checker.
@@ -14,7 +16,7 @@ directory except itself, including this README, the schema and the checker.
 From the repository root:
 
 ```sh
-python workingdrafts/models/wot/tests/resolution/check_vectors.py
+python tests\Opc.Ua.Types.Tests\Wot\Resolution\check_vectors.py
 ```
 
 The checker verifies manifest coverage and hashes, requires LF and a final
@@ -124,7 +126,7 @@ never valid floors.
 | `063-tm-minversion-on-td-reference-invalid-floor.json` | Reject `tm:minVersion` on a TD reference. |
 | `064-td-extends-floor.json` | Apply the floor on `td:extends`. |
 
-## Canonical bytes and maintenance
+## Fixture bytes and maintenance
 
 All files are UTF-8 without a byte-order mark, use LF and end in a newline.
 JSON files use two-space indentation. Vector filenames are stable and are
@@ -140,7 +142,7 @@ then run the checker:
 from hashlib import sha256
 from pathlib import Path
 
-folder = Path("workingdrafts/models/wot/tests/resolution")
+folder = Path("tests") / "Opc.Ua.Types.Tests" / "Wot" / "Resolution"
 files = sorted((p for p in folder.iterdir() if p.is_file() and p.name != "MANIFEST.sha256"), key=lambda p: p.name)
 text = "".join(f"{sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in files)
 (folder / "MANIFEST.sha256").write_text(text, encoding="ascii", newline="\n")

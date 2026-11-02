@@ -227,7 +227,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public void DecodesDynamicStructureOptionsBody()
         {
-            Structure options = CreateDynamicOptions(
+            StructureWithOptionalFields options = CreateDynamicOptions(
                 DataTypeIds.WoTRefreshOptionsDataType,
                 ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary);
             ArrayOf<Variant> input = Args(
@@ -251,6 +251,68 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(request.Options.Timeout, Is.EqualTo(2.5));
         }
 
+        /// <summary>
+        /// Verifies that dynamic option decoding retains optional false and does not discard an unsupported true.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DynamicPrereleaseOptionRetainsPresenceAndCapabilityBoundary(bool allowPrerelease)
+        {
+            StructureWithOptionalFields options = CreateDynamicOptions(DataTypeIds.WoTRefreshOptionsDataType,
+                ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary, includePrerelease: true);
+            options["AllowPrerelease"] = Variant.From(allowPrerelease);
+            ServiceResult status = WotRefreshArguments.TryDecode(Args(Variant.Null,
+                new Variant(new ExtensionObject(ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary, options))),
+                Context, out WotRefreshRequest request);
+            Assert.That(ServiceResult.IsGood(status), Is.True);
+            Assert.That(request.Options.AllowPrerelease, Is.EqualTo(allowPrerelease));
+            Assert.That(request.Options.EncodingMask,
+                Is.EqualTo((uint)WoTRefreshOptionsDataTypeFields.AllowPrerelease));
+            if (allowPrerelease)
+            {
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                    WotCapturedRefreshRequest.Capture(request));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+            else
+            {
+                Assert.That(WotCapturedRefreshRequest.Capture(request).Force, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an invalid optional Boolean cannot be re-encoded as an omitted or false option.
+        /// </summary>
+        [Test]
+        public void DynamicPrereleaseOptionRejectsMalformedBoolean()
+        {
+            StructureWithOptionalFields options = CreateDynamicOptions(DataTypeIds.WoTRefreshOptionsDataType,
+                ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary, includePrerelease: true);
+            options["AllowPrerelease"] = Variant.From("true");
+            ServiceResult status = WotRefreshArguments.TryDecode(Args(Variant.Null,
+                new Variant(new ExtensionObject(ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary, options))),
+                Context, out _);
+            Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        /// <summary>
+        /// Verifies that a dynamic publication context cannot fall back to live refresh.
+        /// </summary>
+        [Test]
+        public void DynamicPublicationContextIsExplicitlyUnsupported()
+        {
+            StructureWithOptionalFields options = CreateDynamicOptions(DataTypeIds.WoTRefreshOptionsDataType,
+                ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary,
+                includePrerelease: true, includePublication: true);
+            options["PublicationContext"] = new Variant(new ExtensionObject(
+                ObjectIds.WoTPublicationContextDataType_Encoding_DefaultBinary,
+                new WoTPublicationContextDataType { Uri = "urn:publication:channel" }));
+            ServiceResult status = WotRefreshArguments.TryDecode(Args(Variant.Null,
+                new Variant(new ExtensionObject(ObjectIds.WoTRefreshOptionsDataType_Encoding_DefaultBinary, options))),
+                Context, out _);
+            Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotSupported));
+        }
+
         [Test]
         public void RejectsDynamicStructureWithDifferentTypeIdentity()
         {
@@ -264,7 +326,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 0,
                 "urn:opcfoundation.org:UA:WotAggregation:WrongType",
                 0);
-            Structure options = CreateDynamicOptions(wrongTypeId, wrongEncodingId);
+            StructureWithOptionalFields options = CreateDynamicOptions(wrongTypeId, wrongEncodingId);
             ArrayOf<Variant> input = Args(
                 Variant.Null,
                 new Variant(new ExtensionObject(wrongEncodingId, options)));
@@ -274,9 +336,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(status.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
-        private static Structure CreateDynamicOptions(
+        private static StructureWithOptionalFields CreateDynamicOptions(
             ExpandedNodeId typeId,
-            ExpandedNodeId binaryEncodingId)
+            ExpandedNodeId binaryEncodingId,
+            bool includePrerelease = false,
+            bool includePublication = false)
         {
             StructureField[] fields =
             [
@@ -288,10 +352,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new StructureField { Name = "MaxParallelism", DataType = Ua.DataTypeIds.UInt32 },
                 new StructureField { Name = "Timeout", DataType = Ua.DataTypeIds.Double }
             ];
+            if (includePrerelease)
+            {
+                fields = [.. fields, new StructureField
+                {
+                    Name = "AllowPrerelease",
+                    DataType = Ua.DataTypeIds.Boolean,
+                    IsOptional = true
+                }];
+            }
+            if (includePublication)
+            {
+                fields = [.. fields, new StructureField
+                {
+                    Name = "PublicationContext",
+                    DataType = new NodeId(DataTypes.WoTPublicationContextDataType, 2),
+                    IsOptional = true
+                }];
+            }
             var definition = new StructureDefinition
             {
                 BaseDataType = Ua.DataTypeIds.Structure,
-                StructureType = StructureType.Structure,
+                StructureType = StructureType.StructureWithOptionalFields,
                 Fields = fields
             };
             var fieldTypes = new Dictionary<string, BuiltInType>
@@ -304,7 +386,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ["MaxParallelism"] = BuiltInType.UInt32,
                 ["Timeout"] = BuiltInType.Double
             };
-            return new Structure(
+            if (includePrerelease)
+            {
+                fieldTypes["AllowPrerelease"] = BuiltInType.Boolean;
+            }
+            if (includePublication)
+            {
+                fieldTypes["PublicationContext"] = BuiltInType.ExtensionObject;
+            }
+            return new StructureWithOptionalFields(
                 new XmlQualifiedName(
                     nameof(WoTRefreshOptionsDataType),
                     Namespaces.WotCon),

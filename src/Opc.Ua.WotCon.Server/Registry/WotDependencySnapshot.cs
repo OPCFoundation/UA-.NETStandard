@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.XRegistry;
 
@@ -51,9 +52,12 @@ namespace Opc.Ua.WotCon.Server.Registry
             _ = originUri ?? throw new ArgumentNullException(nameof(originUri));
             _ = serverUri ?? throw new ArgumentNullException(nameof(serverUri));
             bool uriForm = WotRegistryIdentity.IsAbsoluteUri(originUri) &&
-                serverUri.Length == 0 && registryNodeId.IsNull;
-            bool nodeForm = originUri.Length == 0 && WotRegistryIdentity.IsAbsoluteUri(serverUri) &&
-                !registryNodeId.IsNull && !string.IsNullOrEmpty(registryNodeId.NamespaceUri);
+                serverUri.Length == 0 &&
+                registryNodeId.IsNull;
+            bool nodeForm = originUri.Length == 0 &&
+                WotRegistryIdentity.IsAbsoluteUri(serverUri) &&
+                !registryNodeId.IsNull &&
+                !string.IsNullOrEmpty(registryNodeId.NamespaceUri);
             if (!uriForm && !nodeForm)
             {
                 throw new ArgumentException("A registry origin must have exactly one complete authoritative form.");
@@ -151,6 +155,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string DocumentUri { get; }
 
         /// <summary>
+        /// Gets the stable WoT identifier captured from trusted target metadata, when available.
+        /// </summary>
+        public string? WotId { get; init; }
+
+        /// <summary>
+        /// Gets the exact revision identifier captured from trusted target metadata, when available.
+        /// </summary>
+        public string? VersionId { get; init; }
+
+        /// <summary>
+        /// Gets the actual resolver origin captured with the target, when available.
+        /// </summary>
+        public string? Origin { get; init; }
+
+        /// <summary>
         /// Gets the portable exact-Version NodeId, never a registry-root NodeId.
         /// </summary>
         public ExpandedNodeId VersionNodeId { get; }
@@ -163,15 +182,34 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Converts the pinned dependency target to its OPC UA data representation, including an origin when present.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal WoTResolvedDependencyTargetDataType ToDataType()
         {
+            string? wotId = WotId;
+            string? versionId = VersionId;
+            string? origin = Origin;
+            if (wotId is null ||
+                versionId is null ||
+                origin is null ||
+                !Uri.TryCreate(wotId, UriKind.Absolute, out _) ||
+                !Uri.TryCreate(origin, UriKind.Absolute, out _) ||
+                !WotSemanticVersion.TryParse(versionId, out _) ||
+                (OriginRegistry is not null && !VersionXid.EndsWith("/versions/" + versionId, StringComparison.Ordinal)))
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "Authoritative snapshots require captured SemVer identity and resolver origin metadata.");
+            }
             var result = new WoTResolvedDependencyTargetDataType
             {
                 EdgeIndex = EdgeIndex,
                 VersionXid = VersionXid,
                 DocumentUri = DocumentUri,
                 VersionNodeId = VersionNodeId,
-                ContentDigest = ContentDigest
+                ContentDigest = ContentDigest,
+                WoTId = wotId,
+                VersionId = versionId,
+                VersionProfile = WoTVersionProfileEnum.SemVer,
+                Origin = origin
             };
             if (OriginRegistry is not null)
             {
@@ -348,7 +386,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 var indices = new HashSet<uint>();
                 foreach (WotDependencyTargetPin target in Targets)
                 {
-                    if (target.EdgeIndex >= Edges.Count || !Edges[(int)target.EdgeIndex].Resolved ||
+                    if (target.EdgeIndex >= Edges.Count ||
+                        !Edges[(int)target.EdgeIndex].Resolved ||
                         !indices.Add(target.EdgeIndex))
                     {
                         throw new ArgumentException("A target must identify exactly one resolved dependency edge.");

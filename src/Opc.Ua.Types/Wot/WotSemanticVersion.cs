@@ -37,7 +37,6 @@ using System.Numerics;
 
 namespace Opc.Ua.Wot
 {
-
     /// <summary>
     /// A validated SemVer 2.0.0 version, ordered by SemVer precedence.
     /// </summary>
@@ -61,19 +60,23 @@ namespace Opc.Ua.Wot
         /// </summary>
         public bool IsPrerelease => m_prerelease is not null;
 
-        internal bool HasSameMajor(WotSemanticVersion other) => m_major == other.m_major;
+        internal bool HasSameMajor(WotSemanticVersion other)
+        {
+            return m_major == other.m_major;
+        }
 
         /// <summary>
         /// Parses a SemVer 2.0.0 string without build metadata and within Core's identifier limit.
         /// </summary>
         /// <exception cref="ArgumentException">The input is not a valid version identifier.</exception>
+        /// <exception cref="ArgumentNullException"></exception>
         public static WotSemanticVersion Parse(string value)
         {
             if (value is null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            if (!TryParse(value, out var parsed))
+            if (!TryParse(value, out WotSemanticVersion? parsed))
             {
                 throw new ArgumentException("The value is not a SemVer 2.0.0 identifier.", nameof(value));
             }
@@ -84,7 +87,18 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Attempts to parse SemVer 2.0.0 without build metadata and within Core's identifier limit.
         /// </summary>
-        public static bool TryParse(string? value, out WotSemanticVersion? version) => TryParse(value, enforceLength: true, out version);
+        public static bool TryParse(string? value, out WotSemanticVersion? version)
+        {
+            return TryParse(value, enforceLength: true, out version);
+        }
+
+        /// <summary>
+        /// Parses a requirement without applying the registry's stored identifier length limit.
+        /// </summary>
+        internal static bool TryParseRequirement(string? value, out WotSemanticVersion? version)
+        {
+            return TryParse(value, enforceLength: false, out version);
+        }
 
         /// <inheritdoc />
         public int CompareTo(WotSemanticVersion? other)
@@ -94,7 +108,7 @@ namespace Opc.Ua.Wot
                 return 1;
             }
 
-            var comparison = m_major.CompareTo(other.m_major);
+            int comparison = m_major.CompareTo(other.m_major);
             if (comparison == 0)
             {
                 comparison = m_minor.CompareTo(other.m_minor);
@@ -115,14 +129,15 @@ namespace Opc.Ua.Wot
                 return m_prerelease is null ? other.m_prerelease is null ? 0 : 1 : -1;
             }
 
-            for (var index = 0; index < Math.Min(m_prerelease.Length, other.m_prerelease.Length); index++)
+            for (int index = 0; index < Math.Min(m_prerelease.Length, other.m_prerelease.Length); index++)
             {
-                var left = m_prerelease[index];
-                var right = other.m_prerelease[index];
-                var leftNumeric = IsNumeric(left);
-                var rightNumeric = IsNumeric(right);
+                string left = m_prerelease[index];
+                string right = other.m_prerelease[index];
+                bool leftNumeric = IsNumeric(left);
+                bool rightNumeric = IsNumeric(right);
                 comparison = leftNumeric && rightNumeric
-                    ? BigInteger.Parse(left, CultureInfo.InvariantCulture).CompareTo(BigInteger.Parse(right, CultureInfo.InvariantCulture))
+                    ? BigInteger.Parse(left, CultureInfo.InvariantCulture)
+                        .CompareTo(BigInteger.Parse(right, CultureInfo.InvariantCulture))
                     : leftNumeric != rightNumeric ? leftNumeric ? -1 : 1 : string.CompareOrdinal(left, right);
                 if (comparison != 0)
                 {
@@ -134,10 +149,16 @@ namespace Opc.Ua.Wot
         }
 
         /// <inheritdoc />
-        public bool Equals(WotSemanticVersion? other) => other is not null && CompareTo(other) == 0;
+        public bool Equals(WotSemanticVersion? other)
+        {
+            return other is not null && CompareTo(other) == 0;
+        }
 
         /// <inheritdoc />
-        public override bool Equals(object? obj) => obj is WotSemanticVersion other && Equals(other);
+        public override bool Equals(object? obj)
+        {
+            return obj is WotSemanticVersion other && Equals(other);
+        }
 
         /// <inheritdoc />
         public override int GetHashCode()
@@ -148,7 +169,7 @@ namespace Opc.Ua.Wot
             hash.Add(m_patch);
             if (m_prerelease is not null)
             {
-                foreach (var identifier in m_prerelease)
+                foreach (string identifier in m_prerelease)
                 {
                     hash.Add(identifier, StringComparer.Ordinal);
                 }
@@ -160,33 +181,55 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Compares SemVer precedence for two versions.
         /// </summary>
-        public static bool operator ==(WotSemanticVersion? left, WotSemanticVersion? right) => Equals(left, right);
+        public static bool operator ==(WotSemanticVersion? left, WotSemanticVersion? right)
+        {
+            return Equals(left, right);
+        }
 
         /// <summary>
         /// Compares SemVer precedence for two versions.
         /// </summary>
-        public static bool operator !=(WotSemanticVersion? left, WotSemanticVersion? right) => !Equals(left, right);
+        public static bool operator !=(WotSemanticVersion? left, WotSemanticVersion? right)
+        {
+            return !Equals(left, right);
+        }
 
         /// <summary>
         /// Tests whether the left version has lower SemVer precedence.
         /// </summary>
-        public static bool operator <(WotSemanticVersion left, WotSemanticVersion right) => left.CompareTo(right) < 0;
+        public static bool operator <(WotSemanticVersion left, WotSemanticVersion right)
+        {
+            return left.CompareTo(right) < 0;
+        }
 
         /// <summary>
         /// Tests whether the left version has lower or equal SemVer precedence.
         /// </summary>
-        public static bool operator <=(WotSemanticVersion left, WotSemanticVersion right) => left.CompareTo(right) <= 0;
+        public static bool operator <=(WotSemanticVersion left, WotSemanticVersion right)
+        {
+            return left.CompareTo(right) <= 0;
+        }
 
         /// <summary>
         /// Tests whether the left version has higher SemVer precedence.
         /// </summary>
-        public static bool operator >(WotSemanticVersion left, WotSemanticVersion right) => left.CompareTo(right) > 0;
+        public static bool operator >(WotSemanticVersion left, WotSemanticVersion right)
+        {
+            return left.CompareTo(right) > 0;
+        }
 
         /// <summary>
         /// Tests whether the left version has higher or equal SemVer precedence.
         /// </summary>
-        public static bool operator >=(WotSemanticVersion left, WotSemanticVersion right) => left.CompareTo(right) >= 0;
-        internal static bool IsSemVerSyntax(string? value) => TryParse(value, enforceLength: false, out _);
+        public static bool operator >=(WotSemanticVersion left, WotSemanticVersion right)
+        {
+            return left.CompareTo(right) >= 0;
+        }
+
+        internal static bool IsSemVerSyntax(string? value)
+        {
+            return TryParse(value, enforceLength: false, out _);
+        }
 
         internal static bool HasValidBuildMetadata(string? value)
         {
@@ -195,24 +238,28 @@ namespace Opc.Ua.Wot
                 return false;
             }
 
-            var separator = value.AsSpan().IndexOf('+');
-            return separator > 0 && separator == value.AsSpan().LastIndexOf('+') &&
-                TryParse(value[..separator], enforceLength: false, out _) && IsIdentifierList(value[(separator + 1)..], allowNumericLeadingZero: true);
+            int separator = value.AsSpan().IndexOf('+');
+            return separator > 0 &&
+                separator == value.AsSpan().LastIndexOf('+') &&
+                TryParse(value[..separator], enforceLength: false, out _) &&
+                IsIdentifierList(value[(separator + 1)..], allowNumericLeadingZero: true);
         }
 
         private static bool TryParse(string? value, bool enforceLength, out WotSemanticVersion? version)
         {
             version = null;
-            if (string.IsNullOrEmpty(value) || enforceLength && value.Length > 128)
+            if (string.IsNullOrEmpty(value) || (enforceLength && value.Length > 128))
             {
                 return false;
             }
 
-            var separator = value.AsSpan().IndexOf('-');
-            var core = separator < 0 ? value : value[..separator];
-            var components = core.Split('.');
-            if (components.Length != 3 || !TryNumber(components[0], out var major) ||
-                !TryNumber(components[1], out var minor) || !TryNumber(components[2], out var patch))
+            int separator = value.AsSpan().IndexOf('-');
+            string core = separator < 0 ? value : value[..separator];
+            string[] components = core.Split('.');
+            if (components.Length != 3 ||
+                !TryNumber(components[0], out BigInteger major) ||
+                !TryNumber(components[1], out BigInteger minor) ||
+                !TryNumber(components[2], out BigInteger patch))
             {
                 return false;
             }
@@ -220,7 +267,7 @@ namespace Opc.Ua.Wot
             string[]? prerelease = null;
             if (separator >= 0)
             {
-                var text = value[(separator + 1)..];
+                string text = value[(separator + 1)..];
                 if (!IsIdentifierList(text, allowNumericLeadingZero: false))
                 {
                     return false;
@@ -236,23 +283,34 @@ namespace Opc.Ua.Wot
         private static bool TryNumber(string value, out BigInteger number)
         {
             number = BigInteger.Zero;
-            return value.Length > 0 && (value.Length == 1 || value[0] != '0') && value.All(IsAsciiDigit) &&
+            return value.Length > 0 &&
+                (value.Length == 1 || value[0] != '0') &&
+                value.All(IsAsciiDigit) &&
                 BigInteger.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out number);
         }
 
         private static bool IsIdentifierList(string value, bool allowNumericLeadingZero)
         {
-            var identifiers = value.Split('.');
-            return identifiers.All(identifier => identifier.Length > 0 && identifier.All(static character =>
-                IsAsciiLetterOrDigit(character) || character == '-') &&
+            string[] identifiers = value.Split('.');
+            return identifiers.All(identifier => identifier.Length > 0 &&
+                identifier.All(static character =>
+                    IsAsciiLetterOrDigit(character) || character == '-') &&
                 (allowNumericLeadingZero || !IsNumeric(identifier) || identifier.Length == 1 || identifier[0] != '0'));
         }
 
-        private static bool IsNumeric(string value) => value.Length > 0 && value.All(IsAsciiDigit);
-        private static bool IsAsciiDigit(char value) => value is >= '0' and <= '9';
+        private static bool IsNumeric(string value)
+        {
+            return value.Length > 0 && value.All(IsAsciiDigit);
+        }
 
-        private static bool IsAsciiLetterOrDigit(char value) =>
-            IsAsciiDigit(value) || value is >= 'A' and <= 'Z' or >= 'a' and <= 'z';
+        private static bool IsAsciiDigit(char value)
+        {
+            return value is >= '0' and <= '9';
+        }
 
+        private static bool IsAsciiLetterOrDigit(char value)
+        {
+            return IsAsciiDigit(value) || value is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z');
+        }
     }
 }

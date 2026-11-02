@@ -64,7 +64,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             foreach (string name in names)
             {
-                using WotDocument document = WotDocument.Parse(ReadExample(name));
+                using var document = WotDocument.Parse(ReadExample(name));
                 Assert.That(
                     document.RootElement.ValueKind,
                     Is.EqualTo(JsonValueKind.Object),
@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 foreach (string resource in names)
                 {
                     string name = ShortName(resource);
-                    using WotDocument document = WotDocument.Parse(ReadExample(name));
+                    using var document = WotDocument.Parse(ReadExample(name));
                     var options = new WotNodeSetConverterOptions
                     {
                         ConformanceMode = WotConformanceMode.Strict
@@ -121,7 +121,8 @@ namespace Opc.Ua.Types.Tests.Wot
                         result.Diagnostics.Where(IsConformanceDiagnostic).ToList(),
                         Is.Empty,
                         $"Example '{name}' should carry no conformance diagnostic:" +
-                        Environment.NewLine + DescribeErrors(result.Diagnostics));
+                        Environment.NewLine +
+                        DescribeErrors(result.Diagnostics));
 
                     if (ClaimsConversion(document))
                     {
@@ -130,7 +131,8 @@ namespace Opc.Ua.Types.Tests.Wot
                             result.Value,
                             Is.Not.Null,
                             $"Example '{name}' claims a profile that includes WoT-Modeller, so " +
-                            "it has to convert:" + Environment.NewLine +
+                            "it has to convert:" +
+                            Environment.NewLine +
                             DescribeErrors(result.Diagnostics));
                     }
 
@@ -171,10 +173,10 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     retiredFormatFixtures,
                     Is.EqualTo(s_retiredProjectionFixtures));
-                Assert.That(needsContext, Is.EqualTo(new[]
-                {
+                Assert.That(needsContext, Is.EqualTo(
+                [
                     "01-opcua-td-pump.jsonld", "02-thing-model-pump.jsonld", ConditionExample, TypeBindingExample
-                }));
+                ]));
                 Assert.That(
                     modelled,
                     Is.Not.Empty,
@@ -229,7 +231,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void PredictiveMaintenanceExampleIsRecognisedAsAProjection()
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 ReadCurrentProjectionExample());
 
             Assert.That(WotProjection.IsProjection(document), Is.True);
@@ -252,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void ResolvedViewExampleIsNotAProjection()
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 ReadExample(ResolvedExample));
 
             // The resolved view is an ordinary Thing Description: a consumer
@@ -263,9 +265,9 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task PredictiveMaintenanceProjectionResolvesToThePublishedViewAsync()
         {
-            using WotDocument projection = WotDocument.Parse(
+            using var projection = WotDocument.Parse(
                 ReadCurrentProjectionExample());
-            using WotDocument expected = WotDocument.Parse(
+            using var expected = WotDocument.Parse(
                 ReadExample(ResolvedExample));
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
@@ -298,7 +300,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ResolvedViewCarriesProvenanceForEverySelectionAsync()
         {
-            using WotDocument projection = WotDocument.Parse(
+            using var projection = WotDocument.Parse(
                 ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
@@ -331,7 +333,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task BulkSelectionAppliesThePrefixWithAnUpperCasedSourceNameAsync()
         {
-            using WotDocument projection = WotDocument.Parse(
+            using var projection = WotDocument.Parse(
                 ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
@@ -353,7 +355,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task CarriedFormsBringTheirSecurityClosureUnderQualifiedNamesAsync()
         {
-            using WotDocument projection = WotDocument.Parse(
+            using var projection = WotDocument.Parse(
                 ReadCurrentProjectionExample());
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
@@ -375,16 +377,24 @@ namespace Opc.Ua.Types.Tests.Wot
                 ?? throw new InvalidOperationException($"Missing fixture '{name}'.");
             using var buffer = new MemoryStream();
             stream.CopyTo(buffer);
-            JsonObject root = JsonNode.Parse(buffer.ToArray())!.AsObject();
+            return WithLocalBindingContext(buffer.ToArray(), ReadLocalBindingContextFixture());
+        }
+
+        /// <summary>
+        /// Supplies an acquired fixture context for conversion without changing the retained source document.
+        /// </summary>
+        internal static byte[] WithLocalBindingContext(byte[] bytes, JsonNode context)
+        {
+            JsonObject root = JsonNode.Parse(bytes)!.AsObject();
             if (root["@context"] is JsonArray contexts)
             {
                 for (int index = 0; index < contexts.Count; index++)
                 {
                     if (contexts[index] is JsonValue value &&
                         value.TryGetValue(out string? uri) &&
-                        uri == "../opc-ua-wot-binding.context.jsonld")
+                        uri is "../opc-ua-wot-binding.context.jsonld" or WotVocabulary.BindingContext)
                     {
-                        contexts[index] = ReadLocalBindingContextFixture();
+                        contexts[index] = context.DeepClone();
                     }
                 }
             }
@@ -407,8 +417,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static bool IsSection13Diagnostic(WotDiagnostic diagnostic)
         {
-            return diagnostic.Code >= WotDiagnosticCode.ConditionEventIdMissing &&
-                diagnostic.Code <= WotDiagnosticCode.UnresolvedConditionType;
+            return diagnostic.Code is >= WotDiagnosticCode.ConditionEventIdMissing and
+                <= WotDiagnosticCode.UnresolvedConditionType;
         }
 
         private static IReadOnlyList<string> ExampleNames()
@@ -423,12 +433,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static JsonNode ReadLocalBindingContextFixture()
         {
-            var assembly = typeof(WotSpecExampleTests).Assembly;
+            Assembly assembly = typeof(WotSpecExampleTests).Assembly;
             string resource = assembly.GetManifestResourceNames().Single(name =>
                 name.EndsWith(".opc-ua-wot-binding.context.jsonld", StringComparison.Ordinal));
             using Stream stream = assembly.GetManifestResourceStream(resource)
                 ?? throw new InvalidOperationException("The local binding context fixture is not embedded.");
-            using JsonDocument document = JsonDocument.Parse(stream);
+            using var document = JsonDocument.Parse(stream);
             Assert.That(document.RootElement.GetProperty("@id").GetString(), Is.EqualTo(WotVocabulary.BindingContext));
             return JsonNode.Parse(document.RootElement.GetProperty("@context").GetRawText())!;
         }
@@ -449,12 +459,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 int slash = name.LastIndexOf('/');
                 if (slash >= 0)
                 {
-                    name = name.Substring(slash + 1);
+                    name = name[(slash + 1)..];
                 }
                 int fragment = name.IndexOf('#', StringComparison.Ordinal);
                 if (fragment >= 0)
                 {
-                    name = name.Substring(0, fragment);
+                    name = name[..fragment];
                 }
                 if (!name.EndsWith(".jsonld", StringComparison.Ordinal))
                 {
@@ -480,7 +490,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task TypeBindingExampleBindsTheProjectedObjectToTheNamedTypeAsync()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(TypeBindingExample));
+            using var document = WotDocument.Parse(ReadExample(TypeBindingExample));
 
             // The fixture binds by both forms of type reference, so it only
             // converts against a local context that holds the type it names.
@@ -526,7 +536,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ConditionExampleConvertsWithoutSection13DiagnosticsAsync()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+            using var document = WotDocument.Parse(ReadExample(ConditionExample));
             using var context = new WotEventTypeTestContext(
                 "nsu=http://example.com/demo/pump;i=6001",
                 "i=2955",
@@ -549,7 +559,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ConditionExampleRequiresAuthoritativeOccurrenceDeclarationContext()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+            using var document = WotDocument.Parse(ReadExample(ConditionExample));
 
             WotConversionResult<UANodeSet> result = await WotNodeSetConverter
                 .ToNodeSetResultAsync(document, null, new EmbeddedExampleResolver())
@@ -570,14 +580,14 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void ConditionExampleWithoutAResolverReportsTheUnresolvedSelection()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(ConditionExample));
+            using var document = WotDocument.Parse(ReadExample(ConditionExample));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error)
                     .Select(d => d.Code),
-                Is.EqualTo(new[] { WotDiagnosticCode.EventSelectionUnresolved }));
+                Is.EqualTo([WotDiagnosticCode.EventSelectionUnresolved]));
         }
 
         /// <summary>
@@ -589,7 +599,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void DataTypeExampleMaterializesEveryDefinition()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+            using var document = WotDocument.Parse(ReadExample(DataTypeExample));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
@@ -598,7 +608,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Select(d => d.Message),
                 Is.Empty);
 
-            UADataType[] dataTypes = result.Value!.Items!.OfType<UADataType>().ToArray();
+            UADataType[] dataTypes = [.. result.Value!.Items!.OfType<UADataType>()];
 
             // Nine sit in the root list, one is stated inline on an action's
             // input, and five more are inferred from the Inferred* affordances'
@@ -632,7 +642,7 @@ namespace Opc.Ua.Types.Tests.Wot
             // An Enumeration keeps its authored values, including a negative one.
             Assert.That(
                 machineState.Definition!.Field!.Select(f => f.Value),
-                Is.EqualTo(new[] { 0, 10, -1 }));
+                Is.EqualTo([0, 10, -1]));
             Assert.That(machineState.Definition.IsOptionSet, Is.False);
 
             // An OptionSet numbers bits and states its integer base (§6.11.2).
@@ -641,7 +651,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(flags.Definition!.IsOptionSet, Is.True);
             Assert.That(
                 flags.References!.Any(r => r.ReferenceType == "HasSubtype" &&
-                    !r.IsForward && r.Value == "i=7"),
+                    !r.IsForward &&
+                    r.Value == "i=7"),
                 Is.True);
 
             // A subtyped-value kind is not expressible as an IsUnion flag, so
@@ -673,7 +684,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(linked.NodeId, Does.Not.Contain("DataTypes/"));
             Assert.That(
                 linked.References!.Any(r => r.ReferenceType == "HasEncoding" &&
-                    r.IsForward && r.Value!.Contains(
+                    r.IsForward &&
+                    r.Value!.Contains(
                         "s=DataTypes/LinkedNodeDataType/Default Binary",
                         StringComparison.Ordinal)),
                 Is.True,
@@ -705,15 +717,15 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void MaterializedDataTypeDefinitionsAreNotAlsoResidue()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+            using var document = WotDocument.Parse(ReadExample(DataTypeExample));
 
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             string[] pointers = result.Value!.Extensions is null
                 ? []
-                : result.Value.Extensions.SelectMany(extension =>
+                : [.. result.Value.Extensions.SelectMany(extension =>
                     XElement.Parse(extension.OuterXml).DescendantsAndSelf()
-                        .Attributes("Pointer").Select(attribute => attribute.Value)).ToArray();
+                        .Attributes("Pointer").Select(attribute => attribute.Value))];
             Assert.That(pointers.Where(pointer => pointer == "/uav:dataTypeDefinitions" ||
                 pointer.StartsWith("/uav:dataTypeDefinitions/", StringComparison.Ordinal)), Is.Empty,
                 "Retained context definitions are not a second copy of the materialized DataType declarations.");
@@ -738,7 +750,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void DataTypesSurviveTheRoundTripReadably()
         {
-            using WotDocument authored = WotDocument.Parse(ReadExample(DataTypeExample));
+            using var authored = WotDocument.Parse(ReadExample(DataTypeExample));
             UANodeSet first = WotNodeSetConverter.ToNodeSet(authored);
 
             using WotDocument document = WotNodeSetConverter.FromNodeSet(first);
@@ -751,10 +763,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UANodeSet second = WotNodeSetConverter.ToNodeSet(WithoutNativeProjection(document));
 
-            UADataType[] before = first.Items!.OfType<UADataType>()
-                .OrderBy(d => d.NodeId, StringComparer.Ordinal).ToArray();
-            UADataType[] after = second.Items!.OfType<UADataType>()
-                .OrderBy(d => d.NodeId, StringComparer.Ordinal).ToArray();
+            UADataType[] before = [.. first.Items!.OfType<UADataType>().OrderBy(d => d.NodeId, StringComparer.Ordinal)];
+            UADataType[] after = [.. second.Items!.OfType<UADataType>().OrderBy(d => d.NodeId, StringComparer.Ordinal)];
 
             Assert.That(after.Select(d => d.NodeId), Is.EqualTo(before.Select(d => d.NodeId)));
             Assert.That(
@@ -811,7 +821,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public void VariableNamingADefinitionCarriesThatDataType()
         {
-            using WotDocument document = WotDocument.Parse(ReadExample(DataTypeExample));
+            using var document = WotDocument.Parse(ReadExample(DataTypeExample));
 
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(document);
 
@@ -851,7 +861,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     string.Equals(name, browseName, StringComparison.Ordinal)
                         ? new ArrayOf<WotResolvedNode>(
                             [new WotResolvedNode(nodeId, WotExpectedNodeClass.ObjectType)])
-                        : ArrayOf<WotResolvedNode>.Empty);
+                        : []);
             }
 
             public ValueTask<WotResolvedNode?> ResolveByNodeIdAsync(
@@ -884,6 +894,7 @@ namespace Opc.Ua.Types.Tests.Wot
         ];
 
         private static readonly string[] s_retiredProjectionFixtures = [];
+
         private static readonly string[] s_standaloneExamples =
         [
             "03-nodeset-preservation-envelope.jsonld",

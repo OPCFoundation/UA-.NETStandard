@@ -184,6 +184,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Generates one bounded candidate while observing cancellation between documents and graph nodes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private static WotConversionResult<WotDocumentSet> FromNodeSetDocumentsCore(
             UANodeSet nodeSet,
             string rootHref,
@@ -866,6 +867,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Shares set reconstruction and merging across local-only and resolver-enabled callers.
         /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
         private static async ValueTask<WotConversionResult<UANodeSet>> ToNodeSetCoreAsync(
             WotDocumentSet documents,
             WotNodeSetConverterOptions? options,
@@ -1025,7 +1027,7 @@ namespace Opc.Ua.Wot
             {
                 if (m_documents.TryGetDocument(reference.Target, out WotDocument document))
                 {
-                    WotVersionedReference.ValidateSelectedVersion(document, reference.MinimumVersion);
+                    WotVersionedReference.ValidateSelectedVersion(document, reference.MinimumVersion, reference.Kind);
                     return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(document.Utf8Json.ToArray()));
                 }
                 return m_fallback is null ? new ValueTask<WotResolverResult>(WotResolverResult.NotFound) :

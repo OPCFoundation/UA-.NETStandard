@@ -1,0 +1,47 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    "../opc-ua-wot-binding.context.jsonld",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ex": "https://example.com/UA/Declaration/"
+    }
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType"],
+  "title": "Machine declaration model",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ex:MachineType",
+  "uav:additionalProperties": true,
+  "links": [
+    {
+      "rel": "ua:HasComponent",
+      "href": "./36-declaration-axis-model.jsonld",
+      "uav:refName": "Axis",
+      "uav:declaration": {
+        "uav:browseName": "ex:Axis",
+        "uav:modellingRule": "OptionalPlaceholder"
+      }
+    }
+  ],
+  "properties": {
+    "processTemperature": {
+      "type": "number",
+      "uav:modellingRule": "MandatoryPlaceholder"
+    },
+    "ambientTemperature": {
+      "type": "number",
+      "uav:modellingRule": "OptionalPlaceholder"
+    }
+  },
+  "actions": {
+    "calibrate": {
+      "uav:browseName": "ex:Calibrate",
+      "uav:modellingRule": "OptionalPlaceholder"
+    }
+  },
+  "events": {
+    "overheated": {
+      "tm:ref": "./27-event-type-models.jsonld#/events/temperatureExceeded"
+    }
+  }
+}

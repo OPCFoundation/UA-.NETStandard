@@ -30,6 +30,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -38,17 +39,17 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Wot;
+using AggregationClient;
+using AggregationServer;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Export;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Registry;
-using AggregationClient;
-using AggregationServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
@@ -72,6 +73,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
             var targets = new WotDependencyTargetPin[]
             {
                 new(0, null, string.Empty, "urn:target", default, digest)
+                {
+                    WotId = "urn:target",
+                    VersionId = "0.0.0-1",
+                    Origin = "urn:fixture:catalog"
+                }
             };
             WotDependencyTargetPin inputTarget = targets[0];
             var observation = new WotDependencySnapshot(
@@ -125,7 +131,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             var memoryStore = new InMemoryWotRegistryStore();
             using var registry = new WotRegistryService(memoryStore);
             string directory = FindDocuments();
-            using JsonDocument manifest = JsonDocument.Parse(
+            using var manifest = JsonDocument.Parse(
                 await File.ReadAllBytesAsync(Path.Combine(directory, "documents.json"), timeout.Token)
                     .ConfigureAwait(false));
             var documents = new Dictionary<string, byte[]>(StringComparer.Ordinal);
@@ -138,7 +144,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                         Path.Combine(directory, entry.GetProperty("path").GetString()!), timeout.Token)
                         .ConfigureAwait(false), name);
                 documents.Add(name, content);
-                using JsonDocument document = JsonDocument.Parse(content);
+                using var document = JsonDocument.Parse(content);
                 identities.Add(name, document.RootElement.GetProperty("id").GetString()!);
             }
             foreach (JsonElement entry in manifest.RootElement.EnumerateArray())
@@ -159,14 +165,14 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Assert.That(added.Resource, Is.Not.Null, added.Message);
             }
             WotRegistrySnapshot snapshot = registry.Current;
-            var resources = snapshot.AllResources().ToArray();
-            var closures = await WotDependencyGraph.BuildClosuresAsync(
+            WotResource[] resources = snapshot.AllResources().ToArray();
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
                 snapshot, resources, 128, registry.ReadContentAsync, timeout.Token).ConfigureAwait(false);
             Assert.That(closures, Has.Length.EqualTo(1));
-            var closure = closures[0];
+            WotDependencyClosure closure = closures[0];
             TestContext.Out.WriteLine("Resources={0}; Edges={1}; Resolved={2}",
                 resources.Length, closure.Dependencies.Length, closure.Dependencies.Count(edge => edge.Resolved));
-            ArrayOf<WotDependency> edges = closure.Dependencies.ToArrayOf();
+            var edges = closure.Dependencies.ToArrayOf();
             var pins = new List<WotDependencyTargetPin>();
             for (int index = 0; index < edges.Count; index++)
             {
@@ -175,7 +181,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 {
                     WotResource target = snapshot.FindResourceByXid(edge.TargetXid!)!;
                     pins.Add(new WotDependencyTargetPin(
-                        (uint)index, null, string.Empty, edge.TargetHref, default, target.DefaultVersion!.Digest));
+                        (uint)index, null, string.Empty, edge.TargetHref, default, target.DefaultVersion!.Digest)
+                    {
+                        WotId = target.SourceId,
+                        VersionId = target.DefaultVersion.VersionId,
+                        Origin = "urn:metadata-probe:catalog"
+                    });
                 }
             }
             string root = Path.Combine(TestContext.CurrentContext.WorkDirectory, "metadata-probe-" +
@@ -225,7 +236,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     await publication.DecideAsync(timeout.Token).ConfigureAwait(false);
                     publication.Publish();
                 }
-                using JsonDocument stored = JsonDocument.Parse(
+                using var stored = JsonDocument.Parse(
                     await File.ReadAllBytesAsync(Path.Combine(root, "manifest.json"), timeout.Token)
                         .ConfigureAwait(false));
                 Assert.That(stored.RootElement.GetProperty("DependencyGraphs").GetArrayLength(), Is.EqualTo(1));
@@ -252,13 +263,22 @@ namespace Opc.Ua.WotCon.Samples.Tests
                         Assert.That(restored.Edges.Count, Is.EqualTo(edges.Count));
                         Assert.That(restored.Targets.Count, Is.EqualTo(pins.Count));
                         Assert.That(restored.Edges.ToList().Zip(edges.ToList(), (a, b) =>
-                            a.SourceXid == b.SourceXid && a.TargetHref == b.TargetHref &&
-                            a.TargetXid == b.TargetXid && a.RefType == b.RefType && a.Resolved == b.Resolved).All(
+                            a.SourceXid == b.SourceXid &&
+                            a.TargetHref == b.TargetHref &&
+                            a.TargetXid == b.TargetXid &&
+                            a.RefType == b.RefType &&
+                            a.Resolved == b.Resolved).All(
                             equal => equal), Is.True);
                         Assert.That(restored.Targets.ToList().Zip(pins, (a, b) =>
-                            a.EdgeIndex == b.EdgeIndex && a.DocumentUri == b.DocumentUri &&
-                            a.VersionXid == b.VersionXid && a.VersionNodeId == b.VersionNodeId &&
-                            a.ContentDigest == b.ContentDigest && a.OriginRegistry is null).All(
+                            a.EdgeIndex == b.EdgeIndex &&
+                            a.DocumentUri == b.DocumentUri &&
+                            a.VersionXid == b.VersionXid &&
+                            a.VersionNodeId == b.VersionNodeId &&
+                            a.ContentDigest == b.ContentDigest &&
+                            a.OriginRegistry is null &&
+                            a.WotId == b.WotId &&
+                            a.VersionId == b.VersionId &&
+                            a.Origin == b.Origin).All(
                             equal => equal), Is.True);
                     });
                 }
@@ -308,7 +328,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         public async Task PublishedPumpsSetRetainsItsCompleteNativeGraph()
         {
             string directory = FindDocuments();
-            using JsonDocument manifest = JsonDocument.Parse(
+            using var manifest = JsonDocument.Parse(
                 await File.ReadAllBytesAsync(Path.Combine(directory, "documents.json")).ConfigureAwait(false));
             var documents = new Dictionary<string, byte[]>(StringComparer.Ordinal);
             var identities = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -323,7 +343,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 byte[] content = AggregationClientRunner.EnsureDocumentIdentity(
                     await File.ReadAllBytesAsync(Path.Combine(directory, path)).ConfigureAwait(false), name);
                 documents.Add(name, content);
-                using JsonDocument document = JsonDocument.Parse(content);
+                using var document = JsonDocument.Parse(content);
                 identities.Add(name, document.RootElement.GetProperty("id").GetString()!);
             }
             var options = new WotNodeSetConverterOptions { MaxResolverDocuments = 1024 };
@@ -373,8 +393,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 }
                 string path = Path.Combine(FindDocuments(), "opc-ua-di", name + ".json");
                 byte[] bytes = AggregationClientRunner.EnsureDocumentIdentity(File.ReadAllBytes(path), name);
-                ByteString content = ByteString.From(bytes);
-                var identities = s_fragments.ToDictionary(
+                var content = ByteString.From(bytes);
+                Dictionary<string, string> identities = s_fragments.ToDictionary(
                     alias => alias,
                     alias => "urn:opcfoundation.org:UA:WotAggregation:document:" + alias,
                     StringComparer.Ordinal);
@@ -522,7 +542,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Dictionary<string, ByteString> contents = ReadFragments();
             ByteString target = contents[s_fragments[0]];
             WotResource resource = await AddTargetAsync(registry, target).ConfigureAwait(false);
-            ByteString malformed = ByteString.From(Encoding.UTF8.GetBytes(invalid));
+            var malformed = ByteString.From(Encoding.UTF8.GetBytes(invalid));
             contents["malformed-target"] = malformed;
 
             WotConversionOutput failed = await converter.ConvertAsync(
@@ -623,7 +643,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 ["href"] = "urn:opcfoundation.org:UA:WotAggregation:document:" + s_fragments[1],
                 ["rel"] = "uav:componentOf"
             });
-            ByteString target = ByteString.From(Encoding.UTF8.GetBytes(changed.ToJsonString()));
+            var target = ByteString.From(Encoding.UTF8.GetBytes(changed.ToJsonString()));
             contents[s_fragments[0]] = target;
             WotResource resource = await AddTargetAsync(registry, target).ConfigureAwait(false);
 
@@ -650,7 +670,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             IServerStartupTask[] tasks = host.Services.GetServices<IServerStartupTask>().ToArray();
 
             Assert.That(tasks.Count(task => ReferenceEquals(task, converter)), Is.EqualTo(1));
-            IDisposable disposable = (IDisposable)converter;
+            var disposable = (IDisposable)converter;
             Assert.DoesNotThrow(() =>
             {
                 disposable.Dispose();
@@ -671,11 +691,11 @@ namespace Opc.Ua.WotCon.Samples.Tests
             using IHost host = AggregationServerHost.Build(new AggregationServerOptions());
             IWotDocumentConverter converter = host.Services.GetRequiredService<IWotDocumentConverter>();
             using var registry = new WotRegistryService();
-            ByteString target = ByteString.From(Encoding.UTF8.GetBytes(s_readableConsumer));
+            var target = ByteString.From(Encoding.UTF8.GetBytes(s_readableConsumer));
             WotResource resource = await AddTargetAsync(registry, target).ConfigureAwait(false);
-            using WotDocument readable = WotDocument.Parse(Encoding.UTF8.GetBytes(s_readableDefinition));
-            using WotDocument native = WotDocument.Parse(ReadFragment("opc-ua-di-devicehealthenumeration").Memory);
-            var definitions = new[]
+            using var readable = WotDocument.Parse(Encoding.UTF8.GetBytes(s_readableDefinition));
+            using var native = WotDocument.Parse(ReadFragment("opc-ua-di-devicehealthenumeration").Memory);
+            WotDataTypeDefinitionSource[] definitions = new[]
             {
                     new WotDataTypeDefinitionSource(readable,
                         readable.RootElement.GetProperty("uav:dataTypeDefinitions")[0])
@@ -734,13 +754,13 @@ namespace Opc.Ua.WotCon.Samples.Tests
             using IHost host = AggregationServerHost.Build(new AggregationServerOptions());
             IWotDocumentConverter converter = host.Services.GetRequiredService<IWotDocumentConverter>();
             using var registry = new WotRegistryService();
-            ByteString target = ByteString.From(Encoding.UTF8.GetBytes(s_readableConsumer));
+            var target = ByteString.From(Encoding.UTF8.GetBytes(s_readableConsumer));
             WotResource resource = await AddTargetAsync(registry, target).ConfigureAwait(false);
             JsonNode definition = JsonNode.Parse(s_readableDefinition)!;
             definition["uav:dataTypeDefinitions"]![0]!["uav:dataTypeSubtypeOf"]!["uav:dataTypeId"] =
                 "nsu=http://opcfoundation.org/UA/DI/;i=6244";
-            using WotDocument readable = WotDocument.Parse(Encoding.UTF8.GetBytes(definition.ToJsonString()));
-            using WotDocument native = WotDocument.Parse(ReadFragment("opc-ua-di-devicehealthenumeration").Memory);
+            using var readable = WotDocument.Parse(Encoding.UTF8.GetBytes(definition.ToJsonString()));
+            using var native = WotDocument.Parse(ReadFragment("opc-ua-di-devicehealthenumeration").Memory);
             var contents = new ConversionContents(new Dictionary<string, ByteString> { ["target"] = target },
                 new WotDataTypeDefinitionSource[]
                 {
@@ -791,7 +811,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 ["href"] = Opc.Ua.WotCon.ObjectTypeIds.WoTRegistryType.ToString(),
                 ["rel"] = "ua:HasTypeDefinition"
             });
-            ByteString target = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
+            var target = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
             WotResource resource = await AddTargetAsync(registry, target).ConfigureAwait(false);
             var contents = new Dictionary<string, ByteString> { ["target"] = target };
             WotConversionOutput before = await converter.ConvertAsync(
@@ -858,7 +878,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
 
         private static async Task<WotResource> AddTargetAsync(WotRegistryService registry, ByteString target)
         {
-            using WotDocument document = WotDocument.Parse(target.Memory);
+            using var document = WotDocument.Parse(target.Memory);
             bool model = document.Kind == WotDocumentKind.ThingModel;
             WotRegistryMutationResult result = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {

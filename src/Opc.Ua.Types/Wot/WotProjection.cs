@@ -274,7 +274,7 @@ namespace Opc.Ua.Wot
                         "Every uav:projects entry shall be an object."));
                     continue;
                 }
-                WotProjectionManifestSource? source = ReadSource(entry, diagnostics);
+                WotProjectionManifestSource? source = ReadSource(document, entry, diagnostics);
                 if (source is null)
                 {
                     continue;
@@ -295,6 +295,7 @@ namespace Opc.Ua.Wot
         }
 
         private static WotProjectionManifestSource? ReadSource(
+            WotDocument document,
             JsonElement entry,
             List<WotDiagnostic> diagnostics)
         {
@@ -371,6 +372,19 @@ namespace Opc.Ua.Wot
                 }
             }
 
+            string? requiredVersion;
+            try
+            {
+                requiredVersion = WotVersionedReference.GetRequiredVersion(
+                    document, entry, mediaType == ThingDescriptionMediaType ? "td-ref" : "ref");
+            }
+            catch (WotVersionException exception)
+            {
+                diagnostics.Add(new WotDiagnostic(WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ProjectionManifestInvalid, exception.Code,
+                    new WotLocation(reference: sourceName)));
+                return null;
+            }
             return new WotProjectionManifestSource
             {
                 SourceName = sourceName!,
@@ -378,6 +392,7 @@ namespace Opc.Ua.Wot
                 MediaType = mediaType!,
                 Routing = routing,
                 SourceDigest = digest,
+                RequiredVersion = requiredVersion,
                 NamePrefix = ReadOptionalString(entry, "uav:namePrefix", sourceName!, diagnostics),
                 SelectAll = selectAll,
                 Filters = ReadFilters(entry, sourceName!, diagnostics)

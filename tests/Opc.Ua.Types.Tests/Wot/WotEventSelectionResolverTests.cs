@@ -1013,6 +1013,41 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertReports(diagnostics, "unsatisfied");
         }
 
+        /// <summary>
+        /// Verifies that a local reference checks its own document before using its definition.
+        /// </summary>
+        [TestCase("1.2.0", "1.2.0", null)]
+        [TestCase("1.2.0", "1.3.0", "unsatisfied")]
+        [TestCase(null, "1.0.0", "unsatisfied")]
+        [TestCase("v1.2", "1.0.0", "invalid-version")]
+        public async Task LocalEventReferenceChecksContainingVersionAsync(
+            string? model, string floor, string? error)
+        {
+            string version = model is null ? string.Empty : "\"version\":{\"model\":\"" + model + "\"},";
+            string json = AlarmTypeDocument().Replace("\"title\":\"PumpAlarms\",",
+                "\"title\":\"PumpAlarms\"," + version, StringComparison.Ordinal)
+                .Replace("\"events\":{", "\"events\":{\"selected\":{\"@type\":\"uav:eventType\"," +
+                    "\"tm:ref\":\"#/events/alarm\",\"tm:minVersion\":\"" +
+                    floor +
+                    "\"},",
+                    StringComparison.Ordinal);
+            using WotDocument document = Parse(json);
+            var resolver = new WotEventSelectionResolver(
+                new StubResolver(("./base-event.tm.jsonld", BaseEventDocument())));
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+            if (error is not null)
+            {
+                Assert.That(result.Value, Is.Null);
+                AssertReports(result.Diagnostics, error);
+                return;
+            }
+            Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+            Assert.That(result.Value!.TryGetSelection("selected", out ArrayOf<WotResolvedEventSelectClause> clauses),
+                Is.True);
+            Assert.That(clauses[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6001"));
+        }
+
         [Test]
         public async Task APreloadedDocumentIsSelectedAgainUnderEachFloorAsync()
         {
@@ -1060,8 +1095,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"urn:test:pump\"}]," +
                 "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
-                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," + first + "}," +
-                "\"alarm2\":{\"@type\":\"uav:eventType\"," + second + "}}}";
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," +
+                first +
+                "}," +
+                "\"alarm2\":{\"@type\":\"uav:eventType\"," +
+                second +
+                "}}}";
         }
 
         private static string VersionedTypesDocument(string model, int typeId)

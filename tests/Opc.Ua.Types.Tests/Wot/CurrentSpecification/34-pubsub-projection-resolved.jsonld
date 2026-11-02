@@ -1,0 +1,452 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "mqv": "http://www.example.org/mqtt-binding#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": [
+    "Thing"
+  ],
+  "id": "urn:example:view:pump-pubsub",
+  "title": "Pump PubSub view",
+  "description": "Two ordered DataSets and two typed event writers for an immutable pump view.",
+  "uav:scenario": "https://example.com/scenario/PumpPubSub",
+  "uav:publisherId": "UInt16:7",
+  "uav:messageSource": "https://factory.example.com/line1?wotid=urn:example:view:pump-pubsub;site=north",
+  "security": [
+    "q:p:nosec_sc"
+  ],
+  "securityDefinitions": {
+    "q:p:nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "properties": {
+    "operatingData": {
+      "@type": [
+        "uav:dataSet"
+      ],
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:fieldOrder": [
+        "speed",
+        "pressure"
+      ],
+      "uav:requestedSamplingInterval": 250,
+      "properties": {
+        "speed": {
+          "title": "Pump Speed",
+          "type": "number",
+          "unit": "rpm",
+          "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed",
+          "@context": [
+            {
+              "@base": "./01-opcua-td-pump.jsonld",
+              "properties": {
+                "@id": "https://www.w3.org/2019/wot/json-schema#properties",
+                "@container": [
+                  "@index"
+                ],
+                "@index": "name",
+                "@context": {
+                  "properties": {
+                    "@id": "jsonschema:properties",
+                    "@container": "@index",
+                    "@index": "propertyName"
+                  }
+                }
+              },
+              "pump": {
+                "@id": "http://example.com/demo/pump"
+              }
+            }
+          ]
+        },
+        "pressure": {
+          "title": "Discharge Pressure",
+          "type": "number",
+          "unit": "bar",
+          "uav:requestedSamplingInterval": 500,
+          "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure",
+          "@context": [
+            {
+              "@base": "./01-opcua-td-pump.jsonld",
+              "properties": {
+                "@id": "https://www.w3.org/2019/wot/json-schema#properties",
+                "@container": [
+                  "@index"
+                ],
+                "@index": "name",
+                "@context": {
+                  "properties": {
+                    "@id": "jsonschema:properties",
+                    "@container": "@index",
+                    "@index": "propertyName"
+                  }
+                }
+              },
+              "pump": {
+                "@id": "http://example.com/demo/pump"
+              }
+            }
+          ]
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "observeproperty"
+          ],
+          "uav:dataSetWriterId": 1,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/operating/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 20,
+          "mqv:filter": "plant/pump/operating",
+          "mqv:qos": 1,
+          "security": [
+            "q:p:nosec_sc"
+          ],
+          "uav:headerLayoutUri": "http://opcfoundation.org/UA/PubSub-Layouts/JSON-Minimal"
+        }
+      ]
+    },
+    "identification": {
+      "@type": [
+        "uav:dataSet"
+      ],
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:fieldOrder": [
+        "serial",
+        "maker"
+      ],
+      "properties": {
+        "serial": {
+          "title": "Serial Number",
+          "type": "string",
+          "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber",
+          "@context": [
+            {
+              "@base": "./06-anchored-paths-and-device-identity.jsonld",
+              "properties": {
+                "@id": "https://www.w3.org/2019/wot/json-schema#properties",
+                "@container": [
+                  "@index"
+                ],
+                "@index": "name",
+                "@context": {
+                  "properties": {
+                    "@id": "jsonschema:properties",
+                    "@container": "@index",
+                    "@index": "propertyName"
+                  }
+                }
+              },
+              "pump": {
+                "@id": "http://example.com/demo/pump"
+              }
+            }
+          ]
+        },
+        "maker": {
+          "title": "Manufacturer",
+          "type": "string",
+          "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer",
+          "@context": [
+            {
+              "@base": "./06-anchored-paths-and-device-identity.jsonld",
+              "properties": {
+                "@id": "https://www.w3.org/2019/wot/json-schema#properties",
+                "@container": [
+                  "@index"
+                ],
+                "@index": "name",
+                "@context": {
+                  "properties": {
+                    "@id": "jsonschema:properties",
+                    "@container": "@index",
+                    "@index": "propertyName"
+                  }
+                }
+              },
+              "pump": {
+                "@id": "http://example.com/demo/pump"
+              }
+            }
+          ]
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "observeproperty"
+          ],
+          "uav:dataSetWriterId": 2,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/identity/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 20,
+          "mqv:filter": "plant/pump/identity",
+          "mqv:qos": 1,
+          "security": [
+            "q:p:nosec_sc"
+          ],
+          "uav:headerLayoutUri": "http://opcfoundation.org/UA/PubSub-Layouts/JSON-Minimal"
+        }
+      ]
+    }
+  },
+  "events": {
+    "sealLeak": {
+      "@type": [
+        "uav:eventType",
+        "pump:SealLeakEventType"
+      ],
+      "tm:ref": "./27-event-type-models.jsonld#/events/sealLeak",
+      "title": "Seal Leak",
+      "uav:browseName": "pump:SealLeakEventType",
+      "data": {
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "LeakRate"
+        ],
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/EventId"
+          },
+          "EventType": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/EventType"
+          },
+          "SourceNode": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/SourceNode"
+          },
+          "SourceName": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/SourceName"
+          },
+          "Time": {
+            "type": "string",
+            "format": "date-time",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/Time"
+          },
+          "ReceiveTime": {
+            "type": "string",
+            "format": "date-time",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/ReceiveTime"
+          },
+          "Message": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/Message"
+          },
+          "Severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/Severity"
+          },
+          "LeakRate": {
+            "uav:browseName": "pump:LeakRate",
+            "type": "number",
+            "unit": "l/min",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak/data/properties/LeakRate"
+          }
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "subscribeevent"
+          ],
+          "uav:dataSetWriterId": 4,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/seal-leak-event/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 0,
+          "mqv:filter": "plant/pump/events/seal-leak",
+          "mqv:qos": 1,
+          "security": [
+            "q:p:nosec_sc"
+          ],
+          "@context": [
+            {
+              "@base": "./33-pubsub-projection.jsonld",
+              "pump": {
+                "@id": "https://www.w3.org/2019/wot/hypermedia#pump"
+              }
+            }
+          ],
+          "uav:headerLayoutUri": "http://opcfoundation.org/UA/PubSub-Layouts/JSON-Minimal"
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/sealLeak",
+      "uav:eventIdentityMode": "local-re-emission",
+      "@context": [
+        {
+          "@base": "./01-opcua-td-pump.jsonld",
+          "pump": {
+            "@id": "http://example.com/demo/pump"
+          }
+        }
+      ]
+    },
+    "temperatureExceeded": {
+      "@type": [
+        "uav:eventType",
+        "pump:TemperatureExceededEventType"
+      ],
+      "tm:ref": "./27-event-type-models.jsonld#/events/temperatureExceeded",
+      "title": "Temperature Exceeded",
+      "uav:browseName": "pump:TemperatureExceededEventType",
+      "data": {
+        "type": "object",
+        "uav:fieldOrder": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity",
+          "Temperature"
+        ],
+        "required": [
+          "EventId",
+          "EventType",
+          "SourceNode",
+          "SourceName",
+          "Time",
+          "ReceiveTime",
+          "Message",
+          "Severity"
+        ],
+        "properties": {
+          "EventId": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/EventId"
+          },
+          "EventType": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/EventType"
+          },
+          "SourceNode": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/SourceNode"
+          },
+          "SourceName": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/SourceName"
+          },
+          "Time": {
+            "type": "string",
+            "format": "date-time",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/Time"
+          },
+          "ReceiveTime": {
+            "type": "string",
+            "format": "date-time",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/ReceiveTime"
+          },
+          "Message": {
+            "type": "string",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/Message"
+          },
+          "Severity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/Severity"
+          },
+          "Temperature": {
+            "uav:browseName": "pump:Temperature",
+            "type": "number",
+            "unit": "Cel",
+            "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded/data/properties/Temperature"
+          }
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "subscribeevent"
+          ],
+          "uav:dataSetWriterId": 3,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/temperature-event/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 0,
+          "mqv:filter": "plant/pump/events/temperature",
+          "mqv:qos": 1,
+          "security": [
+            "q:p:nosec_sc"
+          ],
+          "@context": [
+            {
+              "@base": "./33-pubsub-projection.jsonld",
+              "pump": {
+                "@id": "https://www.w3.org/2019/wot/hypermedia#pump"
+              }
+            }
+          ],
+          "uav:headerLayoutUri": "http://opcfoundation.org/UA/PubSub-Layouts/JSON-Minimal"
+        }
+      ],
+      "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded",
+      "uav:eventIdentityMode": "local-re-emission",
+      "@context": [
+        {
+          "@base": "./01-opcua-td-pump.jsonld",
+          "pump": {
+            "@id": "http://example.com/demo/pump"
+          }
+        }
+      ]
+    }
+  },
+  "links": [
+    {
+      "rel": "uav:resolvedSource",
+      "href": "./01-opcua-td-pump.jsonld",
+      "uav:sourceDigest": "sha-256:4321e9785dee86c8199a0198f692eb9b7bb5096f366a3389d5f0516a649ae46e"
+    },
+    {
+      "rel": "uav:resolvedSource",
+      "href": "./06-anchored-paths-and-device-identity.jsonld",
+      "uav:sourceDigest": "sha-256:01e294d5d045303fbb752b8f55cdc063758bbf130eda7cbdf5f43cba509bac78"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    "../opc-ua-wot-binding.context.jsonld",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "ex": "https://example.com/UA/Declaration/"
+    }
+  ],
+  "@type": ["tm:ThingModel", "uav:objectType", "ex:AxisType"],
+  "title": "Axis declaration model",
+  "uav:bindingVersion": "1.1",
+  "uav:browseName": "ex:AxisType",
+  "properties": {
+    "position": {
+      "type": "number",
+      "uav:modellingRule": "Mandatory"
+    }
+  }
+}

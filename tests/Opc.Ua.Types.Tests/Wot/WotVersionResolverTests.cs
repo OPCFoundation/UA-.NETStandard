@@ -40,7 +40,7 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Executes the canonical xRegistry/OPC 10100 version resolution contract.
+    /// Executes current shared resolution cases and the retained implementation regression corpus.
     /// </summary>
     [TestFixture]
     [Category("WoT")]
@@ -51,11 +51,28 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string Folder => Path.Combine(TestContext.CurrentContext.TestDirectory, "Wot", "Resolution");
 
+        /// <summary>
+        /// Gets the independently authored cases from the current shared source.
+        /// </summary>
+        public static IEnumerable<TestCaseData> SharedVectors
+        {
+            get
+            {
+                using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(
+                    TestContext.CurrentContext.TestDirectory, "Wot", "SharedResolution", "vectors.json")));
+                foreach (JsonProperty vector in document.RootElement.EnumerateObject())
+                {
+                    yield return new TestCaseData(vector.Value.GetRawText())
+                        .SetName("SharedVectorMatches(" + vector.Name + ")");
+                }
+            }
+        }
+
         [Test]
-        public void CanonicalManifestMatchesEveryFile()
+        public void LegacyRegressionManifestMatchesEveryFile()
         {
             string[] lines = File.ReadAllLines(Path.Combine(Folder, "MANIFEST.sha256"));
-            string[] names = lines.Select(line => line[66..]).ToArray();
+            string[] names = [.. lines.Select(line => line[66..])];
             Assert.That(Directory.GetFiles(Folder).Select(Path.GetFileName)
                 .Where(name => name != "MANIFEST.sha256"), Is.EquivalentTo(names));
             Assert.That(names, Is.Ordered.Using<string>(StringComparer.Ordinal));
@@ -73,11 +90,28 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [TestCaseSource(nameof(Vectors))]
-        public void CanonicalVectorMatches(string path)
+        public void LegacyRegressionVectorMatches(string path)
         {
-            using JsonDocument json = JsonDocument.Parse(File.ReadAllBytes(path));
-            JsonElement root = json.RootElement;
-            ArrayOf<WotResourceSnapshot> resources = root.GetProperty("registry").EnumerateArray().Select(resource =>
+            using var json = JsonDocument.Parse(File.ReadAllBytes(path));
+            AssertVector(json.RootElement);
+        }
+
+        /// <summary>
+        /// Executes a current shared case without deriving its expected result from the resolver.
+        /// </summary>
+        [TestCaseSource(nameof(SharedVectors))]
+        public void SharedVectorMatches(string value)
+        {
+            using var json = JsonDocument.Parse(value);
+            AssertVector(json.RootElement);
+        }
+
+        /// <summary>
+        /// Checks one normalized case against its literal expected assignment, selection or domain error.
+        /// </summary>
+        private static void AssertVector(JsonElement root)
+        {
+            var resources = root.GetProperty("registry").EnumerateArray().Select(resource =>
                 new WotResourceSnapshot(Text(resource, "wotid")!, resource.GetProperty("defaultversionsticky").GetBoolean(),
                     Text(resource, "defaultversionid"), resource.GetProperty("versions").EnumerateArray().Select(version =>
                         new WotVersionSnapshot(Text(version, "versionid")!, Text(version, "versionorigin")!,
@@ -107,13 +141,21 @@ namespace Opc.Ua.Types.Tests.Wot
                     JsonElement reference = root.GetProperty("reference");
                     WotDocumentVersionContext? context = root.TryGetProperty("document", out JsonElement document)
                         ? new WotDocumentVersionContext(Text(document, "version.model"),
-                            document.GetProperty("typeLinks").EnumerateArray().Select(link =>
-                                new WotTypeLink(Text(link, "target")!, Text(link, "minVersion"))).ToArrayOf()) : null;
+                            document.TryGetProperty("typeLinks", out JsonElement typeLinks)
+                                ? typeLinks.EnumerateArray().Select(link =>
+                                    new WotTypeLink(Text(link, "target")!, Text(link, "minVersion"))).ToArrayOf() : [])
+                        {
+                            VersionId = Text(document, "versionid"),
+                            InstanceVersion = Text(document, "version.instance")
+                        } : null;
                     WotVersionPin? pin = root.TryGetProperty("pin", out JsonElement pinJson)
                         ? new WotVersionPin(Text(pinJson, "digest"), Text(pinJson, "versionid")) : null;
                     WotResolutionResult result = WotVersionResolver.Resolve(resources,
                         new WotReferenceRequest(Text(reference, "kind")!, Text(reference, "target")!,
-                            Text(reference, "minVersion"), Text(reference, "floorTerm")),
+                            Text(reference, "minVersion"), Text(reference, "floorTerm"))
+                        {
+                            Local = reference.TryGetProperty("local", out JsonElement local) && local.GetBoolean()
+                        },
                         "https://registry.example", context, pin,
                         root.TryGetProperty("allowPrerelease", out JsonElement allow) && allow.GetBoolean());
                     Assert.That(expected.TryGetProperty("result", out JsonElement selected), Is.True);
@@ -154,6 +196,74 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies local floors against the authored containing revision, never the latest stored version.
+        /// </summary>
+        [TestCase("ref", "1.2.0", "1.2.0", null)]
+        [TestCase("ref", "1.2.0", "1.3.0", "unsatisfied")]
+        [TestCase("ref", null, "1.1.0", "unsatisfied")]
+        [TestCase("ref", "v1.2", "1.1.0", "invalid-version")]
+        [TestCase("ref", "1.2.0+build", "1.1.0", "invalid-version")]
+        [TestCase("ref", "invalid", null, null)]
+        [TestCase("td-ref", "2.0.0", "1.1.0", "unsatisfied")]
+        [TestCase("td-ref", "2.0.0-beta", "1.1.0", "unsatisfied")]
+        [TestCase("td-ref", "0.2.0", "0.1.0", null)]
+        [TestCase("td-ref", "1.0.0-beta", "0.1.0", "unsatisfied")]
+        [TestCase("td-ref", "1.2.0", "1.1.0", null)]
+        public void LocalReferenceChecksContainingAuthoredVersion(
+            string kind, string? authored, string? floor, string? error)
+        {
+            ArrayOf<WotResourceSnapshot> resources =
+            [
+                new("urn:local", false, "9.0.0",
+                    [new("1.2.0", "authored", "old"), new("9.0.0", "authored", "new")])
+            ];
+            var reference = new WotReferenceRequest(kind, "urn:local", floor) { Local = true };
+            var document = new WotDocumentVersionContext(kind == "ref" ? authored : "99.0.0", [])
+            {
+                VersionId = "1.2.0",
+                InstanceVersion = kind == "td-ref" ? authored : "99.0.0"
+            };
+            if (error is not null)
+            {
+                WotVersionException? exception = Assert.Throws<WotVersionException>(() =>
+                    WotVersionResolver.Resolve(resources, reference, "urn:origin", document));
+                Assert.That(exception!.Code, Is.EqualTo(error));
+                return;
+            }
+            WotResolutionResult result = WotVersionResolver.Resolve(resources, reference, "urn:origin", document);
+            Assert.That(result, Is.EqualTo(new WotResolutionResult("urn:local", "1.2.0", "old", "urn:origin")));
+        }
+
+        /// <summary>
+        /// Verifies that a local reference cannot fall back to live selection without revision context.
+        /// </summary>
+        [Test]
+        public void LocalReferenceRequiresContainingRevision()
+        {
+            Assert.Throws<ArgumentException>(() => WotVersionResolver.Resolve(
+                [new("urn:local", false, "1.0.0", [new("1.0.0", "authored", "digest")])],
+                new WotReferenceRequest("ref", "urn:local") { Local = true }, "urn:origin"));
+            WotVersionException? missing = Assert.Throws<WotVersionException>(() => WotVersionResolver.Resolve(
+                [new("urn:local", false, "1.0.0", [new("1.0.0", "authored", "digest")])],
+                new WotReferenceRequest("ref", "urn:local") { Local = true }, "urn:origin",
+                new WotDocumentVersionContext("1.0.0", []) { VersionId = "missing" }));
+            Assert.That(missing!.Code, Is.EqualTo("not-found"));
+        }
+
+        /// <summary>
+        /// Verifies the common floor term in the normalized resolver contract for both target kinds.
+        /// </summary>
+        [TestCase("ref")]
+        [TestCase("td-ref")]
+        public void NormalizedCommonFloorTermUsesSemVerSelection(string kind)
+        {
+            WotResolutionResult result = WotVersionResolver.Resolve(
+                [new("urn:parent", false, "1.2.0", [new("1.2.0", "authored", "digest")])],
+                new WotReferenceRequest(kind, "urn:parent", "1.1.0", "uav:minVersion"), "urn:origin");
+            Assert.That(result.VersionId, Is.EqualTo("1.2.0"));
+        }
+
         [TestCase("")]
         [TestCase("01.0.0")]
         [TestCase("1.00.0")]
@@ -177,7 +287,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(WotSemanticVersion.TryParse(limit, out WotSemanticVersion? parsed), Is.True);
             Assert.That(WotSemanticVersion.TryParse("1" + limit, out _), Is.False);
             Assert.That(WotSemanticVersion.TryParse(null, out _), Is.False);
-            WotSemanticVersion copy = WotSemanticVersion.Parse(limit);
+            var copy = WotSemanticVersion.Parse(limit);
             Assert.Multiple(() =>
             {
                 Assert.That(parsed, Is.EqualTo(copy));
@@ -185,13 +295,37 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that a valid authored floor is not restricted to the stored VersionId length.
+        /// </summary>
+        [Test]
+        public void LongSemVerFloorRemainsAValidRequirement()
+        {
+            string floor = "1.0.0-" + new string('a', 130);
+            Assert.That(WotSemanticVersion.TryParse(floor, out _), Is.False);
+            WotResolutionResult result = WotVersionResolver.Resolve(
+                [new("urn:parent", false, "1.2.0", [new("1.2.0", "authored", "digest")])],
+                new WotReferenceRequest("ref", "urn:parent", floor), "urn:origin");
+            Assert.That(result.VersionId, Is.EqualTo("1.2.0"));
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@type\":\"Thing\",\"version\":{\"model\":\"" +
+                floor +
+                "\"}," +
+                "\"links\":[{\"rel\":\"type\",\"href\":\"urn:parent\",\"uav:minVersion\":\"" +
+                floor +
+                "\"}]}"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
+                Is.EqualTo(floor));
+        }
+
         [TestCase("tm:extends")]
         [TestCase("tm:submodel")]
         [TestCase("ref")]
         public void AuthoredFloorIsExtractedFromCarryingNode(string kind)
         {
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
-                "{\"tm:minVersion\":\"1.2.0\",\"tm:ref\":\"urn:parent\"}"));
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                                     /*lang=json,strict*/
+                                     "{\"tm:minVersion\":\"1.2.0\",\"tm:ref\":\"urn:parent\"}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.RootElement, kind),
                 Is.EqualTo("1.2.0"));
         }
@@ -204,11 +338,62 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             string version = model is null ? string.Empty : ",\"version\":{\"model\":\"" + model + "\"}";
             string minimum = explicitFloor is null ? string.Empty : ",\"tm:minVersion\":\"" + explicitFloor + "\"";
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
                 "{\"@type\":\"Thing\",\"links\":[{\"rel\":\"type\",\"href\":\"urn:parent\"" +
-                minimum + "}]" + version + "}"));
+                minimum +
+                "}]" +
+                version +
+                "}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
                 Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Verifies the common SemVer floor vocabulary in its original carrying context.
+        /// </summary>
+        [TestCase("uav:minVersion")]
+        [TestCase("http://opcfoundation.org/UA/WoT-Binding/minVersion")]
+        [TestCase("floor")]
+        public void CommonFloorUsesCarryingContext(string term)
+        {
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@context\":{\"floor\":\"http://opcfoundation.org/UA/WoT-Binding/minVersion\"}," +
+                "\"" +
+                term +
+                "\":\"1.2.0\"}"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.RootElement, "td-ref"),
+                Is.EqualTo("1.2.0"));
+        }
+
+        /// <summary>
+        /// Verifies that ambiguous or unsupported requirement annotations cannot become unconstrained selection.
+        /// </summary>
+        [TestCase("\"uav:minVersion\":null", "invalid-version")]
+        [TestCase("\"uav:minVersion\":\"1.0.0\",\"tm:minVersion\":\"1.0.0\"", "invalid-floor")]
+        [TestCase("\"uav:compatibilityLine\":\"urn:line\"", "invalid-line")]
+        public void InvalidCommonRequirementIsRejected(string annotation, string code)
+        {
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{" + annotation + "}"));
+            WotVersionException? error = Assert.Throws<WotVersionException>(() =>
+                WotVersionedReference.GetRequiredVersion(document, document.RootElement, "ref"));
+            Assert.That(error!.Code, Is.EqualTo(code));
+        }
+
+        /// <summary>
+        /// Verifies that common floors participate in every type link's ambiguity and implicit-floor checks.
+        /// </summary>
+        [Test]
+        public void CommonTypeFloorsCombineWithTheDocumentFloor()
+        {
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@type\":\"Thing\",\"version\":{\"model\":\"1.3.0\"}," +
+                "\"links\":[{\"rel\":\"type\",\"href\":\"urn:a\",\"uav:minVersion\":\"1.2.0\"}," +
+                "{\"rel\":\"type\",\"href\":\"urn:b\",\"uav:minVersion\":\"1.4.0\"}]}"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
+                Is.EqualTo("1.3.0"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[1], "type"),
+                Is.EqualTo("1.4.0"));
         }
 
         [TestCase("1.3.0", "1.2.0", "1.3.0")]
@@ -220,9 +405,13 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             string version = model is null ? string.Empty : ",\"version\":{\"model\":\"" + model + "\"}";
             string minimum = explicitFloor is null ? string.Empty : ",\"tm:minVersion\":\"" + explicitFloor + "\"";
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
-                "{\"@type\":\"Thing\",\"links\":[{\"rel\":\"type\",\"href\":\"urn:a\"" + minimum + "}," +
-                "{\"rel\":\"type\",\"href\":\"urn:b\",\"tm:minVersion\":\"9.0.0\"}]" + version + "}"));
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@type\":\"Thing\",\"links\":[{\"rel\":\"type\",\"href\":\"urn:a\"" +
+                minimum +
+                "}," +
+                "{\"rel\":\"type\",\"href\":\"urn:b\",\"tm:minVersion\":\"9.0.0\"}]" +
+                version +
+                "}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
                 Is.EqualTo(expected));
         }
@@ -231,19 +420,42 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("/groups/tms/resources/pump/versions/1.1.0#/properties/p")]
         public void AVersionPinBypassesFloorDerivation(string href)
         {
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
                 "{\"@type\":\"Thing\",\"version\":{\"model\":\"invalid\"}," +
-                "\"links\":[{\"rel\":\"type\",\"href\":\"" + href + "\"}," +
+                "\"links\":[{\"rel\":\"type\",\"href\":\"" +
+                href +
+                "\"}," +
                 "{\"rel\":\"type\",\"href\":\"urn:b\"}]}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"), Is.Null);
             Assert.Throws<WotVersionException>(() =>
                 WotVersionedReference.GetRequiredVersion(document, document.Links[1], "type"));
         }
 
+        /// <summary>
+        /// Verifies authored requirement validity independently of raw exact replay selection.
+        /// </summary>
+        [TestCase("\"tm:minVersion\":null", "invalid-version")]
+        [TestCase("\"td:minVersion\":\"1.0.0\"", "invalid-floor")]
+        [TestCase("\"uav:minVersion\":\"1.0.0\",\"tm:minVersion\":\"1.0.0\"", "invalid-floor")]
+        [TestCase("\"uav:compatibilityLine\":\"urn:line\"", "invalid-line")]
+        public void ExactAuthoredReferenceStillRequiresValidRequirementShape(string annotation, string code)
+        {
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"href\":\"urn:registry/resources/pump/versions/1.0.0\"," + annotation + "}"));
+            WotVersionException? error = Assert.Throws<WotVersionException>(() =>
+                WotVersionedReference.GetRequiredVersion(document, document.RootElement, "ref"));
+            Assert.That(error!.Code, Is.EqualTo(code));
+            WotResolutionResult replay = WotVersionResolver.Resolve(
+                [new("urn:pump", false, "1.0.0", [new("1.0.0", "authored", "digest")])],
+                new WotReferenceRequest("ref", "urn:pump", "invalid"), "urn:origin",
+                pin: new WotVersionPin(VersionId: "1.0.0"));
+            Assert.That(replay.VersionId, Is.EqualTo("1.0.0"));
+        }
+
         [Test]
         public void MultipleTypeLinksRejectUnattributableDocumentFloor()
         {
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
                 "{\"@type\":\"Thing\",\"version\":{\"model\":\"1.2.0\"}," +
                 "\"links\":[{\"rel\":\"type\",\"href\":\"urn:a\",\"tm:minVersion\":\"1.2.0\"}," +
                 "{\"rel\":\"type\",\"href\":\"urn:b\"}]}"));
@@ -257,7 +469,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("1")]
         public void InvalidAuthoredFloorIsRejected(string value)
         {
-            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
                 "{\"tm:minVersion\":" + value + "}"));
             WotVersionException? error = Assert.Throws<WotVersionException>(() =>
                 WotVersionedReference.GetRequiredVersion(document, document.RootElement, "ref"));
@@ -288,13 +500,41 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(provider.Reference, Is.EqualTo(reference));
         }
 
+        /// <summary>
+        /// Verifies that local document acquisition preserves the exact bytes without calling a provider.
+        /// </summary>
+        [TestCase("#/properties")]
+        [TestCase("urn:local#/properties")]
+        public async Task LocalReferenceNeverAcquiresANewerDocumentAsync(string target)
+        {
+            var provider = new VersionedProvider();
+            using var document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                                     /*lang=json,strict*/
+                                     "{\"id\":\"urn:local\",\"version\":{\"model\":\"1.2.0\"},\"properties\":{}}"));
+            WotResolverResult result = await WotVersionedReference.ResolveAsync(provider,
+                new WotReferenceRequest("ref", target, "1.1.0"),
+                new WotResolutionContext(), document, CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Content.ToArray(), Is.EqualTo(document.Utf8Json.ToArray()));
+                Assert.That(provider.Reference, Is.Null);
+            });
+            WotVersionException? error = await Assert.ThrowsAsync<WotVersionException>(async () =>
+                await WotVersionedReference.ResolveAsync(provider,
+                    new WotReferenceRequest("ref", target, "1.3.0"),
+                    new WotResolutionContext(), document, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.That(error!.Code, Is.EqualTo("unsatisfied"));
+            Assert.That(provider.Reference, Is.Null);
+        }
+
         private sealed class LegacyProvider : IWotThingResolver
         {
             public ValueTask<WotResolverResult> ResolveThingAsync(string reference,
                 WotResolutionContext context, CancellationToken cancellationToken)
             {
                 return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(
-                    System.Text.Encoding.UTF8.GetBytes("{\"version\":{\"model\":\"1.0.0\"}}")));
+                    System.Text.Encoding.UTF8.GetBytes(/*lang=json,strict*/ "{\"version\":{\"model\":\"1.0.0\"}}")));
             }
         }
 
@@ -316,8 +556,10 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
-        private static string? Text(JsonElement element, string name) =>
-            element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+        private static string? Text(JsonElement element, string name)
+        {
+            return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
                 ? value.GetString() : null;
+        }
     }
 }

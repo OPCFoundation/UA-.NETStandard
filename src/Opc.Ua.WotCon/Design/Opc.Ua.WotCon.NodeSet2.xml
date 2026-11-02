@@ -6,7 +6,7 @@
     <Uri>http://opcfoundation.org/UA/WoT-Con/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-10-24T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/WoT-Con/" Version="1.1" PublicationDate="2026-11-02T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" />
       <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.7.0" PublicationDate="2026-09-12T00:00:00Z" />
     </Model>
@@ -90,7 +90,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64502</Reference>
     </References>
-    <Definition Name="2:WoTRefreshModeEnum"><Field Name="Manual" Value="0"><Description>Only an explicit Refresh Method call re-projects.</Description></Field><Field Name="Periodic" Value="1"><Description>The registry re-projects on a fixed interval (RefreshInterval).</Description></Field><Field Name="EventDriven" Value="2"><Description>The registry re-projects when a stored document changes (write/CloseAndUpdate).</Description></Field><Field Name="Scheduled" Value="3"><Description>The registry re-projects on an implementation-defined schedule.</Description></Field></Definition>
+    <Definition Name="2:WoTRefreshModeEnum"><Field Name="Manual" Value="0"><Description>No automatic refresh initiation. Explicit Refresh and lifecycle Method requests retain their defined behavior.</Description></Field><Field Name="Periodic" Value="1"><Description>The registry re-projects on a fixed interval (RefreshInterval).</Description></Field><Field Name="EventDriven" Value="2"><Description>The registry re-projects after a byte-different document commit through dirty Close or published 1.02 CloseAndUpdate.</Description></Field><Field Name="Scheduled" Value="3"><Description>The registry re-projects on an implementation-defined schedule.</Description></Field></Definition>
   </UADataType>
   <UAVariable NodeId="ns=2;i=64502" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64022" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
     <DisplayName>EnumStrings</DisplayName>
@@ -109,7 +109,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64503</Reference>
     </References>
-    <Definition Name="2:WoTAtomicityEnum"><Field Name="PerResource" Value="0"><Description>Each resource commits independently; a failure isolates to that resource.</Description></Field><Field Name="PerGroup" Value="1"><Description>All resources of a group commit together or not at all.</Description></Field><Field Name="PerClosure" Value="2"><Description>A dependency-safe activation closure, including inseparable ordinary-reference components and affected old/new replacement closure, commits atomically.</Description></Field><Field Name="PerRegistry" Value="3"><Description>All selected documents commit as a single all-or-nothing transaction.</Description></Field></Definition>
+    <Definition Name="2:WoTAtomicityEnum"><Field Name="PerResource" Value="0"><Description>Each selected Resource requests an independent atomic unit, coarsened when dependency safety requires it.</Description></Field><Field Name="PerGroup" Value="1"><Description>Selected work in a group requests one atomic unit, coarsened when dependency safety requires it.</Description></Field><Field Name="PerClosure" Value="2"><Description>A dependency-safe activation closure, including inseparable ordinary-reference components and affected old/new replacement closure, commits atomically.</Description></Field><Field Name="PerRegistry" Value="3"><Description>All selected documents commit as a single all-or-nothing transaction.</Description></Field></Definition>
   </UADataType>
   <UAVariable NodeId="ns=2;i=64503" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64023" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
     <DisplayName>EnumStrings</DisplayName>
@@ -147,7 +147,7 @@
       <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64505</Reference>
     </References>
-    <Definition Name="2:WoTOutcomeEnum"><Field Name="Success" Value="0"><Description>The operation completed and changed the projection.</Description></Field><Field Name="Unchanged" Value="1"><Description>The complete effective input fingerprint and committed publication metadata matched; no repair or publication change was needed.</Description></Field><Field Name="Warning" Value="2"><Description>The operation completed with non-fatal warnings.</Description></Field><Field Name="Skipped" Value="3"><Description>The operation was not applicable and was skipped.</Description></Field><Field Name="Rejected" Value="4"><Description>The operation was rejected by policy (for example concurrency or delete policy).</Description></Field><Field Name="Failed" Value="5"><Description>The operation failed; the previous valid projection (if any) remains active.</Description></Field></Definition>
+    <Definition Name="2:WoTOutcomeEnum"><Field Name="Success" Value="0"><Description>The operation completed successfully. Validation does not imply a projection change; Refresh row and summary meanings are defined separately.</Description></Field><Field Name="Unchanged" Value="1"><Description>The complete effective input fingerprint and committed publication metadata matched; no repair or publication change was needed.</Description></Field><Field Name="Warning" Value="2"><Description>The operation completed with non-fatal warnings.</Description></Field><Field Name="Skipped" Value="3"><Description>The operation was not applicable and was skipped.</Description></Field><Field Name="Rejected" Value="4"><Description>The operation was rejected by policy (for example concurrency or delete policy).</Description></Field><Field Name="Failed" Value="5"><Description>The operation failed; the previous valid projection (if any) remains active.</Description></Field></Definition>
   </UADataType>
   <UAVariable NodeId="ns=2;i=64505" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64025" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
     <DisplayName>EnumStrings</DisplayName>
@@ -224,14 +224,14 @@
   </UAObject>
   <UADataType NodeId="ns=2;i=64041" BrowseName="2:WoTBindingCapabilityDataType">
     <DisplayName>WoTBindingCapabilityDataType</DisplayName>
-    <Description>An immutable snapshot of a protocol binding's identity, version-pinned W3C document, maturity and supported operations. Held as an array element only for immutable snapshots; browseable binding objects (WoTBindingType) carry the live, per-field form.</Description>
+    <Description>An immutable snapshot of a protocol binding's identity, pinned document version, issuing-authority status and supported operations. Held as an array element only for immutable snapshots; browseable binding objects (WoTBindingType) carry the live, per-field form.</Description>
     <Category>WOTC-BinderCore</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64510</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64511</Reference>
     </References>
-    <Definition Name="2:WoTBindingCapabilityDataType"><Field Name="BindingUri" DataType="i=12"><Description>The WoT protocol-binding vocabulary URI (for example the OPC UA, HTTP or Modbus binding).</Description></Field><Field Name="Title" DataType="i=12"><Description>Human-readable binding title.</Description></Field><Field Name="ProfileVersion" DataType="i=12"><Description>The version-pinned W3C binding document version this capability snapshot was built against.</Description></Field><Field Name="DraftMaturity" DataType="i=12"><Description>The W3C maturity of the pinned binding document (for example WD, CR, PR, REC).</Description></Field><Field Name="Capabilities" DataType="ns=2;i=64027" ValueRank="1"><Description>The interaction operations this binding supports.</Description></Field><Field Name="ContentTypes" DataType="i=12" ValueRank="1"><Description>The content types this binding produces/consumes.</Description></Field></Definition>
+    <Definition Name="2:WoTBindingCapabilityDataType"><Field Name="BindingUri" DataType="i=12"><Description>The WoT protocol-binding vocabulary URI (for example the OPC UA, HTTP or Modbus binding).</Description></Field><Field Name="Title" DataType="i=12"><Description>Human-readable binding title.</Description></Field><Field Name="ProfileVersion" DataType="i=12"><Description>The pinned binding-document version implemented by this capability snapshot.</Description></Field><Field Name="DraftMaturity" DataType="i=12"><Description>The pinned document's publication status in its issuing authority's terminology, for example WD, CR, PR or REC for a W3C document.</Description></Field><Field Name="Capabilities" DataType="ns=2;i=64027" ValueRank="1"><Description>The interaction operations this binding supports.</Description></Field><Field Name="ContentTypes" DataType="i=12" ValueRank="1"><Description>The content types this binding produces/consumes.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64510" BrowseName="Default Binary" ParentNodeId="ns=2;i=64041">
     <DisplayName>Default Binary</DisplayName>
@@ -249,7 +249,7 @@
   </UAObject>
   <UADataType NodeId="ns=2;i=64042" BrowseName="2:WoTRefreshOptionsDataType">
     <DisplayName>WoTRefreshOptionsDataType</DisplayName>
-    <Description>Immutable options controlling a single Refresh invocation. Absent AllowPrerelease is false.</Description>
+    <Description>Immutable options controlling a single Refresh invocation. The original fields through Timeout are required. Atomicity=0 means PerResource and DeletePolicy=0 means Reject, not omission or registry default. Its optional AllowPrerelease field defaults to false and applies only to SemVer candidates. A prerelease SemVer floor makes prerelease candidates eligible independently of that option. A sticky default bypasses prerelease filtering but not a floor or TD major cap. PublicationContext selects snapshot-bound composition instead of live selection.</Description>
     <Category>WOTC-Refresh</Category>
     <Category>WOTC-AtomicityModes</Category>
     <References>
@@ -257,7 +257,7 @@
       <Reference ReferenceType="HasEncoding">ns=2;i=64512</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64513</Reference>
     </References>
-    <Definition Name="2:WoTRefreshOptionsDataType" StructureType="StructureWithOptionalFields"><Field Name="Atomicity" DataType="ns=2;i=64023"><Description>Commit granularity for this refresh.</Description></Field><Field Name="Force" DataType="i=1"><Description>Re-project even when the complete effective input fingerprint is unchanged.</Description></Field><Field Name="DryRun" DataType="i=1"><Description>Validate and compute results without committing any projection change.</Description></Field><Field Name="IncludeDependents" DataType="i=1"><Description>Also refresh documents that depend on the selected documents.</Description></Field><Field Name="DeletePolicy" DataType="ns=2;i=64024"><Description>How to treat dependents when a selected document is unloaded/retired.</Description></Field><Field Name="MaxParallelism" DataType="i=7"><Description>Maximum number of documents projected concurrently; 0 lets the server decide.</Description></Field><Field Name="Timeout" DataType="i=290"><Description>Overall time budget for the refresh; 0 lets the server decide.</Description></Field><Field Name="AllowPrerelease" DataType="i=1" IsOptional="true"><Description>Permit prerelease and generated TM versions during unpinned dependency resolution; defaults to false when absent.</Description></Field></Definition>
+    <Definition Name="2:WoTRefreshOptionsDataType"><Field Name="Atomicity" DataType="ns=2;i=64023"><Description>Commit granularity for this refresh.</Description></Field><Field Name="Force" DataType="i=1"><Description>Re-project even when the complete effective input fingerprint is unchanged.</Description></Field><Field Name="DryRun" DataType="i=1"><Description>Validate and compute results without committing any projection change.</Description></Field><Field Name="IncludeDependents" DataType="i=1"><Description>Also refresh documents that depend on the selected documents.</Description></Field><Field Name="DeletePolicy" DataType="ns=2;i=64024"><Description>How to treat dependents when a selected document is unloaded/retired.</Description></Field><Field Name="MaxParallelism" DataType="i=7"><Description>Maximum number of documents projected concurrently; 0 lets the server decide.</Description></Field><Field Name="Timeout" DataType="i=290"><Description>Overall time budget for the refresh; 0 lets the server decide.</Description></Field><Field Name="AllowPrerelease" DataType="i=1" IsOptional="true"><Description>Permit SemVer prerelease candidates during live dependency selection; defaults to false when absent.</Description></Field><Field Name="PublicationContext" DataType="ns=2;i=64055" IsOptional="true"><Description>Select a captured publication channel or exact snapshot for dependency composition; absent means live selection.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64512" BrowseName="Default Binary" ParentNodeId="ns=2;i=64042">
     <DisplayName>Default Binary</DisplayName>
@@ -300,14 +300,14 @@
   </UAObject>
   <UADataType NodeId="ns=2;i=64044" BrowseName="2:WoTResourceLoadResultDataType">
     <DisplayName>WoTResourceLoadResultDataType</DisplayName>
-    <Description>An immutable per-resource result row of a Refresh. Never mutated; the array is a point-in-time snapshot for one generation.</Description>
+    <Description>An immutable per-resource result row of a Refresh. The array reports the final committed registry generation across successful and failed independent units. Dry-run outcomes are diagnostic.</Description>
     <Category>WOTC-Refresh</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64516</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64517</Reference>
     </References>
-    <Definition Name="2:WoTResourceLoadResultDataType"><Field Name="Xid" DataType="i=12"><Description>The xRegistry xid of the affected resource/version.</Description></Field><Field Name="GroupId" DataType="i=12"><Description>The groupid of the resource's group.</Description></Field><Field Name="ResourceId" DataType="i=12"><Description>The resourceid of the affected resource.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>The exact Version selected for consideration, including skipped results; an explicit selection is not replaced with the default Version.</Description></Field><Field Name="Kind" DataType="ns=2;i=64020"><Description>Whether the document is a Thing Description or a Thing Model.</Description></Field><Field Name="Outcome" DataType="ns=2;i=64025"><Description>The per-resource outcome.</Description></Field><Field Name="Phase" DataType="ns=2;i=64026"><Description>The actual phase reached by the selected exact Version, including the failing phase.</Description></Field><Field Name="LoadState" DataType="ns=2;i=64021"><Description>The selected Version's resulting load state; a failed desired Version does not change the older valid Version whose projection is serving.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual final committed registry generation still serving; a failure does not identify a generation that never activated.</Description></Field><Field Name="MaterializedNodeCount" DataType="i=7"><Description>Number of AddressSpace nodes materialized for this resource.</Description></Field><Field Name="RootNodeId" DataType="i=17"><Description>The root node of the materialized projection, if any.</Description></Field><Field Name="ContentDigest" DataType="i=15"><Description>The content digest (hash) of the projected document bytes.</Description></Field><Field Name="Message" DataType="i=12"><Description>Human-readable detail for the outcome.</Description></Field></Definition>
+    <Definition Name="2:WoTResourceLoadResultDataType"><Field Name="Xid" DataType="i=12"><Description>The xRegistry xid of the affected resource/version.</Description></Field><Field Name="GroupId" DataType="i=12"><Description>The groupid of the resource's group.</Description></Field><Field Name="ResourceId" DataType="i=12"><Description>The resourceid of the affected resource.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>The exact Version selected for consideration, including skipped results; an explicit selection is not replaced with the default Version.</Description></Field><Field Name="Kind" DataType="ns=2;i=64020"><Description>Whether the document is a Thing Description or a Thing Model.</Description></Field><Field Name="Outcome" DataType="ns=2;i=64025"><Description>The per-resource outcome.</Description></Field><Field Name="Phase" DataType="ns=2;i=64026"><Description>The actual phase reached by the selected exact Version, including the failing phase.</Description></Field><Field Name="LoadState" DataType="ns=2;i=64021"><Description>The selected Version's resulting load state; a failed desired Version does not change the older valid Version whose projection is serving.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual final committed registry generation still serving; a failure does not identify a generation that never activated.</Description></Field><Field Name="MaterializedNodeCount" DataType="i=7"><Description>Number of AddressSpace nodes materialized for this resource.</Description></Field><Field Name="RootNodeId" DataType="i=17"><Description>The root node of the materialized projection, if any.</Description></Field><Field Name="ContentDigest" DataType="i=15"><Description>The content digest of the selected exact Version bytes when available, including failed work.</Description></Field><Field Name="Message" DataType="i=12"><Description>Human-readable detail for the outcome.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64516" BrowseName="Default Binary" ParentNodeId="ns=2;i=64044">
     <DisplayName>Default Binary</DisplayName>
@@ -325,14 +325,14 @@
   </UAObject>
   <UADataType NodeId="ns=2;i=64045" BrowseName="2:WoTRefreshSummaryDataType">
     <DisplayName>WoTRefreshSummaryDataType</DisplayName>
-    <Description>An immutable summary of one Refresh invocation, also carried by the WoTRefreshCompletedEventType and cached on the registry as LastRefreshSummary.</Description>
+    <Description>An immutable summary of one Refresh invocation, also carried by the WoTRefreshCompletedEventType and cached on the registry as LastRefreshSummary. ManifestDigest is present only for snapshot-bound composition.</Description>
     <Category>WOTC-Refresh</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64518</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64519</Reference>
     </References>
-    <Definition Name="2:WoTRefreshSummaryDataType"><Field Name="RequestId" DataType="i=12"><Description>The caller-supplied request identifier echoed back for correlation.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual final committed refresh generation; unchanged on dry run, no-op or full failure, including when the registry already has a non-zero generation.</Description></Field><Field Name="Outcome" DataType="ns=2;i=64025"><Description>The overall outcome of the refresh.</Description></Field><Field Name="Atomicity" DataType="ns=2;i=64023"><Description>The commit granularity that was applied.</Description></Field><Field Name="StartTime" DataType="i=13"><Description>UTC start time of the refresh.</Description></Field><Field Name="EndTime" DataType="i=13"><Description>UTC end time of the refresh.</Description></Field><Field Name="Total" DataType="i=7"><Description>Total number of resources considered.</Description></Field><Field Name="Succeeded" DataType="i=7"><Description>Number of resources that changed successfully.</Description></Field><Field Name="Unchanged" DataType="i=7"><Description>Number of resources that were idempotently unchanged.</Description></Field><Field Name="Failed" DataType="i=7"><Description>Number of resources that failed.</Description></Field><Field Name="Skipped" DataType="i=7"><Description>Number of resources skipped by selection or policy.</Description></Field><Field Name="Retired" DataType="i=7"><Description>Number of superseded generations retired.</Description></Field></Definition>
+    <Definition Name="2:WoTRefreshSummaryDataType"><Field Name="RequestId" DataType="i=12"><Description>The caller-supplied request identifier echoed back for correlation.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual final committed refresh generation; unchanged on dry run, no-op or full failure, including when the registry already has a non-zero generation.</Description></Field><Field Name="Outcome" DataType="ns=2;i=64025"><Description>The overall outcome of the refresh.</Description></Field><Field Name="Atomicity" DataType="ns=2;i=64023"><Description>The commit granularity that was applied.</Description></Field><Field Name="StartTime" DataType="i=13"><Description>UTC start time of the refresh.</Description></Field><Field Name="EndTime" DataType="i=13"><Description>UTC end time of the refresh.</Description></Field><Field Name="Total" DataType="i=7"><Description>Total number of result rows, excluding resolution-only inputs.</Description></Field><Field Name="Succeeded" DataType="i=7"><Description>Number of Success and Warning result rows; diagnostic predicted successes in a dry run.</Description></Field><Field Name="Unchanged" DataType="i=7"><Description>Number of resources that were idempotently unchanged.</Description></Field><Field Name="Failed" DataType="i=7"><Description>Number of Failed and Rejected result rows.</Description></Field><Field Name="Skipped" DataType="i=7"><Description>Number of resources skipped by selection or policy.</Description></Field><Field Name="Retired" DataType="i=7"><Description>Number of superseded Resource/generation images actually retired by the published units.</Description></Field><Field Name="ManifestDigest" DataType="i=15" IsOptional="true"><Description>The 32-byte digest of the publication manifest selected for this Refresh; absent for live selection and when no snapshot was selected.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64518" BrowseName="Default Binary" ParentNodeId="ns=2;i=64045">
     <DisplayName>Default Binary</DisplayName>
@@ -350,14 +350,14 @@
   </UAObject>
   <UADataType NodeId="ns=2;i=64046" BrowseName="2:WoTDependencyDataType">
     <DisplayName>WoTDependencyDataType</DisplayName>
-    <Description>An immutable raw dependency edge. Ordinary references may form legal co-activation SCCs; ordering constraints are checked separately. RequiredVersion carries an explicit or implicit version floor; Snapshot Targets carry resolved identity pins.</Description>
+    <Description>An immutable raw dependency edge. Ordinary references may form legal co-activation SCCs; ordering constraints are checked separately. RequiredVersion and RequiredCompatibilityLine carry the effective profile-specific requirements; Snapshot Targets carry resolved identity pins.</Description>
     <Category>WOTC-Federation</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64520</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64521</Reference>
     </References>
-    <Definition Name="2:WoTDependencyDataType" StructureType="StructureWithOptionalFields"><Field Name="SourceXid" DataType="i=12"><Description>The xid of the dependent document.</Description></Field><Field Name="TargetXid" DataType="i=12"><Description>The origin-registry-relative xid of the pinned target Version; empty for unresolved or non-registry targets. Origin scope is carried separately in snapshot Targets.</Description></Field><Field Name="TargetUri" DataType="i=12"><Description>The raw href/URI of the dependency as authored in the document.</Description></Field><Field Name="RefType" DataType="i=12"><Description>The dependency kind (for example tm:extends, tm:ref, td:extends, td:subthing, td:ref or links.rel=type).</Description></Field><Field Name="Resolved" DataType="i=1"><Description>True if the dependency resolved to a pinned registry or catalog/provider document.</Description></Field><Field Name="RequiredVersion" DataType="i=12" IsOptional="true"><Description>The effective SemVer floor for this reference; tm:minVersion applies to a TM target and td:minVersion to a TD-to-TD target. The target kind determines whether the floor has a next-major upper bound; absent when no floor applies.</Description></Field></Definition>
+    <Definition Name="2:WoTDependencyDataType"><Field Name="SourceXid" DataType="i=12"><Description>The xid of the dependent document.</Description></Field><Field Name="TargetXid" DataType="i=12"><Description>The origin-registry-relative xid of the pinned target Version; empty for unresolved or non-registry targets. Origin scope is carried separately in snapshot Targets.</Description></Field><Field Name="TargetUri" DataType="i=12"><Description>The raw href/URI of the dependency as authored in the document.</Description></Field><Field Name="RefType" DataType="i=12"><Description>The dependency kind (for example tm:extends, tm:ref, td:extends, td:subthing, td:ref or links.rel=type).</Description></Field><Field Name="Resolved" DataType="i=1"><Description>True if the dependency resolved to a pinned registry or catalog/provider document.</Description></Field><Field Name="RequiredVersion" DataType="i=12" IsOptional="true"><Description>The effective profile-specific version floor for this reference: SemVer in the SemVer profile or a canonical positive decimal revision in the Incremental profile.</Description></Field><Field Name="RequiredCompatibilityLine" DataType="i=23751" IsOptional="true"><Description>The required absolute compatibility-line IRI for an Incremental target; absent for SemVer targets.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64520" BrowseName="Default Binary" ParentNodeId="ns=2;i=64046">
     <DisplayName>Default Binary</DisplayName>
@@ -401,6 +401,7 @@
       <Reference ReferenceType="HasComponent">ns=2;i=64613</Reference>
       <Reference ReferenceType="HasComponent">ns=2;i=64616</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64645</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=64665</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64001" BrowseName="2:ThingDescriptionGroupType">
@@ -471,6 +472,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=64662</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64663</Reference>
       <Reference ReferenceType="HasProperty">ns=2;i=64664</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=64666</Reference>
     </References>
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64004" BrowseName="2:ThingDescriptionFileType">
@@ -509,7 +511,7 @@
   </UAObjectType>
   <UAObjectType NodeId="ns=2;i=64006" BrowseName="2:WoTBindingType">
     <DisplayName>WoTBindingType</DisplayName>
-    <Description>A browseable protocol-binding descriptor: the live, per-field representation of one W3C WoT protocol binding the server can realize (its URI, title, version-pinned W3C document, draft maturity, enabled state, content types and a capability snapshot). Selected/active binding sets are additionally exposed as immutable WoTBindingCapabilityDataType array snapshots. Policy and identity are browseable; no credentials or secrets are ever exposed here.</Description>
+    <Description>A browseable protocol-binding descriptor: the live, per-field representation of one WoT protocol binding the server can realize (its URI, title, pinned binding-document version, issuing-authority status, enabled state, content types and a capability snapshot). Selected/active binding sets are additionally exposed as immutable WoTBindingCapabilityDataType array snapshots. Policy and identity are browseable; no credentials or secrets are ever exposed here.</Description>
     <Category>WOTC-BinderCore</Category>
     <Category>WOTC-BinderProtocol</Category>
     <References>
@@ -587,16 +589,16 @@
   <UAReferenceType NodeId="ns=2;i=64060" BrowseName="2:HasWoTProjection">
     <DisplayName>HasWoTProjection</DisplayName>
     <Description>Links the stable logical WoT Resource (source), not an exact Version, to its active projection root (target). Provides registry/document RefreshGeneration correlation. Where WOTC-ModelChange is implemented, applicable namespace-0 NodeVersion Properties retain Core structural semantics, not a universal refresh counter.</Description>
-    <InverseName>WoTProjectionOf</InverseName>
     <Category>WOTC-ReferenceMaterialization</Category>
     <Category>WOTC-ProjectionMaterialization</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
     </References>
+    <InverseName>WoTProjectionOf</InverseName>
   </UAReferenceType>
   <UAVariable NodeId="ns=2;i=64522" BrowseName="2:AutoRefresh" ParentNodeId="ns=2;i=64000" DataType="Boolean" ValueRank="-1">
     <DisplayName>AutoRefresh</DisplayName>
-    <Description>True if the registry automatically re-projects stored documents (per RefreshMode); false if only explicit Refresh calls re-project.</Description>
+    <Description>Enables automatic refresh initiation according to RefreshMode. False does not block explicit Refresh or lifecycle Method requests. Absent means false; a document override is more specific.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -605,7 +607,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64523" BrowseName="2:RefreshMode" ParentNodeId="ns=2;i=64000" DataType="ns=2;i=64022" ValueRank="-1">
     <DisplayName>RefreshMode</DisplayName>
-    <Description>How automatic refresh is triggered when AutoRefresh is true.</Description>
+    <Description>How automatic refresh is triggered when AutoRefresh is true. Absent means Manual.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -614,7 +616,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64524" BrowseName="2:RefreshInterval" ParentNodeId="ns=2;i=64000" DataType="Duration" ValueRank="-1">
     <DisplayName>RefreshInterval</DisplayName>
-    <Description>The interval used when RefreshMode is Periodic.</Description>
+    <Description>The interval used when RefreshMode is Periodic. Periodic refresh requires this interval to be exposed and positive before it is enabled.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -650,7 +652,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64528" BrowseName="2:DefaultAtomicity" ParentNodeId="ns=2;i=64000" DataType="ns=2;i=64023" ValueRank="-1">
     <DisplayName>DefaultAtomicity</DisplayName>
-    <Description>The commit granularity applied when a Refresh omits an explicit atomicity.</Description>
+    <Description>Supported mode for internally triggered refreshes; absent means PerResource. It never overrides the required Options.Atomicity field of a Call.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -659,7 +661,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64529" BrowseName="2:DeletePolicy" ParentNodeId="ns=2;i=64000" DataType="ns=2;i=64024" ValueRank="-1">
     <DisplayName>DeletePolicy</DisplayName>
-    <Description>The default policy for treating dependents on unload/delete.</Description>
+    <Description>Policy for treating dependents on unload/delete and internal work; absent means Reject.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -668,7 +670,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64530" BrowseName="2:ValidateFormat" ParentNodeId="ns=2;i=64000" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateFormat</DisplayName>
-    <Description>Registry-wide default: validate document format on ingest/refresh.</Description>
+    <Description>Registry default for eager format validation on ingest; absent means true. A Group override is more specific. Source/kind admission, explicit Validate and full validation before activation remain required.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -677,7 +679,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64531" BrowseName="2:ValidateCompatibility" ParentNodeId="ns=2;i=64000" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateCompatibility</DisplayName>
-    <Description>Registry-wide default: validate version compatibility on ingest/refresh.</Description>
+    <Description>Registry default for version compatibility validation on ingest, explicit Validate and before activation; absent means false. A Group override is more specific. Governing xRegistry enforcement still applies; requested validation requires a recognized policy and lineage.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -686,7 +688,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64532" BrowseName="2:StrictValidation" ParentNodeId="ns=2;i=64000" DataType="Boolean" ValueRank="-1">
     <DisplayName>StrictValidation</DisplayName>
-    <Description>If true, a validation warning is treated as a failure.</Description>
+    <Description>Absent means false. True promotes validation warnings to failure; false never demotes errors.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -740,7 +742,7 @@
   </UAObject>
   <UAMethod NodeId="ns=2;i=64538" BrowseName="2:Refresh" ParentNodeId="ns=2;i=64000">
     <DisplayName>Refresh</DisplayName>
-    <Description>Selection bounds work before fetching or planning. Compare the complete effective input fingerprint and publication metadata, not ContentDigest alone. Prepare dependency-safe atomic units and expose LastRefreshPlan before publication. Hold an invocation publication lease, recheck caller/preparation/input/lifecycle revisions, durably decide each unit and publish its complete prepared routing/metadata state before releasing notifications. Required activation prerequisites must satisfy their exact committed input pins before dependent units publish. WOTC-ModelChange structural and WOTC-SemanticChange applicable semantic notifications are conditional on the respective implemented CU and actual commit; NodeVersion is not a generic generation stamp. Immediate retirement ends Node access, not surviving MonitoredItem Service identity; valid deletion succeeds. Graceful retirement retains all old-generation uses until drained or equivalently migrated. Failure SourceNode is the exact failing Version and Generation identifies committed state still serving. A stale non-zero ExpectedGeneration fails Bad_InvalidState without publication; zero does not waive stale-plan protection. Empty Selection selects the registry; disabled resolution inputs are never activated.</Description>
+    <Description>Selection bounds work before fetching or planning. Compare the complete effective input fingerprint and publication metadata, not ContentDigest alone. Prepare dependency-safe atomic units. Accept PerResource as the portable baseline and coarsen for dependency safety. WOTC-AtomicityModes requires all four requested modes and LastRefreshPlan before publication. Hold an invocation publication lease, recheck caller/preparation/input/lifecycle revisions, durably decide each unit and publish its complete prepared routing/metadata state before releasing notifications. Required activation prerequisites must satisfy their exact committed input pins before dependent units publish. WOTC-ModelChange structural and WOTC-SemanticChange applicable semantic notifications are conditional on the respective implemented CU and actual commit; NodeVersion is not a generic generation stamp. Immediate retirement ends Node access, not surviving MonitoredItem Service identity; valid deletion succeeds. Graceful retirement retains all old-generation uses until drained or equivalently migrated. Failure SourceNode is the exact failing Version and Generation identifies committed state still serving. A stale non-zero ExpectedGeneration fails Bad_InvalidState without publication; zero does not waive stale-plan protection. Empty Selection selects the registry; disabled resolution inputs are never activated.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64000</Reference>
@@ -768,7 +770,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64541" BrowseName="2:ValidateFormat" ParentNodeId="ns=2;i=64001" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateFormat</DisplayName>
-    <Description>Group-level policy: validate Thing Description format (WoT-TD/1.1) on ingest.</Description>
+    <Description>Group override for eager Thing Description (WoT-TD/1.1) format validation on ingest; absence inherits registry policy.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -777,7 +779,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64542" BrowseName="2:ValidateCompatibility" ParentNodeId="ns=2;i=64001" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateCompatibility</DisplayName>
-    <Description>Group-level policy: validate version compatibility on ingest.</Description>
+    <Description>Group override for version compatibility validation on ingest, explicit Validate and before activation; absence inherits registry policy.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -786,7 +788,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64543" BrowseName="2:ConsistentFormat" ParentNodeId="ns=2;i=64001" DataType="Boolean" ValueRank="-1">
     <DisplayName>ConsistentFormat</DisplayName>
-    <Description>Group-level policy: require all versions of a resource to share one format.</Description>
+    <Description>Absent means false. True requires all Versions of a Resource to share one declared Format.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -804,7 +806,7 @@
   </UAObject>
   <UAVariable NodeId="ns=2;i=64545" BrowseName="2:ValidateFormat" ParentNodeId="ns=2;i=64002" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateFormat</DisplayName>
-    <Description>Group-level policy: validate Thing Model format (WoT-TM/1.1) on ingest.</Description>
+    <Description>Group override for eager Thing Model (WoT-TM/1.1) format validation on ingest; absence inherits registry policy.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -813,7 +815,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64546" BrowseName="2:ValidateCompatibility" ParentNodeId="ns=2;i=64002" DataType="Boolean" ValueRank="-1">
     <DisplayName>ValidateCompatibility</DisplayName>
-    <Description>Group-level policy: validate version compatibility on ingest.</Description>
+    <Description>Group override for version compatibility validation on ingest, explicit Validate and before activation; absence inherits registry policy.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -822,7 +824,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64547" BrowseName="2:ConsistentFormat" ParentNodeId="ns=2;i=64002" DataType="Boolean" ValueRank="-1">
     <DisplayName>ConsistentFormat</DisplayName>
-    <Description>Group-level policy: require all versions of a resource to share one format.</Description>
+    <Description>Absent means false. True requires all Versions of a Resource to share one declared Format.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -849,7 +851,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64550" BrowseName="2:Enabled" ParentNodeId="ns=2;i=64003" DataType="Boolean" ValueRank="-1">
     <DisplayName>Enabled</DisplayName>
-    <Description>The desired enabled state: true requests that the document be validated and projected; false requests unload.</Description>
+    <Description>The represented Version's desired enabled state: true requests validation/projection; false requests unload. Creation exposes the configured initial value and an Unloaded new Version.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -912,7 +914,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64557" BrowseName="2:AutoRefresh" ParentNodeId="ns=2;i=64003" DataType="Boolean" ValueRank="-1">
     <DisplayName>AutoRefresh</DisplayName>
-    <Description>Per-document override of the registry AutoRefresh setting.</Description>
+    <Description>Per-document override of registry AutoRefresh; absence inherits registry policy, then false.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -957,7 +959,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64562" BrowseName="2:MaterializedNodeCount" ParentNodeId="ns=2;i=64003" DataType="UInt32" ValueRank="-1">
     <DisplayName>MaterializedNodeCount</DisplayName>
-    <Description>The number of AddressSpace nodes materialized from this document's active projection.</Description>
+    <Description>The number of AddressSpace nodes materialized by the projection this exact Version activated. A logical Resource reports its default Version's value.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -966,7 +968,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64563" BrowseName="2:RootNodeId" ParentNodeId="ns=2;i=64003" DataType="NodeId" ValueRank="-1">
     <DisplayName>RootNodeId</DisplayName>
-    <Description>The root node of this document's active projection (the type or instance root).</Description>
+    <Description>The root node (type or instance root) of the projection this exact Version activated. A logical Resource reports its default Version's value.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1002,7 +1004,7 @@
   </UAVariable>
   <UAMethod NodeId="ns=2;i=64567" BrowseName="2:SetEnabled" ParentNodeId="ns=2;i=64003">
     <DisplayName>SetEnabled</DisplayName>
-    <Description>Set the desired Enabled state of this document. Enabling requests validation and projection; disabling requests unload per the registry DeletePolicy. If ExpectedEpoch is non-zero and does not equal the resource's current Epoch the call fails with Bad_InvalidState and changes nothing.</Description>
+    <Description>Set Enabled on the exact Version or the logical Resource's default Version pinned under the mutation guard. ExpectedEpoch checks that Version's Epoch; a non-zero mismatch fails Bad_InvalidState without change. An actual state change increments Version Epoch and updates ModifiedAt once, not Resource MetaEpoch or bytes. Repeated state does not manufacture an update. Enabling requests that exact Version's validation/projection; disabling requests its unload under the effective registry DeletePolicy, never another active Version's unload. Rejected disable preserves state. Desired-state admission is not proof of activation or a default-selection compare-and-swap.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasComponent" IsForward="false">ns=2;i=64003</Reference>
@@ -1016,7 +1018,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64567</Reference>
     </References>
-    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Enabled</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The desired enabled state.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch for optimistic concurrency; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Enabled</Name><DataType><Identifier>i=1</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>The desired enabled state.</Text></Description></Argument></Body></ExtensionObject><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>ExpectedEpoch</Name><DataType><Identifier>i=7</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions/><Description><Text>Expected current Epoch of the exact or delegated default Version, for optimistic concurrency on that Version; 0 disables the check.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
   </UAVariable>
   <UAMethod NodeId="ns=2;i=64569" BrowseName="2:SetDefaultVersion" ParentNodeId="ns=2;i=64003">
     <DisplayName>SetDefaultVersion</DisplayName>
@@ -1119,7 +1121,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64580" BrowseName="2:ProfileVersion" ParentNodeId="ns=2;i=64006" DataType="String" ValueRank="-1">
     <DisplayName>ProfileVersion</DisplayName>
-    <Description>The version-pinned W3C binding document version.</Description>
+    <Description>The pinned binding-document version this binding implements.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1128,7 +1130,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64581" BrowseName="2:DraftMaturity" ParentNodeId="ns=2;i=64006" DataType="String" ValueRank="-1">
     <DisplayName>DraftMaturity</DisplayName>
-    <Description>The W3C maturity of the pinned binding document (for example WD, CR, PR, REC).</Description>
+    <Description>The pinned document's publication status in its issuing authority's terminology, for example WD, CR, PR or REC for a W3C document.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -2084,7 +2086,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=67</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
     </References>
-    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-10-24T00:00:00Z</uax:DateTime></Value>
+    <Value><uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-11-02T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=71" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=67" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
@@ -2506,11 +2508,11 @@
   </UAMethod>
   <UAReferenceType NodeId="ns=2;i=142" BrowseName="2:HasWoTComponent">
     <DisplayName>HasWoTComponent</DisplayName>
-    <InverseName>WoTComponentOf</InverseName>
     <Category>WOTC-v1.02</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
     </References>
+    <InverseName>WoTComponentOf</InverseName>
   </UAReferenceType>
   <UAVariable NodeId="ns=2;i=143" BrowseName="InputArguments" ParentNodeId="ns=2;i=123" DataType="Argument" ValueRank="1" ArrayDimensions="1">
     <DisplayName>InputArguments</DisplayName>
@@ -3094,14 +3096,14 @@
   </UAVariable>
   <UADataType NodeId="ns=2;i=64047" BrowseName="2:WoTResolvedDependencyTargetDataType">
     <DisplayName>WoTResolvedDependencyTargetDataType</DisplayName>
-    <Description>A pinned resolved dependency target. The resolver record contains the stable WoTId, exact VersionId, ContentDigest and resolution Origin. OriginRegistry is optional registry-specific detail; all other fields are required and scalar.</Description>
+    <Description>A pinned resolved dependency target. The record contains the stable WoTId, exact VersionId, profile, optional compatibility line, ContentDigest and resolution Origin. OriginRegistry is optional registry-specific detail; CompatibilityLine is optional; all other fields are required and scalar.</Description>
     <Category>WOTC-DependencySnapshots</Category>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64637</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64638</Reference>
     </References>
-    <Definition Name="2:WoTResolvedDependencyTargetDataType" StructureType="StructureWithOptionalFields"><Field Name="EdgeIndex" DataType="i=7"><Description>The index of the corresponding resolved edge.</Description></Field><Field Name="OriginRegistry" DataType="ns=1;i=63026" IsOptional="true"><Description>Present only for a trusted registry target; absent for a pinned non-registry catalog/provider document.</Description></Field><Field Name="VersionXid" DataType="i=12"><Description>The exact target Version's origin-relative Xid; empty for non-registry targets.</Description></Field><Field Name="DocumentUri" DataType="i=23751"><Description>The actual resolved location or authoritative document identity, not fetch permission.</Description></Field><Field Name="VersionNodeId" DataType="i=18"><Description>The portable exact Version NodeId, distinct from the trusted origin's registry-root NodeId; null only when no OPC UA target Node exists.</Description></Field><Field Name="ContentDigest" DataType="i=15"><Description>The complete content digest of the pinned target document.</Description></Field><Field Name="WoTId" DataType="i=23751"><Description>The stable Thing Model identifier (wotid) selected for this dependency.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>The exact registry versionid selected for this dependency.</Description></Field><Field Name="Origin" DataType="i=23751"><Description>The origin URI of the registry, catalog or provider that resolved this version.</Description></Field></Definition>
+    <Definition Name="2:WoTResolvedDependencyTargetDataType"><Field Name="EdgeIndex" DataType="i=7"><Description>The index of the corresponding resolved edge.</Description></Field><Field Name="OriginRegistry" DataType="ns=1;i=63026" IsOptional="true"><Description>Present only for a trusted registry target; absent for a pinned non-registry catalog/provider document.</Description></Field><Field Name="VersionXid" DataType="i=12"><Description>The exact target Version's origin-relative Xid; empty for non-registry targets.</Description></Field><Field Name="DocumentUri" DataType="i=23751"><Description>The actual resolved location or authoritative document identity, not fetch permission.</Description></Field><Field Name="VersionNodeId" DataType="i=18"><Description>The portable exact Version NodeId, distinct from the trusted origin's registry-root NodeId; null only when no OPC UA target Node exists.</Description></Field><Field Name="ContentDigest" DataType="i=15"><Description>The complete content digest of the pinned target document.</Description></Field><Field Name="WoTId" DataType="i=23751"><Description>The stable Thing Model identifier (wotid) selected for this dependency.</Description></Field><Field Name="VersionId" DataType="i=12"><Description>The exact registry versionid selected for this dependency.</Description></Field><Field Name="VersionProfile" DataType="ns=2;i=64054"><Description>The profile used to interpret the target VersionId and its requirements.</Description></Field><Field Name="CompatibilityLine" DataType="i=23751" IsOptional="true"><Description>The target Version's compatibility line; absent when it has no line.</Description></Field><Field Name="Origin" DataType="i=23751"><Description>The origin URI of the registry, catalog or provider that resolved this version.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64637" BrowseName="Default Binary" ParentNodeId="ns=2;i=64047">
     <DisplayName>Default Binary</DisplayName>
@@ -3239,7 +3241,7 @@
       <Reference ReferenceType="HasEncoding">ns=2;i=64648</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64649</Reference>
     </References>
-    <Definition Name="2:WoTEventOriginDataType" StructureType="StructureWithOptionalFields"><Field Name="IdentityMode" DataType="ns=2;i=64050"><Description>The occurrence's actual producing mode, including retained generations.</Description></Field><Field Name="BindingId" DataType="i=12"><Description>The exact binding in this descriptor's owning Version and generation.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual published active or retained generation, never a preflight generation.</Description></Field><Field Name="SourceDocumentId" DataType="i=23751"><Description>The pinned source document identity without embedded credentials.</Description></Field><Field Name="SourceServerUri" DataType="i=23751" IsOptional="true"><Description>The source server's verified logical identity when available.</Description></Field><Field Name="SourceEventType" DataType="i=18" IsOptional="true"><Description>The captured semantic source EventType when available.</Description></Field><Field Name="SourceNode" DataType="i=18" IsOptional="true"><Description>The captured source Node when available; a present null remains null.</Description></Field><Field Name="SourceEventId" DataType="i=15" IsOptional="true"><Description>The exact source occurrence EventId when supplied.</Description></Field><Field Name="SourceConditionId" DataType="i=18" IsOptional="true"><Description>The privately captured source Condition identity when available.</Description></Field><Field Name="SourceBranchId" DataType="i=18" IsOptional="true"><Description>The captured source branch; present null denotes the main branch.</Description></Field><Field Name="SourceTime" DataType="i=13" IsOptional="true"><Description>The source occurrence Time; absent for a local input that supplies none.</Description></Field><Field Name="SourceReceiveTime" DataType="i=13" IsOptional="true"><Description>The upstream receipt time when available.</Description></Field><Field Name="ReceiveTime" DataType="i=13"><Description>The receiving server's latest retained receipt time for this occurrence.</Description></Field></Definition>
+    <Definition Name="2:WoTEventOriginDataType"><Field Name="IdentityMode" DataType="ns=2;i=64050"><Description>The occurrence's actual producing mode, including retained generations.</Description></Field><Field Name="BindingId" DataType="i=12"><Description>The exact binding in this descriptor's owning Version and generation.</Description></Field><Field Name="Generation" DataType="i=7"><Description>The actual published active or retained generation, never a preflight generation.</Description></Field><Field Name="SourceDocumentId" DataType="i=23751"><Description>The pinned source document identity without embedded credentials.</Description></Field><Field Name="SourceServerUri" DataType="i=23751" IsOptional="true"><Description>The source server's verified logical identity when available.</Description></Field><Field Name="SourceEventType" DataType="i=18" IsOptional="true"><Description>The captured semantic source EventType when available.</Description></Field><Field Name="SourceNode" DataType="i=18" IsOptional="true"><Description>The captured source Node when available; a present null remains null.</Description></Field><Field Name="SourceEventId" DataType="i=15" IsOptional="true"><Description>The exact source occurrence EventId when supplied.</Description></Field><Field Name="SourceConditionId" DataType="i=18" IsOptional="true"><Description>The privately captured source Condition identity when available.</Description></Field><Field Name="SourceBranchId" DataType="i=18" IsOptional="true"><Description>The captured source branch; present null denotes the main branch.</Description></Field><Field Name="SourceTime" DataType="i=13" IsOptional="true"><Description>The source occurrence Time; absent for a local input that supplies none.</Description></Field><Field Name="SourceReceiveTime" DataType="i=13" IsOptional="true"><Description>The upstream receipt time when available.</Description></Field><Field Name="ReceiveTime" DataType="i=13"><Description>The receiving server's latest retained receipt time for this occurrence.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64648" BrowseName="Default Binary" ParentNodeId="ns=2;i=64051">
     <DisplayName>Default Binary</DisplayName>
@@ -3414,11 +3416,74 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64664" BrowseName="2:VersionOrigin" ParentNodeId="ns=2;i=64003" DataType="String" ValueRank="-1">
     <DisplayName>VersionOrigin</DisplayName>
-    <Description>The origin of this exact document Version: authored or generated. For either document kind, the origin is authored when VersionId equals the valid SemVer source member and generated when the registry assigns a fallback because the source value is absent or is not SemVer. Build metadata is invalid.</Description>
+    <Description>The origin of this exact document Version: authored or generated. For either document kind, the origin is authored when VersionId equals the valid authored profile-specific version and generated when the registry assigns a fallback. The source member is not rewritten.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64003</Reference>
     </References>
   </UAVariable>
+  <UAVariable NodeId="ns=2;i=64665" BrowseName="2:VersionProfile" ParentNodeId="ns=2;i=64000" DataType="ns=2;i=64054" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>VersionProfile</DisplayName>
+    <Description>The registry-wide versioning profile. Absence means SemVer; a present value applies to every Version in this registry.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64000</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=64666" BrowseName="2:CompatibilityLine" ParentNodeId="ns=2;i=64003" DataType="UriString" ValueRank="-1" AccessLevel="1" UserAccessLevel="1">
+    <DisplayName>CompatibilityLine</DisplayName>
+    <Description>The absolute compatibility-line IRI fixed on this exact Version at publication; absent when the Version has no line.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64003</Reference>
+    </References>
+  </UAVariable>
+  <UADataType NodeId="ns=2;i=64054" BrowseName="2:WoTVersionProfileEnum">
+    <DisplayName>WoTVersionProfileEnum</DisplayName>
+    <Description>The version syntax and candidate-selection rules used by a WoT registry.</Description>
+    <Category>WOTC-VersionLifecycle</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=2;i=64667</Reference>
+    </References>
+    <Definition Name="2:WoTVersionProfileEnum"><Field Name="SemVer" Value="0"><Description>Semantic Versioning 2.0.0, with document-kind floor and prerelease rules.</Description></Field><Field Name="Incremental" Value="1"><Description>Canonical positive decimal revisions selected within an explicit compatibility line.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=2;i=64667" BrowseName="EnumStrings" ParentNodeId="ns=2;i=64054" DataType="LocalizedText" ValueRank="1" ArrayDimensions="2">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=64054</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>SemVer</Text></LocalizedText><LocalizedText><Text>Incremental</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=2;i=64055" BrowseName="2:WoTPublicationContextDataType">
+    <DisplayName>WoTPublicationContextDataType</DisplayName>
+    <Description>Selects an immutable publication snapshot for one Refresh. Without ManifestDigest, the Server opens the channel once and reports the selected manifest digest in WoTRefreshSummaryDataType. With ManifestDigest, Uri identifies the exact snapshot and the Server verifies its manifest digest. A snapshot URI without a digest is not a third form.</Description>
+    <Category>WOTC-Refresh</Category>
+    <Category>WOTC-DependencySnapshots</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=2;i=64668</Reference>
+      <Reference ReferenceType="HasEncoding">ns=2;i=64669</Reference>
+    </References>
+    <Definition Name="2:WoTPublicationContextDataType"><Field Name="Uri" DataType="i=23751"><Description>The channel URI when ManifestDigest is absent, or the exact snapshot URI when ManifestDigest is present.</Description></Field><Field Name="ManifestDigest" DataType="i=15" IsOptional="true"><Description>The optional 32-byte SHA-256 manifest digest, required and verified for an exact snapshot URI.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=64668" BrowseName="Default Binary" ParentNodeId="ns=2;i=64055">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=2;i=64055</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=64669" BrowseName="Default JSON" ParentNodeId="ns=2;i=64055">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=2;i=64055</Reference>
+    </References>
+  </UAObject>
 </UANodeSet>

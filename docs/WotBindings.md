@@ -1677,28 +1677,39 @@ round-trip guarantees.
 
 ### How this is checked
 
-The numbered `.jsonld` examples under `tests/Opc.Ua.Types.Tests/Wot/Assets` are
-byte-for-byte copies of the examples in the
+The numbered `.jsonld` examples under
+`tests/Opc.Ua.Types.Tests/Wot/CurrentSpecification` are byte-for-byte copies of
+the current examples in the
 [OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
-Binding specification at commit `0b06c3e3b5d6a427193a17321abb6d1da4a2bae0`.
-UA-only regression assets sit beside them. `spec-examples.manifest.json`
-records the upstream commit and the SHA-256 and length of every numbered
-example, and the tests verify those bytes offline. `.gitattributes` keeps LF
-on checkout, because a CRLF checkout would change every hash. To synchronize,
-copy every `*.jsonld` from `source/WoT-Binding` recursively by file name
-without transforming it, update the commit and hashes in the manifest, and
-run the WoT tests.
+Binding specification. `source-manifest.json` records the source commit,
+SHA-256 and length of every example and the context. The tests verify those
+bytes offline and run standalone mapping examples through conversion and
+NodeSet import. Byte parity and parsing do not establish support for every
+operation described by an example. Conversion tests supply the mirrored
+Binding context locally rather than fetching it or treating an unacquired
+context as authoritative; retained fixture bytes are unchanged.
 
-`tests/Opc.Ua.Types.Tests/Wot/Resolution` is an unmodified copy of the shared
-reference-resolution corpus at xRegistry spec commit
-`222527c643364d70bdf4ec687f6421397a96800a`. The same corpus is mirrored in the
-xRegistry .NET implementation, so both resolvers are tested against one set of
-expected results. Its `MANIFEST.sha256` covers the vectors, the schema, the
-README and the Python reference checker.
-`WotVersionResolverTests.CanonicalManifestMatchesEveryFile` checks that the
-manifest covers every file, that each hash matches and that each file uses LF.
-`CanonicalVectorMatches` runs every vector through the C# resolver and
-publisher.
+| Current examples | Pipeline disposition |
+| --- | --- |
+| 03–06, 08, 14, 20, 23–28, 36, 39 | Standalone conversion and NodeSet import. |
+| 01, 02, 21, 22, 35 | Require local event/type context; standalone conversion reports the missing context. |
+| 07, 09–13, 15–19, 31, 33 | Projection plans require the asynchronous projection resolver before ordinary conversion. |
+| 29, 30, 32 | `uav:semanticPath` is not implemented by this converter. |
+| 34 | The additional PubSub vocabulary and `uav:resolvedSource` mapping are not implemented. |
+| 37, 38 | `uav:instanceOfDeclaration` is not implemented. |
+
+`Wot/Assets` retains the frozen numbered implementation fixtures and UA-only
+regressions. Its separate `spec-examples.manifest.json` identifies that
+baseline. Those tests retain their conversion, projection and rejection
+expectations independently of the current examples.
+
+`Wot/SharedResolution` mirrors the current representative xRegistry resolution
+cases, schema, README and checker without transforming their bytes.
+`WotVersionResolverTests.SharedVectorMatches` runs their independently authored
+expected results through the C# resolver and publication assignment API.
+`Wot/Resolution` retains the earlier 64-case implementation regression corpus;
+`LegacyRegressionVectorMatches` continues to execute every case. Each corpus
+has its own hash manifest. `.gitattributes` pins LF for these source copies.
 
 ### Versioned document references
 
@@ -1741,7 +1752,8 @@ the TD's model version and is used only as the implicit floor for its
 
 TD-to-TD `td:extends`, `td:subthing` and `td:ref` references use
 `td:minVersion`. A floor `X.Y.Z` selects a target version at or above that
-floor and below `(X+1).0.0`, including for a `0.y.z` floor. Without a floor,
+floor and with the same major version, including for a `0.y.z` floor.
+Next-major prereleases are outside the range. Without a floor,
 the highest eligible target version can be selected across major versions.
 The referencing TD's `version.instance` and `version.model` do not supply an
 implicit floor for these references. A major-version change is a breaking
@@ -1752,6 +1764,36 @@ A native FileType writer allocates an authored Thing Model Version from its
 gets a generated id. Because generated ids are prereleases, a deployment of
 unversioned models can select one explicitly as the sticky default with
 `SetDefaultVersionAsync`.
+
+A document-local `tm:ref` or `td:ref` addresses the exact containing revision,
+not the Resource's current default or highest stored version. A local floor
+checks that revision's authored `version.model` for a TM reference or
+`version.instance` for a TD reference. Missing authored versions cannot satisfy
+a floor; malformed authored versions are rejected. A TD floor also excludes
+every next-major version, including prereleases. No floor means no version
+check, but still does not select another revision.
+
+Callers of `WotVersionResolver` mark normalized local references with
+`WotReferenceRequest.Local` and supply the containing `VersionId` and authored
+version in `WotDocumentVersionContext`. Document acquisition can instead pass
+the containing `WotDocument` to `WotVersionedReference.ResolveAsync`; local
+fragments then return those exact bytes without calling the provider.
+The registry refresh runtime does not support caller-enabled prerelease
+selection and rejects a present, true `AllowPrerelease` option with
+`BadNotSupported`. The standalone version resolver supports that option.
+A present `PublicationContext` is also rejected with `BadNotSupported`;
+refresh does not implement channel or snapshot composition.
+
+`uav:minVersion` is the kind-neutral alternative to the applicable legacy
+`tm:minVersion` or `td:minVersion`, including on a projection manifest source.
+Authored requirements cannot combine the common and legacy terms. A
+compatibility-line requirement on a SemVer dependency is rejected as
+`invalid-line`; Incremental selection is not implemented. Authored annotation
+validity is checked even when an exact registry URI skips floor derivation.
+Raw replay through `WotVersionResolver` remains a separate operation: a caller
+pin selects exact bytes without establishing composition compatibility.
+SemVer floors are not subject to the 128-character stored `VersionId` limit;
+the limit still applies to stored and assigned identifiers.
 
 Native registry CRUD and FileType writes retain an explicitly allocated Version
 id when the document has no `version.model` (TM) or `version.instance` (TD).
@@ -1772,7 +1814,7 @@ from `version.model`. A provider that implements only
 document cannot satisfy a newer floor unnoticed. Registry dependency metadata
 keeps each floor and projects it to `WoTDependencyDataType.RequiredVersion`.
 
-The model source is OPC 10100 WoT Connectivity 1.1 (1.1-draft9, 2026-10-24).
+The model source is OPC 10100 WoT Connectivity 1.1 (1.1-draft10, 2026-11-02).
 The existing Roslyn model source generator consumes it during the build.
 
 ### Resolving a type binding: the local context

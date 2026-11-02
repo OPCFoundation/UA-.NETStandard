@@ -124,15 +124,22 @@ namespace Opc.Ua.WotCon.Tests
                 "v1", 1, "wire", DateTime.UtcNow, true, digest,
                 [new WotDependency("/source", "model:Pump", "/model", "tm:extends", true)],
                 [new WotDependencyTargetPin(
-                    0, new WotRegistryOrigin("urn:b2:registry"), "/model/versions/v1",
-                    "https://example.test/models/Pump", ExpandedNodeId.Null, digest)]);
+                    0, new WotRegistryOrigin("urn:b2:registry"), "/model/versions/1.0.0",
+                    "https://example.test/models/Pump", ExpandedNodeId.Null, digest)
+                {
+                    WotId = "urn:model:Pump",
+                    VersionId = "1.0.0",
+                    Origin = "urn:b2:registry"
+                }]);
 
             WoTDependencySnapshotDataType wire = snapshot.ToDataType();
 
             Assert.Multiple(() =>
             {
-                Assert.That(wire.Edges[0].TargetXid, Is.EqualTo("/model/versions/v1"));
+                Assert.That(wire.Edges[0].TargetXid, Is.EqualTo("/model/versions/1.0.0"));
                 Assert.That(wire.Edges[0].TargetUri, Is.EqualTo("model:Pump"));
+                Assert.That(wire.Targets[0].WoTId, Is.EqualTo("urn:model:Pump"));
+                Assert.That(wire.Targets[0].Origin, Is.EqualTo("urn:b2:registry"));
                 Assert.That(snapshot.Edges[0].TargetXid, Is.EqualTo("/model"));
             });
         }
@@ -175,7 +182,9 @@ namespace Opc.Ua.WotCon.Tests
             Registered independent = await fixture.RegisterAsync("urn:b2:independent");
             fixture.Blobs.Reads.Clear();
 
-            var result = await fixture.RefreshAsync([source.Selector], "exact-context");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) result = await fixture.RefreshAsync([source.Selector], "exact-context");
             Assert.That(result.Results[0].LoadState, Is.EqualTo(WoTLoadStateEnum.Active),
                 $"Phase={result.Results[0].Phase}; {result.Results[0].Message}");
             WoTDependencySnapshotDataType snapshot = await fixture.SnapshotAsync(source.Version);
@@ -223,10 +232,14 @@ namespace Opc.Ua.WotCon.Tests
         {
             await using LiveFixture fixture = await LiveFixture.CreateAsync();
             Registered source = await fixture.RegisterAsync("urn:b2:attempts");
-            var first = await fixture.RefreshAsync([source.Selector], "committed");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) first = await fixture.RefreshAsync([source.Selector], "committed");
             WoTDependencySnapshotDataType committed = await fixture.SnapshotAsync(source.Version);
 
-            var noop = await fixture.RefreshAsync([source.Selector], "noop");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) noop = await fixture.RefreshAsync([source.Selector], "noop");
             WoTDependencySnapshotDataType last = await fixture.SnapshotAsync(source.Version, attempt: true);
             Assert.Multiple(() =>
             {
@@ -241,7 +254,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That((await fixture.SnapshotAsync(source.Version, attempt: true)).RequestId, Is.EqualTo("noop"));
 
             fixture.Blobs.FailNextDigest = source.Digest;
-            var failed = await fixture.RefreshAsync([source.Selector], "failed", force: true);
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) failed = await fixture.RefreshAsync([source.Selector], "failed", force: true);
             WoTDependencySnapshotDataType after = await fixture.SnapshotAsync(source.Version);
             WoTDependencySnapshotDataType attempt = await fixture.SnapshotAsync(source.Version, attempt: true);
             Assert.Multiple(() =>
@@ -270,7 +285,9 @@ namespace Opc.Ua.WotCon.Tests
             fixture.Blobs.Reads.Clear();
             fixture.Blobs.FailNextDigest = b.Digest;
 
-            var result = await fixture.RefreshAsync([a.Selector, b.Selector], "independent");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) result = await fixture.RefreshAsync([a.Selector, b.Selector], "independent");
             WoTDependencySnapshotDataType success = await fixture.SnapshotAsync(a.Version);
             WoTDependencySnapshotDataType failure = await fixture.SnapshotAsync(b.Version, attempt: true);
 
@@ -367,15 +384,17 @@ namespace Opc.Ua.WotCon.Tests
             string referenceId = NodeId.ToExpandedNodeId(
                 Ua.ReferenceTypeIds.IsPhysicallyConnectedTo, fixture.Client.Session.NamespaceUris).ToString();
             Registered a = await fixture.RegisterAsync(
-                "urn:b2:cycle-a", links: $$"""
+                "urn:b2:cycle-a", version: "1.0.0", links: $$"""
                     [{"rel":"ua:ConnectedTo","href":"urn:b2:cycle-b","uav:refId":"{{referenceId}}"}]
                     """);
             Registered b = await fixture.RegisterAsync(
-                "urn:b2:cycle-b", links: $$"""
+                "urn:b2:cycle-b", version: "1.0.0", links: $$"""
                     [{"rel":"ua:ConnectedTo","href":"urn:b2:cycle-a","uav:refId":"{{referenceId}}"}]
                     """);
 
-            var result = await fixture.RefreshAsync([a.Selector], "scc");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) result = await fixture.RefreshAsync([a.Selector], "scc");
             Assert.That(result.Results.ToList().All(row => row.LoadState == WoTLoadStateEnum.Active), Is.True,
                 string.Join("; ", result.Results.ToList().Select(row => $"{row.Phase}: {row.Message}")));
             WoTDependencySnapshotDataType snapshot = await fixture.SnapshotAsync(a.Version);
@@ -438,6 +457,7 @@ namespace Opc.Ua.WotCon.Tests
         /// </summary>
         /// <param name="deniedScope">The source or target authorization boundary denied to the caller.</param>
         /// <param name="property">The committed or attempted dependency observation.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         [TestCase("version", "DependencySnapshot")]
         [TestCase("group", "DependencySnapshot")]
         [TestCase("origin", "DependencySnapshot")]
@@ -462,7 +482,9 @@ namespace Opc.Ua.WotCon.Tests
             Registered source = await fixture.RegisterAsync(
                 "urn:b2:source",
                 links: """[{"rel":"tm:extends","href":"model:Pump"},{"rel":"tm:extends","href":"model:Valve"}]""");
-            var refresh = await fixture.RefreshAsync([source.Selector], "global-disclosure");
+            (WoTRefreshSummaryDataType Summary,
+                ArrayOf<WoTResourceLoadResultDataType> Results,
+                uint NewGeneration) refresh = await fixture.RefreshAsync([source.Selector], "global-disclosure");
             WoTDependencySnapshotDataType authorized = await fixture.SnapshotAsync(source.Version);
             string pumpXid = await fixture.StringAsync(pump.Version, "Xid", XRegistryNamespace);
             string valveXid = await fixture.StringAsync(valve.Version, "Xid", XRegistryNamespace);
@@ -615,6 +637,7 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             public NodeId Logical => Allocation.LogicalResource.ResourceNodeId;
             public string Digest => WotContentDigest.ToHex(WotContentDigest.Compute(Content));
+
             public WoTResourceSelectorDataType Selector => new()
             {
                 Kind = Group.Kind,
@@ -652,6 +675,7 @@ namespace Opc.Ua.WotCon.Tests
             /// Gets or sets the host for <c>LiveFixture</c>.
             /// </summary>
             public PausableWotProjectionHost Host { get; private set; } = null!;
+
             public WotMaterializationCoordinator Coordinator =>
                 m_services!.GetRequiredService<WotMaterializationCoordinator>();
 
@@ -690,7 +714,7 @@ namespace Opc.Ua.WotCon.Tests
                 string type = model
                     ? "\"@type\":\"tm:ThingModel\",\"version\":{\"model\":\"" + version + "\"},"
                     : "\"@type\":\"uav:object\",";
-                ByteString content = ByteString.From(Encoding.UTF8.GetBytes($$$"""
+                var content = ByteString.From(Encoding.UTF8.GetBytes($$$"""
                     {
                       "@context":["https://www.w3.org/2022/wot/td/v1.1",
                         {"tm":"https://www.w3.org/2019/wot/tm#",
@@ -710,8 +734,8 @@ namespace Opc.Ua.WotCon.Tests
             /// </summary>
             /// <param name="selection">The resource selectors to refresh.</param>
             /// <param name="requestId">The request ID.</param>
-            /// <param name="dryRun">The dry-run flag supplied by the caller.</param>
             /// <param name="force">The force flag supplied by the caller.</param>
+            /// <param name="dryRun">The dry-run flag supplied by the caller.</param>
             public async Task<(WoTRefreshSummaryDataType Summary,
                 ArrayOf<WoTResourceLoadResultDataType> Results, uint NewGeneration)> RefreshAsync(
                 ArrayOf<WoTResourceSelectorDataType> selection, string requestId,

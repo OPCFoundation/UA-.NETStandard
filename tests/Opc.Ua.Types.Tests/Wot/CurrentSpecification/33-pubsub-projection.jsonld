@@ -1,0 +1,157 @@
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    {
+      "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+      "tm": "https://www.w3.org/2019/wot/tm#",
+      "mqv": "http://www.example.org/mqtt-binding#"
+    },
+    "../opc-ua-wot-binding.context.jsonld"
+  ],
+  "@type": [
+    "Thing",
+    "uav:projection"
+  ],
+  "id": "urn:example:view:pump-pubsub",
+  "title": "Pump PubSub view",
+  "description": "Two ordered DataSets and two typed event writers for an immutable pump view.",
+  "uav:scenario": "https://example.com/scenario/PumpPubSub",
+  "uav:publisherId": "UInt16:7",
+  "uav:messageSource": "https://factory.example.com/line1?wotid=urn:example:view:pump-pubsub;site=north",
+  "securityDefinitions": {
+    "nosec_sc": {
+      "scheme": "nosec"
+    }
+  },
+  "security": "nosec_sc",
+  "uav:projects": [
+    {
+      "uav:sourceName": "pump",
+      "href": "./01-opcua-td-pump.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "projection",
+      "uav:sourceDigest": "sha-256:4321e9785dee86c8199a0198f692eb9b7bb5096f366a3389d5f0516a649ae46e"
+    },
+    {
+      "uav:sourceName": "identity",
+      "href": "./06-anchored-paths-and-device-identity.jsonld",
+      "type": "application/td+json",
+      "uav:routing": "projection",
+      "uav:sourceDigest": "sha-256:01e294d5d045303fbb752b8f55cdc063758bbf130eda7cbdf5f43cba509bac78"
+    }
+  ],
+  "properties": {
+    "operatingData": {
+      "@type": [
+        "uav:dataSet"
+      ],
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:sourceName": "pump",
+      "uav:fieldOrder": [
+        "speed",
+        "pressure"
+      ],
+      "uav:requestedSamplingInterval": 250,
+      "properties": {
+        "speed": {
+          "uav:sourceProperty": "/properties/pumpSpeed"
+        },
+        "pressure": {
+          "uav:sourceProperty": "/properties/dischargePressure",
+          "uav:requestedSamplingInterval": 500
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "observeproperty"
+          ],
+          "uav:dataSetWriterId": 1,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/operating/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 20,
+          "mqv:filter": "plant/pump/operating",
+          "mqv:qos": 1
+        }
+      ]
+    },
+    "identification": {
+      "@type": [
+        "uav:dataSet"
+      ],
+      "type": "object",
+      "readOnly": true,
+      "observable": true,
+      "uav:sourceName": "identity",
+      "uav:fieldOrder": [
+        "serial",
+        "maker"
+      ],
+      "properties": {
+        "serial": {
+          "uav:sourceProperty": "/properties/serialNumber"
+        },
+        "maker": {
+          "uav:sourceProperty": "/properties/manufacturer"
+        }
+      },
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "observeproperty"
+          ],
+          "uav:dataSetWriterId": 2,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/identity/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 20,
+          "mqv:filter": "plant/pump/identity",
+          "mqv:qos": 1
+        }
+      ]
+    }
+  },
+  "events": {
+    "temperatureExceeded": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/events/temperatureExceeded",
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "subscribeevent"
+          ],
+          "uav:dataSetWriterId": 3,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/temperature-event/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 0,
+          "mqv:filter": "plant/pump/events/temperature",
+          "mqv:qos": 1
+        }
+      ]
+    },
+    "sealLeak": {
+      "tm:ref": "./01-opcua-td-pump.jsonld#/events/sealLeak",
+      "forms": [
+        {
+          "href": "mqtts://broker.example.test",
+          "contentType": "application/json",
+          "op": [
+            "subscribeevent"
+          ],
+          "uav:dataSetWriterId": 4,
+          "uav:messageSchema": "https://schemas.example.test/pubsub/seal-leak-event/v1",
+          "uav:requestedPublishingInterval": 1000,
+          "uav:requestedKeyFrameCount": 0,
+          "mqv:filter": "plant/pump/events/seal-leak",
+          "mqv:qos": 1
+        }
+      ]
+    }
+  }
+}

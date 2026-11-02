@@ -28,13 +28,14 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
+using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Wot;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -54,8 +55,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("tm:submodel")]
         public void LinkDependencyRetainsItsFloor(string relation)
         {
-            ByteString content = ByteString.From(Encoding.UTF8.GetBytes(
-                "{\"links\":[{\"rel\":\"" + relation +
+            var content = ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"links\":[{\"rel\":\"" +
+                relation +
                 "\",\"href\":\"urn:parent\",\"tm:minVersion\":\"1.2.0\"}]}"));
             WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
             Assert.That(metadata.Error, Is.Empty);
@@ -66,7 +68,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [Test]
         public void ReferenceDependencyRetainsItsFloor()
         {
-            ByteString content = ByteString.From(Encoding.UTF8.GetBytes(
+            var content = ByteString.From(Encoding.UTF8.GetBytes(
                 "{\"properties\":{\"p\":{\"tm:ref\":\"urn:parent#/properties/p\"," +
                 "\"tm:minVersion\":\"1.2.0\"}}}"));
             WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
@@ -74,14 +76,180 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(metadata.References[0].RequiredVersion, Is.EqualTo("1.2.0"));
         }
 
+        /// <summary>
+        /// Verifies that manifest-source requirements reach the authoritative dependency graph.
+        /// </summary>
+        [TestCase("application/tm+json")]
+        [TestCase("application/td+json")]
+        public void ProjectionSourceDependencyRetainsCommonFloor(string mediaType)
+        {
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"uav:projects\":[{\"href\":\"urn:source\",\"type\":\"" +
+                mediaType +
+                "\",\"uav:minVersion\":\"1.2.0\"}]}")), 64);
+            Assert.That(metadata.Error, Is.Empty);
+            Assert.That(metadata.References.Count, Is.EqualTo(1));
+            Assert.That(metadata.References[0].RequiredVersion, Is.EqualTo("1.2.0"));
+        }
+
+        /// <summary>
+        /// Verifies that a local dependency uses the selected containing Version despite a newer stored Version.
+        /// </summary>
+        [TestCase("1.2.0", true)]
+        [TestCase("1.3.0", false)]
+        public async Task LocalDependencyChecksSelectedContainingRevisionAsync(string floor, bool projectable)
+        {
+            using var service = new WotRegistryService();
+            WotUpsertResourceRequest request = Request("1.2.0");
+            string json = Encoding.UTF8.GetString(request.Content.Memory.ToArray());
+            request.Content = ByteString.From(Encoding.UTF8.GetBytes(json[..^1] +
+                ",\"properties\":{\"p\":{\"type\":\"number\"},\"q\":{\"tm:ref\":\"#/properties/p\"," +
+                "\"tm:minVersion\":\"" +
+                floor +
+                "\"}}}"));
+            WotRegistryMutationResult original = await service.UpsertResourceAsync(request).ConfigureAwait(false);
+            await service.UpsertResourceAsync(Request("1.5.0")).ConfigureAwait(false);
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [original.Resource!], 64,
+                service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(closures.Single().IsProjectable, Is.EqualTo(projectable));
+                Assert.That(closures.Single().Members.Single().DefaultVersionId, Is.EqualTo("1.2.0"));
+                Assert.That(service.Current.FindResource(WotRegistryGroups.ThingModels, "pump")!.DefaultVersionId,
+                    Is.EqualTo("1.5.0"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that refresh cannot silently discard a requested prerelease selection policy.
+        /// </summary>
+        [Test]
+        public void RefreshRejectsUnsupportedPrereleaseSelection()
+        {
+            var request = new WotRefreshRequest
+            {
+                Options = new WoTRefreshOptionsDataType
+                {
+                    AllowPrerelease = true,
+                    EncodingMask = (uint)WoTRefreshOptionsDataTypeFields.AllowPrerelease
+                }
+            };
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                WotCapturedRefreshRequest.Capture(request));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            request.Options.AllowPrerelease = false;
+            Assert.That(WotCapturedRefreshRequest.Capture(request).SelectsAll, Is.True);
+            request.Options.AllowPrerelease = true;
+            request.Options.EncodingMask = 0;
+            Assert.That(WotCapturedRefreshRequest.Capture(request).SelectsAll, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies optional publication-context serialization without enabling snapshot composition.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PublicationContextRoundTripsWithoutEnablingRuntime(bool present)
+        {
+            byte[] digest = [.. Enumerable.Range(1, 32).Select(number => (byte)number)];
+            var value = new WoTRefreshOptionsDataType
+            {
+                EncodingMask = present
+                    ? (uint)(WoTRefreshOptionsDataTypeFields.PublicationContext |
+                        WoTRefreshOptionsDataTypeFields.AllowPrerelease) : 0,
+                AllowPrerelease = false,
+                PublicationContext = new WoTPublicationContextDataType
+                {
+                    Uri = "urn:publication:snapshot",
+                    ManifestDigest = ByteString.From(digest.AsSpan()),
+                    EncodingMask = (uint)WoTPublicationContextDataTypeFields.ManifestDigest
+                }
+            };
+            IServiceMessageContext context = ServiceMessageContext.CreateEmpty(null!);
+            byte[] bytes;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                value.Encode(encoder);
+                bytes = encoder.CloseAndReturnBuffer()!;
+            }
+            Assert.That(bytes.Take(4), Is.EqualTo(new byte[] { present ? (byte)3 : (byte)0, 0, 0, 0 }));
+            using var decoder = new BinaryDecoder(bytes, context);
+            var decoded = new WoTRefreshOptionsDataType();
+            decoded.Decode(decoder);
+            Assert.That(decoded.EncodingMask, Is.EqualTo(value.EncodingMask));
+            Assert.That(decoded.AllowPrerelease, Is.False);
+            var request = new WotRefreshRequest { Options = decoded };
+            if (present)
+            {
+                Assert.That(decoded.PublicationContext.Uri, Is.EqualTo("urn:publication:snapshot"));
+                Assert.That(decoded.PublicationContext.ManifestDigest.Span.ToArray(), Is.EqualTo(digest));
+                ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                    WotCapturedRefreshRequest.Capture(request));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            }
+            else
+            {
+                Assert.That(WotCapturedRefreshRequest.Capture(request).SelectsAll, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the required SemVer identity fields emitted for an origin-scoped dependency.
+        /// </summary>
+        [Test]
+        public void DependencyTargetIncludesExactSemVerIdentity()
+        {
+            var pin = new WotDependencyTargetPin(0, new WotRegistryOrigin("urn:registry"),
+                "tms/pump/versions/1.2.0", "urn:pump", ExpandedNodeId.Null, ByteString.From(new byte[32].AsSpan()))
+            {
+                WotId = "urn:pump",
+                VersionId = "1.2.0",
+                Origin = "urn:registry"
+            };
+            WoTResolvedDependencyTargetDataType target = pin.ToDataType();
+            Assert.Multiple(() =>
+            {
+                Assert.That(target.WoTId, Is.EqualTo("urn:pump"));
+                Assert.That(target.VersionId, Is.EqualTo("1.2.0"));
+                Assert.That(target.VersionProfile, Is.EqualTo(WoTVersionProfileEnum.SemVer));
+                Assert.That(target.Origin, Is.EqualTo("urn:registry"));
+                Assert.That(target.EncodingMask,
+                    Is.EqualTo((uint)WoTResolvedDependencyTargetDataTypeFields.OriginRegistry));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that raw provider pins remain usable without fabricating authoritative metadata.
+        /// </summary>
+        [Test]
+        public void RawProviderPinWithoutMetadataCannotBecomeAnAuthoritativeWireTarget()
+        {
+            ByteString digest = WotContentDigest.Compute("provider"u8);
+            var pin = new WotDependencyTargetPin(
+                0, null, string.Empty, "urn:provider:document", ExpandedNodeId.Null, digest);
+            var snapshot = new WotDependencySnapshot("1.0.0", 1, "request",
+                new DateTime(2026, 11, 2, 0, 0, 0, DateTimeKind.Utc), true, digest,
+                [new WotDependency("/source", "urn:provider:document", "/provider", "tm:ref", true)], [pin]);
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() => snapshot.ToDataType());
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(pin.ContentDigest, Is.EqualTo(digest));
+                Assert.That(pin.DocumentUri, Is.EqualTo("urn:provider:document"));
+                Assert.That(pin.Origin, Is.Null);
+            });
+        }
+
         [TestCase("td:minVersion", "")]
         [TestCase("tm:minVersion", "invalid-floor")]
         public void ThingDescriptionReferenceUsesItsTargetFloorTerm(string floorTerm, string expectedError)
         {
-            ByteString content = ByteString.From(Encoding.UTF8.GetBytes(
+            var content = ByteString.From(Encoding.UTF8.GetBytes(
                 "{\"@context\":{\"td\":\"https://www.w3.org/2019/wot/td#\"}," +
                 "\"id\":\"urn:consumer\",\"links\":[{\"rel\":\"td:extends\"," +
-                "\"href\":\"urn:base\",\"" + floorTerm + "\":\"1.2.0\"}]}"));
+                "\"href\":\"urn:base\",\"" +
+                floorTerm +
+                "\":\"1.2.0\"}]}"));
 
             WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
 
@@ -160,7 +328,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             request.VersionId = supplied;
             WotRegistryMutationResult result = await service.UpsertResourceAsync(request).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-            Assert.That(result.Diagnostics.Concat(new[] { result.Message }), Does.Contain(error));
+            Assert.That(result.Diagnostics.Concat([result.Message]), Does.Contain(error));
         }
 
         [Test]
@@ -187,7 +355,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
             WotRegistryMutationResult source = await service.UpsertResourceAsync(
                 Consumer("urn:pump:v1", floor)).ConfigureAwait(false);
-            var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
                 service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
             WotResource model = closures.Single().Members.Single(member => member.ResourceId == "pump");
             Assert.That(model.DefaultVersionId, Is.EqualTo(expected));
@@ -209,14 +377,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 .ConfigureAwait(false);
             if (exactPin)
             {
-                var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
+                ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
                     service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(closures.Single().Members.Single(member => member.ResourceId == "pump").DefaultVersionId,
                     Is.EqualTo("1.0.0"));
             }
             else
             {
-                var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
+                ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
                     service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
                 WotDependencyClosure closure = closures.Single();
                 Assert.That(closure.IsProjectable, Is.False);
@@ -236,7 +404,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryMutationResult source = await service.UpsertResourceAsync(
                 Consumer("urn:pump:v1", "2.0.0")).ConfigureAwait(false);
 
-            var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current,
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current,
                 [source.Resource!, other.Resource!], 64, service.ReadContentAsync, CancellationToken.None)
                 .ConfigureAwait(false);
             WotDependencyClosure failed = closures.Single(closure =>
@@ -274,10 +442,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@type\":\"Thing\",\"id\":\"urn:consumer\",\"version\":{\"model\":\"invalid\"}," +
-                    "\"links\":[{\"rel\":\"type\",\"href\":\"" + model.Xid + "/versions/1.0.0\"}]}"))
+                    "\"links\":[{\"rel\":\"type\",\"href\":\"" +
+                    model.Xid +
+                    "/versions/1.0.0\"}]}"))
             }).ConfigureAwait(false);
             Assert.That(source.Resource!.DefaultVersion!.Dependencies!.Error, Is.Empty);
-            var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource], 64,
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource], 64,
                 service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
@@ -347,7 +517,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         public async Task GeneratedPlaceholderCanReceiveItsUnversionedModelAsync()
         {
             using var service = new WotRegistryService();
-            var created = await service.GetOrCreateVersionAsync(WotRegistryGroups.ThingModels,
+            (WotResource Resource, WotResourceVersion Version, bool Created) created =
+                await service.GetOrCreateVersionAsync(WotRegistryGroups.ThingModels,
                 "pump", string.Empty, WoTDocumentKindEnum.ThingModel).ConfigureAwait(false);
             Assert.That(created.Version.VersionId, Is.EqualTo("0.0.0-1"));
             WotUpsertResourceRequest request = Request(null);
@@ -453,7 +624,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryMutationResult result = await service.UpsertResourceAsync(request).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-            Assert.That(result.Diagnostics.Concat(new[] { result.Message }), Does.Contain("version-mismatch"));
+            Assert.That(result.Diagnostics.Concat([result.Message]), Does.Contain("version-mismatch"));
         }
 
         private static WotUpsertResourceRequest Consumer(string target, string floor)
@@ -465,7 +636,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@type\":\"Thing\",\"id\":\"urn:consumer\",\"links\":[{\"rel\":\"tm:extends\"," +
-                    "\"href\":\"" + target + "\",\"tm:minVersion\":\"" + floor + "\"}]}"))
+                    "\"href\":\"" +
+                    target +
+                    "\",\"tm:minVersion\":\"" +
+                    floor +
+                    "\"}]}"))
             };
         }
 
@@ -479,7 +654,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"]," +
                     "\"@type\":\"Thing\",\"id\":\"urn:consumer\"," +
-                    "\"version\":{\"model\":\"1.2.0\",\"instance\":\"" + instanceVersion + "\"}}"))
+                    "\"version\":{\"model\":\"1.2.0\",\"instance\":\"" +
+                    instanceVersion +
+                    "\"}}"))
             };
         }
 
@@ -495,7 +672,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                     "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"}],\"@type\":\"tm:ThingModel\"," +
-                    "\"id\":\"" + id + "\"" + version + "}"))
+                    "\"id\":\"" +
+                    id +
+                    "\"" +
+                    version +
+                    "}"))
             };
         }
     }

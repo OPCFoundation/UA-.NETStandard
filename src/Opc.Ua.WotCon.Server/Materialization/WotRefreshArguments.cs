@@ -180,14 +180,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return ServiceResult.Good;
             }
-            if (!value.TryGetValue(out ExtensionObject extension) ||
-                ServiceResult.IsBad(TryDecodeExtensionObject(extension, context, out options)) || options is null)
+            if (value.TryGetValue(out ExtensionObject extension))
             {
-                return ServiceResult.Create(
-                    StatusCodes.BadInvalidArgument,
-                    "The Options argument must be a single WoTRefreshOptionsDataType.");
+                ServiceResult status = TryDecodeExtensionObject(extension, context, out options);
+                if (ServiceResult.IsBad(status) || options is not null)
+                {
+                    return status;
+                }
             }
-            return ServiceResult.Good;
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidArgument,
+                "The Options argument must be a single WoTRefreshOptionsDataType.");
         }
 
         private static ServiceResult TryDecodeUInt32(Variant value, out uint result)
@@ -265,9 +268,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (extension.TryGetValue(out Structure? structure, context) && structure is not null)
             {
-                if (typeof(T) == typeof(WoTRefreshOptionsDataType) &&
-                    TryDecodeDynamicOptions(structure, out WoTRefreshOptionsDataType? options))
+                if (typeof(T) == typeof(WoTRefreshOptionsDataType))
                 {
+                    if (!TryDecodeDynamicOptions(structure, out WoTRefreshOptionsDataType? options))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                            "The dynamic refresh options are invalid.");
+                    }
+                    if (TryReadOptionalField(structure, "PublicationContext", out _))
+                    {
+                        return ServiceResult.Create(StatusCodes.BadNotSupported,
+                            "Refresh does not support publication channel or snapshot composition.");
+                    }
                     value = (T)(IEncodeable)options!;
                     return ServiceResult.Good;
                 }
@@ -356,14 +368,56 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 MaxParallelism = GetUInt32(structure, "MaxParallelism"),
                 Timeout = GetDouble(structure, "Timeout")
             };
+            if (TryReadOptionalField(structure, "AllowPrerelease", out Variant field))
+            {
+                if (!field.TryGetValue(out bool allowPrerelease))
+                {
+                    options = null;
+                    return false;
+                }
+                options.AllowPrerelease = allowPrerelease;
+                options.EncodingMask |= (uint)WoTRefreshOptionsDataTypeFields.AllowPrerelease;
+            }
             return true;
         }
 
+        /// <summary>
+        /// Reads an optional field without losing its independent encoding-mask presence.
+        /// </summary>
+        private static bool TryReadOptionalField(Structure structure, string name, out Variant value)
+        {
+            uint mask = 1;
+            foreach (IStructureField field in structure.GetFields())
+            {
+                if (field.Name == name)
+                {
+                    if (field.IsOptional &&
+                        structure is StructureWithOptionalFields optional &&
+                        (optional.EncodingMask & mask) == 0)
+                    {
+                        break;
+                    }
+                    value = structure[name];
+                    return true;
+                }
+                if (field.IsOptional)
+                {
+                    mask <<= 1;
+                }
+            }
+            value = default;
+            return false;
+        }
+
         private static bool GetBoolean(Structure structure, string fieldName)
-            => structure[fieldName].TryGetValue(out bool value) && value;
+        {
+            return structure[fieldName].TryGetValue(out bool value) && value;
+        }
 
         private static double GetDouble(Structure structure, string fieldName)
-            => structure[fieldName].TryGetValue(out double value) ? value : 0;
+        {
+            return structure[fieldName].TryGetValue(out double value) ? value : 0;
+        }
 
         private static TEnum GetEnum<TEnum>(Structure structure, string fieldName)
             where TEnum : struct, Enum
@@ -374,6 +428,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static uint GetUInt32(Structure structure, string fieldName)
-            => structure[fieldName].TryGetValue(out uint value) ? value : 0;
+        {
+            return structure[fieldName].TryGetValue(out uint value) ? value : 0;
+        }
     }
 }

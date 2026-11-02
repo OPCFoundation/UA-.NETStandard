@@ -474,7 +474,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             WotRefreshResult repeated = await RefreshAsync().ConfigureAwait(false);
             Assert.That(repeated.NewGeneration, Is.EqualTo(outcome.Generation));
-            Assert.That(repeated.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
+            Assert.That(repeated.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged),
+                string.Join("; ", repeated.Results.Select(row => row.ResourceId + ": " + row.Message)));
             Assert.That(m_registry.Current.FindResourceByXid(inner.Xid)!.LoadState,
                 Is.EqualTo(WoTLoadStateEnum.Retired));
             Assert.That(m_coordinator.CommittedPublication.Views.Count, Is.EqualTo(1));

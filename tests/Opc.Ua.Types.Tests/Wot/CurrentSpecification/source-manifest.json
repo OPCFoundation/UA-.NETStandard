@@ -1,0 +1,206 @@
+{
+  "repository": "https://github.com/OPCF-Members/OPC10100-WoT",
+  "commit": "f3440825b4fe1a316b270e01452239fb3f3bfe57",
+  "files": [
+    {
+      "name": "01-opcua-td-pump.jsonld",
+      "bytes": 7521,
+      "sha256": "4321e9785dee86c8199a0198f692eb9b7bb5096f366a3389d5f0516a649ae46e"
+    },
+    {
+      "name": "02-thing-model-pump.jsonld",
+      "bytes": 7451,
+      "sha256": "407f05f7a3e70a8d6e4178e9b509b8ef107af36b989c233880decfc1fd5dc325"
+    },
+    {
+      "name": "03-nodeset-preservation-envelope.jsonld",
+      "bytes": 2995,
+      "sha256": "67732b2aa458ee995fa42eaa9d5e2b100c02524c618fd31ae85e0441a238ea57"
+    },
+    {
+      "name": "04-type-reference-modelling-rule.jsonld",
+      "bytes": 3610,
+      "sha256": "982936005b4ec3b753e3ab878b4ab1d3b6e16b865e85640a3d5a3d47844adb93"
+    },
+    {
+      "name": "05-native-node-model.jsonld",
+      "bytes": 1925,
+      "sha256": "da4e4ca9e7c59444124527d02d395360c074b1af93ff4a27481ca1c2a5c87205"
+    },
+    {
+      "name": "06-anchored-paths-and-device-identity.jsonld",
+      "bytes": 2413,
+      "sha256": "01e294d5d045303fbb752b8f55cdc063758bbf130eda7cbdf5f43cba509bac78"
+    },
+    {
+      "name": "07-projection-predictive-maintenance.jsonld",
+      "bytes": 1765,
+      "sha256": "40dfa079fc77e3d1e8bbab67cc48b3a47bb0de9c8955976e352a16cb6fb4f1ae"
+    },
+    {
+      "name": "08-projection-resolved.jsonld",
+      "bytes": 8502,
+      "sha256": "47e1b35088732eeef4068d64a8fc85e3f893f0ac5a3aafecdd1a2586ed806eec"
+    },
+    {
+      "name": "09-asset-instance.jsonld",
+      "bytes": 1632,
+      "sha256": "98da4228624d961a10424c482e3a4f75d5b71e1f06fce968fbf83fc51db6b14b"
+    },
+    {
+      "name": "10-group-process-data.jsonld",
+      "bytes": 1227,
+      "sha256": "e8250d83612f6f99f3f1da46cb38d04898a579fd807327f8bdff2739d2101ea1"
+    },
+    {
+      "name": "11-group-condition-data.jsonld",
+      "bytes": 1225,
+      "sha256": "83ca95a2df291a731127717552fdc15c296f94568532731d09e52c986e648071"
+    },
+    {
+      "name": "12-group-alarms.jsonld",
+      "bytes": 979,
+      "sha256": "aad3c15f315af4d4e0b39e1af6b729ef0ed623bcd78c4ec16143c962bec11495"
+    },
+    {
+      "name": "13-group-management.jsonld",
+      "bytes": 924,
+      "sha256": "6c6063af54bcd1629eecd57a2dad87d9d823ce19e945c548e5133ebc82b42da0"
+    },
+    {
+      "name": "14-asset-instance-resolved.jsonld",
+      "bytes": 4565,
+      "sha256": "0b36621d6fad309504d6f2b07fce429908ff2a2f45a517d6918e19baabf776a9"
+    },
+    {
+      "name": "15-asset-model.jsonld",
+      "bytes": 1717,
+      "sha256": "dd6b860a760f8287ba167bedf0448f3c14e64070d0467c8a873ea6d717a9761e"
+    },
+    {
+      "name": "16-model-group-process-data.jsonld",
+      "bytes": 1045,
+      "sha256": "d5f6efaf52265cca1c0c6f338407f27b089f6b163f34c712683dfee1b267b796"
+    },
+    {
+      "name": "17-model-group-condition-data.jsonld",
+      "bytes": 1168,
+      "sha256": "ecb636237022521b922d445fcb27d53de04abcd76b29a67cef08953ee0ffbc65"
+    },
+    {
+      "name": "18-model-group-alarms.jsonld",
+      "bytes": 910,
+      "sha256": "9d9c7c7d99f14b945bcb479641421f1b953be0f6dc7b10065663d59354163be9"
+    },
+    {
+      "name": "19-model-group-management.jsonld",
+      "bytes": 921,
+      "sha256": "947a459e342c7c1daea18e15221244009bc2f9d898449ebaad7796eab8f2137e"
+    },
+    {
+      "name": "20-asset-model-resolved.jsonld",
+      "bytes": 1860,
+      "sha256": "1334a6505e127b5899269901aa75e47730b4bb174688716f90aefb2f5cbbfc1a"
+    },
+    {
+      "name": "21-condition-limit-alarm.jsonld",
+      "bytes": 8107,
+      "sha256": "a8ad2a095912cc27483540ca9ff3a74131049b1ac0898e6b07fff5d871db232f"
+    },
+    {
+      "name": "22-type-binding-and-instance-reference.jsonld",
+      "bytes": 2072,
+      "sha256": "a152c6f29af74ecd495e9f5f09e0f9908a7d6ba97b232faee4d276ed4b6d06f8"
+    },
+    {
+      "name": "23-datatype-definitions.jsonld",
+      "bytes": 17350,
+      "sha256": "5e21e4924a9e204d3204dbc76ab0a33134071065735641e24f7aa3761ffb00bc"
+    },
+    {
+      "name": "24-localized-text-fallback.jsonld",
+      "bytes": 5399,
+      "sha256": "477a7c49ba078c79855dfbb59b90a4da0ac3561fe1888bcc61a826145b80013a"
+    },
+    {
+      "name": "25-reference-type-node.jsonld",
+      "bytes": 1169,
+      "sha256": "337502d52952eb17a037ec15727ba22a7710323669f289f492cd83f7b4aa073e"
+    },
+    {
+      "name": "26-data-type-node.jsonld",
+      "bytes": 2443,
+      "sha256": "e74319bc74a1b6565da6998187c2265ca0f2bce5b80b0251c3f3b50fddedd9d3"
+    },
+    {
+      "name": "27-event-type-models.jsonld",
+      "bytes": 11446,
+      "sha256": "f60d93e662b4d8687188b4097fd1231a52bc4621049e16cc2e1ddf8123af8d93"
+    },
+    {
+      "name": "28-channel-monitoring-type.jsonld",
+      "bytes": 863,
+      "sha256": "934b8fc3615203c725af22720d173a34c11c9ee657b7f0e089fb295a6023ee14"
+    },
+    {
+      "name": "29-flattened-monitoring-payload.jsonld",
+      "bytes": 1938,
+      "sha256": "7d36eb6e1bd3f447e6c48f270b9d840196a0aff32a9d8bbe19b02f937c52148d"
+    },
+    {
+      "name": "30-flattened-monitoring-payload-tool08.jsonld",
+      "bytes": 1988,
+      "sha256": "4904d649d0aee7d6cb5d3a906229325f87b47c8f7eebdcdc6e81d33669b5cf66"
+    },
+    {
+      "name": "31-projection-spindle-monitoring.jsonld",
+      "bytes": 1275,
+      "sha256": "42917f0e00a99fd9f8264cbf1e30d90aff1aa69f1c48d66cede57ba8ca0dbaba"
+    },
+    {
+      "name": "32-projection-spindle-monitoring-resolved.jsonld",
+      "bytes": 4177,
+      "sha256": "d5083b186db8ab11a28375f84eb1f71e22e4e5952cd8ef10021143f59d696583"
+    },
+    {
+      "name": "33-pubsub-projection.jsonld",
+      "bytes": 4603,
+      "sha256": "aa553c818bd26f23eaa68a889a3518193e42dedc1869c03162acacf8df7c5f00"
+    },
+    {
+      "name": "34-pubsub-projection-resolved.jsonld",
+      "bytes": 14404,
+      "sha256": "be72a431bc6e661f44518c51c680f803578351f47dd52d3caeddbdc009c30212"
+    },
+    {
+      "name": "35-declaration-machine-model.jsonld",
+      "bytes": 1183,
+      "sha256": "fffd6448588ae1060b8f5bdb61903e37b188b207d5ffd898fc08f080d50f2c99"
+    },
+    {
+      "name": "36-declaration-axis-model.jsonld",
+      "bytes": 506,
+      "sha256": "4fbe672eb1e8d0e5f35349915dff3a2733d8ad80a91944bb269a4d390ae1839e"
+    },
+    {
+      "name": "37-declaration-machine-instance.jsonld",
+      "bytes": 3355,
+      "sha256": "57163c91cfb1dbeaa9c926ab453443e1b4ac78695b5f42b7caa4c86fd35faaca"
+    },
+    {
+      "name": "38-declaration-axis-instance.jsonld",
+      "bytes": 781,
+      "sha256": "d64e0c7fb6984156f073bf7cb494a275c299dc0264542453270d08bda5b04bfe"
+    },
+    {
+      "name": "39-native-annotations.jsonld",
+      "bytes": 58859,
+      "sha256": "6f76dec8cd1ad925002c9f70be9537b7b377571797bbd26ddbc1851b1add2b59"
+    },
+    {
+      "name": "opc-ua-wot-binding.context.jsonld",
+      "bytes": 10476,
+      "sha256": "ff52c57602aac26e8f95cc45cde1e3797efe0aa53da9eb1b1c22cb2fac051a2f"
+    }
+  ]
+}
