@@ -509,11 +509,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 $"connected {sessions.Length} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
             if (publishRequests > 0)
             {
-                // outstanding Publish requests per session (the client default adapts to the subscriptions)
+                // outstanding Publish requests per session (the client default adapts to the subscriptions);
+                // the classic engine accepts a minimum of at most 100, so a derived default is capped there
+                // while the server keeps the full limit
+                int minimum = clientKind != "managed" && !TryGetArg("publish-requests", out _)
+                    ? Math.Min(publishRequests, 100)
+                    : publishRequests;
                 foreach (ISession session in sessions)
                 {
                     session.MaxPublishRequestCount = Math.Max(session.MaxPublishRequestCount, publishRequests);
-                    session.MinPublishRequestCount = publishRequests;
+                    session.MinPublishRequestCount = minimum;
                 }
             }
 
