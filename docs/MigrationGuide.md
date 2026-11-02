@@ -77,36 +77,6 @@ copilot plugin install opcua-v20-migration@opcua-dotnet
 
 ## Migrating NodeManager lifecycle convenience calls
 
-For new callers, use `LifecycleChange.Add`, `Reload`/`Replace`, and `Remove` with
-`lifecycle.ApplyAsync(ArrayOf<LifecycleChange>, ct)`, or obtain an `ILifecycleWriter`
-through `lifecycle.BeginAsync(expectedRevision, ct)` and prepare `IPreparedChanges`.
-Reload/removal targets are stable slots, resolved once during preparation. The older
-`NodeManagerBatchChange` overload still targets an exact registration; it does not acquire
-stable-slot semantics through recompilation.
-
-`ApplyAsync`, `BeginAsync`, `CaptureChanges` and slot-based `PrepareAsync` are extensions in this compatibility
-layer, not required members of `INodeManagerLifecycle`. Existing providers and binaries retain
-their preceding interface contract, including on net48. Mocks intercept its existing batch
-`PrepareAsync`/`CapturePublication` members rather than these extensions. This differs from the
-report's direct interface-member proposal to avoid another breaking provider migration.
-Custom providers adopting the slot extensions must honor `NodeManagerBatchChange.TargetSlot`
-during preparation; old exact-registration calls continue to use `Current`. The adapter rejects
-replacement candidate results with a different slot before committing.
-The rebuild requirement below concerns the earlier 2.0.0/2.0.1 convenience-member removal,
-not the additive change-set layer.
-
-`LifecycleResult` is the committed status owner. Existing `NodeManagerBatchResult` properties
-forward to `CommittedResult`; its legacy `uint Retired` and `Task Retirement` remain unchanged,
-while the new result exposes `Retired` as a `Task` and `RetiredCount` separately. Compatibility
-committed exceptions implement `INodeManagerCommittedFailure`; their `CommittedResult` is null
-only when a legacy constructor had no result. Bind typed metadata for candidates or unchanged
-live owners through `IPreparedChanges.SetMetadata(slot, INodeManagerReadImage)`, or let
-`SetMetadata(image)` resolve the owner's existing slot. Use the writer's metadata-only
-preparation when no topology changes are required. Capture pre-input revision evidence with
-`lifecycle.CaptureChanges()` and validate private candidates with `writer.ValidateAsync`.
-See [change sets](NodeManagerChangeSets.md) for single/batch examples, abort,
-committed failure, nested publication, supersession and independent retirement.
-
 `INodeManagerLifecycle` exposes `Revision`, stable `Slots`, registration snapshots, and the
 context-free prepared transaction API. `AddAsync`, `ReloadAsync`, `ShadowReloadAsync`,
 `ImmediateReloadAsync`, and `RemoveAsync` are no longer interface or concrete provider members.
@@ -127,24 +97,23 @@ get nullable warnings.
 
 | Previous call | Prepared change |
 | --- | --- |
-| `AddAsync(factory)` | `LifecycleChange.Add(asyncFactory)` |
-| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
-| `ImmediateReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
-| `RemoveAsync(current)` | `LifecycleChange.Remove(current.Slot)` |
+| `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |
+| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
+| `ImmediateReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
+| `RemoveAsync(current)` | `NodeManagerBatchChange.Remove(current)` |
 | Runtime NodeSet add/reload helpers | The same changes using `new RuntimeNodeSetNodeManagerFactory(options)` |
 
 ```csharp
-await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
-    [LifecycleChange.Replace(current.Slot, factory)], cancellationToken);
-LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken);
+await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+    [NodeManagerBatchChange.Replace(current, factory)], cancellationToken);
+NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, cancellationToken);
 current = result.Registrations[0]; // Authoritative even if result.CleanupFailure is non-null.
 ```
 
-Pass no callback context to `PrepareAsync` or `CaptureChanges().BeginAsync`. Obsolete context
+Pass no callback context to `PrepareAsync` or `CapturePublication().BeginAsync`. Obsolete context
 extensions ignore it and forward only the changes and cancellation token. Use an
-`IAsyncNodeManagerFactory` for new transactions; `factory.AsAsync()` exposes the existing
-synchronous factory adapter when migrating a factory, without synchronous-over-asynchronous
-publication. There is no retained-generation reload mode.
+`IAsyncNodeManagerFactory` for new transactions; the synchronous factory adapter exists only in
+the obsolete shims. There is no retained-generation reload mode.
 
 `Invalidate` and removal make existing monitored items terminal: each item reports
 `BadNodeIdUnknown` once and cannot recover when a matching node is later added. Clients must create
@@ -164,7 +133,7 @@ single-operation pipeline, committed runtime readiness uses a noncancelable toke
 after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.
 Inspect `CleanupFailure`
 and retain the published revision/slots/registrations rather than retrying a committed operation as
-an addition. Await `result.Retired` only outside work whose admission must drain. The compatibility
+an addition. Await `result.Retirement` only outside work whose admission must drain. The compatibility
 shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, and
 `NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
 `Result`. Add/reload exceptions created using their legacy constructors have no result.
@@ -182,10 +151,7 @@ or metadata change makes that candidate stale; an explicit prepared transaction'
 with `InvalidOperationException` before invoking the durable decision. Handle that conflict
 explicitly and prepare a new transaction if appropriate; explicit prepared transactions do not
 automatically rerun factories or rebase private namespace indexes.
-The obsolete compatibility convenience operations retry stale preparation with a fresh transaction
-only when the conflict is tagged to that exact candidate, before decision and commit, with at most
-three attempts. They never retry factory, cleanup, decision or committed failures. Captured stale
-writers cannot prepare; explicit stale prepared units are consumed before decision without retry.
+The obsolete compatibility convenience operations retry stale preparation with a fresh transaction.
 For Add and Reload, each retry invokes the factory to create a fresh candidate rather than rebasing
 the previous candidate's private namespace indexes.
 

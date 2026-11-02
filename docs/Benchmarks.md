@@ -48,7 +48,10 @@ session scalability.
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
   - [Sizing and configuration](#sizing-and-configuration)
-- [NodeManager S4 notification and activation costs](#nodemanager-s4-notification-and-activation-costs)
+- [NodeManager lifecycle measurements](#nodemanager-lifecycle-measurements)
+  - [Type registration snapshots](#type-registration-snapshots)
+  - [Notification and permission costs](#notification-and-permission-costs)
+  - [Session activation scaling](#session-activation-scaling)
 
 ## How to run
 
@@ -859,14 +862,68 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
 
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
 
-## NodeManager S4 notification and activation costs
+## NodeManager lifecycle measurements
 
-S4 is based on S3 commit `1b777fde9fa07adf4ffbd0bbaa82acd90e5d28be`. The
-repository has workload and behavior coverage, but no qualifying alternating
-S3/candidate measurements for F6 or F7. No notification or session-activation
-runtime code is changed, and this section makes no performance claim.
+These measurements cover metadata capture and private candidate preparation.
+They do not measure complete lifecycle transactions or establish notification,
+session-activation or retirement throughput.
 
-### F6: notification and permission costs
+### Type registration snapshots
+
+Type-table snapshots share a registration graph until their first write.
+The first mutation copies that graph; capture alone does not. See
+[NodeManager DataTypes](NodeManagers.md#datatypes) for the publication and
+ownership contract.
+
+A three-round sequential net10.0 Release comparison against
+`fcfc84eab5c105780d7268474a47d344d100aca1` recorded the following medians
+for five snapshots. The candidate uses copy-on-write type registration storage.
+This record does not identify the candidate SHA or machine configuration,
+so the figures describe that run rather than a reproducible capacity baseline.
+
+| Registered types | Baseline time / allocation | Copy-on-write time / allocation |
+| ---: | ---: | ---: |
+| 128 | 0.172 ms / 43,696 bytes | 0.024 ms / 5,216 bytes |
+| 2,048 | 7.827 ms / 828,296 bytes | 0.018 ms / 5,216 bytes |
+| 16,384 | 26.784 ms / 4,596,984 bytes | 0.017 ms / 5,208 bytes |
+
+At 16,384 types, five first mutations measured 29.054 ms and 4,597,048 bytes
+on the candidate. Copying moves from capture under the serving-table lock
+to the first write under the private staging-table lock; total copy work is
+not eliminated.
+
+A separate three-round alternating net10.0 Release comparison used baseline
+`0a48fb5cf2de4c9bec3a2beafe41d8caedb482ea` and candidate
+`1cf9db60d24feb1b916f2e4741d92a1334f4f5c7`. Each round measured five
+`LifecycleWriter.CaptureRevision` calls, then four concurrent preparations
+through `ChangePreparer.CreateNodeManagerAsync`. Each factory added one
+distinct root subtype to its private type table. Capture columns report
+median elapsed time and allocation; preparation columns report median wall
+time and summed worker allocations.
+
+| Registered types | Baseline capture, 5 calls | Candidate capture, 5 calls | Baseline preparation, 4 candidates | Candidate preparation, 4 candidates |
+| ---: | ---: | ---: | ---: | ---: |
+| 128 | 0.29 ms / 225,568 bytes | 0.14 ms / 32,888 bytes | 2.97 ms / 394,168 bytes | 3.34 ms / 420,056 bytes |
+| 2,048 | 9.81 ms / 4,148,568 bytes | 0.08 ms / 32,888 bytes | 3.01 ms / 3,470,232 bytes | 10.55 ms / 3,491,872 bytes |
+| 16,384 | 22.85 ms / 22,992,048 bytes | 0.09 ms / 32,888 bytes | 23.87 ms / 18,547,144 bytes | 6.33 ms / 18,572,808 bytes |
+
+Candidate capture time and allocation stayed nearly constant as the model
+grew. Preparation with a first type write was faster at 16,384 types, similar
+at 128 and slower at 2,048; worker allocations were close at every size.
+The fixture measures metadata capture, staging-server creation and one type
+registration. Its models use root registrations rather than a representative
+hierarchy, and it does not measure address-space construction or routing
+publication. Machine configuration is not recorded for this comparison.
+Treat the timings as directional.
+
+The explicit diagnostic fixtures are
+`TypeTableSnapshotPerformanceTests.CaptureSnapshotReportsTimeAndAllocation`
+in `Opc.Ua.Types.Tests` and
+`TypeRegistrationSnapshotPerformanceTests.CaptureRevisionAndConcurrentPreparationReportTimeAndAllocationAsync`
+in `Opc.Ua.Server.Tests`. Select them by full method name in a Release
+`dotnet test` run to collect the corresponding measurements.
+
+### Notification and permission costs
 
 `perf/ServerLoadHarness` can run write-driven `sub`, sampled `native-counters`,
 and high-fanout `events` scenarios. It reports total server CPU and allocation
@@ -877,32 +934,20 @@ each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
 `MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
 does not exercise subscriber delivery or authorization.
 
-The published load results use commit `f6b27025a`, not the S3 base, and are not
-an alternating S3/candidate comparison. No candidate cache or copy-on-write
-registration has been measured against S3. F6 therefore remains unqualified:
-the existing harness can characterize the full workload, but its results alone
-cannot select one of these changes or meet the required per-cost A/B evidence.
+Whole-workload CPU and allocation measurements do not establish the cost of
+an individual cache or registration-storage change. No isolated comparative
+measurement is recorded here for those costs.
 
-### F7: session activation scaling
+### Session activation scaling
 
-`SessionManager.GetSessions()` creates a list from `m_sessions.Values`
-(`src/Opc.Ua.Server/Session/SessionManager.cs:3272-3274`).
-`MasterNodeManager.SessionActivatedAsync` searches that list
-(`src/Opc.Ua.Server/NodeManager/MasterNodeManager.cs:576-587`).
+`SessionManager.GetSessions()` creates a list from `m_sessions.Values`.
+`MasterNodeManager.SessionActivatedAsync` searches that list.
 `GenerationReconciler` enumerates it during binding and reconciliation, and
 checks session identity by taking new snapshots around activation callbacks
-(`src/Opc.Ua.Server/NodeManager/Lifecycle/GenerationReconciler.cs:65, 121-125,
-455-461`).
+in `src/Opc.Ua.Server/NodeManager/Lifecycle/GenerationReconciler.cs`.
 
-The `GenerationReconcilerTests` fixtures mock `GetSessions()` to supply session
-states; they do not verify its invocation count or measure copy, CPU, or
-allocation scaling. The existing session-load test measures connection
-establishment and steady-state notification delivery, not activation cost
-versus generation count during concurrent publication and close. No identity
-index is introduced: the required ordering, close callbacks, and teardown
-behavior have not been compared under a measured candidate.
-
-F7 remains unqualified until an alternating run records activation cost across
-session and generation counts while publication and close race, and verifies
-that binding callbacks are neither lost nor duplicated and that teardown leaves
-no stale session record.
+The session-load test measures connection establishment and steady-state
+notification delivery, not activation cost versus generation count during
+concurrent publication and close. No activation-scaling comparison is recorded
+here. Connection throughput must not be interpreted as a measurement of that
+reconciliation path.
