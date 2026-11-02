@@ -141,11 +141,13 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             var first = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
             var second = await client.CallWithStatusAsync(new NodeId(2000), CancellationToken.None).ConfigureAwait(false);
+            ArrayOf<Variant> expectedFirst = [new Variant(7)];
+            ArrayOf<Variant> expectedSecond = [new Variant(8)];
 
             Assert.That(first.CallStatus, Is.EqualTo(StatusCodes.Uncertain));
-            Assert.That(first.OutputArguments, Is.EqualTo(new ArrayOf<Variant>([new Variant(7)])));
+            Assert.That(first.OutputArguments, Is.EqualTo(expectedFirst));
             Assert.That(second.CallStatus, Is.EqualTo(StatusCodes.Good));
-            Assert.That(second.OutputArguments, Is.EqualTo(new ArrayOf<Variant>([new Variant(8)])));
+            Assert.That(second.OutputArguments, Is.EqualTo(expectedSecond));
             session.Verify(s => s.CallAsync(
                 null, It.Is<ArrayOf<CallMethodRequest>>(r => r[0].MethodId == new NodeId(2000)),
                 It.IsAny<CancellationToken>()), Times.Once());
