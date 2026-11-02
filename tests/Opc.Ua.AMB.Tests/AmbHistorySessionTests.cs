@@ -1702,7 +1702,7 @@ namespace Opc.Ua.AMB.Tests
         /// Observes queue completion at the provider before asserting session authorization, filtering and paging.
         /// </summary>
         private static async Task WaitForCapturedMessageAsync(
-            IHistorianEventProvider provider,
+            InMemoryHistorianProvider provider,
             AssetHandle handle,
             string message)
         {
