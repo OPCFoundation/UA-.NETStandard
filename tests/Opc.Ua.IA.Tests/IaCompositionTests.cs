@@ -60,8 +60,8 @@ namespace Opc.Ua.IA.Tests
             Assert.That(nodes, Has.Some.Property(nameof(NodeState.NodeId)).EqualTo(
                 ExpandedNodeId.ToNodeId(ObjectTypeIds.CalibrationTargetType, fixture.Context.NamespaceUris)));
             provider.AddPredefinedNodes(nodes, fixture.Context);
-            Assert.That(nodes.Count, Is.EqualTo(count));
-            Assert.That(nodes.Select(node => node.NodeId).Distinct(), Has.Count.EqualTo(count));
+            Assert.That(nodes, Has.Count.EqualTo(count));
+            Assert.That(nodes.Select(node => node.NodeId).Distinct().ToArray(), Has.Count.EqualTo(count));
             Assert.That(typeof(BasicStacklightState).Assembly, Is.SameAs(typeof(ObjectTypeIds).Assembly));
             Assert.That(typeof(IaStacklight).Assembly, Is.Not.SameAs(typeof(BasicStacklightState).Assembly));
         }
