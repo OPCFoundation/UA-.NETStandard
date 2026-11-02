@@ -1602,8 +1602,15 @@ last completion summary.
 
 `LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` require the same
 `INodeManagerLifecycle` transaction provider. The source adapter prepares through
-`PrepareAsync(changes, ct)` and begins captured invocations through
-`CapturePublication().BeginAsync(ct)` without forwarding a request context.
+`ILifecycleWriter.PrepareAsync(ArrayOf<LifecycleChange>, ct)` and retains
+`IPreparedChanges` until commit or abort. `CaptureChanges()` captures routing,
+type and factory revisions before input acquisition; beginning that capture does
+not replace stale evidence. No request context is forwarded to the lifecycle.
+Dry runs use `writer.ValidateAsync` to inspect and validate a noncommittable
+candidate without publishing namespaces, routes or readiness notifications.
+Source and canonical View changes bind metadata for the unchanged registry manager
+through `prepared.SetMetadata(image)`, so one durable decision publishes both
+the new topology and its registry read image.
 Per-generation binding records coordinate callbacks without global binding admission;
 publication still awaits reconciliation and readiness before returning.
 The default lifecycle and file registry with
@@ -1620,6 +1627,8 @@ deployments must inject a genuine immutable version/key lease provider.
 Custom source hosts bind registry read images before the deciding commit;
 topology-free observations use `PrepareReadImagesAsync` without source reload.
 Custom View owners expose `IWotCanonicalViewReadImage` for captured native reads.
+Their `IWotPreparedViewPublication.Changes` contributes `ArrayOf<LifecycleChange>`
+to the source host's transaction; replacements target the prior owner's stable slot.
 Native digest readers enumerate owners with `master.GetNodeManagers(operationContext)`,
 so a retained read cannot combine an old View token with a newer membership digest.
 Native source publication also exposes `IWotPreparedProjectionNamespaceSource.CapturedNamespaceUris`

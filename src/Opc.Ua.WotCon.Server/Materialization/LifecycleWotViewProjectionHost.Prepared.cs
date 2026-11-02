@@ -204,9 +204,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             : IWotPreparedViewPublication, IAsyncNodeManagerFactory,
                 IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
-            public ArrayOf<NodeManagerBatchChange> Changes => previous is null
-                ? [NodeManagerBatchChange.Add(this)]
-                : [NodeManagerBatchChange.Replace(previous.Registration, this,
+            public ArrayOf<LifecycleChange> Changes => previous is null
+                ? [LifecycleChange.Add(this)]
+                : [LifecycleChange.Replace(previous.Registration.Slot, this,
                     owner.m_retirementPolicy == WotProjectionRetirementPolicy.Invalidate
                         ? NodeManagerMonitoredItemTransitionMode.Invalidate
                         : NodeManagerMonitoredItemTransitionMode.Migrate)];

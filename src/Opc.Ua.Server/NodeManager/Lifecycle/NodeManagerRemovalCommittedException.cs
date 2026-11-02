@@ -62,6 +62,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative change-set result.
+        /// </summary>
+        /// <param name="registration">The removed registration.</param>
+        /// <param name="result">The authoritative result and retirement task.</param>
+        /// <param name="innerException">The post-publication failure.</param>
+        public NodeManagerRemovalCommittedException(
+            NodeManagerRegistration registration,
+            LifecycleResult result,
+            Exception innerException)
+            : this(registration, new NodeManagerBatchResult(result), innerException)
+        {
+        }
+
+        /// <summary>
         /// Gets the registration removed from the published view.
         /// </summary>
         public NodeManagerRegistration Registration { get; }

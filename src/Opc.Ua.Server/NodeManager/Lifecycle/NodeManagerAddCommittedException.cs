@@ -76,6 +76,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative change-set result.
+        /// </summary>
+        /// <param name="registration">The committed registration.</param>
+        /// <param name="result">The authoritative result.</param>
+        /// <param name="message">The post-commit failure message.</param>
+        /// <param name="innerException">The failure raised after publication.</param>
+        public NodeManagerAddCommittedException(
+            NodeManagerRegistration registration,
+            LifecycleResult result,
+            string message,
+            Exception innerException)
+            : this(registration, new NodeManagerBatchResult(result), message, innerException)
+        {
+        }
+
+        /// <summary>
         /// Gets the committed registration that remains the active NodeManager generation.
         /// </summary>
         public NodeManagerRegistration Registration { get; }

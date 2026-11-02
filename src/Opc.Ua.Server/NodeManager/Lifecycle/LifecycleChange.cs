@@ -144,6 +144,21 @@ namespace Opc.Ua.Server
     public static class LifecycleChangeExtensions
     {
         /// <summary>
+        /// Captures routing, type and factory revisions before acquiring application inputs.
+        /// Beginning the returned capture does not replace stale evidence with current revisions.
+        /// </summary>
+        /// <param name="lifecycle">The lifecycle owning the publication.</param>
+        /// <returns>The owner-bound evidence used to begin a writer later.</returns>
+        public static ILifecycleCapture CaptureChanges(this INodeManagerLifecycle lifecycle)
+        {
+            if (lifecycle is null)
+            {
+                throw new ArgumentNullException(nameof(lifecycle));
+            }
+            return new LifecycleCapture(lifecycle.CapturePublication());
+        }
+
+        /// <summary>
         /// Adapts an existing synchronous factory to the asynchronous change-set boundary.
         /// Factory creation remains synchronous; this does not block on asynchronous work.
         /// </summary>
@@ -270,7 +285,7 @@ namespace Opc.Ua.Server
         /// <param name="changes">The caller's changes.</param>
         /// <returns>The shared transaction representation.</returns>
         /// <exception cref="ArgumentException">The change set is null, empty or contains a null entry.</exception>
-        private static ArrayOf<NodeManagerBatchChange> ConvertChanges(ArrayOf<LifecycleChange> changes)
+        internal static ArrayOf<NodeManagerBatchChange> ConvertChanges(ArrayOf<LifecycleChange> changes)
         {
             if (changes.IsNull || changes.Count == 0)
             {

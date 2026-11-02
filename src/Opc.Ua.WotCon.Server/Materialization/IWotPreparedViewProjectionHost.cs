@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <summary>
         /// Gets the ordered lifecycle changes contributed to the aggregate batch.
         /// </summary>
-        ArrayOf<NodeManagerBatchChange> Changes { get; }
+        ArrayOf<LifecycleChange> Changes { get; }
 
         /// <summary>
         /// Binds the corresponding addition/replacement registrations after aggregate preparation.

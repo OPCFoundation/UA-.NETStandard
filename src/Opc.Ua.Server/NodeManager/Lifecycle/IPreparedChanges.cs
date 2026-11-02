@@ -36,6 +36,20 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Captures routing, type and factory evidence before application input acquisition.
+    /// </summary>
+    public interface ILifecycleCapture
+    {
+        /// <summary>
+        /// Begins an independently owned writer on the captured evidence without recapturing revisions.
+        /// A stale capture yields a stale writer that rejects preparation before factory effects.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels admission.</param>
+        /// <returns>The writer that must be asynchronously disposed.</returns>
+        ValueTask<ILifecycleWriter> BeginAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns optimistic revision evidence across sequential lifecycle change sets.
     /// It does not reserve mutation admission while factories or reconciliation callbacks run.
     /// </summary>
@@ -63,6 +77,19 @@ namespace Opc.Ua.Server
         /// <returns>The unpublished metadata unit.</returns>
         ValueTask<IPreparedChanges> PrepareReadImagesAsync(
             ArrayOf<INodeManagerReadImage> images, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Inspects a private candidate and validates its publication without changing the serving image.
+        /// The candidate cannot be committed and is disposed after inspection, including on failure.
+        /// </summary>
+        /// <param name="changes">The slot-targeted changes to validate.</param>
+        /// <param name="inspectAsync">Inspects candidates and binds metadata before validation.</param>
+        /// <param name="cancellationToken">Cancels preparation or validation.</param>
+        /// <returns>Completion after validation and candidate cleanup.</returns>
+        ValueTask ValidateAsync(
+            ArrayOf<LifecycleChange> changes,
+            Func<IPreparedChanges, CancellationToken, ValueTask> inspectAsync,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -86,12 +113,19 @@ namespace Opc.Ua.Server
         bool IsCommitted { get; }
 
         /// <summary>
-        /// Binds immutable metadata to the generation selected for a target slot.
-        /// The image must name that exact owner; each slot may be bound only once before consumption.
+        /// Binds immutable metadata to a candidate or an unchanged live owner in the resulting view.
+        /// A replaced or removed owner cannot receive metadata. Each slot can be bound once before consumption.
         /// </summary>
         /// <param name="slot">The targeted slot, which must remain in the resulting view.</param>
         /// <param name="metadata">The generation-owned immutable image.</param>
         void SetMetadata(NodeManagerSlot slot, INodeManagerReadImage metadata);
+
+        /// <summary>
+        /// Binds immutable metadata using its exact owner's existing slot identity.
+        /// The routing owner validates membership before the durable decision.
+        /// </summary>
+        /// <param name="metadata">The candidate or unchanged live owner's immutable image.</param>
+        void SetMetadata(INodeManagerReadImage metadata);
 
         /// <summary>
         /// Decides once and publishes once, then returns committed reconciliation and retirement status.
@@ -117,6 +151,20 @@ namespace Opc.Ua.Server
             Func<CancellationToken, ValueTask>? decideAsync,
             Action publishCommittedState,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Retains the existing capture without acquiring operation ownership or recapturing evidence.
+    /// </summary>
+    /// <param name="capture">The provider's captured revision evidence.</param>
+    internal sealed class LifecycleCapture(INodeManagerPublicationCapture capture) : ILifecycleCapture
+    {
+        /// <inheritdoc/>
+        public async ValueTask<ILifecycleWriter> BeginAsync(CancellationToken cancellationToken = default)
+        {
+            return new LifecyclePublicationWriter(
+                await capture.BeginAsync(cancellationToken).ConfigureAwait(false));
+        }
     }
 
     /// <summary>
@@ -154,6 +202,33 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public ValueTask ValidateAsync(
+            ArrayOf<LifecycleChange> changes,
+            Func<IPreparedChanges, CancellationToken, ValueTask> inspectAsync,
+            CancellationToken cancellationToken = default)
+        {
+            if (inspectAsync is null)
+            {
+                throw new ArgumentNullException(nameof(inspectAsync));
+            }
+            ArrayOf<LifecycleChange> captured = [.. changes];
+            return publication.ValidateAsync(
+                LifecycleChangeExtensions.ConvertChanges(captured), async (batch, token) =>
+                {
+                    var prepared = new PreparedLifecycleChanges(batch, captured, validationOnly: true);
+                    try
+                    {
+                        await inspectAsync(prepared, token).ConfigureAwait(false);
+                        prepared.ConsumeMetadata();
+                    }
+                    finally
+                    {
+                        prepared.Seal();
+                    }
+                }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
             return publication.DisposeAsync();
@@ -170,9 +245,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="prepared">The underlying unpublished owner.</param>
         /// <param name="changes">The captured changes, in preparation order.</param>
-        internal PreparedLifecycleChanges(IPreparedNodeManagerBatch prepared, ArrayOf<LifecycleChange> changes)
+        /// <param name="validationOnly">Whether the owner is private inspection only.</param>
+        internal PreparedLifecycleChanges(
+            IPreparedNodeManagerBatch prepared, ArrayOf<LifecycleChange> changes, bool validationOnly = false)
         {
             m_prepared = prepared;
+            m_validationOnly = validationOnly;
             int expectedCandidates = (changes.ToArray() ?? []).Count(change => change.Factory is not null);
             if (prepared.Registrations.Count != expectedCandidates)
             {
@@ -217,6 +295,22 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsCommitted => m_prepared.IsCommitted;
 
+        /// <inheritdoc/>
+        public void SetMetadata(INodeManagerReadImage metadata)
+        {
+            if (metadata is null)
+            {
+                throw new ArgumentNullException(nameof(metadata));
+            }
+            if (metadata.Owner is not { } owner ||
+                !NodeManagerGenerationRegistry.TryGet(owner, out NodeManagerGeneration? generation) ||
+                generation is null)
+            {
+                throw new ArgumentException("Metadata has no registered generation owner.", nameof(metadata));
+            }
+            SetMetadata(generation.Slot, metadata);
+        }
+
         /// <summary>
         /// Transfers prepared ownership to the adapter, disposing malformed provider results on failure.
         /// </summary>
@@ -256,11 +350,14 @@ namespace Opc.Ua.Server
                 }
                 NodeManagerRegistration? candidate =
                     (Registrations.ToArray() ?? []).FirstOrDefault(value => value.Slot == slot);
-                if (!Slots.Contains(slot) ||
-                    candidate is null ||
-                    !ReferenceEquals(candidate.NodeManager, metadata.Owner))
+                bool validOwner = candidate is not null
+                    ? ReferenceEquals(candidate.NodeManager, metadata.Owner)
+                    : !Slots.Contains(slot) && slot.TryGetCurrent(out NodeManagerSlotSnapshot current) &&
+                        ReferenceEquals(current.NodeManager, metadata.Owner);
+                if (!validOwner)
                 {
-                    throw new ArgumentException("Metadata must belong to a candidate generation in this unit.",
+                    throw new ArgumentException(
+                        "Metadata must belong to a candidate or unchanged live generation in this unit.",
                         nameof(metadata));
                 }
                 if (!m_metadata.TryAdd(slot, metadata))
@@ -291,11 +388,40 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ValueTask DisposeAsync()
         {
+            Seal();
+            return m_prepared.DisposeAsync();
+        }
+
+        /// <summary>
+        /// Prevents metadata mutation after inspection or disposal.
+        /// </summary>
+        internal void Seal()
+        {
             lock (m_state)
             {
                 m_consumed = true;
+                m_metadata.Clear();
             }
-            return m_prepared.DisposeAsync();
+        }
+
+        /// <summary>
+        /// Binds accumulated metadata once before commit or private publication validation.
+        /// </summary>
+        internal void ConsumeMetadata()
+        {
+            lock (m_state)
+            {
+                if (m_consumed)
+                {
+                    throw new InvalidOperationException("The prepared changes have already been consumed.");
+                }
+                m_consumed = true;
+                if (m_metadata.Count != 0)
+                {
+                    m_prepared.BindReadImages(m_metadata.Values.ToArrayOf());
+                }
+                m_metadata.Clear();
+            }
         }
 
         /// <summary>
@@ -311,19 +437,11 @@ namespace Opc.Ua.Server
             Action? publishCommittedState,
             CancellationToken cancellationToken)
         {
-            lock (m_state)
+            if (m_validationOnly)
             {
-                if (m_consumed)
-                {
-                    throw new InvalidOperationException("The prepared changes have already been consumed.");
-                }
-                m_consumed = true;
-                if (m_metadata.Count != 0)
-                {
-                    m_prepared.BindReadImages(m_metadata.Values.ToArrayOf());
-                }
-                m_metadata.Clear();
+                throw new InvalidOperationException("A validation candidate cannot be committed.");
             }
+            ConsumeMetadata();
             decideAsync ??= static _ => default;
             NodeManagerBatchResult result = publishCommittedState is null
                 ? await m_prepared.CommitAsync(decideAsync, cancellationToken).ConfigureAwait(false)
@@ -346,5 +464,8 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether preparation already bound all metadata.</summary>
         private readonly bool m_metadataBound;
+
+        /// <summary>Whether this candidate can only be inspected and validated.</summary>
+        private readonly bool m_validationOnly;
     }
 }

@@ -23,12 +23,14 @@ The change-set API follows the F1 lifecycle model in the
 | `LifecycleChange.Remove(slot)` | Unpublishes the selected generation. |
 | `lifecycle.ApplyAsync(ArrayOf<LifecycleChange>, ct)` | Prepares and commits one change set with an in-memory decision. |
 | `lifecycle.BeginAsync(expectedRevision, ct)` | Captures optimistic publication evidence for an `ILifecycleWriter`. |
+| `lifecycle.CaptureChanges()` | Captures routing, type and factory revisions before input acquisition; `BeginAsync(ct)` later opens a writer on that evidence. |
 | `ILifecycleWriter.PrepareAsync(...)` | Prepares an `IPreparedChanges` unit against the writer's evidence. |
+| `ILifecycleWriter.ValidateAsync(changes, inspectAsync, ct)` | Inspects and validates private candidates without publishing them or allocating serving namespaces. |
 | `IPreparedChanges.CommitAsync(decideAsync, ct)` | Performs the optional durable decision, publishes, then returns `LifecycleResult`. |
 | `LifecycleResult` | Retains the committed revision, registrations, slot snapshots and issues; exposes the generation owner's physical retirement task. |
 
-This layer is additive to the preceding lifecycle API. `ApplyAsync`, `BeginAsync`
-and the slot-based `PrepareAsync` overloads are extension methods, not new required
+This layer is additive to the preceding lifecycle API. `ApplyAsync`, `BeginAsync`,
+`CaptureChanges` and the slot-based `PrepareAsync` overloads are extension methods, not new required
 members of `INodeManagerLifecycle`. Adding interface members would break existing
 providers and binaries; default interface implementations cannot bridge that
 change on .NET Framework 4.8. Consumers must import `Opc.Ua.Server`. Provider
@@ -127,12 +129,34 @@ pre-commit conflict tagged to that exact candidate. They never retry arbitrary
 `InvalidOperationException`, factory, cleanup, decision or committed failures.
 Each allowed retry prepares a fresh candidate.
 
+For input acquisition that must share the publication's revision boundary, capture
+before acquiring inputs and begin that capture afterward. Beginning does not refresh
+stale evidence. The returned writer rejects preparation before factories run if
+routing, type or factory revisions have changed.
+
+```csharp
+ILifecycleCapture capture = lifecycle.CaptureChanges();
+using var inputs = await application.AcquireInputsAsync(cancellationToken);
+await using ILifecycleWriter writer = await capture.BeginAsync(cancellationToken);
+await using IPreparedChanges prepared =
+    await writer.PrepareAsync(application.CreateChanges(inputs), cancellationToken);
+LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken);
+```
+
+`writer.ValidateAsync` passes a noncommittable `IPreparedChanges` to the inspection
+callback. The callback can inspect registrations and bind typed metadata. The
+lifecycle then validates the resulting routing and reference image and disposes
+the candidates, including when inspection or validation fails. Validation does
+not advance the writer's revision evidence, publish namespaces or run readiness.
+An ordinary prepare followed by disposal does not perform this validation.
+
 ## Typed metadata
 
-Bind an `INodeManagerReadImage` to an addition or replacement before consuming the
-prepared unit. Its `Owner` must be the exact candidate manager for that slot.
-Each slot can be bound once; the adapter binds the accumulated images to the
-existing prepared owner at commit.
+Bind an `INodeManagerReadImage` to a candidate or an unchanged live manager before
+consuming the prepared unit. Its `Owner` must be the exact manager for that slot
+in the resulting routing image. Each slot can be bound once; the adapter binds the
+accumulated images before commit or private validation. The routing owner rejects
+foreign, removed and replaced predecessor owners before the durable decision.
 
 ```csharp
 NodeManagerRegistration candidate = prepared.Registrations[0];
@@ -140,10 +164,25 @@ INodeManagerReadImage image = application.CreateReadImage(candidate.NodeManager)
 prepared.SetMetadata(candidate.Slot, image);
 ```
 
+`prepared.SetMetadata(image)` resolves the image owner's existing slot without
+creating another generation identity. This supports a stable registry manager's
+metadata in the same decision and routing switch as source and View replacements;
+the registry manager does not need to be replaced or included as a topology change.
+Until publication, readers retain the preceding routes and metadata.
+
 For metadata-only publication on live managers, use
 `writer.PrepareReadImagesAsync(images, ct)` and commit the returned unit. Those
 images are already bound during preparation and cannot be changed through
 `SetMetadata`. Neither path permits an untyped metadata bag.
+
+WoTCon's source and canonical View hosts use `LifecycleChange` and
+`IPreparedChanges`. The source host captures revisions before acquiring inputs,
+validates dry runs through the writer, and binds stable registry metadata to the
+source/View unit. Its compatibility entry points preserve exact-generation handle
+checks; a stale handle cannot replace a newer generation merely because it shares
+the same slot. The batch/provider adapters and legacy convenience APIs remain
+available for other repository consumers. Their removal requires a separate
+consumer audit and acceptance gate.
 
 ## What is authoritative after publication?
 

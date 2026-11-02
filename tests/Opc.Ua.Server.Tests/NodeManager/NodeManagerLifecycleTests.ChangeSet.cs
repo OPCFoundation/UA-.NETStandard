@@ -440,6 +440,210 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Stable registry metadata and a new source generation share one decision and routing revision.
+        /// Aborting the same unit changes neither owner nor metadata.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetMixedOwnerMetadataPublishesOrAbortsTogetherAsync(bool commit)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            LifecycleResult initial = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                .ConfigureAwait(false);
+            NodeManagerRegistration stable = initial.Registrations[0];
+            var stableImage = new Mock<INodeManagerReadImage>();
+            stableImage.SetupGet(image => image.Owner).Returns(stable.NodeManager);
+            await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            TrackingLifecycleNodeManager? manager = null;
+            await using IPreparedChanges prepared = await writer.PrepareAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(
+                    kSecondRegistrationValue, value => manager = value, kSecondModelNamespaceUri))])
+                .ConfigureAwait(false);
+            NodeManagerRegistration candidate = prepared.Registrations[0];
+            var candidateImage = new Mock<INodeManagerReadImage>();
+            candidateImage.SetupGet(image => image.Owner).Returns(candidate.NodeManager);
+            prepared.SetMetadata(stableImage.Object);
+            prepared.SetMetadata(candidate.Slot, candidateImage.Object);
+            Assert.That(() => prepared.SetMetadata(stable.Slot, stableImage.Object), Throws.InvalidOperationException);
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
+            int decisions = 0;
+            if (commit)
+            {
+                LifecycleResult result = await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
+                    return default;
+                }, () =>
+                {
+                    Assert.That(host.RoutingRevision.ReadImages[stable.NodeManager], Is.SameAs(stableImage.Object));
+                    Assert.That(host.RoutingRevision.ReadImages[candidate.NodeManager],
+                        Is.SameAs(candidateImage.Object));
+                }).ConfigureAwait(false);
+                Assert.That(result.Revision, Is.EqualTo(initial.Revision + 1));
+                Assert.That(result.Issues, Is.Empty);
+            }
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            Assert.That(decisions, Is.EqualTo(commit ? 1 : 0));
+            Assert.That(prepared.IsCommitted, Is.EqualTo(commit));
+            Assert.That(RequireLifecycleValue(manager).DisposeCount, Is.EqualTo(commit ? 0 : 1));
+            Assert.That(lifecycle.Revision, Is.EqualTo(initial.Revision + (commit ? 1 : 0)));
+            Assert.That(stable.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+            Assert.That(current.NodeManager, Is.SameAs(stable.NodeManager));
+            Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.EqualTo(commit));
+        }
+
+        /// <summary>
+        /// Removed and replaced predecessor images are rejected before the decision.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetRejectsMetadataForWithdrawnOwnerAsync(bool replace)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            LifecycleResult initial = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                .ConfigureAwait(false);
+            NodeManagerRegistration current = initial.Registrations[0];
+            await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+                [replace
+                    ? LifecycleChange.Replace(current.Slot,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }))
+                    : LifecycleChange.Remove(current.Slot)]).ConfigureAwait(false);
+            var image = new Mock<INodeManagerReadImage>();
+            image.SetupGet(value => value.Owner).Returns(current.NodeManager);
+            Assert.That(() => prepared.SetMetadata(image.Object), Throws.ArgumentException);
+            Assert.That(() => prepared.SetMetadata((INodeManagerReadImage)null!), Throws.ArgumentNullException);
+            var unregistered = new Mock<INodeManagerReadImage>();
+            unregistered.SetupGet(value => value.Owner).Returns(Mock.Of<IAsyncNodeManager>());
+            Assert.That(() => prepared.SetMetadata(unregistered.Object), Throws.ArgumentException);
+            Assert.That(lifecycle.Revision, Is.EqualTo(initial.Revision));
+        }
+
+        /// <summary>
+        /// The new capture retains pre-input evidence instead of recapturing when the writer begins.
+        /// </summary>
+        [TestCase("Routing")]
+        [TestCase("Types")]
+        [TestCase("Factory")]
+        public async Task SlotChangeSetPreInputCaptureRejectsStaleBeginBeforeFactoryAsync(string changed)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            ILifecycleCapture capture = lifecycle.CaptureChanges();
+            switch (changed)
+            {
+                case "Routing":
+                    await lifecycle.ApplyAsync(
+                        [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                        .ConfigureAwait(false);
+                    break;
+                case "Types":
+                    m_server.CurrentInstance.TypeTree.AddSubtype(new NodeId(99001), ObjectTypeIds.BaseObjectType);
+                    break;
+                default:
+                    Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(
+                        DataTypeIds.Range, out IEncodeableType? rangeType), Is.True);
+                    m_server.CurrentInstance.Factory.Builder.AddEncodeableType(
+                        new ExpandedNodeId(99002), rangeType!).Commit();
+                    break;
+            }
+            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
+            var factory = new CountingNodeManagerFactory([kSecondModelNamespaceUri],
+                CreateTrackingNodeManagementFactory(
+                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
+            await Assert.ThatAsync(async () => await writer.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false), Throws.InvalidOperationException).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await writer.ValidateAsync(
+                [LifecycleChange.Add(factory)], (_, _) => default).ConfigureAwait(false),
+                Throws.InvalidOperationException).ConfigureAwait(false);
+            Assert.That(writer.IsCurrent, Is.False);
+            Assert.That(factory.CreateCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Validation binds mixed-owner metadata but cannot decide, publish, or retain mutable candidates.
+        /// </summary>
+        [Test]
+        public async Task SlotChangeSetValidationInspectsMixedMetadataWithoutPublicationAsync()
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            LifecycleResult initial = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))])
+                .ConfigureAwait(false);
+            NodeManagerRegistration stable = initial.Registrations[0];
+            var image = new Mock<INodeManagerReadImage>();
+            image.SetupGet(value => value.Owner).Returns(stable.NodeManager);
+            await using ILifecycleWriter writer = await lifecycle.CaptureChanges().BeginAsync().ConfigureAwait(false);
+            TrackingLifecycleNodeManager? manager = null;
+            IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
+                kSecondRegistrationValue, value => manager = value, kSecondModelNamespaceUri);
+            ArrayOf<string> namespaces = m_server.CurrentInstance.NamespaceUris.ToArrayOf();
+            int decisions = 0;
+            IPreparedChanges? inspected = null;
+            await writer.ValidateAsync([LifecycleChange.Add(factory)], async (prepared, token) =>
+            {
+                inspected = prepared;
+                Assert.That(prepared.Registrations.Count, Is.EqualTo(1));
+                prepared.SetMetadata(image.Object);
+                await Assert.ThatAsync(async () => await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }, token).ConfigureAwait(false), Throws.InvalidOperationException).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            Assert.That(decisions, Is.Zero);
+            Assert.That(RequireLifecycleValue(inspected).IsCommitted, Is.False);
+            Assert.That(() => RequireLifecycleValue(inspected).SetMetadata(image.Object),
+                Throws.InvalidOperationException);
+            Assert.That(RequireLifecycleValue(manager).DisposeCount, Is.EqualTo(1));
+            Assert.That(lifecycle.Revision, Is.EqualTo(initial.Revision));
+            Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
+            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
+            await using IPreparedChanges next = await writer.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            LifecycleResult result = await next.CommitAsync().ConfigureAwait(false);
+            Assert.That(result.Revision, Is.EqualTo(initial.Revision + 1));
+            Assert.That(writer.IsCurrent, Is.True);
+        }
+
+        /// <summary>
+        /// Inspector failure and cancellation release private candidates without consuming writer evidence.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetValidationFailureReleasesCandidatesAsync(bool cancel)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            long revision = lifecycle.Revision;
+            TrackingLifecycleNodeManager? manager = null;
+            IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
+                kGeneration1Value, value => manager = value);
+            await using ILifecycleWriter writer = await lifecycle.BeginAsync().ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            await Assert.ThatAsync(async () => await writer.ValidateAsync(
+                [LifecycleChange.Add(factory)], (_, _) =>
+                {
+                    if (cancel)
+                    {
+                        cancellation.Cancel();
+                        return default;
+                    }
+                    throw new InvalidOperationException("Inspection failed.");
+                }, cancellation.Token).ConfigureAwait(false),
+                cancel ? Throws.InstanceOf<OperationCanceledException>() : Throws.InvalidOperationException)
+                .ConfigureAwait(false);
+            Assert.That(RequireLifecycleValue(manager).DisposeCount, Is.EqualTo(1));
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(writer.IsCurrent, Is.True);
+            await using IPreparedChanges next = await writer.PrepareAsync([LifecycleChange.Add(factory)])
+                .ConfigureAwait(false);
+            Assert.That(next.Registrations.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Cancellation and failed durable decisions consume private candidates without replaying factories.
         /// </summary>
         [TestCase(false)]

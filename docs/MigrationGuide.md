@@ -84,7 +84,7 @@ Reload/removal targets are stable slots, resolved once during preparation. The o
 `NodeManagerBatchChange` overload still targets an exact registration; it does not acquire
 stable-slot semantics through recompilation.
 
-`ApplyAsync`, `BeginAsync` and slot-based `PrepareAsync` are extensions in this compatibility
+`ApplyAsync`, `BeginAsync`, `CaptureChanges` and slot-based `PrepareAsync` are extensions in this compatibility
 layer, not required members of `INodeManagerLifecycle`. Existing providers and binaries retain
 their preceding interface contract, including on net48. Mocks intercept its existing batch
 `PrepareAsync`/`CapturePublication` members rather than these extensions. This differs from the
@@ -99,9 +99,12 @@ not the additive change-set layer.
 forward to `CommittedResult`; its legacy `uint Retired` and `Task Retirement` remain unchanged,
 while the new result exposes `Retired` as a `Task` and `RetiredCount` separately. Compatibility
 committed exceptions implement `INodeManagerCommittedFailure`; their `CommittedResult` is null
-only when a legacy constructor had no result. Bind typed candidate metadata through
-`IPreparedChanges.SetMetadata(slot, INodeManagerReadImage)`, or use the writer's metadata-only
-preparation. See [change sets](NodeManagerChangeSets.md) for single/batch examples, abort,
+only when a legacy constructor had no result. Bind typed metadata for candidates or unchanged
+live owners through `IPreparedChanges.SetMetadata(slot, INodeManagerReadImage)`, or let
+`SetMetadata(image)` resolve the owner's existing slot. Use the writer's metadata-only
+preparation when no topology changes are required. Capture pre-input revision evidence with
+`lifecycle.CaptureChanges()` and validate private candidates with `writer.ValidateAsync`.
+See [change sets](NodeManagerChangeSets.md) for single/batch examples, abort,
 committed failure, nested publication, supersession and independent retirement.
 
 `INodeManagerLifecycle` exposes `Revision`, stable `Slots`, registration snapshots, and the
@@ -124,20 +127,20 @@ get nullable warnings.
 
 | Previous call | Prepared change |
 | --- | --- |
-| `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |
-| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
-| `ImmediateReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
-| `RemoveAsync(current)` | `NodeManagerBatchChange.Remove(current)` |
+| `AddAsync(factory)` | `LifecycleChange.Add(asyncFactory)` |
+| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
+| `ImmediateReloadAsync(current, factory)` | `LifecycleChange.Replace(current.Slot, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
+| `RemoveAsync(current)` | `LifecycleChange.Remove(current.Slot)` |
 | Runtime NodeSet add/reload helpers | The same changes using `new RuntimeNodeSetNodeManagerFactory(options)` |
 
 ```csharp
-await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-    [NodeManagerBatchChange.Replace(current, factory)], cancellationToken);
-NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, cancellationToken);
+await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+    [LifecycleChange.Replace(current.Slot, factory)], cancellationToken);
+LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken);
 current = result.Registrations[0]; // Authoritative even if result.CleanupFailure is non-null.
 ```
 
-Pass no callback context to `PrepareAsync` or `CapturePublication().BeginAsync`. Obsolete context
+Pass no callback context to `PrepareAsync` or `CaptureChanges().BeginAsync`. Obsolete context
 extensions ignore it and forward only the changes and cancellation token. Use an
 `IAsyncNodeManagerFactory` for new transactions; `factory.AsAsync()` exposes the existing
 synchronous factory adapter when migrating a factory, without synchronous-over-asynchronous
@@ -161,7 +164,7 @@ single-operation pipeline, committed runtime readiness uses a noncancelable toke
 after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.
 Inspect `CleanupFailure`
 and retain the published revision/slots/registrations rather than retrying a committed operation as
-an addition. Await `result.Retirement` only outside work whose admission must drain. The compatibility
+an addition. Await `result.Retired` only outside work whose admission must drain. The compatibility
 shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, and
 `NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
 `Result`. Add/reload exceptions created using their legacy constructors have no result.
