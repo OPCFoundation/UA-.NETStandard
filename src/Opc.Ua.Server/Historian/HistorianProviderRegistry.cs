@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
@@ -272,8 +273,6 @@ namespace Opc.Ua.Server.Historian
                 m_disposed = true;
                 providers = [.. m_ownedProviders];
                 m_nodes.Clear();
-                m_nodeBindings.Clear();
-                m_pendingReplacements.Clear();
                 m_namespaces.Clear();
                 m_default = null;
                 m_providers.Clear();
@@ -382,6 +381,57 @@ namespace Opc.Ua.Server.Historian
         }
 
         /// <summary>
+        /// Retains ownership across asynchronous metadata cleanup and excludes a replacement until it completes.
+        /// </summary>
+        private async Task ReleaseNodeBindingAsync(NodeId nodeId, NodeBinding binding, Func<ValueTask> cleanup)
+        {
+            while (true)
+            {
+                Task? pending = null;
+                lock (m_lock)
+                {
+                    if (m_pendingReplacements.TryGetValue(nodeId, out NodeBinding? replacement))
+                    {
+                        pending = replacement.Completion.Task;
+                    }
+                    else if (!m_nodeBindings.TryGetValue(nodeId, out NodeBinding? current) ||
+                        !ReferenceEquals(current, binding))
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        m_pendingReplacements.Add(nodeId, binding);
+                    }
+                }
+                if (pending == null)
+                {
+                    break;
+                }
+                await pending.ConfigureAwait(false);
+            }
+            try
+            {
+                await cleanup().ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (m_lock)
+                {
+                    m_pendingReplacements.Remove(nodeId);
+                    try
+                    {
+                        ReleaseNodeBinding(nodeId, binding);
+                    }
+                    finally
+                    {
+                        binding.Completion.TrySetResult(true);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// Commits a prepared replacement or restores the previous owner unless a later registration superseded it.
         /// </summary>
         private void CompleteNodeReplacement(
@@ -392,60 +442,68 @@ namespace Opc.Ua.Server.Historian
             NodeBinding? previousBinding,
             bool commit)
         {
-            lock (m_lock)
+            try
             {
-                if (m_disposed)
+                lock (m_lock)
                 {
+                    if (m_disposed)
+                    {
+                        m_pendingReplacements.Remove(nodeId);
+                        if (previousBinding?.IsDisposed == true)
+                        {
+                            previousBinding.RestoreAttributes();
+                        }
+                        else
+                        {
+                            current.RestoreAttributes();
+                        }
+                        if (commit)
+                        {
+                            throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+                        }
+                        return;
+                    }
+                    if (!m_pendingReplacements.TryGetValue(nodeId, out NodeBinding? active) ||
+                        !ReferenceEquals(active, current))
+                    {
+                        if (commit)
+                        {
+                            throw new InvalidOperationException(
+                                "The historian replacement reservation is no longer current.");
+                        }
+                        return;
+                    }
+                    m_pendingReplacements.Remove(nodeId);
+                    if (commit)
+                    {
+                        m_nodes[nodeId] = provider;
+                        m_nodeBindings.Remove(nodeId);
+                        AddProvider(provider, ownsProvider: true);
+                        if (previousProvider != null)
+                        {
+                            RebuildProviderSet(previousProvider);
+                        }
+                        return;
+                    }
                     if (previousBinding?.IsDisposed == true)
                     {
                         previousBinding.RestoreAttributes();
+                        m_nodes.Remove(nodeId);
+                        m_nodeBindings.Remove(nodeId);
+                        if (previousProvider != null)
+                        {
+                            RebuildProviderSet(previousProvider);
+                        }
                     }
                     else
                     {
                         current.RestoreAttributes();
                     }
-                    if (commit)
-                    {
-                        throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
-                    }
-                    return;
                 }
-                if (!m_pendingReplacements.TryGetValue(nodeId, out NodeBinding? active) ||
-                    !ReferenceEquals(active, current))
-                {
-                    if (commit)
-                    {
-                        throw new InvalidOperationException(
-                            "The historian replacement reservation is no longer current.");
-                    }
-                    return;
-                }
-                m_pendingReplacements.Remove(nodeId);
-                if (commit)
-                {
-                    m_nodes[nodeId] = provider;
-                    m_nodeBindings.Remove(nodeId);
-                    AddProvider(provider, ownsProvider: true);
-                    if (previousProvider != null)
-                    {
-                        RebuildProviderSet(previousProvider);
-                    }
-                    return;
-                }
-                if (previousBinding?.IsDisposed == true)
-                {
-                    previousBinding.RestoreAttributes();
-                    m_nodes.Remove(nodeId);
-                    m_nodeBindings.Remove(nodeId);
-                    if (previousProvider != null)
-                    {
-                        RebuildProviderSet(previousProvider);
-                    }
-                }
-                else
-                {
-                    current.RestoreAttributes();
-                }
+            }
+            finally
+            {
+                current.Completion.TrySetResult(true);
             }
         }
 
@@ -507,7 +565,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// The identity of one detachable exact-node registration.
         /// </summary>
-        private sealed class NodeBinding : IDisposable
+        private sealed class NodeBinding : IHistorianNodeBinding
         {
             /// <summary>
             /// Creates an identity owned by the registry.
@@ -530,14 +588,39 @@ namespace Opc.Ua.Server.Historian
             }
 
             /// <summary>
-            /// Whether the original owner released this registration, including while a replacement was being prepared.
+            /// Whether the original owner released this registration, including during replacement setup.
             /// </summary>
             internal bool IsDisposed { get; set; }
+
+            /// <summary>
+            /// Signals that a pending replacement or metadata release no longer excludes this node.
+            /// </summary>
+            internal TaskCompletionSource<bool> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             /// <inheritdoc/>
             public void Dispose()
             {
                 m_registry.ReleaseNodeBinding(m_nodeId, this);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask ReleaseAsync(Func<ValueTask> cleanup)
+            {
+                ArgumentNullException.ThrowIfNull(cleanup);
+                TaskCompletionSource<bool> completion;
+                bool start;
+                lock (m_releaseLock)
+                {
+                    start = m_release == null;
+                    completion = m_release ??=
+                        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+                if (start)
+                {
+                    _ = CompleteReleaseAsync(cleanup, completion);
+                }
+                return new ValueTask(completion.Task);
             }
 
             /// <summary>
@@ -554,6 +637,22 @@ namespace Opc.Ua.Server.Historian
                 if (m_node is BaseObjectState notifier)
                 {
                     notifier.EventNotifier = m_eventNotifier;
+                }
+            }
+
+            /// <summary>
+            /// Publishes the first release's completed outcome without running application cleanup during acquisition.
+            /// </summary>
+            private async Task CompleteReleaseAsync(Func<ValueTask> cleanup, TaskCompletionSource<bool> completion)
+            {
+                try
+                {
+                    await m_registry.ReleaseNodeBindingAsync(m_nodeId, this, cleanup).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception failure)
+                {
+                    completion.TrySetException(failure);
                 }
             }
 
@@ -577,6 +676,12 @@ namespace Opc.Ua.Server.Historian
 
             /// <summary>The original notifier event access.</summary>
             private readonly byte m_eventNotifier;
+
+            /// <summary>Serializes acquisition of the shared release outcome.</summary>
+            private readonly Lock m_releaseLock = new();
+
+            /// <summary>The first metadata release and its retained outcome.</summary>
+            private TaskCompletionSource<bool>? m_release;
         }
 
         /// <summary>

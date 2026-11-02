@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Historian
 {
@@ -149,6 +150,22 @@ namespace Opc.Ua.Server.Historian
         /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
         /// <returns>Whether a new binding was installed.</returns>
         bool TryRegisterForNode(NodeState node, IHistorianProvider provider, out IDisposable? binding);
+    }
+
+    /// <summary>
+    /// A scoped registration that can release its owned metadata before allowing another owner to bind the node.
+    /// </summary>
+    public interface IHistorianNodeBinding : IDisposable
+    {
+        /// <summary>
+        /// Runs cleanup only while this registration still owns the node, then restores attributes and removes
+        /// the binding even if cleanup fails. A pending replacement completes before ownership is evaluated;
+        /// a committed successor is preserved. Conflicting mutations are rejected while cleanup runs.
+        /// Repeated calls share the first cleanup operation and its completed outcome.
+        /// </summary>
+        /// <param name="cleanup">Releases metadata and owner-index entries created by this registration.</param>
+        /// <returns>The completed release, including any cleanup failure.</returns>
+        ValueTask ReleaseAsync(Func<ValueTask> cleanup);
     }
 
     /// <summary>

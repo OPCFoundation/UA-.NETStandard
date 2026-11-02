@@ -74,16 +74,10 @@ namespace Opc.Ua.AMB.Server.Assets
             try
             {
                 await binding.BindAsync(options, cancellationToken).ConfigureAwait(false);
+                binding.RegisterMetadata();
                 await binding.StartCaptureAsync(options, cancellationToken).ConfigureAwait(false);
-                if (binding.m_health != null)
-                {
-                    AssetNodes.Register(handle, binding.m_health);
-                }
-                if ((binding.Kinds & (AssetHistoryKinds.HealthEvents | AssetHistoryKinds.MaintenanceEvents)) != 0)
-                {
-                    AssetNodes.Register(handle, handle.Asset);
-                }
                 binding.ReportInitialState();
+                binding.m_created = true;
                 return binding;
             }
             catch (Exception failure)
@@ -97,14 +91,6 @@ namespace Opc.Ua.AMB.Server.Assets
                 {
                     errors.Add(cleanupFailure);
                 }
-                try
-                {
-                    binding.RollBackMetadata();
-                }
-                catch (Exception rollbackFailure)
-                {
-                    errors.Add(rollbackFailure);
-                }
                 if (errors.Count > 1)
                 {
                     throw new AggregateException("AMB history binding and its cleanup failed.", errors);
@@ -114,12 +100,44 @@ namespace Opc.Ua.AMB.Server.Assets
         }
 
         /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            TaskCompletionSource<bool> completion;
+            bool start;
+            lock (m_disposeLock)
             {
-                return;
+                start = m_disposeCompletion == null;
+                completion = m_disposeCompletion ??=
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
+            if (start)
+            {
+                _ = CompleteDisposalAsync(completion);
+            }
+            return new ValueTask(completion.Task);
+        }
+
+        /// <summary>
+        /// Publishes one cleanup outcome to every concurrent or subsequent caller.
+        /// </summary>
+        private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception failure)
+            {
+                completion.TrySetException(failure);
+            }
+        }
+
+        /// <summary>
+        /// Completes all capture, metadata and registry releases and retains every failure for repeated callers.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
             var failures = new List<Exception>();
             try
             {
@@ -131,7 +149,7 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             try
             {
-                m_healthBinding?.Dispose();
+                await ReleaseBindingAsync(m_healthBinding, ReleaseHealthMetadataAsync).ConfigureAwait(false);
             }
             catch (Exception failure)
             {
@@ -139,7 +157,7 @@ namespace Opc.Ua.AMB.Server.Assets
             }
             try
             {
-                m_eventBinding?.Dispose();
+                await ReleaseBindingAsync(m_eventBinding, ReleaseEventMetadataAsync).ConfigureAwait(false);
             }
             catch (Exception failure)
             {
@@ -149,6 +167,31 @@ namespace Opc.Ua.AMB.Server.Assets
             if (failures.Count != 0)
             {
                 throw new AggregateException("Asset history cleanup failed.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Releases metadata only while its scoped registration still owns the node.
+        /// </summary>
+        private static ValueTask ReleaseBindingAsync(IDisposable? binding, Func<ValueTask> cleanup)
+        {
+            if (binding is IHistorianNodeBinding scoped)
+            {
+                return scoped.ReleaseAsync(cleanup);
+            }
+            binding?.Dispose();
+            return default;
+        }
+
+        /// <summary>
+        /// Rejects registries that cannot keep metadata ownership through asynchronous owner-index cleanup.
+        /// </summary>
+        private static void RequireMetadataOwnership(IDisposable? binding)
+        {
+            if (binding is not IHistorianNodeBinding)
+            {
+                throw ConfigurationError(
+                    "AMB history requires scoped metadata release through IHistorianNodeBinding.");
             }
         }
 
@@ -172,6 +215,7 @@ namespace Opc.Ua.AMB.Server.Assets
                 {
                     throw ConfigurationError("DeviceHealth already has an exact-node historian provider binding.");
                 }
+                RequireMetadataOwnership(m_healthBinding);
                 if (provider is InMemoryHistorianProvider memory)
                 {
                     memory.TryRegister(health.NodeId);
@@ -297,6 +341,7 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 throw ConfigurationError("The asset already has an exact-node historian provider binding.");
             }
+            RequireMetadataOwnership(m_eventBinding);
             if (provider is InMemoryHistorianProvider eventMemory)
             {
                 eventMemory.TryRegister(m_handle.NodeId, HistorianNodeCapabilities.EventReadWrite with
@@ -491,41 +536,164 @@ namespace Opc.Ua.AMB.Server.Assets
         }
 
         /// <summary>
-        /// Removes metadata added before a failed registration, leaving existing configuration untouched.
-        /// Nodes are not indexed with their owner until the complete binding succeeds.
+        /// Indexes only the subtrees this binding created after all requested kinds have been validated.
         /// </summary>
-        private void RollBackMetadata()
+        private void RegisterMetadata()
+        {
+            m_indexAttempted = true;
+            if (m_addedHealthConfiguration != null)
+            {
+                AssetNodes.Register(m_handle, m_addedHealthConfiguration);
+            }
+            if (m_addedAnnotations != null)
+            {
+                AssetNodes.Register(m_handle, m_addedAnnotations);
+            }
+            if (m_addedEventConfiguration != null)
+            {
+                AssetNodes.Register(m_handle, m_addedEventConfiguration);
+            }
+        }
+
+        /// <summary>
+        /// Removes raw metadata created by this owner and restores a pre-existing annotation property's access.
+        /// </summary>
+        private async ValueTask ReleaseHealthMetadataAsync()
         {
             if (m_health != null && m_healthMetadataTouched)
             {
-                m_health.Timestamp = m_originalHealthTimestamp;
-                RemoveAddedMetadata(
-                    m_health, m_addedHealthConfiguration, Ua.ReferenceTypeIds.HasHistoricalConfiguration);
+                if (!m_created)
+                {
+                    m_health.Timestamp = m_originalHealthTimestamp;
+                }
+                var failures = new List<Exception>();
+                try
+                {
+                    await RemoveAddedMetadataAsync(
+                        m_health, m_addedHealthConfiguration, Ua.ReferenceTypeIds.HasHistoricalConfiguration)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 if (m_annotationsBefore == null)
                 {
-                    RemoveAddedMetadata(m_health, m_addedAnnotations, Ua.ReferenceTypeIds.HasProperty);
+                    try
+                    {
+                        await RemoveAddedMetadataAsync(m_health, m_addedAnnotations, Ua.ReferenceTypeIds.HasProperty)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
                 }
-                else if (m_annotationsBefore is BaseVariableState annotations)
+                else
                 {
-                    annotations.AccessLevel = m_originalAnnotationAccessLevel;
-                    annotations.UserAccessLevel = m_originalAnnotationUserAccessLevel;
+                    try
+                    {
+                        if (m_annotationsBefore is BaseVariableState annotations &&
+                            ReferenceEquals(m_health.FindChild(m_handle.Context, annotations.BrowseName), annotations))
+                        {
+                            annotations.AccessLevel = m_originalAnnotationAccessLevel;
+                            annotations.UserAccessLevel = m_originalAnnotationUserAccessLevel;
+                        }
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
+                }
+                if (failures.Count != 0)
+                {
+                    throw new AggregateException("Raw history metadata cleanup failed.", failures);
                 }
             }
-            RemoveAddedMetadata(
+        }
+
+        /// <summary>
+        /// Removes event metadata created by this owner without changing an owner's pre-existing configuration.
+        /// </summary>
+        private ValueTask ReleaseEventMetadataAsync()
+        {
+            return RemoveAddedMetadataAsync(
                 m_handle.Asset, m_addedEventConfiguration, Ua.ReferenceTypeIds.HasHistoricalConfiguration);
         }
 
         /// <summary>
-        /// Detaches newly created configuration and both directions of its explicit reference.
+        /// Removes binding-created metadata from the owner index and detaches both reference directions.
         /// </summary>
-        private void RemoveAddedMetadata(NodeState parent, BaseInstanceState? child, NodeId referenceType)
+        private async ValueTask RemoveAddedMetadataAsync(
+            NodeState parent, BaseInstanceState? child, NodeId referenceType)
         {
             if (child != null && ReferenceEquals(
                 parent.FindChild(m_handle.Context, child.BrowseName), child))
             {
-                parent.RemoveReference(referenceType, false, child.NodeId);
-                child.RemoveReference(referenceType, true, parent.NodeId);
-                parent.RemoveChild(child);
+                var nodes = new List<BaseInstanceState> { child };
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    nodes[i].GetChildren(m_handle.Context, nodes);
+                }
+                var failures = new List<Exception>();
+                try
+                {
+                    if (m_indexAttempted)
+                    {
+                        using var operation = new OperationContext(
+                            new RequestHeader(), null, RequestType.DeleteNodes, RequestLifetime.None);
+                        for (int i = nodes.Count - 1; i >= 0; i--)
+                        {
+                            try
+                            {
+                                ServiceResult result = await m_handle.Owner.DeleteNodeAsync(
+                                    operation,
+                                    new DeleteNodesItem { NodeId = nodes[i].NodeId, DeleteTargetReferences = true },
+                                    CancellationToken.None).ConfigureAwait(false);
+                                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNodeIdUnknown)
+                                {
+                                    throw new ServiceResultException(result);
+                                }
+                            }
+                            catch (Exception failure)
+                            {
+                                failures.Add(failure);
+                            }
+                        }
+                    }
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
+                {
+                    parent.RemoveReference(referenceType, false, child.NodeId);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
+                {
+                    child.RemoveReference(referenceType, true, parent.NodeId);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                try
+                {
+                    parent.RemoveChild(child);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+                if (failures.Count != 0)
+                {
+                    throw new AggregateException("History metadata cleanup failed.", failures);
+                }
             }
         }
 
@@ -635,7 +803,16 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <summary>Whether the matching archived health timestamp was restored.</summary>
         private bool m_healthRestored;
 
-        /// <summary>Whether this binding has already detached its capture pipelines.</summary>
-        private int m_disposed;
+        /// <summary>Whether initial capture completed and timestamp restoration must no longer be undone.</summary>
+        private bool m_created;
+
+        /// <summary>Whether owner indexing may have partially published a created metadata subtree.</summary>
+        private bool m_indexAttempted;
+
+        /// <summary>Serializes acquisition of the shared disposal outcome.</summary>
+        private readonly Lock m_disposeLock = new();
+
+        /// <summary>The first cleanup operation and its completed success or failure.</summary>
+        private TaskCompletionSource<bool>? m_disposeCompletion;
     }
 }

@@ -44,6 +44,7 @@ using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Tests;
@@ -360,6 +361,120 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(
                 reverse.Where(value => value.Time == (DateTimeUtc)timestamp).Select(value => value.EventId),
                 Is.EqualTo(new[] { second, first }));
+        }
+
+        [Test]
+        public async Task RepeatedDisposalAndUnregisterRetainEveryCleanupFailureAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(RepeatedDisposalAndUnregisterRetainEveryCleanupFailureAsync),
+                    builder => builder.WithDeviceHealth()
+                        .WithHealthAlarm("Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure)
+                        .WithConfigurableAssetId("Sensor-1")
+                        .WithDocumentationLinks(links => links.AddEditable("Manual", "https://example.test/manual")))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            IHistorianNodeBindingRegistry actual =
+                (IHistorianNodeBindingRegistry)((IHistorianRegistryProvider)server.Server).HistorianRegistry;
+            Assert.That(actual.TryRegisterForNode(device.DeviceHealth!, provider, out IDisposable? health), Is.True);
+            Assert.That(actual.TryRegisterForNode(device, provider, out IDisposable? events), Is.True);
+            var healthFailure = new InvalidOperationException("Raw release failed after cleanup.");
+            var eventFailure = new InvalidOperationException("Event release failed after cleanup.");
+            var ownerFailure = new InvalidOperationException("Alias deletion failed.");
+            var releaseStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAllowed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            async ValueTask ReleaseHealthAsync(Func<ValueTask> cleanup)
+            {
+                releaseStarted.SetResult(true);
+                await releaseAllowed.Task.ConfigureAwait(false);
+                await ReleaseAndFailAsync((IHistorianNodeBinding)health!, cleanup, healthFailure)
+                    .ConfigureAwait(false);
+            }
+            var healthRelease = new Mock<IHistorianNodeBinding>(MockBehavior.Strict);
+            var eventRelease = new Mock<IHistorianNodeBinding>(MockBehavior.Strict);
+            healthRelease.Setup(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()))
+                .Returns((Func<ValueTask> cleanup) => ReleaseHealthAsync(cleanup));
+            eventRelease.Setup(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()))
+                .Returns((Func<ValueTask> cleanup) =>
+                    ReleaseAndFailAsync((IHistorianNodeBinding)events!, cleanup, eventFailure));
+            IDisposable? healthRegistration = healthRelease.Object;
+            IDisposable? eventRegistration = eventRelease.Object;
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(device.DeviceHealth!, provider, out healthRegistration))
+                .Returns(true);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(device, provider, out eventRegistration))
+                .Returns(true);
+            var host = new Mock<IServerInternal>();
+            host.SetupGet(value => value.Telemetry).Returns(server.Server.Telemetry);
+            host.SetupGet(value => value.NamespaceUris).Returns(server.Server.NamespaceUris);
+            host.SetupGet(value => value.TypeTree).Returns(server.Server.TypeTree);
+            host.As<IHistorianRegistryProvider>().SetupGet(value => value.HistorianRegistry).Returns(registry.Object);
+            AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
+                handle, host.Object, new AssetHistoryOptions(provider), CancellationToken.None)
+                .ConfigureAwait(false))!;
+            handle.History = binding;
+            Task firstDisposal = binding.DisposeAsync().AsTask();
+            await releaseStarted.Task.ConfigureAwait(false);
+            Task concurrentDisposal = binding.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(concurrentDisposal, Is.SameAs(firstDisposal));
+                Assert.That(concurrentDisposal.IsCompleted, Is.False);
+            }
+            finally
+            {
+                releaseAllowed.SetResult(true);
+            }
+            AggregateException? first = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await firstDisposal.ConfigureAwait(false));
+            Assert.That(await Assert.ThrowsAsync<AggregateException>(async () =>
+                await concurrentDisposal.ConfigureAwait(false)), Is.SameAs(first));
+            AggregateException? repeated = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await binding.DisposeAsync().ConfigureAwait(false));
+            Assert.That(repeated, Is.SameAs(first));
+            Assert.That(first!.Flatten().InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(first.Flatten().InnerExceptions[0], Is.SameAs(healthFailure));
+            Assert.That(first.Flatten().InnerExceptions[1], Is.SameAs(eventFailure));
+            AliasNameState alias = handle.ProductInstanceUriAlias!.Node;
+            Assert.That(handle.AssetIdAlias, Is.Not.Null);
+            NodeStateChangedHandler failDeletion = (_, _, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.Deleted) != 0)
+                {
+                    throw ownerFailure;
+                }
+            };
+            alias.StateChanged += failDeletion;
+            try
+            {
+                AggregateException? unregister = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await asset.UnregisterAsync().ConfigureAwait(false));
+                Assert.That(unregister!.Flatten().InnerExceptions, Does.Contain(healthFailure));
+                Assert.That(unregister.Flatten().InnerExceptions, Does.Contain(eventFailure));
+                Assert.That(unregister.Flatten().InnerExceptions, Does.Contain(ownerFailure));
+                Assert.That(asset.IsRegistered, Is.False);
+                Assert.That(server.AssetManagement.Assets.IsEmpty, Is.True);
+                Assert.That(handle.AssetIdAlias, Is.Null);
+                Assert.That(server.Manager.ConformanceUnits.IsEmpty, Is.True);
+                Assert.That(handle.ConfigurableAssetIdBinding!.Variable.OnSimpleWriteValueAsync, Is.Null);
+                Assert.That(handle.ConfigurableAssetIdBinding.Variable.OnWriteValueAsync, Is.Null);
+                BaseVariableState link = await server.FindNodeAsync<BaseVariableState>(
+                    asset.DocumentationLinks!.Links[0].NodeId).ConfigureAwait(false);
+                Assert.That(link.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(link.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(link.OnSimpleWriteValueAsync, Is.Null);
+            }
+            finally
+            {
+                alias.StateChanged -= failDeletion;
+            }
+            healthRelease.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
+            eventRelease.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
         }
 
         [TestCase(AssetHistoryKinds.DeviceHealth, false)]
@@ -719,6 +834,9 @@ namespace Opc.Ua.AMB.Tests
                 CancellationToken.None).ConfigureAwait(false))!;
             IHistorianProviderRegistry registry = ((IHistorianRegistryProvider)server.Server).HistorianRegistry;
             NodeId node = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : asset.NodeId;
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            BaseInstanceState configuration = parent.FindChild(
+                ((AssetHandle)asset).Context, new QualifiedName(Ua.BrowseNames.HAConfiguration))!;
             IHistorianProvider replacement = sameProvider ? provider : other;
             registry.RegisterForNode(node, replacement);
             if (kind == AssetHistoryKinds.DeviceHealth)
@@ -736,6 +854,11 @@ namespace Opc.Ua.AMB.Tests
             await binding.DisposeAsync().ConfigureAwait(false);
             Assert.That(registry.Resolve(node), Is.SameAs(replacement));
             Assert.That(registry.Providers.Contains(replacement), Is.True);
+            Assert.That(parent.FindChild(
+                ((AssetHandle)asset).Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.SameAs(configuration));
+            Assert.That((await server.ReadAsync(configuration.NodeId, Attributes.NodeClass)
+                .ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
             if (kind == AssetHistoryKinds.DeviceHealth)
             {
                 Assert.That(device.DeviceHealth!.Historizing, Is.True);
@@ -749,6 +872,211 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(device.EventNotifier, Is.EqualTo(
                     EventNotifiers.SubscribeToEvents | EventNotifiers.HistoryRead | EventNotifiers.HistoryWrite));
             }
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth, false)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, true)]
+        [TestCase(AssetHistoryKinds.HealthEvents, false)]
+        public async Task UnregisterRemovesOwnedMetadataBeforeRegisteringDifferentCapabilitiesAsync(
+            AssetHistoryKinds kind,
+            bool existingAnnotations)
+        {
+            using var first = new InMemoryHistorianProvider();
+            using var second = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(UnregisterRemovesOwnedMetadataBeforeRegisteringDifferentCapabilitiesAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            PropertyState? annotations = null;
+            if (existingAnnotations)
+            {
+                annotations = new PropertyState(parent)
+                {
+                    NodeId = new NodeId("OwnerAnnotations", device.NodeId.NamespaceIndex),
+                    BrowseName = new QualifiedName(Ua.BrowseNames.Annotations),
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+                parent.AddChild(annotations);
+                AssetNodes.Register(handle, annotations);
+            }
+            HistorianNodeCapabilities initial = kind == AssetHistoryKinds.DeviceHealth
+                ? HistorianNodeCapabilities.DataReadWrite with { Stepped = false, InsertAnnotation = true }
+                : HistorianNodeCapabilities.EventReadWrite with
+                {
+                    StartOfArchive = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                };
+            HistorianNodeCapabilities changed = initial with
+            {
+                Stepped = true,
+                StartOfArchive = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            first.Register(parent.NodeId, initial);
+            second.Register(parent.NodeId, changed);
+            handle.History = (await AssetHistoryBinding.CreateAsync(
+                handle, server.Server, new AssetHistoryOptions(first, kind), CancellationToken.None)
+                .ConfigureAwait(false))!;
+            BaseInstanceState configuration = parent.FindChild(
+                handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration))!;
+            List<NodeId> ownedIds = MetadataNodeIds(configuration, handle.Context);
+            BaseInstanceState? activeAnnotations = parent.FindChild(
+                handle.Context, new QualifiedName(Ua.BrowseNames.Annotations));
+            if (activeAnnotations != null && !existingAnnotations)
+            {
+                ownedIds.Add(activeAnnotations.NodeId);
+            }
+
+            await asset.UnregisterAsync().ConfigureAwait(false);
+            await handle.History.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.Null);
+            Assert.That(await server.BrowseAsync(parent.NodeId, Ua.ReferenceTypeIds.HasHistoricalConfiguration)
+                .ConfigureAwait(false), Is.Empty);
+            Assert.That(parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.Annotations)),
+                Is.SameAs(annotations));
+            if (annotations != null)
+            {
+                Assert.That(annotations.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(annotations.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That((await server.ReadAsync(annotations.NodeId, Attributes.NodeClass)
+                    .ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            foreach (NodeId id in ownedIds)
+            {
+                Assert.That((await server.ReadAsync(id, Attributes.NodeClass).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId),
+                Is.Null);
+            Assert.That((await server.ReadAsync(device.NodeId, Attributes.NodeClass).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            var managerBuilder = new Mock<INodeManagerBuilder>();
+            managerBuilder.SetupGet(value => value.NodeManager).Returns(handle.Owner);
+            managerBuilder.SetupGet(value => value.Context).Returns(handle.Context);
+            var assetBuilder = new Mock<INodeBuilder<BaseObjectState>>();
+            assetBuilder.SetupGet(value => value.Node).Returns(device);
+            assetBuilder.SetupGet(value => value.Builder).Returns(managerBuilder.Object);
+            IAssetHandle registered = await server.AssetManagement.RegisterAssetAsync(
+                assetBuilder.Object, builder => builder.WithHistory(new AssetHistoryOptions(second, kind)))
+                .ConfigureAwait(false);
+            BaseInstanceState nextConfiguration = parent.FindChild(
+                handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration))!;
+            Assert.That(nextConfiguration, Is.Not.SameAs(configuration));
+            Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId),
+                Is.SameAs(second));
+            if (nextConfiguration is HistoricalDataConfigurationState data)
+            {
+                Assert.That(data.Stepped!.Value, Is.True);
+            }
+            else
+            {
+                Assert.That(((HistoricalEventConfigurationState)nextConfiguration).StartOfArchive!.Value,
+                    Is.EqualTo(changed.StartOfArchive));
+            }
+            await registered.UnregisterAsync().ConfigureAwait(false);
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth, false)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, true)]
+        [TestCase(AssetHistoryKinds.HealthEvents, false)]
+        public async Task FailedMetadataIndexingRemovesEveryPublishedDescendantAsync(
+            AssetHistoryKinds kind,
+            bool existingConfiguration)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(FailedMetadataIndexingRemovesEveryPublishedDescendantAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var original = (AssetHandle)asset;
+            var owner = new Mock<IAsyncNodeManager>(MockBehavior.Strict);
+            var published = new List<NodeId>();
+            var registrationFailure = new InvalidOperationException("The owner failed after indexing metadata.");
+            owner.Setup(value => value.AddNode(It.IsAny<NodeState>()))
+                .Callback<NodeState>(node =>
+                {
+                    original.Owner.AddNode(node);
+                    published.AddRange(MetadataNodeIds(node, original.Context));
+                    throw registrationFailure;
+                });
+            owner.Setup(value => value.DeleteNodeAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext context, DeleteNodesItem item, CancellationToken ct) =>
+                    original.Owner.DeleteNodeAsync(context, item, ct));
+            var handle = new AssetHandle(server.AssetManagement, device, owner.Object, original.Context,
+                original.DiNamespaceIndex);
+            provider.Register(kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : device.NodeId,
+                kind == AssetHistoryKinds.DeviceHealth
+                    ? HistorianNodeCapabilities.DataReadWrite with { InsertAnnotation = true }
+                    : HistorianNodeCapabilities.EventReadWrite);
+            HistoricalDataConfigurationState? retained = null;
+            Dictionary<NodeId, DataValue>? retainedValues = null;
+            if (existingConfiguration)
+            {
+                retained = await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                    original.Context, device.DeviceHealth!, provider).ConfigureAwait(false);
+                retainedValues = ConfigurationValues(retained, original.Context);
+                AssetNodes.Register(original, retained);
+            }
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await AssetHistoryBinding.CreateAsync(
+                    handle, server.Server, new AssetHistoryOptions(provider, kind), CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(failure, Is.SameAs(registrationFailure));
+            Assert.That(published, Is.Not.Empty);
+            foreach (NodeId id in published)
+            {
+                Assert.That((await server.ReadAsync(id, Attributes.NodeClass).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            Assert.That(parent.FindChild(original.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.SameAs(retained));
+            Assert.That(await server.BrowseAsync(parent.NodeId, Ua.ReferenceTypeIds.HasHistoricalConfiguration)
+                .ConfigureAwait(false), Has.Count.EqualTo(existingConfiguration ? 1 : 0));
+            if (retained != null)
+            {
+                Assert.That(ConfigurationValues(retained, original.Context), Is.EqualTo(retainedValues));
+                Assert.That((await server.ReadAsync(retained.NodeId, Attributes.NodeClass)
+                    .ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(device.DeviceHealth!.FindChild(
+                original.Context, new QualifiedName(Ua.BrowseNames.Annotations)),
+                Is.Null);
+            Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId), Is.Null);
+            Assert.That((await server.ReadAsync(parent.NodeId, Attributes.NodeClass).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            if (kind == AssetHistoryKinds.DeviceHealth)
+            {
+                using var operation = new OperationContext(
+                    new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+                HistorianPage<HistoricalDataValue> archived = await provider.ReadRawAsync(
+                    new HistorianOperationContext(
+                        (ServerSystemContext)original.Context, operation, device.DeviceHealth,
+                        HistoryUpdateType.Insert),
+                    new HistorianRawReadRequest
+                    {
+                        NodeId = parent.NodeId,
+                        StartTime = DateTimeUtc.MinValue,
+                        EndTime = DateTimeUtc.MaxValue,
+                        IsForward = true
+                    },
+                    default,
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(archived.Values.IsEmpty, Is.True);
+            }
+            owner.Verify(value => value.AddNode(It.IsAny<NodeState>()), Times.Once);
         }
 
         [TestCase(AssetHistoryKinds.DeviceHealth, 0)]
@@ -810,7 +1138,8 @@ namespace Opc.Ua.AMB.Tests
                         handle.Context, device, provider).ConfigureAwait(false);
                 if (defect == 1)
                 {
-                    parent.RemoveReference(Ua.ReferenceTypeIds.HasHistoricalConfiguration, false, configuration.NodeId);
+                    parent.RemoveReference(
+                        Ua.ReferenceTypeIds.HasHistoricalConfiguration, false, configuration.NodeId);
                 }
                 else if (defect == 2)
                 {
@@ -930,6 +1259,55 @@ namespace Opc.Ua.AMB.Tests
                     Is.SameAs(capabilities));
             }
             Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId), Is.Null);
+            Assert.That(parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.SameAs(configuration));
+            Assert.That(ConfigurationValues(configuration, handle.Context), Is.EqualTo(originalValues));
+            Assert.That((await server.ReadAsync(configuration.NodeId, Attributes.NodeClass)
+                .ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth)]
+        [TestCase(AssetHistoryKinds.HealthEvents)]
+        public async Task MetadataReleaseCapabilityIsRequiredBeforeProviderOrNodeMutationAsync(AssetHistoryKinds kind)
+        {
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(MetadataReleaseCapabilityIsRequiredBeforeProviderOrNodeMutationAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            byte originalAccess = device.DeviceHealth!.AccessLevel;
+            byte originalUserAccess = device.DeviceHealth.UserAccessLevel;
+            byte originalNotifier = device.EventNotifier;
+            var provider = new Mock<IHistorianProvider>(MockBehavior.Strict);
+            var release = new Mock<IDisposable>(MockBehavior.Strict);
+            release.Setup(value => value.Dispose());
+            IDisposable? registration = release.Object;
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(parent, provider.Object, out registration))
+                .Returns(true);
+            var host = new Mock<IServerInternal>();
+            host.As<IHistorianRegistryProvider>().SetupGet(value => value.HistorianRegistry).Returns(registry.Object);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await AssetHistoryBinding.CreateAsync(
+                    handle, host.Object, new AssetHistoryOptions(provider.Object, kind), CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(device.DeviceHealth.Historizing, Is.False);
+            Assert.That(device.DeviceHealth.AccessLevel, Is.EqualTo(originalAccess));
+            Assert.That(device.DeviceHealth.UserAccessLevel, Is.EqualTo(originalUserAccess));
+            Assert.That(device.EventNotifier, Is.EqualTo(originalNotifier));
+            Assert.That(parent.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)), Is.Null);
+            Assert.That(device.DeviceHealth.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.Annotations)),
+                Is.Null);
+            provider.VerifyNoOtherCalls();
+            release.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
@@ -945,8 +1323,8 @@ namespace Opc.Ua.AMB.Tests
             var provider = new Mock<IHistorianProvider>(MockBehavior.Strict);
             provider.Setup(value => value.GetCapabilitiesAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(bindFailure);
-            var release = new Mock<IDisposable>(MockBehavior.Strict);
-            release.Setup(value => value.Dispose()).Throws(cleanupFailure);
+            var release = new Mock<IHistorianNodeBinding>(MockBehavior.Strict);
+            release.Setup(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>())).Throws(cleanupFailure);
             IDisposable? registration = release.Object;
             var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
             registry.As<IHistorianNodeBindingRegistry>()
@@ -963,7 +1341,7 @@ namespace Opc.Ua.AMB.Tests
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.Flatten().InnerExceptions, Is.EqualTo(new Exception[] { bindFailure, cleanupFailure }));
-            release.Verify(value => value.Dispose(), Times.Once);
+            release.Verify(value => value.ReleaseAsync(It.IsAny<Func<ValueTask>>()), Times.Once);
         }
 
         [TestCase(AssetHistoryKinds.DeviceHealth, false)]
@@ -1187,6 +1565,31 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(device.DeviceHealth.Timestamp, Is.EqualTo(currentTimestamp));
             Assert.That(device.DeviceHealth.Timestamp, Is.Not.EqualTo((DateTimeUtc)archivedTimestamp));
             Assert.That(binding.Kinds, Is.EqualTo(AssetHistoryKinds.DeviceHealth));
+        }
+
+        /// <summary>
+        /// Injects a release failure only after the actual registry has finished metadata cleanup.
+        /// </summary>
+        private static async ValueTask ReleaseAndFailAsync(
+            IHistorianNodeBinding binding, Func<ValueTask> cleanup, Exception failure)
+        {
+            await binding.ReleaseAsync(cleanup).ConfigureAwait(false);
+            throw failure;
+        }
+
+        /// <summary>
+        /// Snapshots identifiers before owner deletion detaches a metadata subtree.
+        /// </summary>
+        private static List<NodeId> MetadataNodeIds(NodeState root, ISystemContext context)
+        {
+            var nodes = new List<NodeState> { root };
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var children = new List<BaseInstanceState>();
+                nodes[i].GetChildren(context, children);
+                nodes.AddRange(children);
+            }
+            return nodes.Select(node => node.NodeId).ToList();
         }
 
         /// <summary>

@@ -365,6 +365,16 @@ that mapping without removing a later replacement, even if the replacement uses
 the same provider instance. Disposing a registration does not dispose its
 provider; the registry retains provider lifetime ownership until shutdown.
 
+The default registry's scoped tokens implement `IHistorianNodeBinding`.
+`ReleaseAsync(cleanup)` retains the node registration while the caller removes
+its metadata and owner-index entries, then restores attributes and removes the
+mapping even when cleanup fails. Competing mutations on that node are rejected
+until release finishes. If replacement setup is already in progress, release
+waits for its outcome: a committed successor is preserved without running the
+earlier owner's cleanup; a rolled-back replacement leaves the earlier owner
+responsible for cleanup. Repeated release calls share the original operation and
+its completed outcome.
+
 The overload taking `NodeState` also snapshots a variable's `Historizing`,
 `AccessLevel` and `UserAccessLevel`, or an object's `EventNotifier`. Releasing
 that registration restores the snapshot only while its exact-node mapping is

@@ -399,8 +399,10 @@ attributes, but only while AMB remains the exact-node owner. A later registratio
 including one using the same provider instance, retains its mapping and attributes
 when the older AMB binding is disposed. Replacement owners must register before
 setting their history attributes. Custom registries must implement the
-`IHistorianNodeBindingRegistry` overload taking `NodeState` for this ownership
-behavior.
+`IHistorianNodeBindingRegistry` overload taking `NodeState` and return an
+`IHistorianNodeBinding` that supports ownership-aware metadata release. AMB rejects
+a registration without that release capability before changing history metadata
+or provisioning the provider.
 An owner that overrides `GetHistorianProvider` must return this same provider
 for the bound nodes; node-manager overrides take precedence over the shared
 registry during service dispatch.
@@ -418,11 +420,12 @@ references, and provider-derived properties agree with the selected provider.
 A malformed or different configuration rejects registration with
 `BadConfigurationError`; its existing values and references remain unchanged.
 Additional configuration children that AMB cannot verify also reject registration.
-If registration fails after adding configuration, AMB removes its new children
-and references before returning the error; those children are not indexed by the
-node manager until the complete binding succeeds. All requested history kinds
-are validated before capture is attached or an initial record is emitted, so a
-rejected event binding cannot add a health sample to the archive.
+If registration fails after adding configuration, AMB removes its new children,
+references and any entries already published in the owner's node index before
+returning the error. Metadata indexing starts only after all requested history
+kinds have been accepted and completes before capture is attached or an initial
+record is emitted, so a rejected event binding cannot add a health sample to the
+archive.
 If cleanup also fails, an `AggregateException` retains the initiating error and
 the cleanup errors. AMB does not enable client HistoryUpdate access.
 The shared capture queues store value changes with
@@ -445,8 +448,16 @@ active alarms or resume maintenance work.
 
 Capture uses the shared historian's queue, error logging and shutdown drain.
 `AssetHistoryOptions.Capture` configures batching and queue limits.
-Unregistering an asset detaches its capture and history bindings; the owning
-node manager keeps the asset itself. The server historian registry owns a
+Unregistering an asset detaches its capture and history bindings, removes only
+the historical configuration and annotations AMB created, and restores access on
+pre-existing annotations. The owning node manager keeps the asset and any
+pre-existing historical configuration. A successor binding retains its metadata;
+otherwise metadata cleanup completes before another historian can bind that node,
+so re-registration can install configuration for a provider with different capabilities.
+Repeated disposal shares the first cleanup operation and reports its completed
+success or failure. Unregistration attempts the history, configurable-identifier,
+documentation, alias and location cleanup even when an earlier operation fails,
+and reports the collected errors. The server historian registry owns a
 registered provider's lifetime. Keep providers alive until server shutdown.
 
 The typed client delegates range direction, paging, early-disposal continuation

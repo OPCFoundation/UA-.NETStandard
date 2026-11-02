@@ -240,8 +240,9 @@ namespace Opc.Ua.AMB.Server.Assets
                 }
                 handle.MarkRegistered();
             }
-            catch
+            catch (Exception failure)
             {
+                var failures = new List<Exception> { failure };
                 try
                 {
                     if (handle.History != null)
@@ -249,9 +250,21 @@ namespace Opc.Ua.AMB.Server.Assets
                         await handle.History.DisposeAsync().ConfigureAwait(false);
                     }
                 }
-                finally
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                }
+                try
                 {
                     Release(handle);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    failures.Add(cleanupFailure);
+                }
+                if (failures.Count > 1)
+                {
+                    throw new AggregateException("Asset registration and cleanup failed.", failures);
                 }
                 throw;
             }
@@ -413,7 +426,15 @@ namespace Opc.Ua.AMB.Server.Assets
                 m_order.Remove(handle);
                 manager = m_manager;
             }
-            handle.UnwatchIdentification();
+            var failures = new List<Exception>();
+            try
+            {
+                handle.UnwatchIdentification();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
             try
             {
                 if (handle.History != null)
@@ -421,14 +442,40 @@ namespace Opc.Ua.AMB.Server.Assets
                     await handle.History.DisposeAsync().ConfigureAwait(false);
                 }
             }
-            finally
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
             {
                 Release(handle);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
                 Logger.AssetUnregistered(handle.BrowseName, handle.NodeId);
-                if (manager != null)
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (manager != null)
+            {
+                try
                 {
                     await manager.OnAssetUnregisteredAsync(handle, CancellationToken.None).ConfigureAwait(false);
                 }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Asset unregistration cleanup failed.", failures);
             }
         }
 
@@ -453,9 +500,35 @@ namespace Opc.Ua.AMB.Server.Assets
         /// </summary>
         private static void Release(AssetHandle handle)
         {
-            handle.ConfigurableAssetIdBinding?.Release();
-            handle.ConfigurableAssetIdBinding?.Dispose();
-            handle.DocumentationLinks?.Dispose();
+            var failures = new List<Exception>();
+            try
+            {
+                handle.ConfigurableAssetIdBinding?.Release();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                handle.ConfigurableAssetIdBinding?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                handle.DocumentationLinks?.Dispose();
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count != 0)
+            {
+                throw new AggregateException("Asset owner cleanup failed.", failures);
+            }
         }
 
         private ILogger Logger

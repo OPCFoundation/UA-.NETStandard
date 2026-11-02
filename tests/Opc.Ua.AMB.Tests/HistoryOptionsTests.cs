@@ -82,6 +82,114 @@ namespace Opc.Ua.AMB.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task MetadataReleaseExcludesReplacementAndRetainsItsCompletedOutcomeAsync(bool failCleanup)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var provider = new InMemoryHistorianProvider();
+            using var successor = new InMemoryHistorianProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("health", 1),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            Assert.That(registry.TryRegisterForNode(node, provider, out IDisposable? registration), Is.True);
+            var binding = (IHistorianNodeBinding)registration!;
+            node.Historizing = true;
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cleanupFailure = new InvalidOperationException("Metadata cleanup failed.");
+            int calls = 0;
+            async ValueTask CleanupAsync()
+            {
+                calls++;
+                started.SetResult(true);
+                await finish.Task.ConfigureAwait(false);
+                if (failCleanup)
+                {
+                    throw cleanupFailure;
+                }
+            }
+            Task release = binding.ReleaseAsync(CleanupAsync).AsTask();
+            await started.Task.ConfigureAwait(false);
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(provider));
+            Assert.That(registry.TryRegisterForNode(node, successor, out _), Is.False);
+            Assert.Throws<InvalidOperationException>(() => registry.RegisterForNode(node.NodeId, successor));
+            Assert.Throws<InvalidOperationException>(() =>
+                ((IHistorianNodeReplacementRegistry)registry).BeginNodeReplacement(node, successor));
+            Task repeated = binding.ReleaseAsync(() => throw new AssertionException("Cleanup repeated.")).AsTask();
+            Assert.That(repeated, Is.SameAs(release));
+            finish.SetResult(true);
+            if (failCleanup)
+            {
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await release.ConfigureAwait(false)), Is.SameAs(cleanupFailure));
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await repeated.ConfigureAwait(false)), Is.SameAs(cleanupFailure));
+            }
+            else
+            {
+                await release.ConfigureAwait(false);
+                await repeated.ConfigureAwait(false);
+            }
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(node.Historizing, Is.False);
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(registry.Resolve(node.NodeId), Is.Null);
+            registry.RegisterForNode(node.NodeId, successor);
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(successor));
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task MetadataReleaseWaitsForReplacementWithoutTouchingASuccessorAsync(
+            bool commit,
+            bool shutdown)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var provider = new InMemoryHistorianProvider();
+            using var successor = new InMemoryHistorianProvider();
+            var node = new BaseDataVariableState(null) { NodeId = new NodeId("health", 1) };
+            Assert.That(registry.TryRegisterForNode(node, provider, out IDisposable? registration), Is.True);
+            node.Historizing = true;
+            using IHistorianNodeReplacement replacement =
+                ((IHistorianNodeReplacementRegistry)registry).BeginNodeReplacement(node, successor);
+            int cleanupCalls = 0;
+            Task release = ((IHistorianNodeBinding)registration!).ReleaseAsync(() =>
+            {
+                cleanupCalls++;
+                return default;
+            }).AsTask();
+            Assert.That(release.IsCompleted, Is.False);
+            if (shutdown)
+            {
+                registry.Dispose();
+                Assert.That(release.IsCompleted, Is.False);
+            }
+            if (commit && shutdown)
+            {
+                Assert.Throws<ObjectDisposedException>(() => replacement.Commit());
+            }
+            else if (commit)
+            {
+                replacement.Commit();
+            }
+            else
+            {
+                replacement.Dispose();
+            }
+            await release.ConfigureAwait(false);
+            bool replaced = commit && !shutdown;
+            Assert.That(cleanupCalls, Is.EqualTo(replaced ? 0 : 1));
+            Assert.That(registry.Resolve(node.NodeId), replaced ? Is.SameAs(successor) : Is.Null);
+            Assert.That(node.Historizing, Is.EqualTo(replaced));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void ScopedRegistryDisposalCannotRemoveALaterRegistration(bool sameProvider)
         {
             using var registry = new HistorianProviderRegistry(new NamespaceTable());
@@ -238,7 +346,8 @@ namespace Opc.Ua.AMB.Tests
                 if (node is BaseVariableState variable)
                 {
                     Assert.That(variable.Historizing, Is.True);
-                    Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
+                    Assert.That(variable.AccessLevel,
+                        Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
                     Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryRead));
                 }
                 else
