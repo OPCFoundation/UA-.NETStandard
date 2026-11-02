@@ -23,6 +23,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.IA;
 using Opc.Ua.IA.Client;
@@ -44,6 +45,7 @@ namespace Opc.Ua.Aot.Tests
             ITelemetryContext telemetry = DefaultTelemetry.Create(
                 builder => builder.SetMinimumLevel(LogLevel.Warning));
             ServiceMessageContext messages = ServiceMessageContext.Create(telemetry);
+            messages.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUaDi);
             messages.NamespaceUris.GetIndexOrAppend(IA.Namespaces.IA);
             var context = new SystemContext(telemetry)
             {
@@ -51,6 +53,7 @@ namespace Opc.Ua.Aot.Tests
                 EncodeableFactory = messages.Factory
             };
             var nodes = new NodeStateCollection();
+            nodes.AddOpcUaDi(context);
             var model = new IaModelProvider();
             model.AddPredefinedNodes(nodes, context);
             int count = nodes.Count;
