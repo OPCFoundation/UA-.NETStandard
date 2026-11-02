@@ -1824,7 +1824,11 @@ namespace Opc.Ua.Server
                 Guid? targetId = change.TargetSlot?.Id ?? change.Current?.Id;
                 if (targetId is { } id && !identities.Add(id))
                 {
-                    throw new ArgumentException("A slot occurs twice in the same unit.", nameof(changes));
+                    throw new ArgumentException(
+                        change.TargetSlot is null
+                            ? "A registration occurs twice in the same unit."
+                            : "A slot occurs twice in the same unit.",
+                        nameof(changes));
                 }
                 if (change.Current is { } current)
                 {

@@ -474,6 +474,28 @@ namespace Opc.Ua.Server
     public sealed class NodeManagerBatchResult
     {
         /// <summary>
+        /// Creates a legacy result with the original constructor signature.
+        /// </summary>
+        /// <param name="registrations">The committed candidate registrations.</param>
+        /// <param name="retired">The number physically retired before reconciliation returned.</param>
+        /// <param name="cleanupFailure">The initial committed failure.</param>
+        /// <param name="revision">The committed routing revision.</param>
+        /// <param name="slots">The slots at publication.</param>
+        /// <param name="retirement">The physical retirement task.</param>
+        /// <param name="reconciliation">The shared reconciliation ticket.</param>
+        internal NodeManagerBatchResult(
+            ArrayOf<NodeManagerRegistration> registrations,
+            uint retired,
+            Exception? cleanupFailure,
+            long revision,
+            NodeManagerSlot[] slots,
+            Task retirement,
+            GenerationReconciler.Reconciliation? reconciliation = null)
+            : this(registrations, retired, cleanupFailure, revision, slots, retirement, reconciliation, default)
+        {
+        }
+
+        /// <summary>
         /// Creates a compatibility result for the existing batch provider boundary.
         /// </summary>
         /// <param name="registrations">The committed candidate registrations.</param>
@@ -491,8 +513,8 @@ namespace Opc.Ua.Server
             long revision,
             NodeManagerSlot[] slots,
             Task retirement,
-            GenerationReconciler.Reconciliation? reconciliation = null,
-            ArrayOf<NodeManagerSlotSnapshot> publishedSlots = default)
+            GenerationReconciler.Reconciliation? reconciliation,
+            ArrayOf<NodeManagerSlotSnapshot> publishedSlots)
             : this(new LifecycleResult(
                 registrations, retired, cleanupFailure, revision, slots, retirement, reconciliation, publishedSlots))
         {
