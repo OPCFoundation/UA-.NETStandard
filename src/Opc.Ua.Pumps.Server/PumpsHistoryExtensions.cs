@@ -136,13 +136,10 @@ namespace Opc.Ua.Pumps.Server
                     }
                 }
 
-                HistoryActivation? activation = null;
-                Exception? activationError = null;
-                Exception? rollbackError = null;
+                await using var activation = new HistoryActivation(
+                    runtime, provider, variables.ConvertAll<NodeState>(static variable => variable));
                 try
                 {
-                    activation = new(
-                        runtime, provider, variables.ConvertAll<NodeState>(static variable => variable));
                     HistorianBuilder historian = activation.Builder;
                     historian.UseProvider(provider);
                     for (int i = 0; i < variables.Count; i++)
@@ -159,37 +156,13 @@ namespace Opc.Ua.Pumps.Server
                             .ConfigureAwait(false);
                     }
                     ValidatePump(runtime, pump);
-                    runtime.Manager.RegisterResource(activation);
-                    activation = null;
+                    activation.Commit();
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
-                    activationError = error;
+                    activation.SetError(error);
+                    throw;
                 }
-                finally
-                {
-                    if (activation is not null)
-                    {
-                        Exception? disposalError = null;
-                        try
-                        {
-                            await activation.DisposeAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception error) when (error is not OutOfMemoryException)
-                        {
-                            disposalError = error;
-                        }
-                        try
-                        {
-                            await activation.RollbackAsync(disposalError).ConfigureAwait(false);
-                        }
-                        catch (Exception cleanupError) when (cleanupError is not OutOfMemoryException)
-                        {
-                            rollbackError = cleanupError;
-                        }
-                    }
-                }
-                ThrowActivationErrors(activationError, rollbackError);
                 return pump;
             }
             finally
@@ -258,12 +231,9 @@ namespace Opc.Ua.Pumps.Server
                         "The provider must support event reads and, for automatic capture, event insertion.");
                 }
 
-                HistoryActivation? activation = null;
-                Exception? activationError = null;
-                Exception? rollbackError = null;
+                await using var activation = new HistoryActivation(runtime, provider, [pump.Pump]);
                 try
                 {
-                    activation = new(runtime, provider, [pump.Pump]);
                     HistorianBuilder historian = activation.Builder;
                     historian.UseProvider(provider);
                     await historian.HistorizeEventsAsync(
@@ -277,37 +247,13 @@ namespace Opc.Ua.Pumps.Server
                     activation.RegisterForNode(pump.NodeId);
                     await runtime.Manager.AddPredefinedNodeAsync(pump.Pump, cancellationToken).ConfigureAwait(false);
                     ValidatePump(runtime, pump);
-                    runtime.Manager.RegisterResource(activation);
-                    activation = null;
+                    activation.Commit();
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
-                    activationError = error;
+                    activation.SetError(error);
+                    throw;
                 }
-                finally
-                {
-                    if (activation is not null)
-                    {
-                        Exception? disposalError = null;
-                        try
-                        {
-                            await activation.DisposeAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception error) when (error is not OutOfMemoryException)
-                        {
-                            disposalError = error;
-                        }
-                        try
-                        {
-                            await activation.RollbackAsync(disposalError).ConfigureAwait(false);
-                        }
-                        catch (Exception cleanupError) when (cleanupError is not OutOfMemoryException)
-                        {
-                            rollbackError = cleanupError;
-                        }
-                    }
-                }
-                ThrowActivationErrors(activationError, rollbackError);
                 return pump;
             }
             finally
@@ -419,12 +365,61 @@ namespace Opc.Ua.Pumps.Server
                         node.FindChild(runtime.SystemContext, new QualifiedName(Opc.Ua.BrowseNames.Annotations)));
                 }
                 Builder = new HistorianBuilder(runtime.Manager.Server);
+                m_capture = new HistoryCapture(DisposeCaptureAsync);
             }
 
             /// <summary>
             /// The shared capture and configuration builder.
             /// </summary>
             public HistorianBuilder Builder { get; }
+
+            /// <summary>
+            /// Transfers capture lifetime to the manager while ending the activation transaction.
+            /// </summary>
+            public void Commit()
+            {
+                m_runtime.Manager.RegisterResource(m_capture);
+                m_committed = true;
+            }
+
+            /// <summary>
+            /// Retains the original failure if rollback also fails.
+            /// </summary>
+            public void SetError(Exception error)
+            {
+                m_activationError = error;
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask DisposeAsync()
+            {
+                if (m_committed)
+                {
+                    return;
+                }
+                Exception? disposalError = null;
+                try
+                {
+                    await m_capture.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    disposalError = error;
+                }
+                Exception? rollbackError = null;
+                try
+                {
+                    await RollbackAsync(disposalError).ConfigureAwait(false);
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    rollbackError = error;
+                }
+                if (rollbackError is not null)
+                {
+                    ThrowActivationErrors(m_activationError, rollbackError);
+                }
+            }
 
             /// <summary>
             /// Adds a route only when no existing application route serves this node.
@@ -447,8 +442,10 @@ namespace Opc.Ua.Pumps.Server
                 m_routes.Add(nodeId);
             }
 
-            /// <inheritdoc/>
-            public async ValueTask DisposeAsync()
+            /// <summary>
+            /// Drains capture and removes only routes installed by this activation.
+            /// </summary>
+            public async ValueTask DisposeCaptureAsync()
             {
                 try
                 {
@@ -539,6 +536,27 @@ namespace Opc.Ua.Pumps.Server
 
             /// <summary>Exact routes added by this activation, excluding application-owned registrations.</summary>
             private readonly List<NodeId> m_routes = [];
+
+            /// <summary>The transferable lifetime of capture and provider routes.</summary>
+            private readonly HistoryCapture m_capture;
+
+            /// <summary>Whether the manager owns capture lifetime.</summary>
+            private bool m_committed;
+
+            /// <summary>The original activation failure, retained for cleanup diagnostics.</summary>
+            private Exception? m_activationError;
+        }
+
+        /// <summary>
+        /// Keeps committed capture separate from the activation transaction's lexical lifetime.
+        /// </summary>
+        private sealed class HistoryCapture(Func<ValueTask> dispose) : IAsyncDisposable
+        {
+            /// <inheritdoc/>
+            public ValueTask DisposeAsync()
+            {
+                return dispose();
+            }
         }
 
         /// <summary>
