@@ -38,6 +38,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Historian;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Pumps;
 using Opc.Ua.Pumps.Client;
 using PumpsSample.Client;
@@ -128,7 +129,7 @@ if (options.History && polled[BrowseNames.MassFlow] is { } flow)
         Console.WriteLine($"History {sample.SourceTimestamp}: {sample.WrappedValue} ({sample.StatusCode})");
     }
     await foreach (DataValue sample in history.ReadProcessedAsync(
-        flow.NodeId, Opc.Ua.Types.ObjectIds.AggregateFunction_Average, start, end,
+        flow.NodeId, Opc.Ua.ObjectIds.AggregateFunction_Average, start, end,
         processingInterval: 60_000, cancellationToken: ct).ConfigureAwait(false))
     {
         Console.WriteLine($"Minute average {sample.SourceTimestamp}: {sample.WrappedValue} ({sample.StatusCode})");

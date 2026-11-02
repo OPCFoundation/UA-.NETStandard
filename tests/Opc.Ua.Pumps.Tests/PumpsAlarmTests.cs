@@ -151,7 +151,7 @@ namespace Opc.Ua.Pumps.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(ServiceResult.IsGood(ack), Is.True);
-                Assert.That(alarm.AckedState.Id.Value, Is.True);
+                Assert.That(alarm.AckedState!.Id!.Value, Is.True);
                 Assert.That(alarm.Retain.Value, Is.False);
             });
             events.Clear();

@@ -141,12 +141,12 @@ namespace PumpsSample
                     [
                         new RolePermissionType
                         {
-                            RoleId = Opc.Ua.Types.ObjectIds.WellKnownRole_Anonymous,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_Anonymous,
                             Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
                         },
                         new RolePermissionType
                         {
-                            RoleId = Opc.Ua.Types.ObjectIds.WellKnownRole_ConfigureAdmin,
+                            RoleId = Opc.Ua.ObjectIds.WellKnownRole_ConfigureAdmin,
                             Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
                         }
                     ],
@@ -275,12 +275,16 @@ namespace PumpsSample
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             ArrayOf<PumpAlarmBinding> alarms =
             [
-                await DiagnosticAsync(processFluid, BrowseNames.Cavitation, DeviceHealthEnumeration.OFF_SPEC),
-                await DiagnosticAsync(processFluid, BrowseNames.Dry, DeviceHealthEnumeration.FAILURE),
-                await DiagnosticAsync(mechanics, BrowseNames.ExcessVibration, DeviceHealthEnumeration.OFF_SPEC),
+                await DiagnosticAsync(processFluid, BrowseNames.Cavitation,
+                    DeviceHealthEnumeration.OFF_SPEC).ConfigureAwait(false),
+                await DiagnosticAsync(processFluid, BrowseNames.Dry,
+                    DeviceHealthEnumeration.FAILURE).ConfigureAwait(false),
+                await DiagnosticAsync(mechanics, BrowseNames.ExcessVibration,
+                    DeviceHealthEnumeration.OFF_SPEC).ConfigureAwait(false),
                 await DiagnosticAsync(mechanics, BrowseNames.BearingFault,
-                    DeviceHealthEnumeration.MAINTENANCE_REQUIRED),
-                await DiagnosticAsync(operation, BrowseNames.MotorOverheat, DeviceHealthEnumeration.FAILURE),
+                    DeviceHealthEnumeration.MAINTENANCE_REQUIRED).ConfigureAwait(false),
+                await DiagnosticAsync(operation, BrowseNames.MotorOverheat,
+                    DeviceHealthEnumeration.FAILURE).ConfigureAwait(false),
                 await manager.Runtime.AddMeasurementAlarmAsync(
                     measurements, (BaseVariableState)measurements.Child(BrowseNames.BearingTemperature)!,
                     "BearingTemperatureLimit", new PumpMeasurementLimits { High = 75, HighHigh = 90 },
@@ -299,10 +303,10 @@ namespace PumpsSample
                 motor,
                 alarms);
 
-            async ValueTask<PumpAlarmBinding> DiagnosticAsync(
+            ValueTask<PumpAlarmBinding> DiagnosticAsync(
                 IPumpGroupBuilder group, string field, DeviceHealthEnumeration category)
             {
-                return await manager.Runtime.AddDiagnosticAlarmAsync(
+                return manager.Runtime.AddDiagnosticAlarmAsync(
                     group, (BaseVariableState)group.Child(field)!, field + "Condition", category,
                     new PumpAlarmOptions
                     {
