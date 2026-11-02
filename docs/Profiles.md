@@ -31,6 +31,8 @@ The SDK ships implementations and helpers for:
 - Part 18 (Role Management)
 - Part 20 (File Transfer)
 - Part 21 registrar ticket administration (not a complete device-onboarding state machine)
+- [Part 22 (Base Network Model)](BaseNetworkModel.md), with application-owned
+  network providers and an in-memory simulator
 - Part 100 (Device Integration / Software Update)
 - OPC 10100-1 (WoT Connectivity)
 - OPC 10000-200 (Industrial Automation)
@@ -175,6 +177,12 @@ canonical URI string before claiming a facet):
   / `LastChange`. The reference server wires the standard Aliases and
   Topics nodes via `ConfigureAliasNameStore`. See
   [Alias Names](AliasNames.md).
+- **Base Network Model** (Part 22) — `AddNetworkModel` binds application-owned
+  providers to standard Resources entry points, interfaces, priority mappings,
+  TSN streams and LLDP. The reference provider simulates state; it does not
+  configure host interfaces or reserve TSN bandwidth. No profile URI is
+  synthesized from the specification's conformance-unit names. See
+  [Base Network Model](BaseNetworkModel.md).
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
@@ -270,6 +278,12 @@ preview-only. Draft identifiers are not promoted to standard identifiers by
 shipping a package.
 
 ## Client Profiles
+
+Part 22 applications can register `AddNetworkModelClient` for generated-proxy
+access, type/interface-based discovery, lower-layer mapping resolution, typed
+reads and subscription observations. Mapping methods preserve operation and
+argument results and do not replay commands. See
+[Base Network Model](BaseNetworkModel.md#discover-and-use-the-typed-client).
 
 The client (`Opc.Ua.Client`) supports the standard UA Client functionality
 through two coexisting paths:
@@ -719,6 +733,7 @@ for the variant selected by `--ctt`.
 - [Aggregates](Aggregates.md) (Part 13)
 - [State Machines](StateMachines.md) (Part 16)
 - [Alias Names](AliasNames.md) (Part 17)
+- [Base Network Model](BaseNetworkModel.md) (Part 22, provider and simulation boundaries)
 - [Role-Based User Management](RoleBasedUserManagement.md) (Part 18)
 - [Identity Providers](IdentityProviders.md)
 - [Authorization Service](AuthorizationService.md) (Part 12 §9)

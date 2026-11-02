@@ -77,6 +77,9 @@
     <Project Path="samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj" />
     <Project Path="samples/MinimalApi/MinimalClient/MinimalClient.csproj" />
   </Folder>
+  <Folder Name="/samples/Network/">
+    <Project Path="samples/Network/NetworkModelSample/NetworkModelSample.csproj" />
+  </Folder>
   <Folder Name="/samples/OpenUsd/">
     <Project Path="samples/OpenUsd/GeneratorServer/GeneratorServer.csproj" />
     <Project Path="samples/OpenUsd/SiteCompositionServer/SiteCompositionServer.csproj" />

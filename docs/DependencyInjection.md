@@ -66,6 +66,7 @@ the manual constructors when you need finer control.
   - [Fluent shortcuts](#fluent-shortcuts)
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
+- [Base Network Model](#base-network-model)
 - [Programs](#programs)
 - [Alarms and conditions](#alarms-and-conditions)
 - [Client-side reverse connect](#client-side-reverse-connect)
@@ -1534,6 +1535,16 @@ The direct constructor fallback remains available:
 var cts = new ComplexTypeSystem(session, telemetry);
 await cts.LoadAsync(ct: ct);
 ```
+
+## Base Network Model
+
+For Part 22 network state, register
+`AddServer(...).AddNetworkModel(provider, authorizeMappingEdits)` and
+`AddClient(...).AddNetworkModelClient()`. The application owns the provider;
+mapping edits are denied when no authorization policy is supplied. Direct
+construction uses `NetworkModelNodeManagerFactory` and `NetworkModelClient`.
+See [Base Network Model](BaseNetworkModel.md) for provider composition, standard
+entry points and typed client operations.
 
 ## Programs
 

@@ -161,6 +161,8 @@ needs.
 - [File system client](FileSystemClient.md) — transfer files through the
   standard file objects.
 - [Alias names](AliasNames.md) — find nodes through named aliases.
+- [Base Network Model](BaseNetworkModel.md) — provider-backed interfaces,
+  priority mappings, TSN streams and LLDP, with a simulated server/client example.
 - [Node management](NodeManagement.md) — let clients add and delete nodes and
   references.
 - [Final-value publication](NodeManagers.md#final-value-publication-before-node-removal) — await terminal Value
