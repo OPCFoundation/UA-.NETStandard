@@ -721,10 +721,27 @@ The published model associates `EncodedTicket` with **Onboarding Ticket Reader**
 `DeviceRegistrarType` with
 [**Onboarding Registrar PullManagement**](https://profiles.opcfoundation.org/conformanceunit/4437),
 and `ProvisionableDeviceType` with **Onboarding Server PushManagement**.
-These are coverage targets, not declarations of conformance. Their full
-mandatory-unit expansion and passing interoperability evidence are still
-required before declaring them supported. No FDO integration is established by
-the native pull/push components.
+The [UACore 1.05 conformance-unit catalog](https://profiles.opcfoundation.org/api/conformanceunit/?pg=171&rs=1)
+also defines the corresponding DCA-client, registrar-client, and administration
+units. All six onboarding records currently have Draft status; a published
+Part 21 specification does not make these catalog records released profiles.
+
+| Conformance unit | Role and implementation boundary |
+|---|---|
+| [Onboarding Ticket Reader](https://profiles.opcfoundation.org/conformanceunit/4441) | Ticket validation; timestamp and revocation boundaries are identified above |
+| [Onboarding Registrar Administration](https://profiles.opcfoundation.org/conformanceunit/4440) | Registrar administration model, managed authorities and restricted audit delivery |
+| [Onboarding Registrar PullManagement](https://profiles.opcfoundation.org/conformanceunit/4437) | Device-facing registrar server methods and issuance authorization |
+| [Onboarding Client PullManagement](https://profiles.opcfoundation.org/conformanceunit/4438) | DCA pull workflow, retained key/request recovery and application provisioning |
+| [Onboarding Registrar PushManagement](https://profiles.opcfoundation.org/conformanceunit/4439) | Registrar client orchestration; validated session capture and certificate operations alone are insufficient |
+| [Onboarding Server PushManagement](https://profiles.opcfoundation.org/conformanceunit/4436) | Provisionable device, credential endpoint transition, singleton restrictions and reset |
+
+These are coverage targets, not declarations of conformance. The catalog's
+including-profile queries currently return no entries for these six records,
+so they do not supply a released parent profile whose mandatory dependencies
+can be expanded. This does not waive any requirements in Part 21 or the Part 12
+certificate-management services it uses. Passing interoperability evidence is
+still required before declaring the selected capabilities supported. No FDO
+integration is established by the native pull/push components.
 
 ---
 
