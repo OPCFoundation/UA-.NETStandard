@@ -143,7 +143,8 @@ namespace Opc.Ua.Server.Tests.Network
                     values.Speed.NodeId, cancellationToken).ConfigureAwait(false);
                 NetworkParameterValue engineeringUnits = units.ToList()
                     .Single(value => value.BrowseName == new QualifiedName(BrowseNames.EngineeringUnits, 0));
-                Assert.That(engineeringUnits.DataValue.WrappedValue.TryGetStructure(out EUInformation unit), Is.True);
+                Assert.That(engineeringUnits.DataValue.WrappedValue
+                    .TryGetStructure<EUInformation>(out EUInformation? unit), Is.True);
                 Assert.That(unit!.DisplayName.Text, Is.EqualTo("bit/s"));
                 Assert.That(unit.UnitId, Is.EqualTo(4337968));
                 Assert.That(unit.NamespaceUri,
@@ -371,7 +372,7 @@ namespace Opc.Ua.Server.Tests.Network
             ArrayOf<NetworkParameterValue> units = await m_client.ReadParametersAsync(
                 speed.NodeId, cancellationToken).ConfigureAwait(false);
             Assert.That(Parameter(units, BrowseNames.EngineeringUnits).DataValue.WrappedValue
-                .TryGetStructure(out EUInformation unit), Is.True);
+                .TryGetStructure<EUInformation>(out EUInformation? unit), Is.True);
             Assert.That(unit!.UnitId, Is.EqualTo(4534832));
             Assert.That(unit.DisplayName.Text, Is.EqualTo("Mbit/s"));
             ArrayOf<NetworkParameterValue> negotiation = await ReadParameterSetAsync(
@@ -402,7 +403,7 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(Parameter(traffic, BrowseNames.MaxFrameSize).DataValue.WrappedValue,
                 Is.EqualTo(new Variant(512u)));
             Assert.That(Parameter(traffic, BrowseNames.Interval).DataValue.WrappedValue
-                .TryGetStructure(out UnsignedRationalNumber interval), Is.True);
+                .TryGetStructure<UnsignedRationalNumber>(out UnsignedRationalNumber? interval), Is.True);
             Assert.That(interval!.Numerator, Is.EqualTo(1));
             Assert.That(interval.Denominator, Is.EqualTo(8000));
             ArrayOf<NetworkParameterValue> mac = await ReadParameterSetAsync(
