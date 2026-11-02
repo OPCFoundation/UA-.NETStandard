@@ -144,18 +144,90 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             using var server = new StagingServer(this);
-            IAsyncNodeManager manager = await factory.CreateAsync(server, configuration, cancellationToken)
-                .ConfigureAwait(false) ??
-                throw new InvalidOperationException(replacement
-                    ? "The replacement NodeManager factory returned null."
-                    : "The NodeManager factory returned null.");
-            if (isRegistered(manager) ||
-                !ReferenceEquals(s_candidates.GetValue(NodeManagerGenerationRegistry.GetIdentity(manager),
-                    _ => server), server))
+            IAsyncNodeManager manager;
+            try
             {
+                manager = await factory.CreateAsync(server, configuration, cancellationToken)
+                    .ConfigureAwait(false) ??
+                    throw new InvalidOperationException(replacement
+                        ? "The replacement NodeManager factory returned null."
+                        : "The NodeManager factory returned null.");
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                try
+                {
+                    await server.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Candidate creation and historian cleanup both failed.",
+                        failure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+
+            IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
+            if (isRegistered(manager) || s_candidates.TryGetValue(identity, out _))
+            {
+                await server.DisposeAsync().ConfigureAwait(false);
                 throw new NodeManagerAlreadyRegisteredException();
             }
+            if (server.HasPendingHistorianState && !server.CanPublishHistorianRegistrations)
+            {
+                var failure = new NotSupportedException(
+                    "The serving historian registry does not support candidate-owned registrations.");
+                try
+                {
+                    await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
+                    await server.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Candidate historian publication is unsupported and candidate cleanup failed.",
+                        failure,
+                        cleanupFailure);
+                }
+                throw failure;
+            }
+            if (server.HasPendingHistorianState && !NodeManagerReadiness.IsParticipant(manager))
+            {
+                var failure = ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "Historian registration during preparation requires {0} to implement " +
+                    "INodeManagerReadinessNotification.OnServerReadyAsync.",
+                    manager.GetType().FullName ?? "(unknown)");
+                try
+                {
+                    await DisposeCreatedManagerAsync(manager).ConfigureAwait(false);
+                    await server.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Historian registration requires readiness and candidate cleanup failed.",
+                        failure,
+                        cleanupFailure);
+                }
+                throw failure;
+            }
+            s_candidates.Add(identity, server);
             return manager;
+        }
+
+        private static async ValueTask DisposeCreatedManagerAsync(IAsyncNodeManager manager)
+        {
+            if (manager is IAsyncDisposable asyncDisposable)
+            {
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else if (manager is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         /// <summary>
@@ -190,6 +262,34 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Publishes candidate historian registrations after its readiness callback succeeds.
+        /// </summary>
+        /// <param name="manager">The ready NodeManager.</param>
+        internal static void PublishHistorianRegistrations(IAsyncNodeManager manager)
+        {
+            GetServer(manager)?.PublishHistorianRegistrations();
+        }
+
+        /// <summary>
+        /// Withdraws candidate historian registrations when its generation leaves routing.
+        /// </summary>
+        /// <param name="manager">The retired NodeManager.</param>
+        internal static void RetireHistorianRegistrations(IAsyncNodeManager manager)
+        {
+            GetServer(manager)?.RetireHistorianRegistrations();
+        }
+
+        /// <summary>
+        /// Disposes candidate-owned historian builders and staged provider state.
+        /// </summary>
+        /// <param name="manager">The candidate NodeManager.</param>
+        /// <returns>The asynchronous cleanup.</returns>
+        internal static ValueTask DisposeAsync(IAsyncNodeManager manager)
+        {
+            return GetServer(manager)?.DisposeAsync() ?? default;
+        }
+
+        /// <summary>
         /// Revokes a manager's service-level writer as soon as its generation leaves routing.
         /// </summary>
         /// <param name="manager">The retiring NodeManager.</param>
@@ -210,6 +310,7 @@ namespace Opc.Ua.Server
             AliasNames.IAliasNameStoreRegistryProvider, AliasNames.IAliasNameStoreRegistrationValidator,
             IConformanceUnitsManagerProvider, IServerEndpointRegistryProvider, ITransportListenerRegistryProvider,
             ISecurityPolicyRegistryProvider, ICertificateValidatorProvider, IHistoryContinuationPointStoreProvider,
+            IAsyncDisposable,
             IServerServiceLevelControl
         {
             /// <summary>
@@ -246,6 +347,12 @@ namespace Opc.Ua.Server
                     MaxEncodingNestingLevels = m_server.MessageContext.MaxEncodingNestingLevels,
                     MaxDecoderRecoveries = m_server.MessageContext.MaxDecoderRecoveries
                 };
+                m_historianRegistry = m_server is IHistorianRegistryProvider historianRegistryProvider
+                    ? new StagedHistorianProviderRegistry(
+                        NamespaceUris,
+                        historianRegistryProvider.HistorianRegistry,
+                        this)
+                    : null;
             }
 
             /// <inheritdoc/>
@@ -347,20 +454,47 @@ namespace Opc.Ua.Server
             {
                 get
                 {
-                    EnsurePublishedRegistryAccess();
-                    return m_server is IHistorianRegistryProvider provider
-                        ? provider.HistorianRegistry
-                        : throw new NotSupportedException("The server does not provide a historian registry.");
+                    return m_historianRegistry ??
+                        throw new NotSupportedException("The server does not provide a historian registry.");
                 }
             }
 
             /// <inheritdoc/>
             void IHistorianBuilderRegistry.RegisterHistorianBuilder(HistorianBuilder builder)
             {
-                EnsurePublishedRegistryAccess();
-                if (m_server is IHistorianBuilderRegistry registry)
+                if (builder == null)
                 {
-                    registry.RegisterHistorianBuilder(builder);
+                    throw new ArgumentNullException(nameof(builder));
+                }
+                lock (m_historianBuildersLock)
+                {
+                    if (IsDetached || m_historianBuildersDisposed)
+                    {
+                        throw new ObjectDisposedException(nameof(StagingServer));
+                    }
+                    if (m_server is not IHistorianBuilderRegistry ||
+                        m_historianRegistry?.SupportsOwnedRegistrations != true)
+                    {
+                        throw new NotSupportedException(
+                            "The serving server cannot manage candidate historian builder lifetimes.");
+                    }
+                    if (!m_historianBuilders.Contains(builder))
+                    {
+                        m_historianBuilders.Add(builder);
+                    }
+                }
+            }
+
+            /// <inheritdoc/>
+            void IHistorianBuilderRegistry.UnregisterHistorianBuilder(HistorianBuilder builder)
+            {
+                if (builder == null)
+                {
+                    throw new ArgumentNullException(nameof(builder));
+                }
+                lock (m_historianBuildersLock)
+                {
+                    m_historianBuilders.Remove(builder);
                 }
             }
 
@@ -425,6 +559,64 @@ namespace Opc.Ua.Server
             internal bool IsDetached { get; private set; }
 
             /// <summary>
+            /// Gets whether preparation recorded historian state that requires a readiness participant.
+            /// </summary>
+            internal bool HasPendingHistorianState
+            {
+                get
+                {
+                    if (m_historianRegistry?.HasRegistrations == true)
+                    {
+                        return true;
+                    }
+                    lock (m_historianBuildersLock)
+                    {
+                        return m_historianBuilders.Count != 0;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets whether the serving historian registry supports owner-scoped publication.
+            /// </summary>
+            internal bool CanPublishHistorianRegistrations =>
+                m_historianRegistry?.SupportsOwnedRegistrations == true;
+
+            /// <summary>
+            /// Publishes candidate historian bindings and transfers builder tracking to the server.
+            /// </summary>
+            internal void PublishHistorianRegistrations()
+            {
+                EnsurePublishedRegistryAccess();
+                HistorianBuilder[] builders;
+                lock (m_historianBuildersLock)
+                {
+                    builders = [.. m_historianBuilders];
+                }
+                if (builders.Length != 0 && m_server is not IHistorianBuilderRegistry)
+                {
+                    throw new NotSupportedException("The server does not manage historian builder lifetimes.");
+                }
+
+                m_historianRegistry?.Publish();
+                if (m_server is IHistorianBuilderRegistry registry)
+                {
+                    foreach (HistorianBuilder builder in builders)
+                    {
+                        registry.RegisterHistorianBuilder(builder);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Withdraws this candidate's bindings from the serving registry.
+            /// </summary>
+            internal void RetireHistorianRegistrations()
+            {
+                m_historianRegistry?.Retire();
+            }
+
+            /// <summary>
             /// Gets explicit namespace registrations retained until routing publication.
             /// </summary>
             internal IEnumerable<string> NamespaceRegistrations => m_pendingNamespaces;
@@ -433,6 +625,75 @@ namespace Opc.Ua.Server
             public void Dispose()
             {
                 // The facade does not own the running server.
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask DisposeAsync()
+            {
+                HistorianBuilder[] builders;
+                lock (m_historianBuildersLock)
+                {
+                    if (m_historianBuildersDisposed)
+                    {
+                        return;
+                    }
+                    builders = [.. m_historianBuilders];
+                }
+
+                List<Exception>? failures = null;
+                try
+                {
+                    RetireHistorianRegistrations();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failures = [exception];
+                }
+
+                foreach (HistorianBuilder builder in builders)
+                {
+                    try
+                    {
+                        await builder.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        failures ??= [];
+                        failures.Add(exception);
+                    }
+                    if (m_server is IHistorianBuilderRegistry registry)
+                    {
+                        try
+                        {
+                            registry.UnregisterHistorianBuilder(builder);
+                        }
+                        catch (Exception exception) when (exception is not OutOfMemoryException)
+                        {
+                            failures ??= [];
+                            failures.Add(exception);
+                        }
+                    }
+                }
+                try
+                {
+                    m_historianRegistry?.Dispose();
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    failures ??= [];
+                    failures.Add(exception);
+                }
+                if (failures != null)
+                {
+                    throw new AggregateException(
+                        "One or more candidate historian resources failed during cleanup.",
+                        failures);
+                }
+                lock (m_historianBuildersLock)
+                {
+                    m_historianBuilders.Clear();
+                    m_historianBuildersDisposed = true;
+                }
             }
 
             /// <inheritdoc/>
@@ -694,7 +955,12 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Detach()
             {
+                if (IsDetached)
+                {
+                    return;
+                }
                 IsDetached = true;
+                RetireHistorianRegistrations();
                 RevokeServiceLevelControl();
                 TypeTree.Detach();
                 ((EncodeableFactory)Factory).Detach();
@@ -703,7 +969,7 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Keeps shared registries out of private preparation; runtime services bind during readiness.
+            /// Keeps non-historian shared registries out of private preparation; runtime services bind during readiness.
             /// </summary>
             private void EnsurePublishedRegistryAccess()
             {
@@ -721,6 +987,9 @@ namespace Opc.Ua.Server
             private readonly StringTable m_servingServerUris;
             private readonly TypeTable m_servingTypes;
             private readonly EncodeableFactory m_servingFactory;
+            private readonly StagedHistorianProviderRegistry? m_historianRegistry;
+            private readonly Lock m_historianBuildersLock = new();
+            private readonly List<HistorianBuilder> m_historianBuilders = [];
 
             /// <summary>Retains namespace registration intent until routing publication.</summary>
             private readonly HashSet<string> m_pendingNamespaces = [];
@@ -734,6 +1003,7 @@ namespace Opc.Ua.Server
             private readonly Lock m_serviceLevelControlLock = new();
             private Action<byte>? m_serviceLevelControlWriter;
             private bool m_serviceLevelControlRevoked;
+            private bool m_historianBuildersDisposed;
         }
     }
 }

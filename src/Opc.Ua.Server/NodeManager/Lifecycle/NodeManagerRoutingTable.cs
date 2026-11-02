@@ -105,6 +105,7 @@ namespace Opc.Ua.Server
             {
                 if (!next.Generations.Contains(generation))
                 {
+                    ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
                     generation.Gate.Retire();
                     generation.Slot.Unpublish(generation);
                 }

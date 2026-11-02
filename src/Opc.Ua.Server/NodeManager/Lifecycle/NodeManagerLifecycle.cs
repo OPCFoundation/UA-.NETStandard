@@ -520,7 +520,9 @@ namespace Opc.Ua.Server
                             "The registration changed while its readiness operation was completing.");
                     }
 
-                    CompleteReadinessClaim(state);
+                    CompleteReadinessClaim(
+                        state,
+                        () => ChangePreparer.PublishHistorianRegistrations(state.Prepared.NodeManager));
                 }
 
                 await LifecycleWaitDiagnostics.WaitAsync(
@@ -587,10 +589,20 @@ namespace Opc.Ua.Server
         /// Opens a generation after its readiness callback completed successfully.
         /// </summary>
         /// <param name="state">The registration whose readiness completed.</param>
-        private void CompleteReadinessClaim(RegistrationState state)
+        /// <param name="beforeClaim">A synchronous publication step performed before readiness is released.</param>
+        private void CompleteReadinessClaim(RegistrationState state, Action? beforeClaim = null)
         {
             lock (m_registrationLock)
             {
+                if (!m_registrations.TryGetValue(
+                    state.Registration.Id,
+                    out RegistrationState? current) ||
+                    !ReferenceEquals(current, state))
+                {
+                    throw new InvalidOperationException(
+                        "The registration changed before its readiness operation could be published.");
+                }
+                beforeClaim?.Invoke();
                 state.ReadinessPending = false;
             }
             NodeManagerGeneration generation = state.Registration.Identity;
@@ -1365,13 +1377,47 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager)
         {
             ChangePreparer.Detach(nodeManager);
+            Exception? managerFailure = null;
             if (nodeManager is IAsyncDisposable asyncDisposable)
             {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    managerFailure = failure;
+                }
             }
             else if (nodeManager is IDisposable disposable)
             {
-                disposable.Dispose();
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    managerFailure = failure;
+                }
+            }
+            try
+            {
+                await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+            {
+                if (managerFailure is not null)
+                {
+                    throw new AggregateException(
+                        "NodeManager and candidate historian cleanup both failed.",
+                        managerFailure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+            if (managerFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
             }
         }
 

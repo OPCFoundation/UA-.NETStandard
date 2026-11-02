@@ -342,3 +342,35 @@ The former private `ResolveNamespaceIndexes`, `AddExternalReferencesAsync` and
 compatibility adapters, and are removed. Their serving effects belong to the
 existing prepared routing and reference publication paths; removing them does
 not remove reference reconciliation or destruction-failure diagnostics.
+
+## Historian registration ownership
+
+Historian registration during candidate preparation must not change the serving
+registry. `StagingServer.HistorianRegistry` now records NodeId, namespace URI and
+default bindings in a candidate-owned overlay. Its resolver combines candidate
+and serving bindings by scope, so exact NodeId lookup still precedes namespace
+lookup, and namespace lookup precedes the default provider.
+
+After the candidate's readiness callback succeeds and its registration is
+confirmed current, the overlay replaces that candidate's complete binding set
+in the serving registry. A failed callback leaves the serving registry
+unchanged; retry publishes once. Same-scope registrations within a candidate
+are last-write-wins. A manager that stages historian state must implement
+`INodeManagerReadinessNotification`; otherwise preparation fails and candidate
+resources are disposed without publication.
+
+Routing publication withdraws the retiring generation's bindings before the
+new routing snapshot becomes visible. The retired manager's local overlay
+remains available to already-admitted work until generation cleanup completes.
+Owner removal leaves direct server registrations and other generations'
+bindings intact. Published providers remain owned by the serving registry
+through server shutdown. Candidate builders transfer to server tracking after
+readiness and are removed from that tracking after generation cleanup; abort
+and retirement dispose their capture handlers.
+
+The staged-registry and lifecycle readiness regression selection passed 77/77
+tests on net10.0 and 77/77 on net48. It includes pre-readiness invisibility,
+readiness retry, preparation abort, overlapping replacement retirement,
+cross-scope precedence, duplicate registration, and shared-provider disposal.
+These are focused selections; no full-solution run or #4869 performance result
+is claimed here.

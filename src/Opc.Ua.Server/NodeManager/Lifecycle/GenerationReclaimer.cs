@@ -514,13 +514,47 @@ namespace Opc.Ua.Server
         private static async ValueTask DisposeNodeManagerAsync(IAsyncNodeManager nodeManager)
         {
             ChangePreparer.Detach(nodeManager);
+            Exception? managerFailure = null;
             if (nodeManager is IAsyncDisposable asyncDisposable)
             {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    managerFailure = failure;
+                }
             }
             else if (nodeManager is IDisposable disposable)
             {
-                disposable.Dispose();
+                try
+                {
+                    disposable.Dispose();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    managerFailure = failure;
+                }
+            }
+            try
+            {
+                await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
+            }
+            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+            {
+                if (managerFailure is not null)
+                {
+                    throw new AggregateException(
+                        "NodeManager and candidate historian cleanup both failed.",
+                        managerFailure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+            if (managerFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
             }
         }
 

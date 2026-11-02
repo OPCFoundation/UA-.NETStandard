@@ -322,7 +322,23 @@ namespace Opc.Ua.Server
             }
             lock (m_historianBuildersLock)
             {
-                m_historianBuilders.Add(builder);
+                if (!m_historianBuilders.Contains(builder))
+                {
+                    m_historianBuilders.Add(builder);
+                }
+            }
+        }
+
+        void Historian.IHistorianBuilderRegistry.UnregisterHistorianBuilder(
+            Historian.HistorianBuilder builder)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            lock (m_historianBuildersLock)
+            {
+                m_historianBuilders.Remove(builder);
             }
         }
 
