@@ -221,18 +221,25 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Commits an equipment report against one selected product without interleaving a product switch.
-        /// Only runtime publication code may execute in this scope.
+        /// Pins the single product in processing while an equipment report commits.
+        /// Selecting, deselecting or switching products is rejected until the reservation is disposed,
+        /// so a committed report can never land on a product that has already left processing.
         /// </summary>
-        /// <typeparam name="T">The result of the report operation.</typeparam>
-        internal T WithActiveProduct<T>(Func<ProductState?, T> publish)
+        /// <returns>
+        /// The reservation; its product is <see langword="null"/> and nothing is pinned
+        /// when none or more than one product is in processing.
+        /// </returns>
+        internal ActiveProductReservation ReserveActiveProduct()
         {
             lock (m_lock)
             {
-                ProductState? product = m_current.Count == 1 &&
-                    m_products.TryGetValue(m_current[0], out ProductState? current) ? current : null;
-                return publish(product);
+                if (m_current.Count == 1 && m_products.TryGetValue(m_current[0], out ProductState? product))
+                {
+                    m_reservations++;
+                    return new ActiveProductReservation(this, product);
+                }
             }
+            return new ActiveProductReservation(null, null);
         }
 
         /// <summary>
@@ -556,6 +563,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                 }
                 changed = !m_current.Contains(productId!);
+                if (changed && m_reservations > 0)
+                {
+                    return ReportCommitting();
+                }
                 if (changed)
                 {
                     m_current.Add(productId!);
@@ -587,6 +598,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                         return access;
                     }
                 }
+                if (m_reservations > 0 && m_current.Contains(productId!))
+                {
+                    return ReportCommitting();
+                }
                 changed = m_current.Remove(productId!);
                 if (changed)
                 {
@@ -599,6 +614,21 @@ namespace Opc.Ua.Scales.Server.Runtime
                 CurrentProductsChanged?.Invoke(this, EventArgs.Empty);
             }
             return ServiceResult.Good;
+        }
+
+        private static ServiceResult ReportCommitting()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidState,
+                "An equipment report is committing against the product in processing; retry the change.");
+        }
+
+        private void ReleaseReservation()
+        {
+            lock (m_lock)
+            {
+                m_reservations--;
+            }
         }
 
         private ServiceResult SwitchCore(ISystemContext callContext, string productId, bool checkLock)
@@ -637,6 +667,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                 }
                 changed = m_current.Count != 1 || !m_current.Contains(productId!);
+                if (changed && m_reservations > 0)
+                {
+                    return ReportCommitting();
+                }
                 if (changed)
                 {
                     foreach (string current in m_current)
@@ -1097,5 +1131,36 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly Lock m_lock = new();
         private ArrayOf<string> m_currentProducts = [];
         private bool m_registered;
+
+        /// <summary>The number of equipment reports pinning the product in processing.</summary>
+        private int m_reservations;
+
+        /// <summary>
+        /// Pins the product in processing for one equipment report commit; disposing releases it once.
+        /// </summary>
+        internal sealed class ActiveProductReservation : IDisposable
+        {
+            /// <summary>
+            /// Creates a reservation; an absent owner pins nothing.
+            /// </summary>
+            internal ActiveProductReservation(ScaleProductionPreset? owner, ProductState? product)
+            {
+                m_owner = owner;
+                Product = product;
+            }
+
+            /// <summary>
+            /// Gets the pinned product, or <see langword="null"/> when no single product is in processing.
+            /// </summary>
+            public ProductState? Product { get; }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_owner, null)?.ReleaseReservation();
+            }
+
+            private ScaleProductionPreset? m_owner;
+        }
     }
 }

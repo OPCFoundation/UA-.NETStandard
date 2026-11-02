@@ -40,7 +40,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <summary>
     /// What the runtime of a scale needs from the node manager that hosts it.
     /// </summary>
-    internal sealed class ScaleRuntimeServices : IDisposable
+    internal sealed class ScaleRuntimeServices : IDisposable, IAsyncDisposable
     {
         /// <summary>
         /// Creates the shared controller dependencies.
@@ -150,24 +150,53 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Releases the resources of every scale, including nested controllers.
+        /// Releases the resources of every scale, including nested controllers. A controller
+        /// stops delivering notifications, but a callback already running is not waited for.
         /// </summary>
         public void Dispose()
         {
-            IDisposable[] resources;
+            IDisposable[] resources = Detach();
+            for (int index = resources.Length - 1; index >= 0; index--)
+            {
+                resources[index].Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Releases the resources of every scale and waits until timer and subscriber
+        /// callbacks already running in asynchronously disposable controllers have returned.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            IDisposable[] resources = Detach();
+            for (int index = resources.Length - 1; index >= 0; index--)
+            {
+                if (resources[index] is IAsyncDisposable asyncResource)
+                {
+                    await asyncResource.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    resources[index].Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Marks the services disposed and takes ownership of the resources to release, once.
+        /// </summary>
+        private IDisposable[] Detach()
+        {
             lock (m_resourceGate)
             {
                 if (m_disposed)
                 {
-                    return;
+                    return [];
                 }
                 m_disposed = true;
-                resources = [.. m_resources];
+                IDisposable[] resources = [.. m_resources];
                 m_resources.Clear();
-            }
-            for (int index = resources.Length - 1; index >= 0; index--)
-            {
-                resources[index].Dispose();
+                return resources;
             }
         }
 

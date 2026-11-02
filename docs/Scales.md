@@ -550,6 +550,12 @@ with a single product in processing. They add the product statistics and
 observation members before publication; products created later through
 `AddProduct` receive the same members and write guards.
 
+A report commits atomically against the product in processing. While a commit
+is running, `Select`, `Deselect` and `SwitchProduct` calls that would change the
+product in processing return `BadInvalidState` and change nothing; retry them
+after the commit. A report for a product that has left processing returns
+`BadInvalidState` and publishes nothing.
+
 An equipment report contains a nonzero, increasing acquisition `Sequence`, the
 selected `ProductId`, an `ItemId` and a registered `ScaleReading`:
 
@@ -698,6 +704,25 @@ or operator must explicitly complete, skip or abort it. Timers stop at completio
 abort and runtime shutdown; `TimeProvider` injection supports deterministic tests.
 Non-condition elements still use `ElementStarted` / `CompleteElement`, and recipe
 file parsing remains vendor-specific.
+
+The controller raises recipe notifications such as `ElementStarted`,
+`RecipeCompleted` and the process-fault event outside its lock, in the order the
+operation queued them. A subscriber that throws does not stop delivery. The
+remaining notifications still run, and the caller of `Start`, `CompleteElement`
+or another synchronous method receives the exception afterwards, as an
+`AggregateException` when several subscribers failed. The condition timer has no
+caller to receive it, so the controller logs a failed timer-driven evaluation at
+Error level with event ID 8230 (`ScalesServerEventIds.ScaleRecipes`) and the
+process keeps running.
+
+`Dispose` stops the controller. It discards notifications not yet delivered and
+stops the timer, so no notification starts after it returns. A subscriber
+callback already running on another thread may still be executing at that point.
+`DisposeAsync` stops the controller the same way and completes once the timer
+callback and every running subscriber callback have returned; the Scales runtime
+uses it when the node manager shuts down. A subscriber may call `DisposeAsync`
+from its own callback, but it must await the returned task instead of blocking
+on it, because the task completes only after that callback returns.
 
 ### PackML
 
@@ -867,7 +892,8 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
-| Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync` |
+| Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
+| Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 

@@ -32,8 +32,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Scales.Server.Runtime;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Scales.Tests
 {
@@ -52,6 +54,7 @@ namespace Opc.Ua.Scales.Tests
             await m_fixture.StartAsync().ConfigureAwait(false);
             ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
                 m_fixture.Name("ConditionScale"), ScaleKind.Recipe, b => b.WithTypeFeatures());
+            m_scale = scale;
             m_controller = scale.Recipes!;
             m_clock = new RecipeClock();
             m_recipe = m_controller.AddRecipe("R", new LocalizedText("Recipe"));
@@ -468,6 +471,221 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public void LongChainOfSatisfiedConditionsCompletesWithoutRecursion()
+        {
+            const int length = 2000;
+            Enable(BuiltInType.Double);
+            NodeId predecessor = m_recipe.NodeId;
+            for (int i = 0; i < length; i++)
+            {
+                var element = (AnalogConditionSleepState)m_controller.AddRecipeElement(
+                    m_recipe, ElementType(ObjectTypes.AnalogConditionSleepType), "Wait" + i, predecessor);
+                element.ThresholdValueId!.Value = "7";
+                element.TargetThresholdValue!.WrappedValue = new Variant(10.0);
+                element.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
+                element.ConditionMode!.Value = (EqualityAndRelationalOperator)0;
+                predecessor = element.NodeId;
+            }
+            Publish(10.0);
+            int started = 0;
+            int completed = 0;
+            bool lockFreeDuringNotification = true;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                // Probe the first and last notification: another thread must be able to take the controller lock.
+                if (started++ % (length - 1) == 0)
+                {
+                    var probe = new Thread(() => _ = m_controller.CurrentElements) { IsBackground = true };
+                    probe.Start();
+                    lockFreeDuringNotification &= probe.Join(TimeSpan.FromSeconds(10));
+                }
+            };
+            m_controller.RecipeCompleted += (_, _) => completed++;
+            ServiceResult? result = null;
+            Exception? failure = null;
+
+            // A small fixed stack turns any per-element recursion into a deterministic failure.
+            var thread = new Thread(
+                () =>
+                {
+                    try
+                    {
+                        result = m_controller.Start(m_recipe.NodeId);
+                    }
+                    catch (Exception ex)
+                    {
+                        failure = ex;
+                    }
+                },
+                256 * 1024);
+            thread.Start();
+            thread.Join();
+
+            Assert.That(failure, Is.Null);
+            AssertGood(result!);
+            Assert.That(started, Is.EqualTo(length));
+            Assert.That(completed, Is.EqualTo(1));
+            Assert.That(lockFreeDuringNotification, Is.True);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Is.Empty);
+        }
+
+        [Test]
+        public void TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification()
+        {
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            m_fixture.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState first = Analog(0, 10.0);
+            AnalogConditionSleepState second = Analog(0, 10.0, "Second");
+            foreach (AnalogConditionSleepState element in new[] { first, second })
+            {
+                element.AddTimeout(m_fixture.Context);
+                element.Timeout!.Value = 1000;
+            }
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            NodeState source = m_scale.Scale;
+            NodeStateReportEventHandler? previous = source.OnReportEvent;
+            int reported = 0;
+            source.OnReportEvent = (context, node, e) =>
+            {
+                previous?.Invoke(context, node, e);
+                reported++;
+                throw new InvalidOperationException("Subscriber failed.");
+            };
+            try
+            {
+                Assert.That(() => m_clock.Advance(TimeSpan.FromMilliseconds(1000)), Throws.Nothing);
+            }
+            finally
+            {
+                source.OnReportEvent = previous;
+            }
+
+            RecordedLogRecord[] failures =
+                [.. logs.Records.Where(r => r.EventId.Id == RecipeConditionEvaluationFailedEventId)];
+            Assert.That(reported, Is.EqualTo(2), "the first failure does not stop the second notification");
+            Assert.That(
+                m_controller.ConditionWaitsRequiringIntervention.ToArray(),
+                Is.EquivalentTo(new[] { first, second }));
+            Assert.That(failures, Has.Length.EqualTo(1));
+            Assert.That(failures[0].LogLevel, Is.EqualTo(LogLevel.Error));
+            Assert.That(failures[0].Exception, Is.TypeOf<AggregateException>());
+            Assert.That(
+                ((AggregateException)failures[0].Exception!).InnerExceptions.Select(ex => ex.Message),
+                Is.EqualTo(new[] { "Subscriber failed.", "Subscriber failed." }));
+            AssertGood(m_controller.CompleteElement(first));
+            AssertGood(m_controller.CompleteElement(second));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void SynchronousCallersStillObserveSubscriberFailures()
+        {
+            Enable(BuiltInType.Double);
+            Publish(10.0);
+            AnalogConditionSleepState first = Analog(0, 10.0);
+            int completed = 0;
+            m_controller.ElementStarted += (_, _) => throw new InvalidOperationException("Subscriber failed.");
+            m_controller.RecipeCompleted += (_, _) => completed++;
+            Assert.That(
+                () => m_controller.Start(m_recipe.NodeId),
+                Throws.InvalidOperationException.With.Message.EqualTo("Subscriber failed."));
+            Assert.That(completed, Is.EqualTo(1), "notifications after the failing one are still delivered");
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(first));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public async Task DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync()
+        {
+            Analog(0, 10.0);
+            Analog(0, 10.0, "Second");
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            int started = 0;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                if (Interlocked.Increment(ref started) == 1)
+                {
+                    entered.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                }
+            };
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+            m_controller.Dispose();
+
+            Assert.That(start.IsCompleted, Is.False, "Dispose returns while the callback is still running");
+            release.Set();
+            AssertGood(await start.ConfigureAwait(false));
+            Assert.That(started, Is.EqualTo(1), "the notification queued behind the running one is discarded");
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Is.Empty);
+        }
+
+        [Test]
+        public async Task DisposeAsyncWaitsForARunningCallbackAsync()
+        {
+            Analog(0, 10.0);
+            Analog(0, 10.0, "Second");
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            int started = 0;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                if (Interlocked.Increment(ref started) == 1)
+                {
+                    entered.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                }
+            };
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+            Task disposed = m_controller.DisposeAsync().AsTask();
+            await Task.Delay(100).ConfigureAwait(false);
+
+            Assert.That(disposed.IsCompleted, Is.False, "disposal waits while the callback runs");
+            release.Set();
+            Task first = await Task.WhenAny(disposed, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(first, Is.SameAs(disposed));
+            Assert.That(start.IsCompleted, Is.True, "the drain has ended when disposal completes");
+            AssertGood(await start.ConfigureAwait(false));
+            Assert.That(started, Is.EqualTo(1));
+            Task again = m_controller.DisposeAsync().AsTask();
+            Assert.That(again.IsCompleted, Is.True, "a second disposal has nothing to wait for");
+        }
+
+        [Test]
+        public async Task DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync()
+        {
+            Analog(0, 10.0);
+            Analog(0, 10.0, "Second");
+            Task? disposed = null;
+            bool completedInCallback = true;
+            int started = 0;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                if (Interlocked.Increment(ref started) == 1)
+                {
+                    disposed = m_controller.DisposeAsync().AsTask();
+                    completedInCallback = disposed.IsCompleted;
+                }
+            };
+
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+
+            Assert.That(completedInCallback, Is.False, "the callback's own drain is still running");
+            Assert.That(disposed, Is.Not.Null);
+            Task first = await Task.WhenAny(disposed!, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(first, Is.SameAs(disposed));
+            Assert.That(started, Is.EqualTo(1));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
         public void EdgeActivationSnapshotSurvivesClientEdits()
         {
             Enable(BuiltInType.Boolean);
@@ -679,7 +897,10 @@ namespace Opc.Ua.Scales.Tests
             private bool m_disposed;
         }
 
+        /// <summary>The ScalesServerEventIds.ScaleRecipes event id of a failed timer-driven evaluation.</summary>
+        private const int RecipeConditionEvaluationFailedEventId = 8230;
         private ScalesServerFixture m_fixture = null!;
+        private ScaleHandle m_scale = null!;
         private RecipeController m_controller = null!;
         private RecipeState m_recipe = null!;
         private RecipeClock m_clock = null!;

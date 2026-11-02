@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -98,7 +99,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <c>Report</c> of the recipe product in processing.
     /// </para>
     /// </remarks>
-    public sealed partial class RecipeController : IDisposable
+    public sealed partial class RecipeController : IDisposable, IAsyncDisposable
     {
         internal RecipeController(ScaleHandle owner, RecipeScaleState scale, bool recipeFiles = false)
         {
@@ -752,7 +753,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 State = RecipeRunState.Running;
                 Report("Recipe continued.");
-                m_pending.Add(EvaluateConditionWaits);
+                m_conditionEvaluationRequested = true;
                 return ServiceResult.Good;
             }
         }
@@ -850,25 +851,97 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Raises the notifications queued under the lock, outside of it. Each
-        /// caller takes the batch queued so far, so a handler that calls back
-        /// into the controller raises its own notifications in turn.
+        /// Raises the notifications queued under the lock, outside of it, then runs any
+        /// condition evaluation requested by elements started meanwhile. Both are drained
+        /// in a loop, so a long chain of satisfied elements never recurses. A handler that
+        /// calls back into the controller raises its own notifications in turn. A throwing
+        /// subscriber does not stop the drain; its exception is rethrown to the caller once
+        /// every notification has been delivered. Once the controller is disposed, the
+        /// notifications not yet started are discarded; <see cref="DisposeAsync"/> waits
+        /// for the running drain to end.
         /// </summary>
         private void RaisePending()
         {
-            List<Action> pending;
             lock (m_lock)
             {
-                if (m_pending.Count == 0)
+                if (m_disposed)
                 {
                     return;
                 }
-                pending = m_pending;
-                m_pending = [];
+                m_activeDrains++;
             }
-            foreach (Action notify in pending)
+            List<Exception>? failures = null;
+            try
             {
-                notify();
+                DrainPending(ref failures);
+            }
+            finally
+            {
+                TaskCompletionSource<bool>? drained = null;
+                lock (m_lock)
+                {
+                    if (--m_activeDrains == 0)
+                    {
+                        drained = m_drained;
+                        m_drained = null;
+                    }
+                }
+                drained?.TrySetResult(true);
+            }
+            if (failures?.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Delivers queued notifications and requested evaluations until none remain or the controller is disposed.
+        /// </summary>
+        private void DrainPending(ref List<Exception>? failures)
+        {
+            while (true)
+            {
+                List<Action> pending;
+                bool evaluate;
+                lock (m_lock)
+                {
+                    evaluate = m_conditionEvaluationRequested;
+                    if (m_disposed || (m_pending.Count == 0 && !evaluate))
+                    {
+                        return;
+                    }
+                    pending = m_pending;
+                    m_pending = [];
+                }
+                foreach (Action notify in pending)
+                {
+                    if (Volatile.Read(ref m_disposed))
+                    {
+                        return;
+                    }
+                    try
+                    {
+                        notify();
+                    }
+                    catch (Exception ex)
+                    {
+                        (failures ??= []).Add(ex);
+                    }
+                }
+                if (evaluate)
+                {
+                    lock (m_lock)
+                    {
+                        if (m_conditionEvaluationRequested)
+                        {
+                            EvaluateConditionWaitsCore();
+                        }
+                    }
+                }
             }
         }
 

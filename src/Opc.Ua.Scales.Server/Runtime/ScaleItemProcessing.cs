@@ -228,21 +228,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidState, "No production preset is configured.");
             }
-            ProductState? captured = null;
+            ProductState? captured = preset.ActiveProduct;
             Variant unitPrice = Variant.Null;
             CurrencyUnitType? currency = null;
-            preset.WithActiveProduct(product =>
+            if (captured is AutomaticWeightPriceLabelerProductState capturedLabeler)
             {
-                captured = product;
-                if (product is AutomaticWeightPriceLabelerProductState labeler)
-                {
-                    unitPrice = labeler.UnitPrice?.WrappedValue ?? Variant.Null;
-                    CurrencyUnitType? configuredCurrency = ScaleItemPublisher.CurrencyOf(
-                        m_owner.Services.Context, labeler.UnitPrice);
-                    currency = configuredCurrency == null ? null : ScaleItemPublisher.CopyCurrency(configuredCurrency);
-                }
-                return true;
-            });
+                unitPrice = capturedLabeler.UnitPrice?.WrappedValue ?? Variant.Null;
+                CurrencyUnitType? configuredCurrency = ScaleItemPublisher.CurrencyOf(
+                    m_owner.Services.Context, capturedLabeler.UnitPrice);
+                currency = configuredCurrency == null ? null : ScaleItemPublisher.CopyCurrency(configuredCurrency);
+            }
             if (captured is not CatchweigherProductState product ||
                 !string.Equals(product.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
             {
@@ -274,8 +269,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 price = price with { Currency = ScaleItemPublisher.CopyCurrency(price.Currency) };
             }
             cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult result = m_owner.Locked(() => preset.WithActiveProduct(current =>
+            using ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
+            ServiceResult result = m_owner.Locked(() =>
             {
+                ProductState? current = reservation.Product;
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!ReferenceEquals(current, product) ||
                     !string.Equals(current?.ProductId?.Value, report.ProductId, StringComparison.Ordinal))
@@ -320,7 +317,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 m_lastSequence = normalized.Sequence;
                 return ServiceResult.Good;
-            }));
+            });
+            reservation.Dispose();
             if (ServiceResult.IsGood(result))
             {
                 m_owner.NotifyAcquisition(normalized.Weight);
@@ -431,8 +429,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return new ValueTask<ServiceResult>(ServiceResult.Create(
                     StatusCodes.BadInvalidState, "No production preset is configured."));
             }
-            ServiceResult result = m_owner.Locked(() => preset.WithActiveProduct(current =>
+            using ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
+            ServiceResult result = m_owner.Locked(() =>
             {
+                ProductState? current = reservation.Product;
                 m_owner.Services.StoppingToken.ThrowIfCancellationRequested();
                 cancellationToken.ThrowIfCancellationRequested();
                 if (current is not TotalizingHopperProductState product ||
@@ -462,7 +462,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 m_lastSequence = report.Sequence;
                 return ServiceResult.Good;
-            }));
+            });
+            reservation.Dispose();
             if (ServiceResult.IsGood(result))
             {
                 m_owner.NotifyAcquisition(normalized.Weight);

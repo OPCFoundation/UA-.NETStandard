@@ -520,7 +520,10 @@ namespace Opc.Ua.Scales.Server
             try
             {
                 Volatile.Write(ref m_stopped, true);
-                m_services?.Dispose();
+                if (m_services != null)
+                {
+                    await m_services.DisposeAsync().ConfigureAwait(false);
+                }
             }
             finally
             {

@@ -33,6 +33,8 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Scales.Server.Runtime
 {
@@ -86,7 +88,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 m_conditionClock = timeProvider ?? TimeProvider.System;
                 m_conditionWaitsEnabled = true;
                 m_conditionTimer = m_conditionClock.CreateTimer(
-                    _ => EvaluateConditionWaits(),
+                    _ => OnConditionTimer(),
                     null,
                     Timeout.InfiniteTimeSpan,
                     Timeout.InfiniteTimeSpan);
@@ -192,6 +194,37 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             lock (m_lock)
             {
+                EvaluateConditionWaitsCore();
+            }
+            RaisePending();
+        }
+
+        /// <summary>
+        /// Runs a timer-driven evaluation. The timer thread has no caller to receive a failure,
+        /// so a failing evaluation or recipe event subscriber is logged as an error instead of
+        /// terminating the process. Every queued notification has still been delivered.
+        /// </summary>
+        private void OnConditionTimer()
+        {
+            try
+            {
+                EvaluateConditionWaits();
+            }
+            catch (Exception ex)
+            {
+                m_owner.Services.Logger.ConditionEvaluationFailed(ex, Scale.BrowseName.Name);
+            }
+        }
+
+        /// <summary>
+        /// Evaluates waits under the lock until no element started during the pass is left unevaluated.
+        /// A chain of already satisfied conditions completes in one loop instead of one stack frame per element.
+        /// </summary>
+        private void EvaluateConditionWaitsCore()
+        {
+            do
+            {
+                m_conditionEvaluationRequested = false;
                 if (m_disposed || !m_conditionWaitsEnabled)
                 {
                     return;
@@ -245,31 +278,68 @@ namespace Opc.Ua.Scales.Server.Runtime
                         CompleteCore(pair.Key, "condition satisfied");
                     }
                 }
-                ScheduleConditionTimer();
             }
-            RaisePending();
+            while (m_conditionEvaluationRequested);
+            ScheduleConditionTimer();
         }
 
         /// <summary>
-        /// Stops condition timers and discards all recipe execution and observation state at shutdown.
+        /// Stops the controller: discards all recipe execution and observation state and
+        /// the notifications not yet delivered, and stops the condition timer. No notification
+        /// starts and no condition is evaluated after this returns. A subscriber callback that
+        /// is already running on another thread is not waited for; use <see cref="DisposeAsync"/>
+        /// to wait until it has returned.
         /// </summary>
         public void Dispose()
         {
-            ITimer? timer;
+            Stop()?.Dispose();
+        }
+
+        /// <summary>
+        /// Stops the controller like <see cref="Dispose"/>, then completes once the condition
+        /// timer callback and every subscriber callback already in flight have returned.
+        /// A subscriber may call this from its own callback; the returned task then completes
+        /// after that callback has returned, so it must be awaited, not blocked on.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            ITimer? timer = Stop();
+            if (timer != null)
+            {
+                await timer.DisposeAsync().ConfigureAwait(false);
+            }
+            Task drained;
+            lock (m_lock)
+            {
+                if (m_activeDrains == 0)
+                {
+                    return;
+                }
+                m_drained ??= new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                drained = m_drained.Task;
+            }
+            await drained.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Marks the controller disposed and detaches the condition timer, once.
+        /// </summary>
+        private ITimer? Stop()
+        {
             lock (m_lock)
             {
                 if (m_disposed)
                 {
-                    return;
+                    return null;
                 }
                 m_disposed = true;
                 Finish();
                 m_conditionSources.Clear();
                 m_pending.Clear();
-                timer = m_conditionTimer;
+                ITimer? timer = m_conditionTimer;
                 m_conditionTimer = null;
+                return timer;
             }
-            timer?.Dispose();
         }
 
         /// <summary>
@@ -372,7 +442,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return;
             }
             ScheduleConditionTimer();
-            m_pending.Add(EvaluateConditionWaits);
+            m_conditionEvaluationRequested = true;
         }
 
         /// <summary>
@@ -698,5 +768,29 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>Whether the controller has shut down.</summary>
         private bool m_disposed;
+
+        /// <summary>Whether a newly started or resumed wait still needs one evaluation pass.</summary>
+        private bool m_conditionEvaluationRequested;
+
+        /// <summary>The number of notification drains currently running.</summary>
+        private int m_activeDrains;
+
+        /// <summary>Completed when the last drain running at an asynchronous disposal ends.</summary>
+        private TaskCompletionSource<bool>? m_drained;
+    }
+
+    /// <summary>
+    /// Source-generated logging for recipe execution.
+    /// </summary>
+    internal static partial class RecipeControllerLog
+    {
+        /// <summary>
+        /// Reports a failed timer-driven condition evaluation or a failing recipe event subscriber.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ScalesServerEventIds.ScaleRecipes + 0,
+            Level = LogLevel.Error,
+            Message = "Timer-driven recipe condition evaluation of scale '{Name}' failed.")]
+        public static partial void ConditionEvaluationFailed(this ILogger logger, Exception exception, string? name);
     }
 }

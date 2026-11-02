@@ -411,6 +411,100 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task ProductSelectionChangesWaitForCommittingReportsAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            var first = (CatchweigherProductState)preset.ActiveProduct!;
+            ScaleProductionPreset.ActiveProductReservation reservation = preset.ReserveActiveProduct();
+            Assert.That(reservation.Product, Is.SameAs(first));
+
+            Assert.That(preset.Switch("B").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            AssertGood(await scale.Catchweigher!.ReportAsync(Item(1)));
+            Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(new[] { "A" }));
+
+            reservation.Dispose();
+            reservation.Dispose();
+            AssertGood(preset.Switch("B"));
+            Assert.That((await scale.Catchweigher.ReportAsync(Item(2))).StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+            Assert.That(Count(first.Statistic!), Is.EqualTo(1UL));
+            AssertGood(preset.Switch("A"));
+        }
+
+        [Test]
+        public async Task ReservationsPinNothingWithoutASingleProductInProcessingAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.TotalizingHopper);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            using (ScaleProductionPreset.ActiveProductReservation pinned = preset.ReserveActiveProduct())
+            {
+                Assert.That(pinned.Product, Is.Not.Null);
+                Assert.That(preset.Select("B").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                Assert.That(preset.Deselect("A").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                AssertGood(preset.Deselect("B"));
+            }
+            AssertGood(preset.Select("B"));
+            using (ScaleProductionPreset.ActiveProductReservation none = preset.ReserveActiveProduct())
+            {
+                Assert.That(none.Product, Is.Null);
+                AssertGood(preset.Deselect("B"));
+            }
+            AssertGood(await scale.TotalizingHopper!.ReportCompletedFillAsync(Item(1)));
+        }
+
+        [Test]
+        public async Task ConcurrentReportsAndSwitchesCommitOnlyToTheProductInProcessingAsync()
+        {
+            ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
+            ScaleProductionPreset preset = scale.ProductionPreset!;
+            var products = new[]
+            {
+                (CatchweigherProductState)preset.Find("A")!,
+                (CatchweigherProductState)preset.Find("B")!
+            };
+            const int iterations = 200;
+            int[] committed = new int[2];
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task reports = Task.Run(async () =>
+            {
+                await start.Task.ConfigureAwait(false);
+                for (int i = 0; i < iterations; i++)
+                {
+                    int index = i % 2;
+                    ServiceResult result = await scale.Catchweigher!.ReportAsync(
+                        Item((ulong)i + 1) with { ProductId = index == 0 ? "A" : "B" });
+                    if (ServiceResult.IsGood(result))
+                    {
+                        committed[index]++;
+                    }
+                    else
+                    {
+                        Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
+                    }
+                }
+            });
+            Task switches = Task.Run(async () =>
+            {
+                await start.Task.ConfigureAwait(false);
+                for (int i = 0; i < iterations; i++)
+                {
+                    ServiceResult result = preset.Switch(i % 2 == 0 ? "B" : "A");
+                    Assert.That(result.StatusCode == StatusCodes.Good ||
+                        result.StatusCode == StatusCodes.BadInvalidState, Is.True, result.ToString());
+                    await Task.Yield();
+                }
+            });
+            start.SetResult(true);
+            await Task.WhenAll(reports, switches);
+
+            Assert.That(Count(products[0].Statistic!), Is.EqualTo((ulong)committed[0]));
+            Assert.That(Count(products[1].Statistic!), Is.EqualTo((ulong)committed[1]));
+            Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo((ulong)(committed[0] + committed[1])));
+            AssertGood(preset.Switch("A"));
+        }
+
+        [Test]
         public async Task SequenceAtUInt64MaximumCannotWrapOrReplayAsync()
         {
             ScaleHandle scale = await CreateAsync(ScaleKind.Catchweigher);
