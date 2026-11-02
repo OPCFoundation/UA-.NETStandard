@@ -384,6 +384,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("missing-csr")]
         [TestCase("malformed-csr")]
         [TestCase("wrong-csr-key")]
+        [TestCase("trailing-certificate")]
         public async Task InvalidEnrollmentEvidenceFailsBeforeCredentialMutation(string substitution)
         {
             await using var harness = new Harness(m_bootstrap, m_issued) { EnrollmentMutation = substitution };
@@ -479,6 +480,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("missing-csr")]
         [TestCase("malformed-csr")]
         [TestCase("wrong-csr-key")]
+        [TestCase("trailing-certificate")]
         public async Task InstalledPeerRecoveryRejectsSubstitutedSigningEvidence(string substitution)
         {
             await using var harness = new Harness(m_bootstrap, m_issued) { EnrollmentMutation = substitution };
@@ -723,7 +725,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         CancellationToken>((_, _, create, ct) =>
                         MissingReceipt ? create(ct) : new ValueTask<CertificateRequestIssuance>(
                             new CertificateRequestIssuance("DefaultApplicationGroup", "RsaSha256",
-                                Issued, EnrollmentMutation == "private-key" ? m_csr : default, [Issued])));
+                                EnrollmentMutation == "trailing-certificate"
+                                    ? ByteString.From([.. Issued.ToArray(), 0])
+                                    : Issued,
+                                EnrollmentMutation == "private-key" ? m_csr : default, [Issued])));
                 Processor = new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
                     new OnboardingPushIdentityValidator(Identities.Object, Initial.Telemetry),
                     policy.Object, database.Object, Lifecycle,

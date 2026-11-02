@@ -634,8 +634,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 CertificateGroup.VerifySigningRequestKey(certificateType, enrollment.CertificateRequest);
                 using Certificate certificate = Certificate.FromRawData(issuance.Certificate);
-                if (!string.Equals(
-                    X509Utils.GetApplicationUriFromCertificate(certificate), applicationUri, StringComparison.Ordinal))
+                if (!certificate.RawData.AsSpan().SequenceEqual(issuance.Certificate.Span) ||
+                    !CertificateIdentifier.ValidateCertificateType(certificate, certificateType) ||
+                    !string.Equals(
+                        X509Utils.GetApplicationUriFromCertificate(certificate),
+                        applicationUri,
+                        StringComparison.Ordinal))
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
                 }
