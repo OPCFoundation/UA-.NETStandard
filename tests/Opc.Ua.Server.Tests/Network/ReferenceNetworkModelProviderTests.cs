@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Tests.Network
             NetworkModelSnapshot first = await provider.ReadAsync().ConfigureAwait(false);
             NetworkModelSnapshot second = await provider.ReadAsync().ConfigureAwait(false);
 
-            Assert.That(first.Revision, Is.EqualTo(0));
+            Assert.That(first.Revision, Is.Zero);
             Assert.That(first.Interfaces[0].Id, Is.EqualTo("eth0"));
             Assert.That(first.Interfaces[0].LowerLayerIds[0], Is.EqualTo("lower"));
             Assert.That(first.MappingTables[0].Entries[0].PriorityLabel, Is.EqualTo("BestEffort"));
@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests.Network
             provider.Publish(snapshot);
             destination[0] = 99;
             neighbors[0] = new NetworkLldpNeighborSnapshot(
-                "replaced", 0, 0, ChassisIdSubtype.MacAddress, "", PortIdSubtype.MacAddress, "");
+                "replaced", 0, 0, ChassisIdSubtype.MacAddress, string.Empty, PortIdSubtype.MacAddress, string.Empty);
 
             NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
 
@@ -332,7 +332,7 @@ namespace Opc.Ua.Server.Tests.Network
                 provider.WatchAsync().GetAsyncEnumerator();
 
             Assert.That(await updates.MoveNextAsync().ConfigureAwait(false), Is.True);
-            Assert.That(updates.Current.Revision, Is.EqualTo(0));
+            Assert.That(updates.Current.Revision, Is.Zero);
 
             provider.Publish(SnapshotWithTable(canEdit: true));
             provider.Publish(SnapshotWithTable(
@@ -386,8 +386,8 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(() => provider.Publish(malformed), Throws.ArgumentException);
             NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
 
-            Assert.That(current.Revision, Is.EqualTo(0));
-            Assert.That(current.Streams.Count, Is.EqualTo(0));
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Streams.Count, Is.Zero);
         }
 
         /// <summary>
@@ -407,7 +407,7 @@ namespace Opc.Ua.Server.Tests.Network
             NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
 
             Assert.That(current.Timestamp, Is.EqualTo(UnixEpoch));
-            Assert.That(current.Revision, Is.EqualTo(0));
+            Assert.That(current.Revision, Is.Zero);
         }
 
         /// <summary>
@@ -515,8 +515,8 @@ namespace Opc.Ua.Server.Tests.Network
             NetworkModelSnapshot snapshot = await provider.ReadAsync().ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            Assert.That(snapshot.Revision, Is.EqualTo(0));
-            Assert.That(snapshot.MappingTables[0].Entries.Count, Is.EqualTo(0));
+            Assert.That(snapshot.Revision, Is.Zero);
+            Assert.That(snapshot.MappingTables[0].Entries.Count, Is.Zero);
         }
 
         /// <summary>
@@ -554,7 +554,7 @@ namespace Opc.Ua.Server.Tests.Network
             NetworkModelSnapshot snapshot = await provider.ReadAsync().ConfigureAwait(false);
 
             Assert.That(result, Is.EqualTo(StatusCodes.BadCommunicationError));
-            Assert.That(snapshot.MappingTables[0].Entries.Count, Is.EqualTo(0));
+            Assert.That(snapshot.MappingTables[0].Entries.Count, Is.Zero);
         }
 
         /// <summary>
@@ -673,8 +673,8 @@ namespace Opc.Ua.Server.Tests.Network
         /// <summary>
         /// Accepts the permitted VLAN range endpoints.
         /// </summary>
-        [TestCase(0)]
-        [TestCase(4094)]
+        [TestCase((ushort)0)]
+        [TestCase((ushort)4094)]
         public async Task VlanBoundariesAreAcceptedAsync(ushort vlan)
         {
             ReferenceNetworkModelProvider provider = new NetworkModelBuilder()
@@ -693,8 +693,8 @@ namespace Opc.Ua.Server.Tests.Network
         /// <summary>
         /// Rejects out-of-range VLAN and SR-class priority values.
         /// </summary>
-        [TestCase(4095, 0)]
-        [TestCase(0, 8)]
+        [TestCase((ushort)4095, (byte)0)]
+        [TestCase((ushort)0, (byte)8)]
         public void InvalidInterfaceAndSrClassRangesAreRejected(ushort vlan, byte priority)
         {
             var builder = new NetworkModelBuilder()

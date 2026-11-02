@@ -820,7 +820,7 @@ namespace Opc.Ua.Server.Tests.Network
                 Assert.That(Parameter(values, BrowseNames.PortId).DataValue.StatusCode,
                     Is.EqualTo(StatusCodes.Good));
             }
-            Assert.That(neighbors.Count, Is.EqualTo(2));
+            Assert.That(neighbors, Has.Count.EqualTo(2));
             Assert.That(neighbors.Distinct().Count(), Is.EqualTo(2));
         }
 
