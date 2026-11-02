@@ -293,6 +293,130 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Serving unregistration removes a scope across owners without changing local images or provider ownership.
+        /// </summary>
+        [TestCase("Node", false)]
+        [TestCase("Node", true)]
+        [TestCase("Namespace", false)]
+        [TestCase("Namespace", true)]
+        [TestCase("Default", false)]
+        [TestCase("Default", true)]
+        public void ServingUnregistrationRemovesOwnedBindingsAndPreservesOtherScopes(string scope, bool direct)
+        {
+            const string otherNamespaceUri = "urn:test:staged-historian:other";
+            var namespaceTable = new NamespaceTable();
+            namespaceTable.Append(kNamespaceUri);
+            namespaceTable.Append(otherNamespaceUri);
+            using var serving = new HistorianProviderRegistry(namespaceTable);
+            var firstProvider = new TrackingProvider();
+            var secondProvider = new TrackingProvider();
+            var ownedOtherProvider = new TrackingProvider();
+            var directOtherProvider = new TrackingProvider();
+            TrackingProvider? directProvider = direct ? new TrackingProvider() : null;
+            var targetNode = new NodeId("target", 1);
+            var ownedOtherNode = new NodeId("owned-other", 2);
+            var directOtherNode = new NodeId("direct-other", 2);
+            using var first = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+            using var second = new StagedHistorianProviderRegistry(namespaceTable, serving, new object());
+
+            serving.RegisterForNode(directOtherNode, directOtherProvider);
+            first.RegisterForNode(ownedOtherNode, ownedOtherProvider);
+            if (directProvider != null)
+            {
+                RegisterTarget(serving, directProvider);
+            }
+            RegisterTarget(first, firstProvider);
+            RegisterTarget(second, secondProvider);
+            first.Publish();
+            second.Publish();
+            Assert.That(serving.Resolve(targetNode), Is.SameAs(secondProvider));
+
+            switch (scope)
+            {
+                case "Node":
+                    Assert.That(serving.UnregisterForNode(targetNode), Is.True);
+                    Assert.That(serving.UnregisterForNode(targetNode), Is.False);
+                    break;
+                case "Namespace":
+                    Assert.That(serving.UnregisterForNamespace(kNamespaceUri), Is.True);
+                    Assert.That(serving.UnregisterForNamespace(kNamespaceUri), Is.False);
+                    break;
+                case "Default":
+                    serving.ClearDefault();
+                    serving.ClearDefault();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scope));
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(serving.Resolve(targetNode), Is.Null);
+                Assert.That(serving.Resolve(ownedOtherNode), Is.SameAs(ownedOtherProvider));
+                Assert.That(serving.Resolve(directOtherNode), Is.SameAs(directOtherProvider));
+                Assert.That(serving.Providers.Contains(firstProvider), Is.False);
+                Assert.That(serving.Providers.Contains(secondProvider), Is.False);
+                Assert.That(serving.Providers.Contains(ownedOtherProvider), Is.True);
+                if (directProvider != null)
+                {
+                    Assert.That(serving.Providers.Contains(directProvider), Is.False);
+                    Assert.That(directProvider.DisposeCount, Is.Zero);
+                }
+                Assert.That(first.Resolve(targetNode), Is.SameAs(firstProvider));
+                Assert.That(second.Resolve(targetNode), Is.SameAs(secondProvider));
+                Assert.That(firstProvider.DisposeCount, Is.Zero);
+                Assert.That(secondProvider.DisposeCount, Is.Zero);
+            }
+
+            second.Retire();
+            first.Retire();
+            first.Dispose();
+            second.Dispose();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(serving.Resolve(targetNode), Is.Null);
+                Assert.That(serving.Resolve(ownedOtherNode), Is.Null);
+                Assert.That(serving.Resolve(directOtherNode), Is.SameAs(directOtherProvider));
+                Assert.That(serving.Providers.Contains(ownedOtherProvider), Is.False);
+                Assert.That(serving.Providers.Contains(directOtherProvider), Is.True);
+                Assert.That(firstProvider.DisposeCount, Is.Zero);
+                Assert.That(secondProvider.DisposeCount, Is.Zero);
+            }
+
+            serving.Dispose();
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(firstProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(secondProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(ownedOtherProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(directOtherProvider.DisposeCount, Is.EqualTo(1));
+                if (directProvider != null)
+                {
+                    Assert.That(directProvider.DisposeCount, Is.EqualTo(1));
+                }
+            }
+
+            void RegisterTarget(IHistorianProviderRegistry registry, IHistorianProvider provider)
+            {
+                switch (scope)
+                {
+                    case "Node":
+                        registry.RegisterForNode(targetNode, provider);
+                        break;
+                    case "Namespace":
+                        registry.RegisterForNamespace(kNamespaceUri, provider);
+                        break;
+                    case "Default":
+                        registry.RegisterDefault(provider);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(scope));
+                }
+            }
+        }
+
         [Test]
         public void RepeatedDisposalDoesNotDisposeProviderStillReferencedByDirectRegistration()
         {

@@ -199,14 +199,25 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
-                if (m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider))
+                bool removed = m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider);
+                if (removed)
                 {
                     m_nodes.Remove(nodeId);
                     m_nodeRegistrationOrder.Remove(nodeId);
-                    RebuildProviderSet(provider);
-                    return true;
                 }
-                return false;
+                if (m_ownedNodes.TryGetValue(nodeId, out List<OwnedProviderBinding>? owned))
+                {
+                    m_ownedNodes.Remove(nodeId);
+                    RemoveOwnedScope(owned, registration =>
+                        registration.Kind == HistorianProviderRegistrationKind.Node &&
+                        registration.NodeId == nodeId);
+                    removed = true;
+                }
+                if (provider != null)
+                {
+                    RebuildProviderSet(provider);
+                }
+                return removed;
             }
         }
 
@@ -220,14 +231,25 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
-                if (m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? provider))
+                bool removed = m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? provider);
+                if (removed)
                 {
                     m_namespaces.Remove(namespaceUri);
                     m_namespaceRegistrationOrder.Remove(namespaceUri);
-                    RebuildProviderSet(provider);
-                    return true;
                 }
-                return false;
+                if (m_ownedNamespaces.TryGetValue(namespaceUri, out List<OwnedProviderBinding>? owned))
+                {
+                    m_ownedNamespaces.Remove(namespaceUri);
+                    RemoveOwnedScope(owned, registration =>
+                        registration.Kind == HistorianProviderRegistrationKind.Namespace &&
+                        string.Equals(registration.NamespaceUri, namespaceUri, StringComparison.Ordinal));
+                    removed = true;
+                }
+                if (provider != null)
+                {
+                    RebuildProviderSet(provider);
+                }
+                return removed;
             }
         }
 
@@ -239,6 +261,9 @@ namespace Opc.Ua.Server.Historian
                 IHistorianProvider? prev = m_default;
                 m_default = null;
                 m_defaultRegistrationOrder = 0;
+                RemoveOwnedScope(m_ownedDefaults, static registration =>
+                    registration.Kind == HistorianProviderRegistrationKind.Default);
+                m_ownedDefaults.Clear();
                 if (prev != null)
                 {
                     RebuildProviderSet(prev);
@@ -684,6 +709,36 @@ namespace Opc.Ua.Server.Historian
                 bindings.Add(key, candidates = []);
             }
             candidates.Add(binding);
+        }
+
+        /// <summary>
+        /// Removes one serving scope from the affected owners without changing their other registrations.
+        /// </summary>
+        private void RemoveOwnedScope(
+            List<OwnedProviderBinding> bindings,
+            Predicate<HistorianProviderRegistration> matches)
+        {
+            foreach (OwnedProviderBinding binding in bindings)
+            {
+                if (!m_ownedRegistrations.TryGetValue(binding.Owner, out OwnedRegistrationSet? registrations))
+                {
+                    continue;
+                }
+                HistorianProviderRegistration[] remaining =
+                    Array.FindAll(registrations.Registrations, registration => !matches(registration));
+                if (remaining.Length == 0)
+                {
+                    m_ownedRegistrations.Remove(binding.Owner);
+                }
+                else
+                {
+                    m_ownedRegistrations[binding.Owner] = new OwnedRegistrationSet(remaining);
+                }
+            }
+            foreach (OwnedProviderBinding binding in bindings)
+            {
+                RebuildProviderSet(binding.Provider);
+            }
         }
 
         private void RemoveOwnedRegistrationsCore(object owner)

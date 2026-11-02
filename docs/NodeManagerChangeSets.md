@@ -345,6 +345,10 @@ runs, so preparation callbacks continue to resolve the candidate's stable slot
 and generation. Routing preparation validates that identity; it does not assign
 the candidate to a generation again.
 
+Concurrent factories claim staging ownership atomically by canonical manager
+identity. Only one can succeed; a rejected claimant releases its private staging
+state without disposing the manager claimed by the winner.
+
 The candidate has one private-to-published or private-to-aborted transition.
 Publication requires a live generation, releases the predecessor reference and
 permanently excludes private abort, including after retirement. An abort caller
@@ -406,6 +410,13 @@ bindings intact. Published providers remain owned by the serving registry
 through server shutdown. Candidate builders transfer to server tracking after
 readiness and are removed from that tracking after generation cleanup; abort
 and retirement dispose their capture handlers.
+
+On the serving registry, `UnregisterForNode`, `UnregisterForNamespace` and
+`ClearDefault` remove matching direct and generation-owned bindings for that
+scope. Other scopes and the retained candidate overlays remain unchanged.
+Unregistration does not dispose a published provider or release its shutdown
+ownership. Generation retirement remains owner-scoped. A later publication of
+a candidate's complete binding set can register that scope again.
 
 The staged-registry and lifecycle readiness regression selection passed 77/77
 tests on net10.0 and 77/77 on net48. It includes pre-readiness invisibility,

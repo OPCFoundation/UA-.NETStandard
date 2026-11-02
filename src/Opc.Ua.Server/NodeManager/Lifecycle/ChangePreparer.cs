@@ -170,7 +170,8 @@ namespace Opc.Ua.Server
             }
 
             IAsyncNodeManager identity = NodeManagerGenerationRegistry.GetIdentity(manager);
-            if (isRegistered(manager) || s_candidates.TryGetValue(identity, out _))
+            if (isRegistered(manager) ||
+                !ReferenceEquals(s_candidates.GetValue(identity, _ => server), server))
             {
                 await server.DisposeAsync().ConfigureAwait(false);
                 throw new NodeManagerAlreadyRegisteredException();
@@ -214,7 +215,6 @@ namespace Opc.Ua.Server
                 }
                 throw failure;
             }
-            s_candidates.Add(identity, server);
             return manager;
         }
 
