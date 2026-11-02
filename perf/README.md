@@ -50,21 +50,21 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | Option | Default | Meaning |
 |---|---|---|
 | `--scenario` | `read` | `read`, `write`, `browse` (Server object), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
-| `--sessions` | 20 | Concurrent sessions. |
+| `--sessions` | 20 (`counters`: 1) | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
 | `--security` | `none` | `none`, `sign` or `encrypt` (Basic256Sha256). |
 | `--client` | `managed` | `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`), used by `sub`, `events` and `counters`. `classic`: `Session` with the classic subscription engine. `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
 | `--pool-notifications` | 0 | 1: the V2 subscription manager recycles notification objects after the handler returns (`ManagedSessionBuilder.WithPoolNotifications`). |
 | `--callback` | `fast` | Classic engine only: data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
-| `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). `events` defaults to 15 subscriptions; `counters` to a 1000 ms publishing interval. |
+| `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). `events` defaults to 15 subscriptions; `counters` to 1 subscription and a 1000 ms publishing interval. |
 | `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
 | `--writers` | 0 | Dedicated writer sessions in addition to `--sessions` (`sub`). 0: the first subscriber session writes. |
 | `--write-interval 0` | | Writers write in a closed loop instead of on a timer (`sub`). |
 | `--write-batch` | all | Values per Write request; writers rotate through the written nodes in slices (`sub`). |
 | `--node-type` | `int` | `int`: Int32 mass nodes. `all`: the Int16…UInt64 mass node set of the Sessions `LoadTest` (up to 600 nodes) (`sub`). |
 | `--queue-size` | 1 (`sub`), 10000 (`events`) | Monitored item queue size. |
-| `--publish-requests` | engine default | Minimum outstanding Publish requests per classic session. |
+| `--publish-requests` | engine default (`counters`: subscriptions + 1, at least 4) | Minimum outstanding Publish requests per session. `counters` also sets the server's `MaxPublishRequestCount` to it. |
 | `--event-rate` | 0 | Events per second the server reports (`events`); 0 reports as fast as one thread can. |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
@@ -159,7 +159,28 @@ The harness child is configured like the benchmark's .NET worker for UA-.NETStan
 | Garbage collector | Server GC | `SERVER_DOTNET_gcServer=0` |
 | `MaxQueuedRequestCount` | clients × in flight + 3 (minimum 200): the whole worker pipeline plus the three reserved bootstrap, reconnect and control slots, as the benchmark runner sizes it for 2.0.1 (current builds add the reserved slots on top of the configured value, so the + 3 is headroom) | `--queue` |
 
-The `counters` scenario keeps `CustomNodeManager2` with interlocked increments.
+The `counters` scenario keeps `CustomNodeManager2` with interlocked increments unless
+`--async-node-manager 1` or `--counter-lock 1` is given.
+
+### Many sampled sessions with the managed client
+
+`--scenario counters` with `--sessions` and `--subs` measures sampled data changes across many
+sessions with the managed client only, without external workers. Every session has `--subs`
+subscriptions, and every subscription monitors `--nodes` counters of its own, so the server
+holds sessions × subscriptions × nodes counters and one sample advances exactly one item.
+Nothing is written: every notification comes from the server's sampling loop.
+
+```bash
+ServerLoadHarness.exe run --scenario counters --sessions 48 --subs 5 --nodes 1000 --sampling 100 --pub 100 --async-node-manager 1 --duration 20 --warmup 15
+```
+
+The `client:` line adds `delivered`, the notifications received against one per item and
+publishing interval (or per sample when sampling is slower), and the `server:` line reports
+`samplesTaken`. `per-op` divides the server's allocation and CPU by notifications and
+`per-op2` by samples taken. The managed client needs more CPU per notification than a native
+worker (`clientCpuCores`); on one machine it competes with the server for cores, so the
+highest passing session count is lower than with a native client, while the server's cost
+per sample stays comparable.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set
