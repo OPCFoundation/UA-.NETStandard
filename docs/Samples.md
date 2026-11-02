@@ -49,6 +49,9 @@ Minimal Client together.
 
 ## Companion-model samples
 
+- [Industrial Automation server and client](../samples/IA/README.md) — a
+  Machinery-owned device with stacklights, aggregate and rolling statistics,
+  calibration-target information, and an encrypted typed-client self-check.
 - [Generic recycling simulation](../samples/Recycling/README.md) — one durable causal coordinator
   and ten process views with typed OPC UA coordination, native companion equipment,
   material genealogy and read-only committed measurements. Its optional
