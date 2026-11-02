@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Client
             CancellationToken cancellationToken = default)
         {
             ValidateRegistrar(registrar);
-            ValidateRequest(request);
+            request = SnapshotRequest(request);
             cancellationToken.ThrowIfCancellationRequested();
             if (Interlocked.CompareExchange(ref m_running, 1, 0) != 0)
             {
@@ -485,7 +485,10 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        private static void ValidateRequest(PullDcaRequest request)
+        /// <summary>
+        /// Detaches validated request data before borrowing a connection or awaiting a host operation.
+        /// </summary>
+        private static PullDcaRequest SnapshotRequest(PullDcaRequest request)
         {
             if (request is null)
             {
@@ -497,8 +500,10 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException("At least one non-empty identity must be offered.", nameof(request));
             }
             ValidateProfile(request.DcaCertificateProfile);
-            foreach (PullDcaManagedApplication application in request.ManagedApplications)
+            var applications = new PullDcaManagedApplication[request.ManagedApplications.Count];
+            for (int i = 0; i < applications.Length; i++)
             {
+                PullDcaManagedApplication application = request.ManagedApplications[i];
                 if (application == null || application.Application == null ||
                     !Uri.TryCreate(application.Application.ApplicationUri, UriKind.Absolute, out _) ||
                     (application.ProtocolUri?.Length != 0 &&
@@ -508,7 +513,42 @@ namespace Opc.Ua.Gds.Client
                         nameof(request));
                 }
                 ValidateProfile(application.CertificateProfile);
+                ApplicationRecordDataType record = application.Application;
+                applications[i] = application with
+                {
+                    Application = new ApplicationRecordDataType
+                    {
+                        ApplicationId = record.ApplicationId,
+                        ApplicationUri = record.ApplicationUri,
+                        ApplicationType = record.ApplicationType,
+                        ApplicationNames = record.ApplicationNames.ToArray().ToArrayOf(),
+                        ProductUri = record.ProductUri,
+                        DiscoveryUrls = record.DiscoveryUrls.ToArray().ToArrayOf(),
+                        ServerCapabilities = record.ServerCapabilities.ToArray().ToArrayOf()
+                    }
+                };
             }
+            return request with
+            {
+                IdentityOffer = new PullDcaIdentityOffer(
+                    SnapshotBytes(request.IdentityOffer.Identities),
+                    SnapshotBytes(request.IdentityOffer.Issuers),
+                    request.IdentityOffer.Tickets.ToArray().ToArrayOf()),
+                ManagedApplications = applications
+            };
+        }
+
+        /// <summary>
+        /// Copies each byte buffer as well as the array so mutable caller storage cannot alter an active request.
+        /// </summary>
+        private static ArrayOf<ByteString> SnapshotBytes(ArrayOf<ByteString> values)
+        {
+            var detached = new ByteString[values.Count];
+            for (int i = 0; i < values.Count; i++)
+            {
+                detached[i] = ByteString.From(values[i].Span);
+            }
+            return detached;
         }
 
         private static void ValidateProfile(PullDcaCertificateProfile profile)

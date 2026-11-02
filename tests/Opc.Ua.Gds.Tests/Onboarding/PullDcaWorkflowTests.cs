@@ -78,8 +78,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Host.SoftwareIdentity, Is.SameAs(result.Identity));
             Assert.That(fixture.Host.SoftwareManager, Is.SameAs(manager));
             Assert.That(fixture.Host.SoftwareRegistrar, Is.SameAs(kRegistrar));
-            Assert.That(fixture.Connection.Offer, Is.SameAs(request.IdentityOffer));
-            Assert.That(fixture.Connection.RegisteredApplication, Is.SameAs(application));
+            Assert.That(fixture.Connection.Offer, Is.Not.SameAs(request.IdentityOffer));
+            Assert.That(fixture.Connection.Offer, Is.EqualTo(request.IdentityOffer));
+            Assert.That(fixture.Connection.RegisteredApplication, Is.Not.SameAs(application));
+            Assert.That(fixture.Connection.RegisteredApplication!.Application, Is.Not.SameAs(application.Application));
+            Assert.That(fixture.Connection.RegisteredApplication.Application.ApplicationUri,
+                Is.EqualTo(application.Application.ApplicationUri));
+            Assert.That(fixture.Connection.RegisteredApplication.ProtocolUri, Is.EqualTo(application.ProtocolUri));
             Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
             Assert.That(result.DcaCredentials.TrustList, Is.SameAs(fixture.Connection.TrustList));
             Assert.That(result.Managers, Is.EqualTo(fixture.Connection.Managers));
@@ -104,6 +109,81 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Does.Not.Contain("software"));
             Assert.That(fixture.Calls, Does.Not.Contain("register"));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+        }
+
+        /// <summary>
+        /// Caller mutations while identity selection is pending cannot change the approved request or registrations.
+        /// </summary>
+        [Test]
+        public async Task InFlightRequestRetainsOfferedBytesTicketsAndManagedApplicationSnapshot()
+        {
+            var fixture = new Fixture();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Connection.IdentityWait = async ct =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+            };
+            byte[] identity = [1, 2, 3];
+            byte[] issuer = [4, 5, 6];
+            string[] tickets = ["ticket"];
+            string[] urls = ["opc.tcp://managed:4840"];
+            string[] capabilities = ["DA"];
+            LocalizedText[] names = [new LocalizedText("Managed application")];
+            PullDcaManagedApplication application = CreateApplication();
+            application.Application.ApplicationId = kManagedId;
+            application.Application.ApplicationType = ApplicationType.ClientAndServer;
+            application.Application.ApplicationNames = names;
+            application.Application.DiscoveryUrls = urls;
+            application.Application.ServerCapabilities = capabilities;
+            application.Application.ProductUri = "urn:original:product";
+            PullDcaManagedApplication[] applications = [application];
+            PullDcaRequest request = CreateRequest() with
+            {
+                IdentityOffer = new PullDcaIdentityOffer(
+                    [ByteString.From(identity)], [ByteString.From(issuer)], tickets),
+                ManagedApplications = applications
+            };
+            Task<PullDcaResult> running = fixture.Create().RunAsync(kRegistrar, request).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                identity[0] = 99;
+                issuer[0] = 99;
+                tickets[0] = "changed";
+                urls[0] = "opc.tcp://changed:4840";
+                capabilities[0] = "changed";
+                names[0] = new LocalizedText("Changed");
+                application.Application.ApplicationId = NodeId.Null;
+                application.Application.ApplicationUri = "urn:changed:application";
+                application.Application.ApplicationType = ApplicationType.DiscoveryServer;
+                application.Application.ProductUri = "urn:changed:product";
+                applications[0] = application with { ProtocolUri = "urn:changed:protocol" };
+            }
+            finally
+            {
+                release.SetResult(true);
+            }
+            PullDcaResult result = await running.ConfigureAwait(false);
+
+            Assert.That(fixture.Connection.Offer!.Identities[0], Is.EqualTo(kIdentity));
+            Assert.That(fixture.Connection.Offer.Issuers[0], Is.EqualTo(kIssuer));
+            Assert.That(fixture.Connection.Offer.Tickets, Is.EqualTo(new[] { "ticket" }.ToArrayOf()));
+            PullDcaManagedApplication registered = fixture.Connection.RegisteredApplication!;
+            Assert.That(registered.Application.ApplicationId, Is.EqualTo(kManagedId));
+            Assert.That(registered.Application.ApplicationUri, Is.EqualTo("urn:managed:application"));
+            Assert.That(registered.Application.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
+            Assert.That(registered.Application.ProductUri, Is.EqualTo("urn:original:product"));
+            Assert.That(registered.Application.ApplicationNames,
+                Is.EqualTo(new[] { new LocalizedText("Managed application") }.ToArrayOf()));
+            Assert.That(registered.Application.DiscoveryUrls,
+                Is.EqualTo(new[] { "opc.tcp://managed:4840" }.ToArrayOf()));
+            Assert.That(registered.Application.ServerCapabilities, Is.EqualTo(new[] { "DA" }.ToArrayOf()));
+            Assert.That(registered.ProtocolUri, Is.EqualTo("urn:opcua"));
+            Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId, kManagedId }));
         }
 
         [Test]
@@ -1245,7 +1325,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
             context.NamespaceUris.GetIndexOrAppend(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
             var requests = new List<CallMethodRequest>();
-            var manager = new ManagerDescription { PurposeUri = "urn:manager", EndpointUrls = ["opc.tcp://host:4840"] };
+            var manager = new ManagerDescription
+            {
+                PurposeUri = "urn:manager",
+                EndpointUrls = ["opc.tcp://host:4840"]
+            };
             var ticket = new DeviceIdentityTicketType { ProductInstanceUri = "urn:device" };
             var applicationId = new NodeId("app", 2);
             var requestId = new NodeId("request", 2);

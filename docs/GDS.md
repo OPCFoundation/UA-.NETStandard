@@ -559,6 +559,11 @@ issued credentials through the existing certificate stores; the workflow does
 not close or dispose that session. A required software update invokes the
 configured software manager before certificate issuance.
 
+`RunAsync` copies the offered certificate bytes, tickets and managed-application
+records before borrowing a connection. Changes to the caller's input buffers or
+application records during an operation do not change its identity offer or
+application registrations.
+
 Certificate polling is bounded by `MaximumFinishAttempts`. When approval remains
 pending, `PullDcaCertificatePendingException` retains the application and request
 identifiers. Persist those identifiers with the original registrar, certificate
