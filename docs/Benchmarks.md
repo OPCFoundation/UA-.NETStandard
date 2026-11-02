@@ -48,6 +48,7 @@ session scalability.
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
   - [Sizing and configuration](#sizing-and-configuration)
+- [NodeManager S4 notification and activation costs](#nodemanager-s4-notification-and-activation-costs)
 
 ## How to run
 
@@ -857,3 +858,51 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
 * Session establishment is CPU-bound (RSA handshakes) but parallelizes across cores; throttle/stagger concurrent connects and scale cores for bulk connection throughput.
 
 > A full macro benchmark that produces a capability matrix (sessions × subscriptions × items against CPU/memory) across configurations is planned as follow-up work.
+
+## NodeManager S4 notification and activation costs
+
+S4 is based on S3 commit `1b777fde9fa07adf4ffbd0bbaa82acd90e5d28be`. The
+repository has workload and behavior coverage, but no qualifying alternating
+S3/candidate measurements for F6 or F7. No notification or session-activation
+runtime code is changed, and this section makes no performance claim.
+
+### F6: notification and permission costs
+
+`perf/ServerLoadHarness` can run write-driven `sub`, sampled `native-counters`,
+and high-fanout `events` scenarios. It reports total server CPU and allocation
+per operation, delivered notifications, latency, and can collect CPU,
+allocation, or contention traces. Those results do not separately attribute
+each delivery's collection snapshots, `NamespaceDefaultPermissionReader`,
+`ConditionalWeakTable` access, or their contention. The in-process
+`MonitoredItemBenchmarks.QueueEvent` benchmark only queues synthetic events; it
+does not exercise subscriber delivery or authorization.
+
+The published load results use commit `f6b27025a`, not the S3 base, and are not
+an alternating S3/candidate comparison. No candidate cache or copy-on-write
+registration has been measured against S3. F6 therefore remains unqualified:
+the existing harness can characterize the full workload, but its results alone
+cannot select one of these changes or meet the required per-cost A/B evidence.
+
+### F7: session activation scaling
+
+`SessionManager.GetSessions()` creates a list from `m_sessions.Values`
+(`src/Opc.Ua.Server/Session/SessionManager.cs:3272-3274`).
+`MasterNodeManager.SessionActivatedAsync` searches that list
+(`src/Opc.Ua.Server/NodeManager/MasterNodeManager.cs:576-587`).
+`GenerationReconciler` enumerates it during binding and reconciliation, and
+checks session identity by taking new snapshots around activation callbacks
+(`src/Opc.Ua.Server/NodeManager/Lifecycle/GenerationReconciler.cs:65, 121-125,
+455-461`).
+
+The `GenerationReconcilerTests` fixtures mock `GetSessions()` to supply session
+states; they do not verify its invocation count or measure copy, CPU, or
+allocation scaling. The existing session-load test measures connection
+establishment and steady-state notification delivery, not activation cost
+versus generation count during concurrent publication and close. No identity
+index is introduced: the required ordering, close callbacks, and teardown
+behavior have not been compared under a measured candidate.
+
+F7 remains unqualified until an alternating run records activation cost across
+session and generation counts while publication and close race, and verifies
+that binding callbacks are neither lost nor duplicated and that teardown leaves
+no stale session record.

@@ -209,10 +209,6 @@ namespace Opc.Ua.Server
                     foreach (PreparedNodeManager candidate in candidates)
                     {
                         ValidatePreparedNodeManager(candidate);
-                        if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
-                        {
-                            throw new InvalidOperationException("A batch candidate has no prepared generation.");
-                        }
                         if (candidate.ReplacedNodeManager is { } old)
                         {
                             retiring.Add(old);
@@ -349,9 +345,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Commits a prepared node-manager batch under its captured lifecycle admission.
         /// </summary>
-        /// <param name="context">The prepared batch and its lifecycle callbacks.</param>
-        async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
-            NodeManagerBatchContext context)
+        /// <param name="context">The prepared batch and its atomic lifecycle bookkeeping.</param>
+        /// <returns>Reference reconciliation owned independently of the publication reservation.</returns>
+        async ValueTask<PublishedReferenceChanges?> IDynamicNodeManagerBatchHost.CommitBatchAsync(
+            NodeManagerPublicationPlan context)
         {
             if (context is null)
             {
@@ -367,9 +364,7 @@ namespace Opc.Ua.Server
             EncodeableFactory originalFactory = context.OriginalFactory;
             long factoryRevision = context.FactoryRevision;
             ArrayOf<INodeManagerReadImage> readImages = context.ReadImages;
-            Func<CancellationToken, ValueTask>? decideAsync = context.DecideAsync;
-            Func<ValueTask> published = context.Published;
-            Func<ValueTask> reconcileBindingsAsync = context.ReconcileBindingsAsync;
+            INodeManagerPublicationCommit commit = context.Commit;
             CancellationToken cancellationToken = context.CancellationToken;
 
             INodeManagerBatchAdmission admission = context.Admission ??
@@ -419,10 +414,6 @@ namespace Opc.Ua.Server
                         {
                             PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
-                            if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
-                            {
-                                throw new InvalidOperationException("A batch candidate has no prepared generation.");
-                            }
                         }
                         HashSet<IAsyncNodeManager> retiring = [.. removed];
                         foreach (PreparedNodeManager candidate in candidates)
@@ -455,11 +446,6 @@ namespace Opc.Ua.Server
                         }
                         var nextReferences = references.Next;
                         referenceAdditions = references.Additions;
-                        foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in
-                            references.DeferredRemovals)
-                        {
-                            context.DeferReferenceRemoval(deferred.Key, deferred.Value);
-                        }
                         foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> source in
                             references.Owners)
                         {
@@ -498,20 +484,19 @@ namespace Opc.Ua.Server
                             referenceUpdates,
                             () =>
                             {
-                                context.ViewPublished();
+                                commit.Publish();
                                 m_dynamicExternalReferences = nextReferences;
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)
                                 {
-                                    candidate.Published = true;
-                                    candidate.ReplacedNodeManager = null;
+                                    candidate.Publish();
                                     SetPreparing(candidate.NodeManager, preparing: false);
                                 }
                             });
                         cancellationToken.ThrowIfCancellationRequested();
-                        if (decideAsync is null)
+                        if (!commit.HasDecision)
                         {
-                            return;
+                            return null;
                         }
                         BeginLifecycleDecisionWindow();
                         lifecycleDecisionWindowStarted = true;
@@ -528,7 +513,7 @@ namespace Opc.Ua.Server
                             admission.Release(NodeManagerAdmissionCapability.AddressSpaceMutation);
                             dynamicMutationSemaphoreHeld = false;
                         }
-                        await decideAsync(cancellationToken).ConfigureAwait(false);
+                        await commit.DecideAsync(cancellationToken).ConfigureAwait(false);
                         decisionCommitted = true;
 
                         // The publication invocation remains an active lifecycle operation until
@@ -553,7 +538,6 @@ namespace Opc.Ua.Server
                         m_currentNamespacePublication.Value = previousNamespacePublication;
                         m_namespaceRegistrationSemaphore.Release();
                         namespaceRegistrationAdmissionHeld = false;
-                        await published().ConfigureAwait(false);
                     }
                     finally
                     {
@@ -588,42 +572,8 @@ namespace Opc.Ua.Server
                         dynamicMutationSemaphoreHeld = false;
                     }
                 }
-                for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
-                {
-                    PreparedNodeManager candidate = candidates[candidateIndex];
-                    if (!referenceAdditions.TryGetValue(
-                        candidate.NodeManager,
-                        out Dictionary<NodeId, IList<IReference>>? additions))
-                    {
-                        continue;
-                    }
-                    foreach (NodeManagerGeneration owner in publishedOwners)
-                    {
-                        await context.Reconciliation.RunAsync(
-                            NodeManagerReconciliationStage.References,
-                            [candidate.Generation!, owner],
-                            () => owner.NodeManager.AddReferencesAsync(additions, CancellationToken.None))
-                            .ConfigureAwait(false);
-                    }
-                }
-                await reconcileBindingsAsync().ConfigureAwait(false);
-                foreach (NodeState.ReferenceUpdate update in referenceUpdates)
-                {
-                    await context.Reconciliation.RunAsync(
-                        NodeManagerReconciliationStage.References,
-                        (candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)
-                            .Append(referenceOwners[update]).Distinct().ToArray(),
-                        () =>
-                        {
-                            var failures = new List<Exception>();
-                            update.Notify(failures.Add);
-                            if (failures.Count != 0)
-                            {
-                                throw new AggregateException("Reference observers remain pending.", failures);
-                            }
-                            return default;
-                        }).ConfigureAwait(false);
-                }
+                return new PublishedReferenceChanges(
+                    candidates, publishedOwners, referenceAdditions, referenceOwners);
             }
             catch (Exception failure) when (failure is not OutOfMemoryException && !decisionCommitted)
             {

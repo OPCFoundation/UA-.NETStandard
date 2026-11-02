@@ -491,6 +491,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 EnsureMutable();
+                EnsureWritableGraph();
                 m_revision++;
                 m_nodes.Clear();
                 m_encodings.Clear();
@@ -545,6 +546,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 EnsureMutable();
+                EnsureWritableGraph();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -679,6 +681,8 @@ namespace Opc.Ua
                     return true;
                 }
                 EnsureMutable();
+                EnsureWritableGraph();
+                typeInfo = m_nodes[dataTypeId];
                 if (typeInfo.Encodings == null)
                 {
                     typeInfo.Encodings = [localId];
@@ -712,6 +716,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 EnsureMutable();
+                EnsureWritableGraph();
                 // lookup the supertype.
                 TypeInfo? superTypeInfo = null;
 
@@ -791,6 +796,8 @@ namespace Opc.Ua
                 }
 
                 EnsureMutable();
+                EnsureWritableGraph();
+                typeInfo = m_nodes[localId];
                 m_revision++;
                 m_nodes.Remove(localId);
 

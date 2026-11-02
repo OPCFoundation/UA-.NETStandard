@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "A committed reload exception is meaningful only with its authoritative registration.")]
-    public sealed class NodeManagerReloadCommittedException : InvalidOperationException
+    public sealed class NodeManagerReloadCommittedException : InvalidOperationException, INodeManagerCommittedFailure
     {
         /// <summary>
         /// Initializes an exception for a reload whose replacement registration already became authoritative.
@@ -85,5 +85,8 @@ namespace Opc.Ua.Server
         /// Gets the committed transaction, or null for exceptions constructed with the legacy constructor.
         /// </summary>
         public NodeManagerBatchResult? Result { get; }
+
+        /// <inheritdoc/>
+        public LifecycleResult? CommittedResult => Result?.CommittedResult;
     }
 }

@@ -115,6 +115,22 @@ namespace Opc.Ua.Di.Tests
         }
 
         /// <summary>
+        /// Deferred shared-service configuration rejects a manager that cannot receive readiness notifications.
+        /// </summary>
+        [Test]
+        public async Task DeferredConfigurationRequiresReadinessCallbackDuringStagingAsync()
+        {
+            using var manager = new NonReadyFluentNodeManager(m_server.CurrentInstance);
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false)))!;
+
+            Assert.That(error.Message, Does.Contain("OnServerReadyAsync"));
+            Assert.That(error.Message, Does.Contain("CompletePublishedConfigurationAsync"));
+        }
+
+        /// <summary>
         /// Shared-service configuration waits for readiness and retains the open builder through a failed attempt.
         /// </summary>
         [TestCase(false)]
@@ -466,6 +482,22 @@ namespace Opc.Ua.Di.Tests
 
             /// <summary>An additional published authoring pass before hosting post-setup.</summary>
             private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask>? m_publishedAuthoring;
+        }
+
+        /// <summary>
+        /// Exercises staging-time validation without implementing the readiness callback.
+        /// </summary>
+        private sealed class NonReadyFluentNodeManager(IServerInternal server)
+            : FluentNodeManagerBase(server, "urn:tests:di:configure-async:non-ready")
+        {
+            /// <inheritdoc/>
+            protected override ValueTask ConfigureAsync(
+                INodeManagerBuilder builder,
+                CancellationToken cancellationToken)
+            {
+                DeferConfigurationUntilReady(builder, _ => default);
+                return default;
+            }
         }
 
         /// <summary>The manager's shared-service step precedes the hosting runner.</summary>

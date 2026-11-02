@@ -30,11 +30,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -429,6 +431,258 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.DisposeCount, Is.Zero);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
             await AssertReadinessCleanupAndRecoveryAsync(observed, participant).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Candidate historian bindings stay private through a failed readiness attempt,
+        /// then publish once after the exact registration succeeds on retry.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task StagedHistorianBindingsPublishOnlyAfterSuccessfulReadinessRetryAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var expected = new SentinelException("Historian readiness failed once.");
+            int readinessAttempts = 0;
+            ReadinessLifecycleNodeManager? participant = null;
+            StagedHistorianState? staged = null;
+            IHistorianProviderRegistry serving =
+                ((IHistorianRegistryProvider)m_server.CurrentInstance).HistorianRegistry;
+
+            Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    participant = manager;
+                    staged = CreateStagedHistorianState(manager, serving);
+                    manager.ReadinessCallback = _ =>
+                    {
+                        AssertCandidateHistorianRegistrationsArePrivate(staged!, serving);
+                        if (Interlocked.Increment(ref readinessAttempts) == 1)
+                        {
+                            throw expected;
+                        }
+                        return default;
+                    };
+                },
+                timeout.Token);
+
+            NodeManagerAddCommittedException failure =
+                await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
+                    .ConfigureAwait(false);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(staged);
+            StagedHistorianState candidate = staged!;
+
+            Assert.That(failure.InnerException, Is.SameAs(expected));
+            Assert.That(failure.Registration, Is.SameAs(FindReadinessRegistration()));
+            Assert.That(failure.Registration.NodeManager, Is.SameAs(participant));
+            Assert.That(readinessAttempts, Is.EqualTo(1));
+            AssertCandidateHistorianRegistrationsArePrivate(candidate, serving);
+            Assert.That(
+                ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler),
+                Is.True,
+                "The candidate builder must retain its capture handler while the committed readiness result is retryable.");
+
+            NodeManagerBatchResult readinessResult = failure.Result ??
+                throw new AssertionException("The failed readiness operation did not retain its retry result.");
+            await readinessResult.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(readinessAttempts, Is.EqualTo(2));
+            Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(candidate.NodeProvider));
+            Assert.That(
+                serving.Resolve(candidate.NamespaceNode),
+                Is.SameAs(candidate.NamespaceProvider));
+            Assert.That(serving.Resolve(candidate.DefaultNode), Is.SameAs(candidate.DefaultProvider));
+            Assert.That(candidate.LocalRegistry.Resolve(candidate.ExactNode), Is.SameAs(candidate.NodeProvider));
+            Assert.That(candidate.LocalRegistry.Resolve(candidate.NamespaceNode), Is.SameAs(candidate.NamespaceProvider));
+            Assert.That(candidate.LocalRegistry.Resolve(candidate.DefaultNode), Is.SameAs(candidate.DefaultProvider));
+            Assert.That(serving.Providers.Contains(candidate.NodeProvider), Is.True);
+            Assert.That(serving.Providers.Contains(candidate.NamespaceProvider), Is.True);
+            Assert.That(serving.Providers.Contains(candidate.DefaultProvider), Is.True);
+
+            await readinessResult.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(readinessAttempts, Is.EqualTo(2), "A completed retry must not republish or rerun readiness.");
+            Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(candidate.NodeProvider));
+
+            ReadinessLifecycleNodeManager? replacementManager = null;
+            StagedHistorianState? replacementState = null;
+            NodeManagerRegistration replacement = await StartReadinessChangeAsync(
+                ReadinessChange.Reload,
+                failure.Registration,
+                synchronousFactory: false,
+                kGeneration2Value,
+                manager =>
+                {
+                    replacementManager = manager;
+                    replacementState = CreateStagedHistorianState(manager, serving);
+                    manager.ReadinessCallback = _ =>
+                    {
+                        Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(candidate.BaselineExactProvider));
+                        Assert.That(
+                            serving.Resolve(candidate.NamespaceNode),
+                            Is.SameAs(candidate.BaselineNamespaceProvider));
+                        Assert.That(
+                            serving.Resolve(candidate.DefaultNode),
+                            Is.SameAs(candidate.BaselineDefaultProvider));
+                        Assert.That(candidate.LocalRegistry.Resolve(candidate.ExactNode), Is.SameAs(candidate.NodeProvider));
+                        Assert.That(serving.Providers.Contains(candidate.NodeProvider), Is.False);
+                        return default;
+                    };
+                },
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(replacementManager);
+            AssertLifecycleValue(replacementState);
+            StagedHistorianState replacementCandidate = replacementState!;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(serving.Resolve(replacementCandidate.ExactNode), Is.SameAs(replacementCandidate.NodeProvider));
+                Assert.That(
+                    serving.Resolve(replacementCandidate.NamespaceNode),
+                    Is.SameAs(replacementCandidate.NamespaceProvider));
+                Assert.That(
+                    serving.Resolve(replacementCandidate.DefaultNode),
+                    Is.SameAs(replacementCandidate.DefaultProvider));
+                Assert.That(serving.Providers.Contains(candidate.NodeProvider), Is.False);
+                Assert.That(serving.Providers.Contains(replacementCandidate.NodeProvider), Is.True);
+            }
+
+            await RemoveReadinessRegistrationAsync(replacement, replacementManager).ConfigureAwait(false);
+
+            Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(candidate.BaselineExactProvider));
+            Assert.That(serving.Resolve(candidate.NamespaceNode), Is.SameAs(candidate.BaselineNamespaceProvider));
+            Assert.That(serving.Resolve(candidate.DefaultNode), Is.SameAs(candidate.BaselineDefaultProvider));
+            Assert.That(
+                ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler),
+                Is.False,
+                "Retiring the ready generation must detach its builder-owned capture handler.");
+            Assert.That(
+                ContainsStateChangedHandler(replacementCandidate.Variable, replacementCandidate.CaptureHandler),
+                Is.False,
+                "Retiring the replacement generation must detach its builder-owned capture handler.");
+            Assert.That(candidate.NodeProvider.DisposeCount, Is.Zero,
+                "The serving registry retains disposal responsibility for a published provider.");
+            Assert.That(candidate.NamespaceProvider.DisposeCount, Is.Zero);
+            Assert.That(candidate.DefaultProvider.DisposeCount, Is.Zero);
+            Assert.That(replacementCandidate.NodeProvider.DisposeCount, Is.Zero);
+            Assert.That(replacementCandidate.NamespaceProvider.DisposeCount, Is.Zero);
+            Assert.That(replacementCandidate.DefaultProvider.DisposeCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Aborting preparation withdraws only candidate state and disposes its staged
+        /// providers and capture resources without publishing any bindings.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task AbortedHistorianCandidateDoesNotPublishAndCleansBuilderResourcesAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var expected = new SentinelException("Historian candidate preparation failed.");
+            ReadinessLifecycleNodeManager? participant = null;
+            StagedHistorianState? staged = null;
+            IHistorianProviderRegistry serving =
+                ((IHistorianRegistryProvider)m_server.CurrentInstance).HistorianRegistry;
+            var legacyProvider = new LifecycleHistorianProvider();
+            var otherOwnerProvider = new LifecycleHistorianProvider();
+            serving.RegisterDefault(legacyProvider);
+            using var otherOwner = new StagedHistorianProviderRegistry(
+                m_server.CurrentInstance.NamespaceUris,
+                serving,
+                new object());
+            var otherOwnerNode = new NodeId("s9-other-owner", 0);
+            otherOwner.RegisterForNode(otherOwnerNode, otherOwnerProvider);
+            otherOwner.Publish();
+
+            Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
+                ReadinessChange.Add,
+                null,
+                synchronousFactory: false,
+                kGeneration1Value,
+                manager =>
+                {
+                    participant = manager;
+                    staged = CreateStagedHistorianState(manager, serving);
+                    manager.PreparationFailure = expected;
+                },
+                timeout.Token);
+
+            SentinelException failure =
+                await ExpectReadinessExceptionAsync<SentinelException>(operation).ConfigureAwait(false);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(staged);
+            StagedHistorianState candidate = staged!;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(failure, Is.SameAs(expected));
+                Assert.That(participant.ReadinessCount, Is.Zero);
+                Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(participant.DisposeCount, Is.EqualTo(1));
+                Assert.That(serving.Resolve(candidate.ExactNode), Is.SameAs(legacyProvider));
+                Assert.That(serving.Resolve(candidate.NamespaceNode), Is.SameAs(legacyProvider));
+                Assert.That(serving.Resolve(candidate.DefaultNode), Is.SameAs(legacyProvider));
+                Assert.That(serving.Resolve(otherOwnerNode), Is.SameAs(otherOwnerProvider));
+                Assert.That(serving.Providers.Contains(otherOwnerProvider), Is.True);
+                Assert.That(legacyProvider.DisposeCount, Is.Zero);
+                Assert.That(otherOwnerProvider.DisposeCount, Is.Zero);
+                Assert.That(ContainsStateChangedHandler(candidate.Variable, candidate.CaptureHandler), Is.False);
+                Assert.That(candidate.NodeProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(candidate.NamespaceProvider.DisposeCount, Is.EqualTo(1));
+                Assert.That(candidate.DefaultProvider.DisposeCount, Is.EqualTo(1));
+            }
+        }
+
+        /// <summary>
+        /// Rejects candidate historian registrations when the manager cannot complete readiness.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerReadiness")]
+        public async Task HistorianRegistrationRequiresReadinessParticipantAsync()
+        {
+            using var timeout = new CancellationTokenSource(s_readinessTimeout);
+            var provider = new LifecycleHistorianProvider();
+            IHistorianProviderRegistry serving =
+                ((IHistorianRegistryProvider)m_server.CurrentInstance).HistorianRegistry;
+            NodeId defaultNode = new("s9-no-readiness", 0);
+            IHistorianProvider? baselineProvider = serving.Resolve(defaultNode);
+            TrackingLifecycleNodeManager? manager = null;
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await m_server.NodeManagerLifecycle.AddAsync(
+                    CreateTrackingNodeManagementFactory(
+                        kGeneration1Value,
+                        created =>
+                        {
+                            manager = created;
+                            new HistorianBuilder(created.SystemContext.Server)
+                                .UseProvider(provider)
+                                .RegisterAsDefault();
+                        }),
+                    null,
+                    timeout.Token).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            AssertLifecycleValue(manager);
+            TrackingLifecycleNodeManager actualManager = manager ??
+                throw new AssertionException("The historian candidate factory did not create its manager.");
+            ServiceResultException actualFailure = failure ??
+                throw new AssertionException("Historian registration did not require a readiness participant.");
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(actualFailure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(actualFailure.Message, Does.Contain("requires").And.Contain("OnServerReadyAsync"));
+                Assert.That(actualManager.DisposeCount, Is.EqualTo(1));
+                Assert.That(actualManager.DeleteAddressSpaceCount, Is.Zero);
+                Assert.That(serving.Resolve(defaultNode), Is.SameAs(baselineProvider));
+                Assert.That(serving.Providers.Contains(provider), Is.False);
+                Assert.That(provider.DisposeCount, Is.EqualTo(1));
+            }
         }
 
         /// <summary>
@@ -1202,6 +1456,112 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        private static StagedHistorianState CreateStagedHistorianState(
+            ReadinessLifecycleNodeManager manager,
+            IHistorianProviderRegistry serving)
+        {
+            IServerInternal stagingServer = manager.SystemContext.Server;
+            var localRegistry =
+                ((IHistorianRegistryProvider)stagingServer).HistorianRegistry;
+            ushort namespaceIndex = manager.NamespaceIndexes[0];
+            var exactNode = new NodeId("s9-historian-exact", namespaceIndex);
+            var namespaceNode = new NodeId("s9-historian-namespace", namespaceIndex);
+            var defaultNode = new NodeId("s9-historian-default", 0);
+            var nodeProvider = new LifecycleHistorianProvider();
+            var namespaceProvider = new LifecycleHistorianProvider();
+            var defaultProvider = new LifecycleHistorianProvider();
+            var variable = new BaseDataVariableState(parent: null)
+            {
+                NodeId = exactNode,
+                BrowseName = new QualifiedName("S9HistorianCapture", namespaceIndex),
+                DisplayName = new LocalizedText("S9HistorianCapture"),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+
+            var nodeBuilder = new HistorianBuilder(stagingServer).UseProvider(nodeProvider);
+            nodeBuilder.RegisterForNode(exactNode);
+            Delegate[] initialHandlers = GetStateChangedHandlers(variable);
+            nodeBuilder.Historize(
+                variable,
+                systemContext: manager.SystemContext,
+                captureOptions: new HistorianCaptureOptions
+                {
+                    BatchTarget = 1,
+                    BatchWindow = TimeSpan.FromSeconds(1)
+                });
+            new HistorianBuilder(stagingServer)
+                .UseProvider(namespaceProvider)
+                .RegisterForNamespace(kModelNamespaceUri);
+            new HistorianBuilder(stagingServer)
+                .UseProvider(defaultProvider)
+                .RegisterAsDefault();
+
+            Delegate? captureHandler = null;
+            foreach (Delegate handler in GetStateChangedHandlers(variable))
+            {
+                if (!initialHandlers.Any(initial => ReferenceEquals(initial, handler)))
+                {
+                    Assert.That(captureHandler, Is.Null,
+                        "Historize must install exactly one capture handler on this variable.");
+                    captureHandler = handler;
+                }
+            }
+            Assert.That(captureHandler, Is.Not.Null,
+                "Historize must install the candidate builder's value-capture handler.");
+
+            return new StagedHistorianState(
+                localRegistry,
+                exactNode,
+                namespaceNode,
+                defaultNode,
+                serving.Resolve(exactNode),
+                serving.Resolve(namespaceNode),
+                serving.Resolve(defaultNode),
+                nodeProvider,
+                namespaceProvider,
+                defaultProvider,
+                variable,
+                captureHandler!);
+        }
+
+        private static void AssertCandidateHistorianRegistrationsArePrivate(
+            StagedHistorianState staged,
+            IHistorianProviderRegistry serving)
+        {
+            Assert.That(staged.LocalRegistry.Resolve(staged.ExactNode), Is.SameAs(staged.NodeProvider));
+            Assert.That(staged.LocalRegistry.Resolve(staged.NamespaceNode), Is.SameAs(staged.NamespaceProvider));
+            Assert.That(staged.LocalRegistry.Resolve(staged.DefaultNode), Is.SameAs(staged.DefaultProvider));
+            Assert.That(serving.Resolve(staged.ExactNode), Is.SameAs(staged.BaselineExactProvider));
+            Assert.That(serving.Resolve(staged.NamespaceNode), Is.SameAs(staged.BaselineNamespaceProvider));
+            Assert.That(serving.Resolve(staged.DefaultNode), Is.SameAs(staged.BaselineDefaultProvider));
+            Assert.That(serving.Providers.Contains(staged.NodeProvider), Is.False);
+            Assert.That(serving.Providers.Contains(staged.NamespaceProvider), Is.False);
+            Assert.That(serving.Providers.Contains(staged.DefaultProvider), Is.False);
+        }
+
+        private static Delegate[] GetStateChangedHandlers(BaseVariableState variable)
+        {
+            var handlersField = typeof(NodeState).GetField(
+                nameof(NodeState.StateChanged),
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(handlersField, Is.Not.Null,
+                "The StateChanged backing delegate is required to verify builder cleanup.");
+            return ((Delegate?)handlersField!.GetValue(variable))?.GetInvocationList() ?? [];
+        }
+
+        private static bool ContainsStateChangedHandler(BaseVariableState variable, Delegate expected)
+        {
+            foreach (Delegate handler in GetStateChangedHandlers(variable))
+            {
+                if (ReferenceEquals(handler, expected))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private static void AssertReadinessManager(
             NodeManagerRegistration registration,
             ReadinessLifecycleNodeManager participant,
@@ -1383,6 +1743,42 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private int m_deleteAddressSpaceCount;
             private int m_disposeCount;
             private int m_historyUpdateCount;
+        }
+
+        private sealed record StagedHistorianState(
+            IHistorianProviderRegistry LocalRegistry,
+            NodeId ExactNode,
+            NodeId NamespaceNode,
+            NodeId DefaultNode,
+            IHistorianProvider? BaselineExactProvider,
+            IHistorianProvider? BaselineNamespaceProvider,
+            IHistorianProvider? BaselineDefaultProvider,
+            LifecycleHistorianProvider NodeProvider,
+            LifecycleHistorianProvider NamespaceProvider,
+            LifecycleHistorianProvider DefaultProvider,
+            BaseDataVariableState Variable,
+            Delegate CaptureHandler);
+
+        private sealed class LifecycleHistorianProvider :
+            HistorianProviderBase,
+            IHistorianBulkInsertProvider,
+            IDisposable
+        {
+            public int DisposeCount { get; private set; }
+
+            public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
+                HistorianOperationContext context,
+                ArrayOf<HistorianDataBatch> batch,
+                CancellationToken cancellationToken)
+            {
+                return new ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>>(
+                    Array.Empty<HistorianUpdateOutcome<DataValue>>());
+            }
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
         }
 
         /// <summary>

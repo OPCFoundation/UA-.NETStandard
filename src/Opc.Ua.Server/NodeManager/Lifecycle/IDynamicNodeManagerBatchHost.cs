@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -131,7 +130,31 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Carries the candidate routing image and callbacks for a batch publication.
+    /// Owns the lifecycle decision and atomic registration publication, independently of host reservations.
+    /// </summary>
+    internal interface INodeManagerPublicationCommit
+    {
+        /// <summary>
+        /// Gets whether this plan should publish rather than only validate.
+        /// </summary>
+        bool HasDecision { get; }
+
+        /// <summary>
+        /// Executes the durable decision once under lifecycle mutation ownership.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels before the durable decision.</param>
+        /// <returns>Completion of the decision.</returns>
+        ValueTask DecideAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Installs committed registration and retirement bookkeeping at the routing swap.
+        /// </summary>
+        void Publish();
+    }
+
+    /// <summary>
+    /// Carries publication inputs and their lifecycle commit owner.
+    /// Reconciliation and retirement remain with their owners outside host publication.
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
     /// <param name="Removed">The node managers removed by the batch.</param>
@@ -142,21 +165,13 @@ namespace Opc.Ua.Server
     /// <param name="OriginalFactory">The encodeable factory the batch was prepared against.</param>
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
-    /// <param name="DecideAsync">The callback deciding whether to publish, or null to validate only.</param>
-    /// <param name="ViewPublished">The callback marking the routing-view commit point.</param>
-    /// <param name="Published">The callback invoked after the candidate has been published.</param>
-    /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
-    /// <param name="DeferReferenceRemoval">
-    /// The callback recording external reference removals that cannot be applied to a staged NodeState.
-    /// </param>
-    /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
+    /// <param name="Commit">The owner of the durable decision and registration publication.</param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
     /// <param name="Preparation">The explicit private metadata staging context.</param>
-    /// <param name="Reconciliation">The server-owned post-commit checkpoints.</param>
     /// <param name="References">Reference edits discovered before publication serialization.</param>
     /// <param name="CallbackPermit">The callback permit captured when preparation began, if any.</param>
     /// <param name="Admission">The semantic host admission acquired before mutation ownership.</param>
-    internal sealed record NodeManagerBatchContext(
+    internal sealed record NodeManagerPublicationPlan(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
         TypeTable TypeTree,
@@ -166,14 +181,8 @@ namespace Opc.Ua.Server
         EncodeableFactory OriginalFactory,
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
-        Func<CancellationToken, ValueTask>? DecideAsync,
-        Action ViewPublished,
-        Func<ValueTask> Published,
-        Func<ValueTask> ReconcileBindingsAsync,
-        Action<IAsyncNodeManager, List<LocalReference>> DeferReferenceRemoval,
-        Action<Exception> ReportCleanupFailure,
+        INodeManagerPublicationCommit Commit,
         ChangePreparer Preparation,
-        GenerationReconciler.ReconciliationWork Reconciliation,
         CancellationToken CancellationToken,
         PreparedAddressSpaceReferences? References = null,
         NodeManagerCallbackPermit? CallbackPermit = null,
@@ -231,8 +240,8 @@ namespace Opc.Ua.Server
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
         /// A null decision validates and releases the reservations without changing the serving image.
         /// </summary>
-        /// <param name="context">The batch publication inputs and callbacks.</param>
-        /// <returns>A task that completes when the batch has been validated or published.</returns>
-        ValueTask CommitBatchAsync(NodeManagerBatchContext context);
+        /// <param name="context">The batch publication inputs and atomic bookkeeping.</param>
+        /// <returns>The committed reference work, or null for validation without publication.</returns>
+        ValueTask<PublishedReferenceChanges?> CommitBatchAsync(NodeManagerPublicationPlan context);
     }
 }

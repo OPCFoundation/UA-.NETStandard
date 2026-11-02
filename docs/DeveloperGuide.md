@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing NodeManager lifecycle components](#testing-nodemanager-lifecycle-components)
   - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
@@ -207,6 +208,43 @@ sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
 disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
+
+### Testing NodeManager lifecycle components
+
+Server-free lifecycle checks run in parallelizable fixtures in
+`tests\Opc.Ua.Server.Tests\NodeManager`. `ChangePreparerTests` exercises isolated
+metadata and candidate ownership; `NodeManagerGenerationTests` exercises
+admission, retirement, quiescence and deferred-event retention; and
+`StripedCounterTests` exercises balanced entries and cross-thread exits.
+These fixtures use existing internal boundaries, without starting a server.
+
+The following checks moved from `Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests`.
+Their method names, parameter values and `Server` / `NodeManagerLifecycle`
+categories are unchanged; fully qualified name filters must use the new fixture.
+All destination fixtures use the same `Opc.Ua.Server.Tests.NodeManager` namespace.
+
+| New fixture | Existing methods and cases |
+| --- | --- |
+| `NodeManagerRegistrationTests` | `NodeManagerRegistrationCopiesNamespaceUris()`, `NodeManagerRegistrationAllowsNullNamespaceUris()` |
+| `NodeManagerLifecycleCompatibilityTests` | `CompatibilityPreparationFailureIsNotRetriedAsync(false/true)`, `CompatibilityCommitFailureIsNotReplayedAsync("Decision"/"Committed"/"Provider")`, `CompatibilityConflictRetriesStopAtCancellationAsync()`, `CompatibilityConflictDoesNotHideAbortFailureAsync()` |
+| `NodeManagerGenerationTests` | `RetainedEventDeliveryFailureRetriesBeforeLaterEventsAsync()`, `DeferredEventCapacityCountsEventsAndRetainsAllItemDeliveriesAsync()`, `DeferredEventFlushWaitsForAdmittedReadinessEmissionsAsync()` |
+
+Each of these 12 cases previously started the fixture server once and now starts
+none. This measures removed server starts, not elapsed-time improvement.
+`NodeManagerLifecycleTests` retains the real-server ownership and startup
+controls, including `ConcurrentCandidateClaimsHaveExactlyOneOwnerAsync(false/true)`
+and `AddAsyncBeforeServerStartRejectsWithoutInvokingFactoryAsync()`, and its
+fixture-owned PKI reuse remains unchanged.
+
+Run the direct fixtures on each required framework:
+
+```powershell
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+```
+
+For regression checks, add the retained control method names to the filter.
+Category-only selection continues to include every relocated case.
 
 ### Testing UaLens
 

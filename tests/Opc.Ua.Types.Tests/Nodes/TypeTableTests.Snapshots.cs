@@ -319,6 +319,34 @@ namespace Opc.Ua.Types.Tests.Nodes
         }
 
         /// <summary>
+        /// Verifies that concurrent snapshot writers detach from the shared registration graph.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentCopyOnWriteSnapshotsRemainIsolatedAsync()
+        {
+            TypeTable first = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable second = m_typeTable.CaptureSnapshot(out _, out _);
+            NodeId firstId = new(6000);
+            NodeId secondId = new(6001);
+
+            await Task.WhenAll(
+                Task.Run(() => first.AddSubtype(firstId, s_childTypeId)),
+                Task.Run(() => second.AddSubtype(secondId, s_rootTypeId))).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(first.IsKnown(firstId), Is.True);
+                Assert.That(first.IsKnown(secondId), Is.False);
+                Assert.That(second.IsKnown(secondId), Is.True);
+                Assert.That(second.IsKnown(firstId), Is.False);
+                Assert.That(m_typeTable.IsKnown(firstId), Is.False);
+                Assert.That(m_typeTable.IsKnown(secondId), Is.False);
+                Assert.That(first.IsTypeOf(firstId, s_rootTypeId), Is.True);
+                Assert.That(second.IsTypeOf(secondId, s_rootTypeId), Is.True);
+            }
+        }
+
+        /// <summary>
         /// Verifies that serving mutation invalidates captured type revision.
         /// </summary>
         [TestCase("clear")]
@@ -472,6 +500,35 @@ namespace Opc.Ua.Types.Tests.Nodes
             first.Remove(s_childTypeId);
             Assert.That(second.IsKnown(s_childTypeId), Is.True);
             Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies retirement cleanup cannot remove a type used by another published generation.
+        /// </summary>
+        [Test]
+        public void RetiredHandleCannotRemovePublishedContribution()
+        {
+            TypeTable candidate = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId contributionId = new(7000);
+            candidate.AddSubtype(contributionId, s_rootTypeId);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(candidate, source, revision);
+            using (TypeTable.Publication publication = m_typeTable.BeginPublication(source, revision))
+            {
+                publication.Complete(merged);
+                candidate.BindTo(m_typeTable);
+            }
+            TypeTable active = m_typeTable.CaptureSnapshot(out _, out _);
+            active.BindTo(m_typeTable);
+
+            candidate.Detach();
+            candidate.Remove(contributionId);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(candidate.IsKnown(contributionId), Is.False);
+                Assert.That(active.IsKnown(contributionId), Is.True);
+                Assert.That(m_typeTable.IsKnown(contributionId), Is.True);
+            }
         }
 
         /// <summary>

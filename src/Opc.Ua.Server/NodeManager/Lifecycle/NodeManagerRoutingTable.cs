@@ -105,6 +105,7 @@ namespace Opc.Ua.Server
             {
                 if (!next.Generations.Contains(generation))
                 {
+                    ChangePreparer.RetireHistorianRegistrations(generation.NodeManager);
                     generation.Gate.Retire();
                     generation.Slot.Unpublish(generation);
                 }
@@ -1514,6 +1515,10 @@ namespace Opc.Ua.Server
         /// <param name="factory">The encodeable factory to publish.</param>
         /// <param name="readImages">The read images to publish.</param>
         /// <returns>The prepared routes that can be reserved and published.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// A candidate has been consumed, has lost its identity or is already registered;
+        /// a retirement is not registered; or a read image has no unique owner in the next view.
+        /// </exception>
         internal PreparedRoutes PrepareBatch(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
@@ -1530,6 +1535,11 @@ namespace Opc.Ua.Server
                 var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
                 foreach (PreparedNodeManager candidate in candidates)
                 {
+                    candidate.ValidateForPublication();
+                    if (!TryGetCandidateIdentity(candidate))
+                    {
+                        throw new InvalidOperationException("A candidate no longer owns its assigned generation.");
+                    }
                     publishing.Add(candidate.NodeManager);
                     if (candidate.ReplacedNodeManager is { } replaced)
                     {
@@ -1612,19 +1622,6 @@ namespace Opc.Ua.Server
                     }
                     images[owner] = image;
                 }
-                foreach (PreparedNodeManager candidate in candidates)
-                {
-                    if (candidate.ReplacedNodeManager is { } replaced)
-                    {
-                        NodeManagerGenerationRegistry.CreateReplacement(
-                            current.GetGeneration(replaced),
-                            candidate.NodeManager);
-                    }
-                    else
-                    {
-                        _ = NodeManagerGenerationRegistry.CreateAddition(candidate.NodeManager);
-                    }
-                }
                 var next = new RoutingSnapshot(
                     [.. managers],
                     routes,
@@ -1637,6 +1634,15 @@ namespace Opc.Ua.Server
                     factory,
                     images);
                 return new PreparedRoutes(this, current, next);
+
+                bool TryGetCandidateIdentity(PreparedNodeManager candidate)
+                {
+                    return NodeManagerGenerationRegistry.TryGet(
+                        candidate.NodeManager, out NodeManagerGeneration? identity) &&
+                        ReferenceEquals(identity, candidate.Generation) &&
+                        (candidate.ReplacedNodeManager is not { } predecessor ||
+                            ReferenceEquals(current.GetGeneration(predecessor).Slot, candidate.Generation.Slot));
+                }
             }
         }
 
