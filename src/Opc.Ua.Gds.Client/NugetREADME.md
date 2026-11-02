@@ -23,6 +23,9 @@ Register it through `.AddGdsClient().AddOnboardingClient()`.
 certificate requests, trust download and host-owned installation through
 generated proxies and a borrowed `ManagedSession`. Register the identity and
 credential providers before selecting `.AddGdsClient().AddPullDcaWorkflow()`.
+Transport failures retry only the original signing request within the shared
+finish-attempt budget. Exhaustion propagates the final error; authorization and
+certificate-validation errors are not retried.
 
 An optional `.AddPullDcaCertificateReceipts(namespaceUris, scope)` registration
 retains received signing output in a host-selected `ISecretStore`, so a later

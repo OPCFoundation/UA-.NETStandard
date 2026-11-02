@@ -349,6 +349,13 @@ namespace Opc.Ua.Gds.Client
                     issuers = default;
                 }
                 catch (ServiceResultException error) when (
+                    IsRetryableFinishFailure(error.StatusCode) && attempt + 1 < m_maximumFinishAttempts)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await Task.Delay(m_finishRetryDelay, ct).ConfigureAwait(false);
+                    continue;
+                }
+                catch (ServiceResultException error) when (
                     error.StatusCode == StatusCodes.BadInvalidArgument && m_signingRecovery != null)
                 {
                     return await RecoverSigningCertificateAsync(
@@ -364,6 +371,19 @@ namespace Opc.Ua.Gds.Client
                 }
             }
             throw new PullDcaCertificatePendingException(applicationId, requestId);
+        }
+
+        /// <summary>
+        /// Limits retries to transport failures whose outcome may be unknown, never authorization or trust failures.
+        /// The same signing request is retried; neither its key nor the borrowed session identity is replaced.
+        /// </summary>
+        private static bool IsRetryableFinishFailure(StatusCode statusCode)
+        {
+            return statusCode == StatusCodes.BadTimeout ||
+                statusCode == StatusCodes.BadCommunicationError ||
+                statusCode == StatusCodes.BadConnectionClosed ||
+                statusCode == StatusCodes.BadSecureChannelClosed ||
+                statusCode == StatusCodes.BadNoCommunication;
         }
 
         /// <summary>

@@ -209,6 +209,122 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Transport failure retries finish against the existing signing request without regenerating its key.
+        /// </summary>
+        [TestCase("timeout")]
+        [TestCase("communication")]
+        [TestCase("connection")]
+        [TestCase("channel")]
+        [TestCase("no-communication")]
+        public async Task FinishTransportFailureRetriesOnlyTheOriginalSigningRequest(string scenario)
+        {
+            StatusCode status = scenario switch
+            {
+                "timeout" => StatusCodes.BadTimeout,
+                "communication" => StatusCodes.BadCommunicationError,
+                "connection" => StatusCodes.BadConnectionClosed,
+                "channel" => StatusCodes.BadSecureChannelClosed,
+                "no-communication" => StatusCodes.BadNoCommunication,
+                _ => throw new ArgumentOutOfRangeException(nameof(scenario))
+            };
+            var fixture = new Fixture();
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(status));
+            var options = new PullDcaOptions { MaximumFinishAttempts = 2, FinishRetryDelay = TimeSpan.Zero };
+
+            PullDcaResult result = await fixture.Create(options).RunAsync(kRegistrar, CreateRequest())
+                .ConfigureAwait(false);
+
+            Assert.That(result.DcaCredentials.Certificate, Is.EqualTo(kCertificate));
+            Assert.That(fixture.Calls.Count(call => call == "csr:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Calls.Count(call => call == "start:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId, kRequestId }));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+        }
+
+        /// <summary>
+        /// Exhausting the shared finish budget preserves the final transport diagnostic rather than reporting pending.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task ExhaustedFinishTransportBudgetPreservesLastErrorWithoutInstallation(int maximumAttempts)
+        {
+            var fixture = new Fixture();
+            for (int i = 1; i < maximumAttempts; i++)
+            {
+                fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadTimeout));
+            }
+            var last = new ServiceResultException(StatusCodes.BadConnectionClosed, "Final transport diagnostic.");
+            fixture.Connection.FinishFailures.Enqueue(last);
+            var options = new PullDcaOptions
+            {
+                MaximumFinishAttempts = maximumAttempts,
+                FinishRetryDelay = TimeSpan.Zero
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.Create(options).RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(last));
+            Assert.That(fixture.Connection.FinishedRequestIds,
+                Is.EqualTo(Enumerable.Repeat(kRequestId, maximumAttempts)));
+            Assert.That(fixture.Calls.Count(call => call == "start:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Calls, Does.Not.Contain("trust:dca"));
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+        }
+
+        /// <summary>
+        /// Cancellation after a transport failure prevents a second finish call without waiting out the retry delay.
+        /// </summary>
+        [Test]
+        public async Task FinishTransportRetryHonorsCancellationBeforeAnotherDispatch()
+        {
+            var fixture = new Fixture();
+            using var cancellation = new CancellationTokenSource();
+            fixture.Connection.AfterFinish = cancellation.Cancel;
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadTimeout));
+            var options = new PullDcaOptions { FinishRetryDelay = TimeSpan.FromSeconds(30) };
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await fixture.Create(options).RunAsync(
+                    kRegistrar, CreateRequest(), cancellationToken: cancellation.Token)
+                    .ConfigureAwait(false));
+
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
+            Assert.That(fixture.Calls.Count(call => call == "start:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Host.InstalledIds, Is.Empty);
+        }
+
+        /// <summary>
+        /// A lost response followed by a consumed request cannot bypass request-bound recovery validation.
+        /// </summary>
+        [Test]
+        public async Task LostFinishResponseFollowedByConsumedRequestRequiresExplicitRequestValidation()
+        {
+            var fixture = new Fixture();
+            fixture.Connection.FinishFailures.Enqueue(new ServiceResultException(StatusCodes.BadTimeout));
+            fixture.Connection.CertificateError = StatusCodes.BadInvalidArgument;
+            fixture.Connection.TrustList.SpecifiedLists = (uint)TrustListMasks.All;
+            fixture.Connection.TrustList.IssuerCertificates = [kIssuer];
+            var recovery = new Mock<IPullDcaSigningRecoveryProvider>(MockBehavior.Strict);
+            recovery.Setup(value => value.ValidateAsync(
+                    kRegistrar, kDcaId, kRequestId, kProfile,
+                    It.Is<PullDcaCredentials>(credentials => credentials.Certificate == kCertificate),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            var options = new PullDcaOptions { MaximumFinishAttempts = 2, FinishRetryDelay = TimeSpan.Zero };
+
+            await fixture.Create(options, signingRecovery: recovery.Object).RunAsync(kRegistrar, CreateRequest())
+                .ConfigureAwait(false);
+
+            Assert.That(fixture.Calls.Count(call => call == "start:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId, kRequestId }));
+            Assert.That(fixture.Calls.Count(call => call == "certificates:dca"), Is.EqualTo(1));
+            Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
+            recovery.VerifyAll();
+            recovery.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// A host can resume a persisted request without repeating identity selection, key generation or submission.
         /// </summary>
         [Test]
@@ -404,18 +520,30 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(fixture.Calls, Does.Not.Contain("start:dca"));
         }
 
-        [Test]
-        public async Task NonPendingCertificateFailureIsNeverRetried()
+        /// <summary>
+        /// Authorization, certificate validation, and invalid-request errors do not enter transport retry.
+        /// </summary>
+        [TestCase("authorization")]
+        [TestCase("certificate")]
+        [TestCase("invalid-request")]
+        public async Task NonTransientCertificateFailureIsNeverRetried(string scenario)
         {
             var fixture = new Fixture();
-            fixture.Connection.CertificateError = StatusCodes.BadRequestNotAllowed;
+            fixture.Connection.CertificateError = scenario switch
+            {
+                "authorization" => StatusCodes.BadRequestNotAllowed,
+                "certificate" => StatusCodes.BadCertificateInvalid,
+                "invalid-request" => StatusCodes.BadInvalidArgument,
+                _ => throw new ArgumentOutOfRangeException(nameof(scenario))
+            };
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(error!.StatusCode, Is.EqualTo(fixture.Connection.CertificateError));
             Assert.That(fixture.Calls.Count(c => c == "finish:dca"), Is.EqualTo(1));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
+            Assert.That(fixture.Calls, Does.Not.Contain("certificates:dca"));
         }
 
         /// <summary>
@@ -880,6 +1008,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public int PendingResponses { get; set; }
             public bool EmptyPendingResponse { get; set; }
             public StatusCode CertificateError { get; set; } = StatusCodes.Good;
+            public Queue<Exception> FinishFailures { get; } = new();
             public List<NodeId> FinishedRequestIds { get; } = [];
             public Action? AfterFinish { get; set; }
             public Func<CancellationToken, Task>? IdentityWait { get; set; }
@@ -932,6 +1061,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 m_fixture.Record("finish:" + applicationId.IdentifierAsString, ct);
                 FinishedRequestIds.Add(requestId);
                 AfterFinish?.Invoke();
+                if (FinishFailures.Count != 0)
+                {
+                    throw FinishFailures.Dequeue();
+                }
                 if (StatusCode.IsBad(CertificateError))
                 {
                     throw new ServiceResultException(CertificateError);

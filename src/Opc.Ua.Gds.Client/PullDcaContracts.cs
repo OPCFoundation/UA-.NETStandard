@@ -53,12 +53,13 @@ namespace Opc.Ua.Gds.Client
         public ArrayOf<PullDcaRegistrar> Registrars { get; set; }
 
         /// <summary>
-        /// Gets or sets the maximum number of FinishRequest calls per certificate request.
+        /// Gets or sets the maximum number of FinishRequest calls per certificate request,
+        /// shared by pending responses and retries of transport failures. Exhausted transport failures propagate.
         /// </summary>
         public int MaximumFinishAttempts { get; set; } = 3;
 
         /// <summary>
-        /// Gets or sets the delay between pending certificate request checks.
+        /// Gets or sets the delay between pending certificate request checks and retries of transport failures.
         /// </summary>
         public TimeSpan FinishRetryDelay { get; set; } = TimeSpan.FromSeconds(1);
 

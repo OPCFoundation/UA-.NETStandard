@@ -455,6 +455,16 @@ another request. It does not reconnect the DCA or finish the remaining device
 lifecycle. Polling an already-consumed server request cannot recover a response
 that was never retained locally without the signing-recovery path below.
 
+Timeout, communication-loss and closed-connection/channel errors consume that
+same finish-attempt budget and retry the original request after `FinishRetryDelay`.
+The workflow does not regenerate the CSR, submit another signing request or
+change the selected channel identity. The borrowed managed session owns transport
+recovery. When the budget is exhausted, the final transport error propagates;
+authorization and certificate-validation failures are not retried. Cancellation
+also stops the retry delay. A retry that returns `BadInvalidArgument` still
+requires the explicit request-bound signing-recovery provider below; transport
+retry alone does not establish that a recovered assignment is fresh.
+
 Register `IPullDcaCertificateReceiptStore` to retain received signing output
 before the workflow downloads trust or invokes the credential installer.
 `CompleteCertificateRequestAsync` then reuses that output without calling
