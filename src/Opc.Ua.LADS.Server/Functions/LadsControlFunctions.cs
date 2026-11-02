@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -89,6 +91,88 @@ namespace Opc.Ua.LADS.Server
             {
                 Volatile.Write(ref m_enabled, value);
                 Runtime.Update(Node.IsEnabled, Variant.From(value));
+            }
+        }
+
+        /// <summary>
+        /// Removes the unbound method copies from the Operational FunctionalGroup of the function.
+        /// </summary>
+        /// <remarks>
+        /// The NodeSet models the Operational methods as separate declarations of the group, so
+        /// the generated factories create copies that cannot be called. This runs before the
+        /// device is registered; <see cref="OrganizeOperational"/> later organizes the bound nodes.
+        /// </remarks>
+        internal void RemoveUnboundOperationalMethods()
+        {
+            ISystemContext context = Runtime.Context;
+            if (Node.FindChild(context, new QualifiedName("Operational", Runtime.LadsNamespaceIndex))
+                is not BaseObjectState operational)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            operational.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is MethodState)
+                {
+                    operational.RemoveChild(child);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Completes the Operational FunctionalGroup of the function.
+        /// </summary>
+        /// <remarks>
+        /// The specification requires the Operational group of a control or cover function to
+        /// organize the CurrentState of its state machine, all of the state machine's remote
+        /// invocable methods, and the CurrentValue and TargetValue variables. This runs after
+        /// the device is registered, when the nodes have their NodeIds.
+        /// </remarks>
+        internal void OrganizeOperational()
+        {
+            ISystemContext context = Runtime.Context;
+            if (Node.FindChild(context, new QualifiedName("Operational", Runtime.LadsNamespaceIndex))
+                is not BaseObjectState operational)
+            {
+                return;
+            }
+            NodeState? stateMachine = Node switch
+            {
+                BaseControlFunctionState control => control.ControlFunctionState,
+                CoverFunctionState cover => cover.CoverState,
+                _ => null
+            };
+            if (stateMachine == null)
+            {
+                return;
+            }
+            var children = new List<BaseInstanceState>();
+            var members = new List<BaseInstanceState>();
+            if (stateMachine is FiniteStateMachineState { CurrentState: { } currentState })
+            {
+                members.Add(currentState);
+            }
+            children.Clear();
+            stateMachine.GetChildren(context, children);
+            members.AddRange(children.OfType<MethodState>());
+            children.Clear();
+            Node.GetChildren(context, children);
+            members.AddRange(children.Where(child =>
+                child is BaseVariableState &&
+                child.BrowseName.NamespaceIndex == Runtime.LadsNamespaceIndex &&
+                child.BrowseName.Name is "CurrentValue" or "TargetValue"));
+            foreach (BaseInstanceState member in members)
+            {
+                if (!operational.ReferenceExists(ReferenceTypeIds.Organizes, false, member.NodeId))
+                {
+                    operational.AddReference(ReferenceTypeIds.Organizes, false, member.NodeId);
+                }
+                if (!member.ReferenceExists(ReferenceTypeIds.Organizes, true, operational.NodeId))
+                {
+                    member.AddReference(ReferenceTypeIds.Organizes, true, operational.NodeId);
+                }
             }
         }
 

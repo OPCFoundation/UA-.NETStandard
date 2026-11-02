@@ -287,11 +287,13 @@ namespace Opc.Ua.LADS.Server
                 ThrowIfDisposed();
                 LADSDeviceState node = device.Node;
                 NodeState deviceSet = DeviceSet;
+                RemoveDeclarationReferences(node);
                 deviceSet.AddChild(node);
                 node.EventNotifier |= EventNotifiers.SubscribeToEvents;
                 try
                 {
                     await Manager.AddPredefinedNodeAsync(node, cancellationToken).ConfigureAwait(false);
+                    device.OrganizeOperationalGroups();
                     await Manager.RegisterRootNotifierAsync(node, cancellationToken).ConfigureAwait(false);
                 }
                 catch
@@ -327,6 +329,7 @@ namespace Opc.Ua.LADS.Server
             CancellationToken cancellationToken)
         {
             ThrowIfDisposed();
+            RemoveDeclarationReferences(child);
             parent.AddChild(child);
             try
             {
@@ -337,6 +340,56 @@ namespace Opc.Ua.LADS.Server
                 await RemoveUnregisteredAsync(parent, child).ConfigureAwait(false);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Removes the references an instance subtree keeps to instance declarations of its types.
+        /// </summary>
+        /// <remarks>
+        /// The generated factories copy the non-child references of a type, such as the
+        /// <c>HasAddIn</c> references of the Machinery building blocks, into every instance.
+        /// The NodeId rebase redirects those that target an instantiated child, but the ones that
+        /// target an optional child the instance never created still point at the declaration,
+        /// so clients would browse from the instance into the type.
+        /// </remarks>
+        /// <param name="root">The root of the instance subtree.</param>
+        internal void RemoveDeclarationReferences(NodeState root)
+        {
+            var pending = new Stack<NodeState>();
+            pending.Push(root);
+            var references = new List<IReference>();
+            var children = new List<BaseInstanceState>();
+            while (pending.Count > 0)
+            {
+                NodeState node = pending.Pop();
+                references.Clear();
+                node.GetReferences(Context, references);
+                foreach (IReference reference in references)
+                {
+                    if (IsInstanceDeclaration(reference.TargetId))
+                    {
+                        node.RemoveReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                    }
+                }
+                children.Clear();
+                node.GetChildren(Context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    pending.Push(child);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns true when a node is an instance declaration of a type, i.e. carries a modelling rule.
+        /// </summary>
+        private bool IsInstanceDeclaration(ExpandedNodeId targetId)
+        {
+            var nodeId = ExpandedNodeId.ToNodeId(targetId, NamespaceUris);
+            return !nodeId.IsNull &&
+                nodeId.NamespaceIndex != InstanceNamespaceIndex &&
+                Manager.FindPredefinedNode(nodeId) is BaseInstanceState declaration &&
+                !declaration.ModellingRuleId.IsNull;
         }
 
         /// <summary>

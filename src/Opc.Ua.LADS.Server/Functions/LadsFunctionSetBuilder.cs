@@ -332,6 +332,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         protected virtual TBuilder Register(LadsFunction function)
         {
+            function.RemoveUnboundOperationalMethods();
             Unit.AddFunction(function);
             return Self;
         }
