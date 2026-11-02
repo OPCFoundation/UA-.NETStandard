@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Server
                 CertificateRequestIssuance issuance = await create(cancellationToken).ConfigureAwait(false);
                 if (issuance == null)
                 {
-                    throw new ArgumentNullException(nameof(issuance));
+                    throw new InvalidOperationException("The issuance factory returned no receipt.");
                 }
                 byte[] encoded = Encode(issuance);
                 try

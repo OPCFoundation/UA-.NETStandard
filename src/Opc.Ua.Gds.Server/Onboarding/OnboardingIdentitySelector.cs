@@ -133,7 +133,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 foreach (IdentityCandidate candidate in candidates)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    string productUri = device.ProductInstanceUri;
+                    string productUri = device.ProductInstanceUri ??
+                        throw new ServiceResultException(StatusCodes.BadTicketInvalid);
                     if (!candidate.Uris.Contains(productUri))
                     {
                         continue;
@@ -151,9 +152,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     {
                         foreach (AcceptedTicket context in accepted)
                         {
-                            if (context.Payload is CompositeIdentityTicketType composite &&
-                                membership.Roots.Contains(composite.CompositeInstanceUri) &&
-                                candidate.Uris.Contains(composite.CompositeInstanceUri) &&
+                            if (context.Payload is not CompositeIdentityTicketType composite)
+                            {
+                                continue;
+                            }
+                            string compositeUri = composite.CompositeInstanceUri ??
+                                throw new ServiceResultException(StatusCodes.BadTicketInvalid);
+                            if (membership.Roots.Contains(compositeUri) &&
+                                candidate.Uris.Contains(compositeUri) &&
                                 (context.CompositeInstanceUri.Length == 0 ||
                                     candidate.Uris.Contains(context.CompositeInstanceUri)))
                             {
@@ -278,7 +284,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     }
                     belongsToComposite = true;
                     hasParent = true;
-                    pending.Push(composite.CompositeInstanceUri);
+                    pending.Push(composite.CompositeInstanceUri ??
+                        throw new ServiceResultException(StatusCodes.BadTicketInvalid));
                 }
                 if (!hasParent && !string.Equals(current, productUri, StringComparison.Ordinal))
                 {

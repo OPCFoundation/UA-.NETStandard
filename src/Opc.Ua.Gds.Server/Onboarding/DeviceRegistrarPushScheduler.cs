@@ -185,19 +185,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     {
                         continue;
                     }
+                    string applicationUri = application.ApplicationUri ??
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
                     try
                     {
                         await m_processor.ProcessAsync(application, stoppingToken).ConfigureAwait(false);
-                        m_logger.PushAttemptCompleted(application.ApplicationUri);
+                        m_logger.PushAttemptCompleted(applicationUri);
                     }
                     catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                     {
-                        m_logger.PushAttemptInterrupted(application.ApplicationUri);
+                        m_logger.PushAttemptInterrupted(applicationUri);
                         throw;
                     }
                     catch (Exception error)
                     {
-                        m_logger.PushAttemptFailed(error, application.ApplicationUri);
+                        m_logger.PushAttemptFailed(error, applicationUri);
                     }
                 }
             }

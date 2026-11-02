@@ -62,19 +62,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var scopeA = Scope([rootA], []);
             var scopeB = Scope([rootB], []);
 
-            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<CertificateValidationResult> aWithA = ValidateAfterStartAsync(start.Task, manager, leafA, scopeA);
-            Task<CertificateValidationResult> bWithB = ValidateAfterStartAsync(start.Task, manager, leafB, scopeB);
-            Task<CertificateValidationResult> bWithA = ValidateAfterStartAsync(start.Task, manager, leafB, scopeA);
-            start.SetResult(true);
-            await Task.WhenAll(aWithA, bWithB, bWithA).ConfigureAwait(false);
-            CertificateValidationResult aResult = await aWithA.ConfigureAwait(false);
-            CertificateValidationResult bResult = await bWithB.ConfigureAwait(false);
-            CertificateValidationResult crossScopeResult = await bWithA.ConfigureAwait(false);
+            CertificateValidationResult[] results = await ValidateConcurrentlyAsync(
+                manager, leafA, leafB, scopeA, scopeB).ConfigureAwait(false);
 
-            Assert.That(aResult.IsValid, Is.True);
-            Assert.That(bResult.IsValid, Is.True);
-            Assert.That(crossScopeResult.IsValid, Is.False,
+            Assert.That(results[0].IsValid, Is.True);
+            Assert.That(results[1].IsValid, Is.True);
+            Assert.That(results[2].IsValid, Is.False,
                 "A concurrently validated root must not leak into another call's isolated scope.");
         }
 
@@ -275,6 +268,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 "Mutating one returned array must not mutate the scope or later snapshots.");
             Assert.That(scope.IssuerCertificates.IsEmpty, Is.True);
             Assert.That(scope.CertificateRevocationLists.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Joins every validation before returning control to the caller that owns the borrowed handles.
+        /// </summary>
+        private static async Task<CertificateValidationResult[]> ValidateConcurrentlyAsync(
+            CertificateManager manager,
+            Certificate leafA,
+            Certificate leafB,
+            CertificateValidationScope scopeA,
+            CertificateValidationScope scopeB)
+        {
+            var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<CertificateValidationResult> aWithA = ValidateAfterStartAsync(start.Task, manager, leafA, scopeA);
+            Task<CertificateValidationResult> bWithB = ValidateAfterStartAsync(start.Task, manager, leafB, scopeB);
+            Task<CertificateValidationResult> bWithA = ValidateAfterStartAsync(start.Task, manager, leafB, scopeA);
+            start.SetResult(true);
+            return await Task.WhenAll(aWithA, bWithB, bWithA).ConfigureAwait(false);
         }
 
         private static async Task<CertificateValidationResult> ValidateAfterStartAsync(

@@ -149,7 +149,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return count;
             }
-            if (!inputs[0].TryGetStructure(out ApplicationDescription? application) || application == null)
+            if (!inputs[0].TryGetStructure(out ApplicationDescription application) || application == null)
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -191,7 +191,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 return count;
             }
-            if (!inputs[0].TryGetStructure(out ApplicationRecordDataType? application) ||
+            if (!inputs[0].TryGetStructure(out ApplicationRecordDataType application) ||
                 application == null ||
                 !inputs[1].TryGetValue(out string protocolUri))
             {

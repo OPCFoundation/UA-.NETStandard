@@ -71,6 +71,31 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 lifecycleMissing ? new Mock<IDeviceRegistrarApplicationAuthorization>().Object : null!));
         }
 
+        /// <summary>
+        /// Missing or index-only role configuration cannot authorize a software state change.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UpdateSoftwareStatusRejectsMissingNamespaceQualifiedRole(bool indexOnly)
+        {
+            var harness = new Harness();
+            var runtime = new DeviceRegistrarRuntime(
+                harness.Database.Object, harness.Lifecycle.Object, harness.Authorization,
+                harness.Push.Object, harness.Managers.Object, harness.Audit.Object)
+            {
+                SoftwareUpdateAdminRoleId = indexOnly ? new ExpandedNodeId(1234u) : ExpandedNodeId.Null
+            };
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await runtime.UpdateSoftwareStatusAsync(
+                    CreateContext(softwareAdmin: true), Device, true, "2.0").ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            harness.Lifecycle.Verify(value => value.UpdateSoftwareStatusAsync(
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            harness.Audit.VerifyNoOtherCalls();
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task UpdateSoftwareStatusPersistsStatusAndRevisionBeforeAuditing(bool status)
@@ -922,6 +947,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var namespaces = new NamespaceTable();
             namespaces.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
             namespaces.Append(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
+            namespaces.Append(RolesNamespace);
             var roles = new List<NodeId>();
             if (registrarAdmin)
             {
@@ -931,7 +957,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             if (softwareAdmin)
             {
                 roles.Add(ExpandedNodeId.ToNodeId(
-                    Opc.Ua.Onboarding.ObjectIds.WellKnownRole_SoftwareUpdateAdmin, namespaces));
+                    SoftwareUpdateAdminRole, namespaces));
             }
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(i => i.TokenType).Returns(anonymous ? UserTokenType.Anonymous : UserTokenType.UserName);
@@ -958,6 +984,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceMessageContext messageContext = ServiceMessageContext.Create(context.Telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Gds.Namespaces.OpcUaGds);
             messageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
+            messageContext.NamespaceUris.GetIndexOrAppend(RolesNamespace);
             context.NamespaceUris = messageContext.NamespaceUris;
             context.ServerUris = messageContext.ServerUris;
             context.EncodeableFactory = messageContext.Factory;
@@ -1004,7 +1031,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .Returns(ApplicationId);
                 Authorization = new DeviceRegistrarAuthorization(Lifecycle.Object, Applications.Object);
                 Runtime = new DeviceRegistrarRuntime(
-                    Database.Object, Lifecycle.Object, Authorization, Push.Object, Managers.Object, Audit.Object);
+                    Database.Object, Lifecycle.Object, Authorization, Push.Object, Managers.Object, Audit.Object)
+                {
+                    SoftwareUpdateAdminRoleId = SoftwareUpdateAdminRole
+                };
             }
 
             public Mock<IApplicationsDatabase> Database { get; } = new();
@@ -1018,6 +1048,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         private const string Device = "urn:device:test";
+        private const string RolesNamespace = "urn:opcfoundation:tests:registrar-roles";
+        private static readonly ExpandedNodeId SoftwareUpdateAdminRole =
+            new("SoftwareUpdateAdmin", RolesNamespace);
         private static readonly NodeId ApplicationId = new("shared-application", 2);
     }
 }

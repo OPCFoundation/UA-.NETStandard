@@ -25,6 +25,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -201,6 +202,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Reloads and validates authorization state for each operation; failed mutations never publish local state.
         /// </summary>
+        /// <typeparam name="T">The lifecycle operation's result type.</typeparam>
         private async ValueTask<T> ExecuteAsync<T>(
             Func<MemoryDeviceRegistrarLifecycle, CancellationToken, ValueTask<T>> operation,
             bool write,
@@ -243,13 +245,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var buffer = new MemoryStream();
             byte[] block = new byte[8192];
             int read;
+#if NETSTANDARD2_0 || NETFRAMEWORK
             while ((read = await input.ReadAsync(block, 0, block.Length, cancellationToken).ConfigureAwait(false)) > 0)
+#else
+            while ((read = await input.ReadAsync(block.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
+#endif
             {
                 if (buffer.Length + read > MaximumCheckpointBytes)
                 {
                     throw new InvalidDataException("The registrar lifecycle checkpoint exceeds its size limit.");
                 }
+#if NETSTANDARD2_0 || NETFRAMEWORK
                 await buffer.WriteAsync(block, 0, read, cancellationToken).ConfigureAwait(false);
+#else
+                await buffer.WriteAsync(block.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+#endif
             }
             try
             {
@@ -394,7 +404,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             cancellationToken.ThrowIfCancellationRequested();
             string staging = m_path + "." + Guid.NewGuid().ToString("N") + ".pending";
-            Exception? publicationError = null;
+            ExceptionDispatchInfo? publicationError = null;
             try
             {
                 using (Stream output = m_fileSystem.OpenWrite(staging))
@@ -408,25 +418,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception error)
             {
-                publicationError = error;
-                throw;
+                publicationError = ExceptionDispatchInfo.Capture(error);
             }
-            finally
+            try
             {
-                try
+                if (m_fileSystem.Exists(staging))
                 {
-                    if (m_fileSystem.Exists(staging))
-                    {
-                        m_fileSystem.Delete(staging);
-                    }
-                }
-                catch (Exception cleanupError) when (publicationError != null)
-                {
-                    throw new AggregateException(
-                        "Publishing the registrar checkpoint and removing its staging file both failed.",
-                        publicationError, cleanupError);
+                    m_fileSystem.Delete(staging);
                 }
             }
+            catch (Exception cleanupError) when (publicationError != null)
+            {
+                throw new AggregateException(
+                    "Publishing the registrar checkpoint and removing its staging file both failed.",
+                    publicationError.SourceException, cleanupError);
+            }
+            publicationError?.Throw();
         }
 
         /// <summary>

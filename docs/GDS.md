@@ -306,6 +306,16 @@ is retained. Direct hosts can continue constructing and injecting their own
 `DeviceRegistrarAuditReporter`; the hosted adapter supports one registrar per
 service collection.
 
+`UpdateSoftwareStatus` requires the host's SoftwareUpdateAdmin role. Part 21
+names this role, but the published onboarding model assigns no standard NodeId
+to it. Select the actual host role with
+`services.AddDeviceRegistrarSoftwareUpdateRole(roleId)` before resolving the
+runtime; `roleId` must identify a local node by namespace URI. The host publishes
+the role and grants it to the authorized software-update sessions. Direct
+construction uses `DeviceRegistrarRuntime.SoftwareUpdateAdminRoleId`.
+Without this selection, software status changes return `BadConfigurationError`;
+RegistrarAdmin does not substitute for SoftwareUpdateAdmin.
+
 For an in-memory supervised push queue, register
 `services.AddDeviceRegistrarPushScheduler<MyPushProcessor>(capacity: 32)` before
 the registrar's provider check. `MyPushProcessor` implements

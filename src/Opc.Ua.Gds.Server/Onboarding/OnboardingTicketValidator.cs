@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         decoder.ReadEncodeable<CompositeIdentityTicketType>(null),
                     _ => throw InvalidTicket("Ticket content type is not supported.")
                 };
-                string identityUri = ticket switch
+                string? identityUri = ticket switch
                 {
                     DeviceIdentityTicketType device => device.ProductInstanceUri,
                     CompositeIdentityTicketType composite => composite.CompositeInstanceUri,
@@ -448,7 +448,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Checks an identity URI without changing its case-sensitive representation.
         /// </summary>
-        private static bool IsAbsoluteUri(string value)
+        private static bool IsAbsoluteUri(string? value)
         {
             return Uri.TryCreate(value, UriKind.Absolute, out _);
         }

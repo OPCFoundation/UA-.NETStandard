@@ -144,6 +144,7 @@ namespace Opc.Ua.Gds.Server
         /// Allows entry to the asynchronous handlers without conferring a global GDS role.
         /// Each handler checks the authenticated channel, application owner, and current software policy.
         /// </summary>
+        /// <typeparam name="TMethod">The generated certificate-directory method state.</typeparam>
         private TMethod OnboardingCertificateMethod<TMethod>(
             INodeBuilder<CertificateDirectoryState> directory,
             string browseName)

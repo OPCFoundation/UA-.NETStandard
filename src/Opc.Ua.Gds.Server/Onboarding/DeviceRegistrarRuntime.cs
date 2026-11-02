@@ -75,6 +75,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_onboardingPolicy = onboardingPolicy ?? throw new ArgumentNullException(nameof(onboardingPolicy));
         }
 
+        /// <summary>
+        /// Gets the host's SoftwareUpdateAdmin role, identified by namespace URI rather than a startup index.
+        /// Part 21 names this role, but the published onboarding model does not assign it a standard NodeId.
+        /// Software status changes are rejected until the host selects and grants its actual role.
+        /// </summary>
+        public ExpandedNodeId SoftwareUpdateAdminRoleId { get; init; }
+
         /// <inheritdoc/>
         public async ValueTask<DeviceRegistrarIdentityResult> ProvideIdentitiesAsync(
             ISystemContext context,
@@ -126,9 +133,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string softwareRevision,
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (SoftwareUpdateAdminRoleId.IsNull || SoftwareUpdateAdminRoleId.ServerIndex != 0 ||
+                string.IsNullOrEmpty(SoftwareUpdateAdminRoleId.NamespaceUri))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The host must configure its SoftwareUpdateAdmin role.");
+            }
             await m_authorization.RequireRoleAsync(
                 context,
-                Opc.Ua.Onboarding.ObjectIds.WellKnownRole_SoftwareUpdateAdmin,
+                SoftwareUpdateAdminRoleId,
                 cancellationToken).ConfigureAwait(false);
             RequireUri(productInstanceUri);
             if (string.IsNullOrWhiteSpace(softwareRevision))
@@ -304,7 +318,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return applicationId;
         }
 
-        private static void RequireUri(string value)
+        private static void RequireUri([System.Diagnostics.CodeAnalysis.NotNull] string? value)
         {
             if (string.IsNullOrWhiteSpace(value) || !Uri.TryCreate(value, UriKind.Absolute, out _))
             {

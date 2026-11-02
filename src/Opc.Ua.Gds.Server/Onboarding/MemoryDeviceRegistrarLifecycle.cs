@@ -150,14 +150,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         public ValueTask RegisterDeviceAsync(
             string productInstanceUri,
-            NodeId dcaApplicationId,
-            ByteString dcaCertificate,
+            NodeId applicationId,
+            ByteString certificate,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(productInstanceUri) ||
                 !Uri.TryCreate(productInstanceUri, UriKind.Absolute, out _) ||
-                dcaApplicationId.IsNull ||
-                dcaCertificate.IsEmpty)
+                applicationId.IsNull ||
+                certificate.IsEmpty)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument);
             }
@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 foreach (DeviceRegistrarIdentityCandidate candidate in m_candidates.Values)
                 {
                     if (candidate.ProductInstanceUri != productInstanceUri &&
-                        candidate.SelectedIdentity == dcaCertificate)
+                        candidate.SelectedIdentity == certificate)
                     {
                         throw new ServiceResultException(StatusCodes.BadEntryExists);
                     }
@@ -175,22 +175,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 foreach (DeviceRegistrarDevice candidate in m_devices.Values)
                 {
                     if (candidate.ProductInstanceUri != productInstanceUri &&
-                        (candidate.DcaCertificate == dcaCertificate ||
-                            candidate.PendingDcaCertificate == dcaCertificate ||
-                            OwnsApplication(candidate, dcaApplicationId)))
+                        (candidate.DcaCertificate == certificate ||
+                            candidate.PendingDcaCertificate == certificate ||
+                            OwnsApplication(candidate, applicationId)))
                     {
                         throw new ServiceResultException(StatusCodes.BadEntryExists);
                     }
                 }
                 if (m_devices.TryGetValue(productInstanceUri, out DeviceRegistrarDevice? existing))
                 {
-                    if (existing.DcaApplicationId != dcaApplicationId)
+                    if (existing.DcaApplicationId != applicationId)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                     }
                     m_devices[productInstanceUri] = existing with
                     {
-                        DcaCertificate = ByteString.From(dcaCertificate.Span),
+                        DcaCertificate = ByteString.From(certificate.Span),
                         PendingDcaCertificate = ByteString.Empty
                     };
                 }
@@ -198,8 +198,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     m_devices.Add(productInstanceUri, new DeviceRegistrarDevice(
                         productInstanceUri,
-                        dcaApplicationId,
-                        ByteString.From(dcaCertificate.Span),
+                        applicationId,
+                        ByteString.From(certificate.Span),
                         false,
                         string.Empty,
                         []));
@@ -317,7 +317,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     DcaCertificate = ByteString.From(device.DcaCertificate.Span),
                     PendingDcaCertificate = ByteString.From(device.PendingDcaCertificate.Span),
-                    Applications = device.Applications.ToArray()
+                    Applications = device.Applications.ToArray().ToArrayOf()
                 });
             }
         }
@@ -471,7 +471,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     {
                         DcaCertificate = ByteString.From(device.DcaCertificate.Span),
                         PendingDcaCertificate = ByteString.From(device.PendingDcaCertificate.Span),
-                        Applications = device.Applications.ToArray()
+                        Applications = device.Applications.ToArray().ToArrayOf()
                     };
                 }
                 var candidates = new DeviceRegistrarIdentityCandidate[m_candidates.Count];

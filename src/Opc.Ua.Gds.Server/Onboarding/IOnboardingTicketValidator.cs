@@ -106,15 +106,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         public TicketMetadata Metadata => new(
             m_ticket is DeviceIdentityTicketType ? TicketKind.DeviceIdentity : TicketKind.CompositeIdentity,
-            m_ticket.ManufacturerName,
-            m_ticket.ModelName,
-            m_ticket.SerialNumber,
+            m_ticket.ManufacturerName ??
+                throw new ServiceResultException(StatusCodes.BadTicketInvalid),
+            m_ticket.ModelName ?? string.Empty,
+            m_ticket.SerialNumber ?? string.Empty,
             m_ticket switch
             {
                 DeviceIdentityTicketType device => device.ProductInstanceUri,
                 CompositeIdentityTicketType composite => composite.CompositeInstanceUri,
                 _ => string.Empty
-            });
+            } ?? throw new ServiceResultException(StatusCodes.BadTicketInvalid));
 
         /// <summary>
         /// The independently owned validated payload.

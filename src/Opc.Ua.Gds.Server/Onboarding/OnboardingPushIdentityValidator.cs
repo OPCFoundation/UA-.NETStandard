@@ -60,9 +60,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             NodeId provisionableDeviceId,
             CancellationToken cancellationToken = default)
         {
-            await using OnboardingPushSession admitted = await CaptureAsync(
+            OnboardingPushSession admitted = await CaptureAsync(
                 session, provisionableDeviceId, cancellationToken).ConfigureAwait(false);
-            return admitted.Identity;
+            await using (admitted.ConfigureAwait(false))
+            {
+                return admitted.Identity;
+            }
         }
 
         /// <summary>
@@ -143,7 +146,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 issuers[i - 1] = ByteString.From(chain[i].RawData.AsSpan());
             }
             OnboardingIdentitySelection selection = await m_identities.SelectAsync(
-                [leaf], issuers, tickets.ToArray(), cancellationToken).ConfigureAwait(false);
+                [leaf], issuers, tickets.ToArray().ToArrayOf(), cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (selection == null || selection.SelectedIdentity != leaf)
             {

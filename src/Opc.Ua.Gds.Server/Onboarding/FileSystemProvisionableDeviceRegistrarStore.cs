@@ -24,6 +24,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -130,13 +131,21 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using var buffer = new MemoryStream();
             byte[] block = new byte[8192];
             int read;
+#if NETSTANDARD2_0 || NETFRAMEWORK
             while ((read = await input.ReadAsync(block, 0, block.Length, cancellationToken).ConfigureAwait(false)) > 0)
+#else
+            while ((read = await input.ReadAsync(block.AsMemory(), cancellationToken).ConfigureAwait(false)) > 0)
+#endif
             {
                 if (buffer.Length + read > kMaximumCheckpointBytes)
                 {
                     throw new InvalidDataException("The device registrar checkpoint exceeds its size limit.");
                 }
+#if NETSTANDARD2_0 || NETFRAMEWORK
                 await buffer.WriteAsync(block, 0, read, cancellationToken).ConfigureAwait(false);
+#else
+                await buffer.WriteAsync(block.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+#endif
             }
             buffer.Position = 0;
             try
@@ -167,7 +176,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             cancellationToken.ThrowIfCancellationRequested();
             string staging = m_path + "." + Guid.NewGuid().ToString("N") + ".pending";
-            Exception? publicationError = null;
+            ExceptionDispatchInfo? publicationError = null;
             try
             {
                 using (Stream output = m_fileSystem.OpenWrite(staging))
@@ -181,25 +190,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception error)
             {
-                publicationError = error;
-                throw;
+                publicationError = ExceptionDispatchInfo.Capture(error);
             }
-            finally
+            try
             {
-                try
+                if (m_fileSystem.Exists(staging))
                 {
-                    if (m_fileSystem.Exists(staging))
-                    {
-                        m_fileSystem.Delete(staging);
-                    }
-                }
-                catch (Exception cleanupError) when (publicationError != null)
-                {
-                    throw new AggregateException(
-                        "Publishing device registrar candidates and removing their staging file both failed.",
-                        publicationError, cleanupError);
+                    m_fileSystem.Delete(staging);
                 }
             }
+            catch (Exception cleanupError) when (publicationError != null)
+            {
+                throw new AggregateException(
+                    "Publishing device registrar candidates and removing their staging file both failed.",
+                    publicationError.SourceException, cleanupError);
+            }
+            publicationError?.Throw();
         }
 
         /// <summary>

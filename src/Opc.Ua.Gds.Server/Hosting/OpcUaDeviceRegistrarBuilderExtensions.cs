@@ -23,6 +23,7 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -112,7 +113,7 @@ namespace Microsoft.Extensions.DependencyInjection
             RequireProvider<ITicketStore>(services);
             RequireProvider<IOnboardingTicketValidator>(services);
             RequireProvider<IProvisionableDeviceRegistrarStore>(services);
-            ArrayOf<string> identifiers = ticketIds.ToArray();
+            ArrayOf<string> identifiers = ticketIds.ToArray().ToArrayOf();
             services.TryAddSingleton<IProvisionableDeviceRuntime>(sp => new ProvisionableDeviceRuntime(
                 isSingleton, identifiers, sp.GetRequiredService<ITicketStore>(),
                 sp.GetRequiredService<IOnboardingTicketValidator>(),
@@ -303,8 +304,46 @@ namespace Microsoft.Extensions.DependencyInjection
                 sp.GetRequiredService<IDeviceRegistrarAuditReporter>(),
                 sp.GetRequiredService<IOnboardingIdentitySelector>(),
                 sp.GetRequiredService<IDeviceRegistrarIdentityLifecycle>(),
-                sp.GetRequiredService<IDeviceRegistrarOnboardingPolicy>()));
+                sp.GetRequiredService<IDeviceRegistrarOnboardingPolicy>())
+            {
+                SoftwareUpdateAdminRoleId = sp.GetService<SoftwareUpdateRoleRegistration>() is { } role ?
+                    role.RoleId : ExpandedNodeId.Null
+            });
             services.TryAddSingleton<IDeviceRegistrarRuntime>(sp => sp.GetRequiredService<DeviceRegistrarRuntime>());
+            return services;
+        }
+
+        /// <summary>
+        /// Selects the host-defined SoftwareUpdateAdmin role before constructing the registrar runtime.
+        /// The role must identify a local node by namespace URI; the host publishes it and grants it to sessions.
+        /// Repeating the same selection is allowed; conflicting selections require separate service collections.
+        /// Existing custom runtimes retain their own role configuration.
+        /// </summary>
+        public static IServiceCollection AddDeviceRegistrarSoftwareUpdateRole(
+            this IServiceCollection services,
+            ExpandedNodeId roleId)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (roleId.IsNull || roleId.ServerIndex != 0 || string.IsNullOrEmpty(roleId.NamespaceUri))
+            {
+                throw new ArgumentException("A local role identified by namespace URI is required.", nameof(roleId));
+            }
+            foreach (ServiceDescriptor descriptor in services)
+            {
+                if (!descriptor.IsKeyedService &&
+                    descriptor.ImplementationInstance is SoftwareUpdateRoleRegistration registration)
+                {
+                    if (registration.RoleId != roleId)
+                    {
+                        throw new InvalidOperationException("The registrar software-update role is already selected.");
+                    }
+                    return services;
+                }
+            }
+            services.AddSingleton(new SoftwareUpdateRoleRegistration(roleId));
             return services;
         }
 
@@ -332,7 +371,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// persistent provisioning state, and recovery of uncertain remote effects; this queue does not retry them.
         /// Durable queue acceptance requires a different IDeviceRegistrarPushScheduler implementation.
         /// </summary>
-        public static IServiceCollection AddDeviceRegistrarPushScheduler<TProcessor>(
+        /// <typeparam name="TProcessor">The injectable processor whose public constructors are retained.</typeparam>
+        public static IServiceCollection AddDeviceRegistrarPushScheduler<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProcessor>(
             this IServiceCollection services,
             int capacity = 32)
             where TProcessor : class, IDeviceRegistrarPushProcessor
@@ -476,6 +517,10 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
+        /// <summary>
+        /// Requires an unkeyed provider usable by the default runtime.
+        /// </summary>
+        /// <typeparam name="T">The required provider contract.</typeparam>
         private static void RequireProvider<T>(IServiceCollection services)
         {
             foreach (ServiceDescriptor descriptor in services)
@@ -488,5 +533,10 @@ namespace Microsoft.Extensions.DependencyInjection
             throw new InvalidOperationException(
                 $"Device registrar requires an explicit {typeof(T).Name} provider registration.");
         }
+
+        /// <summary>
+        /// Retains the role selection without constructing server nodes during container registration.
+        /// </summary>
+        private sealed record SoftwareUpdateRoleRegistration(ExpandedNodeId RoleId);
     }
 }

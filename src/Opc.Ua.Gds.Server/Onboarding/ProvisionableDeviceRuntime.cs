@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     throw new ArgumentException("Ticket identifiers must be nonempty and unique.", nameof(ticketIds));
                 }
             }
-            m_ticketIds = ticketIds.ToArray();
+            m_ticketIds = ticketIds.ToArray().ToArrayOf();
             IsSingleton = isSingleton;
         }
 
@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     ApplicationType = registrar.ApplicationType,
                     GatewayServerUri = registrar.GatewayServerUri,
                     DiscoveryProfileUri = registrar.DiscoveryProfileUri,
-                    DiscoveryUrls = registrar.DiscoveryUrls.ToArray()
+                    DiscoveryUrls = registrar.DiscoveryUrls.ToArray().ToArrayOf()
                 };
             }
             return detached;

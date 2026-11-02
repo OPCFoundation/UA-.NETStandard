@@ -397,7 +397,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             return new ValidationOptions
             {
                 TrustScope = new CertificateValidationScope(trust.TrustedCertificates, trust.IssuerCertificates,
-                    trust.TrustedCrls.ToArray().Concat(trust.IssuerCrls.ToArray()).ToArray().ToArrayOf()),
+                    (trust.TrustedCrls.ToArray() ?? []).Concat(trust.IssuerCrls.ToArray() ?? []).ToArrayOf()),
                 AutoAcceptUntrustedCertificates = false,
                 AcceptError = static (_, _) => false,
                 RecordRejectedCertificates = false,

@@ -200,6 +200,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Keeps GDS authority initialization on the GDS when another server shares the service collection.
         /// </summary>
+        /// <typeparam name="T">The authority service initialized before its host starts.</typeparam>
         private static void RegisterStartupTask<T>(IServiceCollection services, bool isGds)
             where T : class
         {
@@ -255,6 +256,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Initializes authority services before model bindings open their managed trust-list stores.
         /// Custom providers retain ownership of their own trust registration.
         /// </summary>
+        /// <typeparam name="T">The authority service initialized by the callback.</typeparam>
         internal sealed class AuthorityStartupTask<T> : IServerPreStartupTask
             where T : class
         {

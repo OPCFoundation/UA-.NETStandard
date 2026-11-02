@@ -222,6 +222,34 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         /// <summary>
+        /// The fluent role selection reaches the runtime without inventing a standard onboarding NodeId.
+        /// </summary>
+        [Test]
+        public void SoftwareUpdateRoleSelectionIsExplicitIdempotentAndRejectsConflicts()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ITelemetryContext>(NUnitTelemetryContext.Create());
+            var role = new ExpandedNodeId("SoftwareUpdateAdmin", "urn:registrar:test:roles");
+            Assert.That(services.AddDeviceRegistrarSoftwareUpdateRole(role), Is.SameAs(services));
+            services.AddDeviceRegistrarSoftwareUpdateRole(role);
+            int count = services.Count;
+            Assert.That(() => services.AddDeviceRegistrarSoftwareUpdateRole(
+                new ExpandedNodeId("DifferentRole", "urn:registrar:test:roles")), Throws.InvalidOperationException);
+            Assert.That(services, Has.Count.EqualTo(count));
+            services.AddDeviceRegistrarRuntime(value => ConfigureProviders(value));
+            using ServiceProvider provider = services.BuildServiceProvider();
+
+            Assert.That(provider.GetRequiredService<DeviceRegistrarRuntime>().SoftwareUpdateAdminRoleId,
+                Is.EqualTo(role));
+            Assert.That(() => new ServiceCollection().AddDeviceRegistrarSoftwareUpdateRole(ExpandedNodeId.Null),
+                Throws.ArgumentException);
+            Assert.That(() => new ServiceCollection().AddDeviceRegistrarSoftwareUpdateRole(new ExpandedNodeId(1234u)),
+                Throws.ArgumentException);
+            Assert.That(() => OpcUaDeviceRegistrarBuilderExtensions.AddDeviceRegistrarSoftwareUpdateRole(null!, role),
+                Throws.ArgumentNullException);
+        }
+
+        /// <summary>
         /// Repeated selection registers the model only for the chosen server kind.
         /// </summary>
         [TestCase(false)]
