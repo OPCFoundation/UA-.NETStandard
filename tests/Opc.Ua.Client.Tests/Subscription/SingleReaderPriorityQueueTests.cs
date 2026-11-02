@@ -182,5 +182,106 @@ namespace Opc.Ua.Client.Subscriptions
                 Is.SameAs(reader));
             await reader;
         }
+
+        [Test]
+        public async Task WaitThatLostARaceIsCompletedByLaterWriteAsync()
+        {
+            // MessageProcessor races the wait against the gap timer and keeps
+            // the losing wait outstanding instead of starting a new one.
+            using var queue = new SingleReaderPriorityQueue<int>((a, b) => a - b);
+            using var cts = new CancellationTokenSource();
+            Task<bool> wait = queue.WaitToReadAsync(cts.Token).AsTask();
+            var timer = new TaskCompletionSource<bool>();
+            timer.SetResult(true);
+
+            Assert.That(await Task.WhenAny(wait, timer.Task), Is.SameAs(timer.Task));
+            Assert.That(wait.IsCompleted, Is.False);
+
+            Assert.That(queue.TryWrite(7), Is.True);
+            Assert.That(await wait, Is.True);
+            Assert.That(queue.TryRead(out int item), Is.True);
+            Assert.That(item, Is.EqualTo(7));
+
+            // The waiter is reusable after the outstanding wait completed.
+            ValueTask<bool> next = queue.WaitToReadAsync(cts.Token);
+            Assert.That(next.IsCompleted, Is.False);
+            queue.TryWrite(8);
+            Assert.That(await next, Is.True);
+        }
+
+        [Test]
+        public async Task CancellationRacingWriteCompletesWaitOnceAsync()
+        {
+            using var queue = new SingleReaderPriorityQueue<int>((a, b) => a - b);
+            int written = 0;
+            int read = 0;
+            for (int i = 0; i < 2000; i++)
+            {
+                // A new token per round also exercises re-registration.
+                using var cts = new CancellationTokenSource();
+                ValueTask<bool> wait = queue.WaitToReadAsync(cts.Token);
+                using var start = new Barrier(2);
+                Task cancel = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    cts.Cancel();
+                });
+                Task write = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    Assert.That(queue.TryWrite(i), Is.True);
+                });
+                try
+                {
+                    Assert.That(await wait, Is.True);
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                await Task.WhenAll(cancel, write);
+                written++;
+                while (queue.TryRead(out _))
+                {
+                    read++;
+                }
+            }
+
+            // No write was lost and the waiter still works afterwards.
+            Assert.That(read, Is.EqualTo(written));
+            ValueTask<bool> last = queue.WaitToReadAsync(CancellationToken.None);
+            queue.TryWrite(-1);
+            Assert.That(await last, Is.True);
+        }
+
+        [Test]
+        public async Task CompletionRacingWriteKeepsAcceptedItemsAsync()
+        {
+            for (int i = 0; i < 2000; i++)
+            {
+                using var queue = new SingleReaderPriorityQueue<int>((a, b) => a - b);
+                ValueTask<bool> wait = queue.WaitToReadAsync(CancellationToken.None);
+                using var start = new Barrier(2);
+                bool accepted = false;
+                Task complete = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    queue.TryComplete();
+                });
+                Task write = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    accepted = queue.TryWrite(i);
+                });
+
+                bool readable = await wait;
+                await Task.WhenAll(complete, write);
+
+                // An accepted write is always readable; after completion
+                // the next wait reports the end once drained.
+                Assert.That(readable || !accepted, Is.True);
+                Assert.That(queue.TryRead(out _), Is.EqualTo(accepted));
+                Assert.That(await queue.WaitToReadAsync(CancellationToken.None), Is.False);
+            }
+        }
     }
 }
