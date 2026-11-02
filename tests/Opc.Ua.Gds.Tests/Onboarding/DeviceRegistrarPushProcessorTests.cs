@@ -59,8 +59,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [OneTimeSetUp]
         public void SetUp()
         {
-            m_bootstrap = CertificateBuilder.Create("CN=Bootstrap Push Device").SetRSAKeySize(2048).CreateForRSA();
-            m_issued = CertificateBuilder.Create("CN=Issued Push Device").SetRSAKeySize(2048).CreateForRSA();
+            m_bootstrap = CertificateBuilder.Create("CN=Bootstrap Push Device")
+                .AddExtension(new X509SubjectAltNameExtension("urn:push:application", ["localhost"]))
+                .SetRSAKeySize(2048).CreateForRSA();
+            m_issued = CertificateBuilder.Create("CN=Issued Push Device")
+                .AddExtension(new X509SubjectAltNameExtension("urn:push:application", ["localhost"]))
+                .SetRSAKeySize(2048).CreateForRSA();
         }
 
         /// <summary>
@@ -377,6 +381,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("partial-trust")]
         [TestCase("ticket")]
         [TestCase("private-key")]
+        [TestCase("missing-csr")]
+        [TestCase("malformed-csr")]
+        [TestCase("wrong-csr-key")]
         public async Task InvalidEnrollmentEvidenceFailsBeforeCredentialMutation(string substitution)
         {
             await using var harness = new Harness(m_bootstrap, m_issued) { EnrollmentMutation = substitution };
@@ -464,6 +471,32 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<OnboardingIdentitySelection>(), It.IsAny<NodeId>(),
                 It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Installed-peer proof cannot promote a receipt with missing, malformed or different-key request evidence.
+        /// </summary>
+        [TestCase("missing-csr")]
+        [TestCase("malformed-csr")]
+        [TestCase("wrong-csr-key")]
+        public async Task InstalledPeerRecoveryRejectsSubstitutedSigningEvidence(string substitution)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued) { EnrollmentMutation = substitution };
+            await harness.SeedCandidateAsync().ConfigureAwait(false);
+            await harness.Lifecycle.RecordIssuedDcaCertificateAsync(
+                Harness.Product, Harness.ApplicationId, harness.Issued).ConfigureAwait(false);
+            harness.Initial.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(m_issued.RawData);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(harness.CsrCalls, Is.Zero);
+            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
+            Assert.That(state.PendingDcaCertificate, Is.EqualTo(harness.Issued));
         }
 
         /// <summary>
@@ -606,6 +639,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 Bootstrap = ByteString.From(bootstrap.RawData.AsSpan());
                 Issued = ByteString.From(issued.RawData.AsSpan());
+                m_csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(issued).AsSpan());
+                m_otherCsr = ByteString.From(
+                    DefaultCertificateFactory.Instance.CreateSigningRequest(bootstrap).AsSpan());
                 Identity = new OnboardingIdentitySelection(
                     Bootstrap, new DeviceIdentityTicketType(), Product, "signed-ticket", string.Empty);
                 Application = new ApplicationDescription
@@ -668,7 +704,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         {
                             BeforeCsr?.Invoke();
                             ByteString csr = await create(ct).ConfigureAwait(false);
-                            Assert.That(csr, Is.EqualTo(s_csr));
+                            Assert.That(csr, Is.EqualTo(m_csr));
                             if (RepeatCsr)
                             {
                                 await create(ct).ConfigureAwait(false);
@@ -687,7 +723,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         CancellationToken>((_, _, create, ct) =>
                         MissingReceipt ? create(ct) : new ValueTask<CertificateRequestIssuance>(
                             new CertificateRequestIssuance("DefaultApplicationGroup", "RsaSha256",
-                                Issued, EnrollmentMutation == "private-key" ? s_csr : default, [Issued])));
+                                Issued, EnrollmentMutation == "private-key" ? m_csr : default, [Issued])));
                 Processor = new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
                     new OnboardingPushIdentityValidator(Identities.Object, Initial.Telemetry),
                     policy.Object, database.Object, Lifecycle,
@@ -915,7 +951,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CreateSigningRequest)
                 {
                     CsrCalls++;
-                    outputs = [Variant.From(s_csr)];
+                    outputs = [Variant.From(m_csr)];
                 }
                 else if (method.MethodId == Ua.MethodIds.FileType_Open)
                 {
@@ -948,7 +984,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 var enrollment = new DeviceRegistrarPushEnrollment(Identity, ApplicationId, RequestId,
                     "DefaultApplicationGroup", "RsaSha256",
-                    new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All });
+                    new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }, m_csr);
                 return EnrollmentMutation switch
                 {
                     "identity" => enrollment with
@@ -965,6 +1001,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     "request" => enrollment with { RequestId = NodeId.Null },
                     "group" => enrollment with { CertificateGroupId = "OtherGroup" },
                     "type" => enrollment with { CertificateTypeId = "OtherType" },
+                    "missing-csr" => enrollment with { CertificateRequest = ByteString.Empty },
+                    "malformed-csr" => enrollment with { CertificateRequest = ByteString.From(new byte[] { 1, 2, 3 }) },
+                    "wrong-csr-key" => enrollment with { CertificateRequest = m_otherCsr },
                     "partial-trust" => enrollment with
                     {
                         TrustList = new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.TrustedCertificates }
@@ -1005,7 +1044,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private static readonly NodeId s_deviceId = new("push-device", 1);
 
             /// <summary>The device-generated signing request returned over the admitted generation.</summary>
-            private static readonly ByteString s_csr = ByteString.From(new byte[] { 1, 2, 3 });
+            private readonly ByteString m_csr;
+
+            /// <summary>A correctly signed request for a different key of the same application.</summary>
+            private readonly ByteString m_otherCsr;
 
             /// <summary>The shared application record created or seeded by this harness.</summary>
             private ApplicationRecordDataType? m_record;

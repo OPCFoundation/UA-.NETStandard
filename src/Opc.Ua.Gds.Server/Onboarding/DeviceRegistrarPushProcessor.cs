@@ -26,7 +26,9 @@
  * ======================================================================*/
 
 using System;
+using System.Formats.Asn1;
 using System.IO;
+using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -118,6 +120,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await RetainScopeAsync(productInstanceUri, singleton, cancellationToken).ConfigureAwait(false);
                 await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
 
+                ByteString createdSigningRequest = ByteString.Empty;
                 if (retained == null)
                 {
                     var configuration = new ServerConfigurationTypeClient(
@@ -140,13 +143,25 @@ namespace Opc.Ua.Gds.Server.Onboarding
                             {
                                 throw new ServiceResultException(StatusCodes.BadInvalidState);
                             }
-                            return csr;
+                            createdSigningRequest = ByteString.From(csr.Span);
+                            return ByteString.From(createdSigningRequest.Span);
                         }, cancellationToken).ConfigureAwait(false);
                 }
                 ValidateEnrollment(retained, identity, applicationId);
-                retained = retained with { TrustList = CoreUtils.Clone(retained.TrustList)! };
+                if (!createdSigningRequest.IsEmpty && retained.CertificateRequest != createdSigningRequest)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The retained CSR differs from the device's response.");
+                }
+                retained = retained with
+                {
+                    TrustList = CoreUtils.Clone(retained.TrustList)!,
+                    CertificateRequest = ByteString.From(retained.CertificateRequest.Span)
+                };
                 CertificateRequestIssuance issuance = await ReadIssuanceAsync(
                     retained, cancellationToken).ConfigureAwait(false);
+                RequireSigningResult(
+                    retained, issuance, snapshot.ApplicationUri!, connection.CertificateTypeId);
                 installed = issuance.Certificate;
                 await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken).ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
@@ -589,9 +604,65 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 enrollment.ApplicationId != applicationId || enrollment.RequestId.IsNull ||
                 string.IsNullOrEmpty(enrollment.CertificateGroupId) ||
                 string.IsNullOrEmpty(enrollment.CertificateTypeId) ||
-                enrollment.TrustList == null || enrollment.TrustList.SpecifiedLists != (uint)TrustListMasks.All)
+                enrollment.TrustList == null || enrollment.TrustList.SpecifiedLists != (uint)TrustListMasks.All ||
+                enrollment.CertificateRequest.IsEmpty)
             {
                 throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+            }
+        }
+
+        /// <summary>
+        /// Binds retained issuance to the original device-generated key, application and requested key profile.
+        /// Matching group/type labels alone cannot distinguish a stale certificate from the requested issuance.
+        /// </summary>
+        private static void RequireSigningResult(
+            DeviceRegistrarPushEnrollment enrollment,
+            CertificateRequestIssuance issuance,
+            string applicationUri,
+            NodeId certificateType)
+        {
+            try
+            {
+                var framing = new AsnReader(enrollment.CertificateRequest.Memory, AsnEncodingRules.DER);
+                framing.ReadSequence();
+                framing.ThrowIfNotEmpty();
+                var request = new Pkcs10CertificationRequest(enrollment.CertificateRequest.ToArray());
+                if (!request.Verify() ||
+                    Pkcs10Utils.GetSubjectAltNameExtension(request.Attributes)?.Uris.Contains(applicationUri) != true)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                CertificateGroup.VerifySigningRequestKey(certificateType, enrollment.CertificateRequest);
+                using Certificate certificate = Certificate.FromRawData(issuance.Certificate);
+                if (!string.Equals(
+                    X509Utils.GetApplicationUriFromCertificate(certificate), applicationUri, StringComparison.Ordinal))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+                }
+                var encoded = new AsnReader(request.SubjectPublicKeyInfo, AsnEncodingRules.DER);
+                AsnReader publicKey = encoded.ReadSequence();
+                AsnReader algorithm = publicKey.ReadSequence();
+                string oid = algorithm.ReadObjectIdentifier();
+                ReadOnlyMemory<byte> parameters = algorithm.HasData ? algorithm.ReadEncodedValue() : default;
+                byte[] key = publicKey.ReadBitString(out int padding);
+                algorithm.ThrowIfNotEmpty();
+                publicKey.ThrowIfNotEmpty();
+                encoded.ThrowIfNotEmpty();
+                using System.Security.Cryptography.X509Certificates.X509Certificate2 leaf =
+                    certificate.AsX509Certificate2();
+                if (padding != 0 || !string.Equals(oid, leaf.PublicKey.Oid.Value, StringComparison.Ordinal) ||
+                    !parameters.Span.SequenceEqual(leaf.PublicKey.EncodedParameters.RawData) ||
+                    !key.AsSpan().SequenceEqual(leaf.PublicKey.EncodedKeyValue.RawData))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed, "The retained certificate does not match the device CSR.");
+                }
+            }
+            catch (Exception error) when (error is AsnContentException or
+                System.Security.Cryptography.CryptographicException or ArgumentException or NotSupportedException)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained signing evidence is invalid.", error);
             }
         }
 

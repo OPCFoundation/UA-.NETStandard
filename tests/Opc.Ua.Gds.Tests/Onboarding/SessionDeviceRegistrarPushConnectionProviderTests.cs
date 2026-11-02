@@ -69,6 +69,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Direct construction requires all trust, transport and target-selection collaborators.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void ConstructorRejectsMissingCollaborator(int missing)
+        {
+            Assert.Throws<ArgumentNullException>(() => new SessionDeviceRegistrarPushConnectionProvider(
+                missing == 0 ? null! : Configuration(),
+                missing == 1 ? null! : new Mock<ISessionFactory>().Object,
+                missing == 2 ? null! :
+                    static (_, _) => throw new AssertionException("Target selection must not run.")));
+        }
+
+        /// <summary>
         /// The actual peer leaf is checked even when discovery contains different certificate bytes.
         /// </summary>
         [TestCase(false)]
@@ -229,6 +244,29 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await provider.ConnectAsync(Application(), ByteString.Empty, cancellation.Token).ConfigureAwait(false));
 
+            factory.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A host policy change during target selection cannot enable automatic trust for the new session.
+        /// </summary>
+        [Test]
+        public async Task AutoAcceptanceEnabledDuringSelectionPreventsSessionCreation()
+        {
+            await using var context = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            var factory = new Mock<ISessionFactory>(MockBehavior.Strict);
+            ApplicationConfiguration configuration = Configuration();
+            var provider = new SessionDeviceRegistrarPushConnectionProvider(configuration, factory.Object, (_, _) =>
+            {
+                configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
+                return new ValueTask<DeviceRegistrarPushTarget>(Target(context));
+            });
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.ConnectAsync(Application(), ByteString.Empty).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             factory.VerifyNoOtherCalls();
         }
 

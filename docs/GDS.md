@@ -513,6 +513,14 @@ forge a device-authenticated pull request. Missing approved issuance rejects the
 attempt before trust or certificate upload. The library does not yet supply
 this enrollment adapter, so this is not a ready-to-run push registrar.
 
+Enrollment evidence retains the original device-generated CSR. Before uploading
+trust or promoting an installed peer, the processor verifies its signature,
+application URI and requested key profile, then matches its public key and
+algorithm parameters to the retained issued certificate. A matching request
+identifier and group/type labels cannot substitute for that key comparison.
+Missing or substituted signing evidence rejects recovery without changing the
+pending credential or requesting another device key.
+
 Select both providers and the shared lifecycle and issuance store before
 registering the processor:
 

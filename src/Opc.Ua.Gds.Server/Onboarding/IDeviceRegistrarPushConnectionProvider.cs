@@ -136,5 +136,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
         NodeId RequestId,
         string CertificateGroupId,
         string CertificateTypeId,
-        TrustListDataType TrustList);
+        TrustListDataType TrustList,
+        ByteString CertificateRequest);
 }
