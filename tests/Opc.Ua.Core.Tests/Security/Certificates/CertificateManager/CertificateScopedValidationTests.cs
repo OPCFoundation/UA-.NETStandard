@@ -273,7 +273,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Joins every validation before returning control to the caller that owns the borrowed handles.
         /// </summary>
-        private static async Task<CertificateValidationResult[]> ValidateConcurrentlyAsync(
+        private static Task<CertificateValidationResult[]> ValidateConcurrentlyAsync(
             CertificateManager manager,
             Certificate leafA,
             Certificate leafB,
@@ -285,7 +285,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Task<CertificateValidationResult> bWithB = ValidateAfterStartAsync(start.Task, manager, leafB, scopeB);
             Task<CertificateValidationResult> bWithA = ValidateAfterStartAsync(start.Task, manager, leafB, scopeA);
             start.SetResult(true);
-            return await Task.WhenAll(aWithA, bWithB, bWithA).ConfigureAwait(false);
+            return Task.WhenAll(aWithA, bWithB, bWithA);
         }
 
         private static async Task<CertificateValidationResult> ValidateAfterStartAsync(

@@ -47,6 +47,105 @@ namespace Opc.Ua.Gds.Tests.Hosting
     public sealed class DeviceRegistrarBuilderTests
     {
         /// <summary>
+        /// The receipt startup binding belongs only to the GDS even when a regular server shares its container.
+        /// </summary>
+        [Test]
+        public void HostedReceiptsRegisterOnlyGdsStartupBindingAndOneAdapter()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { });
+            IGdsServerBuilder gds = services.AddOpcUa().AddGdsServer(_ => { });
+            var secrets = new InMemorySecretStore();
+
+            Assert.That(gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, "gds"), Is.SameAs(gds));
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            SecretStoreCertificateRequestIssuanceStore store =
+                provider.GetRequiredService<SecretStoreCertificateRequestIssuanceStore>();
+            Assert.That(provider.GetRequiredService<ICertificateRequestIssuanceStore>(), Is.SameAs(store));
+            Assert.That(provider.GetServices<IServerPreStartupTask>()
+                .OfType<OpcUaDeviceRegistrarBuilderExtensions.IssuanceNamespaceStartupTask>(), Is.Empty);
+            GdsServerPreStartupTaskRegistration task =
+                provider.GetServices<GdsServerPreStartupTaskRegistration>().Single();
+            Assert.That(task.Factory(provider),
+                Is.TypeOf<OpcUaDeviceRegistrarBuilderExtensions.IssuanceNamespaceStartupTask>());
+        }
+
+        /// <summary>
+        /// The GDS task uses its actual table and cancellation cannot accidentally enable unbound receipt access.
+        /// </summary>
+        [Test]
+        public async Task HostedReceiptStartupBindsTheActualServerNamespaceTable()
+        {
+            var services = new ServiceCollection();
+            IGdsServerBuilder gds = services.AddOpcUa().AddGdsServer(_ => { });
+            var secrets = new InMemorySecretStore();
+            gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, "gds");
+            using ServiceProvider provider = services.BuildServiceProvider();
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend("urn:test:unrelated");
+            namespaces.GetIndexOrAppend("urn:test:actual-gds");
+            var native = new Mock<IServerInternal>();
+            native.SetupGet(value => value.Telemetry).Returns(provider.GetRequiredService<ITelemetryContext>());
+            native.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            var server = new Mock<IServerContext>();
+            server.SetupGet(context => context.DefaultSystemContext).Returns(new ServerSystemContext(native.Object));
+            IServerPreStartupTask task = provider.GetServices<GdsServerPreStartupTaskRegistration>().Single()
+                .Factory(provider);
+            ICertificateRequestIssuanceStore store = provider.GetRequiredService<ICertificateRequestIssuanceStore>();
+            NodeId application = new("application", 2);
+            NodeId request = new("request", 2);
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await task.OnServerStartingAsync(server.Object, cancelled.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await store.RemoveAsync(application, request).ConfigureAwait(false));
+            await task.OnServerStartingAsync(server.Object).ConfigureAwait(false);
+            var receipt = new CertificateRequestIssuance(
+                "group", "type", ByteString.From(new byte[] { 2, 4, 6 }), default, []);
+            await store.GetOrCreateAsync(application, request,
+                _ => new ValueTask<CertificateRequestIssuance>(receipt)).ConfigureAwait(false);
+            var reordered = new NamespaceTable();
+            reordered.GetIndexOrAppend("urn:test:actual-gds");
+            using var restarted = new SecretStoreCertificateRequestIssuanceStore(secrets, reordered, "gds");
+
+            CertificateRequestIssuance restored = await restarted.GetOrCreateAsync(
+                new NodeId("application", 1), new NodeId("request", 1),
+                _ => throw new AssertionException("Startup must bind the actual GDS namespace URI."))
+                .ConfigureAwait(false);
+
+            Assert.That(restored.Certificate, Is.EqualTo(receipt.Certificate));
+        }
+
+        /// <summary>
+        /// Invalid hosted receipt configuration and competing stores leave the registrations unchanged.
+        /// </summary>
+        [Test]
+        public void HostedReceiptsRejectMissingInputsAndCompetingAdapters()
+        {
+            var services = new ServiceCollection();
+            IGdsServerBuilder gds = services.AddOpcUa().AddGdsServer(_ => { });
+            var secrets = new InMemorySecretStore();
+            Assert.Throws<ArgumentNullException>(() =>
+                OpcUaDeviceRegistrarBuilderExtensions.AddSecretStoreCertificateRequestIssuanceStore(
+                    (IGdsServerBuilder)null!, secrets, "gds"));
+            Assert.Throws<ArgumentNullException>(() => gds.AddSecretStoreCertificateRequestIssuanceStore(null!, "gds"));
+            Assert.Throws<ArgumentNullException>(() =>
+                gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, null!));
+            Assert.Throws<ArgumentException>(() => gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, ""));
+            gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, "gds");
+            ServiceDescriptor[] before = services.ToArray();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, "other"));
+            Assert.Throws<InvalidOperationException>(() =>
+                services.AddSecretStoreCertificateRequestIssuanceStore(secrets, new NamespaceTable(), "other"));
+            Assert.That(services, Is.EqualTo(before));
+        }
+
+        /// <summary>
         /// All lifecycle contracts share one container-owned provider without inventing a namespace table.
         /// </summary>
         [Test]
@@ -54,7 +153,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             var services = new ServiceCollection();
             var files = new Mock<IFileSystem>(MockBehavior.Strict);
-            Assert.That(services.AddFileSystemDeviceRegistrarLifecycle("registrar-state.json", files.Object),
+            Assert.That(services.AddHostedFileSystemDeviceRegistrarLifecycle("registrar-state.json", files.Object),
                 Is.SameAs(services));
             using ServiceProvider provider = services.BuildServiceProvider();
             FileSystemDeviceRegistrarLifecycle lifecycle =
@@ -92,16 +191,18 @@ namespace Opc.Ua.Gds.Tests.Hosting
                     services.AddSingleton(new Mock<IDeviceRegistrarCertificateLifecycle>().Object);
                     break;
                 default:
-                    services.AddFileSystemDeviceRegistrarLifecycle("existing.json");
+                    services.AddHostedFileSystemDeviceRegistrarLifecycle("existing.json");
                     break;
             }
             ServiceDescriptor[] before = services.ToArray();
 
-            Assert.Throws<InvalidOperationException>(() => services.AddFileSystemDeviceRegistrarLifecycle("new.json"));
+            Assert.Throws<InvalidOperationException>(() =>
+                services.AddHostedFileSystemDeviceRegistrarLifecycle("new.json"));
             Assert.That(services, Is.EqualTo(before));
-            Assert.Throws<ArgumentException>(() => new ServiceCollection().AddFileSystemDeviceRegistrarLifecycle(" "));
+            Assert.Throws<ArgumentException>(() =>
+                new ServiceCollection().AddHostedFileSystemDeviceRegistrarLifecycle(" "));
             Assert.Throws<ArgumentNullException>(() =>
-                OpcUaDeviceRegistrarBuilderExtensions.AddFileSystemDeviceRegistrarLifecycle(null!, "state.json"));
+                OpcUaDeviceRegistrarBuilderExtensions.AddHostedFileSystemDeviceRegistrarLifecycle(null!, "state.json"));
         }
 
         [Test]

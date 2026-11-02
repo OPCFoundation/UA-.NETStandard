@@ -40,6 +40,58 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("Onboarding")]
     public sealed class CertificateRequestIssuanceStoreTests
     {
+        /// <summary>
+        /// Hosted receipts cannot invoke issuance or access storage until their GDS binds the actual table.
+        /// </summary>
+        [Test]
+        public async Task HostedReceiptsRequireNamespaceBindingBeforeIssuanceOrRemoval()
+        {
+            var secrets = new Mock<ISecretStore>(MockBehavior.Strict);
+            using var store = new SecretStoreCertificateRequestIssuanceStore(secrets.Object, "gds");
+            NodeId application = new("application", 1);
+            NodeId request = new("request", 1);
+
+            ServiceResultException? creation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await store.GetOrCreateAsync(application, request,
+                    _ => throw new AssertionException("An unbound store cannot issue a certificate."))
+                    .ConfigureAwait(false));
+            ServiceResultException? removal = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await store.RemoveAsync(application, request).ConfigureAwait(false));
+
+            Assert.That(creation!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(removal!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            secrets.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A hosted adapter uses stable namespace URIs and rejects rebinding without changing retained receipts.
+        /// </summary>
+        [Test]
+        public async Task HostedReceiptsBindOnceAndRestoreAcrossNamespaceReordering()
+        {
+            var secrets = new InMemorySecretStore();
+            CertificateRequestIssuance original = Issuance(3);
+            using (var store = new SecretStoreCertificateRequestIssuanceStore(secrets, "gds"))
+            {
+                NamespaceTable namespaces = Namespaces(false);
+                store.BindNamespaceTable(namespaces);
+                store.BindNamespaceTable(namespaces);
+                Assert.Throws<InvalidOperationException>(() => store.BindNamespaceTable(Namespaces(true)));
+                Assert.Throws<ArgumentNullException>(() => store.BindNamespaceTable(null!));
+                await store.GetOrCreateAsync(new NodeId("app", 1), new NodeId("request", 1),
+                    _ => new ValueTask<CertificateRequestIssuance>(original)).ConfigureAwait(false);
+            }
+            using var restarted = new SecretStoreCertificateRequestIssuanceStore(secrets, "gds");
+            restarted.BindNamespaceTable(Namespaces(true));
+
+            CertificateRequestIssuance restored = await restarted.GetOrCreateAsync(
+                new NodeId("app", 2), new NodeId("request", 2),
+                _ => throw new AssertionException("Reordered namespaces must retain the original issuance."))
+                .ConfigureAwait(false);
+
+            AssertIssuance(restored, original);
+        }
+
         [Test]
         public async Task RecreatedAdapterUsesNamespaceUrisAndRetainsExactIssuanceWithoutCallingFactory()
         {

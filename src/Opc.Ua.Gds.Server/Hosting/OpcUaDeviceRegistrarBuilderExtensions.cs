@@ -127,7 +127,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// AddDeviceRegistrar binds it to the actual model namespace table before requests are accepted.
         /// The checkpoint path requires one writer; this does not register discovery candidates on the device.
         /// </summary>
-        public static IServiceCollection AddFileSystemDeviceRegistrarLifecycle(
+        public static IServiceCollection AddHostedFileSystemDeviceRegistrarLifecycle(
             this IServiceCollection services,
             string path,
             IFileSystem? fileSystem = null)
@@ -493,6 +493,38 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers receipts whose namespace table is bound by this GDS host before its address space is created.
+        /// The supplied secret store remains host-owned and its scope requires one exclusive writer.
+        /// </summary>
+        public static IGdsServerBuilder AddSecretStoreCertificateRequestIssuanceStore(
+            this IGdsServerBuilder builder,
+            ISecretStore secretStore,
+            string scope)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (secretStore == null)
+            {
+                throw new ArgumentNullException(nameof(secretStore));
+            }
+            if (scope == null)
+            {
+                throw new ArgumentNullException(nameof(scope));
+            }
+            if (scope.Length == 0)
+            {
+                throw new ArgumentException("A unique GDS database scope is required.", nameof(scope));
+            }
+            RequireNoIssuanceStore(builder.Services);
+            builder.Services.AddSingleton(_ => new SecretStoreCertificateRequestIssuanceStore(secretStore, scope));
+            builder.Services.AddSingleton<ICertificateRequestIssuanceStore>(provider =>
+                provider.GetRequiredService<SecretStoreCertificateRequestIssuanceStore>());
+            return builder.AddPreStartupTask<IssuanceNamespaceStartupTask>();
+        }
+
+        /// <summary>
         /// Registers one receipt adapter for an explicitly supplied secret store and unique GDS database scope.
         /// The namespace table must belong to the hosting server. Only this adapter instance may write its scope;
         /// distributed hosts must register an atomic cross-writer issuance provider instead.
@@ -524,6 +556,48 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentException("A unique GDS database scope is required.", nameof(scope));
             }
+            RequireNoIssuanceStore(services);
+            services.AddSingleton<ICertificateRequestIssuanceStore>(_ =>
+                new SecretStoreCertificateRequestIssuanceStore(secretStore, namespaceUris, scope));
+            return services;
+        }
+
+        /// <summary>
+        /// Binds receipt persistence only to its selected GDS, not to a regular server sharing the container.
+        /// </summary>
+        internal sealed class IssuanceNamespaceStartupTask : IServerPreStartupTask
+        {
+            /// <summary>
+            /// Borrows the container-owned receipt adapter without reading any secrets before startup.
+            /// </summary>
+            public IssuanceNamespaceStartupTask(SecretStoreCertificateRequestIssuanceStore store)
+            {
+                m_store = store ?? throw new ArgumentNullException(nameof(store));
+            }
+
+            /// <inheritdoc/>
+            public ValueTask OnServerStartingAsync(
+                IServerContext server,
+                CancellationToken cancellationToken = default)
+            {
+                if (server == null)
+                {
+                    throw new ArgumentNullException(nameof(server));
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                m_store.BindNamespaceTable(server.DefaultSystemContext.NamespaceUris);
+                return default;
+            }
+
+            /// <summary>The exclusive adapter bound during GDS startup.</summary>
+            private readonly SecretStoreCertificateRequestIssuanceStore m_store;
+        }
+
+        /// <summary>
+        /// Rejects competing issuance stores before mutating provider registrations.
+        /// </summary>
+        private static void RequireNoIssuanceStore(IServiceCollection services)
+        {
             foreach (ServiceDescriptor descriptor in services)
             {
                 if (!descriptor.IsKeyedService &&
@@ -533,9 +607,6 @@ namespace Microsoft.Extensions.DependencyInjection
                     throw new InvalidOperationException("Select only one certificate issuance receipt provider.");
                 }
             }
-            services.AddSingleton<ICertificateRequestIssuanceStore>(_ =>
-                new SecretStoreCertificateRequestIssuanceStore(secretStore, namespaceUris, scope));
-            return services;
         }
 
         /// <summary>

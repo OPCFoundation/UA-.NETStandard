@@ -296,7 +296,7 @@ factory resolution. A direct host can construct the factory with those
 dependencies. Do not register another node manager for the same onboarding
 namespace.
 
-Select `services.AddFileSystemDeviceRegistrarLifecycle(checkpointPath)` before
+Select `services.AddHostedFileSystemDeviceRegistrarLifecycle(checkpointPath)` before
 registering the runtime to persist candidate identities, software approval,
 application relations and pending DCA issuance through one provider. The model
 factory binds this provider to its running server's namespace table before
@@ -306,6 +306,16 @@ assumed namespace indexes. Direct hosts can still supply their actual table to
 the `FileSystemDeviceRegistrarLifecycle` constructor. The path requires one
 writer and protection against changes by other applications; this provider does
 not coordinate multiple processes or replicated registrars.
+
+For GDS issuance receipts, use
+`gdsBuilder.AddSecretStoreCertificateRequestIssuanceStore(secretStore, scope)`
+to bind the adapter to that GDS's actual namespace table during pre-startup.
+The binding does not run on a regular server sharing the container. Receipt
+access before binding returns `BadServerHalted` without invoking issuance or
+accessing the secret store. The existing service-collection overload remains
+available to direct hosts that already own the running server's namespace
+table. Both paths require one writer per secret-store scope and retain the
+host's responsibility for storage durability.
 
 Select `services.AddHostedDeviceRegistrarAuditing()` before registering the
 runtime to route audit calls through the standard factory's restricted native

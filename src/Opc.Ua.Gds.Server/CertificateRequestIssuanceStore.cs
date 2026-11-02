@@ -161,6 +161,35 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        /// <summary>
+        /// Creates a hosted adapter that must receive the running GDS namespace table before accessing receipts.
+        /// </summary>
+        internal SecretStoreCertificateRequestIssuanceStore(ISecretStore secretStore, string scope)
+        {
+            m_secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
+            m_scope = scope ?? throw new ArgumentNullException(nameof(scope));
+            if (scope.Length == 0)
+            {
+                throw new ArgumentException("A unique GDS database scope is required.", nameof(scope));
+            }
+        }
+
+        /// <summary>
+        /// Binds one host's namespace table without permitting a later host to reinterpret receipt identifiers.
+        /// </summary>
+        internal void BindNamespaceTable(NamespaceTable namespaceUris)
+        {
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+            NamespaceTable? previous = Interlocked.CompareExchange(ref m_namespaceUris, namespaceUris, null);
+            if (previous != null && !ReferenceEquals(previous, namespaceUris))
+            {
+                throw new InvalidOperationException("The issuance store is already bound to another GDS host.");
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask<CertificateRequestIssuance> GetOrCreateAsync(
             NodeId applicationId,
@@ -357,12 +386,14 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private string EncodeId(NodeId id)
         {
-            if (id.IsNull || string.IsNullOrEmpty(m_namespaceUris.GetString(id.NamespaceIndex)))
+            NamespaceTable namespaces = m_namespaceUris ?? throw new ServiceResultException(
+                StatusCodes.BadServerHalted, "The GDS host has not bound the issuance namespace table.");
+            if (id.IsNull || string.IsNullOrEmpty(namespaces.GetString(id.NamespaceIndex)))
             {
                 throw new ArgumentException(
                     "A non-null identifier with a registered namespace is required.", nameof(id));
             }
-            return NodeId.ToExpandedNodeId(id, m_namespaceUris).ToString();
+            return NodeId.ToExpandedNodeId(id, namespaces).ToString();
         }
 
         /// <summary>The maximum retained JSON document, including private-key output.</summary>
@@ -372,7 +403,7 @@ namespace Opc.Ua.Gds.Server
         private readonly ISecretStore m_secretStore;
 
         /// <summary>The hosting server's namespace URI mapping.</summary>
-        private readonly NamespaceTable m_namespaceUris;
+        private NamespaceTable? m_namespaceUris;
 
         /// <summary>The unique database scope inside the secret store.</summary>
         private readonly string m_scope;
