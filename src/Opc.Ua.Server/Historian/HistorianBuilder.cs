@@ -83,6 +83,7 @@ namespace Opc.Ua.Server.Historian
                 options ?? new InMemoryHistorianOptions(),
                 (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System);
             Provider = provider;
+            m_provisionNodes = true;
             return provider;
         }
 
@@ -106,7 +107,24 @@ namespace Opc.Ua.Server.Historian
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is <c>null</c>.</exception>
         public HistorianBuilder UseProvider(IHistorianProvider provider)
         {
+            return UseProvider(provider, provisionNodes: true);
+        }
+
+        /// <summary>
+        /// Configures the provider and whether capture setup provisions its in-memory nodes.
+        /// </summary>
+        /// <param name="provider">The provider to use for capture and configuration.</param>
+        /// <param name="provisionNodes">
+        /// Whether historization registers in-memory nodes and applies the supplied capabilities.
+        /// When false, the caller must provision nodes beforehand; capture setup leaves their
+        /// provider capabilities unchanged.
+        /// </param>
+        /// <returns>The current builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="provider"/> is null.</exception>
+        public HistorianBuilder UseProvider(IHistorianProvider provider, bool provisionNodes)
+        {
             Provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            m_provisionNodes = provisionNodes;
             return this;
         }
 
@@ -168,7 +186,7 @@ namespace Opc.Ua.Server.Historian
                 variable.UserAccessLevel = (byte)(variable.UserAccessLevel | historyAccessLevel);
             }
 
-            if (Provider is InMemoryHistorianProvider inMemory)
+            if (m_provisionNodes && Provider is InMemoryHistorianProvider inMemory)
             {
                 inMemory.Register(variable.NodeId, capabilities);
             }
@@ -248,7 +266,7 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(systemContext));
             }
             EnsureProvider();
-            if (Provider is InMemoryHistorianProvider inMemory)
+            if (m_provisionNodes && Provider is InMemoryHistorianProvider inMemory)
             {
                 inMemory.Register(
                     notifier.NodeId,
@@ -591,6 +609,9 @@ namespace Opc.Ua.Server.Historian
             => ((IHistorianRegistryProvider)m_server).HistorianRegistry;
 
         private readonly IServerInternal m_server;
+
+        /// <summary>Whether capture setup provisions and reconfigures in-memory provider nodes.</summary>
+        private bool m_provisionNodes = true;
     }
 
     /// <summary>

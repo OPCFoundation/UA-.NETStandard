@@ -45,9 +45,10 @@ namespace Opc.Ua.AMB.Server.Assets
         private AssetHistoryBinding(AssetHandle handle, IServerInternal server, IHistorianProvider provider)
         {
             m_handle = handle;
-            m_registry = ((IHistorianRegistryProvider)server).HistorianRegistry;
+            m_registry = ((IHistorianRegistryProvider)server).HistorianRegistry as IHistorianNodeBindingRegistry
+                ?? throw ConfigurationError("AMB history requires atomic scoped-node historian bindings.");
             m_builder = new HistorianBuilder(server);
-            m_builder.UseProvider(provider);
+            m_builder.UseProvider(provider, provisionNodes: false);
         }
 
         /// <summary>
@@ -73,11 +74,26 @@ namespace Opc.Ua.AMB.Server.Assets
             try
             {
                 await binding.BindAsync(options, cancellationToken).ConfigureAwait(false);
+                if (binding.m_health != null)
+                {
+                    AssetNodes.Register(handle, binding.m_health);
+                }
+                if ((binding.Kinds & (AssetHistoryKinds.HealthEvents | AssetHistoryKinds.MaintenanceEvents)) != 0)
+                {
+                    AssetNodes.Register(handle, handle.Asset);
+                }
                 return binding;
             }
             catch
             {
-                await binding.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    binding.RollBackMetadata();
+                }
                 throw;
             }
         }
@@ -97,17 +113,29 @@ namespace Opc.Ua.AMB.Server.Assets
             {
                 if (m_health != null)
                 {
-                    m_registry.UnregisterForNode(m_health.NodeId);
                     m_health.Historizing = m_originalHistorizing;
                     m_health.AccessLevel = m_originalAccessLevel;
                     m_health.UserAccessLevel = m_originalUserAccessLevel;
                 }
                 if ((Kinds & (AssetHistoryKinds.HealthEvents | AssetHistoryKinds.MaintenanceEvents)) != 0)
                 {
-                    m_registry.UnregisterForNode(m_handle.NodeId);
                     m_handle.Asset.EventNotifier = m_originalEventNotifier;
                 }
-                Kinds = AssetHistoryKinds.None;
+                try
+                {
+                    m_healthBinding?.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        m_eventBinding?.Dispose();
+                    }
+                    finally
+                    {
+                        Kinds = AssetHistoryKinds.None;
+                    }
+                }
             }
         }
 
@@ -127,9 +155,13 @@ namespace Opc.Ua.AMB.Server.Assets
                 {
                     throw ConfigurationError("DeviceHealth is already historized by its owner.");
                 }
+                if (!m_registry.TryRegisterForNode(health.NodeId, provider, out m_healthBinding))
+                {
+                    throw ConfigurationError("DeviceHealth already has an exact-node historian provider binding.");
+                }
                 if (provider is InMemoryHistorianProvider memory)
                 {
-                    memory.Register(health.NodeId);
+                    memory.TryRegister(health.NodeId);
                 }
                 HistorianNodeCapabilities capabilities = await provider.GetCapabilitiesAsync(
                     health.NodeId, cancellationToken).ConfigureAwait(false);
@@ -141,19 +173,51 @@ namespace Opc.Ua.AMB.Server.Assets
                         "DeviceHealth history requires provisioned raw read and capture support.");
                 }
 
+                m_originalHealthTimestamp = health.Timestamp;
                 bool restored = await RestoreTimestampAsync(data, health, cancellationToken).ConfigureAwait(false);
                 m_health = health;
                 m_originalHistorizing = health.Historizing;
                 m_originalAccessLevel = health.AccessLevel;
                 m_originalUserAccessLevel = health.UserAccessLevel;
-                m_builder.RegisterForNode(health.NodeId);
-                await m_builder.HistorizeAsync(
-                    health,
-                    m_handle.Context,
-                    capabilities: capabilities,
-                    captureOptions: options.Capture,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
-                AssetNodes.Register(m_handle, health);
+                bool installHealthConfiguration = health.FindChild(
+                    m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)) == null;
+                m_annotationsBefore = health.FindChild(
+                    m_handle.Context, new QualifiedName(Ua.BrowseNames.Annotations));
+                if (m_annotationsBefore is BaseVariableState annotations)
+                {
+                    m_originalAnnotationAccessLevel = annotations.AccessLevel;
+                    m_originalAnnotationUserAccessLevel = annotations.UserAccessLevel;
+                }
+                m_healthMetadataTouched = true;
+                try
+                {
+                    m_builder.Historize(
+                        health,
+                        systemContext: m_handle.Context,
+                        capabilities: capabilities,
+                        captureOptions: options.Capture);
+                }
+                finally
+                {
+                    if (m_annotationsBefore == null)
+                    {
+                        m_addedAnnotations = health.FindChild(
+                            m_handle.Context, new QualifiedName(Ua.BrowseNames.Annotations));
+                    }
+                }
+                if (installHealthConfiguration)
+                {
+                    try
+                    {
+                        await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                            m_handle.Context, health, provider, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_addedHealthConfiguration = health.FindChild(
+                            m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
+                    }
+                }
                 Kinds |= AssetHistoryKinds.DeviceHealth;
                 if (!restored)
                 {
@@ -213,9 +277,13 @@ namespace Opc.Ua.AMB.Server.Assets
             }
 
             ArrayOf<SimpleAttributeOperand> fields = AmbEventFields.Select(m_handle.Context.NamespaceUris);
+            if (!m_registry.TryRegisterForNode(m_handle.NodeId, provider, out m_eventBinding))
+            {
+                throw ConfigurationError("The asset already has an exact-node historian provider binding.");
+            }
             if (provider is InMemoryHistorianProvider eventMemory)
             {
-                eventMemory.Register(m_handle.NodeId, HistorianNodeCapabilities.EventReadWrite with
+                eventMemory.TryRegister(m_handle.NodeId, HistorianNodeCapabilities.EventReadWrite with
                 {
                     EventFields = fields,
                     EventTypes = eventTypes.ToArrayOf()
@@ -246,23 +314,74 @@ namespace Opc.Ua.AMB.Server.Assets
                 }
             }
             m_originalEventNotifier = m_handle.Asset.EventNotifier;
-            m_builder.RegisterForNode(m_handle.NodeId);
+            bool installEventConfiguration = m_handle.Asset.FindChild(
+                m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)) == null;
             Kinds |= events;
-            await m_builder.HistorizeEventsAsync(
-                m_handle.Asset,
-                m_handle.Context,
-                eventNotifier: EventNotifiers.HistoryRead,
-                capabilities: eventCapabilities with
+            try
+            {
+                await m_builder.HistorizeEventsAsync(
+                    m_handle.Asset,
+                    m_handle.Context,
+                    eventNotifier: EventNotifiers.HistoryRead,
+                    installConfiguration: installEventConfiguration,
+                    capabilities: eventCapabilities with
+                    {
+                        EventFields = fields,
+                        EventTypes = eventTypes.ToArrayOf()
+                    },
+                    captureOptions: options.Capture,
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (installEventConfiguration)
                 {
-                    EventFields = fields,
-                    EventTypes = eventTypes.ToArrayOf()
-                },
-                captureOptions: options.Capture,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
-            AssetNodes.Register(m_handle, m_handle.Asset);
+                    m_addedEventConfiguration = m_handle.Asset.FindChild(
+                        m_handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration));
+                }
+            }
             foreach (ConditionState condition in selectedConditions)
             {
                 AssetNodes.ReportEvent(m_handle.Context, condition);
+            }
+        }
+
+        /// <summary>
+        /// Removes metadata added before a failed registration, leaving existing configuration untouched.
+        /// Nodes are not indexed with their owner until the complete binding succeeds.
+        /// </summary>
+        private void RollBackMetadata()
+        {
+            if (m_health != null && m_healthMetadataTouched)
+            {
+                m_health.Timestamp = m_originalHealthTimestamp;
+                RemoveAddedMetadata(
+                    m_health, m_addedHealthConfiguration, Ua.ReferenceTypeIds.HasHistoricalConfiguration);
+                if (m_annotationsBefore == null)
+                {
+                    RemoveAddedMetadata(m_health, m_addedAnnotations, Ua.ReferenceTypeIds.HasProperty);
+                }
+                else if (m_annotationsBefore is BaseVariableState annotations)
+                {
+                    annotations.AccessLevel = m_originalAnnotationAccessLevel;
+                    annotations.UserAccessLevel = m_originalAnnotationUserAccessLevel;
+                }
+            }
+            RemoveAddedMetadata(
+                m_handle.Asset, m_addedEventConfiguration, Ua.ReferenceTypeIds.HasHistoricalConfiguration);
+        }
+
+        /// <summary>
+        /// Detaches newly created configuration and both directions of its explicit reference.
+        /// </summary>
+        private void RemoveAddedMetadata(NodeState parent, BaseInstanceState? child, NodeId referenceType)
+        {
+            if (child != null && ReferenceEquals(
+                parent.FindChild(m_handle.Context, child.BrowseName), child))
+            {
+                parent.RemoveReference(referenceType, false, child.NodeId);
+                child.RemoveReference(referenceType, true, parent.NodeId);
+                parent.RemoveChild(child);
             }
         }
 
@@ -325,13 +444,43 @@ namespace Opc.Ua.AMB.Server.Assets
         private readonly HistorianBuilder m_builder;
 
         /// <summary>The server's provider bindings.</summary>
-        private readonly IHistorianProviderRegistry m_registry;
+        private readonly IHistorianNodeBindingRegistry m_registry;
+
+        /// <summary>The raw-data provider binding owned by this capture.</summary>
+        private IDisposable? m_healthBinding;
+
+        /// <summary>The event provider binding owned by this capture.</summary>
+        private IDisposable? m_eventBinding;
+
+        /// <summary>The owner's annotation property before raw capture setup.</summary>
+        private BaseInstanceState? m_annotationsBefore;
+
+        /// <summary>The new raw-history configuration created during this attempt.</summary>
+        private BaseInstanceState? m_addedHealthConfiguration;
+
+        /// <summary>The new event-history configuration created during this attempt.</summary>
+        private BaseInstanceState? m_addedEventConfiguration;
+
+        /// <summary>The new annotations property created during this attempt.</summary>
+        private BaseInstanceState? m_addedAnnotations;
+
+        /// <summary>The original annotation access level.</summary>
+        private byte m_originalAnnotationAccessLevel;
+
+        /// <summary>The original per-user annotation access level.</summary>
+        private byte m_originalAnnotationUserAccessLevel;
+
+        /// <summary>Whether raw capture began altering metadata.</summary>
+        private bool m_healthMetadataTouched;
 
         /// <summary>The health variable whose binding must be restored on disposal.</summary>
         private BaseVariableState? m_health;
 
         /// <summary>The owner's original health historizing flag.</summary>
         private bool m_originalHistorizing;
+
+        /// <summary>The owner's state-entry timestamp before history restoration.</summary>
+        private DateTimeUtc m_originalHealthTimestamp;
 
         /// <summary>The owner's original health access level.</summary>
         private byte m_originalAccessLevel;

@@ -59,8 +59,7 @@ namespace Opc.Ua.AMB.Client
         {
             RequireAsset(asset);
             cancellationToken.ThrowIfCancellationRequested();
-            NodeId health = await ResolveAsync(
-                asset, cancellationToken, Di(Opc.Ua.Di.BrowseNames.DeviceHealth)).ConfigureAwait(false);
+            NodeId health = await ResolveHealthForHistoryAsync(asset, cancellationToken).ConfigureAwait(false);
             if (health.IsNull)
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The asset publishes no DeviceHealth.");
@@ -139,16 +138,35 @@ namespace Opc.Ua.AMB.Client
         {
             RequireAsset(asset);
             cancellationToken.ThrowIfCancellationRequested();
-            NodeId health = await ResolveAsync(
-                asset, cancellationToken, Di(Opc.Ua.Di.BrowseNames.DeviceHealth)).ConfigureAwait(false);
-            DataValue[] healthAccess = await ReadAsync(
-                [health], Attributes.UserAccessLevel, cancellationToken).ConfigureAwait(false);
+            NodeId health = await ResolveHealthForHistoryAsync(asset, cancellationToken).ConfigureAwait(false);
+            bool healthValues = false;
+            if (!health.IsNull)
+            {
+                DataValue[] healthAccess = await ReadAsync(
+                    [health], Attributes.UserAccessLevel, cancellationToken, requireGoodStatus: true)
+                    .ConfigureAwait(false);
+                healthValues = HasAccess(healthAccess[0], AccessLevels.HistoryRead);
+            }
             DataValue[] eventAccess = await ReadAsync(
-                [notifier.IsNull ? asset : notifier], Attributes.EventNotifier, cancellationToken)
+                [notifier.IsNull ? asset : notifier], Attributes.EventNotifier, cancellationToken,
+                requireGoodStatus: true)
                 .ConfigureAwait(false);
             return new AssetHistoryCapabilities(
-                HasAccess(healthAccess[0], AccessLevels.HistoryRead),
+                healthValues,
                 HasAccess(eventAccess[0], EventNotifiers.HistoryRead));
+        }
+
+        /// <summary>
+        /// Resolves an optional health node without treating service or path failures as absence.
+        /// </summary>
+        private async ValueTask<NodeId> ResolveHealthForHistoryAsync(
+            NodeId asset,
+            CancellationToken cancellationToken)
+        {
+            NodeId[] health = await ResolveAsync(
+                asset, [[Di(Opc.Ua.Di.BrowseNames.DeviceHealth)]], cancellationToken, requireComplete: true)
+                .ConfigureAwait(false);
+            return health[0];
         }
 
         /// <summary>
@@ -194,22 +212,16 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken)
         {
             DataValue[] access = await ReadAsync(
-                [node], events ? Attributes.EventNotifier : Attributes.UserAccessLevel, cancellationToken)
+                [node], events ? Attributes.EventNotifier : Attributes.UserAccessLevel, cancellationToken,
+                requireGoodStatus: true)
                 .ConfigureAwait(false);
-            if (StatusCode.IsBad(access[0].StatusCode))
-            {
-                throw new ServiceResultException(access[0].StatusCode);
-            }
             if (!HasAccess(access[0], events ? EventNotifiers.HistoryRead : AccessLevels.HistoryRead))
             {
                 if (!events)
                 {
                     DataValue[] supported = await ReadAsync(
-                        [node], Attributes.AccessLevel, cancellationToken).ConfigureAwait(false);
-                    if (StatusCode.IsBad(supported[0].StatusCode))
-                    {
-                        throw new ServiceResultException(supported[0].StatusCode);
-                    }
+                        [node], Attributes.AccessLevel, cancellationToken, requireGoodStatus: true)
+                        .ConfigureAwait(false);
                     if (HasAccess(supported[0], AccessLevels.HistoryRead))
                     {
                         throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
@@ -221,13 +233,20 @@ namespace Opc.Ua.AMB.Client
         }
 
         /// <summary>
-        /// Gets whether a good access attribute includes the required history bit.
+        /// Rejects unreadable or malformed access attributes before interpreting their history bit.
         /// </summary>
         private static bool HasAccess(in DataValue value, byte bit)
         {
-            return StatusCode.IsGood(value.StatusCode) &&
-                value.WrappedValue.TryGetValue(out byte access) &&
-                (access & bit) != 0;
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                throw new ServiceResultException(value.StatusCode);
+            }
+            if (!value.WrappedValue.TryGetValue(out byte access))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadTypeMismatch, "The history access attribute is not a Byte value.");
+            }
+            return (access & bit) != 0;
         }
 
         /// <summary>

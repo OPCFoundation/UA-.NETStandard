@@ -380,7 +380,9 @@ For a provider resolved from DI, use
 `AddAssetManagement((services, options) => options.UseHistory(
 services.GetRequiredService<IHistorianProvider>()))`.
 
-The bundled memory provider is provisioned automatically. Other providers
+The bundled memory provider is provisioned automatically for nodes that it does
+not already track. Existing per-node capabilities remain unchanged and must
+satisfy the requested capture kinds. Other providers
 must provision the stable health and asset NodeIds and report their per-node
 capabilities before asset registration. Raw capture requires
 `IHistorianDataProvider`, raw reads and inserts; event capture requires
@@ -389,6 +391,12 @@ the provider cannot supply aborts registration with `BadConfigurationError`;
 provider exceptions are reported rather than replaced with an empty archive.
 Existing owner-installed `DeviceHealth` capture is not attached a second time.
 Do not enable AMB capture on that variable as well.
+An existing exact-node provider binding also rejects registration without
+replacing it. Namespace and default provider fallbacks do not prevent AMB from
+installing its own exact-node binding. Disposal removes only the registration
+AMB installed, including when another owner later registers the same provider
+instance for that node. Custom registries must implement
+`IHistorianNodeBindingRegistry` for this ownership behavior.
 An owner that overrides `GetHistorianProvider` must return this same provider
 for the bound nodes; node-manager overrides take precedence over the shared
 registry during service dispatch.
@@ -400,7 +408,11 @@ server-defined AMB types.
 
 Registration installs `Historizing`, history-read access and
 `HasHistoricalConfiguration` on `DeviceHealth`, and event history-read access
-and historical event configuration on the asset notifier. It does not enable
+and historical event configuration on the asset notifier. Existing configuration
+objects and their values are left unchanged. If registration fails after adding
+configuration, AMB removes its new children and references before returning the
+error; those children are not indexed by the node manager until the complete
+binding succeeds. It does not enable
 client HistoryUpdate access. The shared capture queues store value changes with
 their source timestamps and immutable event snapshots after live forwarding.
 Events include condition identity, EventId, time, class, acknowledgement and
@@ -461,7 +473,10 @@ namespace-qualified field identities and ordering. The typed convenience
 properties do not replace this evidence.
 
 `GetHistoryCapabilitiesAsync` reports health and event history-read attributes
-as seen by the session. Event access does not imply that every possible event
+as seen by the session. A missing `DeviceHealth` yields false for health history;
+an existing node's bad or uncertain attribute-read status remains an error,
+including when an explicit notifier cannot be read. This applies to both client
+constructors. Event access does not imply that every possible event
 type has been retained. A read without history access fails with
 `BadNotSupported`, denied access remains an error, and a supported range with
 no entries yields an empty stream. Pass `HistoryClientOptions` to bound decoded

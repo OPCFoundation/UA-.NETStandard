@@ -39,7 +39,10 @@ namespace Opc.Ua.Server.Historian
     /// default fallback. Used by <c>ServerInternalData</c> via the additive
     /// <see cref="IHistorianRegistryProvider"/> interface.
     /// </summary>
-    public sealed class HistorianProviderRegistry : IHistorianProviderRegistry, IDisposable
+    public sealed class HistorianProviderRegistry :
+        IHistorianProviderRegistry,
+        IHistorianNodeBindingRegistry,
+        IDisposable
     {
         /// <summary>
         /// Creates an empty registry.
@@ -65,11 +68,39 @@ namespace Opc.Ua.Server.Historian
             {
                 m_nodes.TryGetValue(nodeId, out IHistorianProvider? previous);
                 m_nodes[nodeId] = provider;
+                m_nodeBindings.Remove(nodeId);
                 AddProvider(provider, ownsProvider: true);
                 if (previous != null)
                 {
                     RebuildProviderSet(previous);
                 }
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding)
+        {
+            if (nodeId.IsNull)
+            {
+                throw new ArgumentException("NodeId must not be null.", nameof(nodeId));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            lock (m_lock)
+            {
+                if (m_nodes.ContainsKey(nodeId))
+                {
+                    binding = null;
+                    return false;
+                }
+                var registration = new NodeBinding(this, nodeId);
+                m_nodes.Add(nodeId, provider);
+                m_nodeBindings.Add(nodeId, registration);
+                AddProvider(provider, ownsProvider: true);
+                binding = registration;
+                return true;
             }
         }
 
@@ -141,6 +172,7 @@ namespace Opc.Ua.Server.Historian
                 if (m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider))
                 {
                     m_nodes.Remove(nodeId);
+                    m_nodeBindings.Remove(nodeId);
                     RebuildProviderSet(provider);
                     return true;
                 }
@@ -233,6 +265,7 @@ namespace Opc.Ua.Server.Historian
             {
                 providers = [.. m_ownedProviders];
                 m_nodes.Clear();
+                m_nodeBindings.Clear();
                 m_namespaces.Clear();
                 m_default = null;
                 m_providers.Clear();
@@ -253,6 +286,26 @@ namespace Opc.Ua.Server.Historian
                         // swallow during teardown — TODO(historian): log via shared telemetry once wired.
                     }
 #pragma warning restore RCS1075
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases a scoped registration only while it is still the exact current registration.
+        /// </summary>
+        private void ReleaseNodeBinding(NodeId nodeId, NodeBinding binding)
+        {
+            lock (m_lock)
+            {
+                if (m_nodeBindings.TryGetValue(nodeId, out NodeBinding? current) &&
+                    ReferenceEquals(current, binding))
+                {
+                    m_nodeBindings.Remove(nodeId);
+                    if (m_nodes.TryGetValue(nodeId, out IHistorianProvider? provider))
+                    {
+                        m_nodes.Remove(nodeId);
+                        RebuildProviderSet(provider);
+                    }
                 }
             }
         }
@@ -299,9 +352,40 @@ namespace Opc.Ua.Server.Historian
             return false;
         }
 
+        /// <summary>
+        /// The identity of one detachable exact-node registration.
+        /// </summary>
+        private sealed class NodeBinding : IDisposable
+        {
+            /// <summary>
+            /// Creates an identity owned by the registry.
+            /// </summary>
+            public NodeBinding(HistorianProviderRegistry registry, NodeId nodeId)
+            {
+                m_registry = registry;
+                m_nodeId = nodeId;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                m_registry.ReleaseNodeBinding(m_nodeId, this);
+            }
+
+            /// <summary>The registry responsible for the atomic release.</summary>
+            private readonly HistorianProviderRegistry m_registry;
+
+            /// <summary>The exact node registration.</summary>
+            private readonly NodeId m_nodeId;
+        }
+
         private readonly Lock m_lock = new();
         private readonly NamespaceTable m_namespaceTable;
         private readonly NodeIdDictionary<IHistorianProvider> m_nodes = [];
+
+        /// <summary>Identities of detachable bindings, distinct from provider identity.</summary>
+        private readonly NodeIdDictionary<NodeBinding> m_nodeBindings = [];
+
         private readonly Dictionary<string, IHistorianProvider> m_namespaces = new(StringComparer.Ordinal);
         private readonly HashSet<IHistorianProvider> m_providers = [];
         private readonly HashSet<IHistorianProvider> m_ownedProviders = [];

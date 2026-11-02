@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -117,6 +119,24 @@ namespace Opc.Ua.Server.Historian
         /// <c>HistoryServerCapabilities</c> flags.
         /// </summary>
         ArrayOf<IHistorianProvider> Providers { get; }
+    }
+
+    /// <summary>
+    /// Optional atomic node-binding ownership for components that attach and detach capture.
+    /// </summary>
+    public interface IHistorianNodeBindingRegistry
+    {
+        /// <summary>
+        /// Adds an exact-node binding only when none exists. Namespace and default
+        /// fallbacks do not prevent registration. Disposing the returned binding removes
+        /// only that registration, never a later replacement, even for the same provider.
+        /// Provider lifetime remains owned by the registry until server shutdown.
+        /// </summary>
+        /// <param name="nodeId">The node to bind.</param>
+        /// <param name="provider">The provider to register.</param>
+        /// <param name="binding">The owned registration, or null when an exact binding already exists.</param>
+        /// <returns>Whether a new binding was installed.</returns>
+        bool TryRegisterForNode(NodeId nodeId, IHistorianProvider provider, out IDisposable? binding);
     }
 
     /// <summary>

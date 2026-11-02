@@ -357,6 +357,14 @@ if (server is IHistorianRegistryProvider registryProvider)
 
 The interface lives next to the historian types in `Opc.Ua.Server.Historian` so that mocks of `IServerInternal` don't need to implement it; production servers built on `ServerInternalData` always satisfy the check.
 
+Components that detach their own capture can use the optional
+`IHistorianNodeBindingRegistry.TryRegisterForNode` contract. The default registry
+adds the exact-node mapping atomically only if none exists; namespace and
+default fallbacks do not block it. Dispose the returned registration to remove
+that mapping without removing a later replacement, even if the replacement uses
+the same provider instance. Disposing a registration does not dispose its
+provider; the registry retains provider lifetime ownership until shutdown.
+
 ### Provider resolution order
 
 For every `HistoryRead` / `HistoryUpdate` operation the dispatcher resolves the provider in this order:
@@ -976,6 +984,13 @@ HistorianNodeCapabilities.ReadWrite;            // combined adapter/test preset
 ```
 
 Always set the `HistoricalDataConfigurationType` advisory fields (`Stepped`, `Definition`, `MaxTimeInterval`, `MinTimeInterval`, `ExceptionDeviation`, `StartOfArchive`, `StartOfOnlineArchive`) on the capability set you return for nodes whose companion object you want the framework to install.
+
+`InMemoryHistorianProvider.TryRegister` provisions a node only if neither its
+archive nor its per-node capabilities exist. With
+`HistorianBuilder.UseProvider(provider, provisionNodes: false)`, capture setup
+does not register or reconfigure in-memory nodes; the caller must provision them
+before attaching capture. The default builder behavior still calls `Register`
+and applies the supplied capabilities, including to previously registered nodes.
 
 For the server-wide `HistoryServerCapabilities` rollup the dispatcher calls `GetCapabilitiesAsync(NodeId.Null, ...)`. Treat `NodeId.Null` as "default — what does this provider support generally?" — the rollup unions the result across every registered provider.
 

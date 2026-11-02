@@ -26,10 +26,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.AMB.Client;
 using Opc.Ua.AMB.Server;
 using Opc.Ua.Di;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using AmbClientOptions = AmbSample.Client.AmbClientOptions;
 
@@ -51,6 +54,107 @@ namespace Opc.Ua.AMB.Tests
             new TestCaseData((uint)StatusCodes.Uncertain, false),
             new TestCaseData((uint)StatusCodes.BadNoData, false)
         ];
+
+        [Test]
+        public void ScopedRegistryBindingPreservesFallbacksAndRejectsAnExistingExactOwner()
+        {
+            var namespaces = new NamespaceTable();
+            ushort index = namespaces.GetIndexOrAppend("urn:amb:scoped-registry");
+            var node = new NodeId("health", index);
+            using var registry = new HistorianProviderRegistry(namespaces);
+            using var fallback = new InMemoryHistorianProvider();
+            using var namespaceProvider = new InMemoryHistorianProvider();
+            using var capture = new InMemoryHistorianProvider();
+            registry.RegisterDefault(fallback);
+            registry.RegisterForNamespace("urn:amb:scoped-registry", namespaceProvider);
+            Assert.That(registry.TryRegisterForNode(node, capture, out IDisposable? binding), Is.True);
+            using (binding)
+            {
+                Assert.That(registry.Resolve(node), Is.SameAs(capture));
+                Assert.That(registry.TryRegisterForNode(node, fallback, out IDisposable? rejected), Is.False);
+                Assert.That(rejected, Is.Null);
+                Assert.That(registry.Resolve(node), Is.SameAs(capture));
+            }
+            Assert.That(registry.Resolve(node), Is.SameAs(namespaceProvider));
+            Assert.That(registry.UnregisterForNamespace("urn:amb:scoped-registry"), Is.True);
+            Assert.That(registry.Resolve(node), Is.SameAs(fallback));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ScopedRegistryDisposalCannotRemoveALaterRegistration(bool sameProvider)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var first = new InMemoryHistorianProvider();
+            using var other = new InMemoryHistorianProvider();
+            IHistorianProvider replacement = sameProvider ? first : other;
+            var node = new NodeId("health", 1);
+            Assert.That(registry.TryRegisterForNode(node, first, out IDisposable? binding), Is.True);
+            registry.RegisterForNode(node, replacement);
+            binding!.Dispose();
+            binding.Dispose();
+            Assert.That(registry.Resolve(node), Is.SameAs(replacement));
+            Assert.That(registry.Providers.Contains(replacement), Is.True);
+        }
+
+        [Test]
+        public async Task ConcurrentScopedRegistryRegistrationHasOnlyOneOwnerAsync()
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var provider = new InMemoryHistorianProvider();
+            var node = new NodeId("health", 1);
+            var bindings = new IDisposable?[16];
+            var tasks = new Task[bindings.Length];
+            int winners = 0;
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                int index = i;
+                tasks[i] = Task.Run(() =>
+                {
+                    if (registry.TryRegisterForNode(node, provider, out bindings[index]))
+                    {
+                        Interlocked.Increment(ref winners);
+                    }
+                });
+            }
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+            try
+            {
+                Assert.That(winners, Is.EqualTo(1));
+                Assert.That(registry.Resolve(node), Is.SameAs(provider));
+            }
+            finally
+            {
+                foreach (IDisposable? binding in bindings)
+                {
+                    binding?.Dispose();
+                }
+            }
+            Assert.That(registry.Resolve(node), Is.Null);
+        }
+
+        [Test]
+        public async Task MemoryProvisioningPreservesExplicitCapabilitiesAsync()
+        {
+            using var provider = new InMemoryHistorianProvider();
+            var node = new NodeId("health", 1);
+            HistorianNodeCapabilities capabilities = HistorianNodeCapabilities.DataReadWrite with
+            {
+                ReadRawData = false,
+                Stepped = false
+            };
+            provider.SetCapabilities(node, capabilities);
+            Assert.That(provider.TryRegister(node), Is.False);
+            Assert.That(
+                await provider.GetCapabilitiesAsync(node, CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(capabilities));
+            var fresh = new NodeId("new-health", 1);
+            Assert.That(provider.TryRegister(fresh, capabilities), Is.True);
+            Assert.That(provider.TryRegister(fresh, HistorianNodeCapabilities.DataReadWrite), Is.False);
+            Assert.That(
+                await provider.GetCapabilitiesAsync(fresh, CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(capabilities));
+        }
 
         [Test]
         public void SampleClientCertificateRootIsExplicitAndMustBeAbsolute()

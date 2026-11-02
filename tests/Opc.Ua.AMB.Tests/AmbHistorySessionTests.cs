@@ -556,8 +556,9 @@ namespace Opc.Ua.AMB.Tests
                 Does.Not.Contain(new QualifiedName(ConformanceUnitNames.AssetHealthTrackingEvents)));
         }
 
-        [Test]
-        public async Task FailedEventBindingUndoesAlreadyInstalledRawCaptureAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedEventBindingUndoesAlreadyInstalledRawCaptureAsync(bool existingConfiguration)
         {
             using var storage = new InMemoryHistorianProvider();
             Mock<IHistorianProvider> provider = RetainedRawProvider(storage);
@@ -568,6 +569,35 @@ namespace Opc.Ua.AMB.Tests
                         .WithMaintenance("Inspection", AmbConditionClass.Inspection)).ConfigureAwait(false);
             await using AmbHostedServer scope = server;
             byte original = device.DeviceHealth!.AccessLevel;
+            var handle = (AssetHandle)asset;
+            HistoricalDataConfigurationState? configuration = null;
+            NodeId configurationId = default;
+            if (existingConfiguration)
+            {
+                storage.Register(device.DeviceHealth.NodeId, HistorianNodeCapabilities.DataReadWrite with
+                {
+                    Stepped = false,
+                    MaxTimeInterval = 123
+                });
+                configuration = await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                    handle.Context, device.DeviceHealth, storage).ConfigureAwait(false);
+                configurationId = configuration.NodeId;
+                AssetNodes.Register(handle, device.DeviceHealth);
+                storage.SetCapabilities(device.DeviceHealth.NodeId, HistorianNodeCapabilities.DataReadWrite with
+                {
+                    Stepped = true,
+                    MaxTimeInterval = 456
+                });
+            }
+            HistoricalDataConfigurationState? attemptedConfiguration = null;
+            provider.Setup(value => value.GetCapabilitiesAsync(asset.NodeId, It.IsAny<CancellationToken>()))
+                .Returns((NodeId node, CancellationToken ct) =>
+                {
+                    attemptedConfiguration = device.DeviceHealth.FindChild(
+                        handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration))
+                        as HistoricalDataConfigurationState;
+                    return storage.GetCapabilitiesAsync(node, ct);
+                });
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await AssetHistoryBinding.CreateAsync(
                     (AssetHandle)asset, server.Server, new AssetHistoryOptions(provider.Object),
@@ -579,6 +609,186 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(
                 ((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(device.DeviceHealth.NodeId),
                 Is.Null);
+            Assert.That(
+                device.DeviceHealth.FindChild(handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration)),
+                Is.SameAs(configuration));
+            IReadOnlyList<ReferenceDescription> configurations = await server.BrowseAsync(
+                device.DeviceHealth.NodeId, Ua.ReferenceTypeIds.HasHistoricalConfiguration).ConfigureAwait(false);
+            Assert.That(configurations, Has.Count.EqualTo(existingConfiguration ? 1 : 0));
+            Assert.That(attemptedConfiguration, Is.Not.Null);
+            if (configuration != null)
+            {
+                Assert.That(configuration.Stepped!.Value, Is.False);
+                Assert.That(configuration.MaxTimeInterval!.Value, Is.EqualTo(123));
+                Assert.That(configurations[0].NodeId, Is.EqualTo((ExpandedNodeId)configurationId));
+                Assert.That(configuration.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasHistoricalConfiguration, true, device.DeviceHealth.NodeId), Is.True);
+            }
+            else
+            {
+                Assert.That(attemptedConfiguration!.ReferenceExists(
+                    Ua.ReferenceTypeIds.HasHistoricalConfiguration, true, device.DeviceHealth.NodeId), Is.False);
+                Assert.That(
+                    (await server.ReadAsync(attemptedConfiguration.NodeId, Attributes.NodeClass)
+                        .ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(
+                    (await server.ReadAsync(attemptedConfiguration.Stepped!.NodeId)
+                        .ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth)]
+        [TestCase(AssetHistoryKinds.HealthEvents)]
+        public async Task ExistingExactProviderBindingIsPreservedWhenAmbBindingIsRejectedAsync(AssetHistoryKinds kind)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            using var previous = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(ExistingExactProviderBindingIsPreservedWhenAmbBindingIsRejectedAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            IHistorianProviderRegistry registry = ((IHistorianRegistryProvider)server.Server).HistorianRegistry;
+            NodeId node = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : asset.NodeId;
+            registry.RegisterForNode(node, previous);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await AssetHistoryBinding.CreateAsync(
+                    (AssetHandle)asset, server.Server, new AssetHistoryOptions(provider, kind),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(registry.Resolve(node), Is.SameAs(previous));
+            Assert.That(
+                await provider.IsHistorizingAsync(node, CancellationToken.None).ConfigureAwait(false), Is.False);
+            Assert.That(device.DeviceHealth!.Historizing, Is.False);
+            Assert.That(device.EventNotifier & EventNotifiers.HistoryRead, Is.Zero);
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth, false)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, true)]
+        [TestCase(AssetHistoryKinds.HealthEvents, false)]
+        [TestCase(AssetHistoryKinds.HealthEvents, true)]
+        public async Task BindingDisposalPreservesALaterExactProviderRegistrationAsync(
+            AssetHistoryKinds kind,
+            bool sameProvider)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            using var other = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(BindingDisposalPreservesALaterExactProviderRegistrationAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
+                (AssetHandle)asset, server.Server, new AssetHistoryOptions(provider, kind),
+                CancellationToken.None).ConfigureAwait(false))!;
+            IHistorianProviderRegistry registry = ((IHistorianRegistryProvider)server.Server).HistorianRegistry;
+            NodeId node = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : asset.NodeId;
+            IHistorianProvider replacement = sameProvider ? provider : other;
+            registry.RegisterForNode(node, replacement);
+            await binding.DisposeAsync().ConfigureAwait(false);
+            Assert.That(registry.Resolve(node), Is.SameAs(replacement));
+            Assert.That(registry.Providers.Contains(replacement), Is.True);
+        }
+
+        [TestCase(AssetHistoryKinds.DeviceHealth, false)]
+        [TestCase(AssetHistoryKinds.DeviceHealth, true)]
+        [TestCase(AssetHistoryKinds.HealthEvents, false)]
+        [TestCase(AssetHistoryKinds.HealthEvents, true)]
+        public async Task PreconfiguredMemoryCapabilitiesArePreservedOrRejectedAsync(
+            AssetHistoryKinds kind,
+            bool compatible)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(PreconfiguredMemoryCapabilitiesArePreservedOrRejectedAsync),
+                    builder => builder.WithDeviceHealth().WithHealthAlarm(
+                        "Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure))
+                    .ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            NodeId node = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth!.NodeId : asset.NodeId;
+            HistorianNodeCapabilities capabilities = kind == AssetHistoryKinds.DeviceHealth
+                ? HistorianNodeCapabilities.DataReadWrite with { ReadRawData = compatible, Stepped = false }
+                : HistorianNodeCapabilities.EventReadWrite with
+                {
+                    ReadEventHistory = compatible,
+                    StartOfArchive = DateTime.UtcNow.AddDays(-1)
+                };
+            provider.Register(node, capabilities);
+            if (compatible)
+            {
+                await using AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
+                    (AssetHandle)asset, server.Server, new AssetHistoryOptions(provider, kind),
+                    CancellationToken.None).ConfigureAwait(false))!;
+                Assert.That(binding.Kinds, Is.EqualTo(kind));
+                Assert.That(
+                    await provider.GetCapabilitiesAsync(node, CancellationToken.None).ConfigureAwait(false),
+                    Is.SameAs(capabilities));
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await AssetHistoryBinding.CreateAsync(
+                        (AssetHandle)asset, server.Server, new AssetHistoryOptions(provider, kind),
+                        CancellationToken.None).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+                Assert.That(device.DeviceHealth!.Historizing, Is.False);
+                Assert.That(device.EventNotifier & EventNotifiers.HistoryRead, Is.Zero);
+            }
+            Assert.That(
+                await provider.GetCapabilitiesAsync(node, CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(capabilities));
+            Assert.That(
+                ((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(node), Is.Null);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DefaultHistorianBuilderStillAppliesExplicitCapabilityChangesAsync(bool events)
+        {
+            using var provider = new InMemoryHistorianProvider();
+            (AmbHostedServer server, IAssetHandle asset, DeviceState device) =
+                await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(DefaultHistorianBuilderStillAppliesExplicitCapabilityChangesAsync),
+                    builder => builder.WithDeviceHealth()).ConfigureAwait(false);
+            await using AmbHostedServer scope = server;
+            var handle = (AssetHandle)asset;
+            NodeId node = events ? asset.NodeId : device.DeviceHealth!.NodeId;
+            HistorianNodeCapabilities original = events
+                ? HistorianNodeCapabilities.EventReadWrite
+                : HistorianNodeCapabilities.DataReadWrite;
+            provider.Register(node, original);
+            HistorianNodeCapabilities updated = original with
+            {
+                Stepped = !original.Stepped,
+                StartOfArchive = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            };
+            await using var historian = new HistorianBuilder(server.Server);
+            historian.UseProvider(provider);
+            if (events)
+            {
+                HistoricalEventConfigurationState? configuration = await historian.HistorizeEventsAsync(
+                    device, handle.Context, capabilities: updated, autoCapture: false).ConfigureAwait(false);
+                Assert.That(configuration!.StartOfArchive!.Value, Is.EqualTo(updated.StartOfArchive));
+            }
+            else
+            {
+                await historian.HistorizeAsync(
+                    device.DeviceHealth!, handle.Context, capabilities: updated, autoCapture: false)
+                    .ConfigureAwait(false);
+                var configuration = (HistoricalDataConfigurationState)device.DeviceHealth!.FindChild(
+                    handle.Context, new QualifiedName(Ua.BrowseNames.HAConfiguration))!;
+                Assert.That(configuration.Stepped!.Value, Is.EqualTo(updated.Stepped));
+            }
+            Assert.That(
+                await provider.GetCapabilitiesAsync(node, CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(updated));
         }
 
         [Test]
@@ -721,7 +931,7 @@ namespace Opc.Ua.AMB.Tests
                 {
                     if (!node.IsNull)
                     {
-                        storage.Register(node);
+                        storage.TryRegister(node);
                     }
                     return storage.GetCapabilitiesAsync(node, ct);
                 });

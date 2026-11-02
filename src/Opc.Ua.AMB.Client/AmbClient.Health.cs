@@ -300,9 +300,10 @@ namespace Opc.Ua.AMB.Client
                         BrowseDirection.Forward,
                         NodeClass.ObjectType,
                         budget,
-                        cancellationToken).ConfigureAwait(false))
+                        cancellationToken,
+                        requireComplete: requireComplete).ConfigureAwait(false))
                     {
-                        NodeId subtypeId = ToNodeId(subtype.NodeId);
+                        NodeId subtypeId = ToNodeId(subtype.NodeId, requireLocal: requireComplete);
                         if (!subtypeId.IsNull &&
                             (m_options is null && !requireComplete ? classes.Add(subtypeId) : seen.Add(subtypeId)))
                         {
