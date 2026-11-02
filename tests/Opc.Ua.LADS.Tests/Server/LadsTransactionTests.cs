@@ -933,6 +933,105 @@ namespace Opc.Ua.LADS.Tests.Server
         }
 
         /// <summary>
+        /// Releases every earlier file binding if a later bind fails, preserving cleanup errors and allowing retry.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ResultBindingFailureReleasesPartialFilesAndAllowsRetryAsync(bool restore, bool failCleanup)
+        {
+            var store = new FaultingStore();
+            var binder = new FailingFileBinder(failCleanup ? [1, 2] : [])
+            {
+                FailBindingNumber = 3
+            };
+            await using LadsHostedServer server = await StartAsync(
+                nameof(ResultBindingFailureReleasesPartialFilesAndAllowsRetryAsync), store,
+                new FaultingNodeOperations(), builder =>
+                {
+                    builder.Services.AddSingleton<IFileTypeBinder>(binder);
+                    builder.Services.AddSingleton<ILadsProgramExecutor>(new ResultFileExecutor());
+                }).ConfigureAwait(false);
+            var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(LadsIncubator.UnitName);
+            var programs = (LadsProgramManager)unit.Programs!;
+            await device.SaveStoredDataAsync().ConfigureAwait(false);
+            Exception? failure;
+            if (restore)
+            {
+                var stored = new LadsStoredFunctionalUnitData
+                {
+                    Name = unit.Name,
+                    Results =
+                    [
+                        new LadsStoredResultData
+                        {
+                            RunId = "Restored",
+                            Template = programs.CaptureStoredData().Templates[0],
+                            Outcome = LadsProgramOutcome.Completed,
+                            Files =
+                            [
+                                new LadsResultFile("First.bin", "application/octet-stream", ByteString.From(1)),
+                                new LadsResultFile("Second.bin", "application/octet-stream", ByteString.From(2)),
+                                new LadsResultFile("Third.bin", "application/octet-stream", ByteString.From(3))
+                            ]
+                        }
+                    ]
+                };
+                failure = await Assert.CatchAsync<Exception>(async () =>
+                    await programs.RestoreStoredDataAsync(stored, CancellationToken.None).ConfigureAwait(false));
+            }
+            else
+            {
+                string id = await programs.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
+                failure = await Assert.CatchAsync<Exception>(async () =>
+                    await programs.WaitForResultAsync(id).ConfigureAwait(false));
+            }
+            Assert.That(failure, Is.Not.Null);
+            if (failCleanup)
+            {
+                Assert.That(failure, Is.TypeOf<AggregateException>());
+                string[] messages = ((AggregateException)failure!).Flatten().InnerExceptions
+                    .Select(error => error.Message).ToArray();
+                Assert.That(messages, Does.Contain("File bind failed."));
+                Assert.That(messages, Does.Contain("Binding 1 cleanup failed."));
+                Assert.That(messages, Does.Contain("Binding 2 cleanup failed."));
+                Assert.That(messages, Has.Length.EqualTo(3));
+            }
+            else
+            {
+                Assert.That(failure, Is.TypeOf<IOException>());
+                Assert.That(failure!.Message, Is.EqualTo("File bind failed."));
+            }
+            Assert.That(binder.Bindings, Is.EqualTo(2));
+            Assert.That(binder.Releases, Is.EqualTo(2));
+            Assert.That(programs.Results.Count, Is.Zero);
+            Assert.That(device.OperationCycleCounter, Is.Zero);
+            Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Operate));
+            var children = new List<BaseInstanceState>();
+            programs.Node.ResultSet!.GetChildren(device.Runtime.Context, children);
+            Assert.That(children, Is.Empty);
+            LadsStoredDeviceData saved = (await store.LoadAsync(device.StoreIdentity).ConfigureAwait(false))!;
+            Assert.That(saved.OperationCycles, Is.Zero);
+            Assert.That(saved.FunctionalUnits[0].Results.Count, Is.Zero);
+            if (!restore)
+            {
+                await unit.ClearAsync().ConfigureAwait(false);
+            }
+            string retry = await programs.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
+            ILadsResult result = await programs.WaitForResultAsync(retry).ConfigureAwait(false);
+            Assert.That(result.Files.Count, Is.EqualTo(3));
+            Assert.That(result.Files[0].Content, Is.EqualTo(ByteString.From(1)));
+            Assert.That(result.Files[1].Content, Is.EqualTo(ByteString.From(2)));
+            Assert.That(result.Files[2].Content, Is.EqualTo(ByteString.From(3)));
+            Assert.That(programs.Results.Count, Is.EqualTo(1));
+            Assert.That(device.OperationCycleCounter, Is.EqualTo(1));
+            Assert.That(binder.Bindings, Is.EqualTo(5));
+            Assert.That(binder.Releases, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Reports publication and candidate cleanup errors without losing either cause or preventing retry.
         /// </summary>
         [Test]
@@ -1097,6 +1196,11 @@ namespace Opc.Ua.LADS.Tests.Server
             /// </summary>
             public int Releases => Volatile.Read(ref m_releases);
 
+            /// <summary>
+            /// Gets or sets the one-based next binding to reject before creating it; the fault is consumed once.
+            /// </summary>
+            public int FailBindingNumber { get; set; }
+
             /// <inheritdoc/>
             public IFileTypeBinding Bind(
                 FileState file,
@@ -1107,6 +1211,11 @@ namespace Opc.Ua.LADS.Tests.Server
                 NodeId ownerSession = default,
                 int maximumBytes = 16 * 1024 * 1024)
             {
+                if (Bindings + 1 == FailBindingNumber)
+                {
+                    FailBindingNumber = 0;
+                    throw new IOException("File bind failed.");
+                }
                 IFileTypeBinding inner = m_inner.Bind(
                     file, context, content, commit, commitOnClose, ownerSession, maximumBytes);
                 int number = ++Bindings;

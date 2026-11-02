@@ -593,7 +593,7 @@ namespace Opc.Ua.LADS.Server
         /// Restores dynamic nodes before registration without starting the executor.
         /// Configured template content wins conflicts; persisted explicit removals remain removed.
         /// </summary>
-        internal ValueTask RestoreStoredDataAsync(
+        internal async ValueTask RestoreStoredDataAsync(
             LadsStoredFunctionalUnitData data,
             CancellationToken cancellationToken)
         {
@@ -657,13 +657,13 @@ namespace Opc.Ua.LADS.Server
                     run.SetResultVariable(variable.Key ?? string.Empty, variable.Value ?? string.Empty);
                 }
                 run.ExecutionFinished();
-                LadsResult result = CreateResult(run, stored.Outcome, stored.Stopped, stored);
+                LadsResult result = await CreateResultAsync(run, stored.Outcome, stored.Stopped, stored)
+                    .ConfigureAwait(false);
                 Node.ResultSet!.AddChild(result.Node);
                 m_results.Add(result);
             }
             m_storedInterruptedRunId = null;
             m_lastInterruptedRunId = data.InterruptedRunId ?? data.LastInterruptedRunId;
-            return default;
         }
 
         /// <summary>
@@ -993,7 +993,7 @@ namespace Opc.Ua.LADS.Server
                 UpdateRuntime(run);
                 if (!Runtime.Stopping.IsCancellationRequested)
                 {
-                    result = CreateResult(run, outcome, stopped);
+                    result = await CreateResultAsync(run, outcome, stopped).ConfigureAwait(false);
                     bool committed = false;
                     try
                     {
@@ -1136,7 +1136,7 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Creates the node of a result, including its files.
         /// </summary>
-        private LadsResult CreateResult(
+        private async ValueTask<LadsResult> CreateResultAsync(
             LadsProgramRun run,
             LadsProgramOutcome outcome,
             DateTimeUtc stopped,
@@ -1207,29 +1207,7 @@ namespace Opc.Ua.LADS.Server
             var bindings = new List<IFileTypeBinding>();
             var files = new List<LadsResultFile>();
             ResultFileSetState fileSet = node.FileSet!;
-            foreach (LadsResultFile file in run.Files)
-            {
-                if (file.Content.Length > Runtime.Options.MaxResultFileBytes)
-                {
-                    Runtime.Logger.ResultFileSkipped(m_unit.Name, file.Name);
-                    continue;
-                }
-                ResultFileState fileNode = context.CreateInstanceOfResultFileType(
-                    fileSet,
-                    Runtime.InstanceName(file.Name));
-                fileNode.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
-                fileNode.AddFile(context);
-                fileNode.MimeType!.Value = file.MimeType;
-                fileNode.Name!.Value = file.Name;
-                fileSet.AddChild(fileNode);
-                bindings.Add(Runtime.FileBinder.Bind(
-                    fileNode.File!,
-                    context,
-                    file.Content,
-                    maximumBytes: Runtime.Options.MaxResultFileBytes));
-                files.Add(file);
-            }
-            return new LadsResult(node, new LadsStoredResultData
+            var snapshot = new LadsStoredResultData
             {
                 RunId = run.RunId,
                 Template = CaptureTemplate(run.Template, node.ProgramTemplate!),
@@ -1241,10 +1219,48 @@ namespace Opc.Ua.LADS.Server
                 SupervisoryJobId = run.SupervisoryJobId,
                 SupervisoryTaskId = run.SupervisoryTaskId,
                 Variables = resultVariables,
-                Files = files.ToArray(),
                 TotalRuntimeMilliseconds = node.TotalRuntime.Value,
                 TotalPauseTimeMilliseconds = node.TotalPauseTime.Value
-            }, bindings);
+            };
+            try
+            {
+                foreach (LadsResultFile file in run.Files)
+                {
+                    if (file.Content.Length > Runtime.Options.MaxResultFileBytes)
+                    {
+                        Runtime.Logger.ResultFileSkipped(m_unit.Name, file.Name);
+                        continue;
+                    }
+                    ResultFileState fileNode = context.CreateInstanceOfResultFileType(
+                        fileSet,
+                        Runtime.InstanceName(file.Name));
+                    fileNode.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                    fileNode.AddFile(context);
+                    fileNode.MimeType!.Value = file.MimeType;
+                    fileNode.Name!.Value = file.Name;
+                    fileSet.AddChild(fileNode);
+                    bindings.Add(Runtime.FileBinder.Bind(
+                        fileNode.File!,
+                        context,
+                        file.Content,
+                        maximumBytes: Runtime.Options.MaxResultFileBytes));
+                    files.Add(file);
+                }
+                snapshot.Files = files.ToArray();
+                return new LadsResult(node, snapshot, bindings);
+            }
+            catch (Exception creationFailure)
+            {
+                try
+                {
+                    await new LadsResult(node, snapshot, bindings).DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception cleanupFailure)
+                {
+                    throw new AggregateException(creationFailure, cleanupFailure);
+                }
+                throw;
+            }
         }
 
         /// <summary>
