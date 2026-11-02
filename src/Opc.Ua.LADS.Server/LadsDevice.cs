@@ -1385,6 +1385,7 @@ namespace Opc.Ua.LADS.Server
         }
 
         private readonly Lock m_lock = new();
+
         /// <summary>Orders local writes and the transition to an unusable device.</summary>
         private readonly Lock m_mutationLock = new();
         private readonly SemaphoreSlim m_gate = new(1, 1);
@@ -1398,10 +1399,13 @@ namespace Opc.Ua.LADS.Server
         private bool m_powerOnStarted;
         private long m_restoredPowerOnTicks;
         private readonly SemaphoreSlim m_storeGate = new(1, 1);
+
         /// <summary>The key fixed before the first registration load.</summary>
         private string? m_storeIdentity;
+
         /// <summary>The transaction failure that prevents further mutations until restart.</summary>
         private Exception? m_storageFailure;
+
         /// <summary>The shared checkpoint and resource-release completion.</summary>
         private Task? m_disposeTask;
     }

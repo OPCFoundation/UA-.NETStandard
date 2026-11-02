@@ -318,6 +318,7 @@ namespace Opc.Ua.LADS.Server.StateMachines
         private readonly ISystemContext m_context;
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
+
         /// <summary>The owning device, or null for a standalone machine.</summary>
         private readonly LadsDevice? m_device;
         private uint m_currentStateId;

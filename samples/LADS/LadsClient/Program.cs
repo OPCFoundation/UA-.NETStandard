@@ -161,7 +161,8 @@ namespace LadsSample.Client
                     LadsResultFile file = previous.Files[index];
                     ByteString content = await client.ReadResultFileAsync(file, ct).ConfigureAwait(false);
                     Console.WriteLine(
-                        $"  Retained run {previous.RunId}: {file.FileName}, {content.Length} readable bytes");
+                        $"  Retained run {previous.DeviceProgramRunId}: " +
+                        $"{file.FileName}, {content.Length} readable bytes");
                 }
             }
 

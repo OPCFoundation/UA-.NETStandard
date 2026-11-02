@@ -758,10 +758,13 @@ namespace Opc.Ua.LADS.Server
         private readonly SemaphoreSlim m_registrationGate = new(1, 1);
         private readonly CancellationTokenSource m_stopping = new();
         private readonly HashSet<string> m_reservedNames = new(StringComparer.Ordinal);
+
         /// <summary>The names retained while failed registrations still have indexed nodes.</summary>
         private readonly HashSet<string> m_orphanedNames = new(StringComparer.Ordinal);
+
         /// <summary>The stored-data keys reserved by registering or published devices.</summary>
         private readonly HashSet<string> m_storageIdentities = new(StringComparer.Ordinal);
+
         /// <summary>The dynamic node registration and deletion dispatcher.</summary>
         private readonly ILadsNodeOperations m_nodeOperations;
         private readonly List<LadsDevice> m_devices = [];
