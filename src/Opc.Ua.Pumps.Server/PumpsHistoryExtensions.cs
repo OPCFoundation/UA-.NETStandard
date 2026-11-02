@@ -136,34 +136,37 @@ namespace Opc.Ua.Pumps.Server
                     }
                 }
 
-                await using var activation = new HistoryActivation(
+                var activation = new HistoryActivation(
                     runtime, provider, variables.ConvertAll<NodeState>(static variable => variable));
-                try
+                await using (activation.ConfigureAwait(false))
                 {
-                    HistorianBuilder historian = activation.Builder;
-                    historian.UseProvider(provider);
-                    for (int i = 0; i < variables.Count; i++)
+                    try
                     {
-                        await historian.HistorizeAsync(
-                            variables[i],
-                            runtime.SystemContext,
-                            capabilities: capabilities[i],
-                            autoCapture: autoCapture,
-                            captureOptions: captureOptions,
-                            cancellationToken: cancellationToken).ConfigureAwait(false);
-                        activation.RegisterForNode(variables[i].NodeId);
-                        await runtime.Manager.AddPredefinedNodeAsync(variables[i], cancellationToken)
-                            .ConfigureAwait(false);
+                        HistorianBuilder historian = activation.Builder;
+                        historian.UseProvider(provider);
+                        for (int i = 0; i < variables.Count; i++)
+                        {
+                            await historian.HistorizeAsync(
+                                variables[i],
+                                runtime.SystemContext,
+                                capabilities: capabilities[i],
+                                autoCapture: autoCapture,
+                                captureOptions: captureOptions,
+                                cancellationToken: cancellationToken).ConfigureAwait(false);
+                            activation.RegisterForNode(variables[i].NodeId);
+                            await runtime.Manager.AddPredefinedNodeAsync(variables[i], cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        ValidatePump(runtime, pump);
+                        activation.Commit();
                     }
-                    ValidatePump(runtime, pump);
-                    activation.Commit();
+                    catch (Exception error) when (error is not OutOfMemoryException)
+                    {
+                        activation.SetError(error);
+                        throw;
+                    }
+                    return pump;
                 }
-                catch (Exception error) when (error is not OutOfMemoryException)
-                {
-                    activation.SetError(error);
-                    throw;
-                }
-                return pump;
             }
             finally
             {
@@ -231,30 +234,33 @@ namespace Opc.Ua.Pumps.Server
                         "The provider must support event reads and, for automatic capture, event insertion.");
                 }
 
-                await using var activation = new HistoryActivation(runtime, provider, [pump.Pump]);
-                try
+                var activation = new HistoryActivation(runtime, provider, [pump.Pump]);
+                await using (activation.ConfigureAwait(false))
                 {
-                    HistorianBuilder historian = activation.Builder;
-                    historian.UseProvider(provider);
-                    await historian.HistorizeEventsAsync(
-                        pump.Pump,
-                        runtime.SystemContext,
-                        eventNotifier: EventNotifiers.HistoryRead,
-                        capabilities: capabilities,
-                        autoCapture: autoCapture,
-                        captureOptions: captureOptions,
-                        cancellationToken: cancellationToken).ConfigureAwait(false);
-                    activation.RegisterForNode(pump.NodeId);
-                    await runtime.Manager.AddPredefinedNodeAsync(pump.Pump, cancellationToken).ConfigureAwait(false);
-                    ValidatePump(runtime, pump);
-                    activation.Commit();
+                    try
+                    {
+                        HistorianBuilder historian = activation.Builder;
+                        historian.UseProvider(provider);
+                        await historian.HistorizeEventsAsync(
+                            pump.Pump,
+                            runtime.SystemContext,
+                            eventNotifier: EventNotifiers.HistoryRead,
+                            capabilities: capabilities,
+                            autoCapture: autoCapture,
+                            captureOptions: captureOptions,
+                            cancellationToken: cancellationToken).ConfigureAwait(false);
+                        activation.RegisterForNode(pump.NodeId);
+                        await runtime.Manager.AddPredefinedNodeAsync(pump.Pump, cancellationToken).ConfigureAwait(false);
+                        ValidatePump(runtime, pump);
+                        activation.Commit();
+                    }
+                    catch (Exception error) when (error is not OutOfMemoryException)
+                    {
+                        activation.SetError(error);
+                        throw;
+                    }
+                    return pump;
                 }
-                catch (Exception error) when (error is not OutOfMemoryException)
-                {
-                    activation.SetError(error);
-                    throw;
-                }
-                return pump;
             }
             finally
             {
