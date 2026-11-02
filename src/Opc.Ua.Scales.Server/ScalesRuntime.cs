@@ -287,7 +287,7 @@ namespace Opc.Ua.Scales.Server
                         {
                             continue;
                         }
-                        if (IsKindFacetMet(scale.Kind))
+                        if (IsKindFacetMet(scale))
                         {
                             AddDistinct(profiles, ScalesProfiles.FacetOf(scale.Kind));
                         }
@@ -332,7 +332,7 @@ namespace Opc.Ua.Scales.Server
                     foreach (ScaleHandle scale in m_scales)
                     {
                         Add("Scales ScaleDeviceType");
-                        if (IsKindFacetMet(scale.Kind))
+                        if (IsKindFacetMet(scale))
                         {
                             Add(ConformanceUnitOf(scale.Kind));
                         }
@@ -471,7 +471,8 @@ namespace Opc.Ua.Scales.Server
                         (nodeId, ct) => Manager.DeleteNodeAsync(Manager.SystemContext, nodeId, ct),
                         Manager.Server.TypeTree.IsTypeOf,
                         m_lockService,
-                        m_scalesLogger);
+                        m_scalesLogger,
+                        m_stopping.Token);
                     Volatile.Write(ref m_services, services);
                     return services;
                 }
@@ -739,19 +740,14 @@ namespace Opc.Ua.Scales.Server
         /// <summary>
         /// Gets whether the runtime drives what the facet of a scale kind adds.
         /// </summary>
-        /// <remarks>
-        /// No controller drives the <c>TipCounter</c> of a totalizing hopper,
-        /// and the catchweigher and the price labeler have no controller of
-        /// their own (see the known limitations in <c>docs/Scales.md</c>).
-        /// Their kind facets and units are not claimed; the scales still
-        /// count towards the Base Scale facet.
-        /// </remarks>
-        private static bool IsKindFacetMet(ScaleKind kind)
+        private static bool IsKindFacetMet(ScaleHandle scale)
         {
-            return kind is not (
-                ScaleKind.TotalizingHopper or
-                ScaleKind.Catchweigher or
-                ScaleKind.AutomaticWeightPriceLabeler);
+            return scale.Kind switch
+            {
+                ScaleKind.TotalizingHopper => scale.TotalizingHopper != null,
+                ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler => scale.Catchweigher != null,
+                _ => true
+            };
         }
 
         /// <summary>

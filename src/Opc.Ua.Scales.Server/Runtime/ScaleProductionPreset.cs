@@ -115,12 +115,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             ScaleRuntimeServices services,
             ProductionPresetState preset,
             NodeId allowedProductType,
-            Func<ArrayOf<EUInformation>> allowedUnits)
+            Func<ArrayOf<EUInformation>> allowedUnits,
+            Action<ProductState>? initializeProduct = null)
         {
             m_services = services;
             Preset = preset;
             m_allowedProductType = allowedProductType;
             m_allowedUnits = allowedUnits;
+            m_initializeProduct = initializeProduct;
 
             var products = new List<ProductState>();
             if (preset.Products != null)
@@ -215,6 +217,21 @@ namespace Opc.Ua.Scales.Server.Runtime
                         ? product
                         : null;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Commits an equipment report against one selected product without interleaving a product switch.
+        /// Only runtime publication code may execute in this scope.
+        /// </summary>
+        /// <typeparam name="T">The result of the report operation.</typeparam>
+        internal T WithActiveProduct<T>(Func<ProductState?, T> publish)
+        {
+            lock (m_lock)
+            {
+                ProductState? product = m_current.Count == 1 &&
+                    m_products.TryGetValue(m_current[0], out ProductState? current) ? current : null;
+                return publish(product);
             }
         }
 
@@ -736,6 +753,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindProduct(ProductState product)
         {
+            m_initializeProduct?.Invoke(product);
             m_services.BindProductWriteGuards(product);
             if (product.Lock != null && m_registered && m_services.LockService is { } lockService)
             {
@@ -1069,6 +1087,9 @@ namespace Opc.Ua.Scales.Server.Runtime
         private readonly ScaleRuntimeServices m_services;
         private readonly NodeId m_allowedProductType;
         private readonly Func<ArrayOf<EUInformation>> m_allowedUnits;
+
+        /// <summary>Initializes explicitly configured runtime members before registering a new product.</summary>
+        private readonly Action<ProductState>? m_initializeProduct;
         private readonly Dictionary<string, ProductState> m_products = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_removing = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_adding = new(StringComparer.Ordinal);

@@ -23,6 +23,13 @@ Server hosting for the source-generated **OPC 40200 Weighing Technology
   piece-counting reference weighing, laboratory draft shields and calibration,
   vehicle inbound/outbound/one-pass weighing, feeder speed, totalizers and
   recipe management and processing.
+- Opt-in `WithItemProcessing` accepts typed registered catchweigher or
+  price-labeler acquisitions with dimensions, zones, source metadata and an
+  injectable price policy. `WithCompletedFills` counts completed totalizing-hopper
+  downpours against the selected product. Neither path operates physical equipment.
+- `ConfigureRecipes` enables local, registered analog/edge observations explicitly.
+  Timeout leaves the step awaiting operator intervention; manual recipe execution
+  remains the default.
 
 ```csharp
 builder.Services.AddOpcUa()

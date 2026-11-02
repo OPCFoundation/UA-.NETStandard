@@ -224,7 +224,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                     services,
                     scale.ProductionPreset,
                     services.ScalesId(ScalesModel.ProductTypeOf(kind)),
-                    () => AllowedEngineeringUnits)
+                    () => AllowedEngineeringUnits,
+                    configuration.ItemProcessing || configuration.CompletedFills
+                        ? product => ScaleItemPublisher.Initialize(services.Context, product)
+                        : null)
                 {
                     Lockable = configuration.LockableProducts
                 };
@@ -237,6 +240,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (scale.ProductionOutput != null)
             {
                 ProductionOutput = new ScaleStatistics(services.Context, scale.ProductionOutput);
+            }
+            if (configuration.ItemProcessing)
+            {
+                Catchweigher = new CatchweigherController(this, configuration.PriceCalculator);
+            }
+            if (configuration.CompletedFills)
+            {
+                TotalizingHopper = new TotalizingHopperController(this);
             }
             SetItemState(ScaleItemState.NotExecuting);
             SetOperationMode(ScaleOperationMode.Processing);
@@ -377,6 +388,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Gets the automatic-filling controller.
         /// </summary>
         public AutomaticFillingController? AutomaticFilling { get; }
+
+        /// <summary>
+        /// Gets the explicitly enabled catchweigher or price-labeler item pipeline.
+        /// </summary>
+        public CatchweigherController? Catchweigher { get; }
+
+        /// <summary>
+        /// Gets the explicitly enabled completed-fill controller of a totalizing hopper.
+        /// </summary>
+        public TotalizingHopperController? TotalizingHopper { get; }
 
         /// <summary>
         /// Gets the handles of the scale's feeder and printer modules.
@@ -592,6 +613,24 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal ScaleRuntimeServices Services => m_services;
 
         internal ScaleWeighingEngine Engine => m_engine;
+
+        /// <summary>
+        /// Commits an already validated equipment acquisition without registering the scalar engine a second time.
+        /// </summary>
+        internal void RecordAcquisition(ScaleItemReport report, string? zoneName = null, ScaleItemPrice? price = null)
+        {
+            m_registered = report.Weight;
+            ScaleItemPublisher.PublishWeight(m_services.Context, Scale.RegisteredWeight, report.Weight);
+            ProductionOutput?.RecordItem(report, zoneName, price);
+        }
+
+        /// <summary>
+        /// Notifies applications after an equipment acquisition has committed and synchronization has ended.
+        /// </summary>
+        internal void NotifyAcquisition(ScaleReading reading)
+        {
+            WeightRegistered?.Invoke(this, reading);
+        }
 
         internal void AddModule(ScaleModuleHandle module)
         {
@@ -918,13 +957,19 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <param name="LockableProducts">Whether products carry a DI lock.</param>
     /// <param name="SelectedProducts">The products in processing at start.</param>
     /// <param name="RecipeFiles">Whether recipes carry a <c>RecipeFile</c>.</param>
+    /// <param name="ItemProcessing">Whether registered catchweigher items are reported.</param>
+    /// <param name="PriceCalculator">The optional injected price calculator for price labelers.</param>
+    /// <param name="CompletedFills">Whether completed totalizing-hopper fills are reported.</param>
     internal sealed record ScaleConfiguration(
         IReadOnlyList<WeighingRangeDefinition> Ranges,
         EUInformation Unit,
         bool LegalForTrade,
         bool LockableProducts,
         IReadOnlyList<string> SelectedProducts,
-        bool RecipeFiles = false);
+        bool RecipeFiles = false,
+        bool ItemProcessing = false,
+        IScalePriceCalculator? PriceCalculator = null,
+        bool CompletedFills = false);
 
     /// <summary>
     /// Sets the OPC 40001-1 state machines, which the model supplies without

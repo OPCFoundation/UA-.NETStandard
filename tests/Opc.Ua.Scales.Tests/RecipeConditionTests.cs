@@ -1,0 +1,687 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Opc.Ua.Scales.Server.Runtime;
+
+namespace Opc.Ua.Scales.Tests
+{
+    /// <summary>
+    /// Deterministic local-source condition wait execution and lifecycle tests.
+    /// </summary>
+    [TestFixture]
+    [Category("Scales")]
+    [NonParallelizable]
+    public sealed class RecipeConditionTests
+    {
+        [SetUp]
+        public async Task SetUpAsync()
+        {
+            m_fixture = new ScalesServerFixture();
+            await m_fixture.StartAsync().ConfigureAwait(false);
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("ConditionScale"), ScaleKind.Recipe, b => b.WithTypeFeatures());
+            m_controller = scale.Recipes!;
+            m_clock = new RecipeClock();
+            m_recipe = m_controller.AddRecipe("R", new LocalizedText("Recipe"));
+        }
+
+        [TearDown]
+        public async Task TearDownAsync()
+        {
+            m_controller.Dispose();
+            await m_fixture.DisposeAsync().ConfigureAwait(false);
+        }
+
+        [Test]
+        public void DisabledConditionWaitsRetainManualExecution()
+        {
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            RecipeElementState? started = null;
+            m_controller.ElementStarted += (_, args) => started = args.Element;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Assert.That(started, Is.SameAs(element));
+            Assert.That(m_controller.ConditionWaitsEnabled, Is.False);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            AssertGood(m_controller.CompleteElement(element));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [TestCase(0, 10.0, true)]
+        [TestCase(0, 9.0, false)]
+        [TestCase(1, 10.0, false)]
+        [TestCase(1, 11.0, true)]
+        [TestCase(2, 10.0, true)]
+        [TestCase(2, 11.0, false)]
+        [TestCase(3, 10.0, true)]
+        [TestCase(3, 9.0, false)]
+        [TestCase(4, 10.0, false)]
+        [TestCase(4, 9.0, true)]
+        [TestCase(5, 10.0, false)]
+        [TestCase(5, 11.0, true)]
+        public void AnalogOperatorsObserveEqualityAndAdjacentBoundaries(int mode, double sample, bool completes)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(mode, 10.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(sample);
+            Assert.That(m_controller.State, Is.EqualTo(completes ? RecipeRunState.Idle : RecipeRunState.Running));
+            Assert.That(m_controller.CurrentElements.Contains(element), Is.EqualTo(!completes));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RegisteredSourceResolvesByIdOrLocalNodeId(bool useNodeId)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            if (useNodeId)
+            {
+                element.ThresholdValueId!.Value = string.Empty;
+                element.AddThresholdValueNodeId(m_fixture.Context);
+                element.ThresholdValueNodeId!.Value = SourceNodeId;
+            }
+            Publish(10.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle), "a fresh activation snapshot may satisfy analog waits");
+            RecipeThresholdType advertised = m_controller.Scale.SupportedThresholdValues!.Value.ToArray()!.Single();
+            Assert.That(advertised.ThresholdId, Is.EqualTo(7));
+            Assert.That(advertised.ThresholdNodeId, Is.EqualTo(SourceNodeId));
+        }
+
+        [TestCase("unknown")]
+        [TestCase("unsupported")]
+        [TestCase("conflicting")]
+        public void UnregisteredUnadvertisedAndConflictingSourcesRequireIntervention(string invalid)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            if (invalid == "unknown")
+            {
+                element.ThresholdValueId!.Value = "8";
+            }
+            else if (invalid == "unsupported")
+            {
+                m_controller.Scale.SupportedThresholdValues!.Value = [];
+            }
+            else
+            {
+                element.AddThresholdValueNodeId(m_fixture.Context);
+                element.ThresholdValueNodeId!.Value = new NodeId("RemoteOrUnregistered", 77);
+            }
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(10.0);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+        }
+
+        [TestCase("unit")]
+        [TestCase("type")]
+        [TestCase("operator")]
+        [TestCase("nonfinite")]
+        public void IncompatibleAnalogConfigurationRequiresIntervention(string invalid)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            if (invalid == "unit")
+            {
+                element.TargetThresholdValue!.EngineeringUnits!.Value = ScaleUnits.Gram;
+            }
+            else if (invalid == "type")
+            {
+                element.TargetThresholdValue!.WrappedValue = new Variant("10");
+            }
+            else if (invalid == "operator")
+            {
+                element.ConditionMode!.Value = (EqualityAndRelationalOperator)99;
+            }
+            else
+            {
+                element.TargetThresholdValue!.WrappedValue = new Variant(double.NaN);
+            }
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(10.0);
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+        }
+
+        [Test]
+        public void ConditionConfigurationRequiresPositiveAgeUniqueSourcesAndIdleController()
+        {
+            Assert.That(() => m_controller.EnableConditionWaits(TimeSpan.Zero),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(() => m_controller.EnableConditionWaits(TimeSpan.FromTicks(-1)),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(() => m_controller.RegisterConditionSource(
+                7, SourceNodeId, new LocalizedText("Text"), BuiltInType.String),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Enable(BuiltInType.Double);
+            Assert.That(() => m_controller.RegisterConditionSource(
+                7, NodeId.Null, new LocalizedText("Duplicate id"), BuiltInType.Double),
+                Throws.TypeOf<ArgumentException>());
+            Assert.That(() => m_controller.RegisterConditionSource(
+                8, SourceNodeId, new LocalizedText("Duplicate node"), BuiltInType.Double),
+                Throws.TypeOf<ArgumentException>());
+            Analog(0, 10.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Assert.That(() => m_controller.EnableConditionWaits(TimeSpan.FromSeconds(1)),
+                Throws.TypeOf<InvalidOperationException>());
+            Assert.That(() => m_controller.RegisterConditionSource(
+                9, NodeId.Null, new LocalizedText("Late source"), BuiltInType.Double),
+                Throws.TypeOf<InvalidOperationException>());
+        }
+
+        [TestCase("source")]
+        [TestCase("operator")]
+        [TestCase("target")]
+        [TestCase("targetType")]
+        public void IncompatibleEdgeConfigurationRequiresIntervention(string invalid)
+        {
+            Enable(invalid == "source" ? BuiltInType.Double : BuiltInType.Boolean);
+            EdgeTriggeredSleepState edge = Edge(0);
+            if (invalid == "operator")
+            {
+                edge.ConditionMode!.Value = (EdgeOperator)99;
+            }
+            else if (invalid == "target")
+            {
+                edge.TargetThresholdValue!.WrappedValue = new Variant(false);
+            }
+            else if (invalid == "targetType")
+            {
+                edge.TargetThresholdValue!.WrappedValue = new Variant(1);
+            }
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(edge));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Running));
+        }
+
+        [TestCase(-1.0)]
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(double.MaxValue)]
+        [TestCase(9.223372036854776E14)]
+        public void InvalidConditionTimeoutRequiresIntervention(double timeout)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            element.AddTimeout(m_fixture.Context);
+            element.Timeout!.Value = timeout;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+            Publish(10.0);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Running));
+        }
+
+        [Test]
+        public void IntegralComparisonsRetainUInt64Precision()
+        {
+            Enable(BuiltInType.UInt64);
+            AnalogConditionSleepState element = Analog(5, new Variant(ulong.MaxValue - 1));
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(new Variant(ulong.MaxValue - 1));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            Publish(new Variant(ulong.MaxValue));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [TestCase(BuiltInType.SByte)]
+        [TestCase(BuiltInType.Byte)]
+        [TestCase(BuiltInType.Int16)]
+        [TestCase(BuiltInType.UInt16)]
+        [TestCase(BuiltInType.Int32)]
+        [TestCase(BuiltInType.UInt32)]
+        [TestCase(BuiltInType.Int64)]
+        [TestCase(BuiltInType.UInt64)]
+        [TestCase(BuiltInType.Float)]
+        [TestCase(BuiltInType.Double)]
+        public void AllNumericScalarsCompareAcrossCompatibleTypes(BuiltInType type)
+        {
+            Enable(type);
+            AnalogConditionSleepState element = Analog(0, new Variant(10));
+            Variant sample = type switch
+            {
+                BuiltInType.SByte => new Variant((sbyte)10),
+                BuiltInType.Byte => new Variant((byte)10),
+                BuiltInType.Int16 => new Variant((short)10),
+                BuiltInType.UInt16 => new Variant((ushort)10),
+                BuiltInType.Int32 => new Variant(10),
+                BuiltInType.UInt32 => new Variant(10u),
+                BuiltInType.Int64 => new Variant(10L),
+                BuiltInType.UInt64 => new Variant(10UL),
+                BuiltInType.Float => new Variant(10f),
+                _ => new Variant(10.0)
+            };
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(sample);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(element));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void MixedIntegralAndFloatingComparisonDoesNotRoundLargeIntegers()
+        {
+            Enable(BuiltInType.UInt64);
+            AnalogConditionSleepState element = Analog(5, new Variant(9007199254740992.0));
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(new Variant(9007199254740992UL));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            Publish(new Variant(9007199254740993UL));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [TestCase(0, false, true)]
+        [TestCase(1, true, false)]
+        public void BooleanEdgesRequireTransitionAfterActivation(int mode, bool before, bool after)
+        {
+            Enable(BuiltInType.Boolean);
+            Publish(after);
+            EdgeTriggeredSleepState edge = Edge(mode);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            Publish(after);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge), "initial true is not a rising edge");
+            Publish(before);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge), "the opposite edge does not satisfy this wait");
+            Publish(after);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [TestCase("bad")]
+        [TestCase("uncertain")]
+        [TestCase("overflow")]
+        [TestCase("gap")]
+        [TestCase("stale")]
+        [TestCase("future")]
+        [TestCase("unordered")]
+        [TestCase("type")]
+        [TestCase("missingTimestamp")]
+        public void InvalidObservationsCannotBridgeBooleanEdges(string invalid)
+        {
+            Enable(BuiltInType.Boolean);
+            Publish(false);
+            EdgeTriggeredSleepState edge = Edge(0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            m_clock.Advance(TimeSpan.FromMilliseconds(1));
+            DateTime timestamp = m_clock.GetUtcNow().UtcDateTime;
+            StatusCode quality = StatusCodes.Good;
+            Variant value = new(true);
+            if (invalid == "bad")
+            {
+                quality = StatusCodes.BadNoCommunication;
+            }
+            else if (invalid == "uncertain")
+            {
+                quality = StatusCodes.Uncertain;
+            }
+            else if (invalid == "overflow")
+            {
+                quality = quality.SetOverflow(true);
+            }
+            else if (invalid == "stale")
+            {
+                m_clock.Advance(TimeSpan.FromSeconds(6));
+            }
+            else if (invalid == "future")
+            {
+                timestamp = timestamp.AddSeconds(1);
+            }
+            else if (invalid == "unordered")
+            {
+                timestamp = timestamp.AddSeconds(-1);
+            }
+            else if (invalid == "type")
+            {
+                value = new Variant(1);
+            }
+            else if (invalid == "missingTimestamp")
+            {
+                timestamp = DateTime.MinValue;
+            }
+            var sample = new DataValue(value, quality, (DateTimeUtc)timestamp);
+            m_controller.ObserveConditionSource(7, sample, invalid == "gap");
+            Publish(true);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge));
+            Publish(false);
+            Publish(true);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle), "fresh contiguous edges recover");
+        }
+
+        [TestCase(StatusCodes.BadNoCommunication)]
+        [TestCase(StatusCodes.Uncertain)]
+        public void AnalogWaitRejectsNonGoodQuality(uint quality)
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            m_clock.Advance(TimeSpan.FromMilliseconds(1));
+            var value = new DataValue(new Variant(10.0), quality, (DateTimeUtc)m_clock.GetUtcNow().UtcDateTime);
+            m_controller.ObserveConditionSource(7, value);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            Publish(10.0);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void TimeoutLatchesInterventionInsteadOfAutomaticSuccess()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            element.AddTimeout(m_fixture.Context);
+            element.Timeout!.Value = 1000;
+            int completed = 0;
+            m_controller.RecipeCompleted += (_, _) => completed++;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            m_clock.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Is.Empty);
+            m_clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+            Publish(10.0);
+            Assert.That(completed, Is.Zero);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            AssertGood(m_controller.CompleteElement(element));
+            Assert.That(completed, Is.EqualTo(1), "explicit intervention can complete the element");
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Is.Empty);
+        }
+
+        [Test]
+        public async Task AutomaticConditionReportsRemainWithTheStartingProductAsync()
+        {
+            ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
+                m_fixture.Name("OwnedConditionScale"), ScaleKind.Recipe, b => b
+                    .WithTypeFeatures()
+                    .WithProductionPreset(p => p.AllowSelection()
+                        .AddProduct("A", new LocalizedText("First"))
+                        .AddProduct("B", new LocalizedText("Second")).Select("A")));
+            m_controller = scale.Recipes!;
+            m_recipe = m_controller.AddRecipe("Owned", new LocalizedText("Owned recipe"));
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            element.AddTimeout(m_fixture.Context);
+            element.Timeout!.Value = 1000;
+            var first = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            int firstCount = first.Report!.Value.Count;
+            AssertGood(scale.ProductionPreset.Switch("B"));
+            var second = (RecipeProductState)scale.ProductionPreset.ActiveProduct!;
+            int secondCount = second.Report!.Value.Count;
+            m_clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(first.Report.Value.Count, Is.GreaterThan(firstCount));
+            Assert.That(first.Report.Value.Contains(
+                entry => entry.ReportMessage.Text.Contains("intervention", StringComparison.Ordinal)), Is.True);
+            Assert.That(second.Report.Value.Count, Is.EqualTo(secondCount));
+            AssertGood(m_controller.CompleteElement(element));
+            Assert.That(first.Report.Value.Contains(
+                entry => entry.ReportMessage.Text.Contains("completed", StringComparison.Ordinal)), Is.True);
+            Assert.That(second.Report.Value.Count, Is.EqualTo(secondCount));
+        }
+
+        [Test]
+        public void ActivationSnapshotsSurviveClientEditsAndForkJoinWaitsForBothBranches()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState first = Analog(3, 10.0);
+            AnalogConditionSleepState second = Analog(3, 20.0, "Second");
+            RecipeElementState join = m_controller.AddRecipeElement(
+                m_recipe, ElementType(ObjectTypes.TimerType), "Join", first.NodeId, second.NodeId);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            second.TargetThresholdValue!.WrappedValue = new Variant(1.0);
+            second.ConditionMode!.Value = (EqualityAndRelationalOperator)4;
+            second.ThresholdValueId!.Value = "unknown";
+            Publish(10.0);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(first));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(second));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(join));
+            Publish(20.0);
+            Assert.That(m_controller.CurrentElements.ToArray(), Is.EqualTo(new[] { join }));
+            AssertGood(m_controller.CompleteElement(join));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void EdgeActivationSnapshotSurvivesClientEdits()
+        {
+            Enable(BuiltInType.Boolean);
+            Publish(false);
+            EdgeTriggeredSleepState edge = Edge(0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            edge.ConditionMode!.Value = (EdgeOperator)1;
+            edge.ThresholdValueId!.Value = "unknown";
+            edge.TargetThresholdValue!.WrappedValue = new Variant(false);
+            Publish(true);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+            Assert.That(m_controller.CurrentElements.ToArray(), Is.Empty);
+        }
+
+        [Test]
+        public void ConditionTimeoutContinuesAcrossPauseAndNeedsExplicitIntervention()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            element.AddTimeout(m_fixture.Context);
+            element.Timeout!.Value = 1000;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            m_clock.Advance(TimeSpan.FromMilliseconds(500));
+            AssertGood(m_controller.Stop(m_recipe.NodeId));
+            m_clock.Advance(TimeSpan.FromMilliseconds(499));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Is.Empty);
+            m_clock.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.That(m_controller.ConditionWaitsRequiringIntervention.ToArray(), Does.Contain(element));
+            AssertGood(m_controller.Continue(m_recipe.NodeId));
+            Publish(10.0);
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(element));
+            AssertGood(m_controller.CompleteElement(element));
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void PauseDoesNotCreateAnEdgeAcrossUnobservedExecution()
+        {
+            Enable(BuiltInType.Boolean);
+            Publish(false);
+            EdgeTriggeredSleepState edge = Edge(0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            AssertGood(m_controller.Stop(m_recipe.NodeId));
+            Publish(true);
+            AssertGood(m_controller.Continue(m_recipe.NodeId));
+            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge));
+            Publish(false);
+            Publish(true);
+            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
+        }
+
+        [Test]
+        public void AbortSkipAndDisposeDiscardWaitsAndPreventLateCompletion()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState element = Analog(0, 10.0);
+            int completed = 0;
+            m_controller.RecipeCompleted += (_, _) => completed++;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            AssertGood(m_controller.Abort(m_recipe.NodeId));
+            Publish(10.0);
+            Assert.That(completed, Is.Zero);
+            Publish(0.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            AssertGood(m_controller.Skip(m_recipe.NodeId));
+            Publish(10.0);
+            Assert.That(completed, Is.EqualTo(1));
+            Publish(0.0);
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            m_controller.Dispose();
+            Publish(10.0);
+            m_clock.Advance(TimeSpan.FromDays(1));
+            m_controller.EvaluateConditionWaits();
+            Assert.That(completed, Is.EqualTo(1));
+            Assert.That(m_controller.CurrentElements.ToArray(), Is.Empty);
+            Assert.That(m_controller.ConditionWaitsEnabled, Is.False);
+            Assert.That(ServiceResult.IsBad(m_controller.Start(m_recipe.NodeId)), Is.True);
+            Assert.That(ServiceResult.IsBad(m_controller.CompleteElement(element)), Is.True);
+        }
+
+        private NodeId SourceNodeId => new("AllowedSource", m_fixture.Manager.InstanceNamespaceIndex);
+
+        private NodeId ElementType(uint id)
+        {
+            return new NodeId(id, m_fixture.Manager.NamespaceIndices.Scales);
+        }
+
+        private void Enable(BuiltInType type)
+        {
+            m_controller.EnableConditionWaits(TimeSpan.FromSeconds(5), m_clock);
+            m_controller.RegisterConditionSource(
+                7, SourceNodeId, new LocalizedText("Allowed source"), type,
+                type == BuiltInType.Boolean ? null : ScaleUnits.Kilogram);
+        }
+
+        private AnalogConditionSleepState Analog(int mode, Variant target, string name = "Wait")
+        {
+            var element = (AnalogConditionSleepState)m_controller.AddRecipeElement(
+                m_recipe, ElementType(ObjectTypes.AnalogConditionSleepType), name, m_recipe.NodeId);
+            element.ThresholdValueId!.Value = "7";
+            element.TargetThresholdValue!.WrappedValue = target;
+            element.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
+            element.ConditionMode!.Value = (EqualityAndRelationalOperator)mode;
+            return element;
+        }
+
+        private EdgeTriggeredSleepState Edge(int mode)
+        {
+            var element = (EdgeTriggeredSleepState)m_controller.AddRecipeElement(
+                m_recipe, ElementType(ObjectTypes.EdgeTriggeredSleepType), "Edge", m_recipe.NodeId);
+            element.ThresholdValueId!.Value = "7";
+            element.TargetThresholdValue!.WrappedValue = new Variant(mode == 0);
+            element.ConditionMode!.Value = (EdgeOperator)mode;
+            return element;
+        }
+
+        private void Publish(Variant value)
+        {
+            m_clock.Advance(TimeSpan.FromMilliseconds(1));
+            var sample = new DataValue(value, StatusCodes.Good, (DateTimeUtc)m_clock.GetUtcNow().UtcDateTime);
+            m_controller.ObserveConditionSource(7, sample);
+        }
+
+        private static void AssertGood(ServiceResult result)
+        {
+            Assert.That(ServiceResult.IsGood(result), Is.True, result.ToString());
+        }
+
+        /// <summary>
+        /// A manually advanced clock; evaluation remains synchronous and never sleeps.
+        /// </summary>
+        private sealed class RecipeClock : TimeProvider
+        {
+            public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_now;
+            }
+
+            public override long GetTimestamp()
+            {
+                return m_now.Ticks;
+            }
+
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+            {
+                var timer = new RecipeTimer(this, () => callback(state));
+                timer.Change(dueTime, period);
+                m_timers.Add(timer);
+                return timer;
+            }
+
+            public void Advance(TimeSpan amount)
+            {
+                m_now += amount;
+                foreach (RecipeTimer timer in m_timers.ToArray())
+                {
+                    timer.Fire();
+                }
+            }
+
+            private DateTimeOffset m_now = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            private readonly List<RecipeTimer> m_timers = [];
+        }
+
+        /// <summary>
+        /// A scheduled callback driven only by the manually advanced clock.
+        /// </summary>
+        private sealed class RecipeTimer : ITimer
+        {
+            public RecipeTimer(RecipeClock clock, Action callback)
+            {
+                m_clock = clock;
+                m_callback = callback;
+            }
+
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                m_due = dueTime == Timeout.InfiniteTimeSpan
+                    ? DateTimeOffset.MaxValue
+                    : m_clock.GetUtcNow() + dueTime;
+                return true;
+            }
+
+            public void Fire()
+            {
+                if (!m_disposed && m_clock.GetUtcNow() >= m_due)
+                {
+                    m_due = DateTimeOffset.MaxValue;
+                    m_callback();
+                }
+            }
+
+            public void Dispose()
+            {
+                m_disposed = true;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return default;
+            }
+
+            private readonly RecipeClock m_clock;
+            private readonly Action m_callback;
+            private DateTimeOffset m_due;
+            private bool m_disposed;
+        }
+
+        private ScalesServerFixture m_fixture = null!;
+        private RecipeController m_controller = null!;
+        private RecipeState m_recipe = null!;
+        private RecipeClock m_clock = null!;
+    }
+}

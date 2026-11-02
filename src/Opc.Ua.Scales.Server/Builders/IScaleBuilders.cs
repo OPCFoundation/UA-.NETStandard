@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua.Di;
+using Opc.Ua.Scales.Server.Runtime;
 
 namespace Opc.Ua.Scales.Server.Builders
 {
@@ -163,6 +164,24 @@ namespace Opc.Ua.Scales.Server.Builders
         /// feature set of its type.
         /// </summary>
         IScaleBuilder WithTypeFeatures();
+
+        /// <summary>
+        /// Enables the catchweigher or price-labeler registered-item pipeline.
+        /// Does not operate physical sorting or printing equipment.
+        /// </summary>
+        /// <param name="priceCalculator">An optional injectable pricing policy for a price labeler.</param>
+        IScaleBuilder WithItemProcessing(IScalePriceCalculator? priceCalculator = null);
+
+        /// <summary>
+        /// Enables completed-fill reports and product TipCounter updates on a totalizing hopper.
+        /// </summary>
+        IScaleBuilder WithCompletedFills();
+
+        /// <summary>
+        /// Configures the recipe controller after construction, including opt-in registered condition sources.
+        /// </summary>
+        /// <param name="configure">The recipe runtime configuration.</param>
+        IScaleBuilder ConfigureRecipes(Action<RecipeController> configure);
 
         /// <summary>
         /// Gives every recipe of a recipe scale a <c>RecipeFile</c> a client

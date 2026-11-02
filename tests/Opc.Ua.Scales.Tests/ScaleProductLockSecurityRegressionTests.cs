@@ -491,19 +491,28 @@ namespace Opc.Ua.Scales.Tests
         /// <exception cref="ArgumentOutOfRangeException">
         /// <paramref name="command"/> is not a supported recipe command.
         /// </exception>
-        [TestCase(ScaleCommand.StartRecipe)]
-        [TestCase(ScaleCommand.StopRecipe)]
-        [TestCase(ScaleCommand.ContinueRecipe)]
-        [TestCase(ScaleCommand.SkipCurrentRecipeElement)]
-        [TestCase(ScaleCommand.AbortRecipe)]
+        [TestCase(ScaleCommand.StartRecipe, false)]
+        [TestCase(ScaleCommand.StopRecipe, false)]
+        [TestCase(ScaleCommand.ContinueRecipe, false)]
+        [TestCase(ScaleCommand.SkipCurrentRecipeElement, false)]
+        [TestCase(ScaleCommand.AbortRecipe, false)]
+        [TestCase(ScaleCommand.StartRecipe, true)]
+        [TestCase(ScaleCommand.StopRecipe, true)]
+        [TestCase(ScaleCommand.ContinueRecipe, true)]
+        [TestCase(ScaleCommand.SkipCurrentRecipeElement, true)]
+        [TestCase(ScaleCommand.AbortRecipe, true)]
         [Category("SecurityRegression")]
-        public async Task SecurityF43RecipeCallsRespectProductLockAsync(ScaleCommand command)
+        public async Task SecurityF43RecipeCallsRespectProductLockAsync(ScaleCommand command, bool automaticWaits)
         {
             using var harness = new Harness();
             ScaleHandle scale = harness.CreateScale(
                 ScaleKind.Recipe,
                 (_, state) => ((RecipeProductState)state).Report!.Value = default);
             RecipeController recipes = scale.Recipes!;
+            if (automaticWaits)
+            {
+                recipes.EnableConditionWaits(TimeSpan.FromSeconds(5));
+            }
             var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
             RecipeState recipe = recipes.AddRecipe("Recipe", new LocalizedText("Recipe"));
             recipes.AddRecipeElement(
@@ -520,6 +529,12 @@ namespace Opc.Ua.Scales.Tests
             {
                 AssertGood(recipes.Stop(recipe.NodeId));
             }
+            if (automaticWaits && command != ScaleCommand.StartRecipe)
+            {
+                AssertGood(scale.ProductionPreset.Switch("B"));
+            }
+            var otherProduct = (RecipeProductState)scale.ProductionPreset.Find("B")!;
+            int otherReportCount = otherProduct.Report!.Value.Count;
             MethodState method = command switch
             {
                 ScaleCommand.StartRecipe => recipes.Scale.StartRecipe!,
@@ -551,6 +566,7 @@ namespace Opc.Ua.Scales.Tests
             };
             Assert.That(recipes.State, Is.EqualTo(expected));
             Assert.That(product.Report.Value.Count, Is.GreaterThan(reportBefore.Count));
+            Assert.That(otherProduct.Report.Value.Count, Is.EqualTo(otherReportCount));
         }
 
         /// <summary>

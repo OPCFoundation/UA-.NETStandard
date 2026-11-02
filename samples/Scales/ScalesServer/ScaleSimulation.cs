@@ -66,7 +66,80 @@ namespace ScalesSample
 #pragma warning restore CA5394
                 m_line.PieceCounter.PublishLoad(0.00498 * (tick % 200));
                 CrossWeighbridge(tick);
+                await ReportItemsAsync(tick, stoppingToken).ConfigureAwait(false);
+                ObserveRecipeConditions(tick);
                 await Task.Delay(TimeSpan.FromMilliseconds(500), stoppingToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Reports equipment observations without issuing sorter, printer or hopper actuator commands.
+        /// </summary>
+        private async ValueTask ReportItemsAsync(int tick, CancellationToken cancellationToken)
+        {
+            DateTime timestamp = DateTime.UtcNow;
+            ScaleItemReport Item(string product, double net) => new()
+            {
+                Sequence = (ulong)tick,
+                ProductId = product,
+                ItemId = FormattableString.Invariant($"ITEM-{tick}"),
+                Weight = new ScaleReading
+                {
+                    Gross = net,
+                    Net = net,
+                    EngineeringUnits = ScaleUnits.Kilogram,
+                    Timestamp = timestamp,
+                    StatusCode = StatusCodes.Good,
+                    Stable = true
+                },
+                Length = new ScaleItemMeasurement(200 + (tick % 20), PackingLine.Millimetre,
+                    timestamp, StatusCodes.Good)
+            };
+            ServiceResult caught = await m_line.Catchweigher.Catchweigher!.ReportAsync(
+                Item("ITEMS", 0.75 + ((tick % 3) * 0.25)), cancellationToken).ConfigureAwait(false);
+            ServiceResult priced = await m_line.PriceLabeler.Catchweigher!.ReportAsync(
+                Item("CHEESE", 0.35 + ((tick % 5) * 0.05)), cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(caught) || ServiceResult.IsBad(priced))
+            {
+                throw new ServiceResultException(ServiceResult.IsBad(caught) ? caught : priced);
+            }
+            if (tick % 10 == 0)
+            {
+                ServiceResult fill = await m_line.TotalizingHopper.TotalizingHopper!.ReportCompletedFillAsync(
+                    Item("GRAIN", 100), cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(fill))
+                {
+                    throw new ServiceResultException(fill);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Supplies local condition observations and explicitly acknowledges the simulated operator intervention.
+        /// </summary>
+        private void ObserveRecipeConditions(int tick)
+        {
+            RecipeController recipes = m_line.ConditionBatching.Recipes!;
+            if (recipes.State == RecipeRunState.Idle)
+            {
+                ServiceResult start = recipes.Start(m_line.ConditionRecipe.NodeId);
+                if (ServiceResult.IsBad(start))
+                {
+                    throw new ServiceResultException(start);
+                }
+            }
+            var analog = new DataValue(new Variant((double)(tick % 10)), StatusCodes.Good, DateTimeUtc.Now);
+            var edge = new DataValue(new Variant(tick % 4 >= 2), StatusCodes.Good, DateTimeUtc.Now);
+            recipes.ObserveConditionSource(1, analog);
+            recipes.ObserveConditionSource(2, edge);
+            foreach (RecipeElementState element in recipes.ConditionWaitsRequiringIntervention)
+            {
+                LogIntervention(element.BrowseName.Name);
+                ServiceResult completed = recipes.CompleteElement(element);
+                if (ServiceResult.IsBad(completed))
+                {
+                    throw new ServiceResultException(completed);
+                }
             }
         }
 
@@ -123,6 +196,10 @@ namespace ScalesSample
 
         [LoggerMessage(Level = LogLevel.Information, Message = "Rejected a package of {Weight:F4} kg.")]
         private partial void LogRejected(double weight);
+
+        [LoggerMessage(Level = LogLevel.Warning,
+            Message = "Recipe element {Element} timed out; the simulated operator explicitly completes it.")]
+        private partial void LogIntervention(string? element);
 
         private readonly PackingLine m_line;
         private readonly ILogger<ScaleSimulation> m_logger;

@@ -53,7 +53,8 @@ namespace Opc.Ua.Scales.Server.Runtime
             Func<NodeId, CancellationToken, ValueTask<bool>> delete,
             Func<NodeId, NodeId, bool> isTypeOf,
             ILockService? lockService,
-            ILogger logger)
+            ILogger logger,
+            CancellationToken stoppingToken = default)
         {
             Context = context;
             Namespaces = namespaces;
@@ -67,6 +68,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             IsTypeOf = isTypeOf;
             LockService = lockService;
             Logger = logger;
+            StoppingToken = stoppingToken;
         }
 
         /// <summary>
@@ -110,6 +112,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         public ILogger Logger { get; }
 
         /// <summary>
+        /// Gets the runtime shutdown signal for asynchronous equipment providers.
+        /// </summary>
+        internal CancellationToken StoppingToken { get; }
+
+        /// <summary>
         /// Creates file services owned by the address-space runtime, not by an individual recipe controller.
         /// </summary>
         public ScaleFileBinder CreateFileBinder()
@@ -123,6 +130,22 @@ namespace Opc.Ua.Scales.Server.Runtime
                 var files = new ScaleFileBinder();
                 m_resources.Add(files);
                 return files;
+            }
+        }
+
+        /// <summary>
+        /// Adopts controller resources before publication so failed constructions also release timers at shutdown.
+        /// </summary>
+        internal void OwnResource(IDisposable resource)
+        {
+            lock (m_resourceGate)
+            {
+                if (m_disposed)
+                {
+                    resource.Dispose();
+                    throw new ObjectDisposedException(nameof(ScaleRuntimeServices));
+                }
+                m_resources.Add(resource);
             }
         }
 
@@ -142,9 +165,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 resources = [.. m_resources];
                 m_resources.Clear();
             }
-            foreach (IDisposable resource in resources)
+            for (int index = resources.Length - 1; index >= 0; index--)
             {
-                resource.Dispose();
+                resources[index].Dispose();
             }
         }
 

@@ -192,4 +192,151 @@ namespace Opc.Ua.Scales
         /// </summary>
         public uint? PackMLState { get; init; }
     }
+
+    /// <summary>
+    /// A typed OPC UA value with the status and source timestamp returned for
+    /// that particular field.
+    /// </summary>
+    /// <typeparam name="T">The value type.</typeparam>
+    /// <param name="Value">The value, or its default when unavailable.</param>
+    /// <param name="HasValue">Whether a usable value was returned.</param>
+    /// <param name="StatusCode">The status code returned for the field.</param>
+    /// <param name="Timestamp">The source timestamp returned for the field.</param>
+    public sealed record ScaleField<T>(
+        T Value,
+        bool HasValue,
+        StatusCode StatusCode,
+        DateTime Timestamp);
+
+    /// <summary>
+    /// The latest item recorded by a product (OPC 40200 §7.13 and §7.16).
+    /// Each value retains its own OPC UA status and source timestamp.
+    /// </summary>
+    public sealed record ScaleLastItemSnapshot
+    {
+        /// <summary>
+        /// Gets the product whose <c>LastItem</c> was read.
+        /// </summary>
+        public NodeId ProductNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the <c>LastItem</c> object.
+        /// </summary>
+        public NodeId LastItemNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the item's id.
+        /// </summary>
+        public ScaleField<string> ItemId { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured weight.
+        /// </summary>
+        public ScaleField<ScaleReading> MeasuredWeight { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured height and its engineering units.
+        /// </summary>
+        public ScaleField<double> MeasuredHeight { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the engineering units of <see cref="MeasuredHeight"/>.
+        /// </summary>
+        public ScaleField<EUInformation> MeasuredHeightEngineeringUnits { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured length and its engineering units.
+        /// </summary>
+        public ScaleField<double> MeasuredLength { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the engineering units of <see cref="MeasuredLength"/>.
+        /// </summary>
+        public ScaleField<EUInformation> MeasuredLengthEngineeringUnits { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured volume and its engineering units.
+        /// </summary>
+        public ScaleField<double> MeasuredVolume { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the engineering units of <see cref="MeasuredVolume"/>.
+        /// </summary>
+        public ScaleField<EUInformation> MeasuredVolumeEngineeringUnits { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured width and its engineering units.
+        /// </summary>
+        public ScaleField<double> MeasuredWidth { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the engineering units of <see cref="MeasuredWidth"/>.
+        /// </summary>
+        public ScaleField<EUInformation> MeasuredWidthEngineeringUnits { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the measured item's zone name.
+        /// </summary>
+        public ScaleField<string> ZoneName { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the item price, when the product publishes it.
+        /// </summary>
+        public ScaleField<double> ItemPrice { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the OPC UA <c>CurrencyUnitType</c> for
+        /// <see cref="ItemPrice"/>, when published.
+        /// </summary>
+        public ScaleField<CurrencyUnitType> ItemPriceCurrencyUnit { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the price per weight unit, when the product publishes it.
+        /// </summary>
+        public ScaleField<double> UnitPrice { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the OPC UA <c>CurrencyUnitType</c> for
+        /// <see cref="UnitPrice"/>, when published.
+        /// </summary>
+        public ScaleField<CurrencyUnitType> UnitPriceCurrencyUnit { get; init; } =
+            new(default!, false, StatusCodes.BadNoData, DateTime.MinValue);
+    }
+
+    /// <summary>
+    /// Recipe fields observed on a recipe product (OPC 40200 §7.29).
+    /// </summary>
+    public sealed record ScaleRecipeStatus
+    {
+        /// <summary>
+        /// Gets the product node.
+        /// </summary>
+        public NodeId ProductNodeId { get; init; }
+
+        /// <summary>
+        /// Gets the recipe node id assigned to the product.
+        /// </summary>
+        public ScaleField<NodeId> RecipeNodeId { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+
+        /// <summary>
+        /// Gets the recipe report entries.
+        /// </summary>
+        public ScaleField<ArrayOf<RecipeReportElementType>> Report { get; init; } =
+            new(default, false, StatusCodes.BadNoData, DateTime.MinValue);
+    }
 }

@@ -98,7 +98,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <c>Report</c> of the recipe product in processing.
     /// </para>
     /// </remarks>
-    public sealed class RecipeController
+    public sealed partial class RecipeController : IDisposable
     {
         internal RecipeController(ScaleHandle owner, RecipeScaleState scale, bool recipeFiles = false)
         {
@@ -145,9 +145,10 @@ namespace Opc.Ua.Scales.Server.Runtime
 
             BindRun(scale.StartRecipe, ScaleCommand.StartRecipe, StartCore);
             BindRun(scale.StopRecipe, ScaleCommand.StopRecipe, Stop);
-            BindRun(scale.ContinueRecipe, ScaleCommand.ContinueRecipe, Continue);
+            BindRun(scale.ContinueRecipe, ScaleCommand.ContinueRecipe, ContinueCore);
             BindRun(scale.SkipCurrentRecipeElement, ScaleCommand.SkipCurrentRecipeElement, SkipCore);
             BindRun(scale.AbortRecipe, ScaleCommand.AbortRecipe, Abort);
+            owner.Services.OwnResource(this);
         }
 
         /// <summary>
@@ -624,7 +625,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 lock (m_lock)
                 {
-                    var product = m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
+                    RecipeProductState? product = GetReportProduct();
                     if (product != null)
                     {
                         ServiceResult access = ScaleValues.CheckLock(m_owner.Services, context, product.NodeId);
@@ -665,6 +666,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    return ServiceResult.Create(StatusCodes.BadInvalidState, "The recipe controller has been disposed.");
+                }
                 if (State != RecipeRunState.Idle)
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState, "A recipe is already being processed.");
@@ -689,6 +694,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 {
                     return ServiceResult.Create(StatusCodes.BadInvalidState, "The recipe has no start element.");
                 }
+                m_conditionReportProduct = m_reportProductCaptured
+                    ? m_reportProduct
+                    : m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
                 ActiveRecipe = recipe;
                 State = RecipeRunState.Running;
                 m_done.Clear();
@@ -716,6 +724,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return check;
                 }
                 State = RecipeRunState.Paused;
+                ResetConditionEdges();
                 Report("Recipe paused.");
                 return ServiceResult.Good;
             }
@@ -727,6 +736,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="recipeNodeId">The recipe.</param>
         public ServiceResult Continue(NodeId recipeNodeId)
         {
+            ServiceResult result = ContinueCore(recipeNodeId);
+            RaisePending();
+            return result;
+        }
+
+        private ServiceResult ContinueCore(NodeId recipeNodeId)
+        {
             lock (m_lock)
             {
                 ServiceResult check = CheckActive(recipeNodeId, RecipeRunState.Paused);
@@ -736,6 +752,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 State = RecipeRunState.Running;
                 Report("Recipe continued.");
+                m_pending.Add(EvaluateConditionWaits);
                 return ServiceResult.Good;
             }
         }
@@ -801,6 +818,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void CompleteCore(RecipeElementState element, string how)
         {
+            m_conditionWaits.Remove(element);
             m_current.Remove(element);
             m_done.Add(element);
             Report($"Element '{element.BrowseName.Name}' {how}.");
@@ -828,6 +846,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             Report($"Element '{element.BrowseName.Name}' started.");
             var args = new RecipeElementEventArgs(ActiveRecipe!, element);
             m_pending.Add(() => ElementStarted?.Invoke(this, args));
+            BeginConditionWait(element);
         }
 
         /// <summary>
@@ -855,7 +874,10 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void Finish()
         {
+            m_conditionWaits.Clear();
+            m_conditionTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
             ActiveRecipe = null;
+            m_conditionReportProduct = null;
             State = RecipeRunState.Idle;
             m_current.Clear();
             m_done.Clear();
@@ -900,6 +922,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
+        /// Retains the starting product for opt-in automatic execution without changing manual recipe ownership.
+        /// </summary>
+        private RecipeProductState? GetReportProduct()
+        {
+            return m_conditionWaitsEnabled && ActiveRecipe != null
+                ? m_conditionReportProduct
+                : m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
+        }
+
+        /// <summary>
         /// Appends a line to the <c>Report</c> of the recipe product in
         /// processing, when there is one (§7.30).
         /// </summary>
@@ -907,7 +939,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             RecipeProductState? product = m_reportProductCaptured
                 ? m_reportProduct
-                : m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
+                : GetReportProduct();
             if (product?.Report != null)
             {
                 var entries = new List<RecipeReportElementType>();
@@ -952,7 +984,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         private readonly ScaleHandle m_owner;
+        // TODO: Remove the pragma when CA2213 recognizes that ScaleRuntimeServices owns the binder.
+#pragma warning disable CA2213
         private readonly ScaleFileBinder m_files;
+#pragma warning restore CA2213
         private readonly HashSet<FileState> m_reportFiles = [];
         private readonly bool m_recipeFiles;
         private readonly NodeId m_nextRecipeElement;
@@ -965,6 +1000,9 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>The product authorized for the current remote command's report writes.</summary>
         private RecipeProductState? m_reportProduct;
+
+        /// <summary>The product that owns the current automatically evaluated recipe run.</summary>
+        private RecipeProductState? m_conditionReportProduct;
 
         /// <summary>Whether the current command captured a report target, including an absent target.</summary>
         private bool m_reportProductCaptured;

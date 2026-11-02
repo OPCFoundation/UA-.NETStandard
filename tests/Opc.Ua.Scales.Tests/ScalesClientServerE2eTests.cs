@@ -98,6 +98,8 @@ namespace Opc.Ua.Scales.Tests
         {
             var services = new ServiceCollection();
             services.AddLogging();
+            services.AddSingleton<IScalePriceCalculator>(
+                new RoundedScalePriceCalculator(2, MidpointRounding.ToEven));
             IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
                 .AddServer<StandardServer>(ConfigureServer);
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -132,7 +134,7 @@ namespace Opc.Ua.Scales.Tests
                     })
                     .ConfigureScalesFor<MachineryNodeManager>(async (context, ct) =>
                     {
-                        await ConfigureAsync(context.Runtime, ct);
+                        await ConfigureAsync(context.Runtime, context.GetRequiredService<IScalePriceCalculator>(), ct);
                         m_scaleAsset = await context.GetRequiredService<IAssetManagement>().RegisterAssetAsync(
                             context.Manager.Device(m_scales["Simple"].Scale).Node,
                             asset => asset.WithConfigurableAssetId("S-1"),
@@ -151,7 +153,8 @@ namespace Opc.Ua.Scales.Tests
                 serverBuilder.AddScales(options => options.ZeroSettingRange = 0.04).ConfigureScales(
                     async context =>
                     {
-                        await ConfigureAsync(context.Manager.Runtime, context.CancellationToken);
+                        await ConfigureAsync(context.Manager.Runtime,
+                            context.GetRequiredService<IScalePriceCalculator>(), context.CancellationToken);
                         configured.TrySetResult(true);
                     });
             }
@@ -211,7 +214,8 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// Builds the same runtime surface in standalone and composed hosts.
         /// </summary>
-        private async ValueTask ConfigureAsync(ScalesRuntime manager, CancellationToken ct)
+        private async ValueTask ConfigureAsync(
+            ScalesRuntime manager, IScalePriceCalculator priceCalculator, CancellationToken ct)
         {
             m_runtime = manager;
             QualifiedName Name(string name) => new(name, manager.InstanceNamespaceIndex);
@@ -265,9 +269,27 @@ namespace Opc.Ua.Scales.Tests
                 b =>
                 {
                     ScalesNodeManagerTests.FullScale(b, "Recipe");
-                    b.WithRecipeFiles();
+                    b.WithRecipeFiles().WithProductionPreset(p => p.AllowSelection()
+                        .AddProduct("BATCH", new LocalizedText("Batch")).Select("BATCH"));
                 },
                 ct);
+            foreach ((string name, ScaleKind kind) in new[]
+            {
+                ("Catch", ScaleKind.Catchweigher),
+                ("Price", ScaleKind.AutomaticWeightPriceLabeler),
+                ("Totalizing", ScaleKind.TotalizingHopper)
+            })
+            {
+                ScaleHandle scale = await manager.CreateScaleAsync(Name(name), kind,
+                    b => ScaleItemProcessingTests.Configure(b, kind, kind == ScaleKind.AutomaticWeightPriceLabeler
+                        ? priceCalculator : null), ct);
+                m_scales[name] = scale;
+                if (scale.ProductionPreset!.ActiveProduct is AutomaticWeightPriceLabelerProductState product)
+                {
+                    ScaleItemProcessingTests.ConfigurePrice(manager.SystemContext, product, manager.NamespaceIndices.Scales);
+                }
+            }
+
             m_scales["Hopper"] = await manager.CreateScaleAsync(
                 Name("Hopper"),
                 ScaleKind.LossInWeight,
@@ -297,7 +319,7 @@ namespace Opc.Ua.Scales.Tests
         {
             Assert.That(m_client.IsSupported, Is.True);
             ScaleEntry[] scales = (await m_client.DiscoverScalesAsync()).ToArray()!;
-            Assert.That(scales.Count(s => !s.IsScaleSystem), Is.EqualTo(6), "organized twice, reported once");
+            Assert.That(scales.Count(s => !s.IsScaleSystem), Is.EqualTo(9), "organized twice, reported once");
             Assert.That(scales.Single(s => s.IsScaleSystem).BrowseName.Name, Is.EqualTo("Line"));
             Assert.That(scales.Single(s => s.BrowseName.Name == "Truck").Kind, Is.EqualTo(ScaleKind.Vehicle));
             Assert.That(scales.Single(s => s.BrowseName.Name == "Hopper").Kind, Is.EqualTo(ScaleKind.LossInWeight));
@@ -310,6 +332,69 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(systemScales, Has.Count.EqualTo(1));
             Assert.That(systemScales[0].Kind, Is.EqualTo(ScaleKind.Checkweigher));
             Assert.That(await m_client.GetKindAsync(NodeId.Null), Is.Null);
+        }
+
+        [Test]
+        public async Task ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync()
+        {
+            foreach (string name in new[] { "Catch", "Price" })
+            {
+                ScaleHandle scale = m_scales[name];
+                var product = (CatchweigherProductState)scale.ProductionPreset!.ActiveProduct!;
+                ScaleItemReport item = ScaleItemProcessingTests.Item(1, 0.5) with
+                {
+                    Weight = ScaleItemProcessingTests.Item(1, 0.5).Weight with
+                    {
+                        WeightId = "equipment-weight",
+                        Stable = true,
+                        InsideZero = false,
+                        CurrentRangeId = 7,
+                        TareMode = (TareMode)1
+                    },
+                    Length = new ScaleItemMeasurement(
+                        20, ScaleUnits.Create("MMT", "mm", "millimetre"),
+                        DateTime.UtcNow.AddSeconds(-1), StatusCodes.Uncertain)
+                };
+                Assert.That(ServiceResult.IsGood(await scale.Catchweigher!.ReportAsync(item)), Is.True);
+                ScaleLastItemSnapshot actual = await m_client.ReadLastItemAsync(product.NodeId);
+                Assert.That(actual.ItemId.HasValue, Is.True);
+                Assert.That(actual.ItemId.Value, Is.EqualTo(item.ItemId));
+                Assert.That(actual.MeasuredWeight.Value.Net, Is.EqualTo(0.5));
+                Assert.That(actual.MeasuredWeight.HasValue, Is.True);
+                Assert.That(actual.MeasuredWeight.Value.WeightId, Is.EqualTo("equipment-weight"));
+                Assert.That(actual.MeasuredWeight.Value.Stable, Is.True);
+                Assert.That(actual.MeasuredWeight.Value.InsideZero, Is.False);
+                Assert.That(actual.MeasuredWeight.Value.CurrentRangeId, Is.EqualTo(7));
+                Assert.That(actual.MeasuredWeight.Value.TareMode, Is.EqualTo((TareMode)1));
+                Assert.That(actual.MeasuredWeight.Timestamp, Is.EqualTo(item.Weight.Timestamp));
+                Assert.That(actual.MeasuredLength.Value, Is.EqualTo(20));
+                Assert.That(actual.MeasuredLength.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+                Assert.That(actual.MeasuredLength.Timestamp, Is.EqualTo(item.Length!.Timestamp));
+                Assert.That(actual.MeasuredWidth.HasValue, Is.False);
+                Assert.That(actual.MeasuredWidth.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+                if (name == "Price")
+                {
+                    Assert.That(actual.ItemPrice.Value, Is.EqualTo(0.5));
+                    Assert.That(actual.ItemPriceCurrencyUnit.Value.AlphabeticCode, Is.EqualTo("EUR"));
+                    Assert.That(actual.UnitPrice.Value, Is.EqualTo(1));
+                    Assert.That(actual.UnitPriceCurrencyUnit.Value.NumericCode, Is.EqualTo(978));
+                }
+                else
+                {
+                    Assert.That(actual.ItemPrice.HasValue, Is.False);
+                }
+            }
+            ScaleHandle hopper = m_scales["Totalizing"];
+            var hopperProduct = (TotalizingHopperProductState)hopper.ProductionPreset!.ActiveProduct!;
+            hopperProduct.TipCounter!.WrappedValue = new Variant((ulong)uint.MaxValue);
+            Assert.That(ServiceResult.IsGood(
+                await hopper.TotalizingHopper!.ReportCompletedFillAsync(ScaleItemProcessingTests.Item(1))), Is.True);
+            ScaleField<ulong> tips = await m_client.ReadTipCounterAsync(hopperProduct.NodeId);
+            Assert.That(tips.HasValue, Is.True);
+            Assert.That(tips.Value, Is.EqualTo((ulong)uint.MaxValue + 1));
+            ScaleField<ulong> missing = await m_client.ReadTipCounterAsync(m_scales["Catch"].ProductionPreset!.ActiveProduct!.NodeId);
+            Assert.That(missing.HasValue, Is.False);
+            Assert.That(StatusCode.IsBad(missing.StatusCode), Is.True);
         }
 
         [Test]
@@ -739,6 +824,8 @@ namespace Opc.Ua.Scales.Tests
             ushort ns = m_session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
             NodeId recipe = await m_client.AddRecipeAsync(scale.NodeId, "Bread", new LocalizedText("Bread"));
             Assert.That(recipe.IsNull, Is.False);
+            var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
+            product.RecipeNodeId!.Value = recipe;
             NodeId weighing = await m_client.AddRecipeElementAsync(recipe, new NodeId(ObjectTypes.WeighingType, ns), "Flour", [recipe]);
             await m_client.AddRecipeElementAsync(recipe, new NodeId(ObjectTypes.TimerType, ns), "Rest", [weighing]);
 
@@ -750,6 +837,24 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(scale.Recipes.CurrentElements.ToArray()!.Single().BrowseName.Name, Is.EqualTo("Rest"));
             await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.AbortRecipe, recipe);
             Assert.That(scale.Recipes.State, Is.EqualTo(RecipeRunState.Idle));
+            ScaleRecipeStatus status = await m_client.ReadRecipeStatusAsync(product.NodeId);
+            Assert.That(status.RecipeNodeId.HasValue, Is.True);
+            Assert.That(status.RecipeNodeId.Value, Is.EqualTo(recipe));
+            Assert.That(status.Report.HasValue, Is.True);
+            Assert.That(status.Report.Value.Count, Is.GreaterThan(2));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            bool receivedReport = false;
+            await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in m_client.ObserveRecipeReportsAsync(
+                product.NodeId, cancellationToken: timeout.Token))
+            {
+                Assert.That(report.HasValue, Is.True);
+                Assert.That(report.Value.Count, Is.EqualTo(status.Report.Value.Count));
+                Assert.That(report.StatusCode, Is.EqualTo(status.Report.StatusCode));
+                Assert.That(report.Timestamp, Is.EqualTo(status.Report.Timestamp));
+                receivedReport = true;
+                break;
+            }
+            Assert.That(receivedReport, Is.True);
         }
 
         [Test]

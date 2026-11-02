@@ -490,7 +490,45 @@ namespace Opc.Ua.Scales.Server.Builders
             {
                 throw new InvalidOperationException("Only recipe scales have recipe files.");
             }
+
             m_recipeFiles = true;
+            return this;
+        }
+
+        public IScaleBuilder WithItemProcessing(IScalePriceCalculator? priceCalculator = null)
+        {
+            if (Kind is not (ScaleKind.Catchweigher or ScaleKind.AutomaticWeightPriceLabeler) ||
+                (priceCalculator != null && Kind != ScaleKind.AutomaticWeightPriceLabeler))
+            {
+                throw new InvalidOperationException("Item processing requires a catchweigher or price labeler.");
+            }
+            m_itemProcessing = true;
+            m_priceCalculator = priceCalculator;
+            WithRegisterWeight();
+            WithProductionOutput();
+            return this;
+        }
+
+        public IScaleBuilder WithCompletedFills()
+        {
+            if (Kind != ScaleKind.TotalizingHopper)
+            {
+                throw new InvalidOperationException("Completed fills require a totalizing hopper.");
+            }
+            m_completedFills = true;
+            WithRegisterWeight();
+            WithProductionOutput();
+            return this;
+        }
+
+        public IScaleBuilder ConfigureRecipes(Action<RecipeController> configure)
+        {
+            if (Kind != ScaleKind.Recipe)
+            {
+                throw new InvalidOperationException("Recipe configuration requires a recipe scale.");
+            }
+            m_configureRecipes += configure ?? throw new ArgumentNullException(nameof(configure));
+            WithTypeFeatures();
             return this;
         }
 
@@ -625,6 +663,23 @@ namespace Opc.Ua.Scales.Server.Builders
             }
 
             m_preset?.Finish();
+            if (m_itemProcessing || m_completedFills)
+            {
+                if (Scale.ProductionPreset?.Products == null)
+                {
+                    throw new InvalidOperationException("Equipment reporting requires a production preset.");
+                }
+                var products = new List<BaseInstanceState>();
+                Scale.ProductionPreset.Products.GetChildren(Context, products);
+                foreach (ProductState product in products.OfType<ProductState>())
+                {
+                    ScaleItemPublisher.Initialize(Context, product);
+                }
+                if (Scale.ProductionOutput?.LastItem is { } lastItem)
+                {
+                    ScaleItemPublisher.InitializeObservation(Context, lastItem);
+                }
+            }
             foreach (ScaleModuleBuilder module in m_modules)
             {
                 module.Finish();
@@ -646,7 +701,14 @@ namespace Opc.Ua.Scales.Server.Builders
                     m_legalForTrade,
                     m_preset?.Lockable ?? false,
                     m_preset?.SelectedProducts ?? [],
-                    m_recipeFiles));
+                    m_recipeFiles,
+                    m_itemProcessing,
+                    m_priceCalculator,
+                    m_completedFills));
+            if (handle.Recipes != null)
+            {
+                m_configureRecipes?.Invoke(handle.Recipes);
+            }
             foreach (ScaleModuleBuilder module in m_modules)
             {
                 handle.AddModule(new ScaleModuleHandle(m_services, module.Module, handle));
@@ -811,6 +873,18 @@ namespace Opc.Ua.Scales.Server.Builders
         private bool m_weightDetails;
         private bool m_minimalWeightSet;
         private bool m_recipeFiles;
+
+        /// <summary>Whether provider-reported items are enabled.</summary>
+        private bool m_itemProcessing;
+
+        /// <summary>Whether completed-fill reports are enabled.</summary>
+        private bool m_completedFills;
+
+        /// <summary>The injected calculation policy.</summary>
+        private IScalePriceCalculator? m_priceCalculator;
+
+        /// <summary>Post-construction recipe configuration.</summary>
+        private Action<RecipeController>? m_configureRecipes;
     }
 
     /// <summary>

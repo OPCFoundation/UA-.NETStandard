@@ -93,14 +93,14 @@ and `ScaleKind` names them:
 | `Hopper` | `HopperScaleType` | `SimpleProductType` | Hopper Scale | `HopperController` |
 | `WeighingModule` | `WeighingModuleType` | `SimpleProductType` | Weighing Bridge | — |
 | `AutomaticFilling` | `AutomaticFillingScaleType` | `AutomaticFillingProductType` | AutomaticFillingScale | `AutomaticFillingController` |
-| `Catchweigher` | `CatchweigherType` | `CatchweigherProductType` | Catchweigher | zones in `ScaleProductionPreset` |
+| `Catchweigher` | `CatchweigherType` | `CatchweigherProductType` | Catchweigher | opt-in `CatchweigherController` |
 | `Checkweigher` | `CheckweigherType` | `CheckweigherProductType` | Checkweigher | checkweigher statistics |
-| `AutomaticWeightPriceLabeler` | `AutomaticWeightPriceLabelerType` | `AutomaticWeightPriceLabelerProductType` | AutomaticWeightPriceLabeler | zones |
+| `AutomaticWeightPriceLabeler` | `AutomaticWeightPriceLabelerType` | `AutomaticWeightPriceLabelerProductType` | AutomaticWeightPriceLabeler | opt-in `CatchweigherController` with equipment prices or an injected pricing policy |
 | `Continuous` | `ContinuousScaleType` | `ContinuousProductType` | Continuous Scale | `ContinuousController` |
 | `LossInWeight` | `LossInWeightScaleType` | `ContinuousProductType` | LossInWeight Scale | `LossInWeightController` |
 | `PieceCounting` | `PieceCountingScaleType` | `PieceCountingProductType` | PieceCountingScale | `PieceCountingController` |
 | `Recipe` | `RecipeScaleType` | `RecipeProductType` | RecipeScale | `RecipeController` |
-| `TotalizingHopper` | `TotalizingHopperScaleType` | `TotalizingHopperProductType` | Totalizing Hopper Scale | — |
+| `TotalizingHopper` | `TotalizingHopperScaleType` | `TotalizingHopperProductType` | Totalizing Hopper Scale | opt-in `TotalizingHopperController` |
 | `Vehicle` | `VehicleScaleType` | `VehicleProductType` | Vehicle Scale | `VehicleController` |
 
 - `ScalesModel.ObjectTypeOf`, `KindOf`, `ProductTypeOf` and `AllKinds` map
@@ -394,6 +394,9 @@ a Machinery-specific disposal override.
 | `WithMachineryBuildingBlocks()` | `MachineryItemState`, `MachineryOperationMode` and the `MachineryBuildingBlocks` folder, wired as add-ins |
 | `WithProcessState(id, message)` | `ProcessStateId` and `ProcessStateMessage` |
 | `WithTypeFeatures()` | Every optional member of the kind, for example the laboratory draft shields, the vehicle weighing methods, recipe management, or the continuous-scale figures and master totalizer |
+| `WithItemProcessing(calculator)` | Registered catchweigher or price-labeler item reports, product/output statistics and typed `LastItem`; an optional injected `IScalePriceCalculator` calculates labeler prices |
+| `WithCompletedFills()` | Completed-fill reports and the selected totalizing-hopper product's `TipCounter` |
+| `ConfigureRecipes(configure)` | Post-construction recipe runtime configuration, shared by standalone, DI and composed hosting |
 | `WithRecipeFiles()` | A `RecipeFile` on every recipe of a recipe scale (*FileRecipeManagement*) |
 | `AddTotalizer(name)` | A `<Totalizer>` on a continuous or loss-in-weight scale |
 | `AddFeederModule(name, configure)` / `AddPrinterModule(name, configure)` | Sub-devices below `SubDevices` |
@@ -536,6 +539,80 @@ The methods and the local API share the same rules.
 | `AutomaticFillingController` | `EvaluateFilling` sets `Deviation` and `ToleranceState` against the product target |
 | `VehicleController` | `InboundWeighing`, `OutboundWeighing`, `OnePassWeighing` (method and local); computes `DeltaWeight` per Table 123 |
 | `RecipeController` | Recipe management and processing, see below |
+| `CatchweigherController` | `ReportAsync` publishes a registered item, its dimensions, zone and optional price |
+| `TotalizingHopperController` | `ReportCompletedFillAsync` increments the selected product's `TipCounter` once per completed acquisition |
+
+#### Registered items and completed fills
+
+Use `WithItemProcessing()` on a catchweigher or price labeler and
+`WithCompletedFills()` on a totalizing hopper. Both require a production preset
+with a single product in processing. They add the product statistics and
+observation members before publication; products created later through
+`AddProduct` receive the same members and write guards.
+
+An equipment report contains a nonzero, increasing acquisition `Sequence`, the
+selected `ProductId`, an `ItemId` and a registered `ScaleReading`:
+
+```csharp
+ServiceResult result = await scale.Catchweigher!.ReportAsync(new ScaleItemReport
+{
+    Sequence = acquisitionSequence,
+    ProductId = "CHEESE",
+    ItemId = itemId,
+    Weight = new ScaleReading
+    {
+        Gross = 550,
+        Net = 500,
+        Tare = 50,
+        EngineeringUnits = ScaleUnits.Gram,
+        Timestamp = sourceTimestamp,
+        StatusCode = StatusCodes.Good
+    }
+}, ct);
+```
+
+The controller converts known mass units to the scale unit, checks the
+gross/net/tare relationship and rejects bad, overloaded or underloaded registered
+weights before changing counters. Each optional dimension carries its own unit,
+source timestamp and status. An omitted dimension becomes `BadNoData`; the
+previous item's dimension does not remain valid. Measured dimensions do not
+overwrite `PresetHeight`, `PresetLength` or `PresetWidth`, which belong to
+configuration before measurement (§7.12.3).
+
+The item updates `RegisteredWeight`, product `LastItem` and product/output
+statistics. Do not call scalar `RegisterWeight` for the same acquisition:
+equipment already supplied its registered weight. Zone classification converts
+both limits to the scale unit and rejects overlapping or incompatible ranges.
+At a shared boundary the zone whose lower limit equals the weight takes
+precedence (§7.12.4). Classification reports the configured zone; it does not
+command a physical sorter.
+
+For a price labeler, equipment-supplied `ScaleItemPrice` takes precedence over
+calculation. Alternatively pass an `IScalePriceCalculator` to
+`WithItemProcessing`; resolve an application implementation through
+`context.GetRequiredService<IScalePriceCalculator>()` in the hosting callback,
+or pass one directly without DI. `RoundedScalePriceCalculator(decimalPlaces,
+rounding)` multiplies normalized net mass by the product's `UnitPrice` with an
+explicit rounding rule. Configure `UnitPrice` per scale mass unit and supply its
+mandatory `CurrencyUnit`. A conflicting currency rejects the acquisition;
+an unavailable price publishes `BadNoData`, not a zero price. Publishing a price
+does not report that a label was printed.
+
+For a totalizing hopper, send the same report to
+`scale.TotalizingHopper.ReportCompletedFillAsync`. Submit only completed
+downpours, not starts, interrupted fills or retries. `TipCounter` is a `UInt64`
+counter under the model's `UInteger` declaration and rejects overflow. Its
+ordinary authorized Value write controls reset ownership; resetting that counter
+does not reset duplicate detection. `VolumeTargetValue` remains a configured
+target, and the runtime does not infer a volume from mass.
+
+The acquisition sequence belongs to the scale runtime, independently of products
+and statistics periods. Repeated or older sequences are rejected even after a
+product switch or counter reset. The application must preserve acquisition
+identity across its own reconnect/restart policy; the in-memory controller does
+not persist a sequence across server restarts. A product switch during an
+asynchronous price calculation rejects the pending report rather than assigning
+it to the replacement product.
 
 ### Recipes
 
@@ -568,6 +645,59 @@ file format is vendor-specific; the specification does not define one.
 - Once a recipe came from a file, `AddRecipeElement` and
   `RemoveRecipeElement` on it return `BadInvalidState`. This keeps the file
   and the address space from diverging (§7.31).
+
+**Opt-in condition waits.** Manual execution remains the default. Call
+`ConfigureRecipes` on the builder, or configure `scale.Recipes` directly, to
+enable local source observations:
+
+```csharp
+builder.ConfigureRecipes(recipes =>
+{
+    recipes.EnableConditionWaits(TimeSpan.FromSeconds(2));
+    recipes.RegisterConditionSource(
+        7, localMassNodeId, new LocalizedText("Hopper mass"),
+        BuiltInType.Double, ScaleUnits.Kilogram);
+});
+
+var observation = new DataValue(
+    new Variant(netMass), StatusCodes.Good, (DateTimeUtc)sourceTimestamp);
+scale.Recipes!.ObserveConditionSource(7, observation);
+```
+
+Registration publishes `SupportedThresholdValues`. An element resolves only
+these allowed sources, by the invariant decimal `ThresholdValueId` (`"7"` in
+this example) or by its registered `ThresholdValueNodeId`. If both are supplied,
+they must identify the same source. The controller does not browse arbitrary
+nodes or establish remote connections. Applications feed local observations
+from their existing equipment/provider path.
+
+On activation, the controller captures the source, target, units, operator and
+timeout. Analog waits support all six `EqualityAndRelationalOperator` values,
+finite scalar numeric values and identical engineering units. Numeric types may
+differ; comparisons preserve 64-bit integer precision. Edge waits require a
+Boolean source and the configured rising or falling transition. An initial true
+value is not a rising edge.
+
+Bad or uncertain quality, overflow, missing timestamps, future/stale values,
+out-of-order observations and explicit `hasGap` invalidate edge history.
+The next good observation establishes a baseline. A transition after that
+baseline may satisfy the wait; an unobserved transition across a pause cannot.
+Concurrent branches keep independent activation snapshots and join through the
+existing DAG scheduler.
+
+With automatic waits enabled, the product selected at recipe start owns that
+run's reports, including later timer notifications. Switching products does not
+redirect the report. Remote commands check that owning product's lock. Manual
+execution retains its existing product-selection behavior.
+
+`Timeout` is in milliseconds and includes time spent paused. Expiry leaves the
+element current, adds it to `ConditionWaitsRequiringIntervention`, writes the
+recipe report and raises the
+existing process-fault notification. It never completes the step. The application
+or operator must explicitly complete, skip or abort it. Timers stop at completion,
+abort and runtime shutdown; `TimeProvider` injection supports deterministic tests.
+Non-condition elements still use `ElementStarted` / `CompleteElement`, and recipe
+file parsing remains vendor-specific.
 
 ### PackML
 
@@ -631,6 +761,36 @@ published but never-written value comes back as NaN gross, net and tare.
 | Type methods | `SetReferencePieceWeightAsync`, `SetNumberOfReferencePiecesAsync`, `StartReferenceAsync`, `SetDraftShieldsAsync`, `WeighVehicleAsync`, `SetFeederSpeedAsync`, and `InvokeAsync(target, method)` for any method without arguments |
 | Recipes | `AddRecipeAsync`, `AddRecipeElementAsync`, `ProcessRecipeAsync(scale, method, recipe)` |
 
+`ReadLastItemAsync(product)` reads the registered item, dimensions, engineering
+units, zone, price and currency. `ReadTipCounterAsync(product)` retains the
+hopper counter's full unsigned 64-bit range. `ReadRecipeStatusAsync(product)`
+reads `RecipeNodeId` and typed report entries; `ObserveRecipeReportsAsync(product)`
+streams those entries through the existing subscription infrastructure.
+
+These methods take a product node, not a scale node. Each `ScaleField<T>` carries
+`HasValue`, `StatusCode` and the source `Timestamp`. Check those before using
+`Value`: missing prices and dimensions remain missing, and uncertain measurements
+retain their original quality. A malformed value with Good status is reported
+as `BadTypeMismatch`; service failures propagate.
+
+```csharp
+ScaleLastItemSnapshot item = await scales.ReadLastItemAsync(productNodeId, ct);
+if (item.ItemPrice.HasValue && item.ItemPriceCurrencyUnit.HasValue)
+{
+    Console.WriteLine($"{item.ItemPrice.Value} {item.ItemPriceCurrencyUnit.Value.AlphabeticCode}");
+}
+
+await foreach (ScaleField<ArrayOf<RecipeReportElementType>> report in
+    scales.ObserveRecipeReportsAsync(recipeProductNodeId, cancellationToken: ct))
+{
+    Console.WriteLine($"{report.StatusCode}; {report.Timestamp:O}");
+    if (report.HasValue)
+    {
+        Console.WriteLine($"{report.Value.Count} entries");
+    }
+}
+```
+
 ### Notifications and snapshots
 
 - **Notifications.**
@@ -650,6 +810,7 @@ published but never-written value comes back as NaN gross, net and tare.
 | `WeighingRangeDefinition(Low, High, d, e)` | One weighing range; `Validate()` checks the limits and intervals |
 | `ScaleReading` | Gross, net, tare, tare mode, overload, underload, stability, zero, range, weight id, unit, timestamp, status |
 | `ScaleEntry`, `ScaleProductInfo`, `ScaleNotificationInfo`, `ScaleSnapshot` | The client's discovery, product, notification and snapshot results |
+| `ScaleField<T>`, `ScaleLastItemSnapshot`, `ScaleRecipeStatus` | Per-field presence, quality and source time for registered items, prices, counters and recipe reports |
 | `ScaleKind`, `ScaleNotificationId`, `ScaleNotificationCategory` | The kinds and the Annex C tables |
 
 ## Conformance matrix
@@ -681,12 +842,12 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | International System of Units | 🧪 | `PresetTareChecksAndConvertsTheUnitAsync`; `SiMassUnitsAreRecognised` |
 | Simple, Laboratory, Hopper, Weighing Bridge | ✅ / 🧪 | `LaboratoryShieldsLevelingCalibrationAndIonisatorAsync`; `HopperPublishesLevelsAsync`; `WeighingModulesAreScalesOfTheirOwnAsync`; E2E for Simple, Laboratory and Hopper |
 | AutomaticFillingScale | 🧪 | `AutomaticFillingEvaluatesAgainstTheTargetAsync` |
-| Catchweigher, AutomaticWeightPriceLabeler | 🧪 | `CatchweigherProductZonesCanBeAddedAndRemovedAsync` (not advertised, see [limitations](#known-limitations)) |
+| Catchweigher, AutomaticWeightPriceLabeler | ✅ | `CatchweigherClassifiesBoundariesAndPreservesRegisteredItemAsync`; `PricesUseEquipmentOrExplicitRoundingAndPublishMandatoryCurrencyAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` (advertised only with `WithItemProcessing`) |
 | Checkweigher | ✅ | `CheckweigherStatisticsCountAcceptedAndRejectedAsync`; `ClientSubscribesToANestedScaleThroughTheNotifierHierarchyAsync` |
 | Continuous Scale, LossInWeight Scale | ✅ | `ContinuousScaleTotalizesAndResetsAsync`; `LossInWeightDischargesAndRefillsAsync`; `ClientStreamsWeightsEventsAndAlarmsAsync` |
 | PieceCountingScale | ✅ | `PieceCountingReferencesAndCountsAsync`; `PieceCountingProductTargetsCanBeSetAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 | RecipeScale | ✅ | `RecipesAreManagedAndProcessedAlongTheirGraphAsync`; `RecipeProcessingGuardsAsync`; `RecipeFilesAreUploadedParsedAndReportedAsync`; `ClientBuildsAndProcessesARecipeAsync` |
-| Totalizing Hopper Scale | 🧪 | `EveryKindIsPublishedWithItsMandatoryMembersAsync` (structure only and not advertised, see [limitations](#known-limitations)) |
+| Totalizing Hopper Scale | ✅ | `CompletedHopperFillsRespectDuplicatesResetsProductsAndOverflowAsync`; `KindFacetsRequireTheirConfiguredRuntimeAsync`; `ClientReadsRegisteredItemsPricesAndCompletedFillsWithSourceMetadataAsync` (advertised only with `WithCompletedFills`) |
 | Vehicle Scale | ✅ | `VehicleWeighingComputesTheDeltaAsync`; `ClientCallsTheTypeSpecificMethodsAsync` |
 
 ### Cross-cutting conformance units and behaviour
@@ -702,6 +863,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Machinery Machine Identification, Find Machines | ✅ | `IdentificationWithoutMandatoryFieldsIsRejectedAsync`; `ClientDiscoversEveryScaleOnceWithItsKindAsync` |
 | Machinery building blocks, MachineryItemState, OperationMode | 🧪 | `StateSettersPublishTheMachineryStatesAndProcessStateAsync` |
 | *RecipeManagment*, *DynamicRecipeManagement*, *FileRecipeManagement* | ✅ | as RecipeScale above |
+| Opt-in analog and edge recipe condition waits | 🧪 | `AnalogOperatorsObserveEqualityAndAdjacentBoundaries`; `BooleanEdgesRequireTransitionAfterActivation`; `TimeoutLatchesInterventionInsteadOfAutomaticSuccess`; `DisabledConditionWaitsRetainManualExecution` |
 | Method veto through `CommandInterceptor` | 🧪 | `CommandInterceptorCanVetoACommandAsync`; `PieceCountingLocalCallsMatchTheMethodsAsync` |
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
@@ -713,8 +875,8 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 
 | Sample | Shows |
 | --- | --- |
-| [ScalesServer](../samples/Scales/ScalesServer) | A packing line (scale system with a checkweigher, infeed feeder and labeler) plus a laboratory balance, a counting scale, a weighbridge and a recipe batching scale, all with a simulation that rejects packages and runs the labeler out of labels |
-| [ScalesClient](../samples/Scales/ScalesClient) | Discovery, snapshots, tare/register/switch product on the nested checkweigher, and streaming of its weights, events and alarms |
+| [ScalesServer](../samples/Scales/ScalesServer) | A packing line (scale system with a checkweigher, infeed feeder and labeler) plus a laboratory balance, a counting scale, a weighbridge, a catchweigher, an EUR price labeler, a totalizing hopper and two recipe batching scales, one manual and one with condition waits. The simulation rejects packages and runs the labeler out of labels |
+| [ScalesClient](../samples/Scales/ScalesClient) | Discovery, snapshots, tare/register/switch product on the nested checkweigher, the last registered item with price, the hopper `TipCounter`, recipe status, and streaming of weights, events and alarms |
 
 See [the samples README](../samples/Scales/README.md) for how to run them.
 
@@ -764,19 +926,15 @@ Two defects this work found passed every in-process assertion:
 
 ## Known limitations
 
-- **Totalizing hopper.** Published with its full structure, but no
-  controller drives `TipCounter`. The application sets it through
-  `With<TotalizingHopperScaleState>` or the product node. The Totalizing
-  Hopper Scale facet and its CU are therefore not advertised; the scale
-  still counts towards Base Scale.
-- **Catchweigher and price labeler.** These have no dedicated controller.
-  - Zones and `LastItem` statistics are implemented.
-  - The application writes item prices and measured dimensions itself.
-  - Their kind facets and CUs are therefore not advertised; the scales
-    still count towards Base Scale.
-- **Recipe elements.** Elements are executed by the application through
-  `ElementStarted` / `CompleteElement`. `ConditionSleep` thresholds are not
-  evaluated by the server.
+- **Equipment integration.** Catchweigher/price-labeler and totalizing-hopper
+  kind facets require `WithItemProcessing` and `WithCompletedFills`, respectively.
+  The controllers accept equipment observations; they do not operate physical
+  sorters, printers, motors or hopper actuators, or establish legal metrology
+  certification. Existing configurations without these options retain their
+  application-managed data and omit those kind facets.
+- **Recipe execution.** Only explicitly enabled analog/edge waits evaluate
+  registered local sources. Other elements remain application-executed through
+  `ElementStarted` / `CompleteElement`; no physical execution provider is implied.
 - **Recipe file format.** It is vendor-specific. Parsing is up to
   `RecipeFileHandler`.
 - **Machinery building block.** The Machinery `Notifications` building block

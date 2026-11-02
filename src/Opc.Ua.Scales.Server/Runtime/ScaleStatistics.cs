@@ -212,6 +212,30 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
         }
 
+        /// <summary>
+        /// Records a provider acquisition and preserves the complete registered item and source metadata.
+        /// </summary>
+        internal void RecordItem(ScaleItemReport report, string? zoneName, ScaleItemPrice? price)
+        {
+            lock (m_lock)
+            {
+                Count(Statistic.TotalPackages, report.Weight.Net);
+                Count(Statistic.TotalPackagesWeighed, report.Weight.Net);
+                ScaleItemPublisher.Publish(m_context, Statistic.LastItem, report, zoneName, price);
+            }
+        }
+
+        /// <summary>
+        /// Records a zone counter using the same accumulation semantics as production statistics.
+        /// </summary>
+        internal void RecordCounter(StatisticCounterState counter, double weight)
+        {
+            lock (m_lock)
+            {
+                Count(counter, weight);
+            }
+        }
+
         private void Count(StatisticCounterState? counter, double weight)
         {
             if (counter == null)
