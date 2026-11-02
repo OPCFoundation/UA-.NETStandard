@@ -381,6 +381,10 @@ is not restored. Resolution and advertised providers retain the committed provid
 until setup commits. While a replacement is reserved, a competing registration,
 unregistration or replacement for that node is rejected before mutation; other
 nodes remain available.
+Registry shutdown invalidates pending reservations. A later commit throws
+`ObjectDisposedException`, restores the pre-setup attributes and leaves the
+registry empty; it cannot report a successful unpublished binding. The fluent
+path detaches and cancels raw capture created by the failed setup.
 Successful setup retains the new binding even if an older scoped owner disposes
 between the attribute changes and completion.
 Injected registries can implement `IHistorianNodeReplacementRegistry` and return

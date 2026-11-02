@@ -498,7 +498,30 @@ namespace Opc.Ua.Server.Historian
             }
         }
 
-        private readonly record struct CaptureHandlerRegistration(BaseVariableState Variable, NodeStateChangedHandler Handler);
+        /// <summary>
+        /// Detaches and cancels raw capture when synchronous fluent setup fails before publishing its binding.
+        /// </summary>
+        internal void AbortRawCapture()
+        {
+            CaptureHandlerRegistration[] handlers;
+            HistorianCaptureSink? sink;
+            lock (m_captureSinkLock)
+            {
+                handlers = [.. m_captureHandlers];
+                m_captureHandlers.Clear();
+                sink = m_captureSink;
+                m_captureSink = null;
+            }
+            foreach (CaptureHandlerRegistration registration in handlers)
+            {
+                registration.Variable.StateChanged -= registration.Handler;
+            }
+            sink?.Abort();
+        }
+
+        private readonly record struct CaptureHandlerRegistration(
+            BaseVariableState Variable,
+            NodeStateChangedHandler Handler);
 
         private readonly record struct EventCaptureHandlerRegistration(
             BaseObjectState Notifier,

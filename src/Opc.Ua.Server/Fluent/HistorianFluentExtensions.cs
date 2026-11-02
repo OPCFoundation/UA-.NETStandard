@@ -261,21 +261,37 @@ namespace Opc.Ua.Server.Fluent
                 {
                     variable.Historizing = false;
                 }
-                scope.Historize(
-                    variable,
-                    historyAccessLevel,
-                    setHistorizing: historizing == true,
-                    systemContext: nodeManagerBuilder.Context,
-                    capabilities: capabilities,
-                    autoCapture: autoCapture,
-                    captureOptions: captureOptions);
-                if (replacement == null)
+                try
                 {
-                    providerRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                    scope.Historize(
+                        variable,
+                        historyAccessLevel,
+                        setHistorizing: historizing == true,
+                        systemContext: nodeManagerBuilder.Context,
+                        capabilities: capabilities,
+                        autoCapture: autoCapture,
+                        captureOptions: captureOptions);
+                    if (replacement == null)
+                    {
+                        providerRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                    }
+                    else
+                    {
+                        replacement.Commit();
+                    }
                 }
-                else
+                catch (Exception failure)
                 {
-                    replacement.Commit();
+                    try
+                    {
+                        scope.AbortRawCapture();
+                    }
+                    catch (Exception cleanupFailure)
+                    {
+                        throw new AggregateException(
+                            "Historian setup and capture cleanup failed.", failure, cleanupFailure);
+                    }
+                    throw;
                 }
                 return;
             }

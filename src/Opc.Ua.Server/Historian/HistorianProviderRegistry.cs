@@ -117,6 +117,7 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                ObjectDisposedException.ThrowIf(m_disposed, this);
                 m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? previous);
                 m_namespaces[namespaceUri] = provider;
                 AddProvider(provider, ownsProvider: true);
@@ -148,6 +149,7 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
+                ObjectDisposedException.ThrowIf(m_disposed, this);
                 IHistorianProvider? previous = m_default;
                 m_default = provider;
                 AddProvider(provider, ownsProvider);
@@ -263,6 +265,11 @@ namespace Opc.Ua.Server.Historian
             HashSet<IHistorianProvider> providers;
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
                 providers = [.. m_ownedProviders];
                 m_nodes.Clear();
                 m_nodeBindings.Clear();
@@ -304,6 +311,7 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_lock)
             {
+                ObjectDisposedException.ThrowIf(m_disposed, this);
                 RejectPendingReplacement(node.NodeId);
                 m_nodes.TryGetValue(node.NodeId, out IHistorianProvider? previousProvider);
                 m_nodeBindings.TryGetValue(node.NodeId, out NodeBinding? previousBinding);
@@ -332,6 +340,7 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_lock)
             {
+                ObjectDisposedException.ThrowIf(m_disposed, this);
                 if (m_nodes.ContainsKey(nodeId) || m_pendingReplacements.ContainsKey(nodeId))
                 {
                     binding = null;
@@ -385,9 +394,30 @@ namespace Opc.Ua.Server.Historian
         {
             lock (m_lock)
             {
+                if (m_disposed)
+                {
+                    if (previousBinding?.IsDisposed == true)
+                    {
+                        previousBinding.RestoreAttributes();
+                    }
+                    else
+                    {
+                        current.RestoreAttributes();
+                    }
+                    if (commit)
+                    {
+                        throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+                    }
+                    return;
+                }
                 if (!m_pendingReplacements.TryGetValue(nodeId, out NodeBinding? active) ||
                     !ReferenceEquals(active, current))
                 {
+                    if (commit)
+                    {
+                        throw new InvalidOperationException(
+                            "The historian replacement reservation is no longer current.");
+                    }
                     return;
                 }
                 m_pendingReplacements.Remove(nodeId);
@@ -424,9 +454,11 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         private void RejectPendingReplacement(NodeId nodeId)
         {
+            ObjectDisposedException.ThrowIf(m_disposed, this);
             if (m_pendingReplacements.ContainsKey(nodeId))
             {
-                throw new InvalidOperationException("A historian replacement is already being configured for this node.");
+                throw new InvalidOperationException(
+                    "A historian replacement is already being configured for this node.");
             }
         }
 
@@ -633,5 +665,8 @@ namespace Opc.Ua.Server.Historian
         private readonly HashSet<IHistorianProvider> m_providers = [];
         private readonly HashSet<IHistorianProvider> m_ownedProviders = [];
         private IHistorianProvider? m_default;
+
+        /// <summary>Whether shutdown invalidated all registrations and pending replacements.</summary>
+        private bool m_disposed;
     }
 }

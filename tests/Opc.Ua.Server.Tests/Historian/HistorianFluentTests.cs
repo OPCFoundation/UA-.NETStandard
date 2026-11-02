@@ -455,6 +455,71 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
+        /// Registry shutdown during fluent setup cannot report a successful unpublished replacement.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ExplicitProviderReplacementReportsShutdownAndRestoresAttributesAsync(
+            bool failSetup,
+            bool autoCapture)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders, registry);
+            var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
+            {
+                CallBase = true
+            };
+            (NodeManagerBuilder builder, BaseDataVariableState node) =
+                CreateBuilderForServer(server, variable.Object);
+            node.AccessLevel = AccessLevels.CurrentRead;
+            node.UserAccessLevel = AccessLevels.CurrentRead;
+            using var previous = new InMemoryHistorianProvider();
+            using var attempted = new InMemoryHistorianProvider();
+            registry.RegisterForNode(node.NodeId, previous);
+            var setupFailure = new InvalidOperationException("Setup failed during shutdown.");
+            variable.Setup(value => value.FindChild(
+                    It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
+                .Returns(() =>
+                {
+                    registry.Dispose();
+                    if (failSetup)
+                    {
+                        throw setupFailure;
+                    }
+                    return null;
+                });
+
+            if (failSetup)
+            {
+                Assert.That(Assert.Throws<InvalidOperationException>(() =>
+                    builder.Variable<int>(node.NodeId).Historize(provider: attempted, autoCapture: autoCapture)),
+                    Is.SameAs(setupFailure));
+            }
+            else
+            {
+                Assert.Throws<ObjectDisposedException>(() =>
+                    builder.Variable<int>(node.NodeId).Historize(provider: attempted, autoCapture: autoCapture));
+            }
+            Assert.That(registry.Resolve(node.NodeId), Is.Null);
+            Assert.That(registry.Providers.IsEmpty, Is.True);
+            Assert.That(node.Historizing, Is.False);
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            node.Value = 987;
+            node.Timestamp = DateTime.UtcNow;
+            node.ClearChangeMasks(builder.Context, false);
+            foreach (HistorianBuilder captureBuilder in builders)
+            {
+                await captureBuilder.DisposeAsync().ConfigureAwait(false);
+            }
+            Assert.That(await CountHistoryAsync(attempted, builder.Context, node.NodeId).ConfigureAwait(false),
+                Is.Zero);
+        }
+
+        /// <summary>
         /// A custom scoped registry without replacement support rejects only an existing exact-node binding.
         /// </summary>
         [Test]
