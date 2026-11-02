@@ -252,7 +252,7 @@ namespace Opc.Ua.IA.Server
         public MethodState ResetStatistics { get; }
 
         /// <summary>
-        /// Publishes an owner snapshot, serialized with all resets on this binding.
+        /// Publishes a provider snapshot, serializing reads and reset commits on this binding.
         /// </summary>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
