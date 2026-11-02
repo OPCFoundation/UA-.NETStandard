@@ -117,7 +117,10 @@ namespace Opc.Ua.Scales.Tests
             }
             Publish(10.0);
             AssertGood(m_controller.Start(m_recipe.NodeId));
-            Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle), "a fresh activation snapshot may satisfy analog waits");
+            Assert.That(
+                m_controller.State,
+                Is.EqualTo(RecipeRunState.Idle),
+                "a fresh activation snapshot may satisfy analog waits");
             RecipeThresholdType advertised = m_controller.Scale.SupportedThresholdValues!.Value.ToArray()!.Single();
             Assert.That(advertised.ThresholdId, Is.EqualTo(7));
             Assert.That(advertised.ThresholdNodeId, Is.EqualTo(SourceNodeId));
@@ -312,9 +315,15 @@ namespace Opc.Ua.Scales.Tests
             EdgeTriggeredSleepState edge = Edge(mode);
             AssertGood(m_controller.Start(m_recipe.NodeId));
             Publish(after);
-            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge), "initial true is not a rising edge");
+            Assert.That(
+                m_controller.CurrentElements.ToArray(),
+                Does.Contain(edge),
+                "initial true is not a rising edge");
             Publish(before);
-            Assert.That(m_controller.CurrentElements.ToArray(), Does.Contain(edge), "the opposite edge does not satisfy this wait");
+            Assert.That(
+                m_controller.CurrentElements.ToArray(),
+                Does.Contain(edge),
+                "the opposite edge does not satisfy this wait");
             Publish(after);
             Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
         }
@@ -686,6 +695,98 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync()
+        {
+            Analog(0, 10.0);
+            Analog(0, 10.0, "Second");
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            int started = 0;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                if (Interlocked.Increment(ref started) == 1)
+                {
+                    entered.Set();
+                    release.Wait(TimeSpan.FromSeconds(10));
+                }
+            };
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+            m_controller.Dispose();
+            Task first = m_controller.DisposeAsync().AsTask();
+            Task second = m_controller.DisposeAsync().AsTask();
+            await Task.Delay(100).ConfigureAwait(false);
+
+            Assert.That(first.IsCompleted, Is.False, "a disposal after Dispose still waits for the callback");
+            Assert.That(second.IsCompleted, Is.False, "every caller awaits the same completion");
+            release.Set();
+            Task all = Task.WhenAll(first, second);
+            Task winner = await Task.WhenAny(all, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(winner, Is.SameAs(all));
+            Assert.That(start.IsCompleted, Is.True);
+            Assert.That(started, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task DisposeAsyncAfterDisposeWaitsForTheTimerAsync()
+        {
+            Enable(BuiltInType.Double);
+            var timerStopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_clock.TimerDisposalGate = timerStopped.Task;
+
+            m_controller.Dispose();
+            Task disposed = m_controller.DisposeAsync().AsTask();
+            await Task.Delay(100).ConfigureAwait(false);
+
+            Assert.That(disposed.IsCompleted, Is.False, "the timer stopped by Dispose has not finished yet");
+            timerStopped.SetResult(true);
+            Task winner = await Task.WhenAny(disposed, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+            Assert.That(winner, Is.SameAs(disposed));
+        }
+
+        [Test]
+        public async Task DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync()
+        {
+            Enable(BuiltInType.Double);
+            AnalogConditionSleepState first = Analog(0, 10.0);
+            first.AddTimeout(m_fixture.Context);
+            first.Timeout!.Value = 1000;
+            AssertGood(m_controller.Start(m_recipe.NodeId));
+            NodeState source = m_scale.Scale;
+            NodeStateReportEventHandler? previous = source.OnReportEvent;
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            source.OnReportEvent = (context, node, e) =>
+            {
+                previous?.Invoke(context, node, e);
+                entered.Set();
+                release.Wait(TimeSpan.FromSeconds(10));
+            };
+            try
+            {
+                Task fired = Task.Run(() => m_clock.Advance(TimeSpan.FromMilliseconds(1000)));
+                Assert.That(entered.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+                m_controller.Dispose();
+                Task disposed = m_controller.DisposeAsync().AsTask();
+                await Task.Delay(100).ConfigureAwait(false);
+
+                Assert.That(disposed.IsCompleted, Is.False, "the timer-driven notification is still running");
+                release.Set();
+                Task winner = await Task.WhenAny(disposed, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(winner, Is.SameAs(disposed));
+                Assert.That(fired.IsCompleted, Is.True, "the timer callback has returned");
+            }
+            finally
+            {
+                release.Set();
+                source.OnReportEvent = previous;
+            }
+        }
+
+        [Test]
         public void EdgeActivationSnapshotSurvivesClientEdits()
         {
             Enable(BuiltInType.Boolean);
@@ -821,6 +922,12 @@ namespace Opc.Ua.Scales.Tests
         {
             public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 
+            /// <summary>
+            /// When set, asynchronous timer disposal completes with this task, standing in for a
+            /// timer callback that is still running.
+            /// </summary>
+            public Task? TimerDisposalGate { get; set; }
+
             public override DateTimeOffset GetUtcNow()
             {
                 return m_now;
@@ -888,7 +995,8 @@ namespace Opc.Ua.Scales.Tests
             public ValueTask DisposeAsync()
             {
                 Dispose();
-                return default;
+                Task? gate = m_clock.TimerDisposalGate;
+                return gate == null ? default : new ValueTask(gate);
             }
 
             private readonly RecipeClock m_clock;

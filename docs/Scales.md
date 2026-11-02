@@ -715,14 +715,18 @@ caller to receive it, so the controller logs a failed timer-driven evaluation at
 Error level with event ID 8230 (`ScalesServerEventIds.ScaleRecipes`) and the
 process keeps running.
 
-`Dispose` stops the controller. It discards notifications not yet delivered and
-stops the timer, so no notification starts after it returns. A subscriber
-callback already running on another thread may still be executing at that point.
-`DisposeAsync` stops the controller the same way and completes once the timer
-callback and every running subscriber callback have returned; the Scales runtime
-uses it when the node manager shuts down. A subscriber may call `DisposeAsync`
-from its own callback, but it must await the returned task instead of blocking
-on it, because the task completes only after that callback returns.
+`Dispose` stops the controller. It discards queued notifications and stops the
+timer, so no condition is evaluated and no queued notification is admitted after
+it returns. It does not wait: a drain already delivering a batch on another
+thread may still start the one notification it admitted before it saw the stop,
+and a running subscriber callback keeps running. `DisposeAsync` stops the
+controller the same way and completes once the timer has been disposed and every
+callback running at the stop has returned. Every caller awaits the same
+completion, including a `DisposeAsync` that follows an earlier `Dispose` or a
+second concurrent `DisposeAsync`. The Scales runtime uses it when the node
+manager shuts down. A subscriber may call `DisposeAsync` from its own callback,
+but it must await the returned task instead of blocking on it, because the task
+completes only after that callback returns.
 
 ### PackML
 
@@ -893,7 +897,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
-| Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync` |
+| Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 

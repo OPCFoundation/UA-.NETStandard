@@ -122,7 +122,9 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (m_conditionSources.ContainsKey(thresholdId) ||
                     (!nodeId.IsNull && m_conditionSources.Values.Any(s => s.NodeId == nodeId)))
                 {
-                    throw new ArgumentException("The condition source identifier is already registered.", nameof(thresholdId));
+                    throw new ArgumentException(
+                        "The condition source identifier is already registered.",
+                        nameof(thresholdId));
                 }
                 m_conditionSources.Add(thresholdId, new ConditionSource(
                     thresholdId, nodeId, name, dataType, engineeringUnits));
@@ -176,7 +178,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 source.Sequence++;
                 if (gap || !source.Good || State != RecipeRunState.Running)
                 {
-                    foreach (ConditionWait wait in m_conditionWaits.Values.Where(w => ReferenceEquals(w.Source, source)))
+                    foreach (ConditionWait wait in m_conditionWaits.Values
+                        .Where(w => ReferenceEquals(w.Source, source)))
                     {
                         wait.HasPrevious = false;
                     }
@@ -285,60 +288,87 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>
         /// Stops the controller: discards all recipe execution and observation state and
-        /// the notifications not yet delivered, and stops the condition timer. No notification
-        /// starts and no condition is evaluated after this returns. A subscriber callback that
-        /// is already running on another thread is not waited for; use <see cref="DisposeAsync"/>
-        /// to wait until it has returned.
+        /// the queued notifications, and stops the condition timer. No condition is evaluated
+        /// and no queued notification is admitted after this returns. A drain that was already
+        /// delivering a batch on another thread may still start the notification it admitted
+        /// before the stop was observed, and a running subscriber callback is not waited for;
+        /// await <see cref="DisposeAsync"/> to wait until the controller is quiescent.
         /// </summary>
         public void Dispose()
         {
-            Stop()?.Dispose();
+            _ = Stop();
         }
 
         /// <summary>
         /// Stops the controller like <see cref="Dispose"/>, then completes once the condition
-        /// timer callback and every subscriber callback already in flight have returned.
-        /// A subscriber may call this from its own callback; the returned task then completes
-        /// after that callback has returned, so it must be awaited, not blocked on.
+        /// timer callback and every subscriber callback in flight at the stop have returned.
+        /// Every caller, including one that follows an earlier <see cref="Dispose"/>, awaits the
+        /// same completion. A subscriber may call this from its own callback; the returned task
+        /// then completes after that callback has returned, so it must be awaited, not blocked on.
         /// </summary>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            ITimer? timer = Stop();
-            if (timer != null)
-            {
-                await timer.DisposeAsync().ConfigureAwait(false);
-            }
-            Task drained;
-            lock (m_lock)
-            {
-                if (m_activeDrains == 0)
-                {
-                    return;
-                }
-                m_drained ??= new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                drained = m_drained.Task;
-            }
-            await drained.ConfigureAwait(false);
+            return new ValueTask(Stop());
         }
 
         /// <summary>
-        /// Marks the controller disposed and detaches the condition timer, once.
+        /// Marks the controller disposed, once, and returns the shared task that completes when
+        /// the timer is disposed and every running notification drain has ended.
         /// </summary>
-        private ITimer? Stop()
+        private Task Stop()
         {
+            ITimer? timer;
+            TaskCompletionSource<bool> quiesced;
             lock (m_lock)
             {
-                if (m_disposed)
+                if (m_quiesced != null)
                 {
-                    return null;
+                    return m_quiesced.Task;
                 }
+                quiesced = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_quiesced = quiesced;
                 m_disposed = true;
                 Finish();
                 m_conditionSources.Clear();
                 m_pending.Clear();
-                ITimer? timer = m_conditionTimer;
+                timer = m_conditionTimer;
                 m_conditionTimer = null;
-                return timer;
+            }
+            _ = QuiesceAsync(timer, quiesced);
+            return quiesced.Task;
+        }
+
+        /// <summary>
+        /// Disposes the condition timer, waiting for a running timer callback, then waits for
+        /// the notification drains that were running when the controller stopped.
+        /// </summary>
+        private async Task QuiesceAsync(ITimer? timer, TaskCompletionSource<bool> quiesced)
+        {
+            try
+            {
+                if (timer != null)
+                {
+                    await timer.DisposeAsync().ConfigureAwait(false);
+                }
+                Task? drained = null;
+                lock (m_lock)
+                {
+                    if (m_activeDrains != 0)
+                    {
+                        m_drained ??= new TaskCompletionSource<bool>(
+                            TaskCreationOptions.RunContinuationsAsynchronously);
+                        drained = m_drained.Task;
+                    }
+                }
+                if (drained != null)
+                {
+                    await drained.ConfigureAwait(false);
+                }
+                quiesced.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                quiesced.TrySetException(ex);
             }
         }
 
@@ -412,7 +442,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 if (wait.Mode is < 0 or > 5 || !NumericCompatible(source.DataType, wait.Target.TypeInfo.BuiltInType) ||
                     !IsFiniteNumeric(wait.Target) || !unitsMatch)
                 {
-                    RequireConditionIntervention(element, wait, "Condition comparison type, units or operator is invalid.");
+                    RequireConditionIntervention(
+                        element,
+                        wait,
+                        "Condition comparison type, units or operator is invalid.");
                     return;
                 }
             }
@@ -777,6 +810,9 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         /// <summary>Completed when the last drain running at an asynchronous disposal ends.</summary>
         private TaskCompletionSource<bool>? m_drained;
+
+        /// <summary>Completed once the stopped controller is quiescent; set by the first stop.</summary>
+        private TaskCompletionSource<bool>? m_quiesced;
     }
 
     /// <summary>
