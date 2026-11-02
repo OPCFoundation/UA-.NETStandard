@@ -261,7 +261,8 @@ limitations and the actual configured instance before claiming a facet.
 | [Perception](Vision.md#perception-model) and [Robot Intent](Robotics.md#robot-intent) | Perception/media/inference/feedback and robot task-intent implementations | Draft models with provisional identifiers, not released-companion conformance claims |
 | [AI](AI.md), [xRegistry](XRegistry.md), [OpenUSD](OpenUsd.md) | Model/deployment/inference services, registry/version/federation and scene/address-space integration | Draft extension models; preview-only families, with provider/backend-specific limits |
 | [WoT Connectivity](WotCon.md) | OPC 10100-1 interfaces and WoT conversion/binding implementations | Preview package policy; registry extensions and transport-specific bindings have separate scope |
-| [PA-DIM/ECM](Machinery.md) and [PackML](Scales.md) | Shared generated dependency models and the behavior bound by Machinery/Scales | Not a blanket standalone device or all-facet implementation claim |
+| [PA-DIM/ECM](Machinery.md) | Shared generated dependency models and the behavior bound by Machinery | Not a blanket standalone device or all-facet implementation claim |
+| [PackML](PackML.md), OPC 30050 | Standalone provider-backed units, configurable state subsets, administration and typed clients; Scales composition remains available | Equipment acceptance is separate from completion; inherited server facets and equipment-owned behavior require deployment validation |
 
 Package preview status is governed by [the release policy](ReleaseProcess.md#terms),
 not by a specification's publication date. The MachineTool/GMS and released
@@ -737,6 +738,7 @@ for the variant selected by `--ctt`.
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
+- [PackML](PackML.md) (OPC 30050 standalone units)
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
 - [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)
 - [Geometric Measurement Systems](GMS.md) (OPC 40210)

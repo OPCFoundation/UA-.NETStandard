@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua.PackML
@@ -233,40 +234,266 @@ namespace Opc.Ua.PackML
         }
 
         /// <summary>
+        /// Gets the active host-defined mode key.
+        /// </summary>
+        public uint CurrentMode
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_currentMode;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the state numbers supported in the active mode.
+        /// </summary>
+        public ArrayOf<uint> SupportedStates
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    uint[] states = m_supportedStates.ToArray();
+                    Array.Sort(states);
+                    return ArrayOf.Wrapped(states);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the supported state numbers for the active mode.
+        /// Transitions with an unsupported source or destination state are
+        /// removed from the state machines' <c>AvailableTransitions</c>.
+        /// </summary>
+        /// <param name="stateNumbers">The supported PackML state numbers.</param>
+        /// <returns>
+        /// <c>Good</c>, or <c>BadInvalidArgument</c> for an unknown state
+        /// number, or <c>BadInvalidState</c> if the active state would be
+        /// excluded.
+        /// </returns>
+        public ServiceResult SetSupportedStates(ArrayOf<uint> stateNumbers)
+        {
+            if (!TryCreateSupportedStates(stateNumbers, out HashSet<uint> states))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "The supported PackML states contain an unknown or duplicate state number.");
+            }
+
+            lock (m_lock)
+            {
+                if (!AllActiveStatesSupported(states))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The supported PackML states exclude an active state.");
+                }
+                m_modeStates[m_currentMode] = states;
+                m_supportedStates = states;
+                RefreshAvailability();
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Sets the supported state numbers for a PackML mode.
+        /// </summary>
+        /// <param name="mode">The host-defined mode key.</param>
+        /// <param name="stateNumbers">The supported PackML state numbers.</param>
+        /// <returns>
+        /// <c>Good</c>, or <c>BadInvalidArgument</c> for an unknown state
+        /// number, or <c>BadInvalidState</c> if the active state would
+        /// be excluded.
+        /// </returns>
+        public ServiceResult SetSupportedStates(uint mode, ArrayOf<uint> stateNumbers)
+        {
+            if (!TryCreateSupportedStates(stateNumbers, out HashSet<uint> states))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "The PackML mode or supported state numbers are invalid.");
+            }
+
+            lock (m_lock)
+            {
+                if (mode == m_currentMode && !AllActiveStatesSupported(states))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The supported PackML states exclude an active state.");
+                }
+                m_modeStates[mode] = states;
+                if (mode == m_currentMode)
+                {
+                    m_supportedStates = states;
+                    RefreshAvailability();
+                }
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Activates a previously configured PackML mode.
+        /// </summary>
+        /// <param name="mode">The host-defined mode key.</param>
+        /// <returns>
+        /// <c>Good</c>, or <c>BadInvalidState</c> if the mode excludes an
+        /// active state. Unconfigured modes support all PackML states.
+        /// </returns>
+        public ServiceResult SetMode(uint mode)
+        {
+            lock (m_lock)
+            {
+                HashSet<uint> states = m_modeStates.TryGetValue(mode, out HashSet<uint>? configured)
+                    ? configured
+                    : new HashSet<uint>(s_allStateNumbers);
+                if (!AllActiveStatesSupported(states))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The selected PackML mode excludes an active state.");
+                }
+                m_currentMode = mode;
+                m_supportedStates = states;
+                RefreshAvailability();
+            }
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Checks whether the active state and mode permit a command.
+        /// This check does not invoke <see cref="CommandGuard"/>; execution
+        /// rechecks state and mode after any external asynchronous work.
+        /// </summary>
+        /// <param name="command">The command to check.</param>
+        /// <returns>
+        /// <see langword="true"/> when the command is permitted by the active
+        /// state machine configuration.
+        /// </returns>
+        public bool CanExecute(PackMLCommand command)
+        {
+            lock (m_lock)
+            {
+                return Resolve(command) != null;
+            }
+        }
+
+        /// <summary>
+        /// Configures the active mode's supported states and initializes the
+        /// state machines in one operation.
+        /// </summary>
+        /// <param name="states">The supported PackML state numbers.</param>
+        /// <param name="initialState">The state to initialize.</param>
+        /// <exception cref="ArgumentException">
+        /// The state list is invalid or does not include the requested initial
+        /// state.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The initial state value is not defined.
+        /// </exception>
+        public void ConfigureStates(ArrayOf<uint> states, PackMLInitialState initialState)
+        {
+            if (!TryCreateSupportedStates(states, out HashSet<uint> supportedStates))
+            {
+                throw new ArgumentException(
+                    "The supported PackML states contain an unknown or duplicate state number.",
+                    nameof(states));
+            }
+
+            lock (m_lock)
+            {
+                uint[] initialStates = InitialStateNumbers(initialState);
+                if (initialStates.Any(state => !supportedStates.Contains(state)))
+                {
+                    throw new ArgumentException(
+                        "The initial state is excluded by the configured supported states.",
+                        nameof(initialState));
+                }
+                m_modeStates[m_currentMode] = supportedStates;
+                m_supportedStates = supportedStates;
+                InitializeCore(initialState);
+            }
+            RaisePendingChanges();
+        }
+
+        /// <summary>
         /// Puts the three state machines into a consistent initial state
         /// without reporting transition events, and publishes the
         /// <c>AvailableStates</c> and <c>AvailableTransitions</c> of each.
         /// </summary>
         /// <param name="initialState">The state to start in.</param>
+        /// <exception cref="ArgumentException">
+        /// The initial state is excluded by the active mode's supported states.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The initial state value is not defined.
+        /// </exception>
         public void Initialize(PackMLInitialState initialState = PackMLInitialState.Stopped)
         {
             lock (m_lock)
             {
-                uint previous = CurrentStateCore();
-                PublishAvailable();
-                switch (initialState)
-                {
-                    case PackMLInitialState.Aborted:
-                        Enter(StateMachine, Objects.PackMLBaseStateMachineType_Aborted);
-                        Deactivate(m_machine);
-                        Deactivate(m_execute);
-                        break;
-                    case PackMLInitialState.Idle:
-                        Enter(StateMachine, Objects.PackMLBaseStateMachineType_Cleared);
-                        Enter(m_machine, Objects.PackMLMachineStateMachineType_Running);
-                        Enter(m_execute, Objects.PackMLExecuteStateMachineType_Idle);
-                        break;
-                    default:
-                        Enter(StateMachine, Objects.PackMLBaseStateMachineType_Cleared);
-                        Enter(m_machine, Objects.PackMLMachineStateMachineType_Stopped);
-                        Deactivate(m_execute);
-                        break;
-                }
-                UpdateExecutable();
-                StateMachine.ClearChangeMasks(m_context, includeChildren: true);
-                QueueChanged(previous);
+                InitializeCore(initialState);
             }
             RaisePendingChanges();
+        }
+
+        /// <summary>
+        /// Initializes all nested states while the controller owns serialization.
+        /// </summary>
+        private void InitializeCore(PackMLInitialState initialState)
+        {
+            uint[] initialStates = InitialStateNumbers(initialState);
+            if (initialStates.Any(state => !m_supportedStates.Contains(state)))
+            {
+                throw new ArgumentException(
+                    "The initial state is excluded by the active mode's supported states.",
+                    nameof(initialState));
+            }
+            uint previous = CurrentStateCore();
+            PublishAvailable();
+            switch (initialState)
+            {
+                case PackMLInitialState.Aborted:
+                    Enter(StateMachine, Objects.PackMLBaseStateMachineType_Aborted);
+                    Deactivate(m_machine);
+                    Deactivate(m_execute);
+                    break;
+                case PackMLInitialState.Idle:
+                    Enter(StateMachine, Objects.PackMLBaseStateMachineType_Cleared);
+                    Enter(m_machine, Objects.PackMLMachineStateMachineType_Running);
+                    Enter(m_execute, Objects.PackMLExecuteStateMachineType_Idle);
+                    break;
+                case PackMLInitialState.Stopped:
+                    Enter(StateMachine, Objects.PackMLBaseStateMachineType_Cleared);
+                    Enter(m_machine, Objects.PackMLMachineStateMachineType_Stopped);
+                    Deactivate(m_execute);
+                    break;
+            }
+            UpdateExecutable();
+            StateMachine.ClearChangeMasks(m_context, includeChildren: true);
+            QueueChanged(previous);
+        }
+
+        /// <summary>
+        /// Gets the active state and parent states required by an initial state.
+        /// </summary>
+        private static uint[] InitialStateNumbers(PackMLInitialState initialState)
+        {
+            return initialState switch
+            {
+                PackMLInitialState.Aborted => [PackMLStateNumbers.Aborted],
+                PackMLInitialState.Stopped => [PackMLStateNumbers.Cleared, PackMLStateNumbers.Stopped],
+                PackMLInitialState.Idle =>
+                [
+                    PackMLStateNumbers.Cleared,
+                    PackMLStateNumbers.Running,
+                    PackMLStateNumbers.Idle
+                ],
+                _ => throw new ArgumentOutOfRangeException(nameof(initialState))
+            };
         }
 
         /// <summary>
@@ -419,7 +646,7 @@ namespace Opc.Ua.PackML
             };
             foreach ((FiniteStateMachineState machine, uint causeId) in candidates)
             {
-                if (IsActive(machine) && machine.IsCausePermitted(m_context, causeId, false))
+                if (IsPermittedCause(machine, causeId))
                 {
                     return (machine, causeId);
                 }
@@ -438,9 +665,16 @@ namespace Opc.Ua.PackML
             {
                 if (state == Objects.PackMLBaseStateMachineType_Cleared)
                 {
-                    // Entering Cleared starts the machine state machine in
-                    // Clearing, which is itself an acting state.
-                    Enter(m_machine, Objects.PackMLMachineStateMachineType_Clearing);
+                    if (IsStateSupported(Objects.PackMLMachineStateMachineType_Clearing))
+                    {
+                        // Entering Cleared starts the machine state machine in
+                        // Clearing, which is itself an acting state.
+                        Enter(m_machine, Objects.PackMLMachineStateMachineType_Clearing);
+                    }
+                    else
+                    {
+                        Deactivate(m_machine);
+                    }
                     Deactivate(m_execute);
                 }
                 else
@@ -451,7 +685,8 @@ namespace Opc.Ua.PackML
             }
             else if (ReferenceEquals(machine, m_machine))
             {
-                if (state == Objects.PackMLMachineStateMachineType_Running)
+                if (state == Objects.PackMLMachineStateMachineType_Running &&
+                    IsStateSupported(Objects.PackMLExecuteStateMachineType_Resetting))
                 {
                     Enter(m_execute, Objects.PackMLExecuteStateMachineType_Resetting);
                 }
@@ -501,7 +736,7 @@ namespace Opc.Ua.PackML
                     continue;
                 }
                 uint transitionId = CompletionOf(StateOf(machine));
-                if (transitionId == 0)
+                if (transitionId == 0 || !IsTransitionSupported(transitionId))
                 {
                     // The innermost active machine is at rest; an outer
                     // machine's acting state cannot be active beneath it.
@@ -604,7 +839,7 @@ namespace Opc.Ua.PackML
                 // The guard runs outside the lock, as in ExecuteGuarded.
                 lock (m_lock)
                 {
-                    if (!IsActive(machine) || !machine.IsCausePermitted(m_context, causeId, false))
+                    if (!IsPermittedCause(machine, causeId))
                     {
                         return ResetNotAllowed();
                     }
@@ -616,7 +851,7 @@ namespace Opc.Ua.PackML
                 }
                 lock (m_lock)
                 {
-                    if (!IsActive(machine) || !machine.IsCausePermitted(m_context, causeId, false))
+                    if (!IsPermittedCause(machine, causeId))
                     {
                         return ResetNotAllowed();
                     }
@@ -667,36 +902,36 @@ namespace Opc.Ua.PackML
             {
                 return;
             }
-            bool executable = IsActive(machine) && machine.IsCausePermitted(m_context, causeId, false);
+            bool executable = IsPermittedCause(machine, causeId);
             method.Executable = executable;
             method.UserExecutable = executable;
         }
 
         private void PublishAvailable()
         {
-            SetAvailable(
+            SetAvailableStates(
                 StateMachine.AvailableStates,
                 Objects.PackMLBaseStateMachineType_Aborting,
                 Objects.PackMLBaseStateMachineType_Aborted,
                 Objects.PackMLBaseStateMachineType_Cleared);
-            SetAvailable(
+            SetAvailableTransitions(
                 StateMachine.AvailableTransitions,
                 Objects.PackMLBaseStateMachineType_AbortedToCleared,
                 Objects.PackMLBaseStateMachineType_AbortingToAborted,
                 Objects.PackMLBaseStateMachineType_ClearedToAborting);
-            SetAvailable(
+            SetAvailableStates(
                 m_machine.AvailableStates,
                 Objects.PackMLMachineStateMachineType_Clearing,
                 Objects.PackMLMachineStateMachineType_Stopped,
                 Objects.PackMLMachineStateMachineType_Running,
                 Objects.PackMLMachineStateMachineType_Stopping);
-            SetAvailable(
+            SetAvailableTransitions(
                 m_machine.AvailableTransitions,
                 Objects.PackMLMachineStateMachineType_ClearingToStopped,
                 Objects.PackMLMachineStateMachineType_StoppedToRunning,
                 Objects.PackMLMachineStateMachineType_RunningToStopping,
                 Objects.PackMLMachineStateMachineType_StoppingToStopped);
-            SetAvailable(
+            SetAvailableStates(
                 m_execute.AvailableStates,
                 Objects.PackMLExecuteStateMachineType_Resetting,
                 Objects.PackMLExecuteStateMachineType_Idle,
@@ -710,7 +945,7 @@ namespace Opc.Ua.PackML
                 Objects.PackMLExecuteStateMachineType_Suspending,
                 Objects.PackMLExecuteStateMachineType_Suspended,
                 Objects.PackMLExecuteStateMachineType_Unsuspending);
-            SetAvailable(
+            SetAvailableTransitions(
                 m_execute.AvailableTransitions,
                 Objects.PackMLExecuteStateMachineType_ResettingToIdle,
                 Objects.PackMLExecuteStateMachineType_IdleToStarting,
@@ -733,7 +968,10 @@ namespace Opc.Ua.PackML
                 Objects.PackMLExecuteStateMachineType_UnholdingToHolding);
         }
 
-        private void SetAvailable(BaseDataVariableState<ArrayOf<NodeId>>? variable, params uint[] ids)
+        /// <summary>
+        /// Publishes only states included in the active mode's subset.
+        /// </summary>
+        private void SetAvailableStates(BaseDataVariableState<ArrayOf<NodeId>>? variable, params uint[] ids)
         {
             if (variable == null)
             {
@@ -742,9 +980,233 @@ namespace Opc.Ua.PackML
             var nodeIds = new List<NodeId>(ids.Length);
             foreach (uint id in ids)
             {
-                nodeIds.Add(new NodeId(id, m_namespaceIndex));
+                if (IsStateSupported(id))
+                {
+                    nodeIds.Add(new NodeId(id, m_namespaceIndex));
+                }
             }
             variable.Value = nodeIds.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Publishes transitions whose source and destination states are supported.
+        /// </summary>
+        private void SetAvailableTransitions(
+            BaseDataVariableState<ArrayOf<NodeId>>? variable,
+            params uint[] ids)
+        {
+            if (variable == null)
+            {
+                return;
+            }
+            var nodeIds = new List<NodeId>(ids.Length);
+            foreach (uint id in ids)
+            {
+                if (IsTransitionSupported(id))
+                {
+                    nodeIds.Add(new NodeId(id, m_namespaceIndex));
+                }
+            }
+            variable.Value = nodeIds.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Checks the active graph and nested entry states before enabling a cause.
+        /// </summary>
+        private bool IsPermittedCause(FiniteStateMachineState machine, uint causeId)
+        {
+            if (!IsActive(machine) ||
+                !machine.IsCausePermitted(m_context, causeId, false) ||
+                !IsCauseTransitionSupported(machine, causeId))
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(machine, StateMachine) &&
+                causeId == Methods.PackMLBaseStateMachineType_Clear)
+            {
+                return IsStateSupported(Objects.PackMLMachineStateMachineType_Clearing);
+            }
+            return !ReferenceEquals(machine, m_machine) ||
+                causeId != Methods.PackMLMachineStateMachineType_Reset ||
+                IsStateSupported(Objects.PackMLExecuteStateMachineType_Resetting);
+        }
+
+        /// <summary>
+        /// Finds a supported outgoing transition for a cause on its owning machine.
+        /// </summary>
+        private bool IsCauseTransitionSupported(FiniteStateMachineState machine, uint causeId)
+        {
+            uint state = StateOf(machine);
+            foreach (uint transitionId in CauseTransitions(causeId))
+            {
+                (uint fromState, _) = TransitionEndpoints(transitionId);
+                if (fromState == state && IsTransitionSupported(transitionId))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Maps a method identifier to its published PackML transitions.
+        /// </summary>
+        private static uint[] CauseTransitions(uint causeId)
+        {
+            return causeId switch
+            {
+                Methods.PackMLBaseStateMachineType_Abort =>
+                    [Objects.PackMLBaseStateMachineType_ClearedToAborting],
+                Methods.PackMLBaseStateMachineType_Clear =>
+                    [Objects.PackMLBaseStateMachineType_AbortedToCleared],
+                Methods.PackMLMachineStateMachineType_Stop =>
+                    [Objects.PackMLMachineStateMachineType_RunningToStopping],
+                Methods.PackMLMachineStateMachineType_Reset =>
+                    [Objects.PackMLMachineStateMachineType_StoppedToRunning],
+                Methods.PackMLExecuteStateMachineType_Reset =>
+                    [Objects.PackMLExecuteStateMachineType_CompleteToResetting],
+                Methods.PackMLExecuteStateMachineType_Start =>
+                    [Objects.PackMLExecuteStateMachineType_IdleToStarting],
+                Methods.PackMLExecuteStateMachineType_Hold =>
+                [
+                    Objects.PackMLExecuteStateMachineType_ExecuteToHolding,
+                    Objects.PackMLExecuteStateMachineType_StartingToHolding,
+                    Objects.PackMLExecuteStateMachineType_SuspendingToHolding,
+                    Objects.PackMLExecuteStateMachineType_SuspendedToHolding,
+                    Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding,
+                    Objects.PackMLExecuteStateMachineType_UnholdingToHolding
+                ],
+                Methods.PackMLExecuteStateMachineType_Unhold =>
+                    [Objects.PackMLExecuteStateMachineType_HeldToUnholding],
+                Methods.PackMLExecuteStateMachineType_Suspend =>
+                    [Objects.PackMLExecuteStateMachineType_ExecuteToSuspending],
+                Methods.PackMLExecuteStateMachineType_Unsuspend =>
+                    [Objects.PackMLExecuteStateMachineType_SuspendedToUnsuspending],
+                Methods.PackMLExecuteStateMachineType_ToComplete =>
+                    [Objects.PackMLExecuteStateMachineType_ExecuteToCompleting],
+                _ => []
+            };
+        }
+
+        /// <summary>
+        /// Tests a model state identifier against the configured state numbers.
+        /// </summary>
+        private bool IsStateSupported(uint stateId)
+        {
+            return m_supportedStates.Contains(PackMLStateNumbers.FromStateId(stateId));
+        }
+
+        /// <summary>
+        /// Requires both ends of a transition in the configured state subset.
+        /// </summary>
+        private bool IsTransitionSupported(uint transitionId)
+        {
+            (uint fromState, uint toState) = TransitionEndpoints(transitionId);
+            return fromState != 0 &&
+                m_supportedStates.Contains(PackMLStateNumbers.FromStateId(fromState)) &&
+                m_supportedStates.Contains(PackMLStateNumbers.FromStateId(toState));
+        }
+
+        /// <summary>
+        /// Gets the model state identifiers at each end of a PackML transition.
+        /// </summary>
+        private static (uint FromState, uint ToState) TransitionEndpoints(uint transitionId)
+        {
+            return transitionId switch
+            {
+                Objects.PackMLBaseStateMachineType_AbortedToCleared =>
+                    (Objects.PackMLBaseStateMachineType_Aborted, Objects.PackMLBaseStateMachineType_Cleared),
+                Objects.PackMLBaseStateMachineType_AbortingToAborted =>
+                    (Objects.PackMLBaseStateMachineType_Aborting, Objects.PackMLBaseStateMachineType_Aborted),
+                Objects.PackMLBaseStateMachineType_ClearedToAborting =>
+                    (Objects.PackMLBaseStateMachineType_Cleared, Objects.PackMLBaseStateMachineType_Aborting),
+                Objects.PackMLMachineStateMachineType_ClearingToStopped =>
+                    (Objects.PackMLMachineStateMachineType_Clearing, Objects.PackMLMachineStateMachineType_Stopped),
+                Objects.PackMLMachineStateMachineType_StoppedToRunning =>
+                    (Objects.PackMLMachineStateMachineType_Stopped, Objects.PackMLMachineStateMachineType_Running),
+                Objects.PackMLMachineStateMachineType_RunningToStopping =>
+                    (Objects.PackMLMachineStateMachineType_Running, Objects.PackMLMachineStateMachineType_Stopping),
+                Objects.PackMLMachineStateMachineType_StoppingToStopped =>
+                    (Objects.PackMLMachineStateMachineType_Stopping, Objects.PackMLMachineStateMachineType_Stopped),
+                Objects.PackMLExecuteStateMachineType_ResettingToIdle =>
+                    (Objects.PackMLExecuteStateMachineType_Resetting, Objects.PackMLExecuteStateMachineType_Idle),
+                Objects.PackMLExecuteStateMachineType_IdleToStarting =>
+                    (Objects.PackMLExecuteStateMachineType_Idle, Objects.PackMLExecuteStateMachineType_Starting),
+                Objects.PackMLExecuteStateMachineType_StartingToExecute =>
+                    (Objects.PackMLExecuteStateMachineType_Starting, Objects.PackMLExecuteStateMachineType_Execute),
+                Objects.PackMLExecuteStateMachineType_ExecuteToSuspending =>
+                    (Objects.PackMLExecuteStateMachineType_Execute, Objects.PackMLExecuteStateMachineType_Suspending),
+                Objects.PackMLExecuteStateMachineType_SuspendingToSuspended =>
+                    (Objects.PackMLExecuteStateMachineType_Suspending, Objects.PackMLExecuteStateMachineType_Suspended),
+                Objects.PackMLExecuteStateMachineType_UnsuspendingToExecute =>
+                    (Objects.PackMLExecuteStateMachineType_Unsuspending, Objects.PackMLExecuteStateMachineType_Execute),
+                Objects.PackMLExecuteStateMachineType_ExecuteToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Execute, Objects.PackMLExecuteStateMachineType_Holding),
+                Objects.PackMLExecuteStateMachineType_HoldingToHeld =>
+                    (Objects.PackMLExecuteStateMachineType_Holding, Objects.PackMLExecuteStateMachineType_Held),
+                Objects.PackMLExecuteStateMachineType_HeldToUnholding =>
+                    (Objects.PackMLExecuteStateMachineType_Held, Objects.PackMLExecuteStateMachineType_Unholding),
+                Objects.PackMLExecuteStateMachineType_UnholdingToExecute =>
+                    (Objects.PackMLExecuteStateMachineType_Unholding, Objects.PackMLExecuteStateMachineType_Execute),
+                Objects.PackMLExecuteStateMachineType_ExecuteToCompleting =>
+                    (Objects.PackMLExecuteStateMachineType_Execute, Objects.PackMLExecuteStateMachineType_Completing),
+                Objects.PackMLExecuteStateMachineType_CompletingToComplete =>
+                    (Objects.PackMLExecuteStateMachineType_Completing, Objects.PackMLExecuteStateMachineType_Complete),
+                Objects.PackMLExecuteStateMachineType_CompleteToResetting =>
+                    (Objects.PackMLExecuteStateMachineType_Complete, Objects.PackMLExecuteStateMachineType_Resetting),
+                Objects.PackMLExecuteStateMachineType_SuspendedToUnsuspending =>
+                    (Objects.PackMLExecuteStateMachineType_Suspended, Objects.PackMLExecuteStateMachineType_Unsuspending),
+                Objects.PackMLExecuteStateMachineType_StartingToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Starting, Objects.PackMLExecuteStateMachineType_Holding),
+                Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Unsuspending, Objects.PackMLExecuteStateMachineType_Holding),
+                Objects.PackMLExecuteStateMachineType_SuspendedToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Suspended, Objects.PackMLExecuteStateMachineType_Holding),
+                Objects.PackMLExecuteStateMachineType_SuspendingToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Suspending, Objects.PackMLExecuteStateMachineType_Holding),
+                Objects.PackMLExecuteStateMachineType_UnholdingToHolding =>
+                    (Objects.PackMLExecuteStateMachineType_Unholding, Objects.PackMLExecuteStateMachineType_Holding),
+                _ => (0, 0)
+            };
+        }
+
+        /// <summary>
+        /// Checks that replacing a subset would preserve every active nested state.
+        /// </summary>
+        private bool AllActiveStatesSupported(HashSet<uint> states)
+        {
+            return InnermostFirst().All(machine =>
+            {
+                uint stateId = StateOf(machine);
+                return stateId == 0 || states.Contains(PackMLStateNumbers.FromStateId(stateId));
+            });
+        }
+
+        /// <summary>
+        /// Copies unique standard state numbers into a detached subset.
+        /// </summary>
+        private static bool TryCreateSupportedStates(ArrayOf<uint> stateNumbers, out HashSet<uint> states)
+        {
+            states = new HashSet<uint>();
+            foreach (uint state in stateNumbers.Span)
+            {
+                if (!s_allStateNumbers.Contains(state) || !states.Add(state))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Refreshes published availability and method executability after a subset change.
+        /// </summary>
+        private void RefreshAvailability()
+        {
+            PublishAvailable();
+            UpdateExecutable();
+            StateMachine.ClearChangeMasks(m_context, includeChildren: true);
         }
 
         private void Enter(FiniteStateMachineState machine, uint stateId)
@@ -868,7 +1330,41 @@ namespace Opc.Ua.PackML
         private readonly ushort m_namespaceIndex;
         private readonly Lock m_lock = new();
         private readonly Queue<PackMLStateChangedEventArgs> m_pendingChanges = new();
+
+        /// <summary>The supported state subset for each configured host-defined mode.</summary>
+        private readonly Dictionary<uint, HashSet<uint>> m_modeStates = new();
+
+        /// <summary>The state numbers supported in the active mode.</summary>
+        private HashSet<uint> m_supportedStates = new(s_allStateNumbers);
+
+        /// <summary>The active host-defined mode key.</summary>
+        private uint m_currentMode = 1;
+
         private ArrayOf<PackMLDescriptorDataType> m_startParameters;
         private bool m_raisingChanges;
+
+        /// <summary>The standard PackML state numbers, including nested parent states.</summary>
+        private static readonly uint[] s_allStateNumbers =
+        [
+            PackMLStateNumbers.Clearing,
+            PackMLStateNumbers.Stopped,
+            PackMLStateNumbers.Starting,
+            PackMLStateNumbers.Idle,
+            PackMLStateNumbers.Suspended,
+            PackMLStateNumbers.Execute,
+            PackMLStateNumbers.Stopping,
+            PackMLStateNumbers.Aborting,
+            PackMLStateNumbers.Aborted,
+            PackMLStateNumbers.Holding,
+            PackMLStateNumbers.Held,
+            PackMLStateNumbers.Unholding,
+            PackMLStateNumbers.Suspending,
+            PackMLStateNumbers.Unsuspending,
+            PackMLStateNumbers.Resetting,
+            PackMLStateNumbers.Completing,
+            PackMLStateNumbers.Complete,
+            PackMLStateNumbers.Running,
+            PackMLStateNumbers.Cleared
+        ];
     }
 }

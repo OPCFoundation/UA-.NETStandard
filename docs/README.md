@@ -221,6 +221,8 @@ models that each model depends on.
 - [Scales](Scales.md) (OPC 40200 and OPC 30050) — weighing
   technology with every scale kind, scale systems, recipes and PackML state
   machines, based on the Machinery model.
+- [PackML](PackML.md) (OPC 30050) — standalone provider-backed units,
+  configurable modes, administration, typed clients and a simulated sample.
 - [Plastics and rubber capabilities](PlasticsRubber.md) (OPC 40083 and OPC 40082-6) —
   shared machine configuration, control and monitoring, with
   [production dataset transfer](PlasticsRubber.md#production-dataset-protocol) and

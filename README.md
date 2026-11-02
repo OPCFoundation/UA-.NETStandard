@@ -60,7 +60,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 30010 ([AutoID Devices](docs/AutoID.md)),
   OPC 30500-1 ([Laboratory and Analytical Devices](docs/LADS.md)),
-  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
+  OPC 40200 (Weighing Technology) with OPC 30050
+  ([PackML](docs/PackML.md), also available as standalone provider-backed units).
 - **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
