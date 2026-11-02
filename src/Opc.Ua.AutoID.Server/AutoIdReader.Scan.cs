@@ -91,7 +91,7 @@ namespace Opc.Ua.AutoID.Server
                         refused = new ScanCallOutcome(
                             ServiceResult.Good, default, AutoIdOperationStatusEnumeration.DEVICE_NOT_READY);
                     }
-                    else if (m_activity != ScanActivity.Idle)
+                    else if (m_activity != ScanActivity.Idle || m_parameterWrite)
                     {
                         refused = new ScanCallOutcome(
                             BadResult(StatusCodes.BadInvalidState, "There is already a scan active."),
@@ -177,7 +177,8 @@ namespace Opc.Ua.AutoID.Server
         private async ValueTask<(ServiceResult Service, AutoIdOperationStatusEnumeration Status)> ScanStartCoreAsync(
             ISystemContext context,
             ScanSettings settings,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool variableControl = false)
         {
             IAutoIdAsyncScanProvider provider = m_asyncProvider ??
                 throw ServiceResultException.Create(
@@ -188,7 +189,8 @@ namespace Opc.Ua.AutoID.Server
             {
                 return (invalid, default);
             }
-            NodeId owner = (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+            NodeId owner = variableControl ? NodeId.Null :
+                (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
             string client = ClientOf(context);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
@@ -214,6 +216,19 @@ namespace Opc.Ua.AutoID.Server
                     (ServiceResult Service, AutoIdOperationStatusEnumeration Status)? refused = null;
                     lock (m_lock)
                     {
+                        if (variableControl && m_activity == ScanActivity.Asynchronous)
+                        {
+                            return (ServiceResult.Good, AutoIdOperationStatusEnumeration.SUCCESS);
+                        }
+                        if (variableControl)
+                        {
+                            settings = new ScanSettings
+                            {
+                                Duration = m_parameters!.Duration,
+                                Cycles = m_parameters.Cycles,
+                                DataAvailable = m_parameters.DataAvailable
+                            };
+                        }
                         if (m_faulted)
                         {
                             refused = (ServiceResult.Good, AutoIdOperationStatusEnumeration.DEVICE_NOT_READY);
@@ -323,16 +338,9 @@ namespace Opc.Ua.AutoID.Server
                         }
                         generation = m_generation;
                     }
-                    try
-                    {
-                        // The reader stays busy until the provider has stopped, so no other scan
-                        // starts on the hardware in the meantime.
-                        await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        EndAsynchronousScan(generation);
-                    }
+                    // A rejected or cancelled stop does not establish that the hardware stopped.
+                    await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
+                    EndAsynchronousScan(generation);
                     return true;
                 }
                 finally
@@ -563,19 +571,19 @@ namespace Opc.Ua.AutoID.Server
                     Device.LastScanTimestamp.StatusCode = StatusCodes.Good;
                     Device.LastScanTimestamp.Timestamp = timestamp;
                 }
-                if (Device is RfidReaderDeviceState rfid &&
-                    result is RfidScanResult rfidResult &&
-                    rfidResult.Sighting.Count > 0)
+                if (Device is RfidReaderDeviceState rfid && result is RfidScanResult rfidResult)
                 {
-                    RfidSighting sighting = rfidResult.Sighting[0];
+                    RfidSighting? sighting = rfidResult.Sighting.Count > 0 ? rfidResult.Sighting[0] : null;
                     if (rfid.LastScanAntenna != null)
                     {
-                        rfid.LastScanAntenna.Value = sighting.Antenna;
+                        rfid.LastScanAntenna.Value = sighting?.Antenna ?? 0;
+                        rfid.LastScanAntenna.StatusCode = sighting == null ? StatusCodes.BadNoData : StatusCodes.Good;
                         rfid.LastScanAntenna.Timestamp = timestamp;
                     }
                     if (rfid.LastScanRSSI != null)
                     {
-                        rfid.LastScanRSSI.Value = sighting.Strength;
+                        rfid.LastScanRSSI.Value = sighting?.Strength ?? 0;
+                        rfid.LastScanRSSI.StatusCode = sighting == null ? StatusCodes.BadNoData : StatusCodes.Good;
                         rfid.LastScanRSSI.Timestamp = timestamp;
                     }
                 }

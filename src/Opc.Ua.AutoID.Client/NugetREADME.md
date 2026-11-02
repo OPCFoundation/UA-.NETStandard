@@ -35,6 +35,12 @@ await foreach (AutoIdScanEventTypeRecord e in
   `RefreshDeviceAsync` re-reads the status, last scan and location of a snapshot
   in one Read without browsing.
 - Asynchronous streams of scan, access, presence and logbook entry events.
+- `ReadScanParametersAsync` and `WriteScanParametersAsync` explicitly browse
+  nested runtime settings and preserve individual statuses. `ReadScanActiveAsync`
+  and `SetScanActiveAsync` operate the Data Access control variable.
+  `ObserveScanActiveAsync` observes it through a caller-owned subscription.
+  `ReadLastScanAsync` checks matching acquisition timestamps, including available
+  RFID antenna/RSSI values, with bounded retries; ordinary refreshes stay lightweight.
 
 A browse the server rejects throws `ServiceResultException` instead of yielding an
 empty list, cancellation is honoured by every asynchronous member, and the

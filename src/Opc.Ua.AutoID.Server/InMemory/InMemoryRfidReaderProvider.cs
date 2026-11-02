@@ -51,7 +51,8 @@ namespace Opc.Ua.AutoID.Server
     /// </para>
     /// </remarks>
     public sealed class InMemoryRfidReaderProvider :
-        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy, IDisposable
+        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy,
+        IAutoIdScanParametersProvider, IDisposable
     {
         /// <summary>
         /// Creates a reader without tags.
@@ -76,6 +77,33 @@ namespace Opc.Ua.AutoID.Server
 
         /// <inheritdoc/>
         public AutoIdRfidOperations SupportedOperations => AutoIdRfidOperations.All;
+
+        /// <inheritdoc/>
+        public ArrayOf<string> SupportedCodeTypes => ["EPC"];
+
+        /// <inheritdoc/>
+        public ValueTask<AutoIdScanParameters> ReadParametersAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                return new ValueTask<AutoIdScanParameters>(m_parameters);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask WriteParametersAsync(
+            AutoIdScanParameters parameters,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            AutoIdReader.ValidateParameters(parameters, SupportedCodeTypes);
+            lock (m_lock)
+            {
+                m_parameters = parameters with { CodeTypes = parameters.CodeTypes.ToArray().ToArrayOf() };
+            }
+            return default;
+        }
 
         /// <summary>
         /// Gets the number of tags in range.
@@ -744,6 +772,7 @@ namespace Opc.Ua.AutoID.Server
         }
 
         private readonly Lock m_lock = new();
+        private AutoIdScanParameters m_parameters = new() { CodeType = "EPC", CodeTypes = [0] };
         private readonly List<TagState> m_tags = [];
         private readonly InMemoryScanEngine m_engine;
     }

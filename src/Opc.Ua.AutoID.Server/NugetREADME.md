@@ -63,6 +63,7 @@ the reader publishes exactly those methods.
 | `IAutoIdAsyncScanProvider` | `ScanStart`, `ScanStop` |
 | `IAutoIdRfidProvider` | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword` (per `SupportedOperations`) |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
+| `IAutoIdScanParametersProvider` | `WithRuntimeParameters()` publishes configuration; `WithRuntimeParameters(true)` also enables `ScanActive` with an asynchronous scan provider |
 
 Providers report scans, completion, presence, logbook entries and device accesses
 through the `IAutoIdReaderSink` they receive on attach. The package ships
@@ -74,7 +75,8 @@ locks and kill; `InMemoryScanReaderProvider`; `InMemoryOpticalVerifierProvider`;
 
 - A reader runs one scan at a time; a second `Scan` or `ScanStart` fails with
   `Bad_InvalidState`. An infinite synchronous scan is `Bad_InvalidArgument`.
-- The scan started by a session stops when the session closes.
+- A method-started scan stops when its starting session closes. Variable-started
+  scans are device-owned and survive session closure.
 - A failed reader registration is rolled back and the name stays usable;
   disposal stops scans, detaches providers and disposes the providers the
   reader owns.
@@ -82,5 +84,14 @@ locks and kill; `InMemoryScanReaderProvider`; `InMemoryOpticalVerifierProvider`;
   implement; the Full AutoID facet is not claimed.
 - An optical verifier does not publish `Scan`: the NodeSet types its results
   as `WGS84Coordinate`, contradicting OPC 30010 6.4.3.1.
+
+Runtime parameter writes are validated and acknowledged after provider commit.
+Writes during scanning are rejected. ScanActive shares the existing scan
+serialization and completion paths; repeated True writes do not restart a scan.
+Use `WithScanWritePermissions` for standard role permissions on control and
+parameter variables. The in-memory RFID provider supports the EPC format;
+production hardware and persistent settings remain provider responsibilities.
+The optional `configure` callback adds application-namespace reader-specific
+parameters before registration, retaining their application-owned bindings.
 
 See the [AutoID guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AutoID.md).

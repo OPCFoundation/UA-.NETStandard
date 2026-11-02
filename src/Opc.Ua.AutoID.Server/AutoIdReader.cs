@@ -62,7 +62,8 @@ namespace Opc.Ua.AutoID.Server
             AutoIdDeviceState device,
             IAutoIdReaderProvider provider,
             bool ownsProvider,
-            bool hasDeviceLocation)
+            bool hasDeviceLocation,
+            AutoIdScanParameters? parameters = null)
         {
             Runtime = runtime;
             Device = device;
@@ -74,6 +75,7 @@ namespace Opc.Ua.AutoID.Server
             m_asyncProvider = provider as IAutoIdAsyncScanProvider;
             m_rfidProvider = provider as IAutoIdRfidProvider;
             m_rtlsProvider = provider as IAutoIdRtlsProvider;
+            m_parameters = parameters;
         }
 
         /// <summary>
@@ -352,6 +354,11 @@ namespace Opc.Ua.AutoID.Server
                 Device.DeviceStatus.Value = m_status;
                 Device.DeviceStatus.Timestamp = DateTimeUtc.Now;
             }
+            if (Device.ScanActive != null)
+            {
+                Device.ScanActive.Value = m_activity != ScanActivity.Idle;
+                Device.ScanActive.Timestamp = DateTimeUtc.Now;
+            }
         }
 
         /// <summary>
@@ -360,6 +367,7 @@ namespace Opc.Ua.AutoID.Server
         private void PublishStatus()
         {
             Device.DeviceStatus?.ClearChangeMasks(Runtime.SystemContext, false);
+            Device.ScanActive?.ClearChangeMasks(Runtime.SystemContext, false);
         }
 
         /// <summary>

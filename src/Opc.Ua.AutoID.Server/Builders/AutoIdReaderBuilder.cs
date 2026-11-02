@@ -76,6 +76,55 @@ namespace Opc.Ua.AutoID.Server.Builders
 
         internal bool OwnsProviderOnDispose { get; private set; }
 
+        /// <summary>
+        /// Gets whether the reader exposes the parameter capability.
+        /// </summary>
+        internal bool HasRuntimeParameters { get; private set; }
+
+        /// <summary>
+        /// Gets whether ScanActive is enabled.
+        /// </summary>
+        internal bool HasScanControl { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the initial provider configuration.
+        /// </summary>
+        internal AutoIdScanParameters? Parameters { get; set; }
+
+        /// <summary>
+        /// Gets the reader-specific parameter composition callback.
+        /// </summary>
+        internal Action<ISystemContext, BaseObjectState>? ConfigureParameters { get; private set; }
+
+        /// <summary>
+        /// Gets the standard parameter and control write permissions.
+        /// </summary>
+        internal ArrayOf<RolePermissionType> ScanWritePermissions { get; private set; }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions)
+        {
+            ScanWritePermissions = permissions.ToArray().ToArrayOf();
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder WithRuntimeParameters(
+            bool enableScanControl = false,
+            Action<ISystemContext, BaseObjectState>? configure = null)
+        {
+            if (Provider is not IAutoIdScanParametersProvider ||
+                (enableScanControl && Provider is not IAutoIdAsyncScanProvider))
+            {
+                throw new InvalidOperationException(
+                    "The provider does not support the requested parameter/control capability.");
+            }
+            HasRuntimeParameters = true;
+            HasScanControl = enableScanControl;
+            ConfigureParameters = configure;
+            return this;
+        }
+
         /// <inheritdoc/>
         public IAutoIdReaderBuilder WithParent(NodeState parent)
         {

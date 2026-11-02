@@ -63,6 +63,14 @@ namespace Opc.Ua.AutoID.Server
             device.LastScanData!.StatusCode = StatusCodes.UncertainInitialValue;
             device.LastScanTimestamp!.StatusCode = StatusCodes.UncertainInitialValue;
 
+            if (builder.Parameters != null)
+            {
+                AutoIdReader.ConfigureParameters(context, device, builder.Parameters,
+                    ((IAutoIdScanParametersProvider)provider).SupportedCodeTypes, builder.HasScanControl,
+                    builder.ScanWritePermissions);
+                builder.ConfigureParameters?.Invoke(context, device.RuntimeParameters!);
+            }
+
             if (builder.DeviceInfo != null)
             {
                 device.AddDeviceInfo(context);
@@ -112,6 +120,8 @@ namespace Opc.Ua.AutoID.Server
                 rfid.AddScan(context);
             }
             rfid.AddLastScanAntenna(context).AddLastScanRSSI(context);
+            rfid.LastScanAntenna!.StatusCode = StatusCodes.UncertainInitialValue;
+            rfid.LastScanRSSI!.StatusCode = StatusCodes.UncertainInitialValue;
             if (builder.HasAntennaNames)
             {
                 rfid.AddAntennaNames(context);

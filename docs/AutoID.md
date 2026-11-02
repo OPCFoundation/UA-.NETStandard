@@ -380,6 +380,7 @@ implementing more interfaces:
 | `IAutoIdAsyncScanProvider` | `ScanStart`, `ScanStop` |
 | `IAutoIdRfidProvider` (`SupportedOperations`) | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword`, each only when listed |
 | `IAutoIdRtlsProvider` | `GetLocation`, `GetSupportedLocationTypes` |
+| `IAutoIdScanParametersProvider` | Opt-in `RuntimeParameters`; with `IAutoIdAsyncScanProvider`, opt-in `ScanActive` |
 
 The sink pushes `ReportScanAsync` (scan event and `LastScanData`),
 `CompleteScanAsync` (a termination condition ended the asynchronous scan),
@@ -418,6 +419,68 @@ var rtls = new InMemoryRtlsProvider(locationConverter: (location, type) =>
 
 Without a converter, or when it returns `null`, `GetLocation` for another type
 answers `Bad_InvalidState`.
+
+### Runtime parameters and Data Access control
+
+`WithRuntimeParameters(enableScanControl: true)` exposes
+`RuntimeParameters/ScanSettings` with `Duration` (milliseconds), `Cycles`,
+`DataAvailable` and `CodeType`, together with the writable `CodeTypes` selection
+and its `EnumStrings`. The provider implements `IAutoIdScanParametersProvider`
+to supply the initial settings, supported code names and configuration commits.
+Existing providers need no changes unless the application enables this capability.
+The in-memory RFID provider supports the `EPC` format.
+
+```csharp
+AutoIdReader reader = await runtime
+    .Reader(new QualifiedName("Portal", runtime.InstanceNamespaceIndex), hardware)
+    .WithRuntimeParameters(enableScanControl: true)
+    .BuildAsync(ct);
+```
+
+Each parameter write validates the complete resulting configuration and awaits
+the provider's commit before publishing it. Negative or non-finite durations,
+negative cycle counts, unknown formats and invalid or duplicate code indexes are
+rejected. Standard parameters cannot change while scanning. Several writes in one OPC UA
+Write request remain independent operations, not a transaction. The provider
+owns persistence and must leave its previous configuration intact when it
+rejects or cancels a commit.
+
+A True write to `ScanActive` starts the existing asynchronous scan path with a
+snapshot of these settings. Repeating True while an asynchronous scan is active
+does not restart it or transfer ownership. False stops either a variable-started
+or method-started asynchronous scan; repeating False while idle succeeds.
+Natural completion resets the variable, including completion during startup.
+A rejected startup returns a bad write status. A rejected or cancelled stop
+keeps the active scan tracked until the provider confirms completion or a later
+stop succeeds, so a second scan cannot start on the same hardware.
+
+Variable-started scans belong to the device and survive the writing session's
+closure. `ScanStart` retains its existing session ownership, including when
+another client repeats a True write. `ScanStop` can stop either asynchronous
+control path. A synchronous `Scan` cannot be stopped through `ScanActive`.
+Shutdown cancels queued operations, stops scanning and detaches the provider.
+`WithScanWritePermissions` applies standard `RolePermissionType` entries to
+`ScanActive` and every standard writable runtime parameter; the owning server enforces
+them through its normal write authorization.
+
+The optional `configure` callback of `WithRuntimeParameters` adds reader-specific
+variables under RuntimeParameters before registration. Use the application's
+namespace and supply their declared types, access metadata and value bindings;
+the standard parameter binder preserves those bindings. Reader-specific bindings
+also enforce their own policy for writes during scanning.
+
+The runtime does not fabricate vendor IO or reader-specific parameters.
+Presence, logbook and access diagnostics continue through the existing sink
+and event APIs; this parameter capability does not add a second diagnostics
+pipeline or publish diagnostic-variable groups.
+
+The imported model declares `IOData` as an optional FunctionalGroup without
+standard children; its variables therefore require application or reader-specific
+definitions. `Diagnostics` has optional `Presence`, `LastAccess` and `Logbook`
+members, with an RFID `RWData` extension. These variable projections are not
+implemented by this runtime. Existing events do not substitute for those
+variables, and their absence remains an SDK gap separate from the disputed
+verifier and RTLS method contracts.
 
 ## Behavior of the methods
 
@@ -480,13 +543,26 @@ reader implements all its mandatory units.
 | `AutoID Sync Access` | A reader has a `Scan` method |
 | `AutoID Async Access` | A reader exists (scan events) |
 | `AutoID Async Access Control` | A reader has `ScanStart` and `ScanStop` |
+| `AutoID Device Parameters` | A reader was built with provider-backed runtime parameters |
+| `AutoID Simple Sync Access Control` | A reader was built with writable `ScanActive` and its settings |
 
 The *Simple Sync*, *Base Sync* and *Base Async* facets are advertised
-accordingly. `AutoID Simple Sync Access Control` (the `ScanActive` variable and
-the `ScanSettings` function group) and `AutoID Device Parameters` (the
-`RuntimeParameters` group) are not implemented, so the *Full AutoID Server Facet*
-is never advertised. `DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and
-`AntennaNames` are published when configured.
+accordingly. Simple Sync Access Control is optional in Table 82, not a mandatory
+requirement for the Simple Sync facet. The runtime keeps the *Full AutoID Server
+Facet* withheld while the published-method discrepancies below remain unresolved;
+units from unrelated readers do not establish that one reader supports the Full
+facet. `DeviceInfo`, `DeviceLocation`, `DeviceLocationName` and `AntennaNames` are
+published when configured.
+
+For Table 85, a Full candidate must provide Device Parameters and Async Access
+Control on the same reader and satisfy the included Simple Sync, Base Sync and
+Base Async facets. The host must also load the DI device model, encode the
+AutoID complex types and support event subscriptions. A parameter-enabled RFID
+reader with synchronous and asynchronous providers supplies that reader-level
+combination; a parameter-only reader or a different reader's scan methods do
+not. This package still withholds the Full facet rather than treating that
+configuration as evidence that the unresolved verifier and RTLS SDK paths are
+complete.
 
 ## Client
 
@@ -555,6 +631,32 @@ published after the snapshot was taken.
 streaming subscription the caller owns; the monitored item lives as long as the
 enumeration.
 
+For Data Access clients, parameter browsing is explicit and independent of
+`ReadDeviceAsync` and `RefreshDeviceAsync`:
+
+```csharp
+AutoIdScanParameterReadResult current = await autoId.ReadScanParametersAsync(reader, ct);
+AutoIdScanParameterStatus written = await autoId.WriteScanParametersAsync(
+    reader, current.Parameters with { Duration = 0, Cycles = 0, DataAvailable = false }, ct);
+// Check every field in written before starting; writes are independent.
+StatusCode started = await autoId.SetScanActiveAsync(reader, true, ct);
+AutoIdScanActiveReadResult active = await autoId.ReadScanActiveAsync(reader, ct);
+AutoIdDeviceSnapshot acquired = await autoId.ReadLastScanAsync(reader, ct);
+StatusCode stopped = await autoId.SetScanActiveAsync(reader, false, ct);
+```
+
+Parameter reads preserve each field's status and expose supported code names.
+`ObserveScanActiveAsync` uses a caller-owned streaming subscription; ending its
+enumeration removes only the monitored item.
+Missing components return `BadNotFound`; a present value of the wrong type
+returns `BadTypeMismatch`. `ReadLastScanAsync` compares acquisition timestamps
+for `LastScanData`, `LastScanTimestamp` and available RFID antenna/RSSI values,
+retries a changing acquisition at most three times and reports `BadDataLost`
+if good values still disagree. Bad per-value statuses remain visible instead
+of being reported as a successful coherent acquisition. A scan without an RFID
+sighting marks antenna/RSSI `BadNoData`, rather than retaining a previous scan's
+values. Ordinary refreshes retain one Read and no nested browse.
+
 ## MCP tools
 
 `AddOpcUaMcpAutoId()` and `WithOpcUaAutoIdTools(McpToolProfile.AutoId)` (profile
@@ -586,6 +688,32 @@ and checks the output.
   events, and `AutoIdClient.ScanAsync` refuses a verifier.
 - The `GetUnits` method of `RtlsDeviceType` declares no output argument; it is not
   published.
+
+The published reference still identifies version 1.01 as current. The
+`UA-Nodeset/latest/AutoID` XML has Git blob
+`2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a`, identical to the pinned source.
+No corrected authoritative artifact has been established for these contracts,
+so this implementation does not rewrite the standard namespace, enable the
+disputed methods or rate OPC 30010 support Full.
+
+### Data Access regression evidence
+
+The AutoID test project covers the SDK contract without requiring physical
+readers. These cases are implementation evidence, not OPC certification.
+
+| Requirement | Test in `tests/Opc.Ua.AutoID.Tests` |
+|---|---|
+| Opt-in capability and legacy-provider compatibility | `CapabilityIsOptInAndExistingProvidersRemainCompatibleAsync` |
+| Runtime metadata and configured conformance units; Full withheld | `ParametersHavePublishedMetadataAndContributeOnlyConfiguredUnitsAsync` |
+| Validation and provider-commit failures preserve the old configuration | `InvalidCodeTypeAndIndexesAreRejectedWithoutChangingConfigurationAsync`, `ProviderCommitFailurePreservesPublishedAndProviderValuesAsync` |
+| Commit/start serialization and cancellation | `ParameterCommitSerializesStartAndCancelledCommitLeavesPreviousValuesAsync` |
+| Reader-specific parameter composition and standard role metadata | `ReaderSpecificParameterBindingsAndConfiguredRolePermissionsArePreservedAsync` |
+| Repeated control writes and session ownership | `RepeatedWritesDoNotRestartAndVariableScanSurvivesSessionClosureAsync`, `MethodAndVariableControlsShareActivityButPreserveMethodOwnershipAsync` |
+| Completion, startup rejection and shutdown | `RejectedStartAndImmediateCompletionNeverLeaveScanActiveTrueAsync`, `NaturalCompletionAndShutdownResetScanActiveAsync`, `WritesAfterShutdownAreRejectedWithoutTouchingDisposedResourcesAsync` |
+| Provider-stop failure retains the active scan | `RejectedStopKeepsTheScanTrackedUntilProviderConfirmationAsync` |
+| Real-session parameter/control workflow without scan method calls | `ParametersControlAndCoherentResultsWorkWithoutScanMethodCallsAsync` |
+| Caller-owned ScanActive subscription and session lifetime | `ScanActiveObservationUsesTheSharedSubscriptionWithoutOwningItsSessionAsync` |
+| Mixed acquisition timestamps and bad RFID value statuses | `InconsistentAcquisitionTimestampsAreRejectedAndBadAntennaStatusIsPreservedAsync` |
 
 ## Provenance
 

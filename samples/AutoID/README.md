@@ -4,6 +4,12 @@ Two console applications that show the `Opc.Ua.AutoID*` libraries end to end: a
 server that publishes a simulated RFID reader, and a client that discovers it,
 scans, reads and writes tag memory and prints the events.
 
+The server enables provider-backed runtime parameters and `ScanActive`.
+Before the method/event examples, the client writes scan settings, starts the
+reader through the variable, reads timestamp-consistent acquisition data and
+stops it through the variable. No Scan or ScanStart call is needed for this
+first workflow; the later examples retain both method access styles.
+
 | Sample | What it does |
 | --- | --- |
 | [AutoIdServer](AutoIdServer/) | Serves the reader `DockDoor1` backed by `InMemoryRfidReaderProvider`: two pallets in range, a third entering and leaving every two seconds, a triggered scan every six |

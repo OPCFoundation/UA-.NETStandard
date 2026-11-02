@@ -44,9 +44,10 @@ namespace Opc.Ua.AutoID.Client
         /// server pages the result) and one Read, whatever the options; <see cref="AutoIdReadOptions"/>
         /// only narrows the variables of the Read. The browse
         /// yields the NodeIds of the variables to monitor and the methods the device publishes. The
-        /// optional variables a device does not publish are left at their defaults in the snapshot; a
-        /// bad status for a variable the device does publish is thrown as a
-        /// <see cref="ServiceResultException"/>. To poll without browsing, pass the snapshot to
+        /// optional variables a device does not publish are left at their defaults in the snapshot.
+        /// A bad status for the required DeviceName or DeviceStatus is thrown as a
+        /// <see cref="ServiceResultException"/>; unreadable optional values retain their defaults
+        /// and the scan fields expose their individual statuses. To poll without browsing, pass the snapshot to
         /// <see cref="RefreshDeviceAsync"/>.
         /// </remarks>
         /// <param name="reader">The reader.</param>
@@ -144,12 +145,7 @@ namespace Opc.Ua.AutoID.Client
                     return new DataValue(Variant.Null, StatusCodes.BadNotFound);
                 }
                 DataValue value = response.Results[slot];
-                if (StatusCode.IsBad(value.StatusCode) && !required)
-                {
-                    // An optional variable the session may not read is reported as absent.
-                    return new DataValue(Variant.Null, StatusCodes.BadNotFound);
-                }
-                if (StatusCode.IsBad(value.StatusCode))
+                if (StatusCode.IsBad(value.StatusCode) && required)
                 {
                     throw ServiceResultException.Create(
                         value.StatusCode,
@@ -157,11 +153,15 @@ namespace Opc.Ua.AutoID.Client
                         name,
                         reader.BrowseName.Name ?? string.Empty);
                 }
-                return value;
+                return StatusCode.IsBad(value.StatusCode)
+                    ? new DataValue(Variant.Null, value.StatusCode)
+                    : value;
             }
 
             DataValue lastData = Value(BrowseNames.LastScanData, false);
             DataValue lastTimestamp = Value(BrowseNames.LastScanTimestamp, false);
+            DataValue lastAntenna = Value(BrowseNames.LastScanAntenna, false);
+            DataValue lastRssi = Value(BrowseNames.LastScanRSSI, false);
             DataValue deviceLocation = Value(BrowseNames.DeviceLocation, false);
             DataValue antennas = Value(BrowseNames.AntennaNames, false);
             DataValue status = Value(BrowseNames.DeviceStatus, true);
@@ -179,6 +179,8 @@ namespace Opc.Ua.AutoID.Client
                 DeviceStatusId = VariableId(BrowseNames.DeviceStatus),
                 LastScanDataId = VariableId(BrowseNames.LastScanData),
                 LastScanTimestampId = VariableId(BrowseNames.LastScanTimestamp),
+                LastScanAntennaId = VariableId(BrowseNames.LastScanAntenna),
+                LastScanRssiId = VariableId(BrowseNames.LastScanRSSI),
                 DeviceLocationId = VariableId(BrowseNames.DeviceLocation),
                 Methods = methods.ToArray().ToArrayOf(),
                 DeviceName = TextOf(Value(BrowseNames.DeviceName, true)),
@@ -198,9 +200,21 @@ namespace Opc.Ua.AutoID.Client
                 LastScanStatus = slots.ContainsKey(BrowseNames.LastScanData)
                     ? lastData.StatusCode
                     : StatusCodes.BadNotFound,
-                LastScanTimestamp = lastTimestamp.WrappedValue.TryGetValue(out DateTimeUtc timestamp)
+                LastScanTimestamp = StatusCode.IsNotBad(lastTimestamp.StatusCode) &&
+                    lastTimestamp.WrappedValue.TryGetValue(out DateTimeUtc timestamp)
                     ? timestamp
                     : default,
+                LastScanTimestampStatus = TimestampStatus(lastTimestamp),
+                LastScanAntenna = StatusCode.IsNotBad(lastAntenna.StatusCode) &&
+                    lastAntenna.WrappedValue.TryGetValue(out int antenna)
+                    ? antenna
+                    : null,
+                LastScanAntennaStatus = TypedStatus(lastAntenna, lastAntenna.WrappedValue.TryGetValue(out int _)),
+                LastScanRssi = StatusCode.IsNotBad(lastRssi.StatusCode) &&
+                    lastRssi.WrappedValue.TryGetValue(out int rssi)
+                    ? rssi
+                    : null,
+                LastScanRssiStatus = TypedStatus(lastRssi, lastRssi.WrappedValue.TryGetValue(out int _)),
                 Manufacturer = Value(Di.BrowseNames.Manufacturer, false).WrappedValue
                     .TryGetValue(out LocalizedText manufacturer) ? manufacturer : default,
                 Model = Value(Di.BrowseNames.Model, false).WrappedValue
@@ -327,13 +341,143 @@ namespace Opc.Ua.AutoID.Client
                     lastTimestamp.WrappedValue.TryGetValue(out DateTimeUtc timestamp)
                     ? timestamp
                     : default,
+                LastScanTimestampStatus = TimestampStatus(lastTimestamp),
+                LastScanAntenna = null,
+                LastScanAntennaStatus = StatusCodes.BadNotFound,
+                LastScanRssi = null,
+                LastScanRssiStatus = StatusCodes.BadNotFound,
                 DeviceLocation = locationValue
             };
+        }
+
+        /// <summary>
+        /// Reads the last scan with matching acquisition timestamps, including available RFID
+        /// antenna and RSSI values, without invoking a scan method.
+        /// </summary>
+        /// <remarks>
+        /// Browses the device explicitly and retries at most three times when values change
+        /// between reads. Individual bad statuses are retained; inconsistent good values cause
+        /// BadDataLost. Ordinary device reads and refreshes retain their lightweight behavior.
+        /// </remarks>
+        /// <param name="reader">The reader whose acquisition to read.</param>
+        /// <param name="cancellationToken">Cancels browsing, reading and any retries.</param>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects the request, or good acquisition values remain inconsistent.
+        /// </exception>
+        public async ValueTask<AutoIdDeviceSnapshot> ReadLastScanAsync(
+            AutoIdReaderEntry reader,
+            CancellationToken cancellationToken = default)
+        {
+            AutoIdDeviceSnapshot device = await ReadDeviceAsync(
+                reader, AutoIdReadOptions.StatusOnly, cancellationToken).ConfigureAwait(false);
+            NodeId[] ids =
+            [
+                device.LastScanDataId, device.LastScanTimestampId,
+                device.LastScanAntennaId, device.LastScanRssiId
+            ];
+            var reads = new List<ReadValueId>();
+            int[] slots = new int[ids.Length];
+            for (int i = 0; i < ids.Length; i++)
+            {
+                slots[i] = -1;
+                if (!ids[i].IsNull)
+                {
+                    slots[i] = reads.Count;
+                    reads.Add(new ReadValueId { NodeId = ids[i], AttributeId = Attributes.Value });
+                }
+            }
+            if (reads.Count == 0)
+            {
+                return device;
+            }
+            for (int attempt = 0; attempt <= k_lastScanReadAttempts; attempt++)
+            {
+                ReadResponse response = await Session.ReadAsync(
+                    requestHeader: null,
+                    maxAge: 0,
+                    timestampsToReturn: TimestampsToReturn.Source,
+                    nodesToRead: reads.ToArray().ToArrayOf(),
+                    ct: cancellationToken).ConfigureAwait(false);
+                ValidateResultCount(response.Results.Count, reads.Count, "read");
+                DataValue Value(int field) => slots[field] >= 0
+                    ? response.Results[slots[field]] : DataValue.FromStatusCode(StatusCodes.BadNotFound);
+                DataValue data = Value(0);
+                DataValue timestamp = Value(1);
+                DataValue antenna = Value(2);
+                DataValue rssi = Value(3);
+                if (!IsLastScanConsistent(data, timestamp, antenna, rssi))
+                {
+                    continue;
+                }
+                return device with
+                {
+                    LastScanData = StatusCode.IsBad(data.StatusCode) ? Variant.Null : data.WrappedValue,
+                    LastScanStatus = data.StatusCode,
+                    LastScanTimestamp = StatusCode.IsNotBad(timestamp.StatusCode) &&
+                        timestamp.WrappedValue.TryGetValue(out DateTimeUtc time) ? time : default,
+                    LastScanTimestampStatus = TimestampStatus(timestamp),
+                    LastScanAntenna = StatusCode.IsNotBad(antenna.StatusCode) &&
+                        antenna.WrappedValue.TryGetValue(out int number) ? number : null,
+                    LastScanAntennaStatus = TypedStatus(antenna, antenna.WrappedValue.TryGetValue(out int _)),
+                    LastScanRssi = StatusCode.IsNotBad(rssi.StatusCode) &&
+                        rssi.WrappedValue.TryGetValue(out int strength) ? strength : null,
+                    LastScanRssiStatus = TypedStatus(rssi, rssi.WrappedValue.TryGetValue(out int _))
+                };
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadDataLost,
+                "LastScanData and its associated timestamp or RFID scan details changed during the read.");
+        }
+
+        /// <summary>
+        /// Checks acquisition identity only where the server returned good values.
+        /// </summary>
+        private static bool IsLastScanConsistent(
+            in DataValue lastData,
+            in DataValue lastTimestamp,
+            in DataValue lastAntenna,
+            in DataValue lastRssi)
+        {
+            if (!StatusCode.IsGood(lastData.StatusCode) ||
+                !StatusCode.IsGood(lastTimestamp.StatusCode) ||
+                !lastTimestamp.WrappedValue.TryGetValue(out DateTimeUtc timestamp))
+            {
+                return true;
+            }
+            if (timestamp.IsNull || lastData.SourceTimestamp != timestamp || lastTimestamp.SourceTimestamp != timestamp)
+            {
+                return false;
+            }
+            return IsOptionalValueConsistent(lastAntenna, timestamp) &&
+                IsOptionalValueConsistent(lastRssi, timestamp);
+        }
+
+        /// <summary>
+        /// Allows omitted or unreadable optional values without hiding their statuses.
+        /// </summary>
+        private static bool IsOptionalValueConsistent(in DataValue value, DateTimeUtc timestamp)
+        {
+            return !StatusCode.IsGood(value.StatusCode) || value.SourceTimestamp == timestamp;
+        }
+
+        /// <summary>
+        /// Preserves the timestamp's service status and checks its declared value type.
+        /// </summary>
+        private static StatusCode TimestampStatus(in DataValue value)
+        {
+            return StatusCode.IsBad(value.StatusCode)
+                ? value.StatusCode
+                : value.WrappedValue.TryGetValue(out DateTimeUtc _)
+                    ? value.StatusCode
+                    : StatusCodes.BadTypeMismatch;
         }
 
         private static string TextOf(DataValue value)
         {
             return value.WrappedValue.TryGetValue(out string text) ? text ?? string.Empty : string.Empty;
         }
+
+        /// <summary>The maximum number of additional reads for a changing acquisition.</summary>
+        private const int k_lastScanReadAttempts = 3;
     }
 }

@@ -27,6 +27,9 @@ conformance.
   `IEncodeableFactoryBuilder` and `INodeStateFactoryBuilder`, which load DI
   before AutoID.
 - The generated `AddOpcUaAutoID` overloads for callers that already load DI.
+- `AutoIdScanParameters`, an SDK snapshot shared by provider and client APIs
+  for runtime parameter variables. It is not a wire DataType and does not
+  replace the generated `ScanSettings` method-argument structure.
 
 The package references neither a server nor a client runtime project.
 

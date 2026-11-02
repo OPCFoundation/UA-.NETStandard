@@ -177,6 +177,14 @@ namespace Opc.Ua.AutoID.Server
                 {
                     Add(AutoIdProfiles.AsyncAccessControlUnit);
                 }
+                if (Array.Exists(readers, reader => reader.Device.RuntimeParameters != null))
+                {
+                    Add(AutoIdProfiles.DeviceParametersUnit);
+                }
+                if (Array.Exists(readers, reader => reader.Device.ScanActive != null))
+                {
+                    Add(AutoIdProfiles.SimpleSyncAccessControlUnit);
+                }
                 return units.ToArrayOf();
             }
         }
@@ -321,6 +329,14 @@ namespace Opc.Ua.AutoID.Server
             NodeState parentNode;
             try
             {
+                if (builder.HasRuntimeParameters)
+                {
+                    var parametersProvider = (IAutoIdScanParametersProvider)builder.Provider;
+                    AutoIdScanParameters parameters = await parametersProvider.ReadParametersAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    AutoIdReader.ValidateParameters(parameters, parametersProvider.SupportedCodeTypes);
+                    builder.Parameters = parameters with { CodeTypes = parameters.CodeTypes.ToArray().ToArrayOf() };
+                }
                 (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
                     .ConfigureAwait(false);
                 parentNode = device.Parent ??
@@ -352,7 +368,8 @@ namespace Opc.Ua.AutoID.Server
                     device,
                     builder.Provider,
                     builder.OwnsProviderOnDispose,
-                    builder.DeviceLocation != null);
+                    builder.DeviceLocation != null,
+                    builder.Parameters);
                 reader.Bind();
                 await Manager.RegisterRootNotifierAsync(device, cancellationToken).ConfigureAwait(false);
                 await reader.AttachAsync(cancellationToken).ConfigureAwait(false);

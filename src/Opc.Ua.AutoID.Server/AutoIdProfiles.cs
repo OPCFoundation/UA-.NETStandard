@@ -36,9 +36,8 @@ namespace Opc.Ua.AutoID.Server
     /// <remarks>
     /// A server advertises a facet only when a reader it hosts implements
     /// every mandatory conformance unit of that facet. The
-    /// <c>AutoID Device Parameters</c> and <c>AutoID Simple Sync Access Control</c>
-    /// units are not implemented, so the Full AutoID Server Facet is never
-    /// advertised.
+    /// Full AutoID support is withheld while published-model interoperability
+    /// discrepancies remain unresolved.
     /// </remarks>
     public static class AutoIdProfiles
     {
@@ -90,5 +89,15 @@ namespace Opc.Ua.AutoID.Server
         /// Conformance unit: the <c>ScanStart</c> and <c>ScanStop</c> methods.
         /// </summary>
         public const string AsyncAccessControlUnit = "AutoID Async Access Control";
+
+        /// <summary>
+        /// Conformance unit: provider-backed runtime configuration parameters.
+        /// </summary>
+        public const string DeviceParametersUnit = "AutoID Device Parameters";
+
+        /// <summary>
+        /// Conformance unit: ScanActive with its ScanSettings functional group.
+        /// </summary>
+        public const string SimpleSyncAccessControlUnit = "AutoID Simple Sync Access Control";
     }
 }

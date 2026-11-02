@@ -119,6 +119,30 @@ namespace Opc.Ua.AutoID.Server.Builders
         IAutoIdReaderBuilder WithDeviceInfo(string info);
 
         /// <summary>
+        /// Publishes provider-backed RuntimeParameters and ScanSettings. Optionally enables
+        /// ScanActive writes through the existing asynchronous scan provider.
+        /// </summary>
+        /// <param name="enableScanControl">Whether to expose writable ScanActive.</param>
+        /// <param name="configure">
+        /// Adds reader-specific parameters in the application's namespace below RuntimeParameters,
+        /// before address-space registration. The application supplies their metadata and value bindings.
+        /// </param>
+        /// <remarks>
+        /// Requires IAutoIdScanParametersProvider and, for control, IAutoIdAsyncScanProvider.
+        /// Settings cannot change during a scan. Variable-triggered scans are device-owned and
+        /// survive session closure; method-triggered scans retain their starting session owner.
+        /// </remarks>
+        IAutoIdReaderBuilder WithRuntimeParameters(
+            bool enableScanControl = false,
+            Action<ISystemContext, BaseObjectState>? configure = null);
+
+        /// <summary>
+        /// Sets role permissions for ScanActive and each standard writable runtime parameter.
+        /// </summary>
+        /// <param name="permissions">The standard role permissions enforced by the owning server.</param>
+        IAutoIdReaderBuilder WithScanWritePermissions(ArrayOf<RolePermissionType> permissions);
+
+        /// <summary>
         /// Publishes the optional <c>DeviceLocation</c> variable and the <c>GetDeviceLocation</c>
         /// method (OPC 30010 6.1.3.7 and 6.1.3.12). <see cref="AutoIdReader.SetDeviceLocation"/>
         /// updates it for a mobile reader.
