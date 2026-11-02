@@ -254,8 +254,10 @@ namespace Opc.Ua.AMB.Tests
                 asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
             List<AssetAlarmRecord> alarms = await CollectAsync(client.ReadHealthEventsAsync(
                 asset.NodeId, start, DateTime.UtcNow, maxValuesPerNode: 1)).ConfigureAwait(false);
-            Assert.That(maintenance.Select(value => value.Message.Text), Does.Contain("next"));
-            Assert.That(alarms.Select(value => value.Message.Text), Does.Contain("cleared"));
+            string diagnostics = await DescribeEventHistoryAsync(
+                provider, handle, session, start, DateTime.UtcNow, maintenance: true).ConfigureAwait(false);
+            Assert.That(maintenance.Select(value => value.Message.Text), Does.Contain("next"), diagnostics);
+            Assert.That(alarms.Select(value => value.Message.Text), Does.Contain("cleared"), diagnostics);
             AssetAlarmRecord failure = alarms.Single(value => value.Message.Text == "failure");
             MaintenanceActivityRecord initial = maintenance.First(
                 value => value.State == MaintenanceStateKind.Planned);
@@ -342,7 +344,10 @@ namespace Opc.Ua.AMB.Tests
             List<AssetAlarmRecord> values = await CollectAsync(client.ReadHealthEventsAsync(
                 asset.NodeId, timestamp.AddSeconds(-1), timestamp.AddSeconds(1),
                 maxValuesPerNode: 1)).ConfigureAwait(false);
-            Assert.That(values.Select(value => value.Message.Text), Does.Contain("after-other"));
+            string diagnostics = await DescribeEventHistoryAsync(
+                provider, handle, session, timestamp.AddSeconds(-1), timestamp.AddSeconds(1), maintenance: false)
+                .ConfigureAwait(false);
+            Assert.That(values.Select(value => value.Message.Text), Does.Contain("after-other"), diagnostics);
             List<AssetAlarmRecord> equal = values.Where(value => value.Time == (DateTimeUtc)timestamp).ToList();
             Assert.That(equal.Select(value => value.EventId), Is.EqualTo(new[] { first, second }));
             Assert.That(equal[0].Message.Text, Is.EqualTo("same-time-one"));
@@ -727,7 +732,10 @@ namespace Opc.Ua.AMB.Tests
                 HistorianUpdateOutcome<DataValue> inserted = await storage.InsertAsync(
                     historyContext, device.DeviceHealth.NodeId, originalArchive.ToArrayOf(), CancellationToken.None)
                     .ConfigureAwait(false);
-                Assert.That(inserted.OperationResults.ToArray(), Is.EqualTo(new[] { (StatusCode)StatusCodes.Good }));
+                Assert.That(
+                    inserted.OperationResults.ToArray(),
+                    Is.EqualTo(new[] { (StatusCode)StatusCodes.GoodEntryInserted }),
+                    "Part 11 reports a successful history insert as GoodEntryInserted");
             }
             HistoricalDataConfigurationState? configuration = null;
             NodeId configurationId = default;
@@ -1584,7 +1592,10 @@ namespace Opc.Ua.AMB.Tests
                 device.DeviceHealth.NodeId,
                 [new DataValue(Variant.From((int)archivedHealth), status, archivedTimestamp)],
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(inserted.OperationResults.ToArray(), Is.EqualTo(new[] { (StatusCode)StatusCodes.Good }));
+            Assert.That(
+                inserted.OperationResults.ToArray(),
+                Is.EqualTo(new[] { (StatusCode)StatusCodes.GoodEntryInserted }),
+                "Part 11 reports a successful history insert as GoodEntryInserted");
             await using AssetHistoryBinding binding = (await AssetHistoryBinding.CreateAsync(
                 handle, server.Server, new AssetHistoryOptions(provider.Object, AssetHistoryKinds.DeviceHealth),
                 CancellationToken.None).ConfigureAwait(false))!;
@@ -1734,6 +1745,110 @@ namespace Opc.Ua.AMB.Tests
                 }
                 return false;
             }).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// [DEBUG-amb] Describes stored records and raw HistoryRead pages for one asset.
+        /// </summary>
+        private static async Task<string> DescribeEventHistoryAsync(
+            InMemoryHistorianProvider provider,
+            AssetHandle handle,
+            ISession session,
+            DateTime start,
+            DateTime end,
+            bool maintenance)
+        {
+            var text = new System.Text.StringBuilder("[DEBUG-amb]");
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
+            var context = new HistorianOperationContext(
+                (ServerSystemContext)handle.Context, operation, handle.Asset, HistoryUpdateType.Insert);
+            HistorianPage<HistorianEventRecord> stored = await provider.ReadEventsAsync(
+                context,
+                new HistorianEventReadRequest
+                {
+                    NodeId = handle.NodeId,
+                    StartTime = DateTime.UtcNow.AddHours(-1),
+                    EndTime = DateTime.UtcNow.AddSeconds(1),
+                    IsForward = true,
+                    Filter = new EventFilter()
+                },
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            text.Append(" stored=").Append(stored.Values.Count).Append(" window=")
+                .Append(start.ToString("O", System.Globalization.CultureInfo.InvariantCulture)).Append("..")
+                .Append(end.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            for (int recordIndex = 0; recordIndex < stored.Values.Count; recordIndex++)
+            {
+                HistorianEventRecord record = stored.Values[recordIndex];
+                record.TryGetField(Opc.Ua.BrowseNames.Message, out Variant message);
+                record.TryGetField(Opc.Ua.BrowseNames.SourceNode, out Variant source);
+                record.TryGetField(Opc.Ua.BrowseNames.ConditionClassId, out Variant conditionClass);
+                text.Append(" | ").Append(message).Append(" t=")
+                    .Append(record.SourceTimestamp.ToDateTime().ToString(
+                        "O", System.Globalization.CultureInfo.InvariantCulture))
+                    .Append(" src=").Append(source).Append(" type=").Append(record.EventType)
+                    .Append(" class=").Append(conditionClass);
+            }
+            HashSet<NodeId> classes = AmbConditionFields.KnownMaintenanceClasses(session.NamespaceUris);
+            var simple = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(Opc.Ua.BrowseNames.Message)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+            (string Name, EventFilter Filter)[] filters =
+            [
+                ("simple", simple),
+                ("amb", AmbConditionFields.Filter(session.NamespaceUris, classes, maintenance, handle.NodeId))
+            ];
+            foreach ((string name, EventFilter filter) in filters)
+            {
+                text.Append(" || ").Append(name).Append(':');
+                ByteString continuation = ByteString.Empty;
+                for (int pageIndex = 0; pageIndex < 20; pageIndex++)
+                {
+                    HistoryReadResponse response = await session.HistoryReadAsync(
+                        null,
+                        new ExtensionObject(new ReadEventDetails
+                        {
+                            StartTime = start,
+                            EndTime = end,
+                            NumValuesPerNode = 1,
+                            Filter = filter
+                        }),
+                        TimestampsToReturn.Source,
+                        false,
+                        [new HistoryReadValueId { NodeId = handle.NodeId, ContinuationPoint = continuation }],
+                        CancellationToken.None).ConfigureAwait(false);
+                    HistoryReadResult result = response.Results[0];
+                    int count = result.HistoryData.TryGetValue(out HistoryEvent? data) && data != null
+                        ? data.Events.Count
+                        : -1;
+                    text.Append(" p").Append(pageIndex).Append('[').Append(result.StatusCode).Append(" n=")
+                        .Append(count).Append(" cp=").Append(!result.ContinuationPoint.IsEmpty);
+                    if (name == "simple" && data != null)
+                    {
+                        for (int eventIndex = 0; eventIndex < data.Events.Count; eventIndex++)
+                        {
+                            text.Append(' ').Append(data.Events[eventIndex].EventFields[0]);
+                        }
+                    }
+                    text.Append(']');
+                    if (result.ContinuationPoint.IsEmpty)
+                    {
+                        break;
+                    }
+                    continuation = result.ContinuationPoint;
+                }
+            }
+            return text.ToString();
         }
 
         /// <summary>
