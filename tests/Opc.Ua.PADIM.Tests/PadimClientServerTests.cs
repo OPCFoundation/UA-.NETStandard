@@ -147,7 +147,7 @@ namespace Opc.Ua.PADIM.Tests
                 ArrayOf<PadimEntry> signals = await client.DiscoverSignalsAsync(devices[0].NodeId, timeout.Token);
                 Assert.That(signals.Count, Is.EqualTo(1));
                 ArrayOf<PadimValue> values = await client.ReadValuesAsync(signals[0].NodeId, timeout.Token);
-                PadimValue measurement = values.ToArray().Single(value => value.BrowseName.Name == "AnalogSignal");
+                PadimValue measurement = values.ToList().Single(value => value.BrowseName.Name == "AnalogSignal");
                 Assert.Multiple(() =>
                 {
                     Assert.That(measurement.Sample.WrappedValue, Is.EqualTo(Variant.From(21.5f)));
@@ -176,11 +176,11 @@ namespace Opc.Ua.PADIM.Tests
                 await analog.SimulationValue.WriteAsync(Variant.From(99f), timeout.Token);
                 await analog.SimulationState.WriteAsync(true, timeout.Token);
                 values = await client.ReadValuesAsync(signals[0].NodeId, timeout.Token);
-                Assert.That(values.ToArray().Single(value => value.NodeId == measurement.NodeId).Sample.WrappedValue,
+                Assert.That(values.ToList().Single(value => value.NodeId == measurement.NodeId).Sample.WrappedValue,
                     Is.EqualTo(Variant.From(99f)));
                 await analog.SimulationState.WriteAsync(false, timeout.Token);
                 values = await client.ReadValuesAsync(signals[0].NodeId, timeout.Token);
-                Assert.That(values.ToArray().Single(value => value.NodeId == measurement.NodeId).Sample.WrappedValue,
+                Assert.That(values.ToList().Single(value => value.NodeId == measurement.NodeId).Sample.WrappedValue,
                     Is.EqualTo(Variant.From(21.5f)));
                 await client.ZeroPointAdjustmentAsync(signals[0].NodeId, timeout.Token);
                 operations.VerifyAll();

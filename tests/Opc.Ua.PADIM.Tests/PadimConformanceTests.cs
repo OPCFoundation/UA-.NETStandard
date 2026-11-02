@@ -145,7 +145,7 @@ namespace Opc.Ua.PADIM.Tests
             var authorizer = new Mock<IPadimAuthorizer>();
             var operations = new Mock<IPadimOperationProvider>();
             var profiles = new HashSet<string>(StringComparer.Ordinal);
-            foreach (PadimDeviceKind kind in Enum.GetValues(typeof(PadimDeviceKind)))
+            foreach (PadimDeviceKind kind in GetEnumValues<PadimDeviceKind>())
             {
                 var builder = await m_manager.CreatePadimDeviceAsync(Name($"FacetDevice{kind}"), kind);
                 PadimDevice device = builder.BindPadim();
@@ -158,7 +158,7 @@ namespace Opc.Ua.PADIM.Tests
             root.WithHealthAlarms("health", provider.Object);
             root.WithAdministration(provider.Object, writer.Object, authorizer.Object);
             root.WithFactoryReset(operations.Object, authorizer.Object);
-            foreach (PadimSignalKind kind in Enum.GetValues(typeof(PadimSignalKind)))
+            foreach (PadimSignalKind kind in GetEnumValues<PadimSignalKind>())
             {
                 SignalState signal = await root.AddSignalAsync(Name($"FacetSignal{kind}"), kind, $"TAG-{kind}");
                 string member = kind switch
@@ -179,7 +179,7 @@ namespace Opc.Ua.PADIM.Tests
                         group.Bind(ModelName("CalibrationTimestamp"), "calibratedAt", provider.Object));
                 }
             }
-            foreach (PadimMeasurementKind kind in Enum.GetValues(typeof(PadimMeasurementKind)))
+            foreach (PadimMeasurementKind kind in GetEnumValues<PadimMeasurementKind>())
             {
                 AnalogSignalObjectState signal = await root.AddMeasurementAsync(
                     Name($"FacetMeasurement{kind}"), kind, $"PV-{kind}");
@@ -227,6 +227,20 @@ namespace Opc.Ua.PADIM.Tests
                     profiles.Add(enabled[ii]);
                 }
             }
+        }
+
+        /// <summary>
+        /// Enumerates every declared family on modern and legacy test targets.
+        /// </summary>
+        /// <typeparam name="TEnum">The family enumeration.</typeparam>
+        private static TEnum[] GetEnumValues<TEnum>()
+            where TEnum : struct, Enum
+        {
+#if NET6_0_OR_GREATER
+            return Enum.GetValues<TEnum>();
+#else
+            return (TEnum[])Enum.GetValues(typeof(TEnum));
+#endif
         }
 
         /// <summary>

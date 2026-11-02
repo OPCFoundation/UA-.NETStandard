@@ -108,7 +108,8 @@ else
         options.EndpointUrls.Add(endpoint);
     }).AddPadim().ConfigurePadim(context =>
         context.GetRequiredService<DemonstrationDevice>().ConfigureAsync(context));
-    builder.Services.AddHostedService<DemonstrationRefresh>();
+    builder.Services.AddHostedService(services =>
+        new DemonstrationRefresh(services.GetRequiredService<DemonstrationDevice>()));
 }
 
 using IHost host = builder.Build();
@@ -156,8 +157,9 @@ try
                     {
                         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
                         timeout.CancelAfter(TimeSpan.FromSeconds(10));
-                        await using var notifications = client.ObserveValueAsync(value.NodeId, timeout.Token)
+                        var notifications = client.ObserveValueAsync(value.NodeId, timeout.Token)
                             .GetAsyncEnumerator(timeout.Token);
+                        await using var notificationLifetime = notifications.ConfigureAwait(false);
                         if (!await notifications.MoveNextAsync().ConfigureAwait(false))
                         {
                             throw new InvalidOperationException("The measurement observation ended without a sample.");
@@ -190,7 +192,7 @@ try
                 PadimValue previousChange = await ReadMemberAsync(
                     client, devices[ii].NodeId, "DateOfLastChange", lifetime.Token).ConfigureAwait(false);
                 await client.AutoAdjustPositionerAsync(
-                    signals[jj].NodeId, (Opc.Ua.PADIM.ExecutionModeEnum)2, lifetime.Token).ConfigureAwait(false);
+                    signals[jj].NodeId, Opc.Ua.PADIM.ExecutionModeEnum.Start, lifetime.Token).ConfigureAwait(false);
                 Console.WriteLine("    Positioner Start accepted; waiting for the provider's completion timestamp.");
                 DataValue completion = await WaitForChangeAsync(client, previousChange, lifetime.Token)
                     .ConfigureAwait(false);
