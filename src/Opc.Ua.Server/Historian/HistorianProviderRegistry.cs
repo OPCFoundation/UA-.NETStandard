@@ -118,7 +118,10 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
-                ObjectDisposedException.ThrowIf(m_disposed, this);
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+                }
                 m_namespaces.TryGetValue(namespaceUri, out IHistorianProvider? previous);
                 m_namespaces[namespaceUri] = provider;
                 AddProvider(provider, ownsProvider: true);
@@ -150,7 +153,10 @@ namespace Opc.Ua.Server.Historian
 
             lock (m_lock)
             {
-                ObjectDisposedException.ThrowIf(m_disposed, this);
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+                }
                 IHistorianProvider? previous = m_default;
                 m_default = provider;
                 AddProvider(provider, ownsProvider);
@@ -302,15 +308,20 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         private NodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider)
         {
-            ArgumentNullException.ThrowIfNull(node);
-            ArgumentNullException.ThrowIfNull(provider);
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
             if (node.NodeId.IsNull)
             {
                 throw new ArgumentException("NodeId must not be null.", nameof(node));
             }
             lock (m_lock)
             {
-                ObjectDisposedException.ThrowIf(m_disposed, this);
                 RejectPendingReplacement(node.NodeId);
                 m_nodes.TryGetValue(node.NodeId, out IHistorianProvider? previousProvider);
                 m_nodeBindings.TryGetValue(node.NodeId, out NodeBinding? previousBinding);
@@ -339,7 +350,10 @@ namespace Opc.Ua.Server.Historian
             }
             lock (m_lock)
             {
-                ObjectDisposedException.ThrowIf(m_disposed, this);
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+                }
                 if (m_nodes.ContainsKey(nodeId) || m_pendingReplacements.ContainsKey(nodeId))
                 {
                     binding = null;
@@ -512,7 +526,10 @@ namespace Opc.Ua.Server.Historian
         /// </summary>
         private void RejectPendingReplacement(NodeId nodeId)
         {
-            ObjectDisposedException.ThrowIf(m_disposed, this);
+            if (m_disposed)
+            {
+                throw new ObjectDisposedException(nameof(HistorianProviderRegistry));
+            }
             if (m_pendingReplacements.ContainsKey(nodeId))
             {
                 throw new InvalidOperationException(
@@ -613,7 +630,10 @@ namespace Opc.Ua.Server.Historian
             /// <inheritdoc/>
             public ValueTask ReleaseAsync(Func<ValueTask> cleanup)
             {
-                ArgumentNullException.ThrowIfNull(cleanup);
+                if (cleanup == null)
+                {
+                    throw new ArgumentNullException(nameof(cleanup));
+                }
                 TaskCompletionSource<bool> completion;
                 bool start;
                 lock (m_releaseLock)
