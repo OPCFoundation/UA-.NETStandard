@@ -164,8 +164,14 @@ namespace Opc.Ua.Scales.Tests
             {
                 "duplicate" => Item(1),
                 "wrongProduct" => Item(2) with { ProductId = "other" },
-                "badQuality" => Item(2) with { Weight = Item(2).Weight with { StatusCode = StatusCodes.BadNoCommunication } },
-                "uncertainQuality" => Item(2) with { Weight = Item(2).Weight with { StatusCode = StatusCodes.Uncertain } },
+                "badQuality" => Item(2) with
+                {
+                    Weight = Item(2).Weight with { StatusCode = StatusCodes.BadNoCommunication }
+                },
+                "uncertainQuality" => Item(2) with
+                {
+                    Weight = Item(2).Weight with { StatusCode = StatusCodes.Uncertain }
+                },
                 "overflow" => Item(2) with
                 {
                     Weight = Item(2).Weight with { StatusCode = ((StatusCode)StatusCodes.Good).SetOverflow(true) }
@@ -215,7 +221,8 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(last.ItemPrice!.WrappedValue.TryGetValue(out double price), Is.True);
             Assert.That(price, Is.EqualTo(equipment ? 3.21 : 1.01));
             Assert.That(last.ItemPrice.ValueRank, Is.EqualTo(ValueRanks.Scalar));
-            Assert.That(ScaleItemPublisher.CurrencyOf(m_fixture.Context, last.ItemPrice)!.AlphabeticCode, Is.EqualTo("EUR"));
+            Assert.That(ScaleItemPublisher.CurrencyOf(m_fixture.Context, last.ItemPrice)!.AlphabeticCode,
+                Is.EqualTo("EUR"));
             Assert.That(Count(product.Statistic!), Is.EqualTo(1UL));
         }
 
@@ -384,17 +391,115 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task RuntimeShutdownCancelsPendingPriceWithoutPublicationAsync()
         {
+            await using var fixture = new ScalesServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
             var calculator = new DeferredPriceCalculator();
-            ScaleHandle scale = await CreateAsync(ScaleKind.AutomaticWeightPriceLabeler, calculator);
-            ConfigurePrice(m_fixture.Context,
+            ScaleHandle scale = await fixture.Manager.CreateScaleAsync(
+                fixture.Name("ShutdownPrice"), ScaleKind.AutomaticWeightPriceLabeler,
+                builder => Configure(builder, ScaleKind.AutomaticWeightPriceLabeler, calculator));
+            ConfigurePrice(fixture.Context,
                 (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!,
-                m_fixture.Manager.NamespaceIndices.Scales);
+                fixture.Manager.NamespaceIndices.Scales);
             Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
             Assert.That(calculator.Started, Is.True);
-            await m_fixture.Manager.DisposeAsync();
+            await fixture.Manager.DisposeAsync();
             await Assert.ThatAsync(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
             Assert.That(scale.RegisteredReading, Is.Null);
+        }
+
+        /// <summary>
+        /// Equipment callback failures cannot bypass construction draining or owned resource cleanup.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ThrowingProviderCancellationStillDrainsCreationsAndReleasesResourcesAsync(bool cleanupFails)
+        {
+            var fixture = new ScalesServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            var failure = new InvalidOperationException("Equipment cancellation callback failed.");
+            var cleanupFailure = new InvalidOperationException("Owned resource cleanup failed.");
+            Exception[] expected = cleanupFails ? [failure, cleanupFailure] : [failure];
+            using var calculator = new ThrowingCancellationPriceCalculator(failure);
+            using var entered = new SemaphoreSlim(0, 1);
+            using var resume = new ManualResetEventSlim(false);
+            Task<ScaleHandle>? creation = null;
+            try
+            {
+                ScaleHandle scale = await fixture.Manager.CreateScaleAsync(
+                    fixture.Name("ThrowingPrice"), ScaleKind.AutomaticWeightPriceLabeler,
+                    builder => Configure(builder, ScaleKind.AutomaticWeightPriceLabeler, calculator));
+                ConfigurePrice(fixture.Context,
+                    (AutomaticWeightPriceLabelerProductState)scale.ProductionPreset!.ActiveProduct!,
+                    fixture.Manager.NamespaceIndices.Scales);
+                var resource = new ShutdownProbe();
+                scale.Services.OwnResource(resource);
+                var failingResource = new ShutdownProbe(cleanupFails ? cleanupFailure : null);
+                scale.Services.OwnResource(failingResource);
+                Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
+                Assert.That(calculator.Started, Is.True);
+                creation = Task.Run(() => fixture.Manager.CreateScaleAsync(
+                    fixture.Name("InFlightShutdown"), ScaleKind.Simple, builder =>
+                    {
+                        ScalesNodeManagerTests.FullScale(builder, "InFlightShutdown");
+                        entered.Release();
+                        if (!resume.Wait(TimeSpan.FromSeconds(15)))
+                        {
+                            throw new TimeoutException("The construction was not released.");
+                        }
+                    }).AsTask());
+                Assert.That(await entered.WaitAsync(TimeSpan.FromSeconds(15)), Is.True);
+                Task stopping = fixture.Manager.Runtime.DisposeAsync().AsTask();
+                Assert.That(calculator.CancellationCount, Is.EqualTo(1));
+                Assert.That(stopping.IsCompleted, Is.False, "cancellation errors must not bypass construction drain");
+                Assert.That(resource.Disposed, Is.False, "the admitted construction still owns the dependencies");
+                resume.Set();
+                await Assert.ThatAsync(
+                    async () => await creation, Throws.InstanceOf<OperationCanceledException>());
+                AggregateException? thrown = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await stopping.WaitAsync(TimeSpan.FromSeconds(15)));
+                Assert.That(thrown!.Flatten().InnerExceptions, Is.EquivalentTo(expected));
+                Assert.That(resource.Disposed, Is.True, "resource cleanup follows the failed cancellation");
+                Assert.That(failingResource.Disposed, Is.True, "all owned cleanup is attempted");
+                Assert.That(() => scale.Services.CreateFileBinder(), Throws.TypeOf<ObjectDisposedException>());
+                AggregateException? repeated = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await fixture.Manager.Runtime.DisposeAsync());
+                Assert.That(repeated, Is.SameAs(thrown), "later callers retain the original shutdown error");
+                await Assert.ThatAsync(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
+                Assert.That(scale.RegisteredReading, Is.Null);
+            }
+            finally
+            {
+                resume.Set();
+                try
+                {
+                    if (creation != null)
+                    {
+                        try
+                        {
+                            await creation.ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Shutdown deliberately cancels the admitted construction.
+                        }
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        await fixture.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (AggregateException ex) when (ex.Flatten().InnerExceptions.Count == expected.Length &&
+                        ex.Flatten().InnerExceptions.Contains(failure) &&
+                        (!cleanupFails || ex.Flatten().InnerExceptions.Contains(cleanupFailure)))
+                    {
+                        // The runtime retains the injected failure for every subsequent shutdown.
+                    }
+                }
+            }
         }
 
         [Test]
@@ -563,7 +668,8 @@ namespace Opc.Ua.Scales.Tests
             AssertGood(await scale.TotalizingHopper.ReportCompletedFillAsync(Item(2) with { ProductId = "B" }));
             var second = (TotalizingHopperProductState)scale.ProductionPreset.ActiveProduct!;
             second.TipCounter!.WrappedValue = new Variant(ulong.MaxValue);
-            Assert.That((await scale.TotalizingHopper.ReportCompletedFillAsync(Item(3) with { ProductId = "B" })).StatusCode,
+            Assert.That((await scale.TotalizingHopper.ReportCompletedFillAsync(
+                Item(3) with { ProductId = "B" })).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
             Assert.That(second.TipCounter.WrappedValue, Is.EqualTo(new Variant(ulong.MaxValue)));
             Assert.That(Count(scale.ProductionOutput!.Statistic), Is.EqualTo(2UL));
@@ -576,7 +682,10 @@ namespace Opc.Ua.Scales.Tests
         {
             await using var fixture = new ScalesServerFixture();
             await fixture.StartAsync();
-            foreach (ScaleKind kind in new[] { ScaleKind.Catchweigher, ScaleKind.AutomaticWeightPriceLabeler, ScaleKind.TotalizingHopper })
+            foreach (ScaleKind kind in new[]
+            {
+                ScaleKind.Catchweigher, ScaleKind.AutomaticWeightPriceLabeler, ScaleKind.TotalizingHopper
+            })
             {
                 ScaleHandle scale = await fixture.Manager.CreateScaleAsync(
                     fixture.Name(kind.ToString()), kind, b => Configure(b, kind, null));
@@ -601,7 +710,8 @@ namespace Opc.Ua.Scales.Tests
             }
         }
 
-        internal static void ConfigurePrice(ISystemContext context, AutomaticWeightPriceLabelerProductState product, ushort ns)
+        internal static void ConfigurePrice(
+            ISystemContext context, AutomaticWeightPriceLabelerProductState product, ushort ns)
         {
             product.UnitPrice!.WrappedValue = new Variant(1.0);
             var currency = (BaseVariableState)product.UnitPrice.FindChild(
@@ -663,11 +773,75 @@ namespace Opc.Ua.Scales.Tests
             public TaskCompletionSource<ScaleItemPrice?> Result { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            public ValueTask<ScaleItemPrice?> CalculateAsync(ScalePriceRequest request, CancellationToken cancellationToken = default)
+            public ValueTask<ScaleItemPrice?> CalculateAsync(
+                ScalePriceRequest request, CancellationToken cancellationToken = default)
             {
                 Started = true;
                 Request = request;
                 return new ValueTask<ScaleItemPrice?>(Result.Task.WaitAsync(cancellationToken));
+            }
+        }
+
+        /// <summary>
+        /// Cancels pending equipment work, then throws from the cancellation callback.
+        /// </summary>
+        private sealed class ThrowingCancellationPriceCalculator(InvalidOperationException failure)
+            : IScalePriceCalculator, IDisposable
+        {
+            /// <summary>
+            /// Whether the pending report reached the equipment provider.
+            /// </summary>
+            public bool Started { get; private set; }
+
+            /// <summary>
+            /// Number of equipment cancellation callbacks invoked.
+            /// </summary>
+            public int CancellationCount { get; private set; }
+
+            /// <inheritdoc/>
+            public ValueTask<ScaleItemPrice?> CalculateAsync(
+                ScalePriceRequest request, CancellationToken cancellationToken = default)
+            {
+                var result = new TaskCompletionSource<ScaleItemPrice?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_registration = cancellationToken.Register(() =>
+                {
+                    CancellationCount++;
+                    result.TrySetCanceled(cancellationToken);
+                    throw failure;
+                });
+                Started = true;
+                return new ValueTask<ScaleItemPrice?>(result.Task);
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                m_registration.Dispose();
+            }
+
+            /// <summary>The equipment cancellation registration.</summary>
+            private CancellationTokenRegistration m_registration;
+        }
+
+        /// <summary>
+        /// Records whether shutdown reached controller-owned cleanup.
+        /// </summary>
+        private sealed class ShutdownProbe(InvalidOperationException? failure = null) : IDisposable
+        {
+            /// <summary>
+            /// Whether cleanup reached this resource.
+            /// </summary>
+            public bool Disposed { get; private set; }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Disposed = true;
+                if (failure != null)
+                {
+                    throw failure;
+                }
             }
         }
 

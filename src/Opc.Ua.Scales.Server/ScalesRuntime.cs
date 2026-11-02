@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -406,19 +407,23 @@ namespace Opc.Ua.Scales.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool> completion;
             lock (m_scaleLock)
             {
-                if (m_disposeTask == null)
+                if (m_disposeTask != null)
                 {
-                    m_disposed = true;
-                    if (m_activeCreations == 0)
-                    {
-                        m_creationsDrained.TrySetResult(true);
-                    }
-                    m_disposeTask = DisposeCoreAsync();
+                    return new ValueTask(m_disposeTask);
                 }
-                return new ValueTask(m_disposeTask);
+                m_disposed = true;
+                if (m_activeCreations == 0)
+                {
+                    m_creationsDrained.TrySetResult(true);
+                }
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_disposeTask = completion.Task;
             }
+            _ = CompleteDisposalAsync(completion);
+            return new ValueTask(completion.Task);
         }
 
         /// <summary>
@@ -515,21 +520,75 @@ namespace Opc.Ua.Scales.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
-            m_stopping.Cancel();
-            await m_creationsDrained.Task.ConfigureAwait(false);
+            List<Exception>? failures = null;
             try
             {
-                Volatile.Write(ref m_stopped, true);
+                m_stopping.Cancel();
+            }
+            catch (Exception ex)
+            {
+                (failures ??= []).Add(ex);
+            }
+            await m_creationsDrained.Task.ConfigureAwait(false);
+            Volatile.Write(ref m_stopped, true);
+            try
+            {
                 if (m_services != null)
                 {
                     await m_services.DisposeAsync().ConfigureAwait(false);
                 }
             }
-            finally
+            catch (Exception ex)
+            {
+                (failures ??= []).Add(ex);
+            }
+            try
             {
                 m_lockService.Dispose();
+            }
+            catch (Exception ex)
+            {
+                (failures ??= []).Add(ex);
+            }
+            try
+            {
                 m_publishGate.Dispose();
+            }
+            catch (Exception ex)
+            {
+                (failures ??= []).Add(ex);
+            }
+            try
+            {
                 m_stopping.Dispose();
+            }
+            catch (Exception ex)
+            {
+                (failures ??= []).Add(ex);
+            }
+            if (failures?.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Runs cancellation and cleanup outside synchronization, sharing their result with every caller.
+        /// </summary>
+        private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
             }
         }
 

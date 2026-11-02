@@ -48,6 +48,25 @@ namespace Opc.Ua.Scales.Tests
     [Category("Scales")]
     public sealed class ScalesClientTests
     {
+        /// <summary>
+        /// Source and expected status codes for malformed counter reads.
+        /// </summary>
+        private static TestCaseData[] MalformedTipCounterCases =>
+        [
+            new(StatusCodes.Good, StatusCodes.BadTypeMismatch),
+            new(StatusCodes.BadNoData, StatusCodes.BadNoData)
+        ];
+
+        /// <summary>
+        /// Source quality partitions for typed item reads.
+        /// </summary>
+        private static TestCaseData[] ItemQualityCases =>
+        [
+            new(StatusCodes.Good, true),
+            new(StatusCodes.Uncertain, true),
+            new(StatusCodes.BadNoCommunication, false)
+        ];
+
         [Test]
         public async Task BrowseOfANodeWithABadStatusYieldsNothingAsync()
         {
@@ -128,9 +147,9 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(actual.Timestamp, Is.EqualTo(timestamp));
         }
 
-        [TestCase(StatusCodes.Good, StatusCodes.BadTypeMismatch)]
-        [TestCase(StatusCodes.BadNoData, StatusCodes.BadNoData)]
-        public async Task MalformedTipCountersRetainErrorsInsteadOfBecomingZeroAsync(uint quality, uint expected)
+        [TestCaseSource(nameof(MalformedTipCounterCases))]
+        public async Task MalformedTipCountersRetainErrorsInsteadOfBecomingZeroAsync(
+            StatusCode quality, StatusCode expected)
         {
             using SessionMock session = SessionMock.Create();
             session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);
@@ -142,10 +161,8 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(actual.StatusCode, Is.EqualTo((StatusCode)expected));
         }
 
-        [TestCase(StatusCodes.Good, true)]
-        [TestCase(StatusCodes.Uncertain, true)]
-        [TestCase(StatusCodes.BadNoCommunication, false)]
-        public async Task ItemReadsRetainFieldQualityFlagsUnitsAndSourceTimeAsync(uint quality, bool present)
+        [TestCaseSource(nameof(ItemQualityCases))]
+        public async Task ItemReadsRetainFieldQualityFlagsUnitsAndSourceTimeAsync(StatusCode quality, bool present)
         {
             using SessionMock session = SessionMock.Create();
             session.NamespaceUris.GetIndexOrAppend(Namespaces.Scales);

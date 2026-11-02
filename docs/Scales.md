@@ -348,9 +348,21 @@ runtime. On a standalone `ScalesNodeManager`, this returns its existing `Runtime
 The stock Machinery manager owns the composed runtime's lifetime. Shutdown
 cancels queued publications, drains active constructions, closes recipe/report file
 handles and content buffers, and detaches the product lock service from session
-notifications. Repeated asynchronous disposal is safe. An application-owned
+notifications. Repeated and concurrent asynchronous disposal share the same
+completion and receive the same shutdown error, if any. An application-owned
 DI manager also releases the registered runtime automatically; it does not need
 a Machinery-specific disposal override.
+
+Equipment pricing providers receive the runtime cancellation signal. If a
+provider's cancellation callback throws, shutdown still drains admitted
+constructions and attempts every owned cleanup before returning the error.
+When cancellation and cleanup both fail, the returned `AggregateException`
+retains both failures. The shared controller services also retain their drain
+completion after synchronous disposal, so a later asynchronous caller still
+waits for running callbacks and receives any cleanup error. Resource cleanup
+failures are logged at Error level with event ID 8240
+(`ScalesServerEventIds.ScaleRuntimeServices`), including when only synchronous
+disposal was requested.
 
 ### Options
 
@@ -902,6 +914,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |
+| Equipment cancellation and shared resource shutdown | 🧪 | `ThrowingProviderCancellationStillDrainsCreationsAndReleasesResourcesAsync`; `RuntimeServicesShareTimerDrainAndFailureAcrossShutdownCallersAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 

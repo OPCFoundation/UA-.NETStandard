@@ -47,9 +47,19 @@ namespace Opc.Ua.Scales.Tests
     [NonParallelizable]
     public sealed class RecipeConditionTests
     {
+        /// <summary>
+        /// Non-good condition source quality partitions.
+        /// </summary>
+        private static TestCaseData[] NonGoodQualityCases =>
+        [
+            new(StatusCodes.BadNoCommunication),
+            new(StatusCodes.Uncertain)
+        ];
+
         [SetUp]
         public async Task SetUpAsync()
         {
+            m_expectedShutdownFailure = null;
             m_fixture = new ScalesServerFixture();
             await m_fixture.StartAsync().ConfigureAwait(false);
             ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
@@ -395,9 +405,8 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle), "fresh contiguous edges recover");
         }
 
-        [TestCase(StatusCodes.BadNoCommunication)]
-        [TestCase(StatusCodes.Uncertain)]
-        public void AnalogWaitRejectsNonGoodQuality(uint quality)
+        [TestCaseSource(nameof(NonGoodQualityCases))]
+        public void AnalogWaitRejectsNonGoodQuality(StatusCode quality)
         {
             Enable(BuiltInType.Double);
             AnalogConditionSleepState element = Analog(0, 10.0);
@@ -778,6 +787,69 @@ namespace Opc.Ua.Scales.Tests
                 "the failure is logged once");
         }
 
+        /// <summary>
+        /// Shared services retain pending timer cleanup and its result across overlapping shutdown calls.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RuntimeServicesShareTimerDrainAndFailureAcrossShutdownCallersAsync(
+            bool synchronousFirst, bool fails)
+        {
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            m_fixture.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            Enable(BuiltInType.Double);
+            var timerStopped = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_clock.TimerDisposalGate = timerStopped.Task;
+            ScaleRuntimeServices services = m_scale.Services;
+            if (synchronousFirst)
+            {
+                services.Dispose();
+            }
+            Task first = services.DisposeAsync().AsTask();
+            Task second = services.DisposeAsync().AsTask();
+            try
+            {
+                Assert.That(first.IsCompleted, Is.False, "the first caller must wait for the timer");
+                Assert.That(second.IsCompleted, Is.False, "a later caller must share the timer drain");
+                Assert.That(() => services.CreateFileBinder(), Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                if (fails)
+                {
+                    m_expectedShutdownFailure = new InvalidOperationException("Shared timer disposal failed.");
+                    timerStopped.TrySetException(m_expectedShutdownFailure);
+                }
+                else
+                {
+                    timerStopped.TrySetResult(true);
+                }
+            }
+            if (fails)
+            {
+                InvalidOperationException? firstFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await first.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                InvalidOperationException? secondFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await second.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+                InvalidOperationException? repeatedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await services.DisposeAsync().ConfigureAwait(false));
+                Assert.That(firstFailure, Is.SameAs(m_expectedShutdownFailure));
+                Assert.That(secondFailure, Is.SameAs(firstFailure));
+                Assert.That(repeatedFailure, Is.SameAs(firstFailure));
+                RecordedLogRecord[] logged =
+                    [.. logs.Records.Where(r => r.EventId.Id == RuntimeResourceShutdownFailedEventId)];
+                Assert.That(logged, Has.Length.EqualTo(1));
+                Assert.That(logged[0].Exception, Is.SameAs(firstFailure));
+            }
+            else
+            {
+                await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                await services.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync()
         {
@@ -1043,6 +1115,9 @@ namespace Opc.Ua.Scales.Tests
 
         /// <summary>The ScalesServerEventIds.ScaleRecipes + 1 event id of a failed controller shutdown.</summary>
         private const int RecipeShutdownFailedEventId = 8231;
+
+        /// <summary>The ScalesServerEventIds.ScaleRuntimeServices cleanup failure event id.</summary>
+        private const int RuntimeResourceShutdownFailedEventId = 8240;
 
         /// <summary>A timer-disposal failure a test injects on purpose; teardown expects it.</summary>
         private Exception? m_expectedShutdownFailure;

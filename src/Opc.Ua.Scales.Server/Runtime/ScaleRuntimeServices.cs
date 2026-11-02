@@ -156,23 +156,70 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public void Dispose()
         {
-            IDisposable[] resources = Detach();
-            for (int index = resources.Length - 1; index >= 0; index--)
-            {
-                resources[index].Dispose();
-            }
+            _ = Stop(synchronous: true);
         }
 
         /// <summary>
         /// Releases the resources of every scale and waits until timer and subscriber
         /// callbacks already running in asynchronously disposable controllers have returned.
         /// A failing resource does not stop the others from being released; its exception is
-        /// rethrown afterwards.
+        /// rethrown afterwards. Repeated callers share the drain and its result, including after Dispose.
         /// </summary>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            IDisposable[] resources = Detach();
+            return new ValueTask(Stop(synchronous: false));
+        }
+
+        /// <summary>
+        /// Detaches resources once and shares their asynchronous drain, including after synchronous shutdown.
+        /// </summary>
+        private Task<bool> Stop(bool synchronous)
+        {
+            IDisposable[] resources;
+            TaskCompletionSource<bool> completion;
+            lock (m_resourceGate)
+            {
+                if (m_disposal != null)
+                {
+                    return m_disposal.Task;
+                }
+                completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                m_disposal = completion;
+                m_disposed = true;
+                resources = [.. m_resources];
+                m_resources.Clear();
+            }
             List<Exception>? failures = null;
+            if (synchronous)
+            {
+                for (int index = resources.Length - 1; index >= 0; index--)
+                {
+                    try
+                    {
+                        resources[index].Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        (failures ??= []).Add(ex);
+                    }
+                }
+            }
+            _ = CompleteDisposalAsync(resources, synchronous, failures, completion);
+            ThrowFailures(failures);
+            return completion.Task;
+        }
+
+        /// <summary>
+        /// Attempts every asynchronous drain and retains the result for all shutdown callers.
+        /// </summary>
+        private async Task CompleteDisposalAsync(
+            IDisposable[] resources,
+            bool stoppedSynchronously,
+            List<Exception>? failures,
+            TaskCompletionSource<bool> completion)
+        {
+            // Keep the synchronous failure list stable while Stop returns or rethrows it.
+            List<Exception>? allFailures = failures == null ? null : [.. failures];
             for (int index = resources.Length - 1; index >= 0; index--)
             {
                 try
@@ -181,16 +228,34 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         await asyncResource.DisposeAsync().ConfigureAwait(false);
                     }
-                    else
+                    else if (!stoppedSynchronously)
                     {
                         resources[index].Dispose();
                     }
                 }
                 catch (Exception ex)
                 {
-                    (failures ??= []).Add(ex);
+                    (allFailures ??= []).Add(ex);
                 }
             }
+            try
+            {
+                ThrowFailures(allFailures);
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                Logger.ResourceShutdownFailed(ex);
+                completion.TrySetException(ex);
+                _ = completion.Task.Exception;
+            }
+        }
+
+        /// <summary>
+        /// Preserves a single cleanup failure or reports every failure together.
+        /// </summary>
+        private static void ThrowFailures(List<Exception>? failures)
+        {
             if (failures?.Count == 1)
             {
                 ExceptionDispatchInfo.Capture(failures[0]).Throw();
@@ -198,24 +263,6 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (failures != null)
             {
                 throw new AggregateException(failures);
-            }
-        }
-
-        /// <summary>
-        /// Marks the services disposed and takes ownership of the resources to release, once.
-        /// </summary>
-        private IDisposable[] Detach()
-        {
-            lock (m_resourceGate)
-            {
-                if (m_disposed)
-                {
-                    return [];
-                }
-                m_disposed = true;
-                IDisposable[] resources = [.. m_resources];
-                m_resources.Clear();
-                return resources;
             }
         }
 
@@ -252,8 +299,26 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>The resources of all controller instances.</summary>
         private readonly List<IDisposable> m_resources = [];
 
+        /// <summary>The shared completion of resource shutdown and callback draining.</summary>
+        private TaskCompletionSource<bool>? m_disposal;
+
         /// <summary>Whether resources have been released.</summary>
         private bool m_disposed;
+    }
+
+    /// <summary>
+    /// Source-generated diagnostics for shared runtime resource shutdown.
+    /// </summary>
+    internal static partial class ScaleRuntimeServicesLog
+    {
+        /// <summary>
+        /// Reports a cleanup failure even when only synchronous disposal is requested.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ScalesServerEventIds.ScaleRuntimeServices,
+            Level = LogLevel.Error,
+            Message = "Scales runtime resource shutdown failed.")]
+        public static partial void ResourceShutdownFailed(this ILogger logger, Exception exception);
     }
 
     /// <summary>
