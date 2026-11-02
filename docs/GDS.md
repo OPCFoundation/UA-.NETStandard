@@ -195,6 +195,10 @@ registrar.Administration!.BindToTicketStore(ticketStore, ticketValidator);
 Register ticket services with
 `.AddOnboardingTickets(trustedTicketStorePath, issuerStorePath)` on the
 server or GDS builder, using an injected `ICertificateManager`.
+The GDS builder registers authority initialization on the GDS itself, including
+when a regular server shares the service collection. The regular server builder
+registers it on that server. Both use the explicitly injected certificate manager;
+these registrations do not create separate per-server trust providers.
 Resolve `IOnboardingTicketValidator` and pass it to the binding.
 The validator accepts RFC 7515 general JSON serialization with protected
 `alg`, `x5c`, and `cty` headers; a composite builder's signature also

@@ -234,6 +234,63 @@ namespace Opc.Ua.Gds.Tests.Hosting
             initialize.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// GDS-specific authorities initialize on the GDS even when a regular server shares its container.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AuthorityStartupRemainsOnItsSelectedHostWhenServersShareContainer(bool useGds)
+        {
+            var services = new ServiceCollection();
+            IOpcUaBuilder root = services.AddOpcUa();
+            IOpcUaServerBuilder serverBuilder = root.AddServer(_ => { });
+            IGdsServerBuilder gdsBuilder = root.AddGdsServer(_ => { });
+            if (useGds)
+            {
+                gdsBuilder.AddOnboardingTickets("ticket-trusted").AddOnboardingIdentities("identity-trusted");
+            }
+            else
+            {
+                serverBuilder.AddOnboardingTickets("ticket-trusted").AddOnboardingIdentities("identity-trusted");
+            }
+            int ticketResolutions = 0;
+            int identityResolutions = 0;
+            services.AddSingleton<IOnboardingTicketTrustProvider>(_ =>
+            {
+                ticketResolutions++;
+                return new Mock<IOnboardingTicketTrustProvider>(MockBehavior.Strict).Object;
+            });
+            services.AddSingleton<IOnboardingIdentityTrustProvider>(_ =>
+            {
+                identityResolutions++;
+                return new Mock<IOnboardingIdentityTrustProvider>(MockBehavior.Strict).Object;
+            });
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IServerPreStartupTask[] sharedTasks = provider.GetServices<IServerPreStartupTask>()
+                .Where(task => task is
+                    OnboardingTicketBuilderExtensions.AuthorityStartupTask<IOnboardingTicketTrustProvider> or
+                    OnboardingTicketBuilderExtensions.AuthorityStartupTask<IOnboardingIdentityTrustProvider>)
+                .ToArray();
+            GdsServerPreStartupTaskRegistration[] gdsTasks =
+                provider.GetServices<GdsServerPreStartupTaskRegistration>().ToArray();
+            Assert.That(sharedTasks, Has.Length.EqualTo(useGds ? 0 : 2));
+            Assert.That(gdsTasks, Has.Length.EqualTo(useGds ? 2 : 0));
+            Assert.That(ticketResolutions, Is.Zero);
+            Assert.That(identityResolutions, Is.Zero);
+
+            IServerContext server = new Mock<IServerContext>().Object;
+            foreach (IServerPreStartupTask task in sharedTasks)
+            {
+                await task.OnServerStartingAsync(server).ConfigureAwait(false);
+            }
+            foreach (GdsServerPreStartupTaskRegistration registration in gdsTasks)
+            {
+                await registration.Factory(provider).OnServerStartingAsync(server).ConfigureAwait(false);
+            }
+            Assert.That(ticketResolutions, Is.EqualTo(1));
+            Assert.That(identityResolutions, Is.EqualTo(1));
+        }
+
         private static void AssertDefaultsResolve(
             Func<IServiceCollection, object> addBuilderAndOnboarding,
             string? expectedIssuerStorePath)

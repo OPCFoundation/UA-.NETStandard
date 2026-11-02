@@ -55,7 +55,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            RegisterServices(builder.Services, trustedStorePath, issuerStorePath);
+            RegisterServices(builder.Services, trustedStorePath, issuerStorePath, isGds: false);
             return builder;
         }
 
@@ -72,7 +72,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            RegisterServices(builder.Services, trustedStorePath, issuerStorePath);
+            RegisterServices(builder.Services, trustedStorePath, issuerStorePath, isGds: true);
             return builder;
         }
 
@@ -89,7 +89,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            RegisterIdentityServices(builder.Services, trustedStorePath, issuerStorePath);
+            RegisterIdentityServices(builder.Services, trustedStorePath, issuerStorePath, isGds: false);
             return builder;
         }
 
@@ -106,7 +106,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 throw new ArgumentNullException(nameof(builder));
             }
-            RegisterIdentityServices(builder.Services, trustedStorePath, issuerStorePath);
+            RegisterIdentityServices(builder.Services, trustedStorePath, issuerStorePath, isGds: true);
             return builder;
         }
 
@@ -116,7 +116,8 @@ namespace Microsoft.Extensions.DependencyInjection
         private static void RegisterIdentityServices(
             IServiceCollection services,
             string trustedStorePath,
-            string? issuerStorePath)
+            string? issuerStorePath,
+            bool isGds)
         {
             ValidateStorePaths(trustedStorePath, issuerStorePath);
             services.TryAddSingleton<IOnboardingIdentityTrustProvider>(provider =>
@@ -133,9 +134,7 @@ namespace Microsoft.Extensions.DependencyInjection
                     provider.GetRequiredService<ITicketStore>(),
                     provider.GetRequiredService<IOnboardingTicketValidator>(),
                     provider.GetRequiredService<IOnboardingIdentityTrustProvider>()));
-            services.AddSingleton<IServerPreStartupTask>(provider =>
-                new AuthorityStartupTask<IOnboardingIdentityTrustProvider>(
-                    provider.GetRequiredService<IOnboardingIdentityTrustProvider>));
+            RegisterStartupTask<IOnboardingIdentityTrustProvider>(services, isGds);
         }
 
         /// <summary>
@@ -144,7 +143,8 @@ namespace Microsoft.Extensions.DependencyInjection
         private static void RegisterServices(
             IServiceCollection services,
             string trustedStorePath,
-            string? issuerStorePath)
+            string? issuerStorePath,
+            bool isGds)
         {
             ValidateStorePaths(trustedStorePath, issuerStorePath);
             services.TryAddSingleton<IOnboardingTicketTrustProvider>(provider =>
@@ -162,9 +162,26 @@ namespace Microsoft.Extensions.DependencyInjection
                 new OnboardingTicketWriter(
                     provider.GetRequiredService<ICertificateManager>().CertificateProvider,
                     CreateMessageContext(provider.GetRequiredService<ITelemetryContext>())));
-            services.AddSingleton<IServerPreStartupTask>(provider =>
-                new AuthorityStartupTask<IOnboardingTicketTrustProvider>(
-                    provider.GetRequiredService<IOnboardingTicketTrustProvider>));
+            RegisterStartupTask<IOnboardingTicketTrustProvider>(services, isGds);
+        }
+
+        /// <summary>
+        /// Keeps GDS authority initialization on the GDS when another server shares the service collection.
+        /// </summary>
+        private static void RegisterStartupTask<T>(IServiceCollection services, bool isGds)
+            where T : class
+        {
+            if (isGds)
+            {
+                services.AddSingleton(new GdsServerPreStartupTaskRegistration(
+                    provider => new AuthorityStartupTask<T>(provider.GetRequiredService<T>),
+                    typeof(AuthorityStartupTask<T>)));
+            }
+            else
+            {
+                services.AddSingleton<IServerPreStartupTask>(provider =>
+                    new AuthorityStartupTask<T>(provider.GetRequiredService<T>));
+            }
         }
 
         /// <summary>

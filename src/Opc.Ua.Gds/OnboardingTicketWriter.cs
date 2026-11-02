@@ -113,10 +113,22 @@ namespace Opc.Ua.Onboarding
             string compositeInstanceUri = "",
             CancellationToken ct = default)
         {
-            ArgumentNullException.ThrowIfNull(encodedTicket);
-            ArgumentNullException.ThrowIfNull(signingCertificate);
-            ArgumentNullException.ThrowIfNull(validateTicket);
-            ArgumentNullException.ThrowIfNull(compositeInstanceUri);
+            if (encodedTicket == null)
+            {
+                throw new ArgumentNullException(nameof(encodedTicket));
+            }
+            if (signingCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(signingCertificate));
+            }
+            if (validateTicket == null)
+            {
+                throw new ArgumentNullException(nameof(validateTicket));
+            }
+            if (compositeInstanceUri == null)
+            {
+                throw new ArgumentNullException(nameof(compositeInstanceUri));
+            }
             if (compositeInstanceUri.Length > 0 &&
                 !Uri.TryCreate(compositeInstanceUri, UriKind.Absolute, out _))
             {
