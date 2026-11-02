@@ -162,6 +162,7 @@ namespace Opc.Ua.Server.Historian
         /// the binding even if cleanup fails. A pending replacement completes before ownership is evaluated;
         /// a committed successor is preserved. Conflicting mutations are rejected while cleanup runs.
         /// Repeated calls share the first cleanup operation and its completed outcome.
+        /// A subsequent synchronous Dispose does not cancel or bypass a started asynchronous release.
         /// </summary>
         /// <param name="cleanup">Releases metadata and owner-index entries created by this registration.</param>
         /// <returns>The completed release, including any cleanup failure.</returns>

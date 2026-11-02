@@ -601,7 +601,13 @@ namespace Opc.Ua.Server.Historian
             /// <inheritdoc/>
             public void Dispose()
             {
-                m_registry.ReleaseNodeBinding(m_nodeId, this);
+                lock (m_releaseLock)
+                {
+                    if (m_release == null)
+                    {
+                        m_registry.ReleaseNodeBinding(m_nodeId, this);
+                    }
+                }
             }
 
             /// <inheritdoc/>

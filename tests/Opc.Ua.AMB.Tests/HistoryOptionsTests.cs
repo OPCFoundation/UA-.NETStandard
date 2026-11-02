@@ -190,6 +190,67 @@ namespace Opc.Ua.AMB.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task SynchronousDisposalPreservesStartedMetadataReleaseAcrossReplacementAsync(bool commit)
+        {
+            using var registry = new HistorianProviderRegistry(new NamespaceTable());
+            using var provider = new InMemoryHistorianProvider();
+            using var successor = new InMemoryHistorianProvider();
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("health", 1),
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            Assert.That(registry.TryRegisterForNode(node, provider, out IDisposable? registration), Is.True);
+            var binding = (IHistorianNodeBinding)registration!;
+            var metadata = new PropertyState(node) { BrowseName = new QualifiedName("OwnedMetadata") };
+            node.AddChild(metadata);
+            node.Historizing = true;
+            using IHistorianNodeReplacement replacement =
+                ((IHistorianNodeReplacementRegistry)registry).BeginNodeReplacement(node, successor);
+            node.AccessLevel = AccessLevels.HistoryRead;
+            node.UserAccessLevel = AccessLevels.HistoryRead;
+            int cleanupCalls = 0;
+            Task release = binding.ReleaseAsync(() =>
+            {
+                cleanupCalls++;
+                Assert.That(registry.Resolve(node.NodeId), Is.SameAs(provider));
+                node.RemoveChild(metadata);
+                return default;
+            }).AsTask();
+
+            Assert.That(release.IsCompleted, Is.False);
+            binding.Dispose();
+            binding.Dispose();
+            Assert.That(release.IsCompleted, Is.False);
+            Assert.That(cleanupCalls, Is.Zero);
+            Assert.That(registry.Resolve(node.NodeId), Is.SameAs(provider));
+            Assert.That(node.Historizing, Is.True);
+            Task repeated = binding.ReleaseAsync(() => throw new AssertionException("Cleanup repeated.")).AsTask();
+            Assert.That(repeated, Is.SameAs(release));
+            if (commit)
+            {
+                replacement.Commit();
+            }
+            else
+            {
+                replacement.Dispose();
+            }
+            await release.ConfigureAwait(false);
+            await repeated.ConfigureAwait(false);
+            binding.Dispose();
+
+            Assert.That(metadata.Parent, commit ? Is.SameAs(node) : Is.Null);
+            Assert.That(cleanupCalls, Is.EqualTo(commit ? 0 : 1));
+            Assert.That(registry.Resolve(node.NodeId), commit ? Is.SameAs(successor) : Is.Null);
+            Assert.That(node.Historizing, Is.EqualTo(commit));
+            Assert.That(node.AccessLevel, Is.EqualTo(commit ? AccessLevels.HistoryRead : AccessLevels.CurrentRead));
+            Assert.That(node.UserAccessLevel,
+                Is.EqualTo(commit ? AccessLevels.HistoryRead : AccessLevels.CurrentRead));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void ScopedRegistryDisposalCannotRemoveALaterRegistration(bool sameProvider)
         {
             using var registry = new HistorianProviderRegistry(new NamespaceTable());
