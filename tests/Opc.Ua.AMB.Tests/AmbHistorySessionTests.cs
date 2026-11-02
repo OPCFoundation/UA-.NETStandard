@@ -373,6 +373,8 @@ namespace Opc.Ua.AMB.Tests
                     builder => builder.WithDeviceHealth()
                         .WithHealthAlarm("Failure", AssetHealthAlarmKind.Failure, AmbConditionClass.ConnectionFailure)
                         .WithConfigurableAssetId("Sensor-1")
+                        .LocatedIn(AssetLocationKind.Hierarchical, "Plant1/Hall3")
+                        .LocatedIn(AssetLocationKind.Operational, "Cooling")
                         .WithDocumentationLinks(links => links.AddEditable("Manual", "https://example.test/manual")))
                     .ConfigureAwait(false);
             await using AmbHostedServer scope = server;
@@ -442,6 +444,16 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(first.Flatten().InnerExceptions[1], Is.SameAs(eventFailure));
             AliasNameState alias = handle.ProductInstanceUriAlias!.Node;
             Assert.That(handle.AssetIdAlias, Is.Not.Null);
+            ArrayOf<(AssetLocationKind Kind, NodeId Location)> locations = handle.Structure!.Locations;
+            Assert.That(locations.IsEmpty, Is.False);
+            for (int i = 0; i < locations.Count; i++)
+            {
+                (AssetLocationKind kind, NodeId location) = locations[i];
+                NodeId contains = server.ToNodeId(kind == AssetLocationKind.Hierarchical
+                    ? ReferenceTypeIds.HierarchicalContains : ReferenceTypeIds.OperationalContains);
+                Assert.That((await server.BrowseAsync(location, contains).ConfigureAwait(false))
+                    .Select(reference => reference.NodeId), Does.Contain((ExpandedNodeId)device.NodeId));
+            }
             NodeStateChangedHandler failDeletion = (_, _, changes) =>
             {
                 if ((changes & NodeStateChangeMasks.Deleted) != 0)
@@ -461,6 +473,17 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(server.AssetManagement.Assets.IsEmpty, Is.True);
                 Assert.That(handle.AssetIdAlias, Is.Null);
                 Assert.That(server.Manager.ConformanceUnits.IsEmpty, Is.True);
+                for (int i = 0; i < locations.Count; i++)
+                {
+                    (AssetLocationKind kind, NodeId location) = locations[i];
+                    NodeId contains = server.ToNodeId(kind == AssetLocationKind.Hierarchical
+                        ? ReferenceTypeIds.HierarchicalContains : ReferenceTypeIds.OperationalContains);
+                    Assert.That((await server.BrowseAsync(location, contains).ConfigureAwait(false))
+                        .Select(reference => reference.NodeId), Does.Not.Contain((ExpandedNodeId)device.NodeId));
+                    Assert.That((await server.BrowseAsync(device.NodeId, contains, BrowseDirection.Inverse)
+                        .ConfigureAwait(false)).Select(reference => reference.NodeId),
+                        Does.Not.Contain((ExpandedNodeId)location));
+                }
                 Assert.That(handle.ConfigurableAssetIdBinding!.Variable.OnSimpleWriteValueAsync, Is.Null);
                 Assert.That(handle.ConfigurableAssetIdBinding.Variable.OnWriteValueAsync, Is.Null);
                 BaseVariableState link = await server.FindNodeAsync<BaseVariableState>(
