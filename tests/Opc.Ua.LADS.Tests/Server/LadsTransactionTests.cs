@@ -40,6 +40,7 @@ using Opc.Ua.Di.Server;
 using Opc.Ua.LADS.Server;
 using Opc.Ua.LADS.Tests.Integration;
 using Opc.Ua.Machinery.Server;
+using Opc.Ua.Machinery.Server.StateMachines;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.Hosting;
 
@@ -676,7 +677,9 @@ namespace Opc.Ua.LADS.Tests.Server
                 await result.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false));
             Assert.That(device.State, Is.EqualTo(LadsDeviceStateValue.Shutdown));
             Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Running));
-            foreach (ILadsFunctionalUnit owned in device.FunctionalUnits.ToArray())
+            ILadsFunctionalUnit[] ownedUnits = device.FunctionalUnits.ToArray() ??
+                throw new AssertionException("The device has no functional-unit snapshot.");
+            foreach (ILadsFunctionalUnit owned in ownedUnits)
             {
                 await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await ((LadsFunctionalUnit)owned).Gate.WaitAsync().ConfigureAwait(false));
@@ -894,7 +897,9 @@ namespace Opc.Ua.LADS.Tests.Server
                     programs.Template("Run", template => template.Step("Step", TimeSpan.Zero)))))
                 .ConfigureAwait(false);
             var device = (LadsDevice)await server.DeviceAsync().ConfigureAwait(false);
-            foreach (ILadsFunctionalUnit unit in device.FunctionalUnits.ToArray())
+            ILadsFunctionalUnit[] ownedUnits = device.FunctionalUnits.ToArray() ??
+                throw new AssertionException("The device has no functional-unit snapshot.");
+            foreach (ILadsFunctionalUnit unit in ownedUnits)
             {
                 ILadsProgramManager programs = unit.Programs!;
                 for (int index = 0; index < (unit.Name == "Second" ? 1 : 2); index++)
@@ -915,7 +920,7 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(messages, Does.Contain("Binding 5 cleanup failed."));
             Assert.That(messages, Does.Contain("Binding 8 cleanup failed."));
             Assert.That(binder.Releases, Is.EqualTo(binder.Bindings));
-            foreach (ILadsFunctionalUnit unit in device.FunctionalUnits.ToArray())
+            foreach (ILadsFunctionalUnit unit in ownedUnits)
             {
                 await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await ((LadsFunctionalUnit)unit).Gate.WaitAsync().ConfigureAwait(false));
@@ -1109,7 +1114,7 @@ namespace Opc.Ua.LADS.Tests.Server
             var children = new List<BaseInstanceState>();
             programs.Node.ProgramTemplateSet!.GetChildren(device.Runtime.Context, children);
             BaseInstanceState[] matches = children.Where(child => child.BrowseName.Name == id).ToArray();
-            Assert.That(matches.Length, Is.EqualTo(present ? 1 : 0));
+            Assert.That(matches, Has.Length.EqualTo(present ? 1 : 0));
             if (present)
             {
                 AssertSubtreeRegistration(device, matches[0], present: true);
@@ -1135,7 +1140,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 }
                 nodes.AddRange(children);
             }
-            Assert.That(nodes.Count, Is.GreaterThan(1));
+            Assert.That(nodes, Has.Count.GreaterThan(1));
         }
 
         /// <summary>
