@@ -61,7 +61,7 @@ namespace Opc.Ua.IA.Tests
                 ExpandedNodeId.ToNodeId(ObjectTypeIds.CalibrationTargetType, fixture.Context.NamespaceUris)));
             provider.AddPredefinedNodes(nodes, fixture.Context);
             Assert.That(nodes, Has.Count.EqualTo(count));
-            Assert.That(nodes.Select(node => node.NodeId).Distinct().ToArray(), Has.Count.EqualTo(count));
+            Assert.That(nodes.Select(node => node.NodeId).Distinct().ToArray(), Has.Length.EqualTo(count));
             Assert.That(typeof(BasicStacklightState).Assembly, Is.SameAs(typeof(ObjectTypeIds).Assembly));
             Assert.That(typeof(IaStacklight).Assembly, Is.Not.SameAs(typeof(BasicStacklightState).Assembly));
         }
