@@ -296,7 +296,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 config.ServerConfiguration.MaxPublishingInterval = 86400_000;
                 config.ServerConfiguration.MaxNotificationQueueSize = 1;
                 config.ServerConfiguration.MaxNotificationsPerPublish = int.MaxValue;
-                config.ServerConfiguration.MaxPublishRequestCount = 4;
+                config.ServerConfiguration.MaxPublishRequestCount = ArgInt("publish-requests", 4);
                 config.ServerConfiguration.AvailableSamplingRates = [new SamplingRateGroup(sampling, 1, 0)];
             }
 
@@ -314,7 +314,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     counters,
                     contract ? NativeWorkerBenchmark.ContractServerUri : CounterNodeManager.Namespace,
                     ArgInt("counter-lock", 0) != 0,
-                    contract && ArgInt("async-node-manager", 1) != 0)
+                    ArgInt("async-node-manager", contract ? 1 : 0) != 0)
                 : contract
                 ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
                 : new ReferenceServer(telemetry);
@@ -372,7 +372,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private static async Task<int> RunDriverAsync(string[] args)
         {
             string scenario = Arg("scenario", "read");
-            int sessionCount = ArgInt("sessions", 20);
+            bool counters = scenario == "counters";
+            int sessionCount = ArgInt("sessions", counters ? 1 : 20);
+            // counters: --subs subscriptions per session, each with --nodes counters of its own
+            int counterSubs = counters ? ArgInt("subs", 1) : 0;
+            int counterCount = counters ? sessionCount * counterSubs * ArgInt("nodes", 1) : 0;
+            // outstanding Publish requests per session, for the client and the server limit; counters
+            // defaults to one per subscription plus one, so no subscription waits for a request
+            int publishRequests = counters
+                ? ArgInt("publish-requests", Math.Max(4, counterSubs + 1))
+                : ArgInt("publish-requests", 0);
             int durationSeconds = ArgInt("duration", 20);
             int warmupSeconds = ArgInt("warmup", 10);
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
@@ -395,7 +404,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 };
             (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")}"),
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} ") +
+                FormattableString.Invariant(
+                    $"--counters {counterCount} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")} --isolation {Arg("isolation", "default")} ") +
+                FormattableString.Invariant(
+                    $"--publish-requests {Math.Max(4, publishRequests)} --async-node-manager {Arg("async-node-manager", "0")} --counter-lock {Arg("counter-lock", "0")}"),
                 serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
@@ -494,19 +507,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"connected {sessions.Length} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
-            if (TryGetArg("publish-requests", out string? publishRequests))
+            if (publishRequests > 0)
             {
                 // outstanding Publish requests per session (the client default adapts to the subscriptions)
-                int count = int.Parse(publishRequests!, CultureInfo.InvariantCulture);
                 foreach (ISession session in sessions)
                 {
-                    session.MaxPublishRequestCount = Math.Max(session.MaxPublishRequestCount, count);
-                    session.MinPublishRequestCount = count;
+                    session.MaxPublishRequestCount = Math.Max(session.MaxPublishRequestCount, publishRequests);
+                    session.MinPublishRequestCount = publishRequests;
                 }
             }
 
-            Workload workload = scenario == "counters"
-                ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
+            Workload workload = counters
+                ? new CounterWorkload(sessions, counterSubs, ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
                 : scenario == "events"
                 ? new EventWorkload(sessions, ArgInt("subs", 15), ArgInt("pub", 100), ArgInt("queue-size", 10000), ArgInt("event-rate", 0))
                 : scenario == "sub"
