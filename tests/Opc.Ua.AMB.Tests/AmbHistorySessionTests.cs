@@ -1612,7 +1612,7 @@ namespace Opc.Ua.AMB.Tests
                 nodes[i].GetChildren(context, children);
                 nodes.AddRange(children);
             }
-            return nodes.Select(node => node.NodeId).ToList();
+            return nodes.ConvertAll(node => node.NodeId);
         }
 
         /// <summary>
