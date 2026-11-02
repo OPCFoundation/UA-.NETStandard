@@ -399,6 +399,80 @@ namespace Opc.Ua.IA.Tests.Statistics
         }
 
         /// <summary>
+        /// A reset authorization provider can re-enter refresh without waiting on the publication gate.
+        /// </summary>
+        [Test]
+        public async Task ResetAuthorizationCanReenterRefresh()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<IaStatisticsSnapshot>(Snapshot(3)));
+            IaStatisticsSnapshot reset = Snapshot(0) with
+            { StartTime = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc) };
+            provider.Setup(source => source.ResetAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<IaStatisticsSnapshot>(reset));
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            bool reentrantRefreshCompleted = false;
+            Task reentrantRefresh = Task.CompletedTask;
+            provider.Setup(source => source.AuthorizeResetAsync(fixture.Context, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    ValueTask refresh = binding.RefreshAsync();
+                    reentrantRefreshCompleted = refresh.IsCompletedSuccessfully;
+                    reentrantRefresh = refresh.AsTask();
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            ServiceResult result = await binding.ResetAsync(fixture.Context).ConfigureAwait(false);
+            await reentrantRefresh.ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(reentrantRefreshCompleted, Is.True);
+            provider.Verify(source => source.ReadAsync(It.IsAny<CancellationToken>()), Times.Once);
+            provider.Verify(source => source.ResetAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A synchronous statistics observer can re-enter refresh after publication releases its gate.
+        /// </summary>
+        [Test]
+        public async Task StatisticsObserverCanReenterRefresh()
+        {
+            var fixture = new IaTestContext();
+            BaseObjectState owner = fixture.Owner();
+            BaseVariableState quantity = fixture.Quantity(owner);
+            var provider = new Mock<IIaStatisticsProvider>(MockBehavior.Strict);
+            provider.Setup(source => source.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<IaStatisticsSnapshot>(Snapshot(9)));
+            using var binding = new IaStatistics(fixture.Context, owner, [quantity], provider.Object);
+            int observerCalls = 0;
+            bool reentrantRefreshCompleted = false;
+            Task reentrantRefresh = Task.CompletedTask;
+            quantity.OnStateChanged = (_, _, _) =>
+            {
+                if (Interlocked.Exchange(ref observerCalls, 1) != 0)
+                {
+                    return;
+                }
+
+                ValueTask refresh = binding.RefreshAsync();
+                reentrantRefreshCompleted = refresh.IsCompletedSuccessfully;
+                reentrantRefresh = refresh.AsTask();
+            };
+
+            await binding.RefreshAsync().ConfigureAwait(false);
+            await reentrantRefresh.ConfigureAwait(false);
+
+            Assert.That(observerCalls, Is.EqualTo(1));
+            Assert.That(reentrantRefreshCompleted, Is.True);
+            AssertValue(quantity, 9);
+            provider.Verify(source => source.ReadAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
         /// Rejects an incomplete or ill-typed last quantity without changing an earlier quantity.
         /// </summary>
         [TestCase(0)]

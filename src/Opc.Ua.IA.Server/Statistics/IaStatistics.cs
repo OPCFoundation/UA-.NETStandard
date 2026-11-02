@@ -126,7 +126,8 @@ namespace Opc.Ua.IA.Server
     /// <remarks>
     /// Construct before registering the object's nodes. The application supplies the statistical
     /// variables and calculation; this binding supplies interface references, metadata and grouped
-    /// reset. Dispose only after the owner has stopped accepting calls and drained refresh operations.
+    /// reset. Dispose only after the owner has stopped accepting calls and drained all refresh and
+    /// reset operations, including reset authorization.
     /// </remarks>
     public sealed class IaStatistics : IDisposable
     {
@@ -255,10 +256,11 @@ namespace Opc.Ua.IA.Server
         /// </summary>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
+            IaStatisticsSnapshot snapshot;
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                IaStatisticsSnapshot snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+                snapshot = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 Publish(snapshot);
             }
@@ -266,6 +268,7 @@ namespace Opc.Ua.IA.Server
             {
                 m_gate.Release();
             }
+            ClearPublishedChangeMasks();
         }
 
         /// <summary>
@@ -279,24 +282,37 @@ namespace Opc.Ua.IA.Server
             {
                 throw new ArgumentNullException(nameof(requestContext));
             }
-            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            await m_resetGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                ServiceResult authorization = await m_provider.AuthorizeResetAsync(requestContext,
-                    cancellationToken).ConfigureAwait(false);
-                if (!ServiceResult.IsGood(authorization))
+                ServiceResult authorization = await m_provider.AuthorizeResetAsync(
+                    requestContext, cancellationToken).ConfigureAwait(false);
+                bool authorized = ServiceResult.IsGood(authorization);
+                await m_gate.WaitAsync(
+                    authorized ? cancellationToken : CancellationToken.None).ConfigureAwait(false);
+                try
                 {
-                    return authorization;
+                    if (!authorized)
+                    {
+                        return authorization;
+                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    IaStatisticsSnapshot snapshot = await m_provider.ResetAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    Publish(snapshot);
                 }
-                cancellationToken.ThrowIfCancellationRequested();
-                IaStatisticsSnapshot snapshot = await m_provider.ResetAsync(cancellationToken).ConfigureAwait(false);
-                Publish(snapshot);
-                return ServiceResult.Good;
+                finally
+                {
+                    m_gate.Release();
+                }
             }
             finally
             {
-                m_gate.Release();
+                m_resetGate.Release();
             }
+            ClearPublishedChangeMasks();
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -305,6 +321,7 @@ namespace Opc.Ua.IA.Server
         public void Dispose()
         {
             m_gate.Dispose();
+            m_resetGate.Dispose();
         }
 
         /// <summary>
@@ -494,6 +511,13 @@ namespace Opc.Ua.IA.Server
             StartTime.Value = Variant.From(snapshot.StartTime);
             StartTime.StatusCode = StatusCodes.Good;
             StartTime.Timestamp = snapshot.StartTime;
+        }
+
+        /// <summary>
+        /// Notifies observers after the collection serialization gate has been released.
+        /// </summary>
+        private void ClearPublishedChangeMasks()
+        {
             State.ClearChangeMasks(m_context, true);
             for (int i = 0; i < m_components.Count; i++)
             {
@@ -532,5 +556,8 @@ namespace Opc.Ua.IA.Server
 
         /// <summary>Serializes observations and resets without blocking asynchronous providers.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
+        /// <summary>Serializes resets while authorization runs outside the publication gate.</summary>
+        private readonly SemaphoreSlim m_resetGate = new(1, 1);
     }
 }

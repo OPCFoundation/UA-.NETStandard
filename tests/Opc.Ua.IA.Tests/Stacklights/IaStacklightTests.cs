@@ -72,6 +72,46 @@ namespace Opc.Ua.IA.Tests.Stacklights
         }
 
         /// <summary>
+        /// A synchronous stacklight observer can re-enter refresh after publication releases its gate.
+        /// </summary>
+        [Test]
+        public async Task StacklightObserverCanReenterRefresh()
+        {
+            var fixture = new IaTestContext();
+            BasicStacklightState state = fixture.Context.CreateInstanceOfBasicStacklightType(
+                browseName: fixture.Name("Stacklight"));
+            StackElementLightState? light = null;
+            IaStacklightSnapshot snapshot = Snapshot(StacklightOperationMode.Segmented, true);
+            Mock<IIaStacklightProvider> provider = Provider(snapshot);
+            provider.Setup(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<IaStacklightSnapshot>(snapshot));
+            using IaStacklight binding = new IaStacklightBuilder(fixture.Context, state).WithModes()
+                .AddLight(fixture.Name("Lamp"), item => light = item).Build(provider.Object);
+            int observerCalls = 0;
+            bool reentrantRefreshCompleted = false;
+            Task reentrantRefresh = Task.CompletedTask;
+            light!.SignalOn!.OnStateChanged = (_, _, _) =>
+            {
+                if (Interlocked.Exchange(ref observerCalls, 1) != 0)
+                {
+                    return;
+                }
+
+                ValueTask refresh = binding.RefreshAsync();
+                reentrantRefreshCompleted = refresh.IsCompletedSuccessfully;
+                reentrantRefresh = refresh.AsTask();
+            };
+
+            await binding.RefreshAsync().ConfigureAwait(false);
+            await reentrantRefresh.ConfigureAwait(false);
+
+            Assert.That(observerCalls, Is.EqualTo(1));
+            Assert.That(reentrantRefreshCompleted, Is.True);
+            Assert.That(light!.SignalOn!.Value, Is.True);
+            provider.Verify(source => source.ReadSnapshotAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
         /// Neither a late invalid level nor a missing acquisition time changes a prior light or mode.
         /// </summary>
         [TestCase(-0.1f)]

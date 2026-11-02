@@ -90,10 +90,11 @@ namespace Opc.Ua.IA.Server
         /// <returns>A task that completes after the state change masks are cleared.</returns>
         public async ValueTask RefreshAsync(CancellationToken cancellationToken = default)
         {
+            IaStacklightSnapshot snapshot;
             await m_refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                IaStacklightSnapshot snapshot = await m_provider
+                snapshot = await m_provider
                     .ReadSnapshotAsync(cancellationToken)
                     .ConfigureAwait(false);
                 if (snapshot is null)
@@ -104,12 +105,12 @@ namespace Opc.Ua.IA.Server
                 ValidateSnapshot(snapshot);
                 cancellationToken.ThrowIfCancellationRequested();
                 ApplySnapshot(snapshot);
-                m_state.ClearChangeMasks(m_context, true);
             }
             finally
             {
                 m_refreshGate.Release();
             }
+            m_state.ClearChangeMasks(m_context, true);
         }
 
         /// <summary>
