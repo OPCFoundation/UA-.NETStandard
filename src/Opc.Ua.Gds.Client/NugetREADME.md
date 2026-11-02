@@ -22,6 +22,12 @@ does not reconnect, change user credentials, or close the caller's connection.
 capture factory alongside the existing connection-owning client. Dispose each
 captured client asynchronously after its operations.
 
+Captured TrustList reads and failed writes close remote handles with a separate
+five-second cleanup token, even after transfer cancellation. If transfer and
+cleanup both fail, the operation reports both exceptions. A failed
+`CloseAndUpdate` response does not establish whether the server committed the
+update; reconcile its state before repeating the write.
+
 For OPC 10000-21 registrar administration, `OnboardingClient` calls the
 standard `DeviceRegistrarAdminType` instance with specification-native
 `ArrayOf<string>` signed JSON ticket inputs and returns `ArrayOf<StatusCode>`.

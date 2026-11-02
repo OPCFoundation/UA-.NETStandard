@@ -601,6 +601,12 @@ namespace Opc.Ua.Gds.Client
 
                 uint fileHandle = await trustListClient.OpenWithMasksAsync((uint)masks, ct)
                     .ConfigureAwait(false);
+                if (m_requestContext != null)
+                {
+                    return await TrustListFileTransferHelper.ReadAndCloseAsync(
+                        trustListClient, fileHandle, session.MessageContext, sizeLimit, chunkSize, ct)
+                        .ConfigureAwait(false);
+                }
                 try
                 {
                     return await TrustListFileTransferHelper.ReadAsync(

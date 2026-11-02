@@ -44,6 +44,38 @@ namespace Opc.Ua.Gds.Client
     internal static class TrustListFileTransferHelper
     {
         /// <summary>
+        /// Reads an opened handle and closes it with an independent, bounded cleanup token.
+        /// A transfer failure remains observable together with any independent close failure.
+        /// </summary>
+        public static async Task<TrustListDataType> ReadAndCloseAsync(
+            FileTypeClient file,
+            uint fileHandle,
+            IServiceMessageContext messageContext,
+            long maxTrustListSize,
+            int chunkSize,
+            CancellationToken ct)
+        {
+            if (file == null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+            TrustListDataType result;
+            try
+            {
+                result = await ReadAsync(file, fileHandle, messageContext, maxTrustListSize, chunkSize, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception transferError)
+            {
+                await CloseAfterFailureAsync(file, fileHandle, transferError).ConfigureAwait(false);
+                throw;
+            }
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await file.CloseAsync(fileHandle, cleanup.Token).ConfigureAwait(false);
+            return result;
+        }
+
+        /// <summary>
         /// Reads the full contents of an already opened file handle into a
         /// decoded <see cref="TrustListDataType"/>. The size is bounded by
         /// <paramref name="maxTrustListSize"/>; exceeding this limit throws a
@@ -220,21 +252,31 @@ namespace Opc.Ua.Gds.Client
                 return await trustListClient.CloseAndUpdateAsync(fileHandle, ct)
                     .ConfigureAwait(false);
             }
-            catch
+            catch (Exception transferError)
             {
-                try
-                {
-                    await trustListClient.CloseAsync(fileHandle, ct).ConfigureAwait(false);
-                }
-                catch
-                {
-                    // ignore close failures during error handling
-                }
+                await CloseAfterFailureAsync(trustListClient, fileHandle, transferError).ConfigureAwait(false);
                 throw;
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(rentedBuffer);
+            }
+        }
+
+        /// <summary>
+        /// Attempts cleanup after a failed transfer without reusing an already canceled request token.
+        /// </summary>
+        private static async Task CloseAfterFailureAsync(FileTypeClient file, uint fileHandle, Exception transferError)
+        {
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try
+            {
+                await file.CloseAsync(fileHandle, cleanup.Token).ConfigureAwait(false);
+            }
+            catch (Exception closeError)
+            {
+                throw new AggregateException(
+                    "Trust-list transfer and handle cleanup both failed.", transferError, closeError);
             }
         }
     }

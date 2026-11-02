@@ -105,6 +105,50 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A successful download does not hide a failure to release its remote file handle.
+        /// </summary>
+        [Test]
+        public async Task BorrowedTrustListReadReportsCloseFailureAfterSuccessfulTransfer()
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, fixture.MessageContext, true))
+            {
+                encoder.WriteEncodeable(null, new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All });
+            }
+            ByteString payload = ByteString.From(stream.ToArray().AsSpan());
+            var closeError = new ServiceResultException(StatusCodes.BadTimeout);
+            int reads = 0;
+            fixture.Handler = (request, _) =>
+            {
+                if (request is BrowseRequest)
+                {
+                    return new ValueTask<IServiceResponse>(Respond(request));
+                }
+                NodeId method = ((CallRequest)request).MethodsToCall[0].MethodId;
+                if (method == Ua.MethodIds.FileType_Close)
+                {
+                    throw closeError;
+                }
+                ArrayOf<Variant> outputs = method == Ua.MethodIds.TrustListType_OpenWithMasks
+                    ? [Variant.From(42u)]
+                    : [Variant.From(reads++ == 0 ? payload : ByteString.Empty)];
+                return new ValueTask<IServiceResponse>(
+                    new CallResponse { Results = [new CallMethodResult { OutputArguments = outputs }] });
+            };
+            await using ServerPushConfigurationClient client = await ServerPushConfigurationClient.CaptureAsync(
+                new ApplicationConfiguration(fixture.Telemetry), fixture.ManagedSession).ConfigureAwait(false);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ReadTrustListAsync().ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(closeError));
+            Assert.That(reads, Is.EqualTo(2));
+            Assert.That(Calls(fixture).Count, Is.EqualTo(4));
+        }
+
+        /// <summary>
         /// Reconnection, identity replacement and endpoint retargeting are unavailable on a borrowed client.
         /// </summary>
         [Test]
@@ -185,6 +229,106 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(decoded.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
             Assert.That(decoded.TrustedCertificates, Is.EqualTo(new[] { trusted }.ToArrayOf()));
             Assert.That(decoded.IssuerCertificates.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Failed transfers close the same handle independently of cancellation and retain both failures.
+        /// </summary>
+        [TestCase("read", false, false)]
+        [TestCase("read", false, true)]
+        [TestCase("read", true, false)]
+        [TestCase("read", true, true)]
+        [TestCase("write", false, false)]
+        [TestCase("write", false, true)]
+        [TestCase("write", true, false)]
+        [TestCase("write", true, true)]
+        [TestCase("commit", false, false)]
+        [TestCase("commit", false, true)]
+        [TestCase("commit", true, false)]
+        [TestCase("commit", true, true)]
+        public async Task BorrowedTrustListFailureClosesHandleAndPreservesErrors(
+            string operation, bool cancelTransfer, bool failClose)
+        {
+            await using var fixture = new SessionRequestContextTestContext(
+                securityMode: MessageSecurityMode.SignAndEncrypt);
+            using var cancellation = new CancellationTokenSource();
+            Exception transferError = cancelTransfer
+                ? new OperationCanceledException(cancellation.Token)
+                : new ServiceResultException(StatusCodes.BadCommunicationError);
+            var closeError = new ServiceResultException(StatusCodes.BadTimeout);
+            bool cleanupTokenUsable = false;
+            NodeId failedMethod = operation == "read" ? Ua.MethodIds.FileType_Read
+                : operation == "commit" ? Ua.MethodIds.TrustListType_CloseAndUpdate : Ua.MethodIds.FileType_Write;
+            fixture.Handler = (request, token) =>
+            {
+                if (request is BrowseRequest)
+                {
+                    return new ValueTask<IServiceResponse>(Respond(request));
+                }
+                NodeId method = ((CallRequest)request).MethodsToCall[0].MethodId;
+                if (method == failedMethod)
+                {
+                    if (cancelTransfer)
+                    {
+                        cancellation.Cancel();
+                    }
+                    throw transferError;
+                }
+                if (method == Ua.MethodIds.FileType_Close)
+                {
+                    cleanupTokenUsable = token.CanBeCanceled && !token.IsCancellationRequested;
+                    if (failClose)
+                    {
+                        throw closeError;
+                    }
+                }
+                ArrayOf<Variant> outputs = method == Ua.MethodIds.FileType_Open ||
+                    method == Ua.MethodIds.TrustListType_OpenWithMasks ? [Variant.From(42u)] : [];
+                return new ValueTask<IServiceResponse>(
+                    new CallResponse { Results = [new CallMethodResult { OutputArguments = outputs }] });
+            };
+            await using ServerPushConfigurationClient client = await ServerPushConfigurationClient.CaptureAsync(
+                new ApplicationConfiguration(fixture.Telemetry), fixture.ManagedSession).ConfigureAwait(false);
+            Func<Task> transfer = async () =>
+            {
+                if (operation == "read")
+                {
+                    await client.ReadTrustListAsync(ct: cancellation.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await client.UpdateTrustListAsync(
+                        new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }, cancellation.Token)
+                        .ConfigureAwait(false);
+                }
+            };
+
+            if (failClose)
+            {
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                    await transfer().ConfigureAwait(false));
+                Assert.That(error!.InnerExceptions, Is.EqualTo(new[] { transferError, closeError }));
+            }
+            else if (cancelTransfer)
+            {
+                OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await transfer().ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(transferError));
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await transfer().ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(transferError));
+            }
+            Assert.That(cleanupTokenUsable, Is.True);
+            List<CallMethodRequest> calls = Calls(fixture);
+            Assert.That(calls.Count, Is.EqualTo(operation == "commit" ? 4 : 3));
+            CallMethodRequest close = calls[calls.Count - 1];
+            Assert.That(close.MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.FileType_Close)));
+            Assert.That(close.InputArguments[0].TryGetValue(out uint handle), Is.True);
+            Assert.That(handle, Is.EqualTo(42u));
+            Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
         }
 
         /// <summary>
