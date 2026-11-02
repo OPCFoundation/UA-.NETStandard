@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Scales.Server;
 using Opc.Ua.Scales.Server.Hosting;
@@ -71,13 +74,22 @@ namespace Microsoft.Extensions.DependencyInjection
             configure?.Invoke(options);
             options.Validate();
 
-            ClaimDiAddressSpace(builder.Services);
+            builder.Services.ClaimDiAddressSpace(
+                nameof(AddScales),
+                "Load the Scales model into the existing manager with nodes.AddOpcUaScales(context) " +
+                "and configure it with ConfigureDevicesFor<TNodeManager>().");
             builder.Services.AddOptions<ScalesServerOptions>();
             if (configure != null)
             {
                 builder.Services.Configure(configure);
             }
-            return builder.AddNodeManager<ScalesNodeManagerFactory>();
+            builder.Services.AddSingleton(static services => new ScalesNodeManagerFactory(
+                services.GetService<IDiPostSetupRunner>(),
+                services.GetService<IOptions<ScalesServerOptions>>(),
+                services.GetServices<IDiModelProvider>().ToArray()));
+            builder.Services.AddSingleton(static services => new OpcUaServerNodeManagerRegistration(
+                services.GetRequiredService<ScalesNodeManagerFactory>()));
+            return builder;
         }
 
         /// <summary>
@@ -132,36 +144,39 @@ namespace Microsoft.Extensions.DependencyInjection
             });
         }
 
-        private static void ClaimDiAddressSpace(IServiceCollection services)
-        {
-            foreach (ServiceDescriptor descriptor in services)
-            {
-                if (descriptor.ServiceType == typeof(DiAddressSpaceOwnership))
-                {
-                    string ownerName =
-                        (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
-                        "another DI-aware hosting registration";
-                    throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. AddScales cannot register a second DI-owning manager. Load the Scales model into the existing manager with nodes.AddOpcUaScales(context) and configure it with ConfigureDevicesFor<TNodeManager>().");
-                }
-            }
-            services.AddSingleton(new DiAddressSpaceOwnership(nameof(AddScales)));
-        }
-
+        /// <summary>
+        /// Exposes the standalone Scales owner through the shared DI setup context.
+        /// </summary>
         private sealed class ScalesSetupContext : IScalesSetupContext
         {
+            /// <summary>
+            /// Creates a Scales context backed by the owner's DI context.
+            /// </summary>
             public ScalesSetupContext(ScalesNodeManager manager, IDiPostSetupContext context)
             {
                 Manager = manager;
                 DiContext = context;
             }
 
+            /// <summary>
+            /// Gets the standalone Scales owner.
+            /// </summary>
             public ScalesNodeManager Manager { get; }
 
+            /// <summary>
+            /// Gets the shared context used for DI configuration.
+            /// </summary>
             public IDiPostSetupContext DiContext { get; }
 
+            /// <summary>
+            /// Gets the owner's setup cancellation token.
+            /// </summary>
             public CancellationToken CancellationToken => DiContext.CancellationToken;
 
+            /// <summary>
+            /// Resolves a required service from the owner's context.
+            /// </summary>
+            /// <typeparam name="T">The required service type.</typeparam>
             public T GetRequiredService<T>() where T : notnull
             {
                 return DiContext.GetRequiredService<T>();

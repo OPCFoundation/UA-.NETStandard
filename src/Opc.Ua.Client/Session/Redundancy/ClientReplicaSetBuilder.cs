@@ -77,6 +77,18 @@ namespace Opc.Ua.Client.Redundancy
         }
 
         /// <summary>
+        /// Supplies a validator for a connected standby endpoint that differs from the endpoint
+        /// saved in the leader handoff. The validator must confirm that both endpoints belong
+        /// to the same mirrored server set.
+        /// </summary>
+        public ClientReplicaSetBuilder ValidateMirroredEndpoint(
+            Func<EndpointDescription, EndpointDescription, CancellationToken, ValueTask<bool>> validator)
+        {
+            m_options = m_options with { ValidateMirroredEndpointAsync = validator };
+            return this;
+        }
+
+        /// <summary>
         /// Supplies the session factory used per standby mode.
         /// </summary>
         public ClientReplicaSetBuilder UseSession(Func<CancellationToken, ValueTask<ManagedSession>> factory)

@@ -244,15 +244,27 @@ function Invoke-Dotnet(
  .SYNOPSIS
     Evaluates the properties that decide whether a project takes part in this
     profile, without restoring or building it.
+
+ .DESCRIPTION
+    Without a framework the project is evaluated as the build sees it, so a
+    project that pins a single TargetFramework keeps it and
+    Directory.Build.targets can restrict it. Passing the profile's framework as a
+    global property would override that pin and hide the restriction, leaving
+    'dotnet build --framework' to fail with NETSDK1005. The framework is only
+    passed to resolve the TargetDir of a project already known to apply.
 #>
-function Get-ProjectProperties([string] $project)
+function Get-ProjectProperties([string] $project, [string] $framework = '')
 {
-    $output = & dotnet msbuild $project `
-        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;TargetDir' `
-        "-p:CustomTestTarget=$CustomTestTarget" `
-        "-p:TargetFramework=$Framework" `
-        "-p:Configuration=$Configuration" `
-        -nologo | Out-String
+    $arguments = @(
+        'msbuild', $project,
+        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;TargetDir',
+        "-p:CustomTestTarget=$CustomTestTarget",
+        "-p:Configuration=$Configuration",
+        '-nologo')
+    if ($framework) {
+        $arguments += "-p:TargetFramework=$framework"
+    }
+    $output = & dotnet @arguments | Out-String
     if ($LASTEXITCODE -ne 0) {
         throw "Could not evaluate '$project' for CustomTestTarget=$CustomTestTarget (exit code $LASTEXITCODE)."
     }
@@ -319,6 +331,8 @@ foreach ($project in $projectList) {
                 "project's TargetFrameworks or set RestrictForLegacyTfm so the profile skips it explicitly.")
         }
 
+        $targetDir = (Get-ProjectProperties $project $Framework).TargetDir
+
         $projectResults = Join-Path $resultsRoot $stem
         $null = New-Item -ItemType Directory -Path $projectResults -Force
         $logPath = Join-Path $projectResults 'build-and-test.log'
@@ -382,7 +396,7 @@ foreach ($project in $projectList) {
             $testArguments += @('--filter', $projectFilter)
         }
         $testBudget = [System.Diagnostics.Stopwatch]::StartNew()
-        $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath $properties.TargetDir
+        $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath $targetDir
         $record.testSeconds = [int]$testBudget.Elapsed.TotalSeconds
 
         if ($test.TimedOut) {

@@ -141,7 +141,6 @@ namespace Opc.Ua.Server.Hosting
                 {
                     EndpointUrl = client.EndpointUrl,
                     Timeout = client.Timeout,
-                    MaxSessionCount = client.MaxSessionCount,
                     Enabled = client.Enabled
                 };
             }

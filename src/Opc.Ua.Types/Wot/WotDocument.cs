@@ -598,6 +598,39 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Retains original action ownership declarations captured by resolution, not serialized locators.
+        /// </summary>
+        internal void CaptureSourceCallComponentOf(IEnumerable<(string Name, string Json)> declarations)
+        {
+            if (!RootElement.TryGetProperty("actions", out JsonElement actions) ||
+                actions.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach ((string name, string json) in declarations)
+            {
+                if (actions.TryGetProperty(name, out JsonElement action))
+                {
+                    m_sourceCallComponentOf[action] = json;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads an original action ownership declaration from this live resolution result.
+        /// </summary>
+        internal bool TryGetSourceCallComponentOf(JsonElement action, out string json)
+        {
+            if (m_sourceCallComponentOf.TryGetValue(action, out string? captured))
+            {
+                json = captured;
+                return true;
+            }
+            json = string.Empty;
+            return false;
+        }
+
+        /// <summary>
         /// Reads trusted source Object facts for an action in this live resolver result.
         /// </summary>
         internal bool TryGetSourceCallReceiver(
@@ -1617,6 +1650,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>Original source authority retained only for this live resolution result.</summary>
         private readonly Dictionary<JsonElement, (string Receiver, string Endpoint)> m_sourceCallReceivers = [];
+        private readonly Dictionary<JsonElement, string> m_sourceCallComponentOf = [];
         private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
             m_payloadSchemas;
         private HashSet<(WotAffordanceKind Kind, string Name)>? m_supportOnly;

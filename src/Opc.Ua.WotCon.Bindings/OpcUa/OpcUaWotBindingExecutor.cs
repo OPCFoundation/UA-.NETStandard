@@ -139,12 +139,16 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
 
         /// <summary>
-        /// Enforces the form's security floor against the session's endpoint.
+        /// Validates the form's security floor and exact security requirements against the session endpoint.
         /// </summary>
         /// <param name="session">The OPC UA session.</param>
         /// <param name="form">The WoT compiled form.</param>
-        internal static void EnforceSessionSecurity(ISession session, WotCompiledForm form)
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void EnforceSessionSecurity(ISession session, WotCompiledForm form)
         {
+            ArgumentNullException.ThrowIfNull(session);
+            ArgumentNullException.ThrowIfNull(form);
             EnforceSecurityFloor(session, form, form.SecurityFloor);
             EnforceExactSecurity(session, form);
         }

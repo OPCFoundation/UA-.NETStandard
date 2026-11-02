@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(FullSetCases))]
-        public void AllThirtySevenProfilesProduceExactIndependentFullSetCatalogues(
+        public void AllThirtyEightProfilesProduceExactIndependentFullSetCatalogues(
             string module,
             bool diagnosticsToolsEnabled,
             string catalogue,
@@ -154,7 +154,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             int expectedConnectionCount)
         {
             McpToolProfileSet profiles = AllProfiles();
-            Assert.That(profiles.Count, Is.EqualTo(37));
+            Assert.That(profiles.Count, Is.EqualTo(38));
             string[] actual = Observe(builder => RegisterSet(builder, module, profiles, diagnosticsToolsEnabled));
 
             AssertCatalogue(actual, ExpectedNames(catalogue, expectedConnectionCount),
@@ -553,7 +553,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile[] invalidProfiles =
             [
                 (McpToolProfile)(-1),
-                (McpToolProfile)37,
+                (McpToolProfile)38,
                 (McpToolProfile)63,
                 (McpToolProfile)64,
                 (McpToolProfile)int.MinValue,
@@ -974,10 +974,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
             int expectedConnectionCount)
         {
             // Never deduplicate actual: all assertions inspect the raw registration array.
+            int currentExpectedCount = expectedCount + expectedConnectionCount;
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(actual, Is.EquivalentTo(expected), "Complete independent literal catalogue.");
-                Assert.That(actual, Has.Length.EqualTo(expectedCount), "Raw tool registration count.");
+                Assert.That(actual, Has.Length.EqualTo(currentExpectedCount), "Raw tool registration count.");
                 Assert.That(actual, Is.Unique, "Duplicate registrations must remain observable.");
                 foreach (string connection in s_connectionNames)
                 {
@@ -1301,7 +1302,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
             McpToolProfile.CranesHoists,
-            McpToolProfile.AutoId
+            McpToolProfile.AutoId,
+            McpToolProfile.Lads
         ];
 
         /// <summary>
@@ -1343,7 +1345,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
             McpToolProfile.CranesHoists,
-            McpToolProfile.AutoId
+            McpToolProfile.AutoId,
+            McpToolProfile.Lads
         ];
 
         /// <summary>
@@ -1361,7 +1364,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             new("Diagnostics", McpToolProfile.Full, false, "DiagnosticsCapture", 6, 0, 6, 0),
             new("Diagnostics", McpToolProfile.Full, true, "DiagnosticsEnabled", 13, 0, 13, 0),
             // Approved PubSub ownership: legacy 14; runtime 10; configuration 20; bridge/adapter 10; security 12.
-            // Only configuration, bridge, security and their Full union also own the five connection tools.
+            // Only configuration, bridge, security and their Full union also own the six connection tools.
             new("PubSub", McpToolProfile.PubSub, false, "PubSub", 14, 0, 14, 0),
             new("PubSub", McpToolProfile.PubSubRuntime, false, "PubSubRuntime", 10, 0, 10, 0),
             new("PubSub", McpToolProfile.PubSubConfiguration, false, "PubSubConfiguration", 25, 1, 25, 1),
@@ -1398,12 +1401,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
         ];
 
         /// <summary>
-        /// All 367 distinct names below are literal catalogue oracles, independent of registration.
+        /// All 368 distinct names below are literal catalogue oracles, independent of registration.
         /// </summary>
         private static readonly string[] s_connectionNames =
         [
             "Connect",
             "ConnectCertificate",
+            "ConnectJwt",
             "Disconnect",
             "GetEndpoints",
             "GetConnectionStatus"

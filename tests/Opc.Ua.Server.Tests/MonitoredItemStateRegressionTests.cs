@@ -702,7 +702,8 @@ namespace Opc.Ua.Server.Tests
 
             public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
             {
-                return true;
+                // a plain event: not a Condition, whose loss would add a RefreshRequired event.
+                return typeDefinitionId == ObjectTypeIds.BaseEventType;
             }
 
             public Variant GetAttributeValue(

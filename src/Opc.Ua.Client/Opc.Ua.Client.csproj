@@ -38,6 +38,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Durable.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Features.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Stress.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Redundancy.Client.Tests" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>

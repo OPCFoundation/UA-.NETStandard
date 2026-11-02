@@ -540,6 +540,87 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             });
         }
 
+        /// <summary>
+        /// A transport connect the network silently drops is cancelled at the
+        /// handshake operation's deadline and fails with BadRequestTimeout
+        /// instead of waiting for the operating system to give up (#4934).
+        /// </summary>
+        [TestCase(false, TestName = "ConnectAsyncTimesOutPendingTransportConnect(Cancelled)")]
+        [TestCase(true, TestName = "ConnectAsyncTimesOutPendingTransportConnect(SocketAborted)")]
+        public async Task ConnectAsyncTimesOutPendingTransportConnectAsync(bool socketAborted)
+        {
+            var timeProvider = new FakeTimeProvider();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new RecordingByteTransport { ConnectTask = completion.Task };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                timeProvider);
+            using var caller = new CancellationTokenSource();
+
+            Task connecting = channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                5000, caller.Token).AsTask();
+            using CancellationTokenRegistration registration = transport.ConnectToken.Register(() =>
+            {
+                if (socketAborted)
+                {
+                    completion.TrySetException(new SocketException((int)SocketError.OperationAborted));
+                }
+                else
+                {
+                    completion.TrySetCanceled(transport.ConnectToken);
+                }
+            });
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(4999));
+            Assert.That(transport.ConnectToken.IsCancellationRequested, Is.False);
+            timeProvider.Advance(TimeSpan.FromMilliseconds(1));
+
+            await Assert.ThatAsync(async () => await connecting.ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((uint)StatusCodes.BadRequestTimeout)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(caller.IsCancellationRequested, Is.False);
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(transport.IsClosed, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Without a deadline (int.MaxValue) the transport connect is
+        /// cancelled by the caller only.
+        /// </summary>
+        [Test]
+        public async Task ConnectAsyncWithoutDeadlinePassesCallerTokenToTransportAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var transport = new RecordingByteTransport { ConnectTask = completion.Task };
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry,
+                timeProvider);
+            using var caller = new CancellationTokenSource();
+
+            Task connecting = channel.ConnectAsync(new Uri("opc.tcp://localhost:4840"),
+                int.MaxValue, caller.Token).AsTask();
+            timeProvider.Advance(TimeSpan.FromDays(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.ConnectToken, Is.EqualTo(caller.Token));
+                Assert.That(connecting.IsCompleted, Is.False);
+            });
+
+            caller.Cancel();
+            completion.SetException(new SocketException((int)SocketError.OperationAborted));
+            await Assert.ThatAsync(async () => await connecting.ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+        }
+
         [TestCase(200000u, 8192u, TestName = "SendBufferSizeTooLarge")]
         [TestCase(8192u, 200000u, TestName = "ReceiveBufferSizeTooLarge")]
         [TestCase(8192u, 1024u, TestName = "ReceiveBufferSizeTooSmall")]
@@ -1478,9 +1559,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            public CancellationToken ConnectToken { get; private set; }
+
             public ValueTask ConnectAsync(Uri url, CancellationToken ct)
             {
                 ct.ThrowIfCancellationRequested();
+                ConnectToken = ct;
                 if (ConnectTask != null)
                 {
                     return new ValueTask(ConnectTask);

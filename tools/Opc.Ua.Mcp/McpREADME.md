@@ -18,7 +18,7 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
-AutoID, Device Integration, ISA-95, Positioning, MachineTool (with bundled WMTP),
+AutoID, LADS, Device Integration, ISA-95, Positioning, MachineTool (with bundled WMTP),
 GMS, CranesHoists, WoT and xRegistry profiles. Profiles compose, for example
 `--profile machinery,isa95`, `--profile machinetool,gms,craneshoists`, or
 `--profile core,wot,xregistry,wot-documents`. `wot-documents` needs no UA connection.
@@ -174,6 +174,7 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products and recipes |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps` | Pump values, supervision and maintenance |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID` | AutoID reader scans, tag reads and RTLS locations |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.LADS` | Laboratory device discovery, functions, programs, results and maintenance |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device integration, locking and updates |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |

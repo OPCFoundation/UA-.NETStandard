@@ -195,7 +195,7 @@ namespace Opc.Ua.WotCon.Bindings
                 SecurityDefinitions, codecs,
                 IsDeclarationContext ? WoTDocumentKindEnum.ThingModel : Kind,
                 BaseUri, bounds, NamespacePrefixes,
-                EventSelections)
+                EventSelections, Selection.ProcessingMode)
             {
                 ProjectedAffordances = ProjectedAffordances
             };
@@ -443,7 +443,9 @@ namespace Opc.Ua.WotCon.Bindings
                 JsonElement root = json.RootElement;
                 if (root.ValueKind == JsonValueKind.Object)
                 {
-                    forms = WotFormExtractor.Extract(json);
+                    forms = WotFormExtractor.Extract(
+                        json,
+                        selection?.ProcessingMode == WotBindingProcessingMode.PublishedOneZero);
                     definitions = ReadSecurityDefinitions(root);
                     baseUri = ReadBase(root);
                     prefixes = ReadNamespacePrefixes(root);

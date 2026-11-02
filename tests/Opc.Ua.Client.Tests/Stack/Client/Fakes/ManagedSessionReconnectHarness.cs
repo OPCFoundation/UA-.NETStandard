@@ -62,6 +62,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             Telemetry = DefaultTelemetry.Create(builder =>
                 builder.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
             EngineFactory = new ObservingSubscriptionEngineFactory(Clock);
+            SuccessorEngineFactory = new ObservingSubscriptionEngineFactory(Clock);
             OuterPolicy.Setup(policy => policy.GetNextDelay(It.IsAny<int>(), It.IsAny<CancellationToken>()))
                 .Returns<int, CancellationToken>(GetOuterReconnectDelay);
             OuterPolicy.Setup(policy => policy.Reset()).Callback(m_outerPolicy.Reset);
@@ -133,6 +134,17 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public Mock<IReconnectPolicy> OuterPolicy { get; } = new();
 
         /// <summary>
+        /// Gets the immediate, single-retry reconnect policy of the successor session.
+        /// </summary>
+        public IReconnectPolicy SuccessorPolicy { get; } = new ReconnectPolicy(new ReconnectPolicyOptions
+        {
+            InitialDelay = TimeSpan.Zero,
+            MaxDelay = TimeSpan.Zero,
+            MaxRetries = 1,
+            JitterFactor = 0
+        });
+
+        /// <summary>
         /// Gets the per-cycle channel-recovery timeout used when connecting; an infinite value disables the deadline.
         /// </summary>
         public TimeSpan ChannelReconnectTimeout { get; init; } = Timeout.InfiniteTimeSpan;
@@ -175,9 +187,66 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public bool FailFirstReplacementOpen { get; set; }
 
         /// <summary>
+        /// Gets the authentication token of the saved session a takeover test activates; its activations are
+        /// scripted by <see cref="TakeoverActivationStatus"/> and <see cref="TakeoverActivation"/>.
+        /// </summary>
+        public static NodeId TakeoverToken { get; } = new("token-saved", 1);
+
+        /// <summary>
+        /// Gets the session id of the saved session a takeover test activates.
+        /// </summary>
+        public static NodeId TakeoverSessionId { get; } = new("session-saved", 1);
+
+        /// <summary>
+        /// Gets or sets the error returned when the saved takeover session is activated; non-bad values succeed.
+        /// </summary>
+        public StatusCode TakeoverActivationStatus { get; set; } = StatusCodes.Good;
+
+        /// <summary>
+        /// Gets or sets an optional gate an activation of the saved takeover session waits at.
+        /// </summary>
+        public AsyncOperationGate? TakeoverActivation { get; set; }
+
+        /// <summary>
+        /// Gets or sets an optional source of the server nonce returned by each successful
+        /// activation of the saved takeover session; null returns no nonce.
+        /// </summary>
+        public Func<ByteString>? TakeoverServerNonce { get; set; }
+
+        /// <summary>
+        /// Makes the next namespace-table read on the saved takeover session throw an
+        /// <see cref="OperationCanceledException"/>, after its activation succeeded.
+        /// </summary>
+        public void CancelNextTakeoverNamespaceRead()
+        {
+            Volatile.Write(ref m_cancelTakeoverNamespaceRead, 1);
+        }
+
+        /// <summary>
+        /// Gets or sets the session timeout the server revises CreateSession requests to, or null for the
+        /// scripted default.
+        /// </summary>
+        public double? RevisedSessionTimeout { get; set; }
+
+        /// <summary>
+        /// Gets or sets the session timeout the managed session requests.
+        /// </summary>
+        public TimeSpan RequestedSessionTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
         /// Gets the real managed session after <see cref="ConnectAsync"/> has completed.
         /// </summary>
         public UaManagedSession Session { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the session created by <see cref="TakeOverAsync"/>, if any.
+        /// </summary>
+        public UaManagedSession? Successor { get; private set; }
+
+        /// <summary>
+        /// Gets the subscription engine factory of the session created by <see cref="TakeOverAsync"/>.
+        /// </summary>
+        public ObservingSubscriptionEngineFactory SuccessorEngineFactory { get; }
 
         /// <summary>
         /// Gets the managed transport lease currently used by <see cref="Session"/>.
@@ -250,9 +319,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public ArrayOf<IServiceRequest> Requests => m_requests.ToArrayOf();
 
         /// <summary>
-        /// Gets the most recently started inner channel-recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// Gets or sets the most recently started recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// A test that already observed the outcome clears it so disposal does not await it again.
         /// </summary>
-        public Task? Recovery { get; private set; }
+        public Task? Recovery { get; set; }
 
         /// <summary>
         /// Connects the real managed session over scripted channels and starts observing outer recovery
@@ -264,16 +334,20 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// <param name="alternateEndpoint">
         /// An optional failover endpoint for managed-session recovery.
         /// </param>
+        /// <param name="modelChangeTracking">Whether to enable model-change tracking after connect.</param>
         public async Task ConnectAsync(
             bool transferSubscriptionsOnRecreate,
-            ConfiguredEndpoint? alternateEndpoint = null)
+            ConfiguredEndpoint? alternateEndpoint = null,
+            bool modelChangeTracking = false)
         {
             Session = await UaManagedSession.CreateAsync(
                 new ManagedSessionOptions
                 {
                     Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    SessionTimeout = RequestedSessionTimeout,
                     SubscriptionEngineFactory = EngineFactory,
                     TransferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate,
+                    ModelChangeTracking = modelChangeTracking,
                     TimeProvider = Clock,
                     ChannelReconnectTimeout = ChannelReconnectTimeout,
                     NetworkRedundancy = new NetworkRedundancyOptions
@@ -305,6 +379,62 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     m_failedKeepAlive.TrySetResult(args.Status.StatusCode);
                 }
             };
+        }
+
+        /// <summary>
+        /// Creates a second managed session over the same scripted channels that takes over the
+        /// server session of <paramref name="handoff"/>, and keeps it for disposal with the fixture.
+        /// </summary>
+        /// <param name="handoff">The server session to take over.</param>
+        /// <param name="options">The takeover options, or null to use the fixture's notification handler.</param>
+        /// <param name="redundancyHandler">An optional server redundancy handler of the successor.</param>
+        /// <param name="loadComplexTypes">Whether to load complex types after the takeover connects.</param>
+        /// <param name="modelChangeTracking">Whether to enable model-change tracking after takeover.</param>
+        /// <param name="subscriptionEngineFactory">An optional subscription engine factory for the successor.</param>
+        /// <param name="preferredLocales">The preferred locales configured for the successor.</param>
+        /// <returns>The connected successor session.</returns>
+        public async Task<UaManagedSession> TakeOverAsync(
+            SessionHandoff handoff,
+            SessionTakeoverOptions? options = null,
+            IServerRedundancyHandler? redundancyHandler = null,
+            bool loadComplexTypes = false,
+            bool modelChangeTracking = false,
+            ISubscriptionEngineFactory? subscriptionEngineFactory = null,
+            IReadOnlyList<string>? preferredLocales = null)
+        {
+            options ??= new SessionTakeoverOptions { SubscriptionHandlerFactory = _ => CreateNotificationHandler() };
+            UaManagedSession successor = await UaManagedSession.CreateAsync(
+                new ManagedSessionOptions
+                {
+                    Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    SessionTimeout = RequestedSessionTimeout,
+                    SubscriptionEngineFactory = subscriptionEngineFactory ?? SuccessorEngineFactory,
+                    TimeProvider = Clock,
+                    ChannelReconnectTimeout = ChannelReconnectTimeout,
+                    LoadComplexTypes = loadComplexTypes,
+                    ModelChangeTracking = modelChangeTracking,
+                    PreferredLocales = preferredLocales,
+                    TakeoverFrom = handoff,
+                    Takeover = options
+                },
+                Channels.Configuration,
+                new DefaultSessionFactory(Telemetry),
+                reconnectPolicy: SuccessorPolicy,
+                redundancyHandler: redundancyHandler,
+                telemetry: Telemetry,
+                channelManager: Channels.Manager,
+                updateBeforeConnect: false,
+                ct: CancellationToken).WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            Successor = successor;
+            return successor;
+        }
+
+        /// <summary>
+        /// Creates a notification handler that queues data changes for <see cref="NextNotificationAsync"/>.
+        /// </summary>
+        public ISubscriptionNotificationHandler CreateNotificationHandler()
+        {
+            return new NotificationHandler(this);
         }
 
         /// <summary>
@@ -407,16 +537,26 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (Session != null)
+            if (Session != null && !Session.Disposed)
             {
-                EngineFactory.Engine.PausePublishing();
+                try
+                {
+                    EngineFactory.Engine.PausePublishing();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // A closed session already disposed its engine.
+                }
             }
             ReleaseAllGates();
             await m_shutdown.CancelAsync().WaitAsync(PhaseTimeout).ConfigureAwait(false);
             try
             {
                 Task sessionDisposal = Session?.DisposeAsync().AsTask() ?? Task.CompletedTask;
-                await Task.WhenAll(sessionDisposal, Channels.DisposeAsync().AsTask())
+                Task successorDisposal = Successor?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+                await Task.WhenAll(sessionDisposal, successorDisposal)
+                    .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+                await Channels.DisposeAsync().AsTask()
                     .WaitAsync(PhaseTimeout).ConfigureAwait(false);
                 if (Recovery != null)
                 {
@@ -456,6 +596,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     string suffix = sessionNumber.ToString(CultureInfo.InvariantCulture);
                     sessionResponse.SessionId = new NodeId($"session-{suffix}", 1);
                     sessionResponse.AuthenticationToken = new NodeId($"token-{suffix}", 1);
+                    if (RevisedSessionTimeout is double revised)
+                    {
+                        sessionResponse.RevisedSessionTimeout = revised;
+                    }
                     if (sessionNumber == 2)
                     {
                         await ReplacementSession.WaitAsync(ct).ConfigureAwait(false);
@@ -469,6 +613,23 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     if (activate.RequestHeader.AuthenticationToken.IsNull)
                     {
                         throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+                    if (activate.RequestHeader.AuthenticationToken == TakeoverToken)
+                    {
+                        if (TakeoverActivation is AsyncOperationGate takeover)
+                        {
+                            await takeover.WaitAsync(ct).ConfigureAwait(false);
+                        }
+                        if (StatusCode.IsBad(TakeoverActivationStatus))
+                        {
+                            throw new ServiceResultException(TakeoverActivationStatus);
+                        }
+                        var takeoverResponse = (ActivateSessionResponse)channel.CreateResponse(request);
+                        if (TakeoverServerNonce is Func<ByteString> nonce)
+                        {
+                            takeoverResponse.ServerNonce = nonce();
+                        }
+                        return takeoverResponse;
                     }
                     if (Interlocked.Increment(ref m_activationCount) > 1 &&
                         (activate.RequestHeader.AuthenticationToken == new NodeId("token-1", 1) ||
@@ -571,6 +732,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                                 StatusCode.IsBad(nextKeepAliveStatus) ? nextKeepAliveStatus : KeepAliveStatus)
                         ]
                     };
+                case ReadRequest read when read.RequestHeader.AuthenticationToken == TakeoverToken &&
+                    read.NodesToRead.ToList().Any(node => node.NodeId == VariableIds.Server_NamespaceArray) &&
+                    Interlocked.Exchange(ref m_cancelTakeoverNamespaceRead, 0) == 1:
+                    throw new OperationCanceledException("The scripted namespace read was cancelled.");
                 default:
                     return channel.CreateResponse(request);
             }
@@ -824,6 +989,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private long m_recoveryStartedAt;
         private int m_keepAliveReadCount;
         private int m_nextKeepAliveStatus = unchecked((int)StatusCodes.Good.Code);
+        private int m_cancelTakeoverNamespaceRead;
         private int m_channelCount;
         private int m_sessionCount;
         private int m_activationCount;

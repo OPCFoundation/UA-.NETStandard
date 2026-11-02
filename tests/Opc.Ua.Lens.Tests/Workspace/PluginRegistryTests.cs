@@ -52,7 +52,7 @@ namespace UaLens.Tests.Workspace
         public void CatalogContainsEveryShippedKindWithUniqueCommandsAndShortcuts()
         {
             var registrations = PluginRegistry.All.ToList();
-            Assert.That(registrations, Has.Count.EqualTo(23));
+            Assert.That(registrations, Has.Count.EqualTo(24));
             Assert.That(
                 registrations.Select(registration => registration.Kind),
                 Is.EquivalentTo(Enum.GetValues<PluginKind>()));
@@ -64,7 +64,7 @@ namespace UaLens.Tests.Workspace
                     registration.InputGesture,
                     new RelayCommand(() => { })))]);
 
-            Assert.That(commands.All.Count, Is.EqualTo(23));
+            Assert.That(commands.All.Count, Is.EqualTo(24));
             foreach (PluginRegistration registration in registrations)
             {
                 Assert.That(PluginRegistry.For(registration.Kind), Is.SameAs(registration));

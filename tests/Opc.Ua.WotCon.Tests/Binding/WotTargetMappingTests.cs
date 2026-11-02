@@ -49,11 +49,15 @@ namespace Opc.Ua.WotCon.Tests.Binding
     [TestFixture]
     public sealed class WotTargetMappingTests
     {
-        private static WotBindingPlan Prepare(string document)
+        private static WotBindingPlan Prepare(
+            string document, WotBindingSelectionContext? selection = null)
         {
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             var request = WotBindingPlanRequest.FromDocument(
-                "xid", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+                "xid",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: selection);
             return registry.Prepare(request);
         }
 
@@ -492,6 +496,53 @@ namespace Opc.Ua.WotCon.Tests.Binding
 
             WotCompiledForm same = mapped.WithTargetMapping(mapping);
             Assert.That(same, Is.SameAs(mapped));
+        }
+
+        /// <summary>
+        /// Verifies that each property's mapToNodeId, mapToType, and mapByFieldPath remain attached
+        /// to that property and do not leak to a sibling without mapping terms.
+        /// </summary>
+        [Test]
+        public void TargetMappingTermsRemainScopedToTheirPropertyAffordance()
+        {
+            const string mappedNode = "nsu=urn:mapped;s=Target";
+            const string mappedType = "nsu=urn:mapped;i=100";
+            const string document = /*lang=json,strict*/ """
+                {
+                  "@context":{"uav":"http://opcfoundation.org/UA-WoT-Binding/"},
+                  "properties":{
+                    "mapped":{
+                      "type":"object",
+                      "uav:mapToNodeId":"nsu=urn:mapped;s=Target",
+                      "uav:mapToType":"nsu=urn:mapped;i=100",
+                      "uav:mapByFieldPath":"/Value/Reading",
+                      "forms":[{"href":"https://device.example/mapped","op":"readproperty",
+                        "contentType":"application/json"}]
+                    },
+                    "plain":{
+                      "type":"integer",
+                      "forms":[{"href":"https://device.example/plain","op":"readproperty",
+                        "contentType":"application/json"}]
+                    }
+                  }
+                }
+                """;
+
+            WotBindingPlan plan = Prepare(
+                document,
+                new WotBindingSelectionContext(
+                    [], [], WotBindingProcessingMode.PublishedOneZero));
+            WotCompiledForm mapped = plan.CompiledForms.Single(form => form.AffordanceName == "mapped");
+            WotCompiledForm plain = plan.CompiledForms.Single(form => form.AffordanceName == "plain");
+
+            Assert.That(plan.FullySupported, Is.True, string.Join("; ", plan.Diagnostics));
+            Assert.Multiple(() =>
+            {
+                Assert.That(mapped.TargetMapping.TargetNodeId, Is.EqualTo(mappedNode));
+                Assert.That(mapped.TargetMapping.TargetTypeNodeId, Is.EqualTo(mappedType));
+                Assert.That(mapped.TargetMapping.FieldPath, Is.EqualTo("/Value/Reading"));
+                Assert.That(plain.TargetMapping.IsEmpty, Is.True);
+            });
         }
     }
 }

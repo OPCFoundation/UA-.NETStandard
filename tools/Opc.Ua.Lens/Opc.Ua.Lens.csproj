@@ -117,6 +117,7 @@
     <ProjectReference Include="..\Opc.Ua.OpenUsd.Connector.Viewer\Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Vision.OpenUsd\Opc.Ua.Vision.OpenUsd.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.LADS.Client\Opc.Ua.LADS.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Client\Opc.Ua.ISA95.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Client\Opc.Ua.WotCon.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />

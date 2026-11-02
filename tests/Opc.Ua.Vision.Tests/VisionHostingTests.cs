@@ -33,6 +33,7 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Server;
@@ -50,6 +51,89 @@ namespace Opc.Ua.Vision.Tests
     [Category("Hosting")]
     public sealed class VisionHostingTests
     {
+        [TestCase(MachineVisionParts.None)]
+        [TestCase(MachineVisionParts.Control)]
+        public void VisionWithoutAssetsDoesNotClaimDi(MachineVisionParts parts)
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .AddVision(options => options.MachineVisionParts = parts)
+                .AddOpcUaDi();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                Is.EqualTo("AddOpcUaDi"));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void VisionAssetsRejectConflictingDiOwnerInEitherOrder(bool visionFirst)
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
+            if (visionFirst)
+            {
+                builder.AddVision(options => options.MachineVisionParts = MachineVisionParts.Assets);
+                Assert.That(() => builder.AddOpcUaDi(), Throws.InvalidOperationException);
+            }
+            else
+            {
+                builder.AddOpcUaDi();
+                Assert.That(
+                    () => builder.AddVision(options => options.MachineVisionParts = MachineVisionParts.Assets),
+                    Throws.InvalidOperationException.With.Message.Contains("AddVisionToMachinery"));
+            }
+            Assert.That(services.Count(service => service.ServiceType == typeof(DiAddressSpaceOwnership)),
+                Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AddMachineVisionPreservesSingleOwnerAndProviderOnRepeatedCalls(bool assetsInitiallyEnabled)
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { })
+                .AddVision(options => options.MachineVisionParts = assetsInitiallyEnabled
+                    ? MachineVisionParts.All
+                    : MachineVisionParts.Control);
+            builder.AddMachineVision().AddMachineVision();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(provider.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                    Is.EqualTo("AddVision"));
+                Assert.That(provider.GetServices<IVisionModelProvider>()
+                    .OfType<VisionMachineryStandaloneModelProvider>().Count(), Is.EqualTo(1));
+                Assert.That(provider
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<VisionServerOptions>>()
+                    .Value.MachineVisionParts, Is.EqualTo(MachineVisionParts.All));
+            });
+        }
+
+        [Test]
+        public void AddMachineVisionChecksConflictingOwnerBeforeVisionPrerequisite()
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { }).AddOpcUaDi();
+
+            Assert.That(() => builder.AddMachineVision(),
+                Throws.InvalidOperationException.With.Message.Contains("AddVisionToMachinery"));
+            Assert.That(services.Count(service => service.ServiceType == typeof(DiAddressSpaceOwnership)),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AddMachineVisionRequiresVisionBeforeClaimingDi()
+        {
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
+
+            Assert.That(() => builder.AddMachineVision(),
+                Throws.InvalidOperationException.With.Message.Contains("Register AddVision"));
+            Assert.That(services.Any(service => service.ServiceType == typeof(DiAddressSpaceOwnership)), Is.False);
+        }
+
         [Test]
         public void AddVisionThrowsOnNullBuilder()
         {

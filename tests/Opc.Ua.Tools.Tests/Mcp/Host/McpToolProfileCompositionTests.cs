@@ -76,8 +76,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(composed, Has.Count.LessThan(full.Count),
                 "Composing bounded profiles must produce a smaller catalogue than Full.");
-            // 44 (vision) + 43 (robotics) - 5 (shared ConnectionTools) = 82.
-            Assert.That(composed, Has.Count.EqualTo(82));
+            // 45 (vision) + 44 (robotics) - 6 (shared ConnectionTools) = 83.
+            Assert.That(composed, Has.Count.EqualTo(83));
         }
 
         /// <summary>
@@ -291,7 +291,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         private static readonly string[] s_connectionToolNames =
-            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "ConnectJwt", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif

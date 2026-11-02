@@ -1359,7 +1359,7 @@ namespace UaLens.Tests.Companions
                             .Create(host.Host);
                         await using (document.ConfigureAwait(false))
                         {
-                            Assert.That(document.Providers, Has.Count.EqualTo(9));
+                            Assert.That(document.Providers, Has.Count.EqualTo(10));
                             Assert.That(document.IsOffline, Is.True);
                             Assert.That(document.PreparedOperation, Is.Null);
                             Assert.That(document.ConfirmDeployment, Is.False);
@@ -1386,9 +1386,9 @@ namespace UaLens.Tests.Companions
                     CompanionPlugin empty = new CompanionPluginFactory(providers: []).Create(host.Host);
                     await using (empty.ConfigureAwait(false))
                     {
-                        Assert.That(builtIns.Providers, Has.Count.EqualTo(9));
+                        Assert.That(builtIns.Providers, Has.Count.EqualTo(10));
                         Assert.That(builtIns.Providers.Select(value => value.Id).Distinct().ToArray(),
-                            Has.Length.EqualTo(9));
+                            Has.Length.EqualTo(10));
                         Assert.That(builtIns.Providers.Select(value => value.Id), Does.Contain("robot-intent"));
                         Assert.That(builtIns.SelectedProvider, Is.SameAs(builtIns.Providers[0]));
                         Assert.That(empty.Providers, Is.Empty);

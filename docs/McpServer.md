@@ -32,6 +32,7 @@ to the owning package's `NugetREADME.md`, linked from each catalogue below.
   - [Option 4: Install from local build](#option-4-install-from-local-build)
 - [Configuration](#configuration)
   - [Certificate user identities](#certificate-user-identities)
+  - [JWT user identities](#jwt-user-identities)
   - [Typed method arguments and structured values](#typed-method-arguments-and-structured-values)
   - [Run on demand without a global installation](#run-on-demand-without-a-global-installation)
   - [Claude Desktop](#claude-desktop)
@@ -65,7 +66,7 @@ The MCP server wraps the OPC UA .NET Standard client library, translating betwee
 
 | Service Set | Tools | Description |
 |---|---|---|
-| **Connection** | `GetEndpoints`, `Connect`, `ConnectCertificate`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
+| **Connection** | `GetEndpoints`, `Connect`, `ConnectCertificate`, `ConnectJwt`, `Disconnect`, `GetConnectionStatus` | Endpoint discovery and session lifecycle management |
 | **Attribute** | `Read`, `Write`, `HistoryRead`, `HistoryUpdate` | Read/write node attributes and historical data |
 | **View** | `Browse`, `BrowseNext`, `TranslateBrowsePaths`, `RegisterNodes`, `UnregisterNodes`, `QueryFirst`, `QueryNext` | Navigate and query the address space |
 | **Node Management** | `AddNodes`, `AddReferences`, `DeleteNodes`, `DeleteReferences` | Modify the address space |
@@ -347,6 +348,7 @@ dnx OPCFoundation.NetStandard.Opc.Ua.Mcp -- --profile scales,di
 | `scales` | Weights and units, products, recipes, scale-specific operations and PackML | [Scales](Scales.md) |
 | `pumps` | Pump identity, configuration, operational measurements, supervision and maintenance | [Pumps](Pumps.md) |
 | `autoid` | RFID, OCR, optical, verifier and RTLS reader discovery, snapshots, scans, tag reads and location queries | [AutoID Devices](AutoID.md) |
+| `lads` | Laboratory device, functional-unit and function snapshots, programs, results, result files and maintenance | [LADS](LADS.md) |
 | `di` | Device topology and identity, locking, parameter transfer and software update | [Device Integration](DeviceIntegration.md) |
 | `isa95` | Common objects and V1/V2 job order control, responses and status | [ISA-95](ISA95.md) |
 | `positioning` | Relative spatial frames, global positions, zones and coordinate conversion | [Positioning](Positioning.md) |
@@ -363,6 +365,26 @@ remain outside this set. See [companion workflows](#companion-workflows)
 for cross-family handoffs, [file transfers](#companion-file-transfers) for host
 policy, and [embedding industrial companions](#embedding-industrial-companions)
 for library registration.
+
+#### LADS tools
+
+LADS tools use the existing typed `LadsClient` and the selected named session.
+Discovery and snapshot tools read devices, functional units, functions,
+program templates, results, result-file metadata and maintenance tasks.
+
+| Tools | What they do |
+| --- | --- |
+| `lads_list_devices`, `lads_read_device` | Discover LADS devices and read identification, health and state snapshots. |
+| `lads_read_functional_unit`, `lads_read_function` | Read unit state, active-program progress, nested functions and published values. |
+| `lads_list_program_templates`, `lads_start_program` | List a unit's published templates and explicitly request a program start. |
+| `lads_command` | Send a named device, functional-unit or control-function state-machine command. |
+| `lads_read_results`, `lads_list_result_files`, `lads_download_result_file` | Read results and file metadata, then download a selected file beneath the host transfer root. |
+| `lads_read_maintenance_tasks`, `lads_maintenance_command` | Read maintenance state and explicitly start, stop or reset a task. |
+
+Commands are requests to the server, not confirmation that equipment completed
+the requested action. OPC UA access checks and state-machine preconditions
+remain authoritative. Result downloads use the configured host transfer root,
+reject existing destinations and obey the host byte limit.
 
 #### AMB tools
 
@@ -737,6 +759,145 @@ An embedding host can inject `ICertificatePasswordProvider` for protected keys.
 Missing, unknown or ambiguous references fail rather than falling back to another identity.
 Application-certificate trust and server-side user authorization still apply independently;
 `ConnectCertificate` never enables automatic trust. Only expose configured identities to trusted MCP callers.
+
+### JWT user identities
+
+Use `ConnectJwt` with `endpointUrl` and a raw, pre-acquired `jwt` to authenticate
+to an OPC UA server offering the JWT issued-token profile. It accepts optional
+`securityMode`, `securityPolicy`, and `name` selectors, but no automatic-trust switch.
+Token acquisition, refresh, and HTTP authentication to the MCP server are
+separate concerns. The target OPC UA server validates the token and assigns
+the user's permissions.
+
+The endpoint must advertise an `IssuedToken` user-token policy with the
+`http://opcfoundation.org/UA/UserToken#JWT` profile. Call `GetEndpoints` and
+inspect `userIdentityTokens`: `issuedTokenType` identifies the profile and
+`issuerEndpointUrl` describes the server's issuer requirements. This metadata
+does not establish trust in an issuer or authorize token disclosure. Obtain a
+token intended for that server through the identity provider's approved flow;
+the MCP server does not infer a trusted identity or token lifetime from
+unverified claims.
+
+Trust the server's application certificate through the existing
+[certificate stores](CertificateManager.md) before connecting. `ConnectJwt`
+uses an isolated certificate manager with automatic acceptance disabled, even
+when another connection or shared client configuration permits unknown
+certificates.
+
+#### Calling ConnectJwt
+
+Supply the raw compact token without an HTTP `Bearer ` prefix:
+
+```json
+{
+  "endpointUrl": "opc.tcp://server.example:4840",
+  "jwt": "<pre-acquired-jwt>",
+  "securityMode": "SignAndEncrypt",
+  "securityPolicy": "Basic256Sha256",
+  "name": "plant"
+}
+```
+
+Only `endpointUrl` and `jwt` are required. Omitting the security selectors
+chooses the strongest compatible endpoint offering a usable JWT policy, not an
+anonymous endpoint with a higher advertised security level. A missing or
+incompatible JWT policy fails rather than falling back to another authentication
+type.
+
+| Argument | Meaning |
+| --- | --- |
+| `endpointUrl` | OPC UA discovery/server URL. |
+| `jwt` | Raw token acquired externally; treat it as a bearer secret. |
+| `securityMode` | Optional `None`, `Sign`, or `SignAndEncrypt` filter. |
+| `securityPolicy` | Optional channel-policy name, such as `Basic256Sha256`. |
+| `name` | Optional session name; otherwise derived from the endpoint host and port. |
+
+A successful call returns the session name, session ID, and security settings.
+Use that session name for subsequent tools and disconnect it when finished.
+Existing `Connect` and `ConnectCertificate` arguments are unchanged.
+
+#### Confidentiality and token lifetime
+
+The token must be encrypted in transit. A `SignAndEncrypt` channel provides
+confidentiality even when the user-token policy specifies `None`. On a `Sign` or
+`None` channel, the user-token policy must independently encrypt the token using
+a supported policy. An empty user-token policy URI inherits the channel policy;
+it does not establish encryption on a `None` channel.
+
+The existing client policy selector enforces supported algorithms and
+channel/token compatibility. A `None` channel cannot negotiate an ephemeral-key
+token policy requiring a secure-channel handshake. Server certificate trust
+remains required even when only the token is encrypted. Prefer `SignAndEncrypt`
+when application data must also remain confidential.
+
+The shared OPC UA client checks issued-token confidentiality before activation,
+reactivation, and identity update. Previously tolerated issued-token connections
+with neither channel nor token encryption are rejected; configure an encrypted
+channel or an encrypted token policy. Reconnecting does not authorize a policy
+downgrade or a switch from the selected issued-token profile.
+
+The session may retain the supplied token for reactivation. There is no
+automatic acquisition or refresh, and the tool does not keep a token in startup
+configuration or a persistent credential alias. When a new token is needed,
+call `ConnectJwt` again with that token and the same session name. Existing
+ownership checks prevent another caller from replacing or borrowing the
+session. Replacing a connection does not transfer its subscriptions to the new
+session.
+
+#### Errors and secret handling
+
+JWT connection failures use the established JSON error shape:
+
+```json
+{
+  "error": true,
+  "statusCode": "BadIdentityTokenRejected",
+  "message": "JWT connection failed. Check the server's JWT policy, token validity and certificate trust."
+}
+```
+
+Blank tokens and values with whitespace are rejected. Token length is bounded
+by the client's existing string, byte-string, and message quotas. Invalid token
+input is rejected before an existing same-name session is removed. JWT error
+responses do not copy exception messages, inner exceptions, or the token.
+Cancellation still propagates instead of becoming a connection-error response.
+
+Rejected credentials and certificate-validation failures stop the current
+connection retry cycle, so an initial connection returns the server's status
+instead of repeatedly submitting the same token until cancellation. Transient
+transport failures retain the normal reconnect backoff. An embedding host can
+inject `IReconnectPolicy` to configure that backoff; JWT authentication and
+certificate errors still stop the cycle.
+
+An MCP client can retain tool arguments in conversation history, traces, or
+audit storage. Restrict access to those records and to the client itself.
+Server-side output redaction cannot erase those copies or reliably clear an
+immutable .NET string. Do not paste production tokens into shared conversations.
+Protect remote MCP connections independently with authenticated HTTPS; OPC UA
+token encryption protects the MCP-to-OPC-UA hop, not the client-to-MCP hop.
+
+#### Embedding
+
+Register the existing core services and connection tools as described in the
+[Core package reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md). The connection
+catalogue includes `ConnectJwt`; no separate provider registration is required.
+Embedding code can also call its injected `OpcUaSessionManager` directly:
+
+```csharp
+string result = await sessionManager.ConnectJwtAsync(
+    name: "plant",
+    endpointUrl: "opc.tcp://server.example:4840",
+    jwt: externallyAcquiredToken,
+    securityMode: "SignAndEncrypt",
+    securityPolicy: "Basic256Sha256",
+    ct: cancellationToken);
+```
+
+The manager API throws on failure; the MCP tool translates failures to the JSON
+contract above. Both paths use the same caller ownership, certificate trust,
+and issued-token policy checks.
+
+See [OPC 10000-4, UserTokenPolicy](https://reference.opcfoundation.org/specs/OPC-10000-4/v1.05.07/7.41).
 
 ### Typed method arguments and structured values
 

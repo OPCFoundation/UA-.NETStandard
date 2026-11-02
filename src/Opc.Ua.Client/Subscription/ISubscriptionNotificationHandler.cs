@@ -64,6 +64,12 @@ namespace Opc.Ua.Client.Subscriptions
         DiagnosticInfo? DiagnosticInfo)
     {
         /// <summary>
+        /// Gets the wire client handle, including on classic messages whose
+        /// <see cref="MonitoredItem"/> projection is not available.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
+        /// <summary>
         /// <para>
         /// Server-assigned subscription identifier of the partition
         /// that delivered this notification. For single-partition
@@ -84,6 +90,16 @@ namespace Opc.Ua.Client.Subscriptions
         /// </para>
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this change
+        /// arrived in. All changes and events of one message share this
+        /// handle, and confirming it acknowledges the whole message. When the
+        /// session acknowledges after confirmation, call
+        /// <see cref="ISessionAcknowledgements.Confirm"/> only once every
+        /// change and event that carries the same handle was processed.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>
@@ -110,6 +126,11 @@ namespace Opc.Ua.Client.Subscriptions
         ArrayOf<Variant> Fields)
     {
         /// <summary>
+        /// Gets the wire client handle, including on classic messages.
+        /// </summary>
+        public uint ClientHandle { get; init; }
+
+        /// <summary>
         /// Server-assigned subscription identifier of the partition
         /// that delivered this notification. See
         /// <see cref="DataValueChange.PartitionServerId"/> for full
@@ -117,6 +138,14 @@ namespace Opc.Ua.Client.Subscriptions
         /// notifications.
         /// </summary>
         public uint PartitionServerId { get; init; }
+
+        /// <summary>
+        /// The acknowledgement of the notification message this event
+        /// arrived in, shared by all changes and events of the message.
+        /// Confirm it only once all of them were processed; see
+        /// <see cref="DataValueChange.Acknowledgement"/>.
+        /// </summary>
+        public AcknowledgementHandle Acknowledgement { get; init; }
     }
 
     /// <summary>

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,8 +46,6 @@ namespace Opc.Ua.Di.Server
     /// </summary>
     public sealed class DiNodeManagerFactory : IAsyncNodeManagerFactory
     {
-        private readonly IDiPostSetupRunner? m_runner;
-
         /// <summary>
         /// Creates a factory without DI-hosting integration.
         /// </summary>
@@ -61,15 +60,43 @@ namespace Opc.Ua.Di.Server
         /// by the <c>AddOpcUaDi()</c> registration.
         /// </summary>
         public DiNodeManagerFactory(IDiPostSetupRunner? runner)
+            : this(runner, default)
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory that also loads the supplied model providers
+        /// after DI. The <c>AddOpcUaDi()</c> registration passes the
+        /// providers registered through <c>AddDiModel</c>.
+        /// </summary>
+        public DiNodeManagerFactory(
+            IDiPostSetupRunner? runner,
+            ArrayOf<IDiModelProvider> providers)
         {
             m_runner = runner;
+            m_providers = providers;
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris => new string[]
+        public ArrayOf<string> NamespacesUris
         {
-            DiNodeManager.DiNamespaceUri
-        };
+            get
+            {
+                var uris = new List<string>();
+                foreach (string uri in DiModelProviderUtilities.GetNamespaceUris(m_providers))
+                {
+                    if (!uris.Contains(uri))
+                    {
+                        uris.Add(uri);
+                    }
+                }
+                if (!uris.Contains(DiNodeManager.DiNamespaceUri))
+                {
+                    uris.Add(DiNodeManager.DiNamespaceUri);
+                }
+                return uris.ToArray();
+            }
+        }
 
         /// <inheritdoc/>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
@@ -80,8 +107,14 @@ namespace Opc.Ua.Di.Server
             CancellationToken cancellationToken = default)
         {
             // Ownership of the node manager is transferred to the server.
-            IAsyncNodeManager nodeManager = new DiNodeManager(server, configuration, m_runner);
+            IAsyncNodeManager nodeManager = new DiNodeManager(server, configuration, m_runner, m_providers);
             return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
+
+        /// <summary>The optional hosted configuration runner.</summary>
+        private readonly IDiPostSetupRunner? m_runner;
+
+        /// <summary>The additional models loaded by each manager.</summary>
+        private readonly ArrayOf<IDiModelProvider> m_providers;
     }
 }

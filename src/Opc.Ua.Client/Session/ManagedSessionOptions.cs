@@ -193,6 +193,28 @@ namespace Opc.Ua.Client
         public ServerRedundancyOptions ServerRedundancy { get; init; } = new();
 
         /// <summary>
+        /// When the session acknowledges the notifications it receives. With
+        /// <see cref="AcknowledgementMode.AfterConfirmation"/>, a notification is only
+        /// acknowledged after the application confirmed it through
+        /// <see cref="ISessionAcknowledgements.Confirm"/>. Cannot be combined with
+        /// <see cref="AcknowledgementProvider"/>. Default:
+        /// <see cref="AcknowledgementMode.Immediate"/>.
+        /// </summary>
+        public AcknowledgementMode AcknowledgementMode { get; init; }
+
+        /// <summary>
+        /// Optional provider that decides which acknowledgements are sent and which are
+        /// deferred. Replaces the obsolete
+        /// <see cref="ISession.PublishSequenceNumbersToAcknowledge"/> event.
+        /// </summary>
+        public ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; init; }
+
+        /// <summary>
+        /// Optional observer that is told how every acknowledgement ended, exactly once.
+        /// </summary>
+        public ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; init; }
+
+        /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
         /// V2 engine (<see cref="DefaultSubscriptionEngineFactory"/>) so the
         /// session's V2 subscription manager (see
@@ -274,6 +296,26 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool LoadComplexTypes { get; init; }
+
+        /// <summary>
+        /// <para>
+        /// The server session to take over when the session connects, as returned by
+        /// <see cref="ManagedSession.RetireAsync"/> of its previous owner. The session then
+        /// activates the saved server session on a new secure channel instead of creating a new
+        /// one and keeps the subscriptions of the handoff, without any subscription service call.
+        /// </para>
+        /// <para>
+        /// When <see cref="Endpoint"/> is null the endpoint of the handoff is used. Taking over
+        /// requires the default subscription engine. After the session connected it recovers like
+        /// any other session.
+        /// </para>
+        /// </summary>
+        public SessionHandoff? TakeoverFrom { get; init; }
+
+        /// <summary>
+        /// How the session takes over <see cref="TakeoverFrom"/>; ignored without a handoff.
+        /// </summary>
+        public SessionTakeoverOptions? Takeover { get; init; }
 
         /// <summary>
         /// Checks whether a timeout selects automatic recovery, opts out,

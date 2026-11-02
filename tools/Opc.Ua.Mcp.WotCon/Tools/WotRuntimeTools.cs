@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Globalization;
 using System.IO;
@@ -44,6 +45,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Bindings;
+using Opc.Ua.WotCon.Bindings.OpcUa;
 using Opc.Ua.WotCon.Bindings.Planners;
 using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
@@ -160,7 +162,8 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Zero or one selected security-definition mapping, containing secret references only.")]
             ArrayOf<WotRuntimeCredentialInput> credentials = default,
             [Description("Logical absolute baseUri for local relative references, documentSetArchive flag, and " +
-                "existing authorized sessionName for OPC UA only. No option creates a session or raises host limits.")]
+                "existing authorized sessionName for OPC UA only. bindingProcessingMode explicitly selects the " +
+                "interpretation; no option creates a session or raises host limits.")]
             WotRuntimeOpenOptions? options = null,
             CancellationToken ct = default)
         {
@@ -174,6 +177,10 @@ namespace Opc.Ua.Mcp.Tools
                     _ = m_policy.Require(WotRuntimeTarget.Capability(operation));
                 }
                 options ??= new WotRuntimeOpenOptions();
+                if (!Enum.IsDefined(options.BindingProcessingMode))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(options));
+                }
                 ArgumentOutOfRangeException.ThrowIfGreaterThan(dependencies.Count, 255);
                 ArgumentOutOfRangeException.ThrowIfGreaterThan(credentials.Count, 1);
                 var input = new WotDocumentInput
@@ -186,7 +193,9 @@ namespace Opc.Ua.Mcp.Tools
                 };
                 WotPreparedBindingDocument prepared = await m_preparation.PrepareAsync(
                     input, WotDocumentKind.ThingDescription, selection.DocumentReference,
-                    new WotBindingSelectionContext([selection.BindingId + "@" + selection.BindingVersion], []),
+                    new WotBindingSelectionContext(
+                        [selection.BindingId + "@" + selection.BindingVersion], [],
+                        options.BindingProcessingMode),
                     token).ConfigureAwait(false);
                 if (!string.Equals(prepared.Sha256, selection.Sha256, StringComparison.OrdinalIgnoreCase))
                 {
@@ -220,14 +229,64 @@ namespace Opc.Ua.Mcp.Tools
                     }
                     var pinned = new List<WotRuntimeOperation>();
                     var secretDependencies = new List<McpSecretDependency>();
-                    foreach (WotCompiledForm form in forms)
+                    for (int formIndex = 0; formIndex < forms.Count; formIndex++)
                     {
+                        WotCompiledForm form = forms[formIndex];
                         if (form.OpToken == "observeproperty" &&
                             form.OperationInfo.PollInterval is { } interval &&
                             interval < TimeSpan.FromMilliseconds(m_options.ObserveIntervalMilliseconds))
                         {
                             throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                                 "The authored polling interval is below the host minimum.");
+                        }
+                        if (form.Binding.Id == "opc.opcua" &&
+                            form.Operation == WoTBindingCapabilityEnum.InvokeAction &&
+                            (form.Addressing.Metadata.ContainsKey("componentOfCandidates") ||
+                                form.Addressing.BrowsePathTarget is not null))
+                        {
+                            ISession session = sessionContext?.Session ??
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSessionIdInvalid, "The selected OPC UA Session is unavailable.");
+                            OpcUaWotBindingExecutor.EnforceSessionSecurity(session, form);
+                            NamespaceTable namespaceUris = new(session.NamespaceUris);
+                            ArrayOf<NodeId> candidates = ResolveCallReceiverCandidates(form, namespaceUris);
+                            if (candidates.Count == 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadConfigurationError, "The Call receiver candidates are missing.");
+                            }
+                            if (!Uri.TryCreate(form.Endpoint.BaseUri, UriKind.Absolute, out Uri? callEndpoint))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadConfigurationError, "The compiled OPC UA endpoint is invalid.");
+                            }
+                            for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+                            {
+                                McpNetworkGrant admission = m_network.Authorize(
+                                    callEndpoint,
+                                    form.OperationInfo.Method,
+                                    CallPreflightResource(form, candidates[candidateIndex], namespaceUris),
+                                    WotRuntimeTarget.Capability(form.OpToken));
+                                if (admission.Owner != owner)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                                        "The caller changed while the runtime was being prepared.");
+                                }
+                            }
+                            NodeId method = await OpcUaWotCallReceiverResolver.ResolveMethodAsync(
+                                session, form, namespaceUris, token).ConfigureAwait(false);
+                            OpcUaSessionManager.SessionInfo boundSession = sessionInfo!.WithSession(session);
+                            await m_sessions.UaOperationGuard.AuthorizeTargetAsync(
+                                boundSession, method, genericCall: true, token).ConfigureAwait(false);
+                            for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+                            {
+                                await m_sessions.UaOperationGuard.AuthorizeTargetAsync(
+                                    boundSession, candidates[candidateIndex], genericCall: true, token)
+                                    .ConfigureAwait(false);
+                            }
+                            NodeId receiver = await OpcUaWotCallReceiverResolver.ResolveAsync(
+                                session, form, method, namespaceUris, token).ConfigureAwait(false);
+                            form = PinCallTarget(form, method, receiver, namespaceUris);
                         }
                         var target = WotRuntimeTarget.FromForm(form, sessionContext?.Session);
                         McpNetworkGrant grant = m_network.Authorize(
@@ -639,6 +698,153 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentException("Live target addresses cannot carry inline credentials or fragments.");
             }
+        }
+
+        /// <summary>
+        /// Resolves every receiver that may be inspected so the host guard runs before ownership browsing.
+        /// </summary>
+        private static ArrayOf<NodeId> ResolveCallReceiverCandidates(
+            WotCompiledForm form, NamespaceTable namespaceUris)
+        {
+            if (form.Addressing.Metadata.TryGetValue("callObjectId", out string? explicitReceiver))
+            {
+                return [Resolve(explicitReceiver)];
+            }
+            if (!form.Addressing.Metadata.TryGetValue("componentOfCandidates", out string? json))
+            {
+                return [];
+            }
+            using JsonDocument document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array ||
+                document.RootElement.GetArrayLength() == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError, "The captured componentOf candidate list is invalid.");
+            }
+            var result = new List<NodeId>();
+            foreach (JsonElement value in document.RootElement.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.String || value.GetString() is not { } text)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadConfigurationError, "The captured componentOf candidate list is invalid.");
+                }
+                result.Add(Resolve(text));
+            }
+            return [.. result];
+
+            NodeId Resolve(string text)
+            {
+                if (!WotPortableIdentity.IsPortableNodeId(text))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
+                        "A Call receiver is not a portable NodeId.");
+                }
+                ExpandedNodeId expanded = ExpandedNodeId.Parse(text);
+                NodeId node = ExpandedNodeId.ToNodeId(expanded, namespaceUris);
+                if (expanded.ServerIndex != 0 ||
+                    node.IsNull ||
+                    namespaceUris.GetString(node.NamespaceIndex) is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "A Call receiver is not present in this Session.");
+                }
+                return node;
+            }
+        }
+
+        /// <summary>
+        /// Builds an exact receiver-bound selector for admission before Method metadata resolution.
+        /// </summary>
+        private static string CallPreflightResource(
+            WotCompiledForm form, NodeId receiver, NamespaceTable namespaceUris)
+        {
+            string receiverId = NodeId.ToExpandedNodeId(receiver, namespaceUris).ToString();
+            if (form.Addressing.BrowsePathTarget is { } path)
+            {
+                var steps = new JsonArray();
+                foreach (WotBrowsePathStep step in path.Elements)
+                {
+                    string referenceNamespace = step.ReferenceKind is
+                        RelativePathFormatter.ElementType.AnyHierarchical or
+                        RelativePathFormatter.ElementType.AnyComponent
+                            ? Namespaces.OpcUa
+                            : step.ReferenceName.NamespaceUri ?? Namespaces.OpcUa;
+                    string referenceName = step.ReferenceKind switch
+                    {
+                        RelativePathFormatter.ElementType.AnyHierarchical => "HierarchicalReferences",
+                        RelativePathFormatter.ElementType.AnyComponent => "Aggregates",
+                        _ => step.ReferenceName.Name
+                    };
+                    JsonNode canonicalStep = new JsonArray(
+                        JsonValue.Create(step.TargetName.NamespaceUri ?? Namespaces.OpcUa),
+                        JsonValue.Create(step.TargetName.Name),
+                        JsonValue.Create(referenceNamespace),
+                        JsonValue.Create(referenceName),
+                        JsonValue.Create(step.ReferenceKind == RelativePathFormatter.ElementType.InverseReference),
+                        JsonValue.Create(step.IncludeSubtypes));
+                    steps.Add(canonicalStep);
+                }
+                string resource = "object=" + receiverId +
+                    ";browsePath=" + Uri.EscapeDataString(path.AnchorId) +
+                    "|" + Uri.EscapeDataString(steps.ToJsonString());
+                WotRuntimeJson.Text(resource, 2048);
+                return resource;
+            }
+            string methodAddress = form.Addressing.Target;
+            if (string.IsNullOrEmpty(methodAddress) &&
+                form.Addressing.Metadata.TryGetValue("pathHrefNodeId", out string? pathHrefNodeId))
+            {
+                methodAddress = pathHrefNodeId;
+            }
+            if (!string.IsNullOrEmpty(methodAddress))
+            {
+                ExpandedNodeId expanded = ExpandedNodeId.Parse(methodAddress);
+                NodeId method = ExpandedNodeId.ToNodeId(expanded, namespaceUris);
+                if (expanded.ServerIndex != 0 ||
+                    method.IsNull ||
+                    namespaceUris.GetString(method.NamespaceIndex) is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "The Call Method identity is not present in this Session.");
+                }
+                string methodId = NodeId.ToExpandedNodeId(method, namespaceUris).ToString();
+                string resource = "object=" + receiverId + ";method=" + methodId;
+                WotRuntimeJson.Text(resource, 2048);
+                return resource;
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadNodeIdInvalid, "The Call form has no resolvable Method identity.");
+        }
+
+        /// <summary>
+        /// Pins one already-resolved Method and receiver so policy checks and dispatch use identical identities.
+        /// </summary>
+        private static WotCompiledForm PinCallTarget(
+            WotCompiledForm form, NodeId method, NodeId receiver, NamespaceTable namespaceUris)
+        {
+            ImmutableDictionary<string, string> metadata = form.Addressing.Metadata.SetItem(
+                "callObjectId", NodeId.ToExpandedNodeId(receiver, namespaceUris).ToString());
+            var addressing = new WotAddressingDescriptor(
+                NodeId.ToExpandedNodeId(method, namespaceUris).ToString(), metadata);
+            return new WotCompiledForm(
+                form.Binding,
+                form.AffordanceKind,
+                form.AffordanceName,
+                form.JsonPointer,
+                form.Operation,
+                form.OpToken,
+                form.Endpoint,
+                addressing,
+                form.OperationInfo,
+                form.Payload,
+                form.Security,
+                form.IsExecutable,
+                form.TargetMapping,
+                form.EventSelection,
+                form.SecurityFloor)
+                .WithConditionInvocation(form.ConditionInvocation)
+                .WithOpcUaSecurityRequirements(form.OpcUaSecurityRequirements);
         }
 
         /// <summary>

@@ -35,6 +35,13 @@ src/Opc.Ua.AMB/Model/Opc.Ua.AMB.NodeSet2.xml text eol=lf
 src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeSet2.xml text eol=lf
 src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeIds.csv text eol=lf
 
+# The OPC 30500-1 LADS NodeSet and identifier table are vendored unmodified and their
+# SHA-256 hashes are pinned in src/Opc.Ua.LADS/Model/provenance.json and
+# tests/Opc.Ua.LADS.Tests/LadsModelAssetTests.cs, so the checked-out bytes must be
+# the upstream bytes on every platform.
+src/Opc.Ua.LADS/Model/Opc.Ua.LADS.NodeSet2.xml text eol=lf
+src/Opc.Ua.LADS/Model/Opc.Ua.LADS.NodeIds.csv text eol=lf
+
 # Denote all files that should not have line endings normalized, should not be
 # merged, and should not show in a textual diff.
 *.docm binary

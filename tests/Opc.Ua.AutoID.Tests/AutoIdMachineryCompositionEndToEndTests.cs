@@ -78,7 +78,7 @@ namespace Opc.Ua.AutoID.Tests
                     options.InstanceNamespaceUri = InstanceNamespaceUri;
                 })
                 .AddPumpsToMachinery()
-                .AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.FromSeconds(5))
+                .AddAutoIdModel(options => options.MaximumScanDuration = TimeSpan.FromSeconds(5))
                 .ConfigureMachinery(async (machinery, ct) =>
                     m_press = await machinery
                         .AddMachine(new QualifiedName(PressName, machinery.InstanceNamespaceIndex))

@@ -460,7 +460,7 @@ namespace Opc.Ua.AutoID.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
-                Assert.That(error.Message, Does.Contain("AddAutoIdToMachinery"));
+                Assert.That(error.Message, Does.Contain("AddMachinery"));
                 Assert.That(m_fixture.Runtime.Readers.ToArray()!.Select(reader => reader.Name.Name),
                     Does.Not.Contain(Unique("Component")));
             });

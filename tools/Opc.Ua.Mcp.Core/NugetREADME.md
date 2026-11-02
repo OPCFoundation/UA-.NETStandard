@@ -55,8 +55,9 @@ authority.
 
 ## Arguments and JSON results
 
-`Connect` and `ConnectCertificate` return a session name. Pass `sessionName` on later calls; omission is
-valid only when one session is connected. `Disconnect` closes only the selected
+`Connect`, `ConnectCertificate`, and `ConnectJwt` return a session name.
+Pass `sessionName` on later calls; omission is valid only when one session is
+connected. `Disconnect` closes only the selected
 session. For example, `ReadValue` accepts:
 
 ```json
@@ -78,6 +79,29 @@ can inject `ICertificatePasswordProvider` for protected keys. The existing
 certificate store/provider and user-token policy selection perform authentication;
 tool callers cannot supply private keys or arbitrary certificate-store locations.
 Unknown references fail closed. Expose these identities only to trusted MCP clients.
+
+Use `ConnectJwt` with required `endpointUrl` and `jwt` arguments for a raw,
+pre-acquired JWT. Optional arguments are `securityMode`, `securityPolicy`, and
+`name`; there is no `autoAcceptCerts` switch. The server must offer
+`IssuedToken` with `Profiles.JwtUserToken` and a usable encrypted channel or
+user-token policy. Server certificate validation is isolated from shared
+automatic-accept settings. `GetEndpoints` includes `issuedTokenType` and
+`issuerEndpointUrl` for each user-token policy.
+
+```json
+{
+  "endpointUrl": "opc.tcp://server.example:4840",
+  "jwt": "<pre-acquired-jwt>",
+  "securityMode": "SignAndEncrypt",
+  "name": "plant"
+}
+```
+
+The tool does not acquire or refresh tokens. The OPC UA server validates the
+signature and claims. Supply a new token through another `ConnectJwt` call when
+needed. Treat tool-call history as secret-bearing storage. See
+[JWT authentication](../../docs/McpServer.md#jwt-user-identities) for encryption rules,
+failure behavior, and the direct `OpcUaSessionManager.ConnectJwtAsync` API.
 
 NodeIds use OPC UA string notation:
 

@@ -44,15 +44,16 @@ namespace Opc.Ua.Machinery.Server
     /// <see cref="MachineryServer.AddMachineryTypeSystem"/> and drives them
     /// through the context this extension creates, or through
     /// <c>ConfigureMachineryFor&lt;TNodeManager&gt;()</c> in the hosting
-    /// pipeline. Either way the manager releases the machines' resources with
-    /// <see cref="DisposeMachineryResourcesAsync"/> from its
-    /// <c>DisposeAsyncCore</c>.
+    /// pipeline. The DI owner releases the machines' resources automatically.
     /// </remarks>
     public static class DiNodeManagerMachineryExtensions
     {
         /// <summary>
         /// Gives an integrated companion runtime the same lifetime as the Machinery manager.
         /// </summary>
+        /// <remarks>
+        /// Forwards to <see cref="DiNodeManager.RegisterResource"/>.
+        /// </remarks>
         /// <param name="manager">The owning DI/Machinery node manager.</param>
         /// <param name="resource">The companion resource to release with the manager.</param>
         public static void RegisterMachineryResource(this DiNodeManager manager, IAsyncDisposable resource)
@@ -61,11 +62,7 @@ namespace Opc.Ua.Machinery.Server
             {
                 throw new ArgumentNullException(nameof(manager));
             }
-            if (resource == null)
-            {
-                throw new ArgumentNullException(nameof(resource));
-            }
-            MachineryBuildCoordinator.Get(manager).AdoptResources(new[] { resource });
+            manager.RegisterResource(resource);
         }
 
         /// <summary>
@@ -93,10 +90,8 @@ namespace Opc.Ua.Machinery.Server
         /// job-management change pumps.
         /// </summary>
         /// <remarks>
-        /// A registered machine lives as long as its node manager, and so do
-        /// these resources. <see cref="MachineryNodeManager"/> releases them
-        /// itself; a custom manager calls this from its
-        /// <c>DisposeAsyncCore</c>.
+        /// Forwards to <see cref="DiNodeManager.DisposeResourcesAsync"/>. Every DI owner releases
+        /// these resources automatically; existing explicit calls remain safe to repeat.
         /// </remarks>
         /// <param name="manager">The custom DI node manager.</param>
         /// <exception cref="ArgumentNullException">
@@ -111,7 +106,7 @@ namespace Opc.Ua.Machinery.Server
             {
                 throw new ArgumentNullException(nameof(manager));
             }
-            return MachineryBuildCoordinator.Get(manager).DisposeResourcesAsync();
+            return manager.DisposeResourcesAsync();
         }
     }
 }

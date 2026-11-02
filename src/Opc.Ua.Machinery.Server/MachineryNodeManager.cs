@@ -201,6 +201,9 @@ namespace Opc.Ua.Machinery.Server
             m_buildCoordinator.GetReservedNodeIdCount(MachineryInstanceNamespaceIndex);
 
         /// <inheritdoc/>
+        public override ushort CompanionInstanceNamespaceIndex => MachineryInstanceNamespaceIndex;
+
+        /// <inheritdoc/>
         public override ArrayOf<QualifiedName> ConformanceUnits
         {
             get
@@ -304,23 +307,6 @@ namespace Opc.Ua.Machinery.Server
                 m_providers[ii].AddPredefinedNodes(nodes, context);
             }
             return new ValueTask<NodeStateCollection>(nodes);
-        }
-
-        /// <summary>
-        /// Releases the resources the machines of this manager hold — result
-        /// transfer handles and job-management change pumps — before the
-        /// manager itself.
-        /// </summary>
-        protected override async ValueTask DisposeAsyncCore()
-        {
-            try
-            {
-                await m_buildCoordinator.DisposeResourcesAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                await base.DisposeAsyncCore().ConfigureAwait(false);
-            }
         }
 
         /// <inheritdoc/>

@@ -579,10 +579,15 @@ namespace Opc.Ua.WotCon.Bindings
             }
             if (form.Kind == WotAffordanceKind.Action && definition.ValueKind == JsonValueKind.Object)
             {
+                bool resolveNamedOrderAtRuntime =
+                    Identity.Id == "opc.opcua" &&
+                    context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero;
                 WotConversionResult<WotMethodArgumentLayout> input =
-                    WotNodeSetConverter.GetMethodArgumentLayout(definition, "input");
+                    WotNodeSetConverter.GetMethodArgumentLayout(
+                        definition, "input", resolveNamedOrderAtRuntime);
                 WotConversionResult<WotMethodArgumentLayout> output =
-                    WotNodeSetConverter.GetMethodArgumentLayout(definition, "output");
+                    WotNodeSetConverter.GetMethodArgumentLayout(
+                        definition, "output", resolveNamedOrderAtRuntime);
                 if (!input.Success || !output.Success)
                 {
                     foreach (WotDiagnostic diagnostic in input.Diagnostics)

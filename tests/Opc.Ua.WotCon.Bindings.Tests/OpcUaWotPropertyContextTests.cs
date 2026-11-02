@@ -107,6 +107,38 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies that property Read returns the exact typed Value and UA status from the response.
+        /// </summary>
+        [Test]
+        public async Task ReadReturnsConcreteTypedValueAndStatus()
+        {
+            ServiceMessageContext source = CreateContext();
+            ServiceMessageContext caller = CreateContext();
+            Mock<ISession> session = CreateSession(source);
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new DataValue(new Variant(731))]
+                });
+            await using IWotPropertyBindingChannel channel = await OpenChannelAsync(session).ConfigureAwait(false);
+
+            WotReadResult result = await channel.ReadAsync(new WotReadRequest(
+                caller, NumericRange.Parse("1"))).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Value.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(result.Value.WrappedValue.TryGetValue(out int actual), Is.True);
+            Assert.That(actual, Is.EqualTo(731));
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// Verifies that read rejects unmapped encoding before sending a request.
         /// </summary>
         [Test]
@@ -128,6 +160,44 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             session.Verify(s => s.ReadAsync(
                 It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
                 It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that a property write sends the concrete typed Value to the addressed UA node.
+        /// </summary>
+        [Test]
+        public async Task WriteSendsConcreteTypedValueAndPreservesServerStatus()
+        {
+            ServiceMessageContext source = CreateContext();
+            Mock<ISession> session = CreateSession(source);
+            WriteValue? captured = null;
+            session.Setup(value => value.WriteAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, ArrayOf<WriteValue> requests, CancellationToken _) =>
+                {
+                    Assert.That(requests, Has.Count.EqualTo(1));
+                    captured = requests[0];
+                    return new ValueTask<WriteResponse>(new WriteResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [StatusCodes.Good]
+                    });
+                });
+            await using IWotPropertyBindingChannel channel = await OpenChannelAsync(session).ConfigureAwait(false);
+
+            WotWriteResult result = await channel.WriteAsync(new DataValue(new Variant((ushort)513)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.NodeId, Is.EqualTo(new NodeId("Value", 1)));
+            Assert.That(captured.AttributeId, Is.EqualTo(Attributes.Value));
+            Assert.That(captured.Value.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16));
+            Assert.That(captured.Value.WrappedValue.TryGetValue(out ushort written), Is.True);
+            Assert.That(written, Is.EqualTo((ushort)513));
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         private static ServiceMessageContext CreateContext()

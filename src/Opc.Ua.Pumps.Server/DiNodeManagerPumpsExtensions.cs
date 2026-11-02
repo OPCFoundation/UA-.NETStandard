@@ -43,9 +43,8 @@ namespace Opc.Ua.Pumps.Server
         /// Gets or creates the owner's shared Pumps runtime after its models have loaded.
         /// </summary>
         /// <remarks>
-        /// The first call selects the runtime options. The stock Machinery manager releases the
-        /// runtime automatically; a custom DI manager calls
-        /// <see cref="DiNodeManagerMachineryExtensions.DisposeMachineryResourcesAsync"/> on shutdown.
+        /// The first call selects the runtime options. Every DI owner releases the runtime
+        /// automatically through <see cref="DiNodeManager.RegisterResource"/>.
         /// No additional node manager or instance namespace is created.
         /// </remarks>
         /// <param name="manager">The owner that loaded DI, IA, Machinery and Pumps.</param>

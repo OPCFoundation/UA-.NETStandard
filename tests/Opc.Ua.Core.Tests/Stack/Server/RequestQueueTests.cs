@@ -31,6 +31,9 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,6 +74,56 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 CompletedStatusCode = error?.StatusCode;
                 ProcessingCompleted.TrySetResult(true);
             }
+        }
+
+        /// <summary>
+        /// Reports its receipt time and accepts typed faults, as endpoint requests do.
+        /// </summary>
+        private sealed class QueueAwareTestRequest : IEndpointIncomingRequest, IQueueAwareIncomingRequest
+        {
+            public QueueAwareTestRequest(uint timeoutHint = 0, TimeSpan age = default)
+            {
+                Request = new ReadRequest { RequestHeader = new RequestHeader { TimeoutHint = timeoutHint } };
+                ReceivedTimestamp = System.Diagnostics.Stopwatch.GetTimestamp() -
+                    (long)(age.TotalSeconds * System.Diagnostics.Stopwatch.Frequency);
+            }
+
+            public IServiceRequest Request { get; }
+
+            public SecureChannelContext SecureChannelContext => null!;
+
+            public long ReceivedTimestamp { get; }
+
+            public int CallCount => Volatile.Read(ref m_callCount);
+
+            public StatusCode? CompletedStatusCode { get; private set; }
+
+            public ServiceResultException? Fault { get; private set; }
+
+            public TaskCompletionSource<bool> Completed { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                Interlocked.Increment(ref m_callCount);
+                Completed.TrySetResult(true);
+                return default;
+            }
+
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            {
+                CompletedStatusCode = error?.StatusCode;
+                Completed.TrySetResult(true);
+            }
+
+            public void OperationFailed(ServiceResultException error)
+            {
+                Fault = error;
+                CompletedStatusCode = error.StatusCode;
+                Completed.TrySetResult(true);
+            }
+
+            private int m_callCount;
         }
 
         /// <summary>
@@ -186,6 +239,38 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             /// <summary>
+            /// Gets the meter of the installed request queue.
+            /// </summary>
+            public Meter QueueMeter
+            {
+                get
+                {
+                    FieldInfo queueField = typeof(ServerBase).GetField(
+                        "m_requestQueue", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                    var queue = (RequestQueue)queueField!.GetValue(this)!;
+                    FieldInfo meterField = typeof(RequestQueue).GetField(
+                        "m_meter", BindingFlags.NonPublic | BindingFlags.Instance)!;
+                    return (Meter)meterField!.GetValue(queue)!;
+                }
+            }
+
+            /// <summary>
+            /// Creates the queue from configuration, as starting the server does.
+            /// </summary>
+            public void InitializeQueue(ApplicationConfiguration configuration)
+            {
+                InitializeRequestQueue(configuration);
+            }
+
+            /// <summary>
+            /// Stops the queue, as stopping the server does.
+            /// </summary>
+            public ValueTask StopQueueAsync()
+            {
+                return StopRequestQueueAsync();
+            }
+
+            /// <summary>
             /// Replaces the default queue with the requested worker and admission envelope.
             /// </summary>
             public void ReplaceRequestQueue(
@@ -224,6 +309,73 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 return request.CallAsync(cancellationToken).AsTask();
             }
+        }
+
+        /// <summary>
+        /// A server that has not started has no request queue, so a request is halted
+        /// instead of starting workers for a queue that is replaced at start.
+        /// </summary>
+        [Test]
+        public void RequestBeforeStartIsHalted()
+        {
+            using var server = new TestServer();
+            var request = new TestEndpointIncomingRequest();
+
+            server.ScheduleIncomingRequest(request);
+
+            Assert.That(request.ProcessingStarted.Task.IsCompleted, Is.False);
+            Assert.That(request.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+        }
+
+        /// <summary>
+        /// Before start a null request is rejected like the queue rejects it.
+        /// </summary>
+        [Test]
+        public void NullRequestBeforeStartThrows()
+        {
+            using var server = new TestServer();
+
+            Assert.Throws<ArgumentNullException>(() => server.ScheduleIncomingRequest(null!));
+        }
+
+        /// <summary>
+        /// A completion callback that throws while a request is halted before start does
+        /// not escape to the transport that scheduled the request.
+        /// </summary>
+        [Test]
+        public void FaultingCompletionBeforeStartIsContained()
+        {
+            using var server = new TestServer();
+            var request = new Mock<IEndpointIncomingRequest>();
+            request
+                .Setup(value => value.OperationCompleted(It.IsAny<IServiceResponse?>(), It.IsAny<ServiceResult>()))
+                .Throws(new InvalidOperationException("completion failed"));
+
+            Assert.DoesNotThrow(() => server.ScheduleIncomingRequest(request.Object));
+            request.Verify(
+                value => value.OperationCompleted(
+                    null, It.Is<ServiceResult>(error => error.StatusCode == StatusCodes.BadServerHalted)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// The queue's worker counts are not applied to the process-wide ThreadPool.
+        /// </summary>
+        [Test]
+        public void QueueLeavesThreadPoolLimitsUnchanged()
+        {
+            ThreadPool.GetMinThreads(out int minWorkers, out int minIo);
+            ThreadPool.GetMaxThreads(out int maxWorkers, out int maxIo);
+            using var server = new TestServer();
+
+            server.ReplaceRequestQueue(minWorkers + 1, minWorkers + 2, 10);
+
+            ThreadPool.GetMinThreads(out int minWorkersAfter, out int minIoAfter);
+            ThreadPool.GetMaxThreads(out int maxWorkersAfter, out int maxIoAfter);
+            Assert.That(minWorkersAfter, Is.EqualTo(minWorkers));
+            Assert.That(minIoAfter, Is.EqualTo(minIo));
+            Assert.That(maxWorkersAfter, Is.EqualTo(maxWorkers));
+            Assert.That(maxIoAfter, Is.EqualTo(maxIo));
         }
 
         [Test]
@@ -294,6 +446,67 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             req2.ProcessingCompleted.TrySetResult(true);
             req3.ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// The shared queue faults a request whose timeout hint ran out while it was queued
+        /// and never processes it; requests without a hint or within it still run.
+        /// </summary>
+        [Test]
+        public async Task ExpiredQueuedRequestTimesOutWithoutProcessingAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 10);
+
+            var expired = new QueueAwareTestRequest(timeoutHint: 1000, age: TimeSpan.FromSeconds(5));
+            var withinHint = new QueueAwareTestRequest(timeoutHint: 60_000, age: TimeSpan.FromSeconds(5));
+            var noHint = new QueueAwareTestRequest(age: TimeSpan.FromSeconds(5));
+            server.ScheduleIncomingRequest(expired);
+            server.ScheduleIncomingRequest(withinHint);
+            server.ScheduleIncomingRequest(noHint);
+
+            await AwaitOrFailAsync(
+                Task.WhenAll(expired.Completed.Task, withinHint.Completed.Task, noHint.Completed.Task),
+                "the queued requests to complete").ConfigureAwait(false);
+
+            Assert.That(expired.CompletedStatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(expired.CallCount, Is.Zero);
+            Assert.That(withinHint.CallCount, Is.EqualTo(1));
+            Assert.That(noHint.CallCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A queue-full rejection reaches the request as a server-busy fault with a short,
+        /// jittered retry-after hint.
+        /// </summary>
+        [Test]
+        public async Task QueueFullRejectionCarriesRetryAfterAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 1);
+
+            var blocking = new TestEndpointIncomingRequest();
+            server.ScheduleIncomingRequest(blocking);
+            await AwaitOrFailAsync(blocking.ProcessingStarted.Task, "the blocking request to start")
+                .ConfigureAwait(false);
+
+            var queued = new QueueAwareTestRequest();
+            var rejected = new QueueAwareTestRequest();
+            server.ScheduleIncomingRequest(queued);
+            server.ScheduleIncomingRequest(rejected);
+            await AwaitOrFailAsync(rejected.Completed.Task, "the rejection").ConfigureAwait(false);
+
+            Assert.That(rejected.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(rejected.CallCount, Is.Zero);
+            Assert.That(rejected.Fault, Is.InstanceOf<ServerBusyException>());
+            TimeSpan? retryAfter = ((ServerBusyException)rejected.Fault!).RetryAfter;
+            Assert.That(retryAfter, Is.Not.Null);
+            Assert.That(retryAfter!.Value, Is.InRange(
+                RequestQueueBudget.MinQueueFullRetryAfter, RequestQueueBudget.MaxQueueFullRetryAfter));
+
+            blocking.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(queued.Completed.Task, "the queued request to run").ConfigureAwait(false);
+            Assert.That(queued.CallCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -487,6 +700,369 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     Is.Null,
                     "A parked request should not have been faulted.");
                 request.ProcessingCompleted.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// The shared queue reports queued and executing requests, rejections by status code
+        /// and the time a request waited for a worker.
+        /// </summary>
+        [Test]
+        public async Task SharedQueueReportsQueueMetricsAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 1);
+            using var metrics = new QueueMetricsListener(server.QueueMeter);
+            var running = new TestEndpointIncomingRequest();
+            var queued = new TestEndpointIncomingRequest();
+            var rejected = new TestEndpointIncomingRequest();
+
+            server.ScheduleIncomingRequest(running);
+            await AwaitOrFailAsync(running.ProcessingStarted.Task, "the first request to start").ConfigureAwait(false);
+            server.ScheduleIncomingRequest(queued);
+            server.ScheduleIncomingRequest(rejected);
+
+            Assert.That(rejected.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(metrics.Observe("opcua.server.request_queue.queued"), Is.EqualTo(1));
+            Assert.That(metrics.Observe("opcua.server.request_queue.executing"), Is.EqualTo(1));
+            Assert.That(metrics.Observe("opcua.server.request_queue.parked"), Is.Zero);
+            Assert.That(metrics.Rejections("BadServerTooBusy"), Is.EqualTo(1));
+
+            await Task.Delay(20).ConfigureAwait(false);
+            running.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(queued.ProcessingStarted.Task, "the queued request to start").ConfigureAwait(false);
+
+            double[] waits = metrics.TimesInQueue;
+            Assert.That(waits, Has.Length.EqualTo(2), "both executed requests were measured");
+            Assert.That(waits[1], Is.GreaterThanOrEqualTo(0.015));
+            Assert.That(metrics.Observe("opcua.server.request_queue.queued"), Is.Zero);
+            queued.ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// A parked request leaves the executing gauge and is reported as parked.
+        /// </summary>
+        [Test]
+        public async Task ParkedRequestIsReportedAsParkedAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 10, decoupleHeldPublishRequests: true);
+            using var metrics = new QueueMetricsListener(server.QueueMeter);
+            var parked = new ParkableTestRequest();
+
+            server.ScheduleIncomingRequest(parked);
+            await AwaitOrFailAsync(parked.ProcessingStarted.Task, "the request to park").ConfigureAwait(false);
+
+            await AwaitOrFailAsync(
+                WaitUntilAsync(() => metrics.Observe("opcua.server.request_queue.parked") == 1),
+                "the parked gauge").ConfigureAwait(false);
+            Assert.That(metrics.Observe("opcua.server.request_queue.executing"), Is.Zero);
+
+            parked.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(
+                WaitUntilAsync(() => metrics.Observe("opcua.server.request_queue.parked") == 0),
+                "the parked request to finish").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The isolation path reports the same instruments, including rejections from fair admission.
+        /// </summary>
+        [Test]
+        public async Task FairQueueReportsQueueMetricsAsync()
+        {
+            var provider = new FairRequestQueueTests.TestProvider(executionCapacity: 1);
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 10, provider: provider);
+            using var metrics = new QueueMetricsListener(server.QueueMeter);
+            var running = new FairTestRequest();
+            var queued = new FairTestRequest();
+            var cancelled = new FairTestRequest();
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            server.ScheduleIncomingRequest(running);
+            await AwaitOrFailAsync(running.ProcessingStarted.Task, "the first request to start").ConfigureAwait(false);
+            server.ScheduleIncomingRequest(queued);
+            server.ScheduleIncomingRequest(cancelled, cancellation.Token);
+
+            Assert.That(cancelled.CompletedStatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+            Assert.That(metrics.Rejections("BadRequestCancelledByClient"), Is.EqualTo(1));
+            Assert.That(metrics.Observe("opcua.server.request_queue.queued"), Is.EqualTo(1));
+            Assert.That(metrics.Observe("opcua.server.request_queue.executing"), Is.EqualTo(1));
+
+            running.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(queued.ProcessingStarted.Task, "the queued request to start").ConfigureAwait(false);
+            Assert.That(metrics.TimesInQueue, Has.Length.EqualTo(2));
+            queued.ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Without an isolation provider the queue starts no workers: requests take a
+        /// permit and run on the thread pool.
+        /// </summary>
+        [Test]
+        public async Task SharedQueueStartsNoWorkersAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(10, 20, 100);
+            Assert.That(server.WorkerCount, Is.Zero);
+
+            var request = new TestEndpointIncomingRequest();
+            server.ScheduleIncomingRequest(request);
+            await AwaitOrFailAsync(request.ProcessingStarted.Task, "the request to start").ConfigureAwait(false);
+            Assert.That(server.WorkerCount, Is.Zero);
+            request.ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// At most maxThreadCount requests execute at once; a finished request hands its
+        /// permit to the oldest waiting request.
+        /// </summary>
+        [Test]
+        public async Task PermitsLimitConcurrencyAndServeWaitersInOrderAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 3, 100);
+            using var metrics = new QueueMetricsListener(server.QueueMeter);
+            var requests = new TestEndpointIncomingRequest[10];
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                requests[ii] = new TestEndpointIncomingRequest();
+                server.ScheduleIncomingRequest(requests[ii]);
+            }
+
+            for (int ii = 0; ii < 3; ii++)
+            {
+                await AwaitOrFailAsync(requests[ii].ProcessingStarted.Task, $"request {ii} to start")
+                    .ConfigureAwait(false);
+            }
+            Assert.That(await CompletedWithinAsync(requests[3].ProcessingStarted.Task, 200).ConfigureAwait(false),
+                Is.False, "a fourth request must wait for a permit");
+            Assert.That(metrics.Observe("opcua.server.request_queue.executing"), Is.EqualTo(3));
+            Assert.That(metrics.Observe("opcua.server.request_queue.queued"), Is.EqualTo(7));
+
+            for (int ii = 3; ii < requests.Length; ii++)
+            {
+                requests[ii - 3].ProcessingCompleted.TrySetResult(true);
+                await AwaitOrFailAsync(requests[ii].ProcessingStarted.Task, $"request {ii} to start")
+                    .ConfigureAwait(false);
+                if (ii + 1 < requests.Length)
+                {
+                    Assert.That(requests[ii + 1].ProcessingStarted.Task.IsCompleted, Is.False,
+                        "only the oldest waiting request receives the permit");
+                }
+            }
+            for (int ii = requests.Length - 3; ii < requests.Length; ii++)
+            {
+                requests[ii].ProcessingCompleted.TrySetResult(true);
+            }
+            await AwaitOrFailAsync(
+                WaitUntilAsync(() => metrics.Observe("opcua.server.request_queue.executing") == 0),
+                "every permit to be returned").ConfigureAwait(false);
+            Assert.That(metrics.Observe("opcua.server.request_queue.queued"), Is.Zero);
+        }
+
+        /// <summary>
+        /// A configured MaxRequestThreadCount below 100 is used as configured.
+        /// </summary>
+        [Test]
+        public async Task ConfiguredConcurrencyBelowHundredIsHonoredAsync()
+        {
+            using var server = new TestServer();
+            server.InitializeQueue(new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration
+                {
+                    MinRequestThreadCount = 1,
+                    MaxRequestThreadCount = 2,
+                    MaxQueuedRequestCount = 100
+                }
+            });
+            var requests = new TestEndpointIncomingRequest[3];
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                requests[ii] = new TestEndpointIncomingRequest();
+                server.ScheduleIncomingRequest(requests[ii]);
+            }
+
+            await AwaitOrFailAsync(requests[0].ProcessingStarted.Task, "request 0 to start").ConfigureAwait(false);
+            await AwaitOrFailAsync(requests[1].ProcessingStarted.Task, "request 1 to start").ConfigureAwait(false);
+            Assert.That(await CompletedWithinAsync(requests[2].ProcessingStarted.Task, 200).ConfigureAwait(false),
+                Is.False, "the third request must wait for one of the two permits");
+
+            requests[0].ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(requests[2].ProcessingStarted.Task, "request 2 to start").ConfigureAwait(false);
+            requests[1].ProcessingCompleted.TrySetResult(true);
+            requests[2].ProcessingCompleted.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Stopping rejects waiting requests and completes only after executing and
+        /// parked handlers have finished.
+        /// </summary>
+        [Test]
+        public async Task StopDrainsExecutingAndParkedRequestsAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 1, 10, decoupleHeldPublishRequests: true);
+            var parked = new ParkableTestRequest();
+            var executing = new TestEndpointIncomingRequest();
+            var waiting = new TestEndpointIncomingRequest();
+
+            server.ScheduleIncomingRequest(parked);
+            await AwaitOrFailAsync(parked.ProcessingStarted.Task, "the request to park").ConfigureAwait(false);
+            server.ScheduleIncomingRequest(executing);
+            await AwaitOrFailAsync(executing.ProcessingStarted.Task, "the second request to start")
+                .ConfigureAwait(false);
+            server.ScheduleIncomingRequest(waiting);
+
+            Task stop = server.StopQueueAsync().AsTask();
+            await AwaitOrFailAsync(waiting.ProcessingCompleted.Task, "the waiting request to be rejected")
+                .ConfigureAwait(false);
+            Assert.That(waiting.CompletedStatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(await CompletedWithinAsync(stop, 200).ConfigureAwait(false), Is.False,
+                "stop waits for the executing request");
+
+            executing.ProcessingCompleted.TrySetResult(true);
+            Assert.That(await CompletedWithinAsync(stop, 200).ConfigureAwait(false), Is.False,
+                "stop waits for the parked request");
+
+            parked.ProcessingCompleted.TrySetResult(true);
+            await AwaitOrFailAsync(stop, "stop to complete").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A request that holds a permit but has not started when the queue stops is
+        /// halted, and stop still waits for its permit.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentStopHaltsOrRunsEveryRequestAsync()
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 4, 1000);
+            var requests = new TestEndpointIncomingRequest[200];
+            for (int ii = 0; ii < requests.Length; ii++)
+            {
+                requests[ii] = new TestEndpointIncomingRequest();
+                TestEndpointIncomingRequest request = requests[ii];
+                _ = request.ProcessingStarted.Task.ContinueWith(
+                    _ => request.ProcessingCompleted.TrySetResult(true), TaskScheduler.Default);
+            }
+
+            var schedule = Task.Run(() =>
+            {
+                foreach (TestEndpointIncomingRequest request in requests)
+                {
+                    server.ScheduleIncomingRequest(request);
+                }
+            });
+            await Task.Delay(1).ConfigureAwait(false);
+            await server.StopQueueAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await schedule.ConfigureAwait(false);
+
+            Task all = Task.WhenAll(Array.ConvertAll(requests, r => r.ProcessingCompleted.Task));
+            await AwaitOrFailAsync(all, "every request to complete").ConfigureAwait(false);
+            foreach (TestEndpointIncomingRequest request in requests)
+            {
+                Assert.That(request.CompletedStatusCode,
+                    Is.Null.Or.EqualTo(StatusCodes.BadServerHalted));
+            }
+        }
+
+        /// <summary>
+        /// A request the isolation provider can classify.
+        /// </summary>
+        private sealed class FairTestRequest : IEndpointIncomingRequest
+        {
+            public TaskCompletionSource<bool> ProcessingStarted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public TaskCompletionSource<bool> ProcessingCompleted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public StatusCode? CompletedStatusCode { get; private set; }
+
+            public IServiceRequest Request { get; } = new ReadRequest { RequestHeader = new RequestHeader() };
+
+            public SecureChannelContext SecureChannelContext { get; } =
+                new("channel", null, RequestEncoding.Binary);
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                ProcessingStarted.TrySetResult(true);
+                return new ValueTask(ProcessingCompleted.Task);
+            }
+
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            {
+                CompletedStatusCode = error?.StatusCode;
+                ProcessingCompleted.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Listens to the instruments of one request queue meter.
+        /// </summary>
+        private sealed class QueueMetricsListener : IDisposable
+        {
+            public QueueMetricsListener(Meter meter)
+            {
+                m_listener = new MeterListener
+                {
+                    InstrumentPublished = (instrument, listener) =>
+                    {
+                        if (ReferenceEquals(instrument.Meter, meter))
+                        {
+                            listener.EnableMeasurementEvents(instrument);
+                        }
+                    }
+                };
+                m_listener.SetMeasurementEventCallback<int>((instrument, value, tags, _) =>
+                    m_observed[instrument.Name] = value);
+                m_listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
+                {
+                    string status = string.Empty;
+                    foreach (KeyValuePair<string, object?> tag in tags)
+                    {
+                        if (tag.Key == "status")
+                        {
+                            status = (string)tag.Value!;
+                        }
+                    }
+                    m_rejections.AddOrUpdate(status, value, (_, total) => total + value);
+                });
+                m_listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
+                    m_timesInQueue.Enqueue(value));
+                m_listener.Start();
+            }
+
+            public double[] TimesInQueue => [.. m_timesInQueue];
+
+            public long Rejections(string status)
+            {
+                return m_rejections.TryGetValue(status, out long count) ? count : 0;
+            }
+
+            public int Observe(string name)
+            {
+                m_listener.RecordObservableInstruments();
+                return m_observed.TryGetValue(name, out int value) ? value : -1;
+            }
+
+            public void Dispose()
+            {
+                m_listener.Dispose();
+            }
+
+            private readonly MeterListener m_listener;
+            private readonly ConcurrentDictionary<string, int> m_observed = new();
+            private readonly ConcurrentDictionary<string, long> m_rejections = new();
+            private readonly ConcurrentQueue<double> m_timesInQueue = new();
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition)
+        {
+            while (!condition())
+            {
+                await Task.Delay(10).ConfigureAwait(false);
             }
         }
 

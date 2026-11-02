@@ -164,6 +164,60 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         /// <summary>
+        /// Adoption requeues pending snapshot items without recreating established monitored items.
+        /// </summary>
+        /// <param name="includeEstablishedItem">Whether the snapshot also contains an established item.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdoptionRequeuesPendingMonitoredItemsAsync(bool includeEstablishedItem)
+        {
+            var services = new Mock<IMonitoredItemServiceSetClientMethods>(MockBehavior.Strict);
+            m_context.MonitoredItemServiceSet = services.Object;
+
+            var sut = new MonitoredItemManager(m_context, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                if (includeEstablishedItem)
+                {
+                    Assert.That(sut.AddLoaded(
+                        new MonitoredItemLoadState(
+                            "Established",
+                            OptionsFactory.Create<MonitoredItemOptions>(),
+                            42,
+                            101,
+                            [])), Is.True);
+                }
+                Assert.That(sut.AddLoaded(
+                    new MonitoredItemLoadState(
+                        "Pending",
+                        OptionsFactory.Create<MonitoredItemOptions>(),
+                        43,
+                        0,
+                        [])), Is.True);
+
+                Assert.That(await sut.TrySynchronizeHandlesAsync(cachedOnly: true, default)
+                    .ConfigureAwait(false), Is.True);
+
+                Assert.That(sut.TryGetMonitoredItemByClientHandle(43, out IMonitoredItem? pending), Is.True);
+                Assert.That(pending!.ServerId, Is.Zero);
+                var pendingItem = (TestMonitoredItem)pending;
+                Assert.That(pendingItem.TryGetPendingChange(out MonitoredItem.Change? pendingChange), Is.True);
+                Assert.That(pendingChange!.Create, Is.Not.Null);
+                if (includeEstablishedItem)
+                {
+                    Assert.That(sut.TryGetMonitoredItemByClientHandle(42, out IMonitoredItem? established), Is.True);
+                    var establishedItem = (TestMonitoredItem)established!;
+                    Assert.That(establishedItem.ServerId, Is.EqualTo(101));
+                    Assert.That(establishedItem.Created, Is.True);
+                    if (establishedItem.TryGetPendingChange(out MonitoredItem.Change? establishedChange))
+                    {
+                        Assert.That(establishedChange!.Create, Is.Null);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A transient per-item create failure must not be retried
         /// back-to-back inside one apply pass: that would exhaust the retry
         /// budget within milliseconds and leave the item un-created with no
@@ -275,6 +329,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 Assert.That(result.ToArray().Single(), Is.TypeOf<DataValueChange>());
                 DataValueChange single = result.ToArray().Single();
             }
+        }
+
+        /// <summary>
+        /// V2 projection uses indexed wire diagnostics, not stale client-side cache annotations.
+        /// An empty diagnostics array must remain empty in the projection.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task DataChangeProjectionUsesWireDiagnosticsAsync(bool includeDiagnostics)
+        {
+            await using var manager = new MonitoredItemManager(m_context, m_telemetry);
+            var first = new DiagnosticInfo { AdditionalInfo = "first wire diagnostic" };
+            var second = new DiagnosticInfo { AdditionalInfo = "second wire diagnostic" };
+            var stale = new DiagnosticInfo { AdditionalInfo = "client-side annotation" };
+            var notification = new DataChangeNotification
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemNotification { ClientHandle = 1, DiagnosticInfo = stale },
+                    new MonitoredItemNotification { ClientHandle = 2, DiagnosticInfo = stale }
+                ],
+                DiagnosticInfos = includeDiagnostics ? [first, second] : []
+            };
+
+            ReadOnlyMemory<DataValueChange> result = manager.CreateNotification(notification);
+
+            Assert.That(result.Span[0].DiagnosticInfo, Is.SameAs(includeDiagnostics ? first : null));
+            Assert.That(result.Span[1].DiagnosticInfo, Is.SameAs(includeDiagnostics ? second : null));
         }
 
         [Test]

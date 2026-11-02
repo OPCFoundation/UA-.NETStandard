@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).LADS</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.LADS</PackageId>
+    <RootNamespace>Opc.Ua.LADS</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Description>Server/client-independent OPC 30500-1 Laboratory and Analytical Device Standard (LADS) model over the DI, AMB and Machinery models: device, functional unit, sensor and control function, program manager, result, maintenance and state machine types, the KeyValueType and SampleInfoType structures, generated identifiers, typed node states, encodeable and node-state factories and client proxies.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <!-- OPC 30500-1 requires DI 1.04, AMB 1.01 and Machinery 1.03 (lower bounds).
+       LADS types derive from DI DeviceType, TopologyElementType and ComponentType,
+       from the Machinery components, operation-mode and operation-counter types,
+       and implement AMB interfaces, so all three model assemblies have to be
+       referenced for the generator to resolve those base types out of the
+       [ModelDependencyAttribute] payloads they publish. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.AMB\Opc.Ua.AMB.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- Model\Opc.Ua.LADS.NodeSet2.xml and Model\Opc.Ua.LADS.NodeIds.csv are the
+       unmodified OPC Foundation publication from UA-Nodeset tag
+       LADS-1.0.0-2023-11-30; Model\provenance.json pins the revision and the
+       SHA-256 of both files.
+
+       The published NodeIds.csv uses UA-ModelCompiler symbolic names, so it is
+       kept out of AdditionalFiles. Model\Opc.Ua.LADS.Derived.NodeIds.csv is the
+       drift guard derived from it with tools/nodesets/derive-identifier-table.py;
+       the generator fails the build when model and table disagree. -->
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.LADS.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.LADS.Derived.NodeIds.csv" />
+    <AdditionalFiles Include="Model\Opc.Ua.LADS.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/LADS/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>LADS</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.LADS</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.LADS.Derived.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.LADS.Derived.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

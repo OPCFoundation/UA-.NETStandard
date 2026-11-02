@@ -120,6 +120,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 
+        /// <summary>
+        /// Robotics tools are registered only for the Robotics and Full profiles.
+        /// </summary>
         [Test]
         public void RoboticsToolsRegisterOnlyForRoboticsAndFullProfiles()
         {
@@ -165,7 +168,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.MachineTool,
                     McpToolProfile.Gms,
                     McpToolProfile.CranesHoists,
-                    McpToolProfile.AutoId
+                    McpToolProfile.AutoId,
+                    McpToolProfile.Lads
                 ]));
 
             foreach (McpToolProfile profile in profiles)

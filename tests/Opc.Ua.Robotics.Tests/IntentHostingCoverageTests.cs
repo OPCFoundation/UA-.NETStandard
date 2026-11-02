@@ -39,6 +39,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Robotics.Server.Builders;
 using Opc.Ua.Robotics.Server.Hosting;
@@ -56,6 +57,105 @@ namespace Opc.Ua.Robotics.Tests
     [TestFixture]
     public class IntentHostingCoverageTests
     {
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RobotIntentFactoriesLeaveNeutralProvidersToTheDiOwnerAsync(
+            bool hosted,
+            bool neutralFirst)
+        {
+            await using var fixture = new IntentServerFixture();
+            await fixture.CreateServerAsync().ConfigureAwait(false);
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
+            if (neutralFirst)
+            {
+                builder.AddDiModel<RecordingDiProvider>();
+            }
+            builder.AddOpcUaDi().AddRobotIntent();
+            builder.AddDiModel<RecordingDiProvider>().AddDiModel<RecordingDiProvider>();
+            var family = new Mock<IRobotIntentModelProvider>();
+            family.SetupGet(model => model.Order).Returns(200);
+            family.SetupGet(model => model.NamespaceUris).Returns(s_familyNamespaceUris);
+            family.Setup(model => model.AddPredefinedNodes(
+                    It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()))
+                .Callback<NodeStateCollection, ISystemContext>((nodes, context) =>
+                {
+                    int diIndex = context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi);
+                    bool hasDeviceSet = diIndex >= 0 && nodes.Any(node =>
+                        node.NodeId == new NodeId(Di.Objects.DeviceSet, (ushort)diIndex));
+                    Assert.That(nodes.Any(node => node.SymbolicName == "NeutralProvider"), Is.EqualTo(hasDeviceSet));
+                });
+            services.AddSingleton(family.Object);
+            services.AddSingleton(family.Object);
+            services.AddSingleton<IDiModelProvider>(family.Object);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IAsyncNodeManagerFactory factory = hosted
+                ? provider.GetRequiredService<RobotIntentHostedNodeManagerFactory>()
+                : provider.GetRequiredService<RobotIntentNodeManagerFactory>();
+            Assert.That(factory.NamespacesUris.ToArray(),
+                Is.SupersetOf(new[]
+                {
+                    "urn:test:robot-intent:family",
+                    global::Opc.Ua.RobotIntent.Namespaces.RobotIntent
+                }));
+            Assert.That(factory.NamespacesUris.ToArray(), Does.Not.Contain(RecordingDiProvider.NamespaceUri));
+
+            await using var manager = (RobotIntentNodeManager)await factory.CreateAsync(
+                fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            RecordingDiProvider neutral = (RecordingDiProvider)provider.GetServices<IDiModelProvider>()
+                .Single(model => model is RecordingDiProvider);
+            Assert.Multiple(() =>
+            {
+                Assert.That(neutral.Calls, Is.Zero);
+                Assert.That(provider.GetServices<IDiModelProvider>()
+                    .Count(model => model is RecordingDiProvider), Is.EqualTo(1));
+                Assert.That(provider.GetRequiredService<IRobotIntentModelProvider>(), Is.SameAs(family.Object));
+                Assert.That(manager.FindPredefinedNode<NodeState>(new NodeId(
+                    "NeutralProvider",
+                    manager.SystemContext.NamespaceUris.GetIndexOrAppend(RecordingDiProvider.NamespaceUri)))
+                    ?.SymbolicName, Is.Null);
+            });
+            family.Verify(model => model.AddPredefinedNodes(
+                It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()), Times.Once);
+
+            await using var diOwner = (DiNodeManager)await provider.GetRequiredService<DiNodeManagerFactory>()
+                .CreateAsync(fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
+            await diOwner.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            Assert.That(neutral.Calls, Is.EqualTo(1));
+            Assert.That(neutral.BuiltInNodesLoaded, Is.True);
+        }
+
+        public sealed class RecordingDiProvider : IDiModelProvider
+        {
+            public const string NamespaceUri = "urn:test:robot-intent:neutral";
+
+            public int Order => 100;
+
+            public ArrayOf<string> NamespaceUris => new[] { NamespaceUri };
+
+            public int Calls { get; private set; }
+
+            public bool BuiltInNodesLoaded { get; private set; }
+
+            public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
+            {
+                Calls++;
+                BuiltInNodesLoaded = nodes.Any(node => node.NodeId == NodeId.Create(
+                    Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, context.NamespaceUris));
+                Assert.That(BuiltInNodesLoaded, Is.True, "Neutral providers require the actual DI owner's DeviceSet.");
+                nodes.Add(new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("NeutralProvider", context.NamespaceUris.GetIndexOrAppend(NamespaceUri)),
+                    BrowseName = new QualifiedName("NeutralProvider"),
+                    SymbolicName = "NeutralProvider"
+                });
+            }
+        }
+
         [Test]
         public void ServerOptionsValidateDefaultsAndRejectBlankValues()
         {
@@ -1102,6 +1202,7 @@ namespace Opc.Ua.Robotics.Tests
             private readonly SemaphoreSlim m_gate = new(0);
         }
 
+        private static readonly ArrayOf<string> s_familyNamespaceUris = new[] { "urn:test:robot-intent:family" };
         private static readonly double[] s_doubleValues1 = [0.0, 0.0, 1.0];
         private static readonly double[] s_doubleValues2 = [0.0, 0.0, 0.0];
         private static readonly double[] s_doubleValues3 = [0.0, 0.0, 0.0, 1.0];

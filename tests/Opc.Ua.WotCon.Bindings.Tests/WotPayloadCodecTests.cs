@@ -87,6 +87,25 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(OctetStreamWotPayloadCodec.Instance.CanHandle(contentType), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that octet-stream MIME handles bytes and is not an implicit OPC UA Binary serializer.
+        /// </summary>
+        [Test]
+        public void OctetStreamCodecDoesNotInferUaBinaryFromMimeType()
+        {
+            WotEncodeResult encoded = OctetStreamWotPayloadCodec.Instance.Encode(
+                new Variant((ushort)4660), s_octetPayload);
+            WotDecodeResult decoded = OctetStreamWotPayloadCodec.Instance.Decode(
+                new byte[] { 0x12, 0x34 }, s_octetPayload);
+
+            Assert.That(encoded.Success, Is.True);
+            Assert.That(Encoding.UTF8.GetString(encoded.Data.ToArray()), Is.EqualTo("4660"));
+            Assert.That(decoded.Success, Is.True);
+            Assert.That(decoded.Value.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.ByteString));
+            Assert.That(decoded.Value.TryGetValue(out ByteString bytes), Is.True);
+            Assert.That(bytes.Memory.ToArray(), Is.EqualTo(new byte[] { 0x12, 0x34 }));
+        }
+
         [Test]
         public void JsonCodecHasStableId()
         {

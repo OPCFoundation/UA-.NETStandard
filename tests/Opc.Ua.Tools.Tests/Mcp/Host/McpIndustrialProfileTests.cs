@@ -67,6 +67,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(names.Length));
             Assert.That(names.Count(name => name == "Connect"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "ConnectCertificate"), Is.EqualTo(1));
+            Assert.That(names.Count(name => name == "ConnectJwt"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "Disconnect"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetEndpoints"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetConnectionStatus"), Is.EqualTo(1));
@@ -215,7 +216,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// The shared session lifecycle tools.
         /// </summary>
         private static readonly string[] kConnections =
-            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "ConnectJwt", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif

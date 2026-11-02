@@ -32,6 +32,7 @@ concurrency:
 env:
   CTT_REPO: OPCFoundation/UA-.NETStandard-CTT
   CTT_REPO_BRANCH: main   # branch of CTT_REPO whose workflow runs
+  CTT_BASELINE: master    # baseline in CTT_REPO (baseline/<name>/cases.json); master378 has its own copy
   CTT_LABEL: ctt
 
 jobs:
@@ -108,7 +109,8 @@ jobs:
           base="https://api.github.com/repos/$CTT_REPO/actions"
           correlation="ua-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           jq -n --arg branch "$CTT_REPO_BRANCH" --arg repo "$GITHUB_REPOSITORY" --arg ref "$REF" --arg sha "$SHA" \
-            --arg corr "$correlation" '{ref: $branch, inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr}}' \
+            --arg corr "$correlation" --arg baseline "$CTT_BASELINE" \
+            '{ref: $branch, inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr, baseline: $baseline}}' \
             | api -X POST "$base/workflows/ctt.yml/dispatches" --data @-
 
           id=''

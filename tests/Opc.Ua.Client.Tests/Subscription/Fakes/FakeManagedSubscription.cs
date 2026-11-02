@@ -49,9 +49,23 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public uint Id { get; set; }
 
+        /// <inheritdoc/>
+        public long MessageGeneration { get; set; }
+
+        /// <inheritdoc/>
+        public AcknowledgementScope GetAcknowledgementScope(long generation)
+        {
+            return generation == MessageGeneration
+                ? AcknowledgementScope.GetOrCreate(ref m_acknowledgementScope, this, generation, Id)
+                : new AcknowledgementScope(this, generation, Id);
+        }
+
+        private AcknowledgementScope? m_acknowledgementScope;
+
         public uint ServerId => Id;
 
         public bool Created { get; set; }
+
         public bool IsCreationInProgress
         {
             get => OnIsCreationInProgress?.Invoke() ?? m_isCreationInProgress;

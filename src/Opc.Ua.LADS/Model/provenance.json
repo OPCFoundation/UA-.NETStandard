@@ -1,0 +1,70 @@
+{
+  "revision": "9f529354fc05a261295b4ce3e937a47410f7cced",
+  "tag": "LADS-1.0.0-2023-11-30",
+  "specification": "OPC-30500-1",
+  "referenceEdition": "1.00",
+  "referenceUrl": "https://reference.opcfoundation.org/LADS/v100/docs/",
+  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform.",
+  "model": {
+    "ModelUri": "http://opcfoundation.org/UA/LADS/",
+    "Version": "1.0.0",
+    "PublicationDate": "2023-11-30T00:00:00Z",
+    "requiredModels": [
+      {
+        "ModelUri": "http://opcfoundation.org/UA/",
+        "Version": "1.05.02",
+        "PublicationDate": "2022-11-01T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/DI/",
+        "Version": "1.04.0",
+        "PublicationDate": "2022-11-03T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/AMB/",
+        "Version": "1.01.0",
+        "PublicationDate": "2022-11-01T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+        "Version": "1.03.0",
+        "PublicationDate": "2023-08-01T00:00:00Z"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "file": "Opc.Ua.LADS.NodeSet2.xml",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f529354fc05a261295b4ce3e937a47410f7cced/LADS/Opc.Ua.LADS.NodeSet2.xml",
+      "gitBlob": "abf7f8e07f99f518a1685bafb16ce62751d8001a",
+      "sha256": "15fa32b4952f12a2d696fddd2466a4c764afdac2125d198223547d787aab6adb"
+    },
+    {
+      "file": "Opc.Ua.LADS.NodeIds.csv",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f529354fc05a261295b4ce3e937a47410f7cced/LADS/Opc.Ua.LADS.NodeIds.csv",
+      "gitBlob": "2d65eebc39a7fc1bdcc30bb26de8a56bba16f812",
+      "sha256": "836d55a7716c4852d1e94390bbf6996551fcc31381ebd7166d1d9a2007e4e3b0"
+    }
+  ],
+  "derivedIdentifierTable": {
+    "file": "Opc.Ua.LADS.Derived.NodeIds.csv",
+    "tool": "tools/nodesets/derive-identifier-table.py",
+    "purpose": "Local source-generator symbolic-name drift guard, not an upstream publication or NodeId source.",
+    "guardedRows": 650,
+    "renamedSymbols": 113,
+    "nodeSetDeclarationsAbsentFromPublishedTable": 0,
+    "derivationResult": "All 650 published rows agree with the NodeSet on numeric id and node class; 113 symbolic names follow the generator conventions. No rows are invented."
+  },
+  "declarationCounts": {
+    "DataType": 3,
+    "Variable": 374,
+    "ObjectType": 53,
+    "Object": 160,
+    "Method": 60
+  },
+  "compatibility": [
+    "RequiredModel entries are lower bounds: the package loads the DI 1.04, AMB 1.01.1 and Machinery 1.04.1 models the SDK ships. Machinery adds the IA model to the closure.",
+    "LADSComponentsType, LADSOperationModeStateMachineType and LADSOperationCountersType derive from Machinery i=1006, i=1008 and i=1009, which keep their NodeIds in Machinery 1.04.1.",
+    "MaintenanceTaskType derives from DI MaintenanceRequiredAlarmType and implements AMB IMaintenanceEventType."
+  ]
+}

@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
 
+#pragma warning disable CS0618 // tests exercise the obsolete classic API
+
 namespace Opc.Ua.Interop.LegacyPeer
 {
     /// <summary>

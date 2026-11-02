@@ -33,9 +33,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Vision.MachineVision;
 using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Hosting;
@@ -56,6 +59,154 @@ namespace Opc.Ua.Vision.Tests
     [Category("Hosting")]
     public sealed class VisionHostingCoverageTests
     {
+        [Test]
+        public void VisionAdaptersPreserveOriginalProviderTypeNameTies()
+        {
+            var proxy = new Mock<IDiModelProvider>();
+            proxy.SetupGet(model => model.Order).Returns(100);
+            IDiModelProvider concrete = new RecordingDiProvider();
+            IDiModelProvider[] ordered = new[] { concrete, proxy.Object }
+                .OrderBy(model => model.GetType().FullName, StringComparer.Ordinal).ToArray();
+            var first = new VisionDiModelProviderAdapter(ordered[0]);
+            var second = new VisionDiModelProviderAdapter(ordered[1]);
+            ArrayOf<IVisionModelProvider> normalized = VisionNodeManager.NormalizeProviders(
+                [new VisionModelProvider(MachineVisionParts.Assets), second, first],
+                MachineVisionParts.Assets);
+            Assert.That(normalized[0], Is.TypeOf<VisionModelProvider>());
+            Assert.That(normalized[1], Is.SameAs(first));
+            Assert.That(normalized[2], Is.SameAs(second));
+        }
+
+        [TestCase(false, false, MachineVisionParts.None, 100)]
+        [TestCase(false, true, MachineVisionParts.None, 100)]
+        [TestCase(true, false, MachineVisionParts.None, 100)]
+        [TestCase(true, true, MachineVisionParts.None, 100)]
+        [TestCase(false, false, MachineVisionParts.Control, 100)]
+        [TestCase(false, true, MachineVisionParts.Control, 100)]
+        [TestCase(true, false, MachineVisionParts.Control, 100)]
+        [TestCase(true, true, MachineVisionParts.Control, 100)]
+        [TestCase(false, false, MachineVisionParts.Assets, 100)]
+        [TestCase(false, true, MachineVisionParts.Assets, 100)]
+        [TestCase(true, false, MachineVisionParts.Assets, 100)]
+        [TestCase(true, true, MachineVisionParts.Assets, 100)]
+        [TestCase(false, false, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(false, true, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(true, false, MachineVisionParts.Assets, int.MinValue)]
+        [TestCase(true, true, MachineVisionParts.Assets, int.MinValue)]
+        public async Task VisionFactoriesLoadNeutralProvidersOnlyWhenOwningDiAsync(
+            bool hosted,
+            bool neutralFirst,
+            MachineVisionParts parts,
+            int neutralOrder)
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            var services = new ServiceCollection();
+            IOpcUaServerBuilder builder = services.AddOpcUa().AddServer(_ => { });
+            if (neutralFirst)
+            {
+                builder.AddDiModel<RecordingDiProvider>();
+            }
+            bool ownsDi = parts == MachineVisionParts.Assets;
+            if (!ownsDi)
+            {
+                builder.AddOpcUaDi();
+            }
+            builder.AddVision(options => options.MachineVisionParts = parts);
+            if (ownsDi)
+            {
+                builder.AddMachineVision();
+            }
+            builder.AddDiModel<RecordingDiProvider>().AddDiModel<RecordingDiProvider>();
+            var family = new Mock<IVisionModelProvider>();
+            family.SetupGet(provider => provider.Order).Returns(200);
+            family.SetupGet(provider => provider.NamespaceUris).Returns(s_familyNamespaceUris);
+            family.Setup(provider => provider.AddPredefinedNodes(
+                    It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()))
+                .Callback<NodeStateCollection, ISystemContext>((nodes, context) =>
+                {
+                    int diIndex = context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi);
+                    bool hasDeviceSet = diIndex >= 0 && nodes.Any(node =>
+                        node.NodeId == new NodeId(Di.Objects.DeviceSet, (ushort)diIndex));
+                    Assert.That(nodes.Any(node => node.SymbolicName == "NeutralProvider"), Is.EqualTo(hasDeviceSet));
+                });
+            services.AddSingleton(family.Object);
+            services.AddSingleton(family.Object);
+            services.AddSingleton<IDiModelProvider>(family.Object);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            RecordingDiProvider neutral = (RecordingDiProvider)provider.GetServices<IDiModelProvider>()
+                .Single(model => model is RecordingDiProvider);
+            neutral.Order = neutralOrder;
+            IAsyncNodeManagerFactory factory = hosted
+                ? provider.GetRequiredService<VisionHostedNodeManagerFactory>()
+                : provider.GetRequiredService<VisionNodeManagerFactory>();
+            Assert.That(factory.NamespacesUris.ToArray(),
+                Is.SupersetOf(new[]
+                {
+                    "urn:test:vision:family",
+                    Perception.Namespaces.Vision
+                }));
+            Assert.That(factory.NamespacesUris.ToArray()!.Contains(RecordingDiProvider.NamespaceUri),
+                Is.EqualTo(ownsDi));
+
+            await using var manager = (VisionNodeManager)await factory.CreateAsync(
+                fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(neutral.Calls, Is.EqualTo(ownsDi ? 1 : 0));
+                Assert.That(provider.GetServices<IDiModelProvider>()
+                    .Count(model => model is RecordingDiProvider), Is.EqualTo(1));
+                Assert.That(provider.GetRequiredService<IVisionModelProvider>(), Is.SameAs(family.Object));
+                Assert.That(manager.FindPredefinedNode<NodeState>(new NodeId(
+                    "NeutralProvider",
+                    manager.SystemContext.NamespaceUris.GetIndexOrAppend(RecordingDiProvider.NamespaceUri)))
+                    ?.SymbolicName, Is.EqualTo(ownsDi ? "NeutralProvider" : null));
+            });
+            family.Verify(model => model.AddPredefinedNodes(
+                It.IsAny<NodeStateCollection>(), It.IsAny<ISystemContext>()), Times.Once);
+            if (!ownsDi)
+            {
+                await using var diOwner = (DiNodeManager)await provider.GetRequiredService<DiNodeManagerFactory>()
+                    .CreateAsync(fixture.Server.CurrentInstance, fixture.Configuration).ConfigureAwait(false);
+                await diOwner.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+                Assert.That(neutral.Calls, Is.EqualTo(1));
+                Assert.That(neutral.BuiltInNodesLoaded, Is.True);
+            }
+            else
+            {
+                Assert.That(neutral.BuiltInNodesLoaded, Is.True);
+            }
+        }
+
+        public sealed class RecordingDiProvider : IDiModelProvider
+        {
+            public const string NamespaceUri = "urn:test:vision:neutral";
+
+            public int Order { get; set; } = 100;
+
+            public ArrayOf<string> NamespaceUris => new[] { NamespaceUri };
+
+            public int Calls { get; private set; }
+
+            public bool BuiltInNodesLoaded { get; private set; }
+
+            public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
+            {
+                Calls++;
+                BuiltInNodesLoaded = nodes.Any(node => node.NodeId == NodeId.Create(
+                    Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, context.NamespaceUris));
+                Assert.That(BuiltInNodesLoaded, Is.True, "Neutral providers require the actual DI owner's DeviceSet.");
+                nodes.Add(new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("NeutralProvider", context.NamespaceUris.GetIndexOrAppend(NamespaceUri)),
+                    BrowseName = new QualifiedName("NeutralProvider"),
+                    SymbolicName = "NeutralProvider"
+                });
+            }
+        }
+
         [Test]
         public void AddVisionMediaProviderGenericRegistersConcreteProviderAndRegistration()
         {
@@ -478,5 +629,7 @@ namespace Opc.Ua.Vision.Tests
 
             private static readonly string[] s_stringValues1 = ["urn:test:stub"];
         }
+
+        private static readonly ArrayOf<string> s_familyNamespaceUris = new[] { "urn:test:vision:family" };
     }
 }

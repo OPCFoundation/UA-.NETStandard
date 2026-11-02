@@ -96,11 +96,13 @@ namespace Opc.Ua.Client
         /// <param name="snapshot">The last known redundancy information.</param>
         /// <param name="currentEndpoint">The endpoint used to match peer transport and security settings.</param>
         /// <param name="ct">Cancellation for peer discovery.</param>
+        /// <param name="initialEndpoint">The authenticated initial endpoint retained by the session.</param>
         /// <returns>The snapshot with updated peer endpoint references.</returns>
         ValueTask<ServerRedundancyInfo> ResolveCachedEndpointsAsync(
             ServerRedundancyInfo snapshot,
             ConfiguredEndpoint currentEndpoint,
-            CancellationToken ct);
+            CancellationToken ct,
+            ConfiguredEndpoint? initialEndpoint = null);
 
         /// <summary>
         /// Removes cached entries that refer to a failed endpoint or its URL so a later attempt discovers it again.

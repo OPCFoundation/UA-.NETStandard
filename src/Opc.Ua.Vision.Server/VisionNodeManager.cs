@@ -283,6 +283,9 @@ namespace Opc.Ua.Vision.Server
             return new ValueTask<NodeStateCollection>(nodes);
         }
 
+        /// <summary>
+        /// Loads built-in dependencies first, then orders distinct providers by priority and original type name.
+        /// </summary>
         internal static ArrayOf<IVisionModelProvider> NormalizeProviders(
             ArrayOf<IVisionModelProvider> providers,
             MachineVisionParts parts = MachineVisionParts.None)
@@ -291,15 +294,45 @@ namespace Opc.Ua.Vision.Server
             {
                 return new IVisionModelProvider[] { new VisionModelProvider(parts) };
             }
-            var sorted = new List<IVisionModelProvider>();
+            var seen = new List<IVisionModelProvider>();
+            var sorted = new List<(IVisionModelProvider Provider, int Index)>();
             for (int ii = 0; ii < providers.Count; ii++)
             {
-                sorted.Add(providers[ii] is VisionModelProvider
-                    ? new VisionModelProvider(parts)
-                    : providers[ii]);
+                IVisionModelProvider provider = providers[ii];
+                if (!seen.Exists(existing => ReferenceEquals(existing, provider)))
+                {
+                    seen.Add(provider);
+                    sorted.Add((provider is VisionModelProvider ? new VisionModelProvider(parts) : provider, ii));
+                }
             }
-            sorted.Sort(static (left, right) => left.Order.CompareTo(right.Order));
-            return sorted.ToArray().ToArrayOf();
+            sorted.Sort(static (left, right) =>
+            {
+                int result = (right.Provider is VisionModelProvider).CompareTo(left.Provider is VisionModelProvider);
+                if (result == 0)
+                {
+                    result = (right.Provider is IVisionDependencyModelProvider)
+                        .CompareTo(left.Provider is IVisionDependencyModelProvider);
+                }
+                if (result == 0)
+                {
+                    result = left.Provider.Order.CompareTo(right.Provider.Order);
+                }
+                if (result == 0)
+                {
+                    Type leftType = left.Provider is VisionDiModelProviderAdapter leftAdapter
+                        ? leftAdapter.ProviderType : left.Provider.GetType();
+                    Type rightType = right.Provider is VisionDiModelProviderAdapter rightAdapter
+                        ? rightAdapter.ProviderType : right.Provider.GetType();
+                    result = string.CompareOrdinal(leftType.FullName, rightType.FullName);
+                }
+                return result != 0 ? result : left.Index.CompareTo(right.Index);
+            });
+            var normalized = new IVisionModelProvider[sorted.Count];
+            for (int ii = 0; ii < sorted.Count; ii++)
+            {
+                normalized[ii] = sorted[ii].Provider;
+            }
+            return normalized;
         }
 
         internal static string[] GetNamespaceUris(

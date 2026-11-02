@@ -31,7 +31,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -450,12 +449,12 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Anchors test certificates inside the source worktree rather than a system temporary directory.
+        /// Anchors test certificates inside the test output directory rather than a system temporary
+        /// directory. The source path is not usable: deterministic CI builds map it to '/_/'.
         /// </summary>
-        private static string PkiRoot([CallerFilePath] string sourcePath = "")
+        private static string PkiRoot()
         {
-            string root = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "..", ".."));
-            return Path.Combine(root, ".wm", Guid.NewGuid().ToString("N")[..8]);
+            return Path.Combine(AppContext.BaseDirectory, ".wm", Guid.NewGuid().ToString("N")[..8]);
         }
 
         /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace Opc.Ua.Wot
@@ -50,7 +51,12 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// The schema's named properties describe ordered native arguments.
         /// </summary>
-        Named
+        Named,
+
+        /// <summary>
+        /// The schema names arguments, but the native Method order must be resolved from the endpoint.
+        /// </summary>
+        NamedUnresolved
     }
 
     /// <summary>
@@ -66,16 +72,21 @@ namespace Opc.Ua.Wot
         /// <param name="schema">The JSON element used to initialize the instance.</param>
         /// <param name="fieldOrder">The field order used to initialize the instance.</param>
         /// <param name="defaultName">The default name used to initialize the instance.</param>
+        /// <param name="declaredNames">The schema-declared argument names.</param>
         internal WotMethodArgumentLayout(
             WotMethodArgumentLayoutKind kind,
             JsonElement schema,
             ArrayOf<string> fieldOrder,
-            string defaultName)
+            string defaultName,
+            ArrayOf<string> declaredNames = default)
         {
             Kind = kind;
             Schema = schema.ValueKind == JsonValueKind.Undefined ? default : schema.Clone();
             FieldOrder = fieldOrder;
             m_defaultName = defaultName;
+            DeclaredNames = declaredNames.IsNull
+                ? fieldOrder
+                : declaredNames;
         }
 
         /// <summary>
@@ -95,12 +106,18 @@ namespace Opc.Ua.Wot
         public ArrayOf<string> FieldOrder { get; }
 
         /// <summary>
+        /// Gets all schema-declared argument names, including when native order is unresolved.
+        /// </summary>
+        public ArrayOf<string> DeclaredNames { get; }
+
+        /// <summary>
         /// Gets the number of declared native argument positions.
         /// </summary>
         public int ArgumentCount => Kind switch
         {
             WotMethodArgumentLayoutKind.Single => 1,
             WotMethodArgumentLayoutKind.Named => FieldOrder.Count,
+            WotMethodArgumentLayoutKind.NamedUnresolved => DeclaredNames.Count,
             _ => 0
         };
 
@@ -110,6 +127,11 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public JsonElement GetArgumentSchema(int index)
         {
+            if (Kind == WotMethodArgumentLayoutKind.NamedUnresolved)
+            {
+                throw new InvalidOperationException(
+                    "The native Method order must be resolved before reading argument schemas by position.");
+            }
             return GetArgumentSchema(Schema, index);
         }
 
@@ -119,6 +141,11 @@ namespace Opc.Ua.Wot
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         public string GetArgumentName(int index)
         {
+            if (Kind == WotMethodArgumentLayoutKind.NamedUnresolved)
+            {
+                throw new InvalidOperationException(
+                    "The native Method order must be resolved before reading argument names by position.");
+            }
             JsonElement schema = GetArgumentSchema(index);
             return Kind == WotMethodArgumentLayoutKind.Single
                 ? WotNodeSetConverter.ReadArgumentName(schema, m_defaultName)
@@ -132,6 +159,11 @@ namespace Opc.Ua.Wot
         /// <param name="index">The zero-based index of the method argument.</param>
         internal JsonElement GetArgumentSchema(JsonElement sourceSchema, int index)
         {
+            if (Kind == WotMethodArgumentLayoutKind.NamedUnresolved)
+            {
+                throw new InvalidOperationException(
+                    "The native Method order must be resolved before reading argument schemas by position.");
+            }
             if (index < 0 || index >= ArgumentCount)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -139,6 +171,42 @@ namespace Opc.Ua.Wot
             return Kind == WotMethodArgumentLayoutKind.Single
                 ? sourceSchema
                 : sourceSchema.GetProperty("properties").GetProperty(FieldOrder[index]);
+        }
+
+        /// <summary>
+        /// Resolves an unordered named schema against the native Method argument order.
+        /// </summary>
+        /// <param name="nativeNames">The ordered names read from the Method.</param>
+        /// <returns>The resolved positional layout.</returns>
+        /// <exception cref="ArgumentException">The native names do not exactly match the schema names.</exception>
+        public WotMethodArgumentLayout ResolveNativeOrder(ArrayOf<string> nativeNames)
+        {
+            if (Kind != WotMethodArgumentLayoutKind.NamedUnresolved)
+            {
+                return this;
+            }
+            if (nativeNames.Count != DeclaredNames.Count)
+            {
+                throw new ArgumentException(
+                    "The native Method argument names do not match the declared schema.", nameof(nativeNames));
+            }
+            var declared = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in DeclaredNames)
+            {
+                declared.Add(name);
+            }
+            var ordered = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string name in nativeNames)
+            {
+                if (!declared.Contains(name) || !ordered.Add(name))
+                {
+                    throw new ArgumentException(
+                        "The native Method argument names do not exactly match the declared schema.",
+                        nameof(nativeNames));
+                }
+            }
+            return new WotMethodArgumentLayout(
+                WotMethodArgumentLayoutKind.Named, Schema, nativeNames, m_defaultName);
         }
 
         private readonly string m_defaultName;

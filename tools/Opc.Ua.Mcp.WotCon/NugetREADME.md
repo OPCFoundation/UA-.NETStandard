@@ -236,11 +236,24 @@ Caller-supplied TD targets are permitted when these host rules match.
 | Modbus | Existing planner method, for example `readHoldingRegisters` | `unit=1;function=readHoldingRegisters;address=100;quantity=2` |
 | OPC UA read/write/observe | `Read`, `Write`, `Subscribe` or `EventSubscribe` | Namespace-qualified node identifier |
 | OPC UA call | `Call` | `object=<namespace-qualified NodeId>;method=<namespace-qualified NodeId>` |
+| OPC UA path call | `Call` | Browse-path selector (format below) |
 
 Every call rechecks `WotRuntime`; writes additionally need `WotWrite`, and actions
 need `WotInvoke`. OPC UA additionally requires the exact named-session grant.
 Generic UA protection is reused for OPC UA writes/actions so a WoT form cannot
 bypass typed, secret-safe GDS or identity-administration tools.
+Any Call with a browse path needs a preflight resource of
+`object=<NodeId>;browsePath=<anchor>|<steps>`, even when it also states a Method
+NodeId. The anchor and steps are percent-encoded separately. Steps are a compact
+JSON array of ordered tuples:
+`[targetNamespaceUri,targetName,referenceNamespaceUri,referenceName,isInverse,includeSubtypes]`.
+Names use the captured namespace URIs, not the document's prefix spelling or
+Session indexes. `/` uses `HierarchicalReferences`, `.` uses `Aggregates`, and
+both reference names belong to `http://opcfoundation.org/UA/`. Flags are JSON
+booleans; tuples contain no whitespace and use the default System.Text.Json
+string escaping. This grant admits metadata resolution before any UA service
+request. The resolved Method/receiver pair still needs its own exact grant before
+runtime activation.
 
 HTTP has no redirects, cookies, ambient credentials or proxy. The socket callback
 uses the approved IP from a single DNS resolution while TLS retains the original

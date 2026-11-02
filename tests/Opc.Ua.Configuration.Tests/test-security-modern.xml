@@ -58,5 +58,6 @@
     <SendCertificateChain>true</SendCertificateChain>
     <AddAppCertToTrustedStore>false</AddAppCertToTrustedStore>
     <SuppressNonceValidationErrors>false</SuppressNonceValidationErrors>
+    <AllowUnencryptedUserNameTokens>false</AllowUnencryptedUserNameTokens>
   </SecurityConfiguration>
 </ApplicationConfiguration>

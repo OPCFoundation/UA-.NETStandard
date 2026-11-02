@@ -349,6 +349,46 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Registers the acknowledgement provider that decides which acknowledgements the
+        /// client's sessions send and which they defer.
+        /// </summary>
+        /// <typeparam name="TProvider">The provider implementation.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaClientBuilder AddAcknowledgementProvider<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TProvider>(
+            this IOpcUaClientBuilder builder)
+            where TProvider : class, ISubscriptionAcknowledgementProvider
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ISubscriptionAcknowledgementProvider, TProvider>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the observer that is told how every acknowledgement of the client's
+        /// sessions ended.
+        /// </summary>
+        /// <typeparam name="TObserver">The observer implementation.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaClientBuilder AddAcknowledgementObserver<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TObserver>(
+            this IOpcUaClientBuilder builder)
+            where TObserver : class, ISubscriptionAcknowledgementObserver
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.TryAddSingleton<ISubscriptionAcknowledgementObserver, TObserver>();
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a client identity provider implementation.
         /// </summary>
         /// <typeparam name="TProvider">The concrete identity-provider type to register.</typeparam>
@@ -1400,6 +1440,29 @@ namespace Microsoft.Extensions.DependencyInjection
             if (securityPolicies != null)
             {
                 builder.UseSecurityPolicies(securityPolicies);
+            }
+
+            ISubscriptionAcknowledgementProvider? acknowledgementProvider = sessionOptions.AcknowledgementProvider;
+            if (sessionOptions.AcknowledgementMode == AcknowledgementMode.AfterConfirmation)
+            {
+                // A registered provider does not apply in confirmation mode. A provider set in the
+                // options conflicts with it and is rejected when the session is created.
+                builder.AcknowledgeAfterConfirmation();
+            }
+            else
+            {
+                acknowledgementProvider ??= sp.GetService<ISubscriptionAcknowledgementProvider>();
+            }
+            if (acknowledgementProvider != null)
+            {
+                builder.WithAcknowledgementProvider(acknowledgementProvider);
+            }
+            ISubscriptionAcknowledgementObserver? acknowledgementObserver =
+                sessionOptions.AcknowledgementObserver ??
+                sp.GetService<ISubscriptionAcknowledgementObserver>();
+            if (acknowledgementObserver != null)
+            {
+                builder.WithAcknowledgementObserver(acknowledgementObserver);
             }
 
             IClientConnectGate? connectGate =

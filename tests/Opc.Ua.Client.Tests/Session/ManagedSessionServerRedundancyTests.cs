@@ -620,12 +620,13 @@ namespace Opc.Ua.Client.Tests
             /// </summary>
             public int CreatedSessionCount => Volatile.Read(ref m_createdSessions);
 
-            public static async Task<RedundantMember> StartAsync(string root, string name)
+            public static async Task<RedundantMember> StartAsync(string root, string name, int reverseConnectTimeout = 0)
             {
                 var fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
                 {
                     AutoAccept = true,
-                    SecurityNone = true
+                    SecurityNone = true,
+                    ReverseConnectTimeout = reverseConnectTimeout
                 };
                 string pki = Path.Combine(root, name);
                 await fixture.LoadConfigurationAsync(pki).ConfigureAwait(false);
@@ -637,6 +638,14 @@ namespace Opc.Ua.Client.Tests
             public void SetServiceLevel(byte level)
             {
                 m_setServiceLevel(level);
+            }
+
+            /// <summary>
+            /// Makes the server open reverse connections to the client listener.
+            /// </summary>
+            public void DialClient(Uri clientUrl, int timeout)
+            {
+                m_server.AddReverseConnection(clientUrl, timeout);
             }
 
             /// <summary>
@@ -686,6 +695,10 @@ namespace Opc.Ua.Client.Tests
 
             public async ValueTask DisposeAsync()
             {
+                if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+                {
+                    return;
+                }
                 await m_fixture.StopAsync().ConfigureAwait(false);
                 m_server.Dispose();
             }
@@ -693,6 +706,7 @@ namespace Opc.Ua.Client.Tests
             private readonly ServerFixture<ReferenceServer> m_fixture;
             private readonly ReferenceServer m_server;
             private readonly Action<byte> m_setServiceLevel;
+            private int m_disposed;
             private int m_createdSessions;
         }
 

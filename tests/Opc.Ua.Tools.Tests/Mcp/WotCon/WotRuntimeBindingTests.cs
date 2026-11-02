@@ -64,7 +64,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await using ServiceProvider provider = services.BuildServiceProvider();
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
 
-            Assert.That(names, Has.Length.EqualTo(26));
+            Assert.That(names, Has.Length.EqualTo(27));
             Assert.That(names, Does.Contain("wot_inspect_document").And.Contain("wot_list_assets"));
             Assert.That(names.Any(name => name.StartsWith("wot_runtime_", StringComparison.Ordinal)), Is.False);
             Assert.That(provider.GetService<IWotRuntimeExecutorFactory>(), Is.Null);

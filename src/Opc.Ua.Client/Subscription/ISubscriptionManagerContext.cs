@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -39,6 +40,26 @@ namespace Opc.Ua.Client.Subscriptions
     /// </summary>
     internal interface ISubscriptionManagerContext
     {
+        /// <summary>
+        /// Gets the session identity associated with a Publish attempt.
+        /// </summary>
+        NodeId SessionId { get; }
+
+        /// <summary>
+        /// Abandons the session before rolling back failed subscription adoption, so
+        /// disposing local wrappers cannot delete server subscriptions owned by the handoff.
+        /// </summary>
+        void AbandonServerSession();
+
+        /// <summary>
+        /// Reports a definitive failure of a Publish request from the specified session.
+        /// The failed attempt has already rolled back acknowledgements and released its active count.
+        /// Revalidate <paramref name="isCurrent"/> under session recovery admission before invoking callbacks.
+        /// </summary>
+        /// <returns>Whether the session accepted the recovery notification.</returns>
+        ValueTask<bool> OnPublishRecoveryErrorAsync(
+            NodeId sessionId, ServiceResult error, Func<bool> isCurrent, CancellationToken ct);
+
         /// <summary>
         /// Gets the number of created subscriptions the session owns outside this
         /// manager's registry, for example through the classic
@@ -75,6 +96,32 @@ namespace Opc.Ua.Client.Subscriptions
             IMessageAckQueue queue,
             SubscriptionLoadState? loadState = null,
             Action<IManagedSubscription>? initialize = null);
+
+        /// <summary>
+        /// Gets the acknowledgement provider of the session, or <c>null</c> to apply the
+        /// legacy deferral policy.
+        /// </summary>
+        ISubscriptionAcknowledgementProvider? AcknowledgementProvider { get; }
+
+        /// <summary>
+        /// Gets the acknowledgement observer of the session, or <c>null</c>.
+        /// </summary>
+        ISubscriptionAcknowledgementObserver? AcknowledgementObserver { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the session has an acknowledgement-deferral
+        /// policy. Without one, <see cref="PrepareAcknowledgementsToSend"/> returns every
+        /// acknowledgement unchanged and does not need to be called.
+        /// </summary>
+        bool HasAcknowledgementPolicy { get; }
+
+        /// <summary>
+        /// Applies the session's existing mutable acknowledgement-deferral callback.
+        /// </summary>
+        /// <param name="acknowledgements">Acknowledgements eligible for the next request.</param>
+        /// <returns>The acknowledgements to send and those to retain for a later request.</returns>
+        AcknowledgementSelection PrepareAcknowledgementsToSend(
+            List<SubscriptionAcknowledgement> acknowledgements);
 
         /// <summary>
         /// Publish service

@@ -47,6 +47,7 @@ Everything below explains how these pieces fit together.
   - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
   - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
+  - [Taking over a session (`ISessionTakeover`)](#taking-over-a-session-isessiontakeover)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
   - [Session factory choices](#session-factory-choices)
@@ -626,6 +627,131 @@ the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
 the wait unbounded (other than by `ct`). Passing `closeChannel: false`
 tears down the session but leaves the transport channel open and owned by
 the caller, so it can be reused for another session.
+
+### Taking over a session (`ISessionTakeover`)
+
+A takeover moves a server session from one `ManagedSession` to another without
+closing it. The previous owner retires its session and receives a
+`SessionHandoff`. The new owner creates a managed session from that handoff, and
+the new session activates the same server session on its own secure channel.
+The server session id, the subscription ids and the notifications still queued
+on the server stay the same.
+
+There is no call sequence to get right. Each owner performs one operation, and
+the session holds no intermediate "prepared" state between them:
+
+- `RetireAsync` on the previous owner captures the state and fences the server
+  session in one step.
+- `TakeOver` (or `ManagedSessionOptions.TakeoverFrom`) on the new owner is a
+  connect option. The first connect of the new session performs the takeover.
+
+The previous owner retires and hands the result to the new owner:
+
+```csharp
+SessionHandoff handoff = await ((ISessionTakeover)session).RetireAsync(ct);
+// ... protect the handoff and pass it to the new owner ...
+```
+
+`RetireAsync` stops keep-alive, publishing and recovery and waits for
+subscription work already in flight. It then captures the server session and
+its subscriptions and installs the fence: from then on, the object sends no
+`CloseSession`, `DeleteSubscriptions`, Publish or reconnect request for the
+server session. Finally it disposes the session, so every later call fails with
+`BadInvalidState`. Retiring and disposing exclude each other. A `DisposeAsync`
+that starts during `RetireAsync` waits for it and does not close the server
+session. A session that is not connected, is recovering or is already closing
+fails `RetireAsync` with `BadNotConnected` or `BadInvalidState`. If the call
+fails before the fence is in place, the session is closed normally.
+
+The new owner builds its session from the handoff:
+
+```csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .TakeOver(handoff, new SessionTakeoverOptions
+    {
+        Identity = credentials,
+        SubscriptionHandlerFactory = snapshot => CreateHandler(snapshot),
+        FailureMode = SessionTakeoverFailureMode.Throw
+    })
+    .ConnectAsync(ct);
+```
+
+The connect validates the handoff before it sends anything. It rejects a
+handoff without a session id or authentication token, a handoff for a different
+endpoint URL, security mode, security policy or server certificate, and a
+handoff whose saved server nonce is invalid on a secure endpoint. The session
+uses the endpoint of the handoff unless the builder configures one.
+
+The session then attaches the subscriptions of the handoff locally. The server
+already associates them with this server session, so the client neither
+transfers nor recreates them: it sends no `TransferSubscriptions`,
+`CreateSubscription` or monitored item request. `SubscriptionHandlerFactory`
+creates the notification handler for each subscription and is required when
+the handoff contains subscriptions. Finally the session sends
+`ActivateSession` with the saved authentication token. It never sends
+`CreateSession`. After that, keep-alive, publishing and the configured
+recovery policy start, and a later reconnect behaves like any other.
+
+`SessionTakeoverOptions.Identity` supplies the user credentials, because the
+handoff does not carry them. When it is `null`, the session uses the identity
+from its managed session options and, if those set none, the identity token
+saved in the handoff. The handoff carries the session timeout that the server
+revised, so the new owner times its keep-alive and recovery against the
+server's value rather than against the timeout it would request.
+
+What happens when activation fails?
+
+- With `SessionTakeoverFailureMode.Throw` (the default), the connect fails with
+  the activation error. The new owner does not create a server session and does
+  not close the saved one, because it cannot know whether another owner still
+  holds it.
+- With `SessionTakeoverFailureMode.CreateNewSession`, the session creates a new
+  server session and recreates the subscriptions of the handoff on it. The
+  session logs that continuity was lost. Notifications that only the old server
+  session held are gone.
+
+The handoff contains the authentication token and the secrets of the secure
+session. Treat it as a credential. Protect it with `IRecordProtector` before
+storing it or sending it to another process. The public `SessionHandoffCodec`
+encodes the complete handoff, including revised subscription and monitored-item
+settings, before protection. The application supplies the protector and context;
+key storage and ownership remain the application's responsibility.
+
+```csharp
+ByteString protectedHandoff = SessionHandoffCodec.Protect(
+    handoff, protector, context, messageContext);
+
+if (!SessionHandoffCodec.TryUnprotect(
+    protectedHandoff, protector, context, telemetry, out SessionHandoff? restoredHandoff))
+{
+    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
+}
+```
+
+`TryUnprotect` returns `false` when the record cannot be unprotected or contains
+no payload. It throws `ServiceResultException` when the protected record is
+malformed.
+
+The API does not decide who owns the server session. Two owners that activate
+the same handoff take the server session away from each other, and the last
+activation wins. The application must make sure that only one new owner uses a
+handoff. Leader election, as used by `ClientReplicaCoordinator`, or an atomic
+claim in a shared store, such as `ISharedKeyValueStore.CompareAndSwapAsync`,
+provides that guarantee. A handoff also expires: the server deletes the session
+once `SessionHandoff.RevisedSessionTimeout` has passed since the previous owner's
+last request.
+
+Only the default subscription engine supports takeover. A session that uses the
+classic engine fails both `RetireAsync` and the takeover connect with
+`BadNotSupported` before it sends any request.
+
+`ISessionTakeover` also reports which server session a client session is bound
+to. `SessionGeneration` is 0 before the first server session and increases each
+time the bound server session changes, for example when recovery has to create a
+new server session. Reactivating the same server session, or only replacing the
+channel, leaves it unchanged. `SessionGenerationChanged` reports the new
+generation with the previous and current `SessionId`. Handlers must return
+quickly and must not wait for session or subscription operations.
 
 ### Server retry-after backpressure
 

@@ -407,9 +407,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Create notifications for monitored items
         /// </summary>
         /// <param name="notification"></param>
+        /// <param name="acknowledgement">The acknowledgement of the message.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<DataValueChange> CreateNotification(
-            DataChangeNotification notification)
+            DataChangeNotification notification,
+            AcknowledgementHandle acknowledgement = default)
         {
             var memory = new DataValueChange[notification.MonitoredItems.Count];
             uint partitionId = m_context.Id;
@@ -420,9 +422,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     MonitoredItemNotification item = notification.MonitoredItems[i];
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new DataValueChange(monitored,
-                        item.Value, item.DiagnosticInfo)
+                        item.Value, i < notification.DiagnosticInfos.Count ? notification.DiagnosticInfos[i] : null)
                     {
-                        PartitionServerId = partitionId
+                        ClientHandle = item.ClientHandle,
+                        PartitionServerId = partitionId,
+                        Acknowledgement = acknowledgement
                     };
                 }
             }
@@ -436,9 +440,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// Create notifications for monitored items
         /// </summary>
         /// <param name="notification"></param>
+        /// <param name="acknowledgement">The acknowledgement of the message.</param>
         /// <returns></returns>
         internal ReadOnlyMemory<EventNotification> CreateNotification(
-            EventNotificationList notification)
+            EventNotificationList notification,
+            AcknowledgementHandle acknowledgement = default)
         {
             var memory = new EventNotification[notification.Events.Count];
             uint partitionId = m_context.Id;
@@ -450,7 +456,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     m_monitoredItems.TryGetValue(item.ClientHandle, out MonitoredItem? monitored);
                     memory[i] = new EventNotification(monitored, item.EventFields)
                     {
-                        PartitionServerId = partitionId
+                        ClientHandle = item.ClientHandle,
+                        PartitionServerId = partitionId,
+                        Acknowledgement = acknowledgement
                     };
                 }
             }
@@ -805,10 +813,28 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// </summary>
         /// <param name="ct"></param>
         /// <returns></returns>
-        internal async ValueTask<bool> TrySynchronizeHandlesAsync(
+        internal ValueTask<bool> TrySynchronizeHandlesAsync(
             CancellationToken ct)
         {
-            MonitoredItemsHandles result = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            return TrySynchronizeHandlesAsync(cachedOnly: false, ct);
+        }
+
+        /// <summary>
+        /// Synchronizes the item handles with the server, or, when <paramref name="cachedOnly"/>
+        /// is set, binds the items to the handles this client already knows without asking
+        /// the server. The latter is used when the subscription is adopted together with the
+        /// server session that owns it, so the server items are exactly the saved ones.
+        /// </summary>
+        /// <param name="cachedOnly">Use only the cached handles; no service call is made.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns><c>true</c> when all items are bound to server items.</returns>
+        internal async ValueTask<bool> TrySynchronizeHandlesAsync(
+            bool cachedOnly,
+            CancellationToken ct)
+        {
+            MonitoredItemsHandles result = cachedOnly
+                ? new MonitoredItemsHandles(false, [], StatusCodes.BadNotSupported)
+                : await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
             bool success = result.Success;
             IReadOnlyList<(uint serverHandle, uint clientHandle)> serverHandleStateMap = result.Handles;
 
@@ -816,8 +842,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             lock (m_monitoredItemsLock)
             {
                 if (!success &&
-                    GetMonitoredItemsFallback.IsMethodUnavailable(result.Status) &&
-                    TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
+                    (cachedOnly || GetMonitoredItemsFallback.IsMethodUnavailable(result.Status)) &&
+                    TryGetCachedHandles(
+                        out List<(uint serverHandle, uint clientHandle)> cachedHandles,
+                        allowPendingItems: cachedOnly))
                 {
                     //
                     // GetMonitoredItems is an optional method of ServerType
@@ -891,7 +919,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     uint clientHandle = monitoredItem.Value.ClientHandle;
                     if (clientServerHandleMap.Remove(clientHandle, out uint serverHandle))
                     {
-                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
+                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle, !cachedOnly);
                         monitoredItems.Remove(monitoredItem.Key);
                         m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }
@@ -918,7 +946,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                         // There should not be any more item with the same client handle
                         // in this subscription, they were updated before. TODO: Assert
                         //
-                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle);
+                        monitoredItem.Value.SetTransferResult(clientHandle, serverHandle, !cachedOnly);
                         monitoredItems.Remove(monitoredItem.Key);
                         m_monitoredItems.Add(clientHandle, monitoredItem.Value);
                     }
@@ -939,6 +967,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                             m_context.Id,
                             missingOnServer.ClientHandle);
                         missingOnServer.Reset();
+                    }
+                    else if (cachedOnly)
+                    {
+                        missingOnServer.TryRequeue();
                     }
                     m_monitoredItems.Add(missingOnServer.ClientHandle, missingOnServer);
                 }
@@ -997,7 +1029,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// of them has a server id (e.g. a clone of a live subscription), as
         /// they then cannot be mapped. Must be called under the item lock.
         /// </summary>
-        private bool TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> handles)
+        private bool TryGetCachedHandles(
+            out List<(uint serverHandle, uint clientHandle)> handles,
+            bool allowPendingItems = false)
         {
             handles = [];
             foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
@@ -1007,7 +1041,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     handles.Add((monitoredItem.ServerId, monitoredItem.ClientHandle));
                 }
             }
-            return handles.Count > 0 || m_monitoredItems.Count == 0;
+            return handles.Count > 0 ||
+                m_monitoredItems.Count == 0 ||
+                (allowPendingItems && m_monitoredItems.Values.All(item => !item.Created));
         }
 
         /// <summary>

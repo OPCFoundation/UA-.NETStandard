@@ -395,7 +395,15 @@ namespace Opc.Ua.WotCon.Bindings
                     HasBrowsePathCapture = HasBrowsePathCapture,
                     SourceCallReceiver = SourceCallReceiver,
                     SourceCallEndpoint = SourceCallEndpoint,
-                    SourceCallError = SourceCallError
+                    SourceCallError = SourceCallError,
+                    SourceComponentOf = SourceComponentOf,
+                    HasPublishedTargetCapture = HasPublishedTargetCapture,
+                    PublishedCallObjectId = PublishedCallObjectId,
+                    PublishedCallObjectIdError = PublishedCallObjectIdError,
+                    PublishedNodeId = PublishedNodeId,
+                    PublishedHrefNodeId = PublishedHrefNodeId,
+                    PublishedHrefNodeIdInPath = PublishedHrefNodeIdInPath,
+                    PublishedTargetError = PublishedTargetError
                 };
             }
             return true;

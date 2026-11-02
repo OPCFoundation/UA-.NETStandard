@@ -563,6 +563,87 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Is.EqualTo(!accepted));
         }
 
+        /// <summary>
+        /// Verifies that a Thing Description that explicitly selects nosec does not claim an OPC UA
+        /// channel-security requirement.
+        /// </summary>
+        [Test]
+        public void ExplicitNosecSelectionProducesNoInventedChannelRequirement()
+        {
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+
+            WotBindingPlan plan = PreparePlan(
+                registry,
+                "\"noSecurity\":{\"scheme\":\"nosec\"}",
+                "noSecurity");
+
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError), Is.False);
+            WotCompiledForm form = plan.CompiledForms.Single();
+            Assert.That(form.OpcUaSecurityRequirements, Is.Empty);
+            Assert.That(form.SecurityFloor, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that explicit published 1.0 selection retains every
+        /// channel and authentication member of a security allOf requirement.
+        /// </summary>
+        [Test]
+        public void PublishedOneZeroAllOfRetainsChannelAndTokenConstraints()
+        {
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+            var selection = new WotBindingSelectionContext(
+                ["opc.opcua"], [OpcUaBindingPlanner.BindingUri], WotBindingProcessingMode.PublishedOneZero);
+            WotBindingPlan plan = PreparePlan(
+                registry,
+                """
+                "channel": {
+                  "scheme": "uav:channelsec",
+                  "uav:securityMode": "SignAndEncrypt",
+                  "uav:securityPolicy": "Aes256_Sha256_RsaPss"
+                },
+                "identity": {
+                  "scheme": "uav:authentication",
+                  "uav:userIdentityToken": "UserName"
+                },
+                "combined": { "scheme": "combo", "allOf": ["channel", "identity"] }
+                """,
+                "combined",
+                selection);
+
+            Assert.That(plan.Diagnostics.Where(diagnostic => diagnostic.IsError), Is.Empty);
+            WotCompiledForm form = plan.CompiledForms.Single();
+            Assert.That(selection.ProcessingMode, Is.EqualTo(WotBindingProcessingMode.PublishedOneZero));
+            Assert.That(form.OpcUaSecurityRequirements, Has.Count.EqualTo(1));
+            Assert.That(form.OpcUaSecurityRequirements[0].SecurityMode,
+                Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(form.OpcUaSecurityRequirements[0].SecurityPolicyUri,
+                Is.EqualTo(SecurityPolicies.Aes256_Sha256_RsaPss));
+            Assert.That(form.OpcUaSecurityRequirements[0].UserIdentityToken,
+                Is.EqualTo(UserTokenType.UserName));
+        }
+
+        /// <summary>
+        /// Verifies that a deprecated unrecognized channel policy fails closed instead of being
+        /// treated as an unconstrained or downgraded endpoint requirement.
+        /// </summary>
+        [Test]
+        public void UnknownChannelPolicyIsRejectedWithoutCompilingAForm()
+        {
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+
+            WotBindingPlan plan = PreparePlan(registry, """
+                "legacyChannel": {
+                  "scheme": "uav:channelsec",
+                  "uav:securityMode": "Sign",
+                  "uav:securityPolicy": "UnknownPolicy"
+                }
+                """, "legacyChannel");
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.Diagnostics.Any(diagnostic =>
+                diagnostic.IsError && diagnostic.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+        }
+
         private static Mock<ISession> CreateSession(
             MessageSecurityMode mode, string? policy, UserTokenType? tokenType = null)
         {
@@ -603,7 +684,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static WotBindingPlan PreparePlan(
             WotProtocolBinderRegistry registry,
             string definitions,
-            string security)
+            string security,
+            WotBindingSelectionContext? selection = null)
         {
             string document = $$"""
                 {
@@ -620,7 +702,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 }
                 """;
             return registry.Prepare(WotBindingPlanRequest.FromDocument(
-                "exact-security", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+                "exact-security",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: selection));
         }
     }
 }
