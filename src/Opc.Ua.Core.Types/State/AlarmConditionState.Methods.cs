@@ -776,7 +776,7 @@ namespace Opc.Ua
 
         /// <summary>
         /// Updates the audible state of the alarm when it activates.
-        /// Call this after <see cref="SetActiveState"/> when
+        /// Call this after <see cref="SetActiveState(ISystemContext, bool)"/> when
         /// <see cref="AudibleEnabled"/> is configured.
         /// </summary>
         /// <param name="context">The system context.</param>
