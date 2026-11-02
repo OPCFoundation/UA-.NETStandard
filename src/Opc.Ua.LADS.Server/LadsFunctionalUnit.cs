@@ -245,6 +245,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask ClearAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -571,6 +572,7 @@ namespace Opc.Ua.LADS.Server
             LadsFunctionalStateValue final,
             CancellationToken cancellationToken)
         {
+            Device.RequireStorageHealthy();
             while (true)
             {
                 if (m_programs != null &&
@@ -722,24 +724,46 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             Task drained;
             await Gate.WaitAsync().ConfigureAwait(false);
             try
             {
                 m_disposed = true;
-                m_executionCancellation?.Cancel();
+                try
+                {
+                    m_executionCancellation?.Cancel();
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 drained = m_executionIdle?.Task ?? Task.CompletedTask;
             }
             finally
             {
                 Gate.Release();
             }
-            await drained.ConfigureAwait(false);
             try
             {
+                try
+                {
+                    await drained.ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 if (m_programs != null)
                 {
-                    await m_programs.DisposeAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await m_programs.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
                 }
                 LadsFunction[] functions;
                 lock (m_lock)
@@ -748,13 +772,25 @@ namespace Opc.Ua.LADS.Server
                 }
                 foreach (LadsFunction function in functions)
                 {
-                    await function.DisposeAsync().ConfigureAwait(false);
+                    try
+                    {
+                        await function.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
                 }
             }
             finally
             {
                 m_executionCancellation?.Dispose();
                 m_executionGate.Dispose();
+                Gate.Dispose();
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS functional unit cleanup failed.", failures);
             }
         }
 

@@ -93,6 +93,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(double value, double? rawValue = null)
         {
+            Unit.Device.RequireStorageHealthy();
             double raw = rawValue ?? value;
             lock (m_lock)
             {
@@ -106,6 +107,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCompensationValue(double value)
         {
+            Unit.Device.RequireStorageHealthy();
             if (m_node is not AnalogScalarSensorFunctionWithCompensationState compensated)
             {
                 throw ServiceResultException.Create(
@@ -158,6 +160,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(ArrayOf<double> values, ArrayOf<double> rawValues = default)
         {
+            Unit.Device.RequireStorageHealthy();
             ArrayOf<double> raw = rawValues.IsNull ? values : rawValues;
             lock (m_lock)
             {
@@ -197,6 +200,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(bool value)
         {
+            Unit.Device.RequireStorageHealthy();
             Volatile.Write(ref m_value, value);
             Runtime.Update(m_variable, Variant.From(value));
         }
@@ -231,6 +235,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateValue(uint value)
         {
+            Unit.Device.RequireStorageHealthy();
             LadsMultiStateDiscreteControlFunction.Check(m_states, value);
             Volatile.Write(ref m_value, value);
             Runtime.Update(m_variable, Variant.From(value));

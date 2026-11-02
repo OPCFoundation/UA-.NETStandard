@@ -98,11 +98,23 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             foreach (IFileTypeBinding binding in m_bindings)
             {
-                await binding.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
             }
             m_bindings.Clear();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS result file cleanup failed.", failures);
+            }
         }
 
         private readonly List<IFileTypeBinding> m_bindings;
@@ -240,6 +252,7 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 ProgramTemplateState node = CreateTemplateNode(template);
                 lock (m_lock)
                 {
@@ -263,16 +276,10 @@ namespace Opc.Ua.LADS.Server
                         m_templates.Add(template.Id, new TemplateEntry(template, node));
                         m_removedTemplates.Remove(template.Id);
                     }
-                }, cancellationToken).ConfigureAwait(false);
-                if (m_unit.Device.IsPublished)
-                {
-                    await Runtime.AddNodeAsync(Node.ProgramTemplateSet!, node, CancellationToken.None)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    Node.ProgramTemplateSet!.AddChild(node);
-                }
+                }, cancellationToken,
+                    () => AddProgramNodeAsync(Node.ProgramTemplateSet!, node),
+                    () => Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, node, CancellationToken.None))
+                    .ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ProgramTemplateSet);
             }
             finally
@@ -289,6 +296,7 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 TemplateEntry? entry;
                 lock (m_lock)
                 {
@@ -318,8 +326,9 @@ namespace Opc.Ua.LADS.Server
                         m_templates.Remove(templateId);
                         m_removedTemplates.Add(templateId);
                     }
-                }, cancellationToken).ConfigureAwait(false);
-                await Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, entry.Node, CancellationToken.None)
+                }, cancellationToken,
+                    () => Runtime.RemoveNodeAsync(Node.ProgramTemplateSet!, entry.Node, CancellationToken.None),
+                    () => AddProgramNodeAsync(Node.ProgramTemplateSet!, entry.Node))
                     .ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ProgramTemplateSet);
                 return true;
@@ -463,6 +472,7 @@ namespace Opc.Ua.LADS.Server
             await m_unit.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                m_unit.Device.RequireStorageHealthy();
                 LadsResult? result;
                 lock (m_lock)
                 {
@@ -482,8 +492,10 @@ namespace Opc.Ua.LADS.Server
                     {
                         m_results.Remove(result);
                     }
-                }, cancellationToken).ConfigureAwait(false);
-                await ReleaseResultAsync(result, CancellationToken.None).ConfigureAwait(false);
+                }, cancellationToken,
+                    () => Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None),
+                    () => AddProgramNodeAsync(Node.ResultSet!, result.Node)).ConfigureAwait(false);
+                await ReleaseResultsAsync([result]).ConfigureAwait(false);
                 Runtime.BumpVersion(Node.ResultSet);
                 return true;
             }
@@ -776,6 +788,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             ActiveRunEntry? active;
             lock (m_lock)
             {
@@ -788,10 +801,24 @@ namespace Opc.Ua.LADS.Server
             }
             if (active != null)
             {
-                active.RequestEnd(LadsProgramOutcome.Aborted);
+                try
+                {
+                    active.RequestEnd(LadsProgramOutcome.Aborted);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 if (active.Completion != null)
                 {
-                    await active.Completion.ConfigureAwait(false);
+                    try
+                    {
+                        await active.Completion.ConfigureAwait(false);
+                    }
+                    catch (Exception failure)
+                    {
+                        failures.Add(failure);
+                    }
                 }
             }
             LadsResult[] results;
@@ -800,9 +827,17 @@ namespace Opc.Ua.LADS.Server
                 results = [.. m_results];
                 m_results.Clear();
             }
-            foreach (LadsResult result in results)
+            try
             {
-                await result.DisposeAsync().ConfigureAwait(false);
+                await ReleaseResultsAsync(results).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS program manager cleanup failed.", failures);
             }
         }
 
@@ -934,6 +969,14 @@ namespace Opc.Ua.LADS.Server
                     bool committed = false;
                     try
                     {
+                        lock (m_lock)
+                        {
+                            int excess = m_results.Count + 1 - Runtime.Options.MaxRetainedResults;
+                            if (excess > 0)
+                            {
+                                pruned = [.. m_results.GetRange(0, excess)];
+                            }
+                        }
                         await m_unit.Device.CommitProgramDataAsync(
                             CaptureStoredData(result),
                             outcome == LadsProgramOutcome.Completed,
@@ -944,31 +987,41 @@ namespace Opc.Ua.LADS.Server
                                 {
                                     m_results.Add(result);
                                     m_storedInterruptedRunId = null;
-                                    int excess = m_results.Count - Runtime.Options.MaxRetainedResults;
-                                    if (excess > 0)
+                                    if (pruned.Length > 0)
                                     {
-                                        pruned = [.. m_results.GetRange(0, excess)];
-                                        m_results.RemoveRange(0, excess);
+                                        m_results.RemoveRange(0, pruned.Length);
                                     }
                                 }
                             },
-                            CancellationToken.None).ConfigureAwait(false);
+                            CancellationToken.None,
+                            async () =>
+                            {
+                                await AddProgramNodeAsync(Node.ResultSet!, result.Node).ConfigureAwait(false);
+                                foreach (LadsResult old in pruned)
+                                {
+                                    await Runtime.RemoveNodeAsync(
+                                        Node.ResultSet!, old.Node, CancellationToken.None).ConfigureAwait(false);
+                                }
+                            },
+                            () => RestoreResultNodesAsync(result, pruned)).ConfigureAwait(false);
                         committed = true;
-                        await Runtime.AddNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None)
-                            .ConfigureAwait(false);
                     }
-                    catch
+                    catch (Exception publicationFailure)
                     {
                         if (!committed)
                         {
-                            await result.DisposeAsync().ConfigureAwait(false);
+                            try
+                            {
+                                await result.DisposeAsync().ConfigureAwait(false);
+                            }
+                            catch (Exception cleanupFailure)
+                            {
+                                throw new AggregateException(publicationFailure, cleanupFailure);
+                            }
                         }
                         throw;
                     }
-                    foreach (LadsResult old in pruned)
-                    {
-                        await ReleaseResultAsync(old, CancellationToken.None).ConfigureAwait(false);
-                    }
+                    await ReleaseResultsAsync(pruned).ConfigureAwait(false);
                     Runtime.BumpVersion(Node.ResultSet);
                 }
             }
@@ -1158,18 +1211,72 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Removes the node of a result and releases its files.
+        /// Publishes a dynamic node, or attaches it while the device is being composed.
         /// </summary>
-        private async ValueTask ReleaseResultAsync(LadsResult result, CancellationToken cancellationToken)
+        private ValueTask AddProgramNodeAsync(BaseInstanceState parent, BaseInstanceState node)
         {
+            if (m_unit.Device.IsPublished)
+            {
+                return Runtime.AddNodeAsync(parent, node, CancellationToken.None);
+            }
+            parent.RemoveChild(node);
+            parent.AddChild(node);
+            return default;
+        }
+
+        /// <summary>
+        /// Attempts every node compensation without abandoning later retained results.
+        /// </summary>
+        private async ValueTask RestoreResultNodesAsync(LadsResult result, LadsResult[] pruned)
+        {
+            var failures = new List<Exception>();
             try
             {
-                await result.DisposeAsync().ConfigureAwait(false);
+                await Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, CancellationToken.None)
+                    .ConfigureAwait(false);
             }
-            finally
+            catch (Exception failure)
             {
-                await Runtime.RemoveNodeAsync(Node.ResultSet!, result.Node, cancellationToken).ConfigureAwait(false);
+                failures.Add(failure);
+            }
+            foreach (LadsResult old in pruned)
+            {
+                try
+                {
+                    await AddProgramNodeAsync(Node.ResultSet!, old.Node).ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        /// <summary>
+        /// Releases every removed result after its durable and address-space removal committed.
+        /// </summary>
+        private async ValueTask ReleaseResultsAsync(LadsResult[] results)
+        {
+            var failures = new List<Exception>();
+            foreach (LadsResult result in results)
+            {
+                try
+                {
+                    await result.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
                 Runtime.Logger.ResultRemoved(m_unit.Name, result.Name);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException(failures);
             }
         }
 

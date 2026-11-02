@@ -178,6 +178,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -199,6 +200,7 @@ namespace Opc.Ua.LADS.Server
             LocalizedText comment = default,
             CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -224,6 +226,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public async ValueTask ResetAsync(CancellationToken cancellationToken = default)
         {
+            Device.RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {

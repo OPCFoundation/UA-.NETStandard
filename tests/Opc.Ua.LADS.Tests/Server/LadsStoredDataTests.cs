@@ -60,6 +60,7 @@ namespace Opc.Ua.LADS.Tests.Server
             string runId;
             ByteString bytes;
             DateTimeUtc executed;
+            TimeSpan duration;
             await using (LadsHostedServer first = await LadsHostedServer.StartIncubatorAsync(
                 nameof(RestartRestoresTemplatesResultsFilesMaintenanceAndCountersAsync),
                 builder =>
@@ -71,6 +72,7 @@ namespace Opc.Ua.LADS.Tests.Server
                 },
                 options =>
                 {
+                    options.TimeProvider = new SteppingClock();
                     if (!registerStore)
                     {
                         options.Store = store;
@@ -90,6 +92,8 @@ namespace Opc.Ua.LADS.Tests.Server
                     .ConfigureAwait(false);
                 executed = maintenance.LastExecutionDate;
                 Assert.That(device.OperationCycleCounter, Is.EqualTo(1));
+                duration = device.OperationDuration;
+                Assert.That(duration, Is.GreaterThan(TimeSpan.Zero));
             }
             await using LadsClientConnection second = await LadsClientConnection.StartAsync(
                 nameof(RestartRestoresTemplatesResultsFilesMaintenanceAndCountersAsync) + "Restart",
@@ -119,7 +123,7 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(unit.Programs.Results[0].RunId, Is.EqualTo(runId));
             Assert.That(unit.Programs.Results[0].Files[0].Content.ToArray(), Is.EqualTo(bytes.ToArray()));
             Assert.That(restored.OperationCycleCounter, Is.EqualTo(1));
-            Assert.That(restored.OperationDuration, Is.GreaterThan(TimeSpan.Zero));
+            Assert.That(restored.OperationDuration, Is.EqualTo(duration));
             Assert.That(restored.PowerOnDuration, Is.GreaterThan(TimeSpan.Zero));
             ILadsMaintenanceTask task = restored.GetMaintenanceTask(LadsIncubator.MaintenanceName);
             Assert.That(task.LastExecutionDate, Is.EqualTo(executed));
@@ -564,6 +568,24 @@ namespace Opc.Ua.LADS.Tests.Server
             Assert.That(restored.GetFunctionalUnit(LadsIncubator.UnitName).Programs!.Results[0].RunId,
                 Is.EqualTo(runId));
             Assert.That(restored.OperationCycleCounter, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Advances the monotonic clock on each observation, including zero-duration programs.
+        /// </summary>
+        private sealed class SteppingClock : TimeProvider
+        {
+            /// <inheritdoc/>
+            public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+            /// <inheritdoc/>
+            public override long GetTimestamp()
+            {
+                return Interlocked.Add(ref m_timestamp, TimeSpan.TicksPerMillisecond);
+            }
+
+            /// <summary>The deterministic monotonic tick count.</summary>
+            private long m_timestamp;
         }
 
         /// <summary>

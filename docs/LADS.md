@@ -524,6 +524,11 @@ The storage key is the configured `ProductInstanceUri`; if that is absent it is
 the application namespace URI followed by `#` and the device name. Namespace
 indexes and session NodeIds are not storage keys. Keep this identity stable
 across restarts and use a distinct identity for each physical device.
+Registration reserves the key before any load or save and rejects a second
+device using the same key, including a configured URI equal to another device's
+namespace-and-name fallback. A failed registration releases that reservation.
+The key is fixed for the registered device's lifetime; changing its
+identification node does not move its stored data.
 The file provider hashes it for the file name and stores a bounded, versioned
 snapshot; malformed, unsupported or oversized snapshots prevent device
 publication rather than silently discarding data.
@@ -542,9 +547,22 @@ Templates that exist only in storage are restored. An explicit
 template does not reappear after restart; adding that id again clears the
 removal record. Result deletion and `MaxRetainedResults` pruning remove the
 corresponding files from the next committed snapshot.
-Template additions and removals, and explicit result deletion, become visible
-only after their snapshot is saved. Concurrent device checkpoints cannot
-persist a pending change before its save succeeds.
+Template additions and removals, result publication, explicit result deletion
+and retention pruning save a prepared snapshot, update the address space, then
+commit their in-memory records and counters. The device keeps other checkpoints
+and program-data transactions excluded until publication or compensation
+finishes. If node registration or removal throws, the runtime restores the
+previous nodes and snapshot before reporting the original error; a retry can
+then repeat the operation without a duplicate template or missing result file.
+Removed file bindings are released only after the removal commits.
+
+If either node compensation or snapshot restoration fails, the runtime reports
+all errors, sets the device state to Shutdown and rejects further mutations and
+saves. Restart the device after correcting the underlying fault. Recovery uses
+the last snapshot the provider successfully retained and rebuilds its nodes;
+the failed call does not establish whether the new or previous snapshot remains
+durable. A file-binding cleanup error after committed removal is reported
+without reversing the removal.
 
 Before calling an executor, the runtime stores its run id as an interrupted-run
 marker. Completion replaces that marker with the result in one snapshot.
@@ -561,6 +579,10 @@ Program and maintenance operations checkpoint automatically. Call
 `ILadsDevice.SaveStoredDataAsync` after application-managed counter changes
 that must be durable immediately. Graceful shutdown also checkpoints, including
 an interrupted-run marker, before releasing the runtime.
+Checkpoint and cleanup errors are preserved together. Cleanup still attempts
+every functional unit, result file and maintenance task, and releases owned
+gates when an earlier owner fails. Repeated disposal observes the same completion
+or error without attempting those releases again.
 If maintenance hardware has already acknowledged an action when its checkpoint
 fails, the storage error is reported without reversing the physical action.
 Inspect the equipment state before retrying that command.

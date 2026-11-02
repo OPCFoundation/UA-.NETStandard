@@ -90,6 +90,7 @@ namespace Opc.Ua.LADS.Server
             get => Volatile.Read(ref m_enabled);
             set
             {
+                Unit.Device.RequireStorageHealthy();
                 Volatile.Write(ref m_enabled, value);
                 Runtime.Update(Node.IsEnabled, Variant.From(value));
                 (this as LadsControlFunction)?.UpdateRunningExecutability();
@@ -278,6 +279,7 @@ namespace Opc.Ua.LADS.Server
             ServiceResult result = await Unit.FunctionProvider
                 .OnCommandAsync(new LadsFunctionCommand(this, kind, value), cancellationToken)
                 .ConfigureAwait(false);
+            Unit.Device.RequireStorageHealthy();
             if (ServiceResult.IsBad(result))
             {
                 Runtime.Logger.CommandRejected(Path, kind.ToString(), result.StatusCode);
@@ -288,11 +290,16 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Runs a command exclusively.
         /// </summary>
-        protected async ValueTask ExclusiveAsync(Func<ValueTask> command, CancellationToken cancellationToken)
+        protected async ValueTask ExclusiveAsync(
+            Func<ValueTask> command, CancellationToken cancellationToken, bool releasing = false)
         {
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                if (!releasing)
+                {
+                    Unit.Device.RequireStorageHealthy();
+                }
                 await command().ConfigureAwait(false);
             }
             finally
@@ -421,23 +428,46 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public override async ValueTask DisposeAsync()
         {
+            var failures = new List<Exception>();
             Task drained = Task.CompletedTask;
-            await ExclusiveAsync(
-                () =>
-                {
-                    lock (m_runningLock)
+            try
+            {
+                await ExclusiveAsync(
+                    () =>
                     {
-                        m_runningDisposed = true;
-                        m_runningCancellation?.Cancel();
-                        drained = m_runningIdle?.Task ?? Task.CompletedTask;
-                    }
-                    return default;
-                },
-                CancellationToken.None).ConfigureAwait(false);
-            await drained.ConfigureAwait(false);
-            m_runningCancellation?.Dispose();
-            m_runningGate.Dispose();
-            await base.DisposeAsync().ConfigureAwait(false);
+                        lock (m_runningLock)
+                        {
+                            m_runningDisposed = true;
+                            drained = m_runningIdle?.Task ?? Task.CompletedTask;
+                            m_runningCancellation?.Cancel();
+                        }
+                        return default;
+                    },
+                    CancellationToken.None,
+                    releasing: true).ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            try
+            {
+                await drained.ConfigureAwait(false);
+            }
+            catch (Exception failure)
+            {
+                failures.Add(failure);
+            }
+            finally
+            {
+                m_runningCancellation?.Dispose();
+                m_runningGate.Dispose();
+                await base.DisposeAsync().ConfigureAwait(false);
+            }
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS control function cleanup failed.", failures);
+            }
         }
 
         /// <inheritdoc/>
@@ -993,6 +1023,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
+            Unit.Device.RequireStorageHealthy();
             double total;
             lock (m_lock)
             {
@@ -1067,6 +1098,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void SetComposedTargetValue(string name, double value)
         {
+            Unit.Device.RequireStorageHealthy();
             if (m_node is not AnalogControlFunctionWithComposedTargetValueState composed ||
                 composed.TargetValueSet == null)
             {
@@ -1219,6 +1251,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void SetTargetValue(string mode, double value)
         {
+            Unit.Device.RequireStorageHealthy();
             CheckRange(m_options.Range, value);
             Runtime.Update(Find(mode).TargetValue, Variant.From(value));
         }
@@ -1226,6 +1259,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(string mode, double value)
         {
+            Unit.Device.RequireStorageHealthy();
             Runtime.Update(Find(mode).CurrentValue, Variant.From(value));
         }
 
@@ -1297,6 +1331,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(bool value)
         {
+            Unit.Device.RequireStorageHealthy();
             Volatile.Write(ref m_currentValue, value);
             Runtime.Update(m_current, Variant.From(value));
         }
@@ -1393,6 +1428,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(uint value)
         {
+            Unit.Device.RequireStorageHealthy();
             Check(m_states, value);
             Volatile.Write(ref m_currentValue, value);
             Runtime.Update(m_current, Variant.From(value));
@@ -1552,6 +1588,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void UpdateCurrentValue(double value)
         {
+            Unit.Device.RequireStorageHealthy();
             lock (m_lock)
             {
                 m_current = value;

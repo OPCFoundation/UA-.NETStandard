@@ -364,6 +364,7 @@ namespace Opc.Ua.LADS.Server
             MachineryOperationModeValue mode,
             CancellationToken cancellationToken = default)
         {
+            RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -401,6 +402,7 @@ namespace Opc.Ua.LADS.Server
         /// <inheritdoc/>
         public void IncrementOperationCycles()
         {
+            RequireStorageHealthy();
             uint cycles = (uint)Interlocked.Increment(ref m_cycles);
             Runtime.Update(Counters.OperationCycleCounter, Variant.From(cycles));
         }
@@ -410,6 +412,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         public void AddOperationDuration(TimeSpan duration)
         {
+            RequireStorageHealthy();
             if (duration <= TimeSpan.Zero)
             {
                 return;
@@ -424,6 +427,7 @@ namespace Opc.Ua.LADS.Server
             await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                RequireStorageHealthy();
                 await Runtime.Store.SaveAsync(StoreIdentity, CaptureStoredData(), cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -434,7 +438,7 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Commits prepared program data and optional completion counters before publishing changes.
+        /// Saves prepared data and publishes nodes before committing in-memory records and counters.
         /// Other device checkpoints cannot observe a partly applied program-data change.
         /// </summary>
         internal async ValueTask CommitProgramDataAsync(
@@ -442,16 +446,68 @@ namespace Opc.Ua.LADS.Server
             bool completed,
             TimeSpan duration,
             Action commit,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<ValueTask>? publish = null,
+            Func<ValueTask>? compensate = null)
         {
             await m_storeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                RequireStorageHealthy();
+                LadsStoredDeviceData previous = CaptureStoredData();
                 LadsStoredDeviceData snapshot = CaptureStoredData(unit);
                 snapshot.OperationCycles = completed
                     ? unchecked(snapshot.OperationCycles + 1) : snapshot.OperationCycles;
                 snapshot.OperationDurationMilliseconds += duration.TotalMilliseconds;
                 await Runtime.Store.SaveAsync(StoreIdentity, snapshot, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (publish != null)
+                    {
+                        await publish().ConfigureAwait(false);
+                    }
+                }
+                catch (Exception publicationFailure)
+                {
+                    var failures = new List<Exception> { publicationFailure };
+                    if (compensate != null)
+                    {
+                        try
+                        {
+                            await compensate().ConfigureAwait(false);
+                        }
+                        catch (Exception compensationFailure)
+                        {
+                            failures.Add(compensationFailure);
+                        }
+                    }
+                    try
+                    {
+                        await Runtime.Store.SaveAsync(StoreIdentity, previous, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception storageFailure)
+                    {
+                        failures.Add(storageFailure);
+                    }
+                    if (failures.Count > 1)
+                    {
+                        Volatile.Write(ref m_storageFailure, new AggregateException(failures));
+                        try
+                        {
+                            DeviceState.SetState(LadsDeviceStateValue.Shutdown);
+                        }
+                        catch (Exception stateFailure)
+                        {
+                            failures.Add(stateFailure);
+                        }
+                        var failure = new AggregateException(
+                            "LADS publication compensation failed; the device requires restart.", failures);
+                        Volatile.Write(ref m_storageFailure, failure);
+                        throw failure;
+                    }
+                    throw;
+                }
                 commit();
                 if (completed)
                 {
@@ -567,7 +623,8 @@ namespace Opc.Ua.LADS.Server
         /// <summary>
         /// Gets the stable data identity independently of session namespace indexes.
         /// </summary>
-        private string StoreIdentity => Node.Identification?.ProductInstanceUri?.Value is { Length: > 0 } uri
+        internal string StoreIdentity => m_storeIdentity ??= Node.Identification?.ProductInstanceUri?.Value is
+            { Length: > 0 } uri
             ? uri
             : (Runtime.NamespaceUris.GetString(Runtime.InstanceNamespaceIndex) ??
                 throw new InvalidOperationException("The LADS instance namespace is not registered.")) + "#" + Name;
@@ -578,6 +635,7 @@ namespace Opc.Ua.LADS.Server
         /// <exception cref="ServiceResultException"><see cref="StatusCodes.BadInvalidState"/>.</exception>
         public void RequireOperate()
         {
+            RequireStorageHealthy();
             if (DeviceState.Current != LadsDeviceStateValue.Operate)
             {
                 throw ServiceResultException.Create(
@@ -585,6 +643,18 @@ namespace Opc.Ua.LADS.Server
                     "The device '{0}' is in the state {1}, not Operate.",
                     Name,
                     DeviceState.Current);
+            }
+        }
+
+        /// <summary>
+        /// Rejects mutations and checkpoints after an incomplete address-space/storage compensation.
+        /// </summary>
+        internal void RequireStorageHealthy()
+        {
+            if (Volatile.Read(ref m_storageFailure) is Exception failure)
+            {
+                throw new InvalidOperationException(
+                    "The LADS device requires restart after a failed stored-data transaction.", failure);
             }
         }
 
@@ -732,8 +802,56 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool>? completion = null;
+            Task disposal;
+            lock (m_lock)
+            {
+                if (m_disposeTask == null)
+                {
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposeTask = completion.Task;
+                }
+                disposal = m_disposeTask;
+            }
+            if (completion != null)
+            {
+                _ = CompleteDisposalAsync(completion);
+            }
+            return new ValueTask(disposal);
+        }
+
+        /// <summary>
+        /// Prevents checkpointing a device whose address-space registration did not finish.
+        /// </summary>
+        internal void MarkRegistrationFailed()
+        {
+            Volatile.Write(ref m_published, false);
+        }
+
+        /// <summary>
+        /// Completes the cached disposal task without invoking owned providers under the device monitor.
+        /// </summary>
+        private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception failure)
+            {
+                completion.TrySetException(failure);
+            }
+        }
+
+        /// <summary>
+        /// Releases execution and bindings even when the final stored-data checkpoint fails.
+        /// </summary>
+        private async Task DisposeCoreAsync()
+        {
+            var failures = new List<Exception>();
             try
             {
                 if (IsPublished)
@@ -741,17 +859,10 @@ namespace Opc.Ua.LADS.Server
                     await SaveStoredDataAsync(CancellationToken.None).ConfigureAwait(false);
                 }
             }
-            finally
+            catch (Exception failure)
             {
-                await DisposeCoreAsync().ConfigureAwait(false);
+                failures.Add(failure);
             }
-        }
-
-        /// <summary>
-        /// Releases execution and bindings even when the final stored-data checkpoint fails.
-        /// </summary>
-        private async ValueTask DisposeCoreAsync()
-        {
             LadsFunctionalUnit[] units;
             lock (m_lock)
             {
@@ -759,7 +870,14 @@ namespace Opc.Ua.LADS.Server
             }
             foreach (LadsFunctionalUnit unit in units)
             {
-                await unit.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    await unit.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
             }
             LadsMaintenanceTask[] tasks;
             lock (m_lock)
@@ -768,11 +886,22 @@ namespace Opc.Ua.LADS.Server
             }
             foreach (LadsMaintenanceTask task in tasks)
             {
-                task.Dispose();
+                try
+                {
+                    task.Dispose();
+                }
+                catch (Exception failure)
+                {
+                    failures.Add(failure);
+                }
             }
             Volatile.Write(ref m_published, false);
             m_gate.Dispose();
             m_storeGate.Dispose();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("The LADS device checkpoint or cleanup failed.", failures);
+            }
         }
 
         /// <summary>
@@ -780,6 +909,7 @@ namespace Opc.Ua.LADS.Server
         /// </summary>
         private async ValueTask ChangeStateAsync(LadsDeviceStateValue target, CancellationToken cancellationToken)
         {
+            RequireStorageHealthy();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -923,5 +1053,11 @@ namespace Opc.Ua.LADS.Server
         private bool m_powerOnStarted;
         private long m_restoredPowerOnTicks;
         private readonly SemaphoreSlim m_storeGate = new(1, 1);
+        /// <summary>The key fixed before the first registration load.</summary>
+        private string? m_storeIdentity;
+        /// <summary>The transaction failure that prevents further mutations until restart.</summary>
+        private Exception? m_storageFailure;
+        /// <summary>The shared checkpoint and resource-release completion.</summary>
+        private Task? m_disposeTask;
     }
 }
