@@ -64,7 +64,14 @@ namespace Opc.Ua.Scales.Tests
         public async Task TearDownAsync()
         {
             m_controller.Dispose();
-            await m_fixture.DisposeAsync().ConfigureAwait(false);
+            try
+            {
+                await m_fixture.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (InvalidOperationException ex) when (ReferenceEquals(ex, m_expectedShutdownFailure))
+            {
+                // The injected timer-disposal failure propagates to the runtime's asynchronous shutdown.
+            }
         }
 
         [Test]
@@ -746,6 +753,32 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
+        public async Task TimerDisposalFailureIsLoggedAndPropagatedAsync()
+        {
+            using var logs = new RecordingLoggerProvider(LogLevel.Error);
+            m_fixture.Server.Telemetry.LoggerFactory.AddProvider(logs);
+            Enable(BuiltInType.Double);
+            var failure = new InvalidOperationException("Timer disposal failed.");
+            m_expectedShutdownFailure = failure;
+            m_clock.TimerDisposalGate = Task.FromException(failure);
+
+            m_controller.Dispose();
+
+            RecordedLogRecord[] logged =
+                [.. logs.Records.Where(r => r.EventId.Id == RecipeShutdownFailedEventId)];
+            Assert.That(logged, Has.Length.EqualTo(1), "Dispose alone does not leave the failure unobserved");
+            Assert.That(logged[0].LogLevel, Is.EqualTo(LogLevel.Error));
+            Assert.That(logged[0].Exception, Is.SameAs(failure));
+            InvalidOperationException? thrown = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await m_controller.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(thrown, Is.SameAs(failure), "async callers still observe the failure");
+            Assert.That(
+                logs.Records.Count(r => r.EventId.Id == RecipeShutdownFailedEventId),
+                Is.EqualTo(1),
+                "the failure is logged once");
+        }
+
+        [Test]
         public async Task DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync()
         {
             Enable(BuiltInType.Double);
@@ -1007,6 +1040,12 @@ namespace Opc.Ua.Scales.Tests
 
         /// <summary>The ScalesServerEventIds.ScaleRecipes event id of a failed timer-driven evaluation.</summary>
         private const int RecipeConditionEvaluationFailedEventId = 8230;
+
+        /// <summary>The ScalesServerEventIds.ScaleRecipes + 1 event id of a failed controller shutdown.</summary>
+        private const int RecipeShutdownFailedEventId = 8231;
+
+        /// <summary>A timer-disposal failure a test injects on purpose; teardown expects it.</summary>
+        private Exception? m_expectedShutdownFailure;
         private ScalesServerFixture m_fixture = null!;
         private ScaleHandle m_scale = null!;
         private RecipeController m_controller = null!;

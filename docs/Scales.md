@@ -726,7 +726,11 @@ completion, including a `DisposeAsync` that follows an earlier `Dispose` or a
 second concurrent `DisposeAsync`. The Scales runtime uses it when the node
 manager shuts down. A subscriber may call `DisposeAsync` from its own callback,
 but it must await the returned task instead of blocking on it, because the task
-completes only after that callback returns.
+completes only after that callback returns. If stopping the timer fails, the
+controller logs the failure at Error level with event ID 8231 even when only
+`Dispose` was called, and every `DisposeAsync` caller receives the exception.
+The runtime's asynchronous shutdown still releases the remaining scale resources
+before it rethrows.
 
 ### PackML
 
@@ -897,7 +901,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Runtime members thread-safe against method calls | 🧪 | `EquipmentReportsAreAtomicAgainstTheScaleLockAsync`; `CalibrationReportsAreAtomicAgainstTheScaleLockAsync` |
 | Local operator calls for piece counting and vehicle weighing | 🧪 | `PieceCountingLocalCallsMatchTheMethodsAsync`; `VehicleLocalCallsMatchTheMethodsAsync` |
 | Recipe events raised outside the lock | 🧪 | `HandlersMayCompleteElementsSynchronouslyAsync`; `LongChainOfSatisfiedConditionsCompletesWithoutRecursion` |
-| Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync` |
+| Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 

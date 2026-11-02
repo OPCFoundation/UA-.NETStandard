@@ -368,7 +368,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             catch (Exception ex)
             {
+                // A synchronous Dispose discards the task, so the failure is logged here and
+                // still propagated to every DisposeAsync caller.
+                m_owner.Services.Logger.ShutdownFailed(ex, Scale.BrowseName.Name);
                 quiesced.TrySetException(ex);
+                _ = quiesced.Task.Exception;
             }
         }
 
@@ -828,5 +832,14 @@ namespace Opc.Ua.Scales.Server.Runtime
             Level = LogLevel.Error,
             Message = "Timer-driven recipe condition evaluation of scale '{Name}' failed.")]
         public static partial void ConditionEvaluationFailed(this ILogger logger, Exception exception, string? name);
+
+        /// <summary>
+        /// Reports that stopping the condition timer failed while the recipe controller shut down.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ScalesServerEventIds.ScaleRecipes + 1,
+            Level = LogLevel.Error,
+            Message = "Recipe controller shutdown of scale '{Name}' failed.")]
+        public static partial void ShutdownFailed(this ILogger logger, Exception exception, string? name);
     }
 }

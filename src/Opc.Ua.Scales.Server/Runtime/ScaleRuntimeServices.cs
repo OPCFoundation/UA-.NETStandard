@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -165,20 +166,38 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <summary>
         /// Releases the resources of every scale and waits until timer and subscriber
         /// callbacks already running in asynchronously disposable controllers have returned.
+        /// A failing resource does not stop the others from being released; its exception is
+        /// rethrown afterwards.
         /// </summary>
         public async ValueTask DisposeAsync()
         {
             IDisposable[] resources = Detach();
+            List<Exception>? failures = null;
             for (int index = resources.Length - 1; index >= 0; index--)
             {
-                if (resources[index] is IAsyncDisposable asyncResource)
+                try
                 {
-                    await asyncResource.DisposeAsync().ConfigureAwait(false);
+                    if (resources[index] is IAsyncDisposable asyncResource)
+                    {
+                        await asyncResource.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        resources[index].Dispose();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    resources[index].Dispose();
+                    (failures ??= []).Add(ex);
                 }
+            }
+            if (failures?.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
             }
         }
 
