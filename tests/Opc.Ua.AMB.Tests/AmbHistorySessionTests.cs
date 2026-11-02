@@ -776,6 +776,10 @@ namespace Opc.Ua.AMB.Tests
             await using AmbHostedServer scope = server;
             var handle = (AssetHandle)asset;
             NodeState parent = kind == AssetHistoryKinds.DeviceHealth ? device.DeviceHealth! : device;
+            byte originalAccess = device.DeviceHealth!.AccessLevel;
+            byte originalUserAccess = device.DeviceHealth.UserAccessLevel;
+            byte originalNotifier = device.EventNotifier;
+            DateTimeUtc originalTimestamp = device.DeviceHealth.Timestamp;
             HistorianNodeCapabilities capabilities = (kind == AssetHistoryKinds.DeviceHealth
                 ? HistorianNodeCapabilities.DataReadWrite
                 : HistorianNodeCapabilities.EventReadWrite) with
@@ -870,7 +874,13 @@ namespace Opc.Ua.AMB.Tests
                     reference.ReferenceTypeId, reference.IsInverse, reference.TargetId), Is.True);
             }
             Assert.That(device.DeviceHealth!.Historizing, Is.False);
-            Assert.That(device.EventNotifier & EventNotifiers.HistoryRead, Is.Zero);
+            Assert.That(device.DeviceHealth.AccessLevel, Is.EqualTo(originalAccess));
+            Assert.That(device.DeviceHealth.UserAccessLevel, Is.EqualTo(originalUserAccess));
+            Assert.That(device.DeviceHealth.Timestamp, Is.EqualTo(originalTimestamp));
+            Assert.That(device.EventNotifier, Is.EqualTo(originalNotifier));
+            Assert.That(
+                await provider.GetCapabilitiesAsync(parent.NodeId, CancellationToken.None).ConfigureAwait(false),
+                Is.SameAs(capabilities));
             Assert.That(((IHistorianRegistryProvider)server.Server).HistorianRegistry.Resolve(parent.NodeId), Is.Null);
         }
 

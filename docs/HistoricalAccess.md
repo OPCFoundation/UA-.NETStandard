@@ -380,6 +380,15 @@ mapping, registration identity and attributes. An owner that disposed during set
 is not restored, and a later replacement is not removed by that rollback.
 Successful setup retains the new binding even if an older scoped owner disposes
 between the attribute changes and completion.
+Injected registries can implement `IHistorianNodeReplacementRegistry` and return
+an `IHistorianNodeReplacement` reservation with the same commit/rollback contract.
+A scoped registry without that capability can still historize unrelated nodes:
+the fluent operation acquires a new exact-node binding with `TryRegisterForNode`
+and releases it if setup fails. When an exact binding already exists, that registry
+cannot preserve its ownership identity through replacement; the operation rejects
+only that node with `NotSupportedException` before changing attributes or capture.
+Configure that binding directly or provide the replacement capability.
+Registries without scoped bindings retain the existing explicit-provider behavior.
 
 ### Provider resolution order
 

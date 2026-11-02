@@ -319,15 +319,35 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Exercises old-owner disposal after fluent attribute changes and before replacement setup completes.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
         public void ExplicitProviderReplacementPreservesAttributesAndRollsBackFailure(
             bool failSetup,
-            bool disposePreviousDuringSetup)
+            bool disposePreviousDuringSetup,
+            bool customRegistry)
         {
-            IServerInternal server = CreateServerWithRegistry();
+            using var storageRegistry = new HistorianProviderRegistry(new NamespaceTable());
+            IHistorianProviderRegistry registry = storageRegistry;
+            if (customRegistry)
+            {
+                var injected = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+                injected.Setup(value => value.Resolve(It.IsAny<NodeId>()))
+                    .Returns((NodeId id) => storageRegistry.Resolve(id));
+                injected.As<IHistorianNodeReplacementRegistry>()
+                    .Setup(value => value.BeginNodeReplacement(
+                        It.IsAny<BaseVariableState>(), It.IsAny<IHistorianProvider>()))
+                    .Returns((BaseVariableState node, IHistorianProvider provider) =>
+                        ((IHistorianNodeReplacementRegistry)storageRegistry).BeginNodeReplacement(node, provider));
+                injected.As<IHistorianNodeBindingRegistry>();
+                registry = injected.Object;
+            }
+            IServerInternal server = CreateServerWithRegistry(registryOverride: registry);
             var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
             {
                 CallBase = true
@@ -336,10 +356,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 CreateBuilderForServer(server, variable.Object);
             node.AccessLevel = AccessLevels.CurrentRead;
             node.UserAccessLevel = AccessLevels.CurrentRead;
-            var registry = (HistorianProviderRegistry)((IHistorianRegistryProvider)server).HistorianRegistry;
             using var previous = new InMemoryHistorianProvider();
             using var replacement = new InMemoryHistorianProvider();
-            Assert.That(registry.TryRegisterForNode(node, previous, out IDisposable? oldBinding), Is.True);
+            Assert.That(storageRegistry.TryRegisterForNode(node, previous, out IDisposable? oldBinding), Is.True);
             node.Historizing = true;
             node.AccessLevel |= AccessLevels.HistoryRead;
             node.UserAccessLevel |= AccessLevels.HistoryRead;
@@ -430,6 +449,111 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(node.Historizing, Is.True);
             Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.HistoryRead | AccessLevels.HistoryWrite));
             Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.HistoryWrite));
+        }
+
+        /// <summary>
+        /// A custom scoped registry without replacement support rejects only an existing exact-node binding.
+        /// </summary>
+        [Test]
+        public void ExplicitProviderRejectsUnsupportedScopedReplacementBeforeMutation()
+        {
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            registry.As<IHistorianNodeBindingRegistry>();
+            var builders = new List<HistorianBuilder>();
+            IServerInternal server = CreateServerWithRegistry(builders, registry.Object);
+            (NodeManagerBuilder builder, BaseDataVariableState node) = CreateBuilderForServer(server);
+            using var provider = new InMemoryHistorianProvider();
+            IDisposable? registration = null;
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(node, provider, out registration))
+                .Returns(false);
+            node.AccessLevel = AccessLevels.CurrentRead;
+            node.UserAccessLevel = AccessLevels.CurrentRead;
+
+            Assert.Throws<NotSupportedException>(() =>
+                builder.Variable<int>(node.NodeId).Historize(provider: provider, autoCapture: false));
+
+            Assert.That(node.Historizing, Is.False);
+            Assert.That(node.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(node.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(builders, Is.Empty);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Verify(value => value.TryRegisterForNode(node, provider, out registration), Times.Once);
+            registry.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Custom scoped registries can add unrelated nodes without implementing replacement transactions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ExplicitProviderAddsUnrelatedNodeOnCustomScopedRegistry(bool failSetup)
+        {
+            using var backing = new HistorianProviderRegistry(new NamespaceTable());
+            using var unrelatedProvider = new InMemoryHistorianProvider();
+            var unrelated = new NodeId("other", kNs);
+            backing.RegisterForNode(unrelated, unrelatedProvider);
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            registry.As<IHistorianNodeBindingRegistry>();
+            IDisposable? acquired = null;
+            var variable = new Mock<BaseDataVariableState>(MockBehavior.Default, (NodeState?)null)
+            {
+                CallBase = true
+            };
+            IServerInternal server = CreateServerWithRegistry(registryOverride: registry.Object);
+            (NodeManagerBuilder builder, BaseDataVariableState node) =
+                CreateBuilderForServer(server, variable.Object);
+            using var provider = new InMemoryHistorianProvider();
+            Assert.That(backing.TryRegisterForNode(node, provider, out acquired), Is.True);
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Setup(value => value.TryRegisterForNode(node, provider, out acquired)).Returns(true);
+            variable.Setup(value => value.FindChild(
+                    It.IsAny<ISystemContext>(), new QualifiedName(BrowseNames.Annotations)))
+                .Returns(() => failSetup ? throw new InvalidOperationException("Lookup failed.") : null);
+
+            if (failSetup)
+            {
+                Assert.Throws<InvalidOperationException>(() =>
+                    builder.Variable<int>(node.NodeId).Historize(provider: provider, autoCapture: false));
+                Assert.That(backing.Resolve(node.NodeId), Is.Null);
+                Assert.That(node.Historizing, Is.False);
+                Assert.That(node.AccessLevel & AccessLevels.HistoryRead, Is.Zero);
+                Assert.That(node.UserAccessLevel & AccessLevels.HistoryRead, Is.Zero);
+            }
+            else
+            {
+                builder.Variable<int>(node.NodeId).Historize(provider: provider, autoCapture: false);
+                Assert.That(backing.Resolve(node.NodeId), Is.SameAs(provider));
+                Assert.That(node.Historizing, Is.True);
+                Assert.That(node.AccessLevel & AccessLevels.HistoryRead, Is.EqualTo(AccessLevels.HistoryRead));
+                Assert.That(node.UserAccessLevel & AccessLevels.HistoryRead, Is.EqualTo(AccessLevels.HistoryRead));
+            }
+            Assert.That(backing.Resolve(unrelated), Is.SameAs(unrelatedProvider));
+            registry.As<IHistorianNodeBindingRegistry>()
+                .Verify(value => value.TryRegisterForNode(node, provider, out acquired), Times.Once);
+            registry.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Registries without scoped ownership retain the existing explicit-provider fluent behavior.
+        /// </summary>
+        [Test]
+        public void ExplicitProviderPreservesLegacyCustomRegistryBehavior()
+        {
+            var registry = new Mock<IHistorianProviderRegistry>(MockBehavior.Strict);
+            IServerInternal server = CreateServerWithRegistry(registryOverride: registry.Object);
+            (NodeManagerBuilder builder, BaseDataVariableState node) = CreateBuilderForServer(server);
+            using var provider = new InMemoryHistorianProvider();
+            registry.Setup(value => value.RegisterForNode(node.NodeId, provider))
+                .Callback(() => Assert.That(node.Historizing, Is.True));
+
+            builder.Variable<int>(node.NodeId).Historize(provider: provider, autoCapture: false);
+
+            Assert.That(node.Historizing, Is.True);
+            Assert.That(node.AccessLevel & AccessLevels.HistoryRead, Is.EqualTo(AccessLevels.HistoryRead));
+            Assert.That(node.UserAccessLevel & AccessLevels.HistoryRead, Is.EqualTo(AccessLevels.HistoryRead));
+            registry.Verify(value => value.RegisterForNode(node.NodeId, provider), Times.Once);
+            registry.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -702,13 +826,14 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         private static IServerInternal CreateServerWithRegistry(
-            List<HistorianBuilder>? builders = null)
+            List<HistorianBuilder>? builders = null,
+            IHistorianProviderRegistry? registryOverride = null)
         {
             var nsTable = new NamespaceTable();
             nsTable.Append("urn:test:fluent-historian");
 
             var mockTelemetry = new Mock<ITelemetryContext>();
-            var registry = new HistorianProviderRegistry(nsTable);
+            IHistorianProviderRegistry registry = registryOverride ?? new HistorianProviderRegistry(nsTable);
 
             var mockServer = new Mock<IServerInternal>();
             mockServer.Setup(s => s.NamespaceUris).Returns(nsTable);

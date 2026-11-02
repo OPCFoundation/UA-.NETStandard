@@ -42,6 +42,7 @@ namespace Opc.Ua.Server.Historian
     public sealed class HistorianProviderRegistry :
         IHistorianProviderRegistry,
         IHistorianNodeBindingRegistry,
+        IHistorianNodeReplacementRegistry,
         IDisposable
     {
         /// <summary>
@@ -91,6 +92,14 @@ namespace Opc.Ua.Server.Historian
                 throw new ArgumentNullException(nameof(node));
             }
             return TryRegisterForNode(node.NodeId, provider, node, out binding);
+        }
+
+        /// <inheritdoc/>
+        IHistorianNodeReplacement IHistorianNodeReplacementRegistry.BeginNodeReplacement(
+            BaseVariableState node,
+            IHistorianProvider provider)
+        {
+            return BeginNodeReplacement(node, provider);
         }
 
         /// <inheritdoc/>
@@ -282,7 +291,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Reserves a replacement before fluent setup changes attributes, restoring the prior owner if setup fails.
         /// </summary>
-        internal NodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider)
+        private NodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider)
         {
             ArgumentNullException.ThrowIfNull(node);
             ArgumentNullException.ThrowIfNull(provider);
@@ -452,7 +461,7 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// The identity of one detachable exact-node registration.
         /// </summary>
-        internal sealed class NodeBinding : IDisposable
+        private sealed class NodeBinding : IDisposable
         {
             /// <summary>
             /// Creates an identity owned by the registry.
@@ -527,12 +536,12 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Restores an uncommitted fluent replacement without reviving an owner that disposed during setup.
         /// </summary>
-        internal sealed class NodeReplacement : IDisposable
+        private sealed class NodeReplacement : IHistorianNodeReplacement
         {
             /// <summary>
             /// Records the reservation and the exact prior owner for rollback.
             /// </summary>
-            internal NodeReplacement(
+            public NodeReplacement(
                 HistorianProviderRegistry registry,
                 NodeId nodeId,
                 NodeBinding current,
@@ -555,7 +564,7 @@ namespace Opc.Ua.Server.Historian
             /// <summary>
             /// Retains the mapping after fluent setup succeeds.
             /// </summary>
-            internal void Commit()
+            public void Commit()
             {
                 Complete(commit: true);
             }

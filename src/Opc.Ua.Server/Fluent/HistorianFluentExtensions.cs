@@ -29,6 +29,7 @@
 
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
@@ -243,6 +244,9 @@ namespace Opc.Ua.Server.Fluent
             {
                 IServerInternal serverForBinding = GetServer(nodeManagerBuilder);
                 IHistorianRegistryProvider registryHost = RequireRegistryHost(serverForBinding);
+                IHistorianProviderRegistry providerRegistry = registryHost.HistorianRegistry;
+                using IHistorianNodeReplacement? replacement =
+                    BeginReplacement(providerRegistry, variable, perCallProvider);
 
                 // The server lifecycle owns this builder and drains its
                 // capture pipeline during shutdown. A dedicated builder keeps
@@ -253,9 +257,6 @@ namespace Opc.Ua.Server.Fluent
                     new HistorianBuilder(serverForBinding)
                         .UseProvider(perCallProvider);
 #pragma warning restore CA2000
-                using HistorianProviderRegistry.NodeReplacement? replacement =
-                    (registryHost.HistorianRegistry as HistorianProviderRegistry)?
-                        .BeginNodeReplacement(variable, perCallProvider);
                 if (historizing == false)
                 {
                     variable.Historizing = false;
@@ -270,7 +271,7 @@ namespace Opc.Ua.Server.Fluent
                     captureOptions: captureOptions);
                 if (replacement == null)
                 {
-                    registryHost.HistorianRegistry.RegisterForNode(variable.NodeId, perCallProvider);
+                    providerRegistry.RegisterForNode(variable.NodeId, perCallProvider);
                 }
                 else
                 {
@@ -327,6 +328,33 @@ namespace Opc.Ua.Server.Fluent
                 captureOptions: captureOptions);
         }
 
+        /// <summary>
+        /// Reserves replacement ownership without excluding unrelated nodes on a scoped custom registry.
+        /// </summary>
+        private static IHistorianNodeReplacement? BeginReplacement(
+            IHistorianProviderRegistry registry,
+            BaseVariableState variable,
+            IHistorianProvider provider)
+        {
+            if (registry is IHistorianNodeReplacementRegistry replacements)
+            {
+                return replacements.BeginNodeReplacement(variable, provider);
+            }
+            if (registry is not IHistorianNodeBindingRegistry scoped)
+            {
+                return null;
+            }
+            if (!scoped.TryRegisterForNode(variable, provider, out IDisposable? binding))
+            {
+                throw new NotSupportedException(
+                    "Replacing an existing exact-node binding on this scoped registry requires " +
+                    "IHistorianNodeReplacementRegistry. Configure the binding directly or provide that capability.");
+            }
+            return new NewNodeReplacement(binding ??
+                throw new InvalidOperationException(
+                    "The scoped registry returned a successful binding without ownership."));
+        }
+
         private static HistorianBuilder GetOrCreateBuilder(INodeManagerBuilder builder)
         {
             return s_builders.GetValue(
@@ -358,6 +386,35 @@ namespace Opc.Ua.Server.Fluent
             throw new InvalidOperationException(
                 "The server does not implement IHistorianRegistryProvider; " +
                 "the fluent historian extensions require the standard ServerInternalData host.");
+        }
+
+        /// <summary>
+        /// Releases a newly acquired scoped binding only if setup did not commit it.
+        /// </summary>
+        private sealed class NewNodeReplacement : IHistorianNodeReplacement
+        {
+            /// <summary>
+            /// Owns the newly added exact-node binding until setup succeeds.
+            /// </summary>
+            public NewNodeReplacement(IDisposable binding)
+            {
+                m_binding = binding;
+            }
+
+            /// <inheritdoc/>
+            public void Commit()
+            {
+                Interlocked.Exchange(ref m_binding, null);
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_binding, null)?.Dispose();
+            }
+
+            /// <summary>The uncommitted registration, or null once setup has completed.</summary>
+            private IDisposable? m_binding;
         }
 
         // IDE0028 (collection expression) is suppressed: ConditionalWeakTable does not

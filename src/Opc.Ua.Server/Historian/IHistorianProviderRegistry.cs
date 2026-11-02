@@ -152,6 +152,33 @@ namespace Opc.Ua.Server.Historian
     }
 
     /// <summary>
+    /// Optional typed replacement transactions for registries that support detachable node bindings.
+    /// </summary>
+    public interface IHistorianNodeReplacementRegistry
+    {
+        /// <summary>
+        /// Reserves a replacement before the caller changes historian attributes.
+        /// Disposing without committing restores the prior mapping, registration identity and attributes,
+        /// unless that prior owner disposed or a later registration superseded the reservation.
+        /// </summary>
+        /// <param name="node">The variable whose historian binding is being replaced.</param>
+        /// <param name="provider">The replacement provider.</param>
+        /// <returns>The reservation to commit after setup succeeds or dispose to undo failed setup.</returns>
+        IHistorianNodeReplacement BeginNodeReplacement(BaseVariableState node, IHistorianProvider provider);
+    }
+
+    /// <summary>
+    /// One prepared historian replacement with explicit success and rollback.
+    /// </summary>
+    public interface IHistorianNodeReplacement : IDisposable
+    {
+        /// <summary>
+        /// Retains the prepared replacement after setup succeeds. Subsequent disposal does not undo it.
+        /// </summary>
+        void Commit();
+    }
+
+    /// <summary>
     /// Optional opt-in interface that hosts a server's
     /// <see cref="IHistorianProviderRegistry"/>. <c>ServerInternalData</c>
     /// implements this so node managers can resolve the registry without
