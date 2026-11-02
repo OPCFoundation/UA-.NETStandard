@@ -121,6 +121,10 @@ nonzero denominator.
 
 If provider observation throws, the server retains the last values and their
 acquisition timestamps but publishes bad quality and retries observation. It
+retains those values internally; a read with Bad quality returns a null payload
+under the stack's standard DataValue read behavior. Clients must use the status
+and timestamp to identify unavailable acquisitions rather than expecting the
+last payload on the wire. The server
 uses the provider's bad `ServiceResultException` status, or
 `BadCommunicationError` for other exceptions. A newer valid revision restores
 the acquisition's supplied quality; reconnecting alone does not turn retained
@@ -203,6 +207,12 @@ variable BrowseName is spelled `PriorityMapppingEntries`; clients and servers
 retain that spelling for interoperability.
 The server publishes the optional add/delete methods only for editable tables.
 An omitted method is not an available configuration operation.
+
+`FailureSystemIdentifier` uses a Byte matrix with eight columns. When no
+identifiers exist, the server retains the `[0,8]` shape in memory and declares
+the variable's dimensions, but the binary Variant carries an empty Byte array:
+OPC 10000-6 omits matrix dimensions when any dimension is zero. Nonempty
+acquisitions carry the matrix dimensions and identifier bytes again.
 
 ## Run the simulated server/client scenario
 

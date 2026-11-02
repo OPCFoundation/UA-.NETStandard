@@ -300,6 +300,8 @@ namespace Opc.Ua.Server.Tests.Network
         public async Task SampleTransitionsExposeStreamFailureAndLldpAppearanceAndRemoval(
             CancellationToken cancellationToken)
         {
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
             NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
             NodeId listener = (await m_client.DiscoverStreamsAsync(false, cancellationToken).ConfigureAwait(false))[0];
             NodeId port = (await m_client.DiscoverLldpPortsAsync(cancellationToken).ConfigureAwait(false))[0];
@@ -342,11 +344,28 @@ namespace Opc.Ua.Server.Tests.Network
                         : Variant.From(step == 2 ? TsnListenerStatus.Failed : TsnListenerStatus.Ready);
                     Assert.That(Parameter(status, isTalker ? BrowseNames.TalkerStatus : BrowseNames.ListenerStatus)
                         .DataValue.WrappedValue, Is.EqualTo(expectedStatus));
-                    Assert.That(Parameter(status, BrowseNames.FailureSystemIdentifier).DataValue.WrappedValue
-                        .TryGetValue(out MatrixOf<byte> identifiers), Is.True);
-                    Assert.That(identifiers.Dimensions, Is.EqualTo(new[] { step == 2 ? 1 : 0, 8 }));
-                    Assert.That(identifiers.Span.ToArray(), Is.EqualTo(
-                        step == 2 ? new byte[] { 2, 0, 0, 0, 0, 2, 0, 1 } : Array.Empty<byte>()));
+                    NetworkParameterValue failure = Parameter(status, BrowseNames.FailureSystemIdentifier);
+                    BaseVariableState local = manager.FindPredefinedNode<BaseVariableState>(failure.NodeId);
+                    Assert.That(local.Value.TryGetValue(out MatrixOf<byte> localIdentifiers), Is.True);
+                    Assert.That(localIdentifiers.Dimensions, Is.EqualTo(new[] { step == 2 ? 1 : 0, 8 }));
+                    Assert.That(local.ArrayDimensions.ToArray(), Is.EqualTo(new uint[] { step == 2 ? 1u : 0u, 8 }));
+                    Assert.That(failure.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(failure.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)snapshot.Timestamp));
+                    if (step == 2)
+                    {
+                        Assert.That(failure.DataValue.WrappedValue.TryGetValue(out MatrixOf<byte> identifiers),
+                            Is.True);
+                        Assert.That(identifiers.Dimensions, Is.EqualTo(new[] { 1, 8 }));
+                        Assert.That(identifiers.Span.ToArray(),
+                            Is.EqualTo(new byte[] { 2, 0, 0, 0, 0, 2, 0, 1 }));
+                    }
+                    else
+                    {
+                        Assert.That(localIdentifiers.Span.Length, Is.Zero);
+                        Assert.That(failure.DataValue.WrappedValue.TryGetValue(out ArrayOf<byte> identifiers),
+                            Is.True);
+                        Assert.That(identifiers.Count, Is.Zero);
+                    }
                 }
             }
         }
@@ -693,6 +712,8 @@ namespace Opc.Ua.Server.Tests.Network
         public async Task ProviderWatchFailurePublishesBadQualityUntilANewerAcquisitionRecovers(
             int failureKind, CancellationToken cancellationToken)
         {
+            NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single();
             NodeId id = (await m_client.DiscoverInterfacesAsync(cancellationToken).ConfigureAwait(false))[0];
             NetworkInterfaceValues initial = await m_client.ReadInterfaceAsync(id, cancellationToken)
                 .ConfigureAwait(false);
@@ -710,9 +731,14 @@ namespace Opc.Ua.Server.Tests.Network
                 .ConfigureAwait(false);
             NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(id, cancellationToken)
                 .ConfigureAwait(false);
-            Assert.That(failed.Speed.DataValue.WrappedValue, Is.EqualTo(initial.Speed.DataValue.WrappedValue));
+            Assert.That(failed.Speed.DataValue.WrappedValue.IsNull, Is.True);
+            Assert.That(failed.Speed.DataValue.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(failed.Speed.DataValue.SourceTimestamp, Is.EqualTo(initial.Speed.DataValue.SourceTimestamp));
             Assert.That(failed.AdminStatus.DataValue.StatusCode, Is.EqualTo(expectedStatus));
+            BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(initial.Speed.NodeId);
+            Assert.That(retained.Value, Is.EqualTo(initial.Speed.DataValue.WrappedValue));
+            Assert.That(retained.StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Speed.DataValue.SourceTimestamp));
 
             m_provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(2) });
             m_providerBoundary.FailWatch = false;
@@ -721,6 +747,8 @@ namespace Opc.Ua.Server.Tests.Network
                     .Speed.DataValue.StatusCode == StatusCodes.Good, cancellationToken).ConfigureAwait(false);
             NetworkInterfaceValues recovered = await m_client.ReadInterfaceAsync(id, cancellationToken)
                 .ConfigureAwait(false);
+            Assert.That(recovered.Speed.DataValue.WrappedValue, Is.EqualTo(initial.Speed.DataValue.WrappedValue));
+            Assert.That(recovered.AdminStatus.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(recovered.Speed.DataValue.SourceTimestamp,
                 Is.EqualTo((DateTimeUtc)snapshot.Timestamp.AddSeconds(2)));
         }
