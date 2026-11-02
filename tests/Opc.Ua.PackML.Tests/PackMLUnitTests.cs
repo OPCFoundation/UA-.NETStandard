@@ -334,7 +334,7 @@ namespace Opc.Ua.PackML.Tests
             {
                 cancellation.Cancel();
             }
-            await Assert.ThatAsync(async () => await request, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => request, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
             Assert.That(unit.PendingRequestId, Is.Zero);
             Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.False);
@@ -458,11 +458,10 @@ namespace Opc.Ua.PackML.Tests
                 Operation = PackMLOperation.SetParameter,
                 Parameters = [new PackMLDescriptorDataType { ID = 9, Name = "Temperature", Value = 23.5f }]
             }));
-            Assert.That(unit.Node.Status.Required().Product.Required().Value
-                .GetStructureArray<PackMLProductDataType>()[0].ProductID,
+            Assert.That(unit.Node.Status.Required().Product.Required().Value[0].ProductID,
                 Is.EqualTo(42));
             ArrayOf<PackMLDescriptorDataType> parameters =
-                unit.Node.Status.Required().Parameter.Required().Value.GetStructureArray<PackMLDescriptorDataType>();
+                unit.Node.Status.Required().Parameter.Required().Value;
             Assert.That(parameters[0].ID, Is.EqualTo(9));
             Assert.That(parameters[0].Name, Is.EqualTo("Temperature"));
             Assert.That(parameters[0].Value, Is.EqualTo(23.5f));
@@ -474,8 +473,7 @@ namespace Opc.Ua.PackML.Tests
                 Operation = PackMLOperation.SetProduct,
                 Products = [new PackMLProductDataType { ProductID = 99 }]
             })).StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-            Assert.That(unit.Node.Status.Required().Product.Required().Value
-                .GetStructureArray<PackMLProductDataType>()[0].ProductID,
+            Assert.That(unit.Node.Status.Required().Product.Required().Value[0].ProductID,
                 Is.EqualTo(42));
         }
 
@@ -584,7 +582,7 @@ namespace Opc.Ua.PackML.Tests
             Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
             Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
             ArrayOf<PackMLCountDataType> counts =
-                unit.Node.Admin.Required().ProdProcessedCount.Required().Value.GetStructureArray<PackMLCountDataType>();
+                unit.Node.Admin.Required().ProdProcessedCount.Required().Value;
             Assert.That(counts[0].Count, Is.EqualTo(5));
             Assert.That(counts[0].AccCount, Is.EqualTo(100));
             Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.EqualTo(30));
@@ -595,8 +593,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.EqualTo(30));
             provider.Authorization = ServiceResult.Good;
             Good(await unit.RequestAsync(context, new PackMLRequest { Operation = PackMLOperation.ResetCounters }));
-            counts = unit.Node.Admin.Required().ProdProcessedCount.Required().Value
-                .GetStructureArray<PackMLCountDataType>();
+            counts = unit.Node.Admin.Required().ProdProcessedCount.Required().Value;
             Assert.That(counts[0].Count, Is.Zero);
             Assert.That(counts[0].AccCount, Is.EqualTo(100));
             Assert.That(unit.Administration.Capture().AccTimeSinceReset, Is.Zero);
@@ -609,7 +606,7 @@ namespace Opc.Ua.PackML.Tests
             SystemContext context = PackMLTestSupport.CreateContext();
             await using Unit unit = await Unit.CreateAsync(
                 context, null, PackMLTestSupport.Name(context), new EquipmentProvider());
-            string[] names = unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            string?[] names = unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
             Assert.That(names, Does.Contain("PackML Base Functionality"));
             Assert.That(names, Does.Contain("PackML Admin machine speed."));
             Assert.That(names, Does.Not.Contain("PackML Admin"));
@@ -648,7 +645,7 @@ namespace Opc.Ua.PackML.Tests
                         DefectiveCounts = defectiveCapacity
                     }
                 });
-            string[] names = unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            string?[] names = unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
             Assert.That(names.Contains("PackML Admin"), Is.EqualTo(complete));
             Assert.That(names.Contains("PackML ProdProcessedCount"), Is.EqualTo(processedCapacity > 0));
             Assert.That(names.Contains("PackML ProdDefectiveCount"), Is.EqualTo(defectiveCapacity > 0));
@@ -720,7 +717,7 @@ namespace Opc.Ua.PackML.Tests
                 await unit.RefreshAsync(token);
             };
             await Assert.ThatAsync(
-                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))
+                () => unit.RequestAsync(context, Command(PackMLCommand.Reset))
                     .AsTask().WaitAsync(TimeSpan.FromSeconds(5)),
                 Throws.InvalidOperationException);
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
@@ -746,7 +743,7 @@ namespace Opc.Ua.PackML.Tests
             await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
             int rejected = 0;
             provider.CallbackPhase = phase;
-            provider.Callback = async _ =>
+            provider.Callback = async token =>
             {
                 Task reentry;
                 using (ExecutionContext.SuppressFlow())
@@ -755,18 +752,19 @@ namespace Opc.Ua.PackML.Tests
                     {
                         if (request)
                         {
-                            Assert.That((await unit.RequestAsync(context, Command(PackMLCommand.Abort))).StatusCode,
+                            Assert.That((await unit.RequestAsync(
+                                context, Command(PackMLCommand.Abort), token)).StatusCode,
                                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                         }
                         else
                         {
                             await Assert.ThatAsync(
-                                async () => await unit.RefreshAsync(),
+                                async () => await unit.RefreshAsync(token),
                                 Throws.InstanceOf<InvalidOperationException>());
                         }
-                    });
+                    }, token);
                 }
-                await reentry.WaitAsync(TimeSpan.FromSeconds(5));
+                await reentry.WaitAsync(TimeSpan.FromSeconds(5), token);
                 rejected++;
             };
             if (phase == 2)
@@ -790,22 +788,23 @@ namespace Opc.Ua.PackML.Tests
             await using Unit unit = await Unit.CreateAsync(
                 context, null, PackMLTestSupport.Name(context), provider,
                 new PackMLUnitOptions { AdministrationStore = store });
-            store.SaveCallback = async _ =>
+            store.SaveCallback = async token =>
             {
                 Task reentry;
                 using (ExecutionContext.SuppressFlow())
                 {
                     reentry = Task.Run(async () =>
                     {
-                        Assert.That((await unit.RequestAsync(context, Command(PackMLCommand.Reset))).StatusCode,
+                        Assert.That((await unit.RequestAsync(
+                            context, Command(PackMLCommand.Reset), token)).StatusCode,
                             Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
                         await Assert.ThatAsync(
-                            async () => await unit.CheckpointAsync(),
+                            async () => await unit.CheckpointAsync(token),
                             Throws.InstanceOf<InvalidOperationException>());
                         await Assert.ThatAsync(async () => await unit.DisposeAsync(), Throws.InvalidOperationException);
-                    });
+                    }, token);
                 }
-                await reentry.WaitAsync(TimeSpan.FromSeconds(5));
+                await reentry.WaitAsync(TimeSpan.FromSeconds(5), token);
             };
             await unit.CheckpointAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
             Assert.That(store.Saves, Is.EqualTo(1));
@@ -862,7 +861,7 @@ namespace Opc.Ua.PackML.Tests
                 release.TrySetResult(true);
             }
             await Task.WhenAll(shutdown, concurrentShutdown).WaitAsync(TimeSpan.FromSeconds(5));
-            await Assert.ThatAsync(async () => await request, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => request, Throws.InstanceOf<OperationCanceledException>());
             await unit.DisposeAsync();
         }
 
@@ -876,15 +875,15 @@ namespace Opc.Ua.PackML.Tests
             await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
             int rejected = 0;
             provider.CallbackPhase = phase;
-            provider.Callback = async _ =>
+            provider.Callback = async token =>
             {
                 Task disposal;
                 using (ExecutionContext.SuppressFlow())
                 {
-                    disposal = Task.Run(async () => await unit.DisposeAsync());
+                    disposal = Task.Run(async () => await unit.DisposeAsync(), token);
                 }
                 await Assert.ThatAsync(
-                    async () => await disposal.WaitAsync(TimeSpan.FromSeconds(5)),
+                    () => disposal.WaitAsync(TimeSpan.FromSeconds(5), token),
                     Throws.InvalidOperationException);
                 rejected++;
             };

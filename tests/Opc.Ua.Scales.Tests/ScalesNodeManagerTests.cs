@@ -728,25 +728,25 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(state.AvailableStates!.Value.Span.ToArray()
                 .Select(id => id.TryGetValue(out uint value) ? value : 0u), Is.EqualTo(new uint[]
             {
-                Objects.PackMLBaseStateMachineType_Cleared
+                PackML.Objects.PackMLBaseStateMachineType_Cleared
             }));
             Assert.That(machine.AvailableStates!.Value.Span.ToArray()
                 .Select(id => id.TryGetValue(out uint value) ? value : 0u), Is.EqualTo(new uint[]
             {
-                Objects.PackMLMachineStateMachineType_Running
+                PackML.Objects.PackMLMachineStateMachineType_Running
             }));
             Assert.That(
                 execute.AvailableStates!.Value.Span.ToArray()
                     .Select(id => id.TryGetValue(out uint value) ? value : 0u),
                 Is.EqualTo(new[]
                 {
-                    Objects.PackMLExecuteStateMachineType_Idle,
-                    Objects.PackMLExecuteStateMachineType_Execute
+                    PackML.Objects.PackMLExecuteStateMachineType_Idle,
+                    PackML.Objects.PackMLExecuteStateMachineType_Execute
                 }));
             Assert.That(
                 execute.AvailableTransitions!.Value.Span.ToArray().Any(
                     id => id.TryGetValue(out uint value) &&
-                        value == Objects.PackMLExecuteStateMachineType_IdleToStarting),
+                        value == PackML.Objects.PackMLExecuteStateMachineType_IdleToStarting),
                 Is.False);
             Assert.That(packMl.CanExecute(PackMLCommand.Start), Is.False);
             Assert.That(execute.Start!.Executable, Is.False);
@@ -837,7 +837,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(
                 execute.AvailableTransitions!.Value.Span.ToArray().Any(
                     id => id.TryGetValue(out uint value) &&
-                        value == Objects.PackMLExecuteStateMachineType_StartingToExecute),
+                        value == PackML.Objects.PackMLExecuteStateMachineType_StartingToExecute),
                 Is.False);
             Assert.That(
                 packMl.CompleteActingState().StatusCode,

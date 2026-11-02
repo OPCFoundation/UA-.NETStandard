@@ -438,7 +438,7 @@ namespace Opc.Ua.PackML.Tests
         [Test]
         public async Task DiscoveryAcceptsVendorSubtypesWithoutDependingOnInstanceNames()
         {
-            var vendorType = new ObjectTypeState
+            var vendorType = new BaseObjectTypeState
             {
                 NodeId = new NodeId("VendorFillerType", m_manager.InstanceNamespaceIndex),
                 BrowseName = new QualifiedName("VendorFillerType", m_manager.InstanceNamespaceIndex),
@@ -521,11 +521,11 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(provider.Executed[0].InterlockState, Is.True);
             Assert.That(provider.Executed[1].RemoteInterfaces[0].Number, Is.EqualTo(4));
             Assert.That(provider.Executed[1].RemoteInterfaces[0].ControlCmdNumber, Is.EqualTo(7));
-            Assert.That(status.MaterialInterlock.Value.Span.ToArray(), Is.EqualTo(new[] { true, false }));
+            Assert.That(status.MaterialInterlock.Value.Span.ToArray(), Is.EqualTo(s_materialReadiness));
             Assert.That(status.MaterialInterlocked.Value, Is.True);
             Assert.That(status.RemoteParameter.Value[0].ControlCmdNumber, Is.EqualTo(9),
                 "accepted remote commands do not overwrite equipment-reported parameters");
-            string[] common = m_manager.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            string?[] common = m_manager.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
             Assert.That(common, Does.Not.Contain("PackML SetInterlock"), "not enabled on every unit");
         }
 
@@ -610,7 +610,7 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(snapshot.MachDesignSpeed.DataValue.SourceTimestamp, Is.EqualTo(acquired));
             Assert.That(snapshot.ModeCurrentTime.Value[1], Is.EqualTo(2));
             Assert.That(snapshot.ModeCumulativeTime.Value[1], Is.EqualTo(2));
-            Assert.That(snapshot.StateCurrentTime.Value.Dimensions, Is.EqualTo(new[] { 2, 20 }));
+            Assert.That(snapshot.StateCurrentTime.Value.Dimensions, Is.EqualTo(s_stateDimensions));
             Assert.That(snapshot.StateCumulativeTime.Value.Span[20 + (int)PackMLStateNumbers.Stopped], Is.EqualTo(2));
             Assert.That(snapshot.AccTimeSinceReset.Value, Is.EqualTo(2));
         }
@@ -626,7 +626,7 @@ namespace Opc.Ua.PackML.Tests
                 Execute = async (_, token) =>
                 {
                     firstEntered.TrySetResult(true);
-                    await secondCancelled.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                    await secondCancelled.Task.WaitAsync(TimeSpan.FromSeconds(15), CancellationToken.None);
                     token.ThrowIfCancellationRequested();
                     return ServiceResult.Good;
                 }
@@ -654,8 +654,8 @@ namespace Opc.Ua.PackML.Tests
             await m_manager.Runtime.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
 
             Assert.That(secondCancelled.Task.IsCompleted, Is.True);
-            await Assert.ThatAsync(async () => await firstRequest, Throws.InstanceOf<OperationCanceledException>());
-            await Assert.ThatAsync(async () => await secondRequest, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => firstRequest, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => secondRequest, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(firstProvider.Executed, Has.Count.EqualTo(1));
             Assert.That(secondProvider.Executed, Has.Count.EqualTo(1));
         }
@@ -715,8 +715,8 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(failure.Flatten().InnerExceptions, Does.Contain(firstError));
             Assert.That(failure.Flatten().InnerExceptions, Does.Contain(secondError));
             Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
-            await Assert.ThatAsync(async () => await firstRequest, Throws.InstanceOf<OperationCanceledException>());
-            await Assert.ThatAsync(async () => await secondRequest, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => firstRequest, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => secondRequest, Throws.InstanceOf<OperationCanceledException>());
         }
 
         private void ConfigureServer(OpcUaServerOptions options)
@@ -743,5 +743,8 @@ namespace Opc.Ua.PackML.Tests
             m_endpoint = "opc.tcp://localhost:" + port.ToString(CultureInfo.InvariantCulture) + "/PackML";
             options.EndpointUrls.Add(m_endpoint);
         }
+
+        private static readonly bool[] s_materialReadiness = [true, false];
+        private static readonly int[] s_stateDimensions = [2, 20];
     }
 }

@@ -55,7 +55,7 @@ if (!Path.IsPathFullyQualified(pkiRoot))
     throw new ArgumentException("--pki-root must be absolute.");
 }
 ServerUnit? serverUnit = null;
-builder.Services.AddSingleton<SampleEquipment>();
+builder.Services.AddSingleton(new SampleEquipment());
 var opc = builder.Services.AddOpcUa();
 opc.AddServer(options =>
 {

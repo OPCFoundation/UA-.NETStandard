@@ -52,7 +52,7 @@ namespace Opc.Ua.PackML.Tests
             PackMLAdministrationSnapshot snapshot = admin.Capture();
             Assert.That(snapshot.ModeCurrentTime.Count, Is.EqualTo(8));
             Assert.That(snapshot.ModeCurrentTime[7], Is.EqualTo(3));
-            Assert.That(snapshot.StateCumulativeTime.Dimensions, Is.EqualTo(new[] { 8, 20 }));
+            Assert.That(snapshot.StateCumulativeTime.Dimensions, Is.EqualTo(s_stateDimensions));
             Assert.That(snapshot.StateCumulativeTime.Span[(7 * 20) + (int)PackMLStateNumbers.Execute], Is.EqualTo(3));
             Assert.That(snapshot.StateCumulativeTime.Span[(6 * 20) + (int)PackMLStateNumbers.Execute], Is.Zero);
             Assert.That(node.StateCumulativeTime.Required().ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
@@ -179,7 +179,7 @@ namespace Opc.Ua.PackML.Tests
                 Throws.ArgumentException);
             Assert.That(() => admin.Restore(valid with { StateCumulativeTime = new int[8, 19] }),
                 Throws.ArgumentException);
-            Assert.That(admin.Capture().StateCurrentTime.Dimensions, Is.EqualTo(new[] { 8, 20 }));
+            Assert.That(admin.Capture().StateCurrentTime.Dimensions, Is.EqualTo(s_stateDimensions));
         }
 
         [Test]
@@ -195,7 +195,7 @@ namespace Opc.Ua.PackML.Tests
             }, new PackMLAdministrationExtents { ProcessedCounts = 1 });
             admin.ResetCounters();
             ArrayOf<PackMLCountDataType> published =
-                node.ProdProcessedCount.Required().Value.GetStructureArray<PackMLCountDataType>();
+                node.ProdProcessedCount.Required().Value;
             Assert.That(published[0].Count, Is.Zero);
             Assert.That(published[0].AccCount, Is.EqualTo(100));
             Assert.That(count.Count, Is.EqualTo(5), "the equipment sample is borrowed");
@@ -248,8 +248,10 @@ namespace Opc.Ua.PackML.Tests
                 ProcessedCounts = [null!]
             }, extents), Throws.ArgumentException);
             Assert.That(node.MachDesignSpeed.Required().Value, Is.EqualTo(80f));
-            Assert.That(node.ProdProcessedCount.Required().Value.GetStructureArray<PackMLCountDataType>().Count,
+            Assert.That(node.ProdProcessedCount.Required().Value.Count,
                 Is.Zero);
         }
+
+        private static readonly int[] s_stateDimensions = [8, 20];
     }
 }
