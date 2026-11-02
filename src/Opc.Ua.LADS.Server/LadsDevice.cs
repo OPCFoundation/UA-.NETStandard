@@ -538,6 +538,22 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Organizes the Operational FunctionalGroups of the functions once the nodes have NodeIds.
+        /// </summary>
+        internal void OrganizeOperationalGroups()
+        {
+            LadsFunctionalUnit[] units;
+            lock (m_lock)
+            {
+                units = [.. m_units];
+            }
+            foreach (LadsFunctionalUnit unit in units)
+            {
+                unit.OrganizeOperationalGroups();
+            }
+        }
+
+        /// <summary>
         /// Moves the published device to its initial state and operation mode.
         /// </summary>
         public ValueTask StartAsync(CancellationToken cancellationToken)
@@ -694,13 +710,11 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
-        /// Attaches a building block to the MachineryBuildingBlocks folder.
+        /// Adds a building block to the MachineryBuildingBlocks folder and points the device's
+        /// <c>HasAddIn</c> reference, which the type declares next to the folder, at the instance
+        /// instead of the declaration.
         /// </summary>
         /// <typeparam name="T">The node type.</typeparam>
-        /// <summary>
-        /// Adds a building block to the folder and points the device's <c>HasAddIn</c> reference,
-        /// which the type declares next to the folder, at the instance instead of the declaration.
-        /// </summary>
         private T AddBlock<T>(FolderState folder, uint declarationId, T block)
             where T : BaseInstanceState
         {
