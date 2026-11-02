@@ -174,10 +174,6 @@ namespace Opc.Ua
         /// </param>
         public void SetSeverity(ISystemContext context, EventSeverity severity, bool clearChangeMasks)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             ConditionVariableState<ushort> lastSeverity = LastSeverity!; // condition states always have LastSeverity after construction
             PropertyState<ushort> severityProp = Severity!; // condition states always have Severity after construction
             lastSeverity.Value = severityProp.Value;

@@ -224,6 +224,73 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Preserves context-free attribute updates and forwards the notification context unchanged.
+        /// </summary>
+        [TestCase("active")]
+        [TestCase("acknowledged")]
+        [TestCase("latched")]
+        [TestCase("silenced")]
+        [TestCase("severity")]
+        public void ConditionSettersPreserveContextFreeNotifications(string attribute)
+        {
+            var alarm = new AlarmConditionState(m_telemetry, null!);
+            alarm.Create(m_context, new NodeId(1u), QualifiedName.From("Alarm"), default, true);
+            alarm.SetEnableState(m_context, true);
+            alarm.SetAcknowledgedState(m_context, false);
+            alarm.LatchedState = new TwoStateVariableState(alarm);
+            alarm.LatchedState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.LatchedState), default, true);
+            alarm.SilenceState = new TwoStateVariableState(alarm);
+            alarm.SilenceState.Create(
+                m_context, default, QualifiedName.From(BrowseNames.SilenceState), default, true);
+            alarm.ClearChangeMasks(m_context, true);
+            BaseVariableState observed = attribute switch
+            {
+                "active" => alarm.ActiveState!.Id!,
+                "acknowledged" => alarm.AckedState!.Id!,
+                "latched" => alarm.LatchedState.Id!,
+                "silenced" => alarm.SilenceState.Id!,
+                _ => alarm.Severity!
+            };
+            int notifications = 0;
+            observed.StateChanged += (context, _, _) =>
+            {
+                Assert.That(context, Is.Null);
+                notifications++;
+            };
+            switch (attribute)
+            {
+                case "active":
+                    alarm.SetActiveState(null!, true);
+                    break;
+                case "acknowledged":
+                    alarm.SetAcknowledgedState(null!, true);
+                    break;
+                case "latched":
+                    alarm.SetLatchedState(null!, true);
+                    break;
+                case "silenced":
+                    alarm.SetSilenceState(null!, true);
+                    break;
+                default:
+                    alarm.SetSeverity(null!, EventSeverity.High);
+                    break;
+            }
+            if (attribute == "severity")
+            {
+                Assert.That(observed.Value.TryGetValue(out ushort severity), Is.True);
+                Assert.That(severity, Is.EqualTo((ushort)EventSeverity.High));
+            }
+            else
+            {
+                Assert.That(observed.Value.TryGetValue(out bool state), Is.True);
+                Assert.That(state, Is.True);
+            }
+            Assert.That(notifications, Is.EqualTo(1));
+            Assert.That(observed.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        /// <summary>
         /// Retention can still be derived while state-change notifications are deferred.
         /// </summary>
         [Test]

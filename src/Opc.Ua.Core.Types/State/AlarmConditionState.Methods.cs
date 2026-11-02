@@ -76,10 +76,6 @@ namespace Opc.Ua
         /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
         public void SetSilenceState(ISystemContext context, bool silenced, bool clearChangeMasks)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             if (SilenceState is not { } silenceState)
             {
                 return;
@@ -162,10 +158,6 @@ namespace Opc.Ua
         /// <param name="clearChangeMasks">Whether to notify state observers now.</param>
         public void SetLatchedState(ISystemContext context, bool latched, bool clearChangeMasks)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             if (LatchedState is not { } latchedState)
             {
                 return;

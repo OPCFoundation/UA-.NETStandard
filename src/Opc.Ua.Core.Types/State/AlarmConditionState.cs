@@ -168,10 +168,6 @@ namespace Opc.Ua
         public void SetActiveState(
             ISystemContext context, bool active, bool clearChangeMasks, bool updateRetainState)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             if (!clearChangeMasks && !active && ShelvingState != null && m_oneShot)
             {
                 throw new InvalidOperationException("One-shot unshelving cannot defer its transition notifications.");

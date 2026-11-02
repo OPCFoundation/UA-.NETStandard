@@ -71,10 +71,6 @@ namespace Opc.Ua
         public void SetAcknowledgedState(
             ISystemContext context, bool acknowledged, bool clearChangeMasks, bool updateRetainState)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
             if (acknowledged)
             {
                 UpdateStateAfterAcknowledge(context);
