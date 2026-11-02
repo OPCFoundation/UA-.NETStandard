@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Correcting preview onboarding ticket APIs](#correcting-preview-onboarding-ticket-apis)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -70,6 +71,22 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Correcting preview onboarding ticket APIs
+
+Part 21 `EncodedTicket` is a String subtype. Applications using the earlier
+2.0 preview onboarding APIs must pass signed JSON envelopes as
+`ArrayOf<string>`, not `ArrayOf<ByteString>`. The obsolete `OnboardingClient`
+byte-input overloads decode UTF-8 before sending String values; invalid UTF-8
+throws locally. They do not preserve the incorrect ByteString wire format.
+This correction does not replace an onboarding API from 1.5.378.
+
+Server hosts must pass an `IOnboardingTicketValidator` when calling
+`BindToTicketStore`. The obsolete overload without a validator rejects
+registration with `BadConfigurationError` instead of storing unverified
+tickets. Register authority stores through `AddOnboardingTickets` and resolve
+the validator from dependency injection, or construct it with an explicit
+trust provider. See [onboarding configuration](GDS.md#opc-10000-21-onboardingclient).
 
 ## Program state numbers and managed execution
 

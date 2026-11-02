@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -38,8 +39,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
+using OnboardingClientSample;
 
 try
 {
@@ -49,6 +53,15 @@ try
     builder.Logging.AddConsole();
     builder.Logging.SetMinimumLevel(LogLevel.Error);
 
+    int timeoutSeconds = 90;
+    string? configuredTimeout = builder.Configuration["operationTimeoutSeconds"];
+    if (configuredTimeout != null &&
+        (!int.TryParse(configuredTimeout, out timeoutSeconds) || timeoutSeconds is < 1 or > 3600))
+    {
+        throw new ArgumentException("--operationTimeoutSeconds must be an integer from 1 to 3600.");
+    }
+    using var operation = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+    CancellationToken ct = operation.Token;
     string endpoint = builder.Configuration["endpoint"] ??
         "opc.tcp://localhost:62560/OnboardingRegistrar";
     string pkiRoot = builder.Configuration["pkiRoot"] ??
@@ -59,6 +72,7 @@ try
     bool useAnonymous = bool.TryParse(
         builder.Configuration["anonymous"],
         out bool anonymous) && anonymous;
+    bool runPull = bool.TryParse(builder.Configuration["pull"], out bool pull) && pull;
     IClientIdentityProvider? identityProvider = null;
     if (!useAnonymous)
     {
@@ -74,7 +88,7 @@ try
             await passwordStore.SetAsync(
                     passwordId,
                     passwordBytes,
-                    CancellationToken.None)
+                    ct)
                 .ConfigureAwait(false);
         }
         finally
@@ -92,12 +106,13 @@ try
         .AddClient(options =>
         {
             options.ApplicationName = "OnboardingClient";
+            options.SubjectName = Utils.ReplaceDCLocalhost("CN=OnboardingClient, O=OPC Foundation, DC=localhost");
             options.ApplicationUri =
                 "urn:localhost:OPCFoundation:OnboardingClient";
             options.ProductUri =
                 "uri:opcfoundation.org:UA-.NETStandard:OnboardingClient";
             options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = true;
+            options.AutoAcceptUntrustedCertificates = false;
             options.RejectSHA1SignedCertificates = true;
             options.MinimumCertificateKeySize = 2048;
             options.Session = new ManagedSessionOptions
@@ -116,78 +131,136 @@ try
     {
         clientBuilder.AddIdentityProvider(identity => identity.Add(identityProvider));
     }
-    clientBuilder
-        .AddGdsClient()
-        .AddOnboardingClient();
+    IGdsClientBuilder gds = clientBuilder.AddGdsClient().AddOnboardingClient();
+    if (runPull)
+    {
+        builder.Services.AddSingleton(services => new OnboardingDeviceCredentials(
+            services.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+            services.GetRequiredService<ITelemetryContext>(),
+            services.GetServices<ICertificateStoreProvider>().ToArray().ToArrayOf()));
+        builder.Services.AddSingleton<IPullDcaIdentityProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        builder.Services.AddSingleton<IPullDcaCredentialProvider>(services =>
+            services.GetRequiredService<OnboardingDeviceCredentials>());
+        gds.AddPullDcaWorkflow();
+    }
 
     using IHost host = builder.Build();
-    await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
+    if (bool.TryParse(builder.Configuration["prepareTickets"], out bool prepareTickets) && prepareTickets)
+    {
+        string registrarPkiRoot = builder.Configuration["registrarPkiRoot"] ??
+            throw new InvalidOperationException("Set --registrarPkiRoot when preparing demo certificates.");
+        string trustPath = builder.Configuration["ticketAuthorityTrustPath"] ??
+            throw new InvalidOperationException("Set --ticketAuthorityTrustPath when preparing demo tickets.");
+        await OnboardingDemoTickets.PrepareAsync(
+            pkiRoot, registrarPkiRoot, trustPath, builder.Configuration["untrustedClientPkiRoot"],
+            host.Services.GetRequiredService<ITelemetryContext>(),
+            ct)
+            .ConfigureAwait(false);
+        Console.WriteLine("ONBOARDING_TICKETS_READY");
+        return 0;
+    }
+    await host.StartAsync(ct).ConfigureAwait(false);
     try
     {
         Func<CancellationToken, Task<ManagedSession>> connect =
             host.Services.GetRequiredService<
                 Func<CancellationToken, Task<ManagedSession>>>();
-        ManagedSession session = await connect(CancellationToken.None)
+        ManagedSession session = await connect(ct)
             .ConfigureAwait(false);
-        await using (session.ConfigureAwait(false))
+        if (runPull)
         {
-            Console.WriteLine("Server namespaces:");
-            for (int i = 0; i < session.NamespaceUris.Count; i++)
+            string ticketPath = builder.Configuration["deviceTicket"] ??
+                throw new InvalidOperationException("Set --deviceTicket to this device's signed ticket.");
+            ApplicationConfiguration configuration = await host.Services
+                .GetRequiredService<IOpcUaApplicationConfigurationProvider>().GetAsync(ct)
+                .ConfigureAwait(false);
+            ICertificateManager certificates = configuration.CertificateManager ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            using CertificateEntry identity = certificates.AcquireApplicationCertificateByType(
+                ObjectTypeIds.RsaSha256ApplicationCertificateType) ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError);
+            var issuerBytes = new ByteString[identity.IssuerChain.Count];
+            for (int i = 0; i < issuerBytes.Length; i++)
             {
-                Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
+                issuerBytes[i] = ByteString.From(identity.IssuerChain[i].RawData.AsSpan());
             }
-            NodeId registrarId = ExpandedNodeId.ToNodeId(
-                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
-                session.NamespaceUris);
-            if (registrarId.IsNull)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown,
-                    "The server did not publish the OPC 10000-21 namespace.");
-            }
-
-            Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
-                createOnboardingClient = host.Services.GetRequiredService<
-                    Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
-            OnboardingClient onboarding = await createOnboardingClient(
-                    registrarId,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
-            ArrayOf<ByteString> tickets =
-            [
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-one")),
-                new ByteString(Encoding.UTF8.GetBytes("demo-ticket-two"))
-            ];
-
-            ArrayOf<StatusCode> registered = await onboarding
-                .RegisterTicketsAsync(tickets)
-                .ConfigureAwait(false);
-            RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
-            RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
-            Console.WriteLine(
-                $"REGISTER {registered[0]} {registered[1]}");
-
-            ArrayOf<StatusCode> removed = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
-            Console.WriteLine($"UNREGISTER {removed[0]}");
-
-            ArrayOf<StatusCode> removedAgain = await onboarding
-                .UnregisterTicketsAsync([tickets[0]])
-                .ConfigureAwait(false);
-            RequireStatus(
-                removedAgain,
-                0,
-                StatusCodes.BadNotFound,
-                "unregister ticket one again");
-            Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
-            Console.WriteLine("ONBOARDING_DEMO_OK");
+            NodeId deviceRegistrar = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar, session.NamespaceUris);
+            NodeId directory = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory, session.NamespaceUris);
+            NodeId group = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, session.NamespaceUris);
+            var registrar = new PullDcaRegistrar(new Uri(endpoint), deviceRegistrar, directory);
+            var offer = new PullDcaIdentityOffer(
+                [ByteString.From(identity.Certificate.RawData.AsSpan())], issuerBytes,
+                [await File.ReadAllTextAsync(ticketPath, ct).ConfigureAwait(false)]);
+            var request = new PullDcaRequest(offer,
+                new PullDcaCertificateProfile(group, ObjectTypeIds.RsaSha256ApplicationCertificateType), []);
+            PullDcaResult result = await host.Services.GetRequiredService<PullDcaWorkflow>()
+                .RunAsync(registrar, request, cancellationToken: ct).ConfigureAwait(false);
+            Console.WriteLine($"PULL_DCA_INSTALLED {result.Identity.ApplicationId}");
+            return 0;
         }
+        Console.WriteLine("Server namespaces:");
+        for (int i = 0; i < session.NamespaceUris.Count; i++)
+        {
+            Console.WriteLine($"  ns={i}: {session.NamespaceUris.GetString((uint)i)}");
+        }
+        NodeId registrarId = ExpandedNodeId.ToNodeId(
+            Opc.Ua.Onboarding.ObjectIds.DeviceRegistrar_Administration,
+            session.NamespaceUris);
+        if (registrarId.IsNull)
+        {
+            throw new ServiceResultException(
+                StatusCodes.BadNodeIdUnknown,
+                "The server did not publish the OPC 10000-21 namespace.");
+        }
+
+        Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>
+            createOnboardingClient = host.Services.GetRequiredService<
+                Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>>();
+        OnboardingClient onboarding = await createOnboardingClient(
+                registrarId,
+                ct)
+            .ConfigureAwait(false);
+        ArrayOf<string> tickets =
+        [
+            await File.ReadAllTextAsync(Path.Combine(pkiRoot, "ticket-1.json"), ct).ConfigureAwait(false),
+            await File.ReadAllTextAsync(Path.Combine(pkiRoot, "ticket-2.json"), ct).ConfigureAwait(false)
+        ];
+
+        ArrayOf<StatusCode> registered = await onboarding
+            .RegisterTicketsAsync(tickets, ct)
+            .ConfigureAwait(false);
+        RequireStatus(registered, 0, StatusCodes.Good, "register ticket one");
+        RequireStatus(registered, 1, StatusCodes.Good, "register ticket two");
+        Console.WriteLine(
+            $"REGISTER {registered[0]} {registered[1]}");
+        ArrayOf<StatusCode> invalid = await onboarding.RegisterTicketsAsync(["{}"], ct).ConfigureAwait(false);
+        RequireStatus(invalid, 0, StatusCodes.BadTicketInvalid, "reject malformed ticket");
+        Console.WriteLine($"INVALID_TICKET_REJECTED {invalid[0]}");
+
+        ArrayOf<StatusCode> removed = await onboarding
+            .UnregisterTicketsAsync([tickets[0]], ct)
+            .ConfigureAwait(false);
+        RequireStatus(removed, 0, StatusCodes.Good, "unregister ticket one");
+        Console.WriteLine($"UNREGISTER {removed[0]}");
+
+        ArrayOf<StatusCode> removedAgain = await onboarding
+            .UnregisterTicketsAsync([tickets[0]], ct)
+            .ConfigureAwait(false);
+        RequireStatus(
+            removedAgain,
+            0,
+            StatusCodes.BadNotFound,
+            "unregister ticket one again");
+        Console.WriteLine($"UNREGISTER_AGAIN {removedAgain[0]}");
+        Console.WriteLine("ONBOARDING_DEMO_OK");
     }
     finally
     {
-        await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
+        using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await host.StopAsync(cleanup.Token).ConfigureAwait(false);
     }
     return 0;
 }

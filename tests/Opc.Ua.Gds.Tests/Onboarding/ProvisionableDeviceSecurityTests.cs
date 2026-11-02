@@ -1,0 +1,724 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ * ======================================================================*/
+
+using System;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
+using Opc.Ua.Server.Hosting;
+using Opc.Ua.Tests;
+using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
+
+namespace Opc.Ua.Gds.Tests.Onboarding
+{
+    /// <summary>
+    /// Verifies actual-peer ownership, installed trust, interrupted installation, and security-only reset.
+    /// Platform installation is mocked; these are not endpoint-switching or durable-backend integration tests.
+    /// </summary>
+    [TestFixture]
+    [Category("Onboarding")]
+    public sealed class ProvisionableDeviceSecurityTests
+    {
+        /// <summary>
+        /// Creates real certificates without relying on fixed secrets or physical certificate stores.
+        /// </summary>
+        [OneTimeSetUp]
+        public void CreateCertificates()
+        {
+            m_firstRegistrar = CreateCertificate("urn:first:registrar");
+            m_otherRegistrar = CreateCertificate("urn:other:registrar");
+            m_dca = CreateCertificate(kApplicationUri);
+        }
+
+        /// <summary>
+        /// Creates isolated state and explicit validation/installation collaborators for each case.
+        /// </summary>
+        [SetUp]
+        public void SetUp()
+        {
+            m_secrets = new InMemorySecretStore();
+            m_certificates = new Mock<ICertificateManager>(MockBehavior.Strict);
+            m_certificates.Setup(c => c.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CertificateValidationResult.Success);
+            m_installer = new Mock<IProvisionableDeviceSecurityInstaller>(MockBehavior.Strict);
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            m_installer.Setup(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+        }
+
+        /// <summary>
+        /// Releases the independently owned certificate handles.
+        /// </summary>
+        [OneTimeTearDown]
+        public void DisposeCertificates()
+        {
+            m_firstRegistrar.Dispose();
+            m_otherRegistrar.Dispose();
+            m_dca.Dispose();
+        }
+
+        /// <summary>
+        /// Installation intent survives a failed installer and is bound to the peer that authenticated the channel.
+        /// </summary>
+        [Test]
+        public async Task FailedInstallationPinsActualPeerAcrossAdapterRestart()
+        {
+            var failure = new IOException("Device install interrupted.");
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Throws(failure);
+            using (var first = Create())
+            {
+                IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(failure));
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Installing));
+            }
+            using var restarted = Create();
+            await restarted.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Even the original registrar cannot change material while its previous installation remains unresolved.
+        /// </summary>
+        [Test]
+        public async Task PendingInstallationRejectsDifferentMaterialFromOriginalPeer()
+        {
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Throws(new IOException("Pending install."));
+            using var security = Create();
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false));
+            ProvisionableDeviceCredentials changed = Credentials();
+            changed.TrustList.TrustedCertificates = [Encoded(m_otherRegistrar)];
+
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallAsync(Context(m_firstRegistrar), changed).ConfigureAwait(false));
+
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installing));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// A later registrar must be validated against installed trust, never the replacement trust it supplies.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SubsequentRegistrarUsesInstalledTrustRatherThanPermanentFirstLeafPin(bool trusted)
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            int peerChecks = 0;
+            m_certificates.Setup(c => c.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .Returns((CertificateCollection chain, TrustListIdentifier? _, ValidationOptions? options,
+                    CancellationToken _) =>
+                {
+                    if (chain[0].RawData.AsSpan().SequenceEqual(m_otherRegistrar.RawData))
+                    {
+                        peerChecks++;
+                        Assert.That(options!.TrustScope!.TrustedCertificates,
+                            Is.EqualTo(new[] { Encoded(m_firstRegistrar), Encoded(m_dca) }.ToArrayOf()));
+                        Assert.That(options.AutoAcceptUntrustedCertificates, Is.False);
+                        Assert.That(options.RecordRejectedCertificates, Is.False);
+                        Assert.That(options.AcceptError!(m_otherRegistrar,
+                            new ServiceResult(StatusCodes.BadCertificateUntrusted)), Is.False);
+                        return Task.FromResult(trusted ? CertificateValidationResult.Success :
+                            new CertificateValidationResult(false, StatusCodes.BadCertificateUntrusted, [], false));
+                    }
+                    return Task.FromResult(CertificateValidationResult.Success);
+                });
+            ProvisionableDeviceCredentials proposed = Credentials();
+            proposed.TrustList.TrustedCertificates = [Encoded(m_otherRegistrar), Encoded(m_dca)];
+
+            if (trusted)
+            {
+                await security.InstallAsync(Context(m_otherRegistrar), proposed).ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await security.InstallAsync(Context(m_otherRegistrar), proposed).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            }
+
+            Assert.That(peerChecks, Is.EqualTo(1));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(trusted ? 2 : 1));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+        }
+
+        /// <summary>
+        /// Publication must precede platform effects; a failure after effects leaves a recoverable pending record.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task CheckpointPublicationFailurePreservesRecoverableOrdering(int failWrite)
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            int writes = 0;
+            var failure = new IOException("Checkpoint publication unavailable.");
+            storage.Setup(s => s.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken ct) =>
+                {
+                    if (++writes == failWrite)
+                    {
+                        throw failure;
+                    }
+                    return m_secrets.SetAsync(id, bytes, ct);
+                });
+            using (var first = Create(storage.Object))
+            {
+                IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false));
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(failWrite == 1 ? ProvisionableDeviceSecurityStage.Unconfigured :
+                        ProvisionableDeviceSecurityStage.Installing));
+            }
+            using var restarted = Create();
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(failWrite == 1 ? ProvisionableDeviceSecurityStage.Unconfigured :
+                    ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(failWrite == 1 ? 0 : 2));
+        }
+
+        /// <summary>
+        /// Failed security reset blocks onboarding until startup recovery completes the same reset.
+        /// </summary>
+        [Test]
+        public async Task InterruptedResetIsRecoveredBeforeAnotherRegistrarCanInstall()
+        {
+            using (var first = Create())
+            {
+                await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                m_installer.Setup(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                    .Throws(new IOException("Security reset interrupted."));
+                await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.ResetToServerDefaultsAsync().ConfigureAwait(false));
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Resetting));
+                ServiceResultException? blocked = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await first.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false));
+                Assert.That(blocked!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await first.InstallAsync(Context(m_otherRegistrar), Credentials()).ConfigureAwait(false));
+            }
+            m_installer.Setup(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            using var restarted = Create();
+
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            await restarted.InstallAsync(Context(m_otherRegistrar), Credentials()).ConfigureAwait(false);
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// No reset side effect occurs unless its reset intent was published.
+        /// </summary>
+        [Test]
+        public async Task ResetIntentPublicationFailureDoesNotResetPlatformSecurity()
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            storage.Setup(s => s.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Throws(new IOException("Reset checkpoint unavailable."));
+            using var security = Create(storage.Object);
+
+            await Assert.ThrowsAsync<IOException>(async () =>
+                await security.ResetToServerDefaultsAsync().ConfigureAwait(false));
+
+            m_installer.Verify(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+        }
+
+        /// <summary>
+        /// Recovery repeats a completed platform reset only when its completion checkpoint did not commit.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResetCompletionPublicationFailurePreservesRecoverableState(bool committed)
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            int writes = 0;
+            var failure = new IOException("Reset completion response lost.");
+            storage.Setup(s => s.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken ct) =>
+                {
+                    if (++writes == 2)
+                    {
+                        if (committed)
+                        {
+                            await m_secrets.SetAsync(id, bytes, ct).ConfigureAwait(false);
+                        }
+                        throw failure;
+                    }
+                    await m_secrets.SetAsync(id, bytes, ct).ConfigureAwait(false);
+                });
+            using (var first = Create(storage.Object))
+            {
+                IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.ResetToServerDefaultsAsync().ConfigureAwait(false));
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(await first.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(committed ? ProvisionableDeviceSecurityStage.Unconfigured :
+                        ProvisionableDeviceSecurityStage.Resetting));
+                if (!committed)
+                {
+                    ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await first.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+                    Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                }
+            }
+            using var restarted = Create();
+
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+            m_installer.Verify(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()),
+                Times.Exactly(committed ? 1 : 2));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// An installer cannot mutate the public credential snapshot retained for recovery.
+        /// </summary>
+        [Test]
+        public async Task InstallerMutationCannotChangePersistedTrust()
+        {
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Callback<ProvisionableDeviceCredentials, CancellationToken>((credentials, _) =>
+                    credentials.TrustList.TrustedCertificates = [])
+                .Returns(default(ValueTask));
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            ArrayOf<ByteString> observed = default;
+            m_certificates.Setup(c => c.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .Callback<CertificateCollection, TrustListIdentifier?, ValidationOptions?, CancellationToken>(
+                    (_, _, options, _) => observed = options!.TrustScope!.TrustedCertificates)
+                .ReturnsAsync(CertificateValidationResult.Success);
+
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+
+            Assert.That(observed, Is.EqualTo(Credentials().TrustList.TrustedCertificates));
+        }
+
+        /// <summary>
+        /// Incomplete trust or a certificate for a different application cannot claim the device.
+        /// </summary>
+        [TestCase("trust")]
+        [TestCase("uri")]
+        [TestCase("chain")]
+        public async Task InvalidCredentialsDoNotClaimOrInstall(string failure)
+        {
+            using var security = Create();
+            ProvisionableDeviceCredentials credentials = failure == "uri"
+                ? Credentials() with { Certificate = Encoded(m_otherRegistrar) }
+                : Credentials();
+            if (failure == "trust")
+            {
+                credentials.TrustList.SpecifiedLists = (uint)TrustListMasks.TrustedCertificates;
+            }
+            if (failure == "chain")
+            {
+                m_certificates.Setup(c => c.ValidateAsync(
+                        It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                        It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CertificateValidationResult(
+                        false, StatusCodes.BadCertificateUntrusted, [], false));
+            }
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallAsync(Context(m_firstRegistrar), credentials).ConfigureAwait(false));
+
+            StatusCode expected = failure switch
+            {
+                "uri" => StatusCodes.BadCertificateUriInvalid,
+                "chain" => StatusCodes.BadCertificateUntrusted,
+                _ => StatusCodes.BadSecurityChecksFailed
+            };
+            Assert.That(error!.StatusCode, Is.EqualTo(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(i => i.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Cancellation before publication does not call either platform operation or change the device state.
+        /// </summary>
+        [Test]
+        public async Task PreCancelledOperationsDoNotChangeDeviceSecurity()
+        {
+            using var security = Create();
+            using var cancellation = new CancellationTokenSource();
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await security.InstallAsync(Context(m_firstRegistrar), Credentials(), cancellation.Token)
+                    .ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await security.RecoverAsync(cancellation.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await security.ResetToServerDefaultsAsync(cancellation.Token).ConfigureAwait(false));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// An install cannot race a local physical reset; the reset runs after the installer has drained.
+        /// </summary>
+        [Test]
+        public async Task PhysicalResetSerializesWithInFlightInstallation()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_installer.Setup(i => i.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ProvisionableDeviceCredentials _, CancellationToken ct) =>
+                {
+                    entered.SetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                });
+            using var security = Create();
+            Task install = security.InstallAsync(Context(m_firstRegistrar), Credentials()).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            Task reset = security.ResetToServerDefaultsAsync().AsTask();
+            bool resetWasPending = !reset.IsCompleted;
+            release.SetResult(true);
+            await install.ConfigureAwait(false);
+            await reset.ConfigureAwait(false);
+
+            Assert.That(resetWasPending, Is.True);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Persisted corruption cannot enable another registrar, erase a previous installation, or run a reset.
+        /// </summary>
+        [TestCase("truncated")]
+        [TestCase("version")]
+        [TestCase("application")]
+        [TestCase("stage")]
+        [TestCase("trailing")]
+        public async Task CorruptCheckpointRejectsRecoveryRegistrarAccessAndReset(string corruption)
+        {
+            Mock<ISecretStore> storage = ForwardStorage();
+            SecretIdentifier captured = default;
+            byte[] original = [];
+            storage.Setup(s => s.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, ReadOnlyMemory<byte> bytes, CancellationToken ct) =>
+                {
+                    captured = id;
+                    original = bytes.ToArray();
+                    return m_secrets.SetAsync(id, bytes, ct);
+                });
+            using (var first = Create(storage.Object))
+            {
+                await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            }
+            byte[] damaged;
+            if (corruption is "version" or "application" or "stage")
+            {
+                using var buffer = new MemoryStream();
+                using (var encoder = new BinaryEncoder(
+                    buffer, ServiceMessageContext.Create(NUnitTelemetryContext.Create()), true))
+                {
+                    encoder.WriteUInt32(null, corruption == "version" ? 9u : 1u);
+                    encoder.WriteString(null, corruption == "application" ? "urn:other:dca" : kApplicationUri);
+                    encoder.WriteInt32(null, corruption == "stage" ? 99 : 0);
+                }
+                damaged = buffer.ToArray();
+            }
+            else
+            {
+                damaged = corruption == "truncated" ? original.Take(5).ToArray() :
+                    original.Concat(new byte[] { 1 }).ToArray();
+            }
+            await m_secrets.SetAsync(captured, damaged).ConfigureAwait(false);
+            m_installer.Invocations.Clear();
+            using var restarted = Create();
+
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await restarted.RecoverAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await restarted.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await restarted.ResetToServerDefaultsAsync().ConfigureAwait(false));
+
+            using ISecret? retained = await m_secrets.GetAsync(captured).ConfigureAwait(false);
+            Assert.That(retained!.Bytes.ToArray(), Is.EqualTo(damaged));
+            m_installer.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A role label, unencrypted channel, missing peer, or missing session cannot start installation.
+        /// </summary>
+        [TestCase("role")]
+        [TestCase("encryption")]
+        [TestCase("peer")]
+        [TestCase("session")]
+        public async Task InstallationRequiresAuthenticatedEncryptedSessionAndSecurityAdmin(string failure)
+        {
+            using var security = Create();
+            SessionSystemContext context = Context(m_firstRegistrar, failure);
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallAsync(context, Credentials()).ConfigureAwait(false));
+
+            StatusCode expected = failure switch
+            {
+                "encryption" => StatusCodes.BadSecurityModeInsufficient,
+                "peer" => StatusCodes.BadSecurityChecksFailed,
+                _ => StatusCodes.BadUserAccessDenied
+            };
+            Assert.That(error!.StatusCode, Is.EqualTo(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.VerifyNoOtherCalls();
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// The standard server reset path and the application-controlled physical reset resolve the same state owner.
+        /// </summary>
+        [Test]
+        public void FluentRegistrationSharesStandardResetProviderAndRejectsConflicts()
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton<ISecretStore>(m_secrets);
+            services.AddSingleton(m_certificates.Object);
+            services.AddSingleton(m_installer.Object);
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            Assert.That(services.AddProvisionableDeviceSecurity("device", kApplicationUri), Is.SameAs(services));
+            ServiceDescriptor[] before = services.ToArray();
+            Assert.That(() => services.AddProvisionableDeviceSecurity("device", kApplicationUri),
+                Throws.InvalidOperationException);
+            Assert.That(services.ToArray(), Is.EqualTo(before));
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(provider.GetRequiredService<IServerConfigurationResetProvider>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+            Assert.That(provider.GetRequiredService<IProvisionableDeviceSecurity>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+        }
+
+        /// <summary>
+        /// Fluent hosting restores installed credentials in the pre-listener phase and propagates recovery errors.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HostedPreStartupTaskRecoversBeforeOpeningEndpoints(bool installerFails)
+        {
+            using (var first = Create())
+            {
+                await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            }
+            m_installer.Invocations.Clear();
+            var failure = new IOException("Retained installation unavailable.");
+            if (installerFails)
+            {
+                m_installer.Setup(i => i.InstallAsync(
+                        It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                    .Throws(failure);
+            }
+            var services = new ServiceCollection();
+            services.AddSingleton<ISecretStore>(m_secrets);
+            services.AddSingleton(m_certificates.Object);
+            services.AddSingleton(m_installer.Object);
+            services.AddSingleton(NUnitTelemetryContext.Create());
+            services.AddProvisionableDeviceSecurity("device", kApplicationUri);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            IServerPreStartupTask startup = provider.GetServices<IServerPreStartupTask>().Single();
+            m_installer.VerifyNoOtherCalls();
+
+            if (installerFails)
+            {
+                IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
+                    await startup.OnServerStartingAsync(Mock.Of<IServerContext>()).ConfigureAwait(false));
+                Assert.That(actual, Is.SameAs(failure));
+            }
+            else
+            {
+                await startup.OnServerStartingAsync(Mock.Of<IServerContext>()).ConfigureAwait(false);
+            }
+
+            m_installer.Verify(i => i.InstallAsync(
+                It.Is<ProvisionableDeviceCredentials>(c => c.Certificate == Encoded(m_dca)),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(await provider.GetRequiredService<IProvisionableDeviceSecurity>().GetStageAsync()
+                .ConfigureAwait(false), Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+        }
+
+        /// <summary>
+        /// Creates a state machine using the same retained backend on adapter recreation.
+        /// </summary>
+        private ProvisionableDeviceSecurity Create(ISecretStore? secrets = null)
+        {
+            return new(secrets ?? m_secrets, "device", kApplicationUri, m_certificates.Object,
+                m_installer.Object, NUnitTelemetryContext.Create());
+        }
+
+        /// <summary>
+        /// Returns complete independent public credentials and explicit registrar trust.
+        /// </summary>
+        private ProvisionableDeviceCredentials Credentials()
+        {
+            return new(Encoded(m_dca), [], new TrustListDataType
+            {
+                SpecifiedLists = (uint)TrustListMasks.All,
+                TrustedCertificates = [Encoded(m_firstRegistrar), Encoded(m_dca)],
+                IssuerCertificates = [],
+                TrustedCrls = [],
+                IssuerCrls = []
+            });
+        }
+
+        /// <summary>
+        /// Forwards read operations to retained memory with publication controlled by each test.
+        /// </summary>
+        private Mock<ISecretStore> ForwardStorage()
+        {
+            var storage = new Mock<ISecretStore>(MockBehavior.Strict);
+            storage.SetupGet(s => s.StoreType).Returns(m_secrets.StoreType);
+            storage.Setup(s => s.GetAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                .Returns((SecretIdentifier id, CancellationToken ct) => m_secrets.GetAsync(id, ct));
+            return storage;
+        }
+
+        /// <summary>
+        /// Uses real channel certificate bytes; there is no caller-supplied thumbprint argument.
+        /// </summary>
+        private static SessionSystemContext Context(Certificate peer, string failure = "")
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(i => i.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(i => i.GrantedRoleIds)
+                .Returns(failure == "role" ? [] :
+                    new NodeId[] { Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin }.ToArrayOf());
+            var session = new Mock<Opc.Ua.Server.ISession>();
+            session.SetupGet(s => s.Id).Returns(failure == "session" ? NodeId.Null : new NodeId("device-session"));
+            session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
+            var channel = new SecureChannelContext("device-channel", new EndpointDescription
+            {
+                SecurityMode = failure == "encryption" ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            }, RequestEncoding.Binary, failure == "peer" ? ByteString.Empty : Encoded(peer));
+            return new SessionSystemContext(new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object),
+                NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable()
+            };
+        }
+
+        /// <summary>
+        /// Creates an exportable test key with the exact application URI under test.
+        /// </summary>
+        private static Certificate CreateCertificate(string applicationUri)
+        {
+            return CertificateBuilder.Create("CN=Provisionable Device Test")
+                .SetNotBefore(DateTime.UtcNow.AddDays(-1))
+                .SetLifeTime(TimeSpan.FromDays(2))
+                .SetRSAKeySize(2048)
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["localhost"]))
+                .CreateForRSA();
+        }
+
+        /// <summary>
+        /// Returns independently owned public certificate bytes.
+        /// </summary>
+        private static ByteString Encoded(Certificate certificate)
+        {
+            return ByteString.From(certificate.RawData.AsSpan());
+        }
+
+        /// <summary>The URI owned by this DCA.</summary>
+        private const string kApplicationUri = "urn:device:dca";
+        /// <summary>The first registrar's actual channel certificate.</summary>
+        private Certificate m_firstRegistrar = null!;
+        /// <summary>A different registrar's actual channel certificate.</summary>
+        private Certificate m_otherRegistrar = null!;
+        /// <summary>The device's issued DCA certificate.</summary>
+        private Certificate m_dca = null!;
+        /// <summary>The retained memory backend, not a durable-storage demonstration.</summary>
+        private InMemorySecretStore m_secrets = null!;
+        /// <summary>The injected scoped validator.</summary>
+        private Mock<ICertificateManager> m_certificates = null!;
+        /// <summary>The explicitly mocked platform operations.</summary>
+        private Mock<IProvisionableDeviceSecurityInstaller> m_installer = null!;
+    }
+}

@@ -41,6 +41,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Identity;
 using Opc.Ua.Redaction;
 using Opc.Ua.Server;
@@ -283,6 +284,10 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_configurationStore,
                 m_options.AutoApprove,
                 m_enableBuiltInApplicationSelfAdminProvider);
+            m_server.DeviceRegistrarCertificateAuthorization =
+                m_services.GetService<IDeviceRegistrarCertificateAuthorization>();
+            m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
+            m_server.DeviceRegistrarFactory = m_services.GetService<DeviceRegistrarNodeManagerFactory>();
 
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
@@ -707,6 +712,21 @@ namespace Opc.Ua.Gds.Server.Hosting
             public IRoleManager? ConfiguredRoleManager { get; set; }
 
             /// <summary>
+            /// Gets or sets the registrar's optional argument-specific certificate authorization.
+            /// </summary>
+            public IDeviceRegistrarCertificateAuthorization? DeviceRegistrarCertificateAuthorization { get; set; }
+
+            /// <summary>
+            /// Gets or sets the host-owned secret issuance store used for completion retries.
+            /// </summary>
+            public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
+
+            /// <summary>
+            /// Gets or sets the standard registrar namespace factory configured by AddDeviceRegistrar.
+            /// </summary>
+            public DeviceRegistrarNodeManagerFactory? DeviceRegistrarFactory { get; set; }
+
+            /// <summary>
             /// Stages the dependency-injected identity registrations, which
             /// <see cref="OnServerStarted"/> registers after the built-ins.
             /// </summary>
@@ -749,7 +769,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 return ConfiguredRoleManager ?? base.CreateRoleManager(server, configuration);
             }
 
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+            protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
@@ -760,7 +780,11 @@ namespace Opc.Ua.Gds.Server.Hosting
                     m_database,
                     m_request,
                     m_certificateGroup,
-                    m_autoApprove);
+                    m_autoApprove)
+                {
+                    DeviceRegistrarCertificateAuthorization = DeviceRegistrarCertificateAuthorization,
+                    CertificateRequestIssuanceStore = CertificateRequestIssuanceStore
+                };
 
                 if (m_accessTokenProvider != null)
                 {
@@ -774,6 +798,12 @@ namespace Opc.Ua.Gds.Server.Hosting
 
                 var nodeManagers = new List<IAsyncNodeManager> { applications };
 
+                if (DeviceRegistrarFactory != null)
+                {
+                    nodeManagers.Add(await DeviceRegistrarFactory.CreateAsync(
+                        server, configuration, cancellationToken).ConfigureAwait(false));
+                }
+
                 if (m_configurationStore != null)
                 {
                     nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
@@ -783,8 +813,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 }
 
 #pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, nodeManagers, null));
+                return new MasterNodeManager(server, configuration, null, nodeManagers, null);
 #pragma warning restore CA2000
             }
         }

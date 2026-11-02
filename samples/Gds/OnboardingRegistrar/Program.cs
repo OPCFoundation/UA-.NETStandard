@@ -50,9 +50,12 @@ try
     builder.Logging.EnableOpcUaRedaction();
     builder.Logging.AddConsole();
 
-    int port = int.TryParse(builder.Configuration["port"], out int configuredPort)
-        ? configuredPort
-        : 62560;
+    int port = 62560;
+    string? configuredPort = builder.Configuration["port"];
+    if (configuredPort != null && (!int.TryParse(configuredPort, out port) || port is < 1 or > 65535))
+    {
+        throw new ArgumentException("--port must be an integer from 1 to 65535.");
+    }
     string pkiRoot = builder.Configuration["pkiRoot"] ??
         Path.Combine(
             Path.GetTempPath(),
@@ -79,6 +82,10 @@ try
         CryptographicOperations.ZeroMemory(passwordBytes);
     }
     builder.Services.AddSingleton<ITicketStore>(_ => new MemoryTicketStore());
+    builder.Services.AddSingleton<ICertificateManager>(services =>
+    {
+        return new CertificateManager(services.GetRequiredService<ITelemetryContext>());
+    });
     builder.Services.AddSingleton<IUserDatabase>(userDatabase);
     builder.Services.AddSingleton<IUserManagement>(services =>
         new UserManagement(services.GetRequiredService<IUserDatabase>()));
@@ -89,12 +96,13 @@ try
         .AddServer(options =>
         {
             options.ApplicationName = "OnboardingRegistrar";
+            options.SubjectName = Utils.ReplaceDCLocalhost("CN=OnboardingRegistrar, O=OPC Foundation, DC=localhost");
             options.ApplicationUri =
                 "urn:localhost:OPCFoundation:OnboardingRegistrar";
             options.ProductUri =
                 "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
             options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = true;
+            options.AutoAcceptUntrustedCertificates = false;
             options.RejectSHA1Certificates = true;
             options.MinCertificateKeySize = 2048;
             options.IncludeSignAndEncryptPolicies = true;
@@ -119,6 +127,12 @@ try
         })
         .AddIdentityAugmenter(_ =>
             new OnboardingRegistrarAdminAugmenter(userName))
+        .AddOnboardingTickets(
+            Path.Combine(pkiRoot, "ticket-authorities", "trusted"),
+            Path.Combine(pkiRoot, "ticket-authorities", "issuers"))
+        .AddOnboardingIdentities(
+            Path.Combine(pkiRoot, "identity-authorities", "trusted"),
+            Path.Combine(pkiRoot, "identity-authorities", "issuers"))
         .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
 
     using IHost host = builder.Build();

@@ -39,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database;
@@ -60,8 +61,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [NonParallelizable]
     public sealed partial class GdsServerHostedServiceTests
     {
-        [Test]
-        public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry(bool configureReceipts)
         {
             string testRoot = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
@@ -72,6 +74,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             var services = new ServiceCollection();
             var authenticator = new StubAuthenticator();
+            var receipts = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
             using var certificateGroup = new StubCertificateGroup();
             services.AddLogging();
             services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
@@ -79,6 +82,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
             services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
             services.AddSingleton<ICertificateGroup>(certificateGroup);
             services.AddSingleton<IUserDatabase>(new StubUserDatabase());
+            if (configureReceipts)
+            {
+                services.AddSingleton(receipts.Object);
+            }
 
             services.AddOpcUa()
                 .AddGdsServer(options =>
@@ -110,6 +117,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(authenticator.Identity));
                 Assert.That(authenticator.CallCount, Is.EqualTo(1));
+                ApplicationsNodeManager directory = GetServer(hostedService).CurrentInstance.NodeManager
+                    .AsyncNodeManagers.OfType<ApplicationsNodeManager>().Single();
+                Assert.That(directory.CertificateRequestIssuanceStore,
+                    Is.SameAs(configureReceipts ? receipts.Object : null));
+                receipts.VerifyNoOtherCalls();
 
                 // OPC 10000-12 §7.8.3.3: without configured groups the hosted GDS
                 // still serves the mandatory DefaultApplicationGroup.

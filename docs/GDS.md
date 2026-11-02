@@ -164,14 +164,20 @@ NodeId registrarId = ExpandedNodeId.ToNodeId(
 var onboarding = new OnboardingClient(session, registrarId, telemetry);
 ArrayOf<StatusCode> results = await onboarding.RegisterTicketsAsync(
 [
-    new ByteString(firstTicket),
-    new ByteString(secondTicket)
+    firstTicketJson,
+    secondTicketJson
 ]);
 ```
 
 The public contract follows Part 21: tickets are
-`ArrayOf<ByteString>` (`EncodedTicket` is a ByteString subtype), and
+`ArrayOf<string>` (`EncodedTicket` is a String subtype), and
 the per-ticket results are `ArrayOf<StatusCode>`.
+Each string contains the signed JSON envelope, not Base64-encoded JSON.
+This representation is specified in
+[Part 21 v1.05.04 §8.2.1](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/8.2.1)
+and in the matching
+[namespace-zero NodeSet](https://github.com/OPCFoundation/UA-Nodeset/blob/UA-1.05.04-2025-01-08/Schema/Opc.Ua.NodeSet2.xml)
+(`i=25726`, subtype of `i=12`).
 
 On the server, load the generated model and bind the standard
 administration object to an injected ticket store:
@@ -183,11 +189,415 @@ NodeStateCollection nodes = new NodeStateCollection()
 DeviceRegistrarState registrar =
     nodes.OfType<DeviceRegistrarState>().Single();
 
-registrar.Administration!.BindToTicketStore(ticketStore);
+registrar.Administration!.BindToTicketStore(ticketStore, ticketValidator);
 ```
 
-The handlers are asynchronous, pass request cancellation to
-`ITicketStore`, and populate the single declared `Results` output.
+Register ticket services with
+`.AddOnboardingTickets(trustedTicketStorePath, issuerStorePath)` on the
+server or GDS builder, using an injected `ICertificateManager`.
+Resolve `IOnboardingTicketValidator` and pass it to the binding.
+The validator accepts RFC 7515 general JSON serialization with protected
+`alg`, `x5c`, and `cty` headers; a composite builder's signature also
+identifies its composite through `opc-uri`. It decodes the UA payload
+only after a SHA-2 signature and its signing authority have been verified.
+For device-supplied tickets, the signer itself must be explicitly trusted;
+trusting its root CA is sufficient only for tickets supplied out of band.
+
+The handlers pass request cancellation to the validator and `ITicketStore`,
+retain validated ticket metadata, and return a status for each input.
+An invalid ticket returns `BadTicketInvalid` without entering the store.
+The obsolete binding overload without a validator returns
+`BadConfigurationError` for registration; it does not accept unverified
+tickets. Removing a stored ticket does not revoke a device that was
+already accepted.
+
+Bind `TicketAuthorities` and `DeviceIdentityAuthorities` to their managed
+certificate stores through `DeviceRegistrarAuthorityTrustLists`:
+
+```csharp
+var authorityLists = new DeviceRegistrarAuthorityTrustLists(
+    registrar.Administration!, context, certificateManager, server, telemetry);
+```
+
+The node manager retains this binding and disposes it after active requests
+have drained. Both authority lists need registered trusted and issuer store
+paths. The file services use the manager's store resolver and notify the
+manager after trust material changes, so validation does not retain an old
+cached trust decision. A custom manager must implement `ICertificateStoreResolver`;
+the binding does not substitute a process-global resolver. Reads and writes
+require an encrypted authenticated SecureChannel and the `RegistrarAdmin` role;
+the file-service limit is 1 MiB.
+The fluent ticket and identity registrations initialize their authority
+providers before node managers load, including when those providers have not
+otherwise been resolved from the container.
+
+Create a signed ticket with a private key resolved from the certificate store:
+
+```csharp
+var writer = new OnboardingTicketWriter(
+    certificateManager.CertificateProvider, messageContext);
+string ticketJson = await writer.WriteAsync(
+    deviceTicket, signingCertificateId, issuerCertificates);
+```
+
+Supply-chain actors append their signature through `AppendSignatureAsync`.
+Its required callback validates an existing trusted signature before the writer
+accesses the new signing key. Select the validation source according to how
+the actor acquired the ticket:
+
+```csharp
+string countersigned = await writer.AppendSignatureAsync(
+    ticketJson,
+    compositeSigningCertificateId,
+    async (encoded, ct) =>
+        (await ticketValidator.ValidateAsync(
+            encoded, OnboardingTicketSource.OutOfBand, ct)).Ticket,
+    compositeInstanceUri: compositeInstanceUri,
+    ct: cancellationToken);
+```
+
+The writer preserves the encoded payload and every earlier signature, including
+unprotected vendor metadata, and adds `opc-uri` to the new protected header.
+Retaining timestamp metadata does not verify its RFC 3161 timestamp.
+The writer and default reader share limits of 64 signatures, 16 certificates
+per signing chain, and 1,048,576 characters per encoded ticket. Appending a
+signature that would exceed either envelope limit returns `BadTicketInvalid`.
+
+The registrar runtime binds `ProvideIdentities`, `UpdateSoftwareStatus`,
+`RegisterDeviceEndpoint`, `GetManagers`, and `RegisterManagedApplication`
+through `DeviceRegistrarState.BindToRuntime`. Configure it with
+`.AddDeviceRegistrar(configureProviders)` on the server or GDS builder.
+The host supplies its shared GDS application database, lifecycle storage,
+application authorization, push scheduler, manager descriptions, audit
+reporter, identity selector, candidate storage, and onboarding policy.
+The builder rejects missing runtime providers and registers
+`DeviceRegistrarNodeManagerFactory`. The GDS host loads the registrar namespace
+through this factory, binds the runtime and ticket administration, attaches
+the managed authority lists, and restricts registration-event permissions.
+The existing GDS directory retains ownership of its application model nodes.
+Ticket hosting also requires the registered `ITicketStore`,
+`IOnboardingTicketValidator`, and `ICertificateManager`; missing services reject
+factory resolution. A direct host can construct the factory with those
+dependencies. Do not register another node manager for the same onboarding
+namespace.
+
+For an existing GDS application, the runtime records the device relation before
+refreshing shared application metadata. A conflicting relation therefore cannot
+change another device's registration. The GDS database and lifecycle provider
+commit separately: an association can remain if the later metadata update fails,
+and a newly registered GDS entry can remain if recording its relation fails.
+Retries use the same shared application identifier.
+
+`OnboardingIdentitySelector` searches validated out-of-band tickets before
+device-supplied tickets. It matches certificate subjectAltName URIs without
+interpreting unrelated URI names, follows nested composite membership to the
+outermost composite, and rejects product-only certificates for composite
+members. Selection retains the matching device ticket and the containing
+composite's signed envelope separately; a composite membership list cannot
+replace the device ticket or supply additional identity trust anchors.
+Its `IOnboardingIdentityTrustProvider` must validate the selected
+certificate against the authorities in the matching ticket, including the
+applicable revocation checks. Register the default provider and selector through
+`.AddOnboardingIdentities(trustedIdentityStorePath, issuerIdentityStorePath)`.
+The managed `DeviceIdentityAuthorities` list supplies issuer and CRL material;
+only authorities from the accepted matching ticket establish trust for the
+call. A missing revocation list rejects identities with CRL distribution point
+or authority information access extensions. Without either extension, unknown
+revocation status is permitted and the decision is logged.
+Provision issuer certificates and applicable CRLs in the managed stores.
+Ticket validation does not verify RFC 3161 signing timestamps; an expired
+signing authority is rejected rather than accepted on an unverified timestamp.
+
+`ProvideIdentities` requires an authenticated SecureChannel, as specified by
+[Part 21 §9.2.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/9.2.3).
+It records a candidate identity and returns the shared certificate-manager
+application identifier; supplying certificate bytes does not prove possession
+of their private key. The hosted GDS resolves an optional
+`IDeviceRegistrarCertificateAuthorization` registration and installs it on
+`ApplicationsNodeManager` before loading the address space. A direct host sets
+`DeviceRegistrarCertificateAuthorization` on its manager at the same stage.
+The asynchronous new-key, signing-request and completion handlers check the
+selected channel certificate, software approval and persisted application
+ownership. Managed applications also require the stored protocol and current
+host permission; a known device's denial cannot fall back to a GDS administrator
+role. Applications outside the onboarding lifecycle retain the existing GDS
+authorization. Method-level admission does not grant a global GDS role.
+
+Onboarding `FinishRequest` requires an `ICertificateRequestIssuanceStore`;
+without one, completion returns `BadConfigurationError` before issuing a
+certificate. The hosted GDS resolves this service from DI, while a direct host
+sets `ApplicationsNodeManager.CertificateRequestIssuanceStore` before startup.
+The receipt binds the application and request identifiers to the configured
+certificate group, type, certificate, private-key output and issuer chain.
+The handler retains this material before publishing a pending DCA credential.
+While the request remains approved, a retry reuses that material rather than
+generating a different key or certificate.
+
+The receipt provider's `GetOrCreateAsync` contract includes exclusive creation
+and complete publication before returning. All writers sharing its storage
+must observe that contract: a second writer cannot invoke a competing issuance
+factory for the same application and request. A distributed provider therefore
+needs a transaction or cross-writer claim covering lookup, creation and
+publication; transferring a claim must prevent its preceding owner from
+publishing afterward. Published material remains unchanged until explicitly
+removed. Separate `GetAsync` and `SetAsync` calls do not provide this
+guarantee, even when each call uses a transactional backend.
+
+For a single-writer host, register an explicitly selected secret store:
+
+```csharp
+services.AddSecretStoreCertificateRequestIssuanceStore(
+    secretStore, server.NamespaceUris, "gds-database");
+```
+
+`SecretStoreCertificateRequestIssuanceStore` borrows that store and uses
+namespace URIs to retain identifiers across namespace-index changes. Its
+serialization applies within one adapter instance only; exactly one instance
+may own the database scope, including across processes. `ISecretStore` supplies
+neither a cross-writer claim nor a restart-durability guarantee. The host must
+select storage that persists a complete value before `SetAsync` returns, protect
+its contents, and retain the same database scope across restarts.
+`InMemorySecretStore` does not provide restart recovery. Multiple registrar
+writers need a different receipt provider and coordinated request and lifecycle
+transactions; the built-in adapter does not implement HA recovery.
+
+A failure before receipt publication leaves the pending credential unchanged,
+and issuance may repeat on retry. After complete publication, a retry can reuse
+the receipt even if the store committed it but failed to return confirmation.
+A read error or corrupt receipt stops completion without regenerating material.
+The host owns receipt retention and calls `RemoveAsync` only when no completion
+retry needs the receipt. Receipts contain private-key output for new-key
+requests, but do not retain its password. They do not prove installation.
+An accepted request still returns `BadInvalidArgument` before consulting its
+receipt. Recovery of a response lost after server acceptance remains incomplete.
+The client-side receipt described below can retain a response that reached the
+client before a later trust download or installation failure.
+
+DCA delivery retains the issued certificate separately from the active one.
+Authorization compares the server's actual authenticated channel peer certificate
+with the pending certificate; a request-supplied identifier or an authenticated
+channel using the old active credential cannot confirm the replacement.
+Only a matching peer certificate promotes that credential and retires the
+preceding DCA certificate. Restart
+preserves both states. Repeating delivery of the same certificate does not
+change the transition; delivering a different certificate while one is pending
+returns `BadRequestNotAllowed` instead of overwriting an installation in progress.
+Persisting issuance does not by itself prove installation.
+
+The GDS TrustList read path checks the current channel's device and managed
+application relations against the stores assigned in the shared application
+database, then rechecks the application policy. A known device cannot read an
+unrelated group's TrustList through an administrator-role fallback. The
+`TrustList.SetReadAuthorization` callback is awaited on Open, OpenWithMasks,
+Read and Close; installing it disables those methods' synchronous dispatch.
+Write access retains the existing GDS policy, so DCA read authorization cannot
+modify a shared group's trust material. Both device-management workflows still
+need connected host providers and restart/reset support.
+`MemoryDeviceRegistrarLifecycle` retains state only within the current process.
+
+`PullDcaWorkflow` borrows a container-owned `ManagedSession` and uses generated
+registrar and certificate-directory proxies. Its identity and credential
+providers retain private keys, select the returned device identity, and install
+issued credentials through the existing certificate stores; the workflow does
+not close or dispose that session. A required software update invokes the
+configured software manager before certificate issuance.
+
+Certificate polling is bounded by `MaximumFinishAttempts`. When approval remains
+pending, `PullDcaCertificatePendingException` retains the application and request
+identifiers. Persist those identifiers with the original registrar, certificate
+profile and retained private key. `CompleteCertificateRequestAsync` polls that
+same request and installs its result without generating another key or starting
+another request. It does not reconnect the DCA or finish the remaining device
+lifecycle. Polling an already-consumed server request cannot recover a response
+that was never retained locally without the signing-recovery path below.
+
+Register `IPullDcaCertificateReceiptStore` to retain received signing output
+before the workflow downloads trust or invokes the credential installer.
+`CompleteCertificateRequestAsync` then reuses that output without calling
+`FinishRequest` again. The installer remains responsible for validating the
+issued certificate against its retained key and for tolerating repeated
+installation after partial effects. The receipt contains public certificates,
+not the key, TrustList, or proof of installation.
+
+For a single-owner client using an explicitly selected `ISecretStore`, configure
+the receipt adapter on the GDS client builder:
+
+```csharp
+gdsBuilder.AddPullDcaCertificateReceipts(registrarNamespaceUris, "device-receipts")
+    .AddPullDcaWorkflow();
+```
+
+After restoring the original key and channel identity, resume the saved request:
+
+```csharp
+PullDcaWorkflow workflow = provider.GetRequiredService<PullDcaWorkflow>();
+PullDcaCredentials credentials = await workflow.CompleteCertificateRequestAsync(
+    registrar, savedApplicationId, savedRequestId, savedCertificateProfile,
+    cancellationToken: cancellationToken);
+```
+
+The namespace table must match the selected registrar session. The adapter binds
+each receipt to the endpoint, registrar and directory nodes, application,
+request, and certificate profile; namespace URIs preserve those bindings when
+indices change after restart. A profile mismatch, read failure or corrupt
+receipt stops recovery without repeating the network call. The adapter serializes
+one instance only, so one instance must exclusively own its scope across all
+processes. Its 16 MiB binary checkpoint limit supplements the standard codec
+quotas. Storage must publish complete values before returning; restart durability
+depends on the chosen store. A distributed provider must implement the
+interface's exclusive receive-and-publish operation across writers.
+Neither persistence adapter alone can recover an accepted response lost before
+local publication.
+
+[Part 12 §7.9.5](https://reference.opcfoundation.org/specs/OPC-10000-12/v1.05.07/7.9.5)
+defines recovery when a repeated `FinishRequest` returns `Bad_InvalidArgument`
+after a network failure. A client that used `StartSigningRequest` can read the
+currently assigned certificate through `GetCertificates`; a client that used
+`StartNewKeyPairRequest` must start a new key-pair request. `PullDcaWorkflow`
+creates signing requests only. Register an `IPullDcaSigningRecoveryProvider`
+to enable its `GetCertificates` recovery path. Direct construction accepts the
+same optional provider.
+
+The workflow requests certificates for the original application and group,
+requires exactly one assignment for the original certificate type, downloads a
+complete TrustList, and invokes the provider before retaining or installing
+output. The provider must match the retained registrar/request binding, prove
+the original private key, and validate the application URI, certificate validity
+and trust. It must also reject stale assignments: an old certificate with a reused
+public key is not proof that the original request completed. Missing evidence
+must reject recovery. No provider is registered implicitly, and the sample does
+not yet supply retained request evidence. Without this provider,
+`Bad_InvalidArgument` remains visible to the caller; signing-response recovery
+is therefore not complete for the sample.
+
+`ProvisionableDeviceRuntime` supplies the device-side ticket and registrar
+configuration methods without creating a Resources hierarchy. `RequestTickets`
+reads only explicitly configured ticket identifiers, decodes UTF-8 without
+replacement characters, and validates each signed envelope through the injected
+ticket validator. This local check does not replace the remote registrar's
+device-supplied ticket policy. `SetRegistrarEndpoints` requires `SecurityAdmin`
+on an encrypted authenticated channel and publishes detached candidate
+descriptions through `IProvisionableDeviceRegistrarStore`. Storing a discovery
+candidate does not trust its certificate.
+
+For a single-host device, select `FileSystemProvisionableDeviceRegistrarStore`
+before registering the runtime:
+
+```csharp
+services.AddFileSystemProvisionableDeviceRegistrarStore(candidateCheckpointPath, fileSystem);
+services.AddProvisionableDeviceRuntime(isSingleton, ticketIds);
+```
+
+`IProvisionableDeviceRegistrarStore.ReadAsync` returns the persisted candidates
+as detached descriptions for the host's discovery process. The filesystem
+adapter uses the standard UA binary codec, stages and flushes a complete
+checkpoint, then publishes it through `IFileSystem.Replace`. Checkpoints are
+limited to 16 MiB and the codec's standard field quotas. Unknown versions,
+invalid descriptions, trailing content and unreadable files stop reads and
+replacements; the provider does not erase damaged configuration. Clearing the
+candidate list is an explicit empty replacement. One instance must exclusively
+own the protected checkpoint path; this adapter does not coordinate writers
+across processes or guarantee survival of an unflushed operating-system cache
+after power loss. It stores no registrar approval, credential installation
+checkpoint or software state, and does not implement device reset.
+
+Register these services with
+`.AddProvisionableDeviceRuntime(isSingleton, ticketIds)` after registering the
+ticket and persistent registrar-store providers. The owning node manager binds
+an existing `ProvisionableDeviceState` through `BindToRuntime`; singleton binding rejects separate
+`ApplicationConfiguration` components. This registration does not expose a
+device resource. Shared Part 22 Resources integration, endpoint credential
+switching and connected device recovery/reset remain incomplete.
+
+`ProvisionableDeviceSecurity` supplies device-side installation and reset
+orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
+pending checkpoint records the certificate from the actual authenticated
+registrar channel before invoking the installer. If installation fails, only
+that peer can retry the same credentials; another peer or different material
+cannot replace the pending operation. After installation, registrar access is
+validated against the installed TrustList through an isolated certificate
+validation scope. The first registrar's leaf certificate is not a permanent
+restriction: another registrar accepted by installed trust may manage the
+configured device, as specified by
+[Part 21 §7.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.3).
+
+The installer owns the existing private key, certificate-store updates, software
+gate, and switch to DCA-certificate endpoints. It must tolerate replay of the
+same installation. Configure these platform operations explicitly:
+
+```csharp
+services.AddSingleton<IProvisionableDeviceSecurityInstaller>(deviceSecurityInstaller);
+services.AddProvisionableDeviceSecurity("device-security", dcaApplicationUri);
+ProvisionableDeviceSecurity security = provider.GetRequiredService<ProvisionableDeviceSecurity>();
+await security.RecoverAsync(cancellationToken);
+```
+
+Register `ISecretStore`, `ICertificateManager` and telemetry before this
+registration. The fluent registration adds an `IServerPreStartupTask` that calls
+`RecoverAsync` before the standard server creates node managers or opens
+listeners. Recovery errors abort startup. A directly constructed host must call
+`RecoverAsync` before exposing operational endpoints.
+`ProvisionableDeviceRuntime` resolves the optional `IProvisionableDeviceSecurity`
+provider and gates `SetRegistrarEndpoints` through it. The host invokes
+`RequireRegistrarAsync` on its other registrar operations; registration alone
+does not install these gates into an existing device. SecurityAdmin on an
+encrypted authenticated session is required for `InstallAsync`. The state
+adapter has one exclusive scope owner and the same complete-publication and
+durability prerequisites as the client receipt adapter. It does not provide
+distributed coordination.
+
+The same security instance is registered as `IServerConfigurationResetProvider`,
+so the existing configuration node manager retains ownership of network
+authorization, audit reporting and deferred shutdown. An application-controlled
+physical reset can invoke its local `ResetToServerDefaultsAsync` entry point.
+Reset intent is persisted before the platform callback runs; a failed reset
+keeps registrar access disabled, and startup recovery retries it before accepting
+a new registrar. The installer must restore device identity and security defaults
+without deleting installed software. Corrupt checkpoints are reported without
+being erased. The runnable samples do not yet exercise this device-side
+orchestration or prove endpoint switching and reset over real connections.
+
+For a single-host registrar, `FileSystemDeviceRegistrarLifecycle` retains
+identity candidates, active and pending DCA certificate bindings, software approval and
+managed-application relations across restart. Register the same instance for
+the lifecycle contracts:
+
+```csharp
+services.AddFileSystemDeviceRegistrarLifecycle(
+    checkpointPath, server.NamespaceUris, fileSystem);
+```
+
+Select this provider before registering other lifecycle providers; conflicting
+registrations are rejected. Without an explicit `fileSystem`, registration uses
+the container's `IFileSystem`, or the local file system if none is registered.
+
+The provider uses `IFileSystem`, stages a complete checkpoint, and calls its
+indivisible `Replace` operation after writing and flushing the staged content.
+A failed publication leaves the preceding checkpoint authoritative; a corrupt
+checkpoint rejects reads and writes instead of becoming an empty database.
+Namespace URIs preserve application identifiers when namespace indexes change
+after restart. One provider instance must exclusively own the checkpoint path,
+and the host must protect it against unauthorized writes. Multiple writer
+processes and replicated registrars require a transactional lifecycle provider.
+This checkpoint does not implement device-side recovery, reset or certificate
+revocation.
+
+`DeviceRegistrarAuditReporter` reports accepted identities with the exact
+signed ticket envelopes and software status with its revision. It restricts
+the onboarding event hierarchy, including installed subtypes, to `SecurityAdmin`
+receivers. Reporting awaits `IServerInternal.ReportEventAsync`; the native
+event dispatcher checks `ReceiveEvents` on the event type and source node for
+each monitored session before queuing the complete event. Unauthorized sessions
+receive no event, including when its fields contain signed tickets.
+Disabled auditing or broadened event permissions reject reporting;
+the error is returned to the caller. The lifecycle update may already be
+committed when reporting fails; a retry retains the shared application identifier.
+A custom identity selector using this reporter must retain the signed envelopes
+in `OnboardingIdentitySelection`.
+
+The obsolete `OnboardingClient` byte-input overloads decode UTF-8 before
+dispatching String inputs. Invalid UTF-8 is rejected locally; the wire
+representation is never changed back to ByteString.
 See the runnable
 [`samples/Gds` onboarding demo](../samples/Gds/README.md) for a secure
 registrar/client round trip.
@@ -247,6 +657,7 @@ Every pluggable interface and its purpose:
 |-----------|---------|---------|
 | `IApplicationsDatabase` | Application registration store | `LinqApplicationsDatabase` / `JsonApplicationsDatabase` |
 | `ICertificateRequest` | Certificate request lifecycle | `LinqApplicationsDatabase` |
+| `ICertificateRequestIssuanceStore` | Material retained before onboarding request acceptance | Explicit provider required for onboarding |
 | `ICertificateGroup` | CA operations (sign, revoke) | `CertificateGroup` |
 | `IGdsUserDatabase` | User store + ApplicationAdmin bindings | Implement over `LinqUserDatabase` |
 | `IKeyCredentialRequestStore` | KeyCredential lifecycle | `InMemoryKeyCredentialRequestStore` |
@@ -751,7 +1162,7 @@ The following optional Part 12 members are **not** implemented (or only partiall
 | `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `DefaultManagedApplicationsNodeManager` creates the nodes with an `IConfigurationDataStore`; the full GDS-as-proxy update/confirm flow to *remote* managed applications is not complete. |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
-| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | 🔲 provider-gated | Registrar ticket administration is implemented through `OnboardingClient`, `ITicketStore`, and `BindToTicketStore`; the stack does not itself implement the complete device-facing onboarding state machine. |
+| Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection, and registrar runtime bindings are implemented. GDS issuance integration, durable lifecycle storage, and complete pull/push device workflows remain incomplete. |
 
 ## LDS / LDS-ME (§4–5)
 

@@ -33,6 +33,8 @@
     <Compile Include="..\Opc.Ua.Client.Tests\Session\SessionRequestContextTestContext.cs"
              Link="AuthorizationService\SessionRequestContextTestContext.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceServer\GdsNodeManagerFactory.cs" Link="GdsNodeManagerFactory.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingClient\OnboardingDeviceCredentials.cs"
+             Link="Onboarding\OnboardingDeviceCredentials.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

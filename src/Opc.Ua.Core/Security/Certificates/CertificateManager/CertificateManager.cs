@@ -756,12 +756,22 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
+            bool useCache = options == null ||
+                (options.AcceptError == null &&
+                options.AutoAcceptUntrustedCertificates == null &&
+                options.RejectSHA1SignedCertificates == null &&
+                options.RejectUnknownRevocationStatus == null &&
+                options.MinimumCertificateKeySize == null &&
+                options.TrustScope == null &&
+                !options.ValidateForSigning);
             using CertificateValidationCore.Borrow borrow = GetOrCreateCore(
-                trustList, useCache: options?.AcceptError == null);
+                trustList, useCache, options);
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
-                options?.AcceptError ?? m_acceptError;
+                options?.TrustScope != null
+                    ? options.AcceptError ?? (static (_, _) => false)
+                    : options?.AcceptError ?? m_acceptError;
 
             CertificateValidationResult result = await borrow.Core
                 .ValidateAsync(chain, acceptError, options, ct)
@@ -1475,7 +1485,8 @@ namespace Opc.Ua
         /// <exception cref="ObjectDisposedException"></exception>
         private CertificateValidationCore.Borrow GetOrCreateCore(
             TrustListIdentifier trustList,
-            bool useCache = true)
+            bool useCache = true,
+            Security.Certificates.CertificateValidationOptions? options = null)
         {
             lock (m_certificatesLock)
             {
@@ -1497,11 +1508,15 @@ namespace Opc.Ua
                         m_timeProvider);
                     try
                     {
-                        if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
+                        if (options?.TrustScope is { } scope)
+                        {
+                            core.Update(scope);
+                        }
+                        else if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
                         {
                             core.Update(entry.IssuerStore, entry.TrustedStore, rejectedCertificateStore: null);
                         }
-                        ApplyValidationFlags(core);
+                        ApplyValidationFlags(core, options);
                         if (useCache)
                         {
                             ReplaceCachedCore(trustList, core);
@@ -1567,19 +1582,26 @@ namespace Opc.Ua
         /// SecurityConfiguration to a (possibly already-created) core.
         /// Safe to call with a null core.
         /// </summary>
-        private void ApplyValidationFlags(CertificateValidationCore? core)
+        private void ApplyValidationFlags(
+            CertificateValidationCore? core,
+            Security.Certificates.CertificateValidationOptions? options = null)
         {
             if (core == null)
             {
                 return;
             }
 
-            core.AutoAcceptUntrustedCertificates = m_autoAcceptUntrustedCertificates;
-            core.RejectSHA1SignedCertificates = m_rejectSHA1SignedCertificates;
-            core.RejectUnknownRevocationStatus = m_rejectUnknownRevocationStatus;
-            if (m_minimumCertificateKeySize > 0)
+            core.AutoAcceptUntrustedCertificates =
+                options?.AutoAcceptUntrustedCertificates ??
+                (options?.TrustScope == null && m_autoAcceptUntrustedCertificates);
+            core.RejectSHA1SignedCertificates =
+                options?.RejectSHA1SignedCertificates ?? m_rejectSHA1SignedCertificates;
+            core.RejectUnknownRevocationStatus =
+                options?.RejectUnknownRevocationStatus ?? m_rejectUnknownRevocationStatus;
+            ushort minimumKeySize = options?.MinimumCertificateKeySize ?? m_minimumCertificateKeySize;
+            if (minimumKeySize > 0)
             {
-                core.MinimumCertificateKeySize = m_minimumCertificateKeySize;
+                core.MinimumCertificateKeySize = minimumKeySize;
             }
             core.UseValidatedCertificates = m_useValidatedCertificates;
         }

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -94,10 +95,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 session.Object,
                 kRegistrarId,
                 CreateTelemetry());
-            ArrayOf<ByteString> tickets =
+            ArrayOf<string> tickets =
             [
-                new ByteString(new byte[] { 1, 2 }),
-                new ByteString(new byte[] { 3, 4 })
+                "first-ticket",
+                "second-ticket"
             ];
 
             ArrayOf<StatusCode> statuses = await client
@@ -113,7 +114,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(observedRequest.ObjectId, Is.EqualTo(kRegistrarId));
             Assert.That(
                 observedRequest.InputArguments[0].TryGetValue(
-                    out ArrayOf<ByteString> observedTickets),
+                    out ArrayOf<string> observedTickets),
                 Is.True);
             Assert.That(observedTickets, Is.EqualTo(tickets));
             session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
@@ -174,7 +175,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                             });
                     });
             ArrayOf<StatusCode> statuses = await client
-                .RegisterTicketsAsync([new ByteString(new byte[] { 1 })])
+                .RegisterTicketsAsync(["ticket"])
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -206,12 +207,59 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 CreateTelemetry());
 
             ArrayOf<StatusCode> statuses = await client
-                .UnregisterTicketsAsync([new ByteString(new byte[] { 0xAA })])
+                .UnregisterTicketsAsync(["ticket"])
                 .ConfigureAwait(false);
 
             Assert.That(
                 statuses,
                 Is.EqualTo(new StatusCode[] { StatusCodes.BadNotFound }.ToArrayOf()));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyTicketOverloadsSendStrings(bool remove)
+        {
+            Mock<ISession> session = CreateSessionMock(out _);
+            CallMethodRequest? observed = null;
+            SetupCall(session, request =>
+            {
+                observed = request;
+                return Good(Variant.From(new StatusCode[] { StatusCodes.Good }.ToArrayOf()));
+            });
+            var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
+            ArrayOf<ByteString> tickets = [ByteString.From("{\"payload\":\"test\"}"u8)];
+
+            ArrayOf<StatusCode> statuses = remove
+                ? await client.UnregisterTicketsAsync(tickets).ConfigureAwait(false)
+                : await client.RegisterTicketsAsync(tickets).ConfigureAwait(false);
+
+            Assert.That(statuses, Is.EqualTo(new StatusCode[] { StatusCodes.Good }.ToArrayOf()));
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.InputArguments[0].TryGetValue(out ArrayOf<string> sent), Is.True);
+            Assert.That(sent, Is.EqualTo(new string[] { "{\"payload\":\"test\"}" }.ToArrayOf()));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyTicketOverloadsRejectInvalidUtf8BeforeDispatch(bool remove)
+        {
+            Mock<ISession> session = CreateSessionMock(out _);
+            var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
+            session.Invocations.Clear();
+            ArrayOf<ByteString> tickets = [ByteString.From(new byte[] { 0xC3, 0x28 })];
+
+            await Assert.ThrowsAsync<DecoderFallbackException>(async () =>
+            {
+                if (remove)
+                {
+                    await client.UnregisterTicketsAsync(tickets).ConfigureAwait(false);
+                }
+                else
+                {
+                    await client.RegisterTicketsAsync(tickets).ConfigureAwait(false);
+                }
+            });
+            session.VerifyNoOtherCalls();
         }
 
         private static Mock<ISession> CreateSessionMock(
@@ -282,19 +330,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task GeneratedRegistrarAndClientRoundTripTickets()
         {
-            (SystemContext context, DeviceRegistrarAdminState registrar) =
+            (SessionSystemContext context, DeviceRegistrarAdminState registrar) =
                 CreateGeneratedRegistrar();
             var store = new MemoryTicketStore();
-            registrar.BindToTicketStore(store);
+            var validator = new Mock<IOnboardingTicketValidator>(MockBehavior.Strict);
+            validator.Setup(value => value.ValidateAsync(
+                It.IsAny<string>(), OnboardingTicketSource.OutOfBand, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ValidatedOnboardingTicket>(new ValidatedOnboardingTicket(
+                    new DeviceIdentityTicketType { ProductInstanceUri = "urn:test:device" }, string.Empty)));
+            registrar.BindToTicketStore(store, validator.Object);
             Mock<ISession> session = CreateSessionBridge(context, registrar);
             var client = new OnboardingClient(
                 session.Object,
                 registrar.NodeId,
                 context.Telemetry);
-            ArrayOf<ByteString> tickets =
+            ArrayOf<string> tickets =
             [
-                new ByteString("ticket-one"u8.ToArray()),
-                new ByteString("ticket-two"u8.ToArray())
+                "ticket-one",
+                "ticket-two"
             ];
 
             ArrayOf<StatusCode> registered = await client
@@ -332,10 +385,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(remaining, Has.Count.EqualTo(1));
             Assert.That(
                 remaining[0].EncodedTicket,
-                Is.EqualTo(tickets[1].ToArray()));
+                Is.EqualTo(Encoding.UTF8.GetBytes(tickets[1])));
         }
 
-        private static (SystemContext Context, DeviceRegistrarAdminState Registrar)
+        private static (SessionSystemContext Context, DeviceRegistrarAdminState Registrar)
             CreateGeneratedRegistrar()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -345,16 +398,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             messageContext.NamespaceUris.GetIndexOrAppend(
                 Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding);
             var typeTable = new TypeTable(messageContext.NamespaceUris);
-            typeTable.AddSubtype(Opc.Ua.DataTypeIds.ByteString, NodeId.Null);
+            typeTable.AddSubtype(Opc.Ua.DataTypeIds.String, NodeId.Null);
             typeTable.AddSubtype(
                 Opc.Ua.DataTypeIds.EncodedTicket,
-                Opc.Ua.DataTypeIds.ByteString);
-            var context = new SystemContext(telemetry)
+                Opc.Ua.DataTypeIds.String);
+            var context = new SessionSystemContext(telemetry)
             {
                 NamespaceUris = messageContext.NamespaceUris,
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory,
-                TypeTable = typeTable
+                TypeTable = typeTable,
+                UserIdentity = new Opc.Ua.Server.RoleBasedIdentity(
+                    new UserIdentity(),
+                    [new Opc.Ua.Server.Role(
+                        Opc.Ua.Onboarding.ObjectIds.WellKnownRole_RegistrarAdmin, "RegistrarAdmin")],
+                    messageContext.NamespaceUris)
             };
             NodeStateCollection nodes = new NodeStateCollection()
                 .AddOpcUaGds(context)
@@ -372,7 +430,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         private static Mock<ISession> CreateSessionBridge(
-            SystemContext context,
+            SessionSystemContext context,
             DeviceRegistrarAdminState registrar)
         {
             var session = new Mock<ISession>(MockBehavior.Strict);

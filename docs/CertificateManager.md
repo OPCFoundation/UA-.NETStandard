@@ -190,6 +190,22 @@ to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
+Set `CertificateValidationOptions.TrustScope` when one operation must trust
+only a specific set of authorities, such as those in a validated onboarding
+ticket. `CertificateValidationScope` accepts `ArrayOf<ByteString>` values for
+trusted certificate DER, untrusted issuer DER, and CRL DER. It copies each
+collection and byte string. The supplied material replaces both configured
+trust and issuer stores for that call; empty anchors establish no trust.
+Issuer material does not itself authorize a certificate.
+
+Scoped calls use an isolated validation core and do not inherit global
+auto-accept or error-acceptance callbacks. Explicit per-call policy still
+applies. For authentication, set `AutoAcceptUntrustedCertificates = false`,
+the required key-size and revocation policy, and
+`AcceptError = static (_, _) => false`. Scoped validation does not reuse or
+populate the normal connection-validation cache. CRLs use the same signature,
+freshness, and revocation checks as directory-store CRLs.
+
 When `UseValidatedCertificates` is enabled, cached acceptance still checks
 revocation, the complete accepted issuer path and the validity interval shared by
 every certificate on that path. Omitting a peer-only intermediate cannot reuse an
@@ -1011,6 +1027,8 @@ Per-call validation behaviour can be overridden via
 
 | Option | Description |
 |--------|-------------|
+| `TrustScope` | Replace configured trusted/issuer stores with copied per-call anchors, issuer certificates, and CRLs; do not inherit global acceptance settings. |
+| `ValidateForSigning` | Require digital-signature usage instead of application RSA encipherment usage; retain chain, trust, validity, and revocation checks. |
 | `RejectSHA1SignedCertificates` | Override the global SHA-1 rejection policy. |
 | `RejectUnknownRevocationStatus` | Override the global revocation-unknown rejection policy. |
 | `MinimumCertificateKeySize` | Override the minimum acceptable RSA key size. |

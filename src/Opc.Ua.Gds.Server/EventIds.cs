@@ -50,5 +50,6 @@ namespace Opc.Ua
         public const int GdsServerHostedService = 60;
         public const int GlobalDiscoverySampleServer = 70;
         public const int AliasNameAggregation = 80;
+        public const int OnboardingIdentityTrustProvider = 90;
     }
 }

@@ -50,10 +50,17 @@ namespace OnboardingRegistrar
         /// <summary>
         /// Initializes a new factory.
         /// </summary>
-        public OnboardingRegistrarNodeManagerFactory(ITicketStore ticketStore)
+        public OnboardingRegistrarNodeManagerFactory(
+            ITicketStore ticketStore,
+            IOnboardingTicketTrustProvider ticketTrustProvider,
+            ICertificateManager certificateManager)
         {
             m_ticketStore = ticketStore ??
                 throw new ArgumentNullException(nameof(ticketStore));
+            m_ticketTrustProvider = ticketTrustProvider ??
+                throw new ArgumentNullException(nameof(ticketTrustProvider));
+            m_certificateManager = certificateManager ??
+                throw new ArgumentNullException(nameof(certificateManager));
         }
 
         /// <inheritdoc/>
@@ -74,11 +81,17 @@ namespace OnboardingRegistrar
                 new OnboardingRegistrarNodeManager(
                     server,
                     configuration,
-                    m_ticketStore));
+                    m_ticketStore,
+                    m_ticketTrustProvider,
+                    m_certificateManager));
 #pragma warning restore CA2000
         }
 
         private readonly ITicketStore m_ticketStore;
+        /// <summary>The injected managed ticket authority policy.</summary>
+        private readonly IOnboardingTicketTrustProvider m_ticketTrustProvider;
+        /// <summary>The borrowed manager owns the named authority stores.</summary>
+        private readonly ICertificateManager m_certificateManager;
     }
 
     /// <summary>
@@ -93,7 +106,9 @@ namespace OnboardingRegistrar
         public OnboardingRegistrarNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
-            ITicketStore ticketStore)
+            ITicketStore ticketStore,
+            IOnboardingTicketTrustProvider ticketTrustProvider,
+            ICertificateManager certificateManager)
             : base(
                 server,
                 configuration,
@@ -101,6 +116,9 @@ namespace OnboardingRegistrar
         {
             m_ticketStore = ticketStore ??
                 throw new ArgumentNullException(nameof(ticketStore));
+            m_ticketValidator = new OnboardingTicketValidator(ticketTrustProvider, server.MessageContext);
+            m_certificateManager = certificateManager ??
+                throw new ArgumentNullException(nameof(certificateManager));
             NamespaceUris =
             [
                 Opc.Ua.Onboarding.Namespaces.OpcUaOnboarding,
@@ -131,8 +149,17 @@ namespace OnboardingRegistrar
                 throw new InvalidOperationException(
                     "The generated DeviceRegistrar has no Administration child.");
             ConfigurePermissions(context, administration);
-            administration.BindToTicketStore(m_ticketStore);
+            administration.BindToTicketStore(m_ticketStore, m_ticketValidator);
+            m_authorityTrustLists = new DeviceRegistrarAuthorityTrustLists(
+                administration, context, m_certificateManager, Server, Server.Telemetry);
             return new ValueTask<NodeStateCollection>(nodes);
+        }
+
+        /// <inheritdoc/>
+        protected override ValueTask DisposeAsyncCore()
+        {
+            m_authorityTrustLists?.Dispose();
+            return base.DisposeAsyncCore();
         }
 
         private static void ConfigurePermissions(
@@ -163,6 +190,12 @@ namespace OnboardingRegistrar
         }
 
         private readonly ITicketStore m_ticketStore;
+        /// <summary>The validator bound to this server's message context.</summary>
+        private readonly IOnboardingTicketValidator m_ticketValidator;
+        /// <summary>The borrowed manager shares validation and administration stores.</summary>
+        private readonly ICertificateManager m_certificateManager;
+        /// <summary>The owned authority file handlers are released after active requests drain.</summary>
+        private DeviceRegistrarAuthorityTrustLists? m_authorityTrustLists;
     }
 
     /// <summary>

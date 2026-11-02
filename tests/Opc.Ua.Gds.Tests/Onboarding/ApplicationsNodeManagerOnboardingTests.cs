@@ -1,0 +1,748 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ * ======================================================================*/
+
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
+using NUnit.Framework;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database.Linq;
+using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Server;
+using Opc.Ua.Security.Certificates;
+
+namespace Opc.Ua.Gds.Tests.Onboarding
+{
+    /// <summary>
+    /// Verifies the GDS request handlers' argument-specific onboarding gate before request-store access.
+    /// </summary>
+    [TestFixture]
+    [Category("Onboarding")]
+    public sealed class ApplicationsNodeManagerOnboardingTests : GdsTestFixture
+    {
+        /// <summary>
+        /// A GDS administrator cannot bypass a known device's software or ownership denial.
+        /// </summary>
+        [TestCase("newKey")]
+        [TestCase("signing")]
+        [TestCase("finish")]
+        [TestCase("trustList")]
+        [TestCase("certificates")]
+        public async Task KnownOnboardingDenialCannotFallBackToAdministratorPrivilege(string handler)
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            ApplicationRecordDataType application = CreateTestApplicationRecord("OnboardingGateDenied");
+            NodeId applicationId = database.RegisterApplication(application);
+            application.ApplicationId = applicationId;
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+            var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            var denial = new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            gate.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.Is<ApplicationRecordDataType>(a => a.ApplicationId == applicationId),
+                It.IsAny<CancellationToken>())).ThrowsAsync(denial);
+            manager.DeviceRegistrarCertificateAuthorization = gate.Object;
+
+            ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await InvokeAsync(manager, handler, context, applicationId).ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(denial));
+            gate.Verify(g => g.AuthorizeApplicationAsync(
+                context, It.Is<ApplicationRecordDataType>(a => a.ApplicationId == applicationId),
+                It.IsAny<CancellationToken>()), Times.Once);
+            gate.VerifyNoOtherCalls();
+            requests.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// An unrelated application must still pass the original GDS authorization, even when onboarding is enabled.
+        /// </summary>
+        [TestCase("newKey")]
+        [TestCase("signing")]
+        [TestCase("finish")]
+        [TestCase("trustList")]
+        [TestCase("certificates")]
+        public async Task ApplicationOutsideOnboardingRetainsOriginalGdsAuthorization(string handler)
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            ApplicationRecordDataType application = CreateTestApplicationRecord("OutsideOnboarding");
+            NodeId applicationId = database.RegisterApplication(application);
+            ServerSystemContext context = CreateContext(Role.AuthenticatedUser);
+            var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            gate.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.Is<ApplicationRecordDataType>(a => a.ApplicationId == applicationId),
+                It.IsAny<CancellationToken>())).ReturnsAsync(false);
+            manager.DeviceRegistrarCertificateAuthorization = gate.Object;
+
+            ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await InvokeAsync(manager, handler, context, applicationId).ConfigureAwait(false));
+
+            Assert.That(actual!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            requests.VerifyNoOtherCalls();
+            gate.Verify(g => g.AuthorizeApplicationAsync(
+                context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Without onboarding configured, the existing administrator/error-result behavior is unchanged.
+        /// </summary>
+        [TestCase("newKey")]
+        [TestCase("signing")]
+        [TestCase("finish")]
+        [TestCase("trustList")]
+        [TestCase("certificates")]
+        public async Task DefaultHandlersPreserveUnknownApplicationResult(string handler)
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            ServiceResult result = await InvokeAsync(
+                manager, handler, CreateContext(GdsRole.CertificateAuthorityAdmin),
+                new NodeId("unknown", manager.ApplicationsNamespaceIndex)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+            requests.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Onboarding cannot stage an unrecoverable pending credential without an explicit issuance store.
+        /// </summary>
+        [Test]
+        public async Task OnboardingCompletionRequiresIssuanceStoreBeforeRequestAccess()
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("MissingIssuanceStore"));
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+            var authorization = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            authorization.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            manager.DeviceRegistrarCertificateAuthorization = authorization.Object;
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await InvokeAsync(manager, "finish", context, applicationId).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            requests.VerifyNoOtherCalls();
+            authorization.Verify(g => g.RecordCertificateIssuedAsync(
+                It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<ByteString>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A retained receipt cannot bypass Part 12's rejection of an already accepted request.
+        /// </summary>
+        [Test]
+        public async Task AcceptedRequestDoesNotReplayItsRetainedIssuance()
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("AcceptedIssuance"));
+            NodeId requestId = new("request", 1);
+            string? group = null;
+            string? type = null;
+            ByteString certificate = default;
+            ByteString privateKey = default;
+            requests.Setup(r => r.FinishRequest(
+                applicationId, requestId, out group, out type, out certificate, out privateKey))
+                .Returns(CertificateRequestState.Accepted);
+            var issuanceStore = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
+            manager.CertificateRequestIssuanceStore = issuanceStore.Object;
+
+            ServiceResult result = await InvokeAsync(
+                manager, "finish", CreateContext(GdsRole.CertificateAuthorityAdmin), applicationId)
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            issuanceStore.VerifyNoOtherCalls();
+            requests.Verify(r => r.AcceptRequest(It.IsAny<NodeId>(), It.IsAny<ByteString>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A recreated handler reuses published material when pending-state publication failed before acceptance.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreatedManagerReusesReceiptAfterPendingPublicationFailsWithoutConsumingRequest(
+            bool newKeyPair)
+        {
+            string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            try
+            {
+                var database = new LinqApplicationsDatabase();
+                var secrets = new InMemorySecretStore();
+                using Certificate issued = CertificateBuilder.Create("CN=Receipt retry").SetRSAKeySize(2048)
+                    .CreateForRSA();
+                ByteString certificate = ByteString.From(issued.RawData);
+                ByteString privateKey = newKeyPair ? ByteString.From(new byte[] { 5, 6, 7 }) : default;
+                Mock<ICertificateGroup> group = CreateCertificateGroup(path, certificate);
+                char[]? passwordStaging = null;
+                group.Setup(g => g.NewKeyPairRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string>(),
+                    It.IsAny<string[]>(), It.IsAny<string>(), It.IsAny<char[]>(),
+                    It.IsAny<CancellationToken>())).Callback<
+                        ApplicationRecordDataType, NodeId, string, string[], string, char[], CancellationToken>(
+                            (_, _, _, _, _, password, _) =>
+                            {
+                                Assert.That(password, Is.EqualTo("request-password".ToCharArray()));
+                                passwordStaging = password;
+                            })
+                    .ReturnsAsync(() => new X509Certificate2KeyPair(
+                        Certificate.FromRawData(certificate), "PFX", privateKey));
+                var authorization = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+                authorization.Setup(g => g.AuthorizeApplicationAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(true);
+                int publications = 0;
+                var failure = new IOException("Pending-state publication committed before its response was lost.");
+                ByteString pending = default;
+                authorization.Setup(g => g.RecordCertificateIssuedAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>())).Callback<
+                        ISystemContext, ApplicationRecordDataType, ByteString, CancellationToken>((_, _, bytes, _) =>
+                    {
+                        pending = bytes;
+                        if (++publications == 1)
+                        {
+                            throw failure;
+                        }
+                    }).Returns(default(ValueTask));
+                NodeId applicationId;
+                NodeId requestId;
+                using (var receiptStore = new SecretStoreCertificateRequestIssuanceStore(
+                    secrets, ReferenceServer.CurrentInstance.NamespaceUris, "gds"))
+                using (ApplicationsNodeManager manager = CreateConfiguredManager(
+                    database, group.Object, path, authorization.Object, receiptStore))
+                {
+                    await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                        .ConfigureAwait(false);
+                    applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptRetry"));
+                    requestId = newKeyPair
+                        ? database.StartNewKeyPairRequest(applicationId, "DefaultApplicationGroup",
+                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                            "CN=Receipt retry", ["localhost"], "PFX", "request-password", "test")
+                        : database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                            nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                            ByteString.From(new byte[] { 1 }), "test");
+                    database.ApproveRequest(requestId, false);
+
+                    IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
+                        await manager.OnFinishRequestAsync(
+                            CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                            applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
+
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(pending, Is.EqualTo(certificate));
+                    Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                        Is.EqualTo(CertificateRequestState.Approved));
+                }
+                using var restoredStore = new SecretStoreCertificateRequestIssuanceStore(
+                    secrets, ReferenceServer.CurrentInstance.NamespaceUris, "gds");
+                using ApplicationsNodeManager restored = CreateConfiguredManager(
+                    database, group.Object, path, authorization.Object, restoredStore);
+                await restored.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+
+                FinishRequestMethodStateResult result = await restored.OnFinishRequestAsync(
+                    CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                    applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.Certificate, Is.EqualTo(certificate));
+                Assert.That(result.PrivateKey, Is.EqualTo(privateKey));
+                Assert.That(pending, Is.EqualTo(certificate));
+                Assert.That(publications, Is.EqualTo(2));
+                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Accepted));
+                group.Verify(g => g.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()),
+                    newKeyPair ? Times.Never() : Times.Once());
+                group.Verify(g => g.NewKeyPairRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string>(),
+                    It.IsAny<string[]>(), It.IsAny<string>(), It.IsAny<char[]>(),
+                    It.IsAny<CancellationToken>()), newKeyPair ? Times.Once() : Times.Never());
+                if (newKeyPair)
+                {
+                    Assert.That(passwordStaging, Is.Not.Null.And.Not.Empty);
+                    Assert.That(passwordStaging, Is.All.EqualTo('\0'));
+                }
+                FinishRequestMethodStateResult accepted = await restored.OnFinishRequestAsync(
+                    CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                    applicationId, requestId, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(accepted.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(publications, Is.EqualTo(2));
+                GetCertificatesMethodStateResult assigned = await restored.OnGetCertificatesAsync(
+                    CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                    applicationId, default, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(assigned.ServiceResult), Is.True);
+                Assert.That(assigned.CertificateTypeIds,
+                    Is.EqualTo(new[] { Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType }.ToArrayOf()));
+                Assert.That(assigned.Certificates, Is.EqualTo(new[] { certificate }.ToArrayOf()));
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Issuance-store failure propagates before pending publication, database certificate updates or acceptance.
+        /// </summary>
+        [Test]
+        public async Task ReceiptPublicationFailureLeavesRequestApprovedAndNeverPublishesPendingCredential()
+        {
+            string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            try
+            {
+                var database = new LinqApplicationsDatabase();
+                using Certificate issued = CertificateBuilder.Create("CN=Receipt publication").SetRSAKeySize(2048)
+                    .CreateForRSA();
+                Mock<ICertificateGroup> group = CreateCertificateGroup(path, ByteString.From(issued.RawData));
+                var authorization = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+                authorization.Setup(g => g.AuthorizeApplicationAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(true);
+                var failure = new IOException("Receipt publication failed.");
+                var receipts = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
+                receipts.Setup(s => s.GetOrCreateAsync(
+                    It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
+                    It.IsAny<CancellationToken>())).Returns(async (
+                        NodeId _, NodeId _,
+                        Func<CancellationToken, ValueTask<CertificateRequestIssuance>> create,
+                        CancellationToken token) =>
+                    {
+                        await create(token).ConfigureAwait(false);
+                        throw failure;
+                    });
+                using ApplicationsNodeManager manager = CreateConfiguredManager(
+                    database, group.Object, path, authorization.Object, receipts.Object);
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptUnpublished"));
+                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    ByteString.From(new byte[] { 1 }), "test");
+                database.ApproveRequest(requestId, false);
+
+                IOException? actual = await Assert.ThrowsAsync<IOException>(async () =>
+                    await manager.OnFinishRequestAsync(
+                        CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                        applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                Assert.That(database.GetApplicationCertificate(
+                    applicationId, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), out _), Is.False);
+                authorization.Verify(g => g.RecordCertificateIssuedAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+                group.Verify(g => g.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A provider cannot substitute material issued under a different certificate group or type.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ReceiptProfileMismatchCannotPublishPendingCredentialOrConsumeRequest(bool wrongGroup)
+        {
+            string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            try
+            {
+                var database = new LinqApplicationsDatabase();
+                ByteString certificate = ByteString.From(new byte[] { 1 });
+                Mock<ICertificateGroup> group = CreateCertificateGroup(path, certificate);
+                var authorization = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+                authorization.Setup(g => g.AuthorizeApplicationAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(true);
+                var receipt = new CertificateRequestIssuance(
+                    wrongGroup ? "another-group" : "DefaultApplicationGroup",
+                    wrongGroup ? nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) : "another-type",
+                    certificate, default, []);
+                var receipts = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
+                receipts.Setup(s => s.GetOrCreateAsync(
+                    It.IsAny<NodeId>(), It.IsAny<NodeId>(),
+                    It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
+                    It.IsAny<CancellationToken>())).Returns(new ValueTask<CertificateRequestIssuance>(receipt));
+                using ApplicationsNodeManager manager = CreateConfiguredManager(
+                    database, group.Object, path, authorization.Object, receipts.Object);
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ReceiptMismatch"));
+                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    ByteString.From(new byte[] { 1 }), "test");
+                database.ApproveRequest(requestId, false);
+
+                ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.OnFinishRequestAsync(
+                        CreateContext(GdsRole.CertificateAuthorityAdmin), new MethodState(null), default,
+                        applicationId, requestId, CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(actual!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(database.FinishRequest(applicationId, requestId, out _, out _, out _, out _),
+                    Is.EqualTo(CertificateRequestState.Approved));
+                authorization.Verify(g => g.RecordCertificateIssuedAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+                group.Verify(g => g.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Competing completions on one manager cannot issue twice or replay a request accepted by the first call.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentCompletionUsesOneIssuanceAndRejectsTheAlreadyAcceptedRetry()
+        {
+            string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            try
+            {
+                var database = new LinqApplicationsDatabase();
+                using Certificate issued = CertificateBuilder.Create("CN=Concurrent receipt").SetRSAKeySize(2048)
+                    .CreateForRSA();
+                ByteString certificate = ByteString.From(issued.RawData);
+                Mock<ICertificateGroup> group = CreateCertificateGroup(path, certificate);
+                var signing = new TaskCompletionSource<Certificate>(TaskCreationOptions.RunContinuationsAsynchronously);
+                group.Setup(g => g.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>())).Returns(signing.Task);
+                var authorization = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+                authorization.Setup(g => g.AuthorizeApplicationAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(true);
+                authorization.Setup(g => g.RecordCertificateIssuedAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), certificate,
+                    It.IsAny<CancellationToken>())).Returns(default(ValueTask));
+                using var receipts = new SecretStoreCertificateRequestIssuanceStore(
+                    new InMemorySecretStore(), ReferenceServer.CurrentInstance.NamespaceUris, "gds");
+                using ApplicationsNodeManager manager = CreateConfiguredManager(
+                    database, group.Object, path, authorization.Object, receipts);
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("ConcurrentReceipt"));
+                NodeId requestId = database.StartSigningRequest(applicationId, "DefaultApplicationGroup",
+                    nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                    ByteString.From(new byte[] { 1 }), "test");
+                database.ApproveRequest(requestId, false);
+                ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+                var method = new MethodState(null);
+                Task<FinishRequestMethodStateResult> first = manager.OnFinishRequestAsync(
+                    context, method, default, applicationId, requestId, CancellationToken.None).AsTask();
+                Task<FinishRequestMethodStateResult> retry = manager.OnFinishRequestAsync(
+                    context, method, default, applicationId, requestId, CancellationToken.None).AsTask();
+                bool firstWasWaiting = !first.IsCompleted;
+                bool retryWasWaiting = !retry.IsCompleted;
+                signing.SetResult(Certificate.FromRawData(certificate));
+
+                FinishRequestMethodStateResult[] results = await Task.WhenAll(first, retry).ConfigureAwait(false);
+
+                Assert.That(firstWasWaiting, Is.True);
+                Assert.That(retryWasWaiting, Is.True);
+                Assert.That(ServiceResult.IsGood(results[0].ServiceResult), Is.True);
+                Assert.That(results[0].Certificate, Is.EqualTo(certificate));
+                Assert.That(results[1].ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                authorization.Verify(g => g.RecordCertificateIssuedAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<ApplicationRecordDataType>(), certificate,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                group.Verify(g => g.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    It.IsAny<ByteString>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The new-key method awaits provider authorization instead of continuing with a pending decision.
+        /// </summary>
+        [Test]
+        public async Task NewKeyHandlerAwaitsAsynchronousAuthorizationBeforeTouchingRequestStore()
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using var manager = CreateManager(database, requests.Object);
+            ApplicationRecordDataType application = CreateTestApplicationRecord("AwaitOnboardingGate");
+            NodeId applicationId = database.RegisterApplication(application);
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+            var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            gate.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(decision.Task));
+            manager.DeviceRegistrarCertificateAuthorization = gate.Object;
+            Task<ServiceResult> pending = InvokeAsync(manager, "newKey", context, applicationId).AsTask();
+
+            Assert.That(pending.IsCompleted, Is.False);
+            requests.VerifyNoOtherCalls();
+            var denial = new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            decision.SetException(denial);
+            ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pending.ConfigureAwait(false));
+            Assert.That(actual, Is.SameAs(denial));
+            requests.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// An existing device channel may read only a store assigned to a currently authorized relation.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task OnboardingTrustListReadRequiresAssignedStoreAndCurrentApplicationPolicy(bool assigned)
+        {
+            var database = new LinqApplicationsDatabase();
+            using var manager = CreateManager(database, Mock.Of<ICertificateRequest>());
+            ApplicationRecordDataType application = CreateTestApplicationRecord("OnboardingTrustList");
+            NodeId applicationId = database.RegisterApplication(application);
+            database.SetApplicationTrustLists(
+                applicationId, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), "assigned-store");
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+            var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            gate.Setup(g => g.GetChannelApplicationsAsync(context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ArrayOf<DeviceRegistrarApplicationBinding>(
+                [
+                    new DeviceRegistrarApplicationBinding("urn:device:test", applicationId, false, "urn:protocol:test")
+                ]));
+            gate.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.Is<ApplicationRecordDataType>(a => a.ApplicationId == applicationId),
+                It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            manager.DeviceRegistrarCertificateAuthorization = gate.Object;
+            var store = new CertificateStoreIdentifier(assigned ? "assigned-store" : "another-device-store");
+
+            if (assigned)
+            {
+                await manager.AuthorizeOnboardingTrustListReadAsync(context, store, CancellationToken.None)
+                    .ConfigureAwait(false);
+                gate.Verify(g => g.AuthorizeApplicationAsync(
+                    context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>()), Times.Once);
+            }
+            else
+            {
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await manager.AuthorizeOnboardingTrustListReadAsync(context, store, CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                gate.Verify(g => g.AuthorizeApplicationAsync(
+                    context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// A failed application-policy recheck cannot use the caller's global GDS administrator role instead.
+        /// </summary>
+        [Test]
+        public async Task OnboardingTrustListPolicyFailureCannotUseAdministratorFallback()
+        {
+            var database = new LinqApplicationsDatabase();
+            using var manager = CreateManager(database, Mock.Of<ICertificateRequest>());
+            ApplicationRecordDataType application = CreateTestApplicationRecord("OnboardingTrustListRevoked");
+            NodeId applicationId = database.RegisterApplication(application);
+            database.SetApplicationTrustLists(
+                applicationId, nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType), "assigned-store");
+            ServerSystemContext context = CreateContext(GdsRole.CertificateAuthorityAdmin);
+            var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
+            gate.Setup(g => g.GetChannelApplicationsAsync(context, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ArrayOf<DeviceRegistrarApplicationBinding>(
+                [
+                    new DeviceRegistrarApplicationBinding("urn:device:test", applicationId, false, "urn:protocol:test")
+                ]));
+            var failure = new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            gate.Setup(g => g.AuthorizeApplicationAsync(
+                context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);
+            manager.DeviceRegistrarCertificateAuthorization = gate.Object;
+
+            ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await manager.AuthorizeOnboardingTrustListReadAsync(
+                    context, new CertificateStoreIdentifier("assigned-store"), CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+        }
+
+        /// <summary>
+        /// Creates an isolated handler manager while borrowing the shared fixture's server context.
+        /// </summary>
+        private ApplicationsNodeManager CreateManager(
+            LinqApplicationsDatabase database,
+            ICertificateRequest requests)
+        {
+            var manager = new ApplicationsNodeManager(
+                ReferenceServer.CurrentInstance, ServerFixture.Config, database, requests,
+                Mock.Of<ICertificateGroup>(), autoApprove: true);
+            database.NamespaceIndex = manager.ApplicationsNamespaceIndex;
+            return manager;
+        }
+
+        /// <summary>
+        /// Supplies a real request database and model initialization with a deterministic signing engine.
+        /// </summary>
+        private ApplicationsNodeManager CreateConfiguredManager(
+            LinqApplicationsDatabase database,
+            ICertificateGroup group,
+            string path,
+            IDeviceRegistrarCertificateAuthorization authorization,
+            ICertificateRequestIssuanceStore receipts)
+        {
+            var configuration = new ApplicationConfiguration(Telemetry)
+            {
+                ApplicationUri = ServerFixture.Config.ApplicationUri,
+                SecurityConfiguration = ServerFixture.Config.SecurityConfiguration,
+                ServerConfiguration = ServerFixture.Config.ServerConfiguration,
+                CertificateManager = ServerFixture.Config.CertificateManager
+            };
+            configuration.UpdateExtension(null, new GlobalDiscoveryServerConfiguration
+            {
+                ApplicationCertificatesStorePath = Path.Combine(path, "applications"),
+                AuthoritiesStorePath = Path.Combine(path, "authorities"),
+                CertificateGroups = [group.Configuration]
+            });
+            return new ApplicationsNodeManager(
+                ReferenceServer.CurrentInstance, configuration, database, database, group, autoApprove: true)
+            {
+                DeviceRegistrarCertificateAuthorization = authorization,
+                CertificateRequestIssuanceStore = receipts
+            };
+        }
+
+        /// <summary>
+        /// Keeps the cryptographic fixture independent of the handler's retry and persistence decisions.
+        /// </summary>
+        private static Mock<ICertificateGroup> CreateCertificateGroup(string path, ByteString certificate)
+        {
+            var group = new Mock<ICertificateGroup>();
+            group.SetupAllProperties();
+            group.SetupGet(g => g.Configuration).Returns(new CertificateGroupConfiguration
+            {
+                Id = "DefaultApplicationGroup",
+                SubjectName = "CN=Receipt issuer",
+                BaseStorePath = Path.Combine(path, "group"),
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            });
+            group.Object.CertificateTypes = [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType];
+            group.SetupGet(g => g.Certificates).Returns(new ConcurrentDictionary<NodeId, Certificate?>());
+            group.Setup(g => g.InitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+            group.Setup(g => g.Create(It.IsAny<string>(), It.IsAny<CertificateGroupConfiguration>(),
+                It.IsAny<string?>())).Returns(group.Object);
+            group.Setup(g => g.SigningRequestAsync(
+                It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() => Certificate.FromRawData(certificate));
+            return group;
+        }
+
+        /// <summary>
+        /// Supplies a real encrypted-channel operation context without granting an application privilege.
+        /// </summary>
+        private ServerSystemContext CreateContext(Role role)
+        {
+            var identity = new GdsRoleBasedIdentity(
+                new UserIdentity(), [role], default, null, ReferenceServer.CurrentInstance.NamespaceUris);
+            var channel = new SecureChannelContext(
+                "onboarding-directory-tests",
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                },
+                RequestEncoding.Binary,
+                [1, 2, 3]);
+            var operation = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, identity);
+            return ReferenceServer.CurrentInstance.DefaultSystemContext.Copy(operation);
+        }
+
+        /// <summary>
+        /// Invokes each supported certificate-request handler without issuing a real certificate.
+        /// </summary>
+        private static async ValueTask<ServiceResult> InvokeAsync(
+            ApplicationsNodeManager manager,
+            string handler,
+            ISystemContext context,
+            NodeId applicationId)
+        {
+            var method = new MethodState(null);
+            return handler switch
+            {
+                "newKey" => (await manager.OnStartNewKeyPairRequestAsync(
+                    context, method, default, applicationId, default, default,
+                    "CN=Onboarding", default, "PFX", "unused", CancellationToken.None).ConfigureAwait(false))
+                    .ServiceResult,
+                "signing" => (await manager.OnStartSigningRequestAsync(
+                    context, method, default, applicationId, default, default,
+                    ByteString.From(new byte[] { 1, 2, 3 }), CancellationToken.None).ConfigureAwait(false))
+                    .ServiceResult,
+                "finish" => (await manager.OnFinishRequestAsync(
+                    context, method, default, applicationId, new NodeId("request", 1),
+                    CancellationToken.None).ConfigureAwait(false)).ServiceResult,
+                "trustList" => (await manager.OnGetTrustListAsync(
+                    context, method, default, applicationId, default, CancellationToken.None).ConfigureAwait(false))
+                    .ServiceResult,
+                "certificates" => (await manager.OnGetCertificatesAsync(
+                    context, method, default, applicationId, default, CancellationToken.None).ConfigureAwait(false))
+                    .ServiceResult,
+                _ => throw new ArgumentOutOfRangeException(nameof(handler))
+            };
+        }
+    }
+}

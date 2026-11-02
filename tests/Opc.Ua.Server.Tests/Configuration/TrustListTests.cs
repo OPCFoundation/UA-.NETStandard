@@ -138,6 +138,129 @@ namespace Opc.Ua.Server.Tests
             Assert.That(Directory.Exists(m_basePath), Is.False);
         }
 
+        /// <summary>
+        /// Asynchronous policy decisions are awaited before opening stores; denial does not use the old callback.
+        /// </summary>
+        [Test]
+        public async Task AsyncReadPolicyAwaitsDecisionAndCannotFallBackToConstructorAccess()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+            ISystemContext context = CreateContext(new NodeId(1));
+            var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            trustList.SetReadAuthorization(async (actualContext, store, ct) =>
+            {
+                Assert.That(actualContext, Is.SameAs(context));
+                Assert.That(store, Is.SameAs(m_trustedStore));
+                await decision.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+            });
+            Task<OpenWithMasksMethodStateResult> pending = node.OpenWithMasks!.OnCallAsync!(
+                context, node.OpenWithMasks, node.NodeId, 0, CancellationToken.None).AsTask();
+
+            Assert.That(pending.IsCompleted, Is.False);
+            Assert.That(Directory.Exists(m_basePath), Is.False);
+            var failure = new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            decision.SetException(failure);
+            ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pending.ConfigureAwait(false));
+
+            Assert.That(actual, Is.SameAs(failure));
+            Assert.That(node.OpenCount!.Value, Is.Zero);
+            Assert.That(Directory.Exists(m_basePath), Is.False);
+            Assert.That(node.Open!.OnCall, Is.Null);
+            Assert.That(node.OpenWithMasks.OnCall, Is.Null);
+            Assert.That(node.Read!.OnCall, Is.Null);
+            Assert.That(node.Close!.OnCall, Is.Null);
+            Assert.That(node.Write!.OnCallAsync, Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Revoking a read policy prevents subsequent reads or close mutations without consuming the open handle.
+        /// </summary>
+        [TestCase("read")]
+        [TestCase("close")]
+        public async Task AsyncReadPolicyIsRecheckedForExistingHandles(string operation)
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node, allowRead: false);
+            ISystemContext context = CreateContext(new NodeId(1));
+            bool allowed = true;
+            int calls = 0;
+            trustList.SetReadAuthorization((_, _, _) =>
+            {
+                calls++;
+                if (!allowed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                }
+                return default;
+            });
+            OpenWithMasksMethodStateResult opened = await node.OpenWithMasks!.OnCallAsync!(
+                context, node.OpenWithMasks, node.NodeId, 0, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(opened.ServiceResult), Is.True);
+            allowed = false;
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (operation == "read")
+                {
+                    await node.Read!.OnCallAsync!(
+                        context, node.Read, node.NodeId, opened.FileHandle, 1, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await node.Close!.OnCallAsync!(
+                        context, node.Close, node.NodeId, opened.FileHandle, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.OpenCount!.Value, Is.EqualTo(1));
+            Assert.That(calls, Is.EqualTo(2));
+            allowed = true;
+            ReadMethodStateResult read = await node.Read!.OnCallAsync!(
+                context, node.Read, node.NodeId, opened.FileHandle, 1, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(read.ServiceResult), Is.True);
+            Assert.That(read.Data.Length, Is.EqualTo(1));
+            CloseMethodStateResult closed = await node.Close!.OnCallAsync!(
+                context, node.Close, node.NodeId, opened.FileHandle, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(closed.ServiceResult), Is.True);
+            Assert.That(node.OpenCount.Value, Is.Zero);
+        }
+
+        /// <summary>
+        /// Granting asynchronous read access cannot grant write access or ignore caller cancellation.
+        /// </summary>
+        [Test]
+        public async Task AsyncReadPolicyCannotBroadenWritesAndObservesCancellation()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node, allowWrite: false);
+            ISystemContext context = CreateContext(new NodeId(1));
+            int calls = 0;
+            trustList.SetReadAuthorization((_, _, _) =>
+            {
+                calls++;
+                return default;
+            });
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await node.Open!.OnCallAsync!(context, node.Open, node.NodeId,
+                    (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting), CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(async () =>
+                await node.OpenWithMasks!.OnCallAsync!(context, node.OpenWithMasks, node.NodeId, 0, cancellation.Token)
+                    .ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(calls, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
+            Assert.That(Directory.Exists(m_basePath), Is.False);
+        }
+
         [TestCase(TrustListMasks.TrustedCertificates)]
         [TestCase(TrustListMasks.IssuerCertificates)]
         public async Task ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)

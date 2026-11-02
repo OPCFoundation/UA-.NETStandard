@@ -30,7 +30,7 @@ The SDK ships implementations and helpers for:
 - Part 17 (Alias Names)
 - Part 18 (Role Management)
 - Part 20 (File Transfer)
-- Part 21 registrar ticket administration (not a complete device-onboarding state machine)
+- Part 21 ticket signing/validation and registrar runtime bindings (not complete device onboarding)
 - Part 100 (Device Integration / Software Update)
 - OPC 10100-1 (WoT Connectivity)
 - OPC 10000-200 (Industrial Automation)
@@ -569,9 +569,11 @@ OPC UA Part 12 areas:
 - **[KeyCredentialService](KeyCredentialService.md)** (OPC 10000-12 §8) —
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
-- **Registrar ticket administration** (OPC 10000-21) -
-  `OnboardingClient`, `ITicketStore` and the declared registrar methods.
-  This is not the complete device-facing onboarding state machine; see
+- **Device registrar components** (OPC 10000-21) -
+  Validated ticket administration, ticket signing, composite-aware identity
+  selection, ticket-scoped identity trust, and injected registrar runtime
+  bindings. Certificate issuance requires explicit hosting integration; complete pull/push
+  device workflows and durable reset/restart behavior are not provided. See
   [the implemented scope](GDS.md#opc-10000-21-onboardingclient).
 
 See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
