@@ -465,11 +465,12 @@ namespace Opc.Ua.Scales.Tests
             m_clock.Advance(TimeSpan.FromSeconds(1));
             Assert.That(first.Report.Value.Count, Is.GreaterThan(firstCount));
             Assert.That(first.Report.Value.Contains(
-                entry => entry.ReportMessage.Text.Contains("intervention", StringComparison.Ordinal)), Is.True);
+                entry => entry.ReportMessage.Text?.Contains("intervention", StringComparison.Ordinal) == true),
+                Is.True);
             Assert.That(second.Report.Value.Count, Is.EqualTo(secondCount));
             AssertGood(m_controller.CompleteElement(element));
             Assert.That(first.Report.Value.Contains(
-                entry => entry.ReportMessage.Text.Contains("completed", StringComparison.Ordinal)), Is.True);
+                entry => entry.ReportMessage.Text?.Contains("completed", StringComparison.Ordinal) == true), Is.True);
             Assert.That(second.Report.Value.Count, Is.EqualTo(secondCount));
         }
 
@@ -483,7 +484,7 @@ namespace Opc.Ua.Scales.Tests
                 m_recipe, ElementType(ObjectTypes.TimerType), "Join", first.NodeId, second.NodeId);
             AssertGood(m_controller.Start(m_recipe.NodeId));
             second.TargetThresholdValue!.WrappedValue = new Variant(1.0);
-            second.ConditionMode!.Value = (EqualityAndRelationalOperator)4;
+            second.ConditionMode!.Value = EqualityAndRelationalOperator.LessThan_4;
             second.ThresholdValueId!.Value = "unknown";
             Publish(10.0);
             Assert.That(m_controller.CurrentElements.ToArray(), Does.Not.Contain(first));
@@ -508,7 +509,7 @@ namespace Opc.Ua.Scales.Tests
                 element.ThresholdValueId!.Value = "7";
                 element.TargetThresholdValue!.WrappedValue = new Variant(10.0);
                 element.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
-                element.ConditionMode!.Value = (EqualityAndRelationalOperator)0;
+                element.ConditionMode!.Value = EqualityAndRelationalOperator.Equal_0;
                 predecessor = element.NodeId;
             }
             Publish(10.0);
@@ -598,7 +599,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(failures[0].Exception, Is.TypeOf<AggregateException>());
             Assert.That(
                 ((AggregateException)failures[0].Exception!).InnerExceptions.Select(ex => ex.Message),
-                Is.EqualTo(new[] { "Subscriber failed.", "Subscriber failed." }));
+                Is.EqualTo(SubscriberFailureMessages));
             AssertGood(m_controller.CompleteElement(first));
             AssertGood(m_controller.CompleteElement(second));
             Assert.That(m_controller.State, Is.EqualTo(RecipeRunState.Idle));
@@ -1018,7 +1019,7 @@ namespace Opc.Ua.Scales.Tests
             Publish(false);
             EdgeTriggeredSleepState edge = Edge(0);
             AssertGood(m_controller.Start(m_recipe.NodeId));
-            edge.ConditionMode!.Value = (EdgeOperator)1;
+            edge.ConditionMode!.Value = EdgeOperator.Falling_1;
             edge.ThresholdValueId!.Value = "unknown";
             edge.TargetThresholdValue!.WrappedValue = new Variant(false);
             Publish(true);
@@ -1290,6 +1291,9 @@ namespace Opc.Ua.Scales.Tests
 
         /// <summary>A timer-disposal failure a test injects on purpose; teardown expects it.</summary>
         private Exception? m_expectedShutdownFailure;
+        /// <summary>The failures from the two throwing process-fault subscribers.</summary>
+        private static readonly string[] SubscriberFailureMessages = ["Subscriber failed.", "Subscriber failed."];
+
         private ScalesServerFixture m_fixture = null!;
         private ScaleHandle m_scale = null!;
         private RecipeController m_controller = null!;

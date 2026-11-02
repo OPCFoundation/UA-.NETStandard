@@ -256,7 +256,7 @@ namespace Opc.Ua.Scales.Tests
             if (fails)
             {
                 calculator.Result.SetException(new InvalidOperationException("The pricing provider failed."));
-                await Assert.ThatAsync(async () => await pending, Throws.TypeOf<InvalidOperationException>());
+                await Assert.ThatAsync(() => pending, Throws.TypeOf<InvalidOperationException>());
                 Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
             }
             else
@@ -383,7 +383,7 @@ namespace Opc.Ua.Scales.Tests
             Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1), cancellation.Token).AsTask();
             Assert.That(calculator.Started, Is.True);
             cancellation.Cancel();
-            await Assert.ThatAsync(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => pending, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
             Assert.That(scale.RegisteredReading, Is.Null);
         }
@@ -403,7 +403,7 @@ namespace Opc.Ua.Scales.Tests
             Task<ServiceResult> pending = scale.Catchweigher!.ReportAsync(Item(1)).AsTask();
             Assert.That(calculator.Started, Is.True);
             await fixture.Manager.DisposeAsync();
-            await Assert.ThatAsync(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
+            await Assert.ThatAsync(() => pending, Throws.InstanceOf<OperationCanceledException>());
             Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
             Assert.That(scale.RegisteredReading, Is.Null);
         }
@@ -455,7 +455,7 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(resource.Disposed, Is.False, "the admitted construction still owns the dependencies");
                 resume.Set();
                 await Assert.ThatAsync(
-                    async () => await creation, Throws.InstanceOf<OperationCanceledException>());
+                    () => creation, Throws.InstanceOf<OperationCanceledException>());
                 AggregateException? thrown = await Assert.ThrowsAsync<AggregateException>(
                     async () => await stopping.WaitAsync(TimeSpan.FromSeconds(15)));
                 Assert.That(thrown!.Flatten().InnerExceptions, Is.EquivalentTo(expected));
@@ -465,7 +465,7 @@ namespace Opc.Ua.Scales.Tests
                 AggregateException? repeated = await Assert.ThrowsAsync<AggregateException>(
                     async () => await fixture.Manager.Runtime.DisposeAsync());
                 Assert.That(repeated, Is.SameAs(thrown), "later callers retain the original shutdown error");
-                await Assert.ThatAsync(async () => await pending, Throws.InstanceOf<OperationCanceledException>());
+                await Assert.ThatAsync(() => pending, Throws.InstanceOf<OperationCanceledException>());
                 Assert.That(Count(scale.ProductionOutput!.Statistic), Is.Zero);
                 Assert.That(scale.RegisteredReading, Is.Null);
             }
@@ -526,7 +526,7 @@ namespace Opc.Ua.Scales.Tests
 
             Assert.That(preset.Switch("B").StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
             AssertGood(await scale.Catchweigher!.ReportAsync(Item(1)));
-            Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(new[] { "A" }));
+            Assert.That(preset.CurrentProducts.ToArray(), Is.EqualTo(FirstProductSelection));
 
             reservation.Dispose();
             reservation.Dispose();
@@ -746,9 +746,9 @@ namespace Opc.Ua.Scales.Tests
             };
         }
 
-        private async ValueTask<ScaleHandle> CreateAsync(ScaleKind kind, IScalePriceCalculator? calculator = null)
+        private ValueTask<ScaleHandle> CreateAsync(ScaleKind kind, IScalePriceCalculator? calculator = null)
         {
-            return await m_fixture.Manager.CreateScaleAsync(
+            return m_fixture.Manager.CreateScaleAsync(
                 m_fixture.Name("Acquisition" + ++m_scaleId), kind, b => Configure(b, kind, calculator));
         }
 
@@ -846,6 +846,9 @@ namespace Opc.Ua.Scales.Tests
         }
 
         private static EUInformation Millimetre => ScaleUnits.Create("MMT", "mm", "millimetre");
+        /// <summary>The selected product while the first product reservation is active.</summary>
+        private static readonly string[] FirstProductSelection = ["A"];
+
         private ScalesServerFixture m_fixture = null!;
         private int m_scaleId;
     }

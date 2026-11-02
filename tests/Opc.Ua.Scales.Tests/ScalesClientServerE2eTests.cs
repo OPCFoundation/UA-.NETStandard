@@ -349,7 +349,7 @@ namespace Opc.Ua.Scales.Tests
                         Stable = true,
                         InsideZero = false,
                         CurrentRangeId = 7,
-                        TareMode = (TareMode)1
+                        TareMode = TareMode.MeasuredTare_1
                     },
                     Length = new ScaleItemMeasurement(
                         20, ScaleUnits.Create("MMT", "mm", "millimetre"),
@@ -365,7 +365,7 @@ namespace Opc.Ua.Scales.Tests
                 Assert.That(actual.MeasuredWeight.Value.Stable, Is.True);
                 Assert.That(actual.MeasuredWeight.Value.InsideZero, Is.False);
                 Assert.That(actual.MeasuredWeight.Value.CurrentRangeId, Is.EqualTo(7));
-                Assert.That(actual.MeasuredWeight.Value.TareMode, Is.EqualTo((TareMode)1));
+                Assert.That(actual.MeasuredWeight.Value.TareMode, Is.EqualTo(TareMode.MeasuredTare_1));
                 Assert.That(actual.MeasuredWeight.Timestamp, Is.EqualTo(item.Weight.Timestamp));
                 Assert.That(actual.MeasuredLength.Value, Is.EqualTo(20));
                 Assert.That(actual.MeasuredLength.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));

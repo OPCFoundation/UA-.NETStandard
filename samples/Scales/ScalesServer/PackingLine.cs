@@ -295,20 +295,20 @@ namespace ScalesSample
                 ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.AnalogConditionSleepType, ns),
                 "MassReady", ConditionRecipe.NodeId);
             mass.ThresholdValueId!.Value = "1";
-            mass.ConditionMode!.Value = (EqualityAndRelationalOperator)3;
+            mass.ConditionMode!.Value = EqualityAndRelationalOperator.GreaterOrEqualThan_3;
             mass.TargetThresholdValue!.WrappedValue = new Variant(5.0);
             mass.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
             var ready = (EdgeTriggeredSleepState)conditions.AddRecipeElement(
                 ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.EdgeTriggeredSleepType, ns),
                 "ReadyEdge", ConditionRecipe.NodeId);
             ready.ThresholdValueId!.Value = "2";
-            ready.ConditionMode!.Value = (EdgeOperator)0;
+            ready.ConditionMode!.Value = EdgeOperator.Rising_0;
             ready.TargetThresholdValue!.WrappedValue = new Variant(true);
             var timeout = (AnalogConditionSleepState)conditions.AddRecipeElement(
                 ConditionRecipe, new NodeId(Opc.Ua.Scales.ObjectTypes.AnalogConditionSleepType, ns),
                 "OperatorIntervention", mass.NodeId, ready.NodeId);
             timeout.ThresholdValueId!.Value = "1";
-            timeout.ConditionMode!.Value = (EqualityAndRelationalOperator)3;
+            timeout.ConditionMode!.Value = EqualityAndRelationalOperator.GreaterOrEqualThan_3;
             timeout.TargetThresholdValue!.WrappedValue = new Variant(1000.0);
             timeout.TargetThresholdValue.EngineeringUnits!.Value = ScaleUnits.Kilogram;
             timeout.AddTimeout(context.Manager.SystemContext);

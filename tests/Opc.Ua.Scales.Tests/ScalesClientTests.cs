@@ -208,7 +208,7 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(actual.MeasuredWeight.Value.WeightId, Is.EqualTo("equipment-weight"));
             Assert.That(actual.MeasuredWeight.Value.Stable, Is.True);
             Assert.That(actual.MeasuredWeight.Value.CurrentRangeId, Is.EqualTo(7));
-            Assert.That(actual.MeasuredWeight.Value.TareMode, Is.EqualTo((TareMode)1));
+            Assert.That(actual.MeasuredWeight.Value.TareMode, Is.EqualTo(TareMode.MeasuredTare_1));
             Assert.That(actual.MeasuredLength.HasValue, Is.True);
             Assert.That(actual.MeasuredLength.Value, Is.EqualTo(12));
             Assert.That(actual.MeasuredLength.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
