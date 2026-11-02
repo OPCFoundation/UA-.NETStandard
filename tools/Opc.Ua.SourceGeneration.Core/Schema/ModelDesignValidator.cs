@@ -6211,8 +6211,15 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
 
-                // suppress inhierited non-hierarchial references.
+                // Semantic references describe every instance, including overridden
+                // declarations (OPC 30081 section 6.3). Other non-hierarchical
+                // references retain their existing inheritance rules.
                 if (inherited &&
+                    (source.References[ii].IsInverse ||
+                        (source.References[ii].ReferenceType !=
+                            new XmlQualifiedName("HasInterface", Ua.Types.Namespaces.OpcUa) &&
+                        source.References[ii].ReferenceType !=
+                            new XmlQualifiedName("HasDictionaryEntry", Ua.Types.Namespaces.OpcUa))) &&
                     m_nodes.TryGetValue(source.References[ii].ReferenceType, out NodeDesign? target))
                 {
                     var referenceType = target as ReferenceTypeDesign;

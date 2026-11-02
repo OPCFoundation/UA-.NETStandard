@@ -261,7 +261,8 @@ limitations and the actual configured instance before claiming a facet.
 | [Perception](Vision.md#perception-model) and [Robot Intent](Robotics.md#robot-intent) | Perception/media/inference/feedback and robot task-intent implementations | Draft models with provisional identifiers, not released-companion conformance claims |
 | [AI](AI.md), [xRegistry](XRegistry.md), [OpenUSD](OpenUsd.md) | Model/deployment/inference services, registry/version/federation and scene/address-space integration | Draft extension models; preview-only families, with provider/backend-specific limits |
 | [WoT Connectivity](WotCon.md) | OPC 10100-1 interfaces and WoT conversion/binding implementations | Preview package policy; registry extensions and transport-specific bindings have separate scope |
-| [PA-DIM/ECM](Machinery.md) and [PackML](Scales.md) | Shared generated dependency models and the behavior bound by Machinery/Scales | Not a blanket standalone device or all-facet implementation claim |
+| [PA-DIM](PADIM.md) | Standalone provider-backed DI devices, signal/analyser families and generated-proxy clients; shared model producer with Machinery | All-facet runtime verification remains incomplete; namespace availability is not conformance evidence |
+| [ECM](Machinery.md) and [PackML](Scales.md) | Shared generated dependency models and the behavior bound by Machinery/Scales | Not a blanket standalone device or all-facet implementation claim |
 
 Package preview status is governed by [the release policy](ReleaseProcess.md#terms),
 not by a specification's publication date. The MachineTool/GMS and released
@@ -734,6 +735,7 @@ for the variant selected by `--ctt`.
 - [Node Management](NodeManagement.md) (Part 4)
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
+- [PA-DIM](PADIM.md) (OPC 30081)
 - [Pumps](Pumps.md) (OPC 40223)
 - [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
