@@ -38,25 +38,28 @@ using NUnit.Framework;
 namespace Opc.Ua.SourceGeneration
 {
     /// <summary>
-    /// Verifies that instance factories only reference declarations they create.
+    /// Verifies that instance factories preserve references needed by optional-child creation.
     /// </summary>
     [TestFixture]
     [Category("SourceGeneration")]
     public sealed class InstanceFactoryReferenceGeneratorTests
     {
         /// <summary>
-        /// A reference from a type to a declaration that only exists on the type, because the
-        /// declaration or one of its ancestors is optional, stays on the type but is omitted
-        /// from the instance factory, while references to created members and external nodes
-        /// remain on both.
+        /// References to optional declarations remain on the instance factory so optional-child
+        /// creation can rebase them. Mandatory siblings with underscores in their names and
+        /// external references also remain on both factories.
         /// </summary>
-        [TestCase(kHasAddIn, "CreateDeviceType", Description = "Mandatory child of an optional folder")]
-        [TestCase(kHasNotifier, "CreateDeviceType", Description = "Optional direct child")]
+        [TestCase(kHasAddIn, "CreateDeviceType", "CreateInstanceOfDeviceType",
+            Description = "Mandatory child of an optional folder")]
+        [TestCase(kHasNotifier, "CreateDeviceType", "CreateInstanceOfDeviceType",
+            Description = "Optional direct child")]
+        [TestCase(kHasComponent, "CreateDeviceType", "CreateInstanceOfDeviceType",
+            Description = "Mandatory sibling with an underscore in its name")]
         [TestCase(kHasEventSource, "CreateDeviceType", "CreateInstanceOfDeviceType",
             Description = "Mandatory direct child")]
         [TestCase(kOrganizes, "CreateDeviceType", "CreateInstanceOfDeviceType",
             Description = "External node")]
-        public void InstanceFactoryOmitsReferencesToUninstantiatedDeclarations(
+        public void InstanceFactoryRetainsReferencesNeededForOptionalChildCreation(
             string referenceType, params string[] expectedFactories)
         {
             GeneratorDriver driver = GenerateModel(out Compilation output);
@@ -110,6 +113,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kHasEventSource = "36";
         private const string kHasNotifier = "48";
         private const string kHasAddIn = "17604";
+        private const string kHasComponent = "47";
 
         private const string kModel = """
             <?xml version="1.0" encoding="utf-8" ?>
@@ -131,7 +135,11 @@ namespace Opc.Ua.SourceGeneration
                     </opc:Children>
                   </opc:Object>
                   <opc:Object SymbolicName="Extra" TypeDefinition="ua:BaseObjectType" ModellingRule="Optional" />
-                  <opc:Object SymbolicName="Status" TypeDefinition="ua:BaseObjectType" ModellingRule="Mandatory" />
+                  <opc:Object SymbolicName="Status" TypeDefinition="ua:BaseObjectType" ModellingRule="Optional" />
+                  <opc:Object SymbolicName="Status_Code" TypeDefinition="ua:BaseObjectType"
+                      ModellingRule="Mandatory" />
+                  <opc:Object SymbolicName="CurrentState" TypeDefinition="ua:BaseObjectType"
+                      ModellingRule="Mandatory" />
                 </opc:Children>
                 <opc:References>
                   <opc:Reference>
@@ -143,8 +151,12 @@ namespace Opc.Ua.SourceGeneration
                     <opc:TargetId>DeviceType_Extra</opc:TargetId>
                   </opc:Reference>
                   <opc:Reference>
+                    <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+                    <opc:TargetId>DeviceType_Status_Code</opc:TargetId>
+                  </opc:Reference>
+                  <opc:Reference>
                     <opc:ReferenceType>ua:HasEventSource</opc:ReferenceType>
-                    <opc:TargetId>DeviceType_Status</opc:TargetId>
+                    <opc:TargetId>DeviceType_CurrentState</opc:TargetId>
                   </opc:Reference>
                   <opc:Reference>
                     <opc:ReferenceType>ua:Organizes</opc:ReferenceType>

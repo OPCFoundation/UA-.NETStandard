@@ -4537,15 +4537,6 @@ namespace Opc.Ua.SourceGeneration
                 });
             }
 
-            // An instance factory creates only the declarations its modelling rules
-            // make mandatory. A reference to any other declaration of the type would
-            // keep the type's NodeId on the instance, because nothing rebases it.
-            if (node.InstanceOf != null)
-            {
-                HashSet<XmlQualifiedName> uninstantiated = GetUninstantiatedDeclarations(hierarchy);
-                references.RemoveWhere(reference => uninstantiated.Contains(reference.TargetNode.SymbolicId));
-            }
-
             // Inherited and declared designs can differ structurally while
             // resolving to the same runtime reference.
             HashSet<(string ReferenceTypeId, bool IsInverse, string TargetId)> referenceIds = [];
@@ -4559,58 +4550,6 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable))));
             return references;
-        }
-
-        /// <summary>
-        /// Returns the symbolic id of every declaration in <paramref name="hierarchy"/>
-        /// that a <c>CreateInstanceOf*</c> factory does not create. The factory creates
-        /// a declaration only when it and each of its ancestors are Mandatory.
-        /// </summary>
-        private static HashSet<XmlQualifiedName> GetUninstantiatedDeclarations(Hierarchy hierarchy)
-        {
-            HashSet<XmlQualifiedName> created = [];
-            HashSet<XmlQualifiedName> uninstantiated = [];
-            foreach (HierarchyNode current in hierarchy.NodeList)
-            {
-                string? path = current.RelativePath;
-                if (string.IsNullOrEmpty(path) || current.Instance == null)
-                {
-                    continue;
-                }
-
-                HashSet<XmlQualifiedName> bucket = IsCreatedByInstanceFactory(hierarchy, path)
-                    ? created
-                    : uninstantiated;
-                bucket.Add(current.Instance.SymbolicId);
-                if (current.OverriddenNodes != null)
-                {
-                    foreach (NodeDesign overridden in current.OverriddenNodes)
-                    {
-                        bucket.Add(overridden.SymbolicId);
-                    }
-                }
-            }
-            uninstantiated.ExceptWith(created);
-            return uninstantiated;
-        }
-
-        /// <summary>
-        /// Whether the declaration at <paramref name="path"/> and every ancestor
-        /// declaration on its path are Mandatory.
-        /// </summary>
-        private static bool IsCreatedByInstanceFactory(Hierarchy hierarchy, string path)
-        {
-            for (int index = path.Length; index > 0;
-                index = path.LastIndexOf(NodeDesign.PathChar, index - 1))
-            {
-                if (hierarchy.Nodes.TryGetValue(path[..index], out HierarchyNode? ancestor) &&
-                    ancestor.Instance is InstanceDesign instance &&
-                    instance.ModellingRule != ModellingRule.Mandatory)
-                {
-                    return false;
-                }
-            }
-            return true;
         }
 
         /// <summary>
