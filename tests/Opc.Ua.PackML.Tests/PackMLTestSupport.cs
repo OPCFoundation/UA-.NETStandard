@@ -81,27 +81,41 @@ namespace Opc.Ua.PackML.Tests
         public List<PackMLRequest> Authorized { get; } = [];
         public List<PackMLRequest> Executed { get; } = [];
         public Func<PackMLRequest, CancellationToken, ValueTask<ServiceResult>>? Execute { get; set; }
+        public Func<CancellationToken, ValueTask>? Callback { get; set; }
+        public int CallbackPhase { get; set; }
 
-        public ValueTask<ServiceResult> AuthorizeAsync(
+        public async ValueTask<ServiceResult> AuthorizeAsync(
             ISystemContext context, PackMLRequest request, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Authorized.Add(request);
-            return new(Authorization);
+            if (CallbackPhase == 0 && Callback is { } callback)
+            {
+                await callback(cancellationToken);
+            }
+            return Authorization;
         }
 
-        public ValueTask<ServiceResult> ExecuteAsync(
+        public async ValueTask<ServiceResult> ExecuteAsync(
             PackMLRequest request, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Executed.Add(request);
-            return Execute?.Invoke(request, cancellationToken) ?? new(Acceptance);
+            if (CallbackPhase == 1 && Callback is { } callback)
+            {
+                await callback(cancellationToken);
+            }
+            return Execute is { } execute ? await execute(request, cancellationToken) : Acceptance;
         }
 
-        public ValueTask<PackMLEquipmentSnapshot> ReadAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<PackMLEquipmentSnapshot> ReadAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new(Snapshot);
+            if (CallbackPhase == 2 && Callback is { } callback)
+            {
+                await callback(cancellationToken);
+            }
+            return Snapshot;
         }
     }
 

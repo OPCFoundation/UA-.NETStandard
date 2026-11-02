@@ -88,15 +88,28 @@ namespace Opc.Ua.PackML.Server
         /// Creates and registers a unit below a chosen parent, or directly in
         /// Objects when parent is null. No PackML-specific global folder is added.
         /// </summary>
-        public async ValueTask<PackMLUnit> AddUnitAsync(
+        public ValueTask<PackMLUnit> AddUnitAsync(
             QualifiedName browseName,
             IPackMLEquipmentProvider provider,
             Action<PackMLUnitOptions>? configure = null,
             NodeState? parent = null,
             CancellationToken cancellationToken = default)
         {
-            using PackMLLifetime.Lease pending = await m_lifetime.EnterAsync(cancellationToken).ConfigureAwait(false);
-            pending.Token.ThrowIfCancellationRequested();
+            return m_lifetime.RunAsync(
+                token => AddUnitCoreAsync(browseName, provider, configure, parent, token), cancellationToken);
+        }
+
+        /// <summary>
+        /// Creates and registers one admitted composition operation.
+        /// </summary>
+        private async ValueTask<PackMLUnit> AddUnitCoreAsync(
+            QualifiedName browseName,
+            IPackMLEquipmentProvider provider,
+            Action<PackMLUnitOptions>? configure,
+            NodeState? parent,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             var options = new PackMLUnitOptions();
             configure?.Invoke(options);
             var children = new List<BaseInstanceState>();
@@ -110,14 +123,15 @@ namespace Opc.Ua.PackML.Server
                 }
             }
             PackMLUnit unit = await PackMLUnit.CreateAsync(
-                m_manager.SystemContext, parent, browseName, provider, options, pending.Token).ConfigureAwait(false);
+                m_manager.SystemContext, parent, browseName, provider, options, cancellationToken)
+                .ConfigureAwait(false);
             try
             {
-                await m_manager.AddPredefinedNodeAsync(unit.ModeDataType, pending.Token).ConfigureAwait(false);
+                await m_manager.AddPredefinedNodeAsync(unit.ModeDataType, cancellationToken).ConfigureAwait(false);
                 await m_manager.Server.NodeManager.AddReferencesAsync(
                     Ua.DataTypeIds.Enumeration,
                     [new NodeStateReference(Ua.ReferenceTypeIds.HasSubtype, false, unit.ModeDataType.NodeId)],
-                    pending.Token).ConfigureAwait(false);
+                    cancellationToken).ConfigureAwait(false);
                 unit.Node.ReferenceTypeId = parent is null
                     ? Ua.ReferenceTypeIds.Organizes
                     : Ua.ReferenceTypeIds.HasComponent;
@@ -131,17 +145,17 @@ namespace Opc.Ua.PackML.Server
                     parent.AddNotifier(m_manager.SystemContext, Ua.ReferenceTypeIds.HasEventSource, false, unit.Node);
                     unit.Node.AddNotifier(m_manager.SystemContext, Ua.ReferenceTypeIds.HasEventSource, true, parent);
                 }
-                await m_manager.AddPredefinedNodeAsync(unit.Node, pending.Token).ConfigureAwait(false);
+                await m_manager.AddPredefinedNodeAsync(unit.Node, cancellationToken).ConfigureAwait(false);
                 if (parent is null)
                 {
                     await m_manager.Server.NodeManager.AddReferencesAsync(
                         Ua.ObjectIds.ObjectsFolder,
                         [new NodeStateReference(Ua.ReferenceTypeIds.Organizes, false, unit.Node.NodeId)],
-                        pending.Token).ConfigureAwait(false);
+                        cancellationToken).ConfigureAwait(false);
                 }
                 if (m_manager is PackMLNodeManager standalone)
                 {
-                    await standalone.RegisterUnitNotifierAsync(unit.Node, pending.Token).ConfigureAwait(false);
+                    await standalone.RegisterUnitNotifierAsync(unit.Node, cancellationToken).ConfigureAwait(false);
                 }
                 lock (m_unitsLock)
                 {
@@ -188,22 +202,23 @@ namespace Opc.Ua.PackML.Server
         /// Stops creation and provider operations before the owning address space
         /// is deleted. Providers are borrowed, not disposed here.
         /// </summary>
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            try
+            return m_lifetime.StopAsync(DisposeUnitsAsync);
+        }
+
+        /// <summary>
+        /// Starts cancellation on every committed unit before joining their shutdown.
+        /// </summary>
+        private async ValueTask DisposeUnitsAsync()
+        {
+            ArrayOf<PackMLUnit> units = Units;
+            var shutdown = new Task[units.Count];
+            for (int index = 0; index < units.Count; index++)
             {
-                await m_lifetime.DisposeAsync().ConfigureAwait(false);
+                shutdown[index] = units[index].DisposeAsync().AsTask();
             }
-            finally
-            {
-                ArrayOf<PackMLUnit> units = Units;
-                var shutdown = new Task[units.Count];
-                for (int index = 0; index < units.Count; index++)
-                {
-                    shutdown[index] = units[index].DisposeAsync().AsTask();
-                }
-                await Task.WhenAll(shutdown).ConfigureAwait(false);
-            }
+            await Task.WhenAll(shutdown).ConfigureAwait(false);
         }
 
         /// <summary>The borrowed address-space owner.</summary>

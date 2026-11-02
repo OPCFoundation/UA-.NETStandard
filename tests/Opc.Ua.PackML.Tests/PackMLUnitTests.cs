@@ -643,6 +643,85 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(names.Contains("PackML ProdDefectiveCount"), Is.EqualTo(defectiveCapacity > 0));
         }
 
+        [TestCase(0, 0)]
+        [TestCase(1, 0)]
+        [TestCase(2, 0)]
+        [TestCase(0, 1)]
+        [TestCase(1, 1)]
+        [TestCase(2, 1)]
+        [TestCase(0, 2)]
+        [TestCase(1, 2)]
+        [TestCase(2, 2)]
+        public async Task ProviderReentryIsRejectedWithoutBlockingOrChangingAcceptedCommandOrder(
+            int phase,
+            int operation)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            int rejected = 0;
+            provider.CallbackPhase = phase;
+            provider.Callback = async token =>
+            {
+                await Task.Yield();
+                await Assert.ThatAsync(
+                    async () =>
+                    {
+                        ValueTask reentry = operation switch
+                        {
+                            0 => unit.RefreshAsync(token),
+                            1 => unit.CheckpointAsync(token),
+                            _ => unit.DisposeAsync()
+                        };
+                        await reentry.AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+                    },
+                    Throws.InvalidOperationException);
+                rejected++;
+            };
+            if (phase == 2)
+            {
+                await unit.RefreshAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset))
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.That(rejected, Is.EqualTo(1));
+            Assert.That(provider.Executed, Has.Count.EqualTo(1));
+            Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[0].RequestId));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            provider.Callback = null;
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Start)));
+            Assert.That(provider.Executed, Has.Count.EqualTo(2));
+            Assert.That(provider.Executed[1].RequestId, Is.GreaterThan(provider.Executed[0].RequestId));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Starting));
+        }
+
+        [Test]
+        public async Task UnhandledProviderReentryRestoresIndicatorsAndAllowsTheNextCommand()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var provider = new EquipmentProvider();
+            await using Unit unit = await Unit.CreateAsync(context, null, PackMLTestSupport.Name(context), provider);
+            provider.CallbackPhase = 1;
+            provider.Callback = async token =>
+            {
+                await Task.Yield();
+                await unit.RefreshAsync(token);
+            };
+            await Assert.ThatAsync(
+                async () => await unit.RequestAsync(context, Command(PackMLCommand.Reset))
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)),
+                Throws.InvalidOperationException);
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Stopped));
+            Assert.That(unit.PendingRequestId, Is.Zero);
+            Assert.That(unit.Node.Status.Required().StateChangeInProcess.Required().Value, Is.False);
+            provider.Callback = null;
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Resetting));
+            Assert.That(provider.Executed, Has.Count.EqualTo(2));
+            Assert.That(unit.PendingRequestId, Is.EqualTo(provider.Executed[1].RequestId));
+        }
+
         [Test]
         public async Task StoreFailureAfterAcceptanceIsReportedWithoutReplayingEquipment()
         {

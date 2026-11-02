@@ -113,8 +113,11 @@ duplicate completion or completion for a superseded request returns
 command; its completion uses the new identity.
 
 Operations on one unit are serialized, including provider calls, snapshots,
-completion and checkpoints. A provider must not re-enter that unit from one
-of its callbacks. Shutdown cancels active and queued provider work and waits
+completion and checkpoints. A call back into the same unit from a provider
+callback's asynchronous execution context throws `InvalidOperationException`
+before admission, rather than waiting behind its own operation. This also
+applies to disposal and persistence callbacks. Independent callers remain
+serialized. Shutdown cancels active and queued provider work and waits
 for it to finish; providers must observe the supplied cancellation token.
 Provider exceptions and store errors are propagated to the caller.
 

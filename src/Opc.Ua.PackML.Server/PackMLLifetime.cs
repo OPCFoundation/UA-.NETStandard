@@ -34,10 +34,18 @@ namespace Opc.Ua.PackML.Server
     internal sealed class PackMLLifetime : IAsyncDisposable
     {
         /// <summary>
-        /// Admits an operation unless shutdown has already started.
+        /// Executes an operation without exposing admission or serialization ownership.
         /// </summary>
-        public async ValueTask<Lease> EnterAsync(CancellationToken cancellationToken)
+        /// <typeparam name="T">The operation result type.</typeparam>
+        public async ValueTask<T> RunAsync<T>(
+            Func<CancellationToken, ValueTask<T>> operation,
+            CancellationToken cancellationToken)
         {
+            if (operation is null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            RejectReentry();
             CancellationTokenSource pending;
             lock (m_sync)
             {
@@ -48,16 +56,64 @@ namespace Opc.Ua.PackML.Server
                 pending = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_stopping.Token);
                 m_active++;
             }
+            bool entered = false;
+            var execution = new Execution();
             try
             {
                 await m_gate.WaitAsync(pending.Token).ConfigureAwait(false);
-                return new Lease(this, pending);
+                entered = true;
+                pending.Token.ThrowIfCancellationRequested();
+                m_execution.Value = execution;
+                return await operation(pending.Token).ConfigureAwait(false);
             }
-            catch
+            finally
             {
+                execution.Active = false;
+                m_execution.Value = null;
                 pending.Dispose();
+                if (entered)
+                {
+                    m_gate.Release();
+                }
                 Exit();
-                throw;
+            }
+        }
+
+        /// <summary>
+        /// Executes an operation with no result using the same lifecycle.
+        /// </summary>
+        public async ValueTask RunAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken cancellationToken)
+        {
+            if (operation is null)
+            {
+                throw new ArgumentNullException(nameof(operation));
+            }
+            await RunAsync(async token =>
+            {
+                await operation(token).ConfigureAwait(false);
+                return true;
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Drains the owner and attempts its cleanup without accepting callback reentry.
+        /// </summary>
+        public async ValueTask StopAsync(Func<ValueTask> cleanup)
+        {
+            if (cleanup is null)
+            {
+                throw new ArgumentNullException(nameof(cleanup));
+            }
+            RejectReentry();
+            try
+            {
+                await DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                await cleanup().ConfigureAwait(false);
             }
         }
 
@@ -66,6 +122,7 @@ namespace Opc.Ua.PackML.Server
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            RejectReentry();
             bool first;
             lock (m_sync)
             {
@@ -117,44 +174,29 @@ namespace Opc.Ua.PackML.Server
         }
 
         /// <summary>
-        /// Owns one serialized operation and its linked cancellation source.
+        /// Rejects calls from an operation's asynchronous callback chain before admission.
         /// </summary>
-        internal sealed class Lease : IDisposable
+        private void RejectReentry()
+        {
+            if (m_execution.Value is { Active: true })
+            {
+                throw new InvalidOperationException("A PackML callback cannot re-enter its owning unit or runtime.");
+            }
+        }
+
+        /// <summary>
+        /// Tracks whether an inherited callback context still belongs to active work.
+        /// </summary>
+        private sealed class Execution
         {
             /// <summary>
-            /// Captures the admitted owner and linked token.
+            /// Whether the originating operation is still executing.
             /// </summary>
-            public Lease(PackMLLifetime owner, CancellationTokenSource pending)
-            {
-                m_owner = owner;
-                m_pending = pending;
-            }
-
-            /// <summary>
-            /// Gets the caller/shutdown cancellation token.
-            /// </summary>
-            public CancellationToken Token => m_pending.Token;
-
-            /// <summary>
-            /// Releases admission only after all operation-local cleanup.
-            /// </summary>
-            public void Dispose()
-            {
-                PackMLLifetime? owner = Interlocked.Exchange(ref m_owner, null);
-                if (owner is not null)
-                {
-                    m_pending.Dispose();
-                    owner.m_gate.Release();
-                    owner.Exit();
-                }
-            }
-
-            /// <summary>The admission owner, cleared on the first release.</summary>
-            private PackMLLifetime? m_owner;
-
-            /// <summary>The linked caller and shutdown cancellation source.</summary>
-            private readonly CancellationTokenSource m_pending;
+            public volatile bool Active = true;
         }
+
+        /// <summary>The current operation in this asynchronous execution context.</summary>
+        private readonly AsyncLocal<Execution?> m_execution = new();
 
         /// <summary>Protects admission counts and shutdown flags.</summary>
         private readonly System.Threading.Lock m_sync = new();
