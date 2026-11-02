@@ -68,7 +68,9 @@ namespace Opc.Ua.Aot.Tests
             RGBWDataType decoded = BinaryDecoder.DecodeMessage<RGBWDataType>(encoded, messages);
 
             var services = new ServiceCollection();
-            services.AddOpcUa().AddServer().AddIndustrialAutomation();
+            services.AddOpcUa()
+                .AddServer(options => options.ApplicationName = "IndustrialAutomationAotServer")
+                .AddIndustrialAutomation();
             services.AddOpcUa().AddClient(options =>
             {
                 options.Configuration = new ApplicationConfiguration(telemetry)

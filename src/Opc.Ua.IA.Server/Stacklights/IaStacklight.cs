@@ -433,8 +433,9 @@ namespace Opc.Ua.IA.Server
         {
             var pending = new Stack<NodeState>();
             pending.Push(root);
-            while (pending.TryPop(out NodeState? node))
+            while (pending.Count > 0)
             {
+                NodeState node = pending.Pop();
                 if (node is BaseVariableState variable)
                 {
                     variable.AccessLevel = AccessLevels.CurrentRead;

@@ -53,15 +53,15 @@ namespace Opc.Ua.IA.Tests
             provider.AddPredefinedNodes(nodes, fixture.Context);
             int count = nodes.Count;
             Assert.That(count, Is.GreaterThan(0));
-            Assert.That(nodes.Select(node => node.NodeId), Is.SupersetOf(new[]
-            {
-                ExpandedNodeId.ToNodeId(ObjectTypeIds.BasicStacklightType, fixture.Context.NamespaceUris),
-                ExpandedNodeId.ToNodeId(ObjectTypeIds.IStatisticsType, fixture.Context.NamespaceUris),
-                ExpandedNodeId.ToNodeId(ObjectTypeIds.CalibrationTargetType, fixture.Context.NamespaceUris)
-            }));
+            Assert.That(nodes, Has.Some.Property(nameof(NodeState.NodeId)).EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.BasicStacklightType, fixture.Context.NamespaceUris)));
+            Assert.That(nodes, Has.Some.Property(nameof(NodeState.NodeId)).EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.IStatisticsType, fixture.Context.NamespaceUris)));
+            Assert.That(nodes, Has.Some.Property(nameof(NodeState.NodeId)).EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.CalibrationTargetType, fixture.Context.NamespaceUris)));
             provider.AddPredefinedNodes(nodes, fixture.Context);
             Assert.That(nodes.Count, Is.EqualTo(count));
-            Assert.That(nodes.Select(node => node.NodeId).Distinct().Count(), Is.EqualTo(count));
+            Assert.That(nodes.Select(node => node.NodeId).Distinct(), Has.Count.EqualTo(count));
             Assert.That(typeof(BasicStacklightState).Assembly, Is.SameAs(typeof(ObjectTypeIds).Assembly));
             Assert.That(typeof(IaStacklight).Assembly, Is.Not.SameAs(typeof(BasicStacklightState).Assembly));
         }
@@ -73,7 +73,7 @@ namespace Opc.Ua.IA.Tests
         public void HostingComposesOneModelProvider()
         {
             var services = new ServiceCollection();
-            services.AddOpcUa().AddServer().AddMachinery()
+            services.AddOpcUa().AddServer(options => options.ApplicationName = "IaCompositionTest").AddMachinery()
                 .AddIndustrialAutomation().AddIndustrialAutomation();
             using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(provider.GetServices<IDiModelProvider>().OfType<IaModelProvider>().Count(), Is.EqualTo(1));
@@ -90,12 +90,14 @@ namespace Opc.Ua.IA.Tests
             Assert.That(() => new IndustrialAutomationClient(null!, NUnitTelemetryContext.Create()),
                 Throws.ArgumentNullException);
             var session = new Mock<ISession>();
+            ServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
             session.SetupGet(value => value.MessageContext)
-                .Returns(new ServiceMessageContext(NUnitTelemetryContext.Create(), new EncodeableFactory()));
+                .Returns(messageContext);
             var client = new IndustrialAutomationClient(session.Object, NUnitTelemetryContext.Create());
             Assert.That(() => client.Stacklight(NodeId.Null), Throws.ArgumentNullException);
             Assert.That(() => client.DiscoverAsync(NodeId.Null), Throws.ArgumentNullException);
-            Assert.That(() => client.DiscoverAsync(new NodeId(1), maximumNodes: 0), Throws.ArgumentOutOfRangeException);
+            Assert.That(() => client.DiscoverAsync(new NodeId(1), maximumNodes: 0),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
     }
 }

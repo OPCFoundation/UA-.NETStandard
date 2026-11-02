@@ -68,8 +68,11 @@ namespace Opc.Ua.IA.Tests.Calibration
             Assert.That(node.LastValidationDate != null, Is.EqualTo(reusable));
             Assert.That(node.OperationalConditions != null, Is.EqualTo(reusable));
             Assert.That(node.Identification, Is.Not.Null);
-            Assert.That(fixture.Children(node.Identification).Select(child => child.BrowseName.Name),
-                Is.SupersetOf(new[] { "Manufacturer", "Model", "SerialNumber" }));
+            var identityProperties = fixture.Children(node.Identification)
+                .Select(child => child.BrowseName.Name);
+            Assert.That(identityProperties, Does.Contain("Manufacturer"));
+            Assert.That(identityProperties, Does.Contain("Model"));
+            Assert.That(identityProperties, Does.Contain("SerialNumber"));
             BaseVariableState value = fixture.Children(node.CalibrationTargetFeatures!)
                 .OfType<BaseVariableState>().Single();
             Assert.That(value.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
@@ -163,7 +166,7 @@ namespace Opc.Ua.IA.Tests.Calibration
                 Quality = invalid switch
                 {
                     1 => new IaCalibrationSample<byte>(101, StatusCodes.Good, IaTestContext.Timestamp),
-                    2 => new IaCalibrationSample<byte>(50, StatusCodes.Good, DateTimeUtc.Null),
+                    2 => new IaCalibrationSample<byte>(50, StatusCodes.Good, default),
                     _ => new IaCalibrationSample<byte>(50, StatusCodes.Good, IaTestContext.Timestamp)
                 }
             };
@@ -188,7 +191,7 @@ namespace Opc.Ua.IA.Tests.Calibration
         [TestCase(2, true)]
         public async Task MissingCalibrationValuesRequireBadQuality(int qualityCase, bool accepted)
         {
-            uint status = qualityCase switch
+            StatusCode status = qualityCase switch
             {
                 0 => StatusCodes.Good,
                 1 => StatusCodes.UncertainLastUsableValue,
@@ -220,7 +223,7 @@ namespace Opc.Ua.IA.Tests.Calibration
             }
             await binding.RefreshAsync().ConfigureAwait(false);
             Assert.That(value.WrappedValue.IsNull, Is.True);
-            Assert.That(value.StatusCode, Is.EqualTo((StatusCode)status));
+            Assert.That(value.StatusCode, Is.EqualTo(status));
             Assert.That(value.Timestamp, Is.EqualTo(IaTestContext.Timestamp));
         }
 

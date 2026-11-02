@@ -39,15 +39,17 @@ namespace Opc.Ua.IA.Tests
         public IaTestContext()
         {
             var namespaces = new NamespaceTable();
+            var telemetry = NUnitTelemetryContext.Create();
+            ServiceMessageContext messages = ServiceMessageContext.Create(telemetry);
             InstanceNamespace = namespaces.GetIndexOrAppend("urn:tests:ia:instances");
             namespaces.GetIndexOrAppend(Opc.Ua.Di.Namespaces.OpcUaDi);
             namespaces.GetIndexOrAppend(Namespaces.IA);
-            Context = new SystemContext(NUnitTelemetryContext.Create())
+            Context = new SystemContext(telemetry)
             {
                 NamespaceUris = namespaces,
                 NodeIdFactory = this,
                 TypeTable = new TypeTable(namespaces),
-                EncodeableFactory = new EncodeableFactory()
+                EncodeableFactory = messages.Factory
             };
             Context.EncodeableFactory.Builder.AddOpcUaIA().Commit();
         }
