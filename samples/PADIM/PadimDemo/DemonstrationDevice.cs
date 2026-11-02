@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.PADIM;
 using Opc.Ua.PADIM.Server;
 

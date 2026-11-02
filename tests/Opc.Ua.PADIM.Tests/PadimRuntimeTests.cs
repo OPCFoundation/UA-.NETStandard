@@ -365,7 +365,7 @@ namespace Opc.Ua.PADIM.Tests
         [TestCase(true, false)]
         public async Task RejectedWritesDoNotChangePublishedValue(bool allowed, bool providerAccepts)
         {
-            uint providerStatus = providerAccepts ? StatusCodes.Good : StatusCodes.BadOutOfRange;
+            StatusCode providerStatus = providerAccepts ? StatusCodes.Good : StatusCodes.BadOutOfRange;
             (PadimDevice device, BaseVariableState value) = await CreateAnalogAsync($"Write{allowed}{providerStatus}");
             value.WrappedValue = Variant.From(42f);
             var provider = new Mock<IPadimValueProvider>();
@@ -377,7 +377,7 @@ namespace Opc.Ua.PADIM.Tests
             if (allowed)
             {
                 writer.Setup(p => p.WriteAsync("temperature", Variant.From(99f), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new StatusCode(providerStatus));
+                    .ReturnsAsync(providerStatus);
             }
             device.BindValue(value, "temperature", provider.Object).WithWrites(writer.Object, authorizer.Object);
             AttributeWriteResult result = await value.OnSimpleWriteValueAsync!(
@@ -893,7 +893,7 @@ namespace Opc.Ua.PADIM.Tests
             bool allowed,
             bool providerAccepts)
         {
-            uint providerStatus = providerAccepts ? StatusCodes.Good : StatusCodes.BadOutOfRange;
+            StatusCode providerStatus = providerAccepts ? StatusCodes.Good : StatusCodes.BadOutOfRange;
             PadimDevice device = await CreateDeviceAsync($"Administration{allowed}{providerStatus}");
             DateTimeUtc changed = new(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc));
             var acquisition = new Mock<IPadimValueProvider>(MockBehavior.Strict);
@@ -909,7 +909,7 @@ namespace Opc.Ua.PADIM.Tests
             if (allowed)
             {
                 writer.Setup(p => p.WriteAsync("displayLanguage", Variant.From("de-DE"), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new StatusCode(providerStatus));
+                    .ReturnsAsync(providerStatus);
             }
             device.WithAdministration(acquisition.Object, writer.Object, authorizer.Object);
             await device.RefreshAsync();

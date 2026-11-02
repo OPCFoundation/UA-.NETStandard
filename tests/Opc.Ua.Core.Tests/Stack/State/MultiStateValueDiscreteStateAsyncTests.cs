@@ -44,9 +44,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint value,
             bool called)
         {
-            uint expected = called ? StatusCodes.Good : StatusCodes.BadOutOfRange;
+            StatusCode expected = called ? StatusCodes.Good : StatusCodes.BadOutOfRange;
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             bool providerCalled = false;
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
             {
@@ -64,8 +64,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From(
                     (ArrayOf<NodeId>)
                     [
-                        new NodeId(called ? "four-a" : "initial"),
-                        new NodeId(called ? "four-b" : "initial")
+                        new NodeId(called ? "four-a" : "initial", 0),
+                        new NodeId(called ? "four-b" : "initial", 0)
                     ])));
             });
         }
@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public async Task AsyncEnumProviderRejectionLeavesAllValuesUnchanged()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
                 new ValueTask<AttributeWriteResult>(new AttributeWriteResult(StatusCodes.BadUserAccessDenied));
             ServiceResult result = await node.WriteAttributeAsync(
@@ -88,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial"), new NodeId("initial")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
             });
         }
 
@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public async Task AsyncSuppressedCacheUsesAuthoritativeAcquiredEnum()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
             {
                 node.WrappedValue = Variant.From(8u);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(8u)));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("eight"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("eight-a"), new NodeId("eight-b")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("eight-a", 0), new NodeId("eight-b", 0)])));
             });
         }
 
@@ -127,7 +127,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public async Task AsyncSuppressedGoodNullCacheIsRejectedWithoutReplacingDerivedValues()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
             {
                 node.WrappedValue = Variant.Null;
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial"), new NodeId("initial")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
             });
         }
 
@@ -157,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void AcquiredEnumUpdatesTextDictionaryQualityAndTimestamp()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             DateTimeUtc timestamp = new(new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc));
             ServiceResult first = node.UpdateEnumValue(m_context,
                 new DataValue(Variant.From(2u), StatusCodes.UncertainSensorNotAccurate, timestamp));
@@ -167,7 +167,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(2u)));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("two"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("two-a"), new NodeId("two-b")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("two-a", 0), new NodeId("two-b", 0)])));
                 Assert.That(node.ValueAsText.Timestamp, Is.EqualTo(timestamp));
                 Assert.That(entries.StatusCode, Is.EqualTo(StatusCodes.UncertainSensorNotAccurate));
             });
@@ -190,12 +190,12 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void InvalidAcquiredEnumLeavesPriorValueAndMetadataUnchanged(bool malformedDictionary)
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             if (malformedDictionary)
             {
                 BaseVariableState matrix = (BaseVariableState)node.FindChild(
                     m_context, new QualifiedName(BrowseNames.EnumDictionaryEntries))!;
-                matrix.WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,] { { new("wrong-row-count") } });
+                matrix.WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,] { { new("wrong-row-count", 0) } });
             }
             ServiceResult result = node.UpdateEnumValue(
                 m_context, new DataValue(Variant.From(malformedDictionary ? 4u : 3u)));
@@ -206,7 +206,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(0u)));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("initial"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial"), new NodeId("initial")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])));
             });
         }
 
@@ -218,7 +218,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [TestCase("overflow")]
         public async Task AsyncEnumRejectsInvalidPartitionsBeforeProvider(string partition)
         {
-            uint expected = partition == "overflow" ? StatusCodes.BadOutOfRange : StatusCodes.BadTypeMismatch;
+            StatusCode expected = partition == "overflow" ? StatusCodes.BadOutOfRange : StatusCodes.BadTypeMismatch;
             MultiStateValueDiscreteState node = CreateNode(s_states);
             Variant input = partition switch
             {
@@ -256,7 +256,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [TestCase(true)]
         public async Task AsyncEnumPreservesEmptyAndMissingDeclarationBehavior(bool missing)
         {
-            uint expected = missing ? StatusCodes.Good : StatusCodes.BadOutOfRange;
+            StatusCode expected = missing ? StatusCodes.Good : StatusCodes.BadOutOfRange;
             MultiStateValueDiscreteState node = CreateNode(missing ? null! : []);
             bool providerCalled = false;
             node.OnSimpleWriteValueAsync = (_, _, _, _) =>
@@ -304,11 +304,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SynchronousEnumWriteUpdatesDictionaryEntries()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             ServiceResult result = WriteValue(node, Variant.From(4u));
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(entries.WrappedValue, Is.EqualTo(
-                Variant.From((ArrayOf<NodeId>)[new NodeId("four-a"), new NodeId("four-b")])));
+                Variant.From((ArrayOf<NodeId>)[new NodeId("four-a", 0), new NodeId("four-b", 0)])));
         }
 
         /// <summary>
@@ -326,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 BrowseName = new QualifiedName(BrowseNames.EnumDictionaryEntries),
                 DataType = DataTypeIds.NodeId,
                 ValueRank = ValueRanks.TwoDimensions,
-                WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,] { { new("four") } })
+                WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,] { { new("four", 0) } })
             };
             node.AddChild(dictionary);
             var entries = new BaseDataVariableState(node)
@@ -334,7 +334,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 BrowseName = new QualifiedName(BrowseNames.ValueAsDictionaryEntries),
                 DataType = DataTypeIds.NodeId,
                 ValueRank = ValueRanks.OneDimension,
-                WrappedValue = Variant.From((ArrayOf<NodeId>)[new NodeId("initial")])
+                WrappedValue = Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0)])
             };
             node.AddChild(entries);
             ServiceResult result;
@@ -360,7 +360,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
                 Assert.That(node.ValueAsText!.Value.IsNull, Is.True);
                 Assert.That(entries.WrappedValue,
-                    Is.EqualTo(Variant.From((ArrayOf<NodeId>)[new NodeId("four")])));
+                    Is.EqualTo(Variant.From((ArrayOf<NodeId>)[new NodeId("four", 0)])));
             });
         }
 
@@ -371,7 +371,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void SynchronousHandlerChangesDoNotRevalidateAcceptedRequest()
         {
             MultiStateValueDiscreteState node = CreateNode(s_states);
-            BaseVariableState entries = AddDictionary(node);
+            BaseDataVariableState entries = AddDictionary(node);
             node.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant _) =>
             {
                 node.EnumValues!.Value = [];
@@ -386,14 +386,14 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 Assert.That(node.WrappedValue, Is.EqualTo(Variant.From(4u)));
                 Assert.That(node.ValueAsText!.Value.Text, Is.EqualTo("four"));
                 Assert.That(entries.WrappedValue, Is.EqualTo(
-                    Variant.From((ArrayOf<NodeId>)[new NodeId("four-a"), new NodeId("four-b")])));
+                    Variant.From((ArrayOf<NodeId>)[new NodeId("four-a", 0), new NodeId("four-b", 0)])));
             });
         }
 
         /// <summary>
         /// Adds a two-column classification matrix so tests detect row and column indexing errors.
         /// </summary>
-        private static BaseVariableState AddDictionary(MultiStateValueDiscreteState node)
+        private static BaseDataVariableState AddDictionary(MultiStateValueDiscreteState node)
         {
             var matrix = new BaseDataVariableState(node)
             {
@@ -402,10 +402,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 ValueRank = ValueRanks.TwoDimensions,
                 WrappedValue = Variant.From((MatrixOf<NodeId>)new NodeId[,]
                 {
-                    { new("one-a"), new("one-b") },
-                    { new("two-a"), new("two-b") },
-                    { new("four-a"), new("four-b") },
-                    { new("eight-a"), new("eight-b") }
+                    { new("one-a", 0), new("one-b", 0) },
+                    { new("two-a", 0), new("two-b", 0) },
+                    { new("four-a", 0), new("four-b", 0) },
+                    { new("eight-a", 0), new("eight-b", 0) }
                 })
             };
             node.AddChild(matrix);
@@ -414,7 +414,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 BrowseName = new QualifiedName(BrowseNames.ValueAsDictionaryEntries),
                 DataType = DataTypeIds.NodeId,
                 ValueRank = ValueRanks.OneDimension,
-                WrappedValue = Variant.From((ArrayOf<NodeId>)[new NodeId("initial"), new NodeId("initial")])
+                WrappedValue = Variant.From((ArrayOf<NodeId>)[new NodeId("initial", 0), new NodeId("initial", 0)])
             };
             node.AddChild(entries);
             return entries;
