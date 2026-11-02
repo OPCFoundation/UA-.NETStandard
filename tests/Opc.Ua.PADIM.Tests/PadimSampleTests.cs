@@ -52,7 +52,7 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(await provider.WriteAsync("position", Variant.From(12f)), Is.EqualTo(StatusCodes.Good));
             DataValue originalChange = await provider.ReadAsync("dateOfLastChange");
 
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.Good));
             DataValue accepted = await provider.ReadAsync("position");
             Assert.That(accepted.WrappedValue, Is.EqualTo(Variant.From(12f)));
@@ -61,7 +61,7 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(pending.WrappedValue, Is.EqualTo(Variant.From(12f)));
             Assert.That((await provider.ReadAsync("dateOfLastChange")).WrappedValue,
                 Is.EqualTo(originalChange.WrappedValue));
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.BadInvalidState));
 
             await provider.RefreshAsync(CancellationToken.None);
@@ -72,7 +72,7 @@ namespace Opc.Ua.PADIM.Tests
                 Is.EqualTo(new DateTimeUtc(new DateTime(2026, 1, 1, 0, 0, 2, DateTimeKind.Utc))));
             Assert.That((await provider.ReadAsync("dateOfLastChange")).WrappedValue,
                 Is.EqualTo(Variant.From(new DateTime(2026, 1, 1, 0, 0, 2, DateTimeKind.Utc))));
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.Good));
         }
 
@@ -85,10 +85,10 @@ namespace Opc.Ua.PADIM.Tests
             var provider = new DemonstrationDevice(true);
             Assert.That(await provider.WriteAsync("position", Variant.From(12f)), Is.EqualTo(StatusCodes.Good));
             DataValue originalChange = await provider.ReadAsync("dateOfLastChange");
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.Good));
             await provider.RefreshAsync(CancellationToken.None);
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)255),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Abort),
                 Is.EqualTo(StatusCodes.Good));
             await provider.RefreshAsync(CancellationToken.None);
             await provider.RefreshAsync(CancellationToken.None);
@@ -96,9 +96,9 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That((await provider.ReadAsync("position")).WrappedValue, Is.EqualTo(Variant.From(12f)));
             Assert.That((await provider.ReadAsync("dateOfLastChange")).WrappedValue,
                 Is.EqualTo(originalChange.WrappedValue));
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)255),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Abort),
                 Is.EqualTo(StatusCodes.BadInvalidState));
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.Good));
         }
 
@@ -110,7 +110,7 @@ namespace Opc.Ua.PADIM.Tests
         {
             var provider = new DemonstrationDevice(true);
             Assert.That(await provider.WriteAsync("position", Variant.From(12f)), Is.EqualTo(StatusCodes.Good));
-            Assert.That(await provider.AutoAdjustPositionerAsync("position", (ExecutionModeEnum)2),
+            Assert.That(await provider.AutoAdjustPositionerAsync("position", ExecutionModeEnum.Start),
                 Is.EqualTo(StatusCodes.Good));
             DataValue before = await provider.ReadAsync("position");
             using var cancellation = new CancellationTokenSource();

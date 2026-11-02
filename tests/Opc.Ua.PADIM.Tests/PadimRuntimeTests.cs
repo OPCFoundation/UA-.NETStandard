@@ -40,7 +40,7 @@ using Opc.Ua.Di.Server;
 using Opc.Ua.PADIM.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
-using DataTypeIds = Opc.Ua.Types.DataTypeIds;
+using UaDataTypeIds = Opc.Ua.DataTypeIds;
 
 namespace Opc.Ua.PADIM.Tests
 {
@@ -151,11 +151,11 @@ namespace Opc.Ua.PADIM.Tests
             });
             NodeId expected = kind switch
             {
-                PadimSignalKind.TwoStateDiscrete or PadimSignalKind.TwoStateControl => DataTypeIds.Boolean,
-                PadimSignalKind.MultiStateDiscrete or PadimSignalKind.MultiStateControl => DataTypeIds.UInt32,
-                PadimSignalKind.Discrete => DataTypeIds.BaseDataType,
-                PadimSignalKind.Analog => DataTypeIds.Number,
-                _ => DataTypeIds.Float
+                PadimSignalKind.TwoStateDiscrete or PadimSignalKind.TwoStateControl => UaDataTypeIds.Boolean,
+                PadimSignalKind.MultiStateDiscrete or PadimSignalKind.MultiStateControl => UaDataTypeIds.UInt32,
+                PadimSignalKind.Discrete => UaDataTypeIds.BaseDataType,
+                PadimSignalKind.Analog => UaDataTypeIds.Number,
+                _ => UaDataTypeIds.Float
             };
             Assert.That(value!.DataType, Is.EqualTo(expected));
         }
@@ -170,8 +170,8 @@ namespace Opc.Ua.PADIM.Tests
             PadimDevice device = await CreateDeviceAsync($"Measurement{kind}");
             AnalogSignalObjectState signal = await device.AddMeasurementAsync(Name("Value"), kind, "PV-001");
             NodeId expectedDataType = kind is PadimMeasurementKind.Analog or PadimMeasurementKind.Totalizer
-                ? DataTypeIds.Number
-                : DataTypeIds.Float;
+                ? UaDataTypeIds.Number
+                : UaDataTypeIds.Float;
             Assert.Multiple(() =>
             {
                 Assert.That(signal.AnalogSignal!.DataType, Is.EqualTo(expectedDataType));
@@ -198,7 +198,7 @@ namespace Opc.Ua.PADIM.Tests
                 .ReturnsAsync(new DataValue(Variant.From(12f), StatusCodes.UncertainSensorNotAccurate, secondTime));
             var writer = new Mock<IPadimWriteProvider>();
             writer.Setup(p => p.WriteAsync(It.IsAny<string>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var authorizer = new Mock<IPadimAuthorizer>();
             authorizer.Setup(p => p.AuthorizeAsync(
                 It.IsAny<ISystemContext>(), It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -238,7 +238,7 @@ namespace Opc.Ua.PADIM.Tests
             var provider = new Mock<IPadimValueProvider>();
             var writer = new Mock<IPadimWriteProvider>();
             writer.Setup(p => p.WriteAsync("temperature/Damping", Variant.From(2f), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.BadOutOfRange));
+                .ReturnsAsync(StatusCodes.BadOutOfRange);
             var authorizer = new Mock<IPadimAuthorizer>();
             authorizer.Setup(p => p.AuthorizeAsync(
                 It.IsAny<ISystemContext>(), It.IsAny<NodeId>(), "temperature/Damping", It.IsAny<CancellationToken>()))
@@ -274,7 +274,7 @@ namespace Opc.Ua.PADIM.Tests
             var writer = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
             writer.Setup(p => p.WriteAsync(
                 "temperature/SimulationState", It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
             authorizer.Setup(p => p.AuthorizeAsync(
                 device.Context, It.IsAny<NodeId>(), "temperature/SimulationState",
@@ -404,7 +404,7 @@ namespace Opc.Ua.PADIM.Tests
             var acquisition = new Mock<IPadimValueProvider>(MockBehavior.Strict);
             var original = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
             original.Setup(p => p.WriteAsync("value", Variant.From(42f), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var replacement = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
             var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
             authorizer.Setup(p => p.AuthorizeAsync(
@@ -446,7 +446,7 @@ namespace Opc.Ua.PADIM.Tests
             if (valid)
             {
                 provider.Setup(p => p.FactoryResetAsync((ResetModeEnum)mode, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                    .ReturnsAsync(StatusCodes.Good);
             }
             device.WithFactoryReset(device.State.FactoryReset!, provider.Object, authorizer.Object);
             ServiceResult result = await device.State.FactoryReset!.OnCallMethod2Async!(
@@ -505,10 +505,10 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(secondSlope, Is.Not.Null);
                 Assert.That(timestamp, Is.Not.Null, "Inherited calibration metadata must remain selectable.");
                 Assert.That(impedance, Is.Not.Null);
-                Assert.That(slope!.DataType, Is.EqualTo(DataTypeIds.Float));
+                Assert.That(slope!.DataType, Is.EqualTo(UaDataTypeIds.Float));
                 Assert.That(slope.ValueRank, Is.EqualTo(ValueRanks.Scalar));
-                Assert.That(timestamp!.DataType, Is.EqualTo(DataTypeIds.DateTime));
-                Assert.That(impedance!.DataType, Is.EqualTo(DataTypeIds.Float));
+                Assert.That(timestamp!.DataType, Is.EqualTo(UaDataTypeIds.DateTime));
+                Assert.That(impedance!.DataType, Is.EqualTo(UaDataTypeIds.Float));
                 Assert.That(slope.NodeId.NamespaceIndex, Is.EqualTo(m_manager.InstanceNamespaceIndex));
                 Assert.That(slope.NodeId, Is.Not.EqualTo(secondSlope!.NodeId));
                 Assert.That(first.FindChild(device.Context, ModelName("SensorT90")), Is.Null);
@@ -572,7 +572,7 @@ namespace Opc.Ua.PADIM.Tests
             {
                 provider.Setup(p => p.AutoAdjustPositionerAsync(
                     "position", (ExecutionModeEnum)mode, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                    .ReturnsAsync(StatusCodes.Good);
             }
             device.WithAutoAdjustPositioner(signal, "position", provider.Object, authorizer.Object);
             MethodState method = signal.AutoAdjustPositioner!;
@@ -725,7 +725,7 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(entries.WrappedValue, Is.EqualTo(Variant.From((ArrayOf<NodeId>)[expected])));
             });
             writer.Setup(p => p.WriteAsync("actuator", Variant.From(0u), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             ServiceResult accepted = await actuator.WriteAttributeAsync(
                 device.Context, Attributes.Value, NumericRange.Null, new DataValue(Variant.From(0u)));
             NodeId linear = new("0112/2///61987#ABN145#001",
@@ -786,8 +786,8 @@ namespace Opc.Ua.PADIM.Tests
             {
                 enumeration.EnumValues!.Value =
                 [
-                    new EnumValueType { Value = 1, DisplayName = "acquired" },
-                    new EnumValueType { Value = 2, DisplayName = "simulated" }
+                    new EnumValueType { Value = 1, DisplayName = new LocalizedText("acquired") },
+                    new EnumValueType { Value = 2, DisplayName = new LocalizedText("simulated") }
                 ];
                 var dictionary = (BaseVariableState)value.FindChild(
                     device.Context, new QualifiedName(Opc.Ua.BrowseNames.EnumDictionaryEntries))!;
@@ -802,7 +802,7 @@ namespace Opc.Ua.PADIM.Tests
                 .ReturnsAsync(new DataValue(actual, StatusCodes.UncertainSensorNotAccurate));
             var writer = new Mock<IPadimWriteProvider>();
             writer.Setup(p => p.WriteAsync(It.IsAny<string>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var authorizer = new Mock<IPadimAuthorizer>();
             authorizer.Setup(p => p.AuthorizeAsync(
                 It.IsAny<ISystemContext>(), It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -859,7 +859,7 @@ namespace Opc.Ua.PADIM.Tests
             if (allowed)
             {
                 writer.Setup(p => p.WriteAsync(key, requested, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(new StatusCode(StatusCodes.BadOutOfRange));
+                    .ReturnsAsync(StatusCodes.BadOutOfRange);
             }
             PadimValueBinding binding = device.BindValue(value, "temperature", acquisition.Object)
                 .WithSimulation(Variant.From(99f), writer.Object, authorizer.Object);

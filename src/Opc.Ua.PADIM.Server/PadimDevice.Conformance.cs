@@ -242,22 +242,34 @@ namespace Opc.Ua.PADIM.Server
         }
 
         /// <summary>
-        /// Checks explicit interface references, including specialised calibration interfaces.
+        /// Checks instance and inherited type interfaces, including specialised calibration interfaces.
         /// </summary>
         private bool Implements(BaseObjectState instance, ExpandedNodeId required)
         {
             NodeId type = ExpandedNodeId.ToNodeId(required, Context.NamespaceUris);
-            var references = new List<IReference>();
-            instance.GetReferences(Context, references);
-            foreach (IReference reference in references)
+            var visited = new HashSet<NodeId>();
+            NodeState? node = instance;
+            NodeId typeId = instance.TypeDefinitionId;
+            while (node != null)
             {
-                if (!reference.IsInverse &&
-                    reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasInterface &&
-                    Context.TypeTable.IsTypeOf(
-                        ExpandedNodeId.ToNodeId(reference.TargetId, Context.NamespaceUris), type))
+                var references = new List<IReference>();
+                node.GetReferences(Context, references);
+                foreach (IReference reference in references)
                 {
-                    return true;
+                    if (!reference.IsInverse &&
+                        reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasInterface &&
+                        Context.TypeTable.IsTypeOf(
+                            ExpandedNodeId.ToNodeId(reference.TargetId, Context.NamespaceUris), type))
+                    {
+                        return true;
+                    }
                 }
+                if (typeId.IsNull || !visited.Add(typeId))
+                {
+                    break;
+                }
+                node = Manager.FindPredefinedNode(typeId);
+                typeId = Context.TypeTable.FindSuperType(typeId);
             }
             return false;
         }

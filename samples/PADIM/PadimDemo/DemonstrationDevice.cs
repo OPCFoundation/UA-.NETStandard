@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Opc.Ua;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
@@ -64,9 +63,9 @@ namespace PadimSample
             var transmitter = await manager.CreatePadimDeviceAsync(Name("Transmitter")).ConfigureAwait(false);
             transmitter.WithIdentification(identity =>
             {
-                identity.Manufacturer = "OPC Foundation";
+                identity.Manufacturer = new LocalizedText("OPC Foundation");
                 identity.ManufacturerUri = "urn:OPCFoundation";
-                identity.Model = "Deterministic transmitter";
+                identity.Model = new LocalizedText("Deterministic transmitter");
                 identity.SerialNumber = "PADIM-DEMO-001";
                 identity.ProductInstanceUri = "urn:OPCFoundation:PadimDemo:transmitter";
                 identity.ProductCode = "PADIM-DEMO";
@@ -117,9 +116,9 @@ namespace PadimSample
                 .ConfigureAwait(false);
             analyser.WithIdentification(identity =>
             {
-                identity.Manufacturer = "OPC Foundation";
+                identity.Manufacturer = new LocalizedText("OPC Foundation");
                 identity.ManufacturerUri = "urn:OPCFoundation";
-                identity.Model = "Deterministic pH meter";
+                identity.Model = new LocalizedText("Deterministic pH meter");
                 identity.SerialNumber = "PADIM-DEMO-002";
                 identity.ProductInstanceUri = "urn:OPCFoundation:PadimDemo:ph";
                 identity.ProductCode = "PADIM-DEMO";
@@ -135,7 +134,7 @@ namespace PadimSample
                 Name("Ph"), PadimSignalKind.Ph, "AT-001").ConfigureAwait(false);
             ph.BindValue(phSignal.AnalogSignal!, "ph", this);
             ph.WithZeroPointAdjustment(phSignal, "ph", this, this);
-            ushort padimNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Namespaces.PADIM);
+            ushort padimNamespace = manager.SystemContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.PADIM.Namespaces.PADIM);
             QualifiedName Member(string value) => new(value, padimNamespace);
             await ph.ConfigureSignalConditionsAsync(phSignal, conditions =>
                 conditions.Bind(Member("SensingElementImpedance"), "ph/impedance", this),
@@ -328,32 +327,5 @@ namespace PadimSample
 
         /// <summary>The refresh cycle completing an accepted virtual commissioning operation.</summary>
         private int? m_positionerFinishesAt;
-    }
-
-    /// <summary>
-    /// Refreshes the device providers until host shutdown.
-    /// </summary>
-    internal sealed class DemonstrationRefresh : BackgroundService
-    {
-        /// <summary>
-        /// Creates the refresh worker over the shared provider.
-        /// </summary>
-        public DemonstrationRefresh(DemonstrationDevice device)
-        {
-            m_device = device;
-        }
-
-        /// <inheritdoc />
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-        {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                await m_device.RefreshAsync(stoppingToken).ConfigureAwait(false);
-                await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>The application-owned deterministic provider.</summary>
-        private readonly DemonstrationDevice m_device;
     }
 }

@@ -43,11 +43,13 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.PADIM.Client;
 using Opc.Ua.PADIM.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.PADIM.Tests
 {
@@ -83,14 +85,14 @@ namespace Opc.Ua.PADIM.Tests
             var writer = new Mock<IPadimWriteProvider>(MockBehavior.Strict);
             writer.Setup(p => p.WriteAsync(
                 It.IsAny<string>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
             authorizer.Setup(p => p.AuthorizeAsync(
                 It.IsAny<ISystemContext>(), It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             var operations = new Mock<IPadimOperationProvider>(MockBehavior.Strict);
             operations.Setup(p => p.ZeroPointAdjustmentAsync("temperature", It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.Good));
+                .ReturnsAsync(StatusCodes.Good);
             var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var services = new ServiceCollection();
             services.AddLogging();
@@ -201,7 +203,7 @@ namespace Opc.Ua.PADIM.Tests
                         Assert.That(active[3], Is.EqualTo(Variant.From(true)));
                         Assert.That(active[4], Is.EqualTo(Variant.From(false)));
                         Assert.That(active[5], Is.EqualTo(Variant.From(true)));
-                        Assert.That(active[6], Is.EqualTo(Variant.From(new StatusCode(StatusCodes.Good))));
+                        Assert.That(active[6], Is.EqualTo(Variant.From(StatusCodes.Good)));
                     });
                     active[0].TryGetValue(out NodeId conditionId);
                     active[1].TryGetValue(out ByteString eventId);
@@ -255,7 +257,7 @@ namespace Opc.Ua.PADIM.Tests
                 [
                     new SimpleAttributeOperand
                     {
-                        TypeDefinitionId = Opc.Ua.Types.ObjectTypeIds.ConditionType,
+                        TypeDefinitionId = Opc.Ua.ObjectTypeIds.ConditionType,
                         AttributeId = Attributes.NodeId
                     },
                     Field(Opc.Ua.BrowseNames.EventId),
@@ -271,7 +273,7 @@ namespace Opc.Ua.PADIM.Tests
             {
                 return new SimpleAttributeOperand
                 {
-                    TypeDefinitionId = Opc.Ua.Types.ObjectTypeIds.AlarmConditionType,
+                    TypeDefinitionId = Opc.Ua.ObjectTypeIds.AlarmConditionType,
                     BrowsePath = child == null
                         ? [new QualifiedName(name)]
                         : [new QualifiedName(name), new QualifiedName(child)],

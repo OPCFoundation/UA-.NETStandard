@@ -48,12 +48,12 @@ namespace Opc.Ua.PADIM.Tests
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var provider = new Mock<IPadimOperationProvider>(MockBehavior.Strict);
-            provider.Setup(p => p.FactoryResetAsync((ResetModeEnum)1, It.IsAny<CancellationToken>()))
+            provider.Setup(p => p.FactoryResetAsync(ResetModeEnum.Application, It.IsAny<CancellationToken>()))
                 .Returns(async (ResetModeEnum _, CancellationToken ct) =>
                 {
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(ct);
-                    return new StatusCode(StatusCodes.Good);
+                    return StatusCodes.Good;
                 });
             var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
             authorizer.Setup(p => p.AuthorizeAsync(
@@ -75,7 +75,7 @@ namespace Opc.Ua.PADIM.Tests
 
                 Assert.That(active.IsCompleted, Is.False);
                 provider.Verify(p => p.FactoryResetAsync(
-                    (ResetModeEnum)1, It.IsAny<CancellationToken>()), Times.Once);
+                    ResetModeEnum.Application, It.IsAny<CancellationToken>()), Times.Once);
                 authorizer.Verify(p => p.AuthorizeAsync(
                     device.Context, method.NodeId, "FactoryReset", It.IsAny<CancellationToken>()), Times.Once);
             }
@@ -87,7 +87,7 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That((await active).StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That((await InvokeAsync(timeout.Token)).StatusCode, Is.EqualTo(StatusCodes.Good));
             provider.Verify(p => p.FactoryResetAsync(
-                (ResetModeEnum)1, It.IsAny<CancellationToken>()), Times.Exactly(2));
+                ResetModeEnum.Application, It.IsAny<CancellationToken>()), Times.Exactly(2));
             authorizer.Verify(p => p.AuthorizeAsync(
                 device.Context, method.NodeId, "FactoryReset", It.IsAny<CancellationToken>()), Times.Exactly(2));
 
@@ -106,9 +106,9 @@ namespace Opc.Ua.PADIM.Tests
         {
             PadimDevice device = await CreateDeviceAsync("FailedOperationRecovery");
             var provider = new Mock<IPadimOperationProvider>(MockBehavior.Strict);
-            provider.SetupSequence(p => p.FactoryResetAsync((ResetModeEnum)1, It.IsAny<CancellationToken>()))
+            provider.SetupSequence(p => p.FactoryResetAsync(ResetModeEnum.Application, It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("The device rejected its current operation state."))
-                .ReturnsAsync(new StatusCode(StatusCodes.BadInvalidState));
+                .ReturnsAsync(StatusCodes.BadInvalidState);
             var authorizer = new Mock<IPadimAuthorizer>(MockBehavior.Strict);
             authorizer.Setup(p => p.AuthorizeAsync(
                 device.Context, It.IsAny<NodeId>(), "FactoryReset", It.IsAny<CancellationToken>()))
@@ -126,7 +126,7 @@ namespace Opc.Ua.PADIM.Tests
                 device.Context, method, device.State.NodeId, [Variant.From(1)], [], timeout.Token);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             provider.Verify(p => p.FactoryResetAsync(
-                (ResetModeEnum)1, It.IsAny<CancellationToken>()), Times.Exactly(2));
+                ResetModeEnum.Application, It.IsAny<CancellationToken>()), Times.Exactly(2));
             authorizer.Verify(p => p.AuthorizeAsync(
                 device.Context, method.NodeId, "FactoryReset", It.IsAny<CancellationToken>()), Times.Exactly(2));
         }

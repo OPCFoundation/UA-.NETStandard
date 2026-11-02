@@ -163,8 +163,8 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Semantic references accumulate through type inheritance and declaration
-        /// overrides without copying dictionary objects or inheriting inverse references.
+        /// Dictionary classifications accumulate through type inheritance and declaration
+        /// overrides without copying dictionary objects, type interfaces or inverse references.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -196,7 +196,7 @@ namespace Opc.Ua.SourceGeneration
                             state.Create(context, new NodeId("Device", ns),
                                 new QualifiedName("Device", ns), new LocalizedText("Device"), false);
                         }
-                        string error = Check(context, state, ns, "RootBase", "RootDerived");
+                        string error = Check(context, state, ns, 0, "RootBase", "RootDerived");
                         if (error.Length != 0)
                         {
                             return "Root: " + error;
@@ -206,7 +206,7 @@ namespace Opc.Ua.SourceGeneration
                         {
                             return "Mandatory inherited child missing";
                         }
-                        error = Check(context, value, ns, "VariableType", "DeclarationBase", "DeclarationOverride");
+                        error = Check(context, value, ns, 1, "VariableType", "DeclarationBase", "DeclarationOverride");
                         if (error.Length != 0)
                         {
                             return "Override: " + error;
@@ -221,7 +221,7 @@ namespace Opc.Ua.SourceGeneration
                         {
                             return "Requested optional declaration missing";
                         }
-                        error = Check(context, optional, ns, "VariableType", "Optional");
+                        error = Check(context, optional, ns, 1, "VariableType", "Optional");
                         if (error.Length != 0)
                         {
                             return "Optional: " + error;
@@ -241,7 +241,7 @@ namespace Opc.Ua.SourceGeneration
                         return "";
                     }
 
-                    private static string Check(ISystemContext context, NodeState node, ushort ns,
+                    private static string Check(ISystemContext context, NodeState node, ushort ns, int interfaceCount,
                         params string[] expectedEntries)
                     {
                         var references = new List<IReference>();
@@ -256,11 +256,10 @@ namespace Opc.Ua.SourceGeneration
                                 entries.Select(r => r.TargetId.ToString()));
                         }
                         var interfaces = references.Where(r => r.ReferenceTypeId == new NodeId(17603)).ToArray();
-                        if (interfaces.Length != 1 || interfaces[0].IsInverse ||
-                            ExpandedNodeId.ToNodeId(interfaces[0].TargetId, context.NamespaceUris) !=
-                                new NodeId(17602))
+                        if (interfaces.Length != interfaceCount || interfaces.Any(r => r.IsInverse ||
+                            ExpandedNodeId.ToNodeId(r.TargetId, context.NamespaceUris) != new NodeId(17602)))
                         {
-                            return "Inherited interface missing or duplicated";
+                            return "Declaration interface missing or type interface copied to instance";
                         }
                         if (references.Any(r => r.ReferenceTypeId == new NodeId(41)))
                         {
@@ -369,6 +368,10 @@ namespace Opc.Ua.SourceGeneration
                         <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
                         <opc:TargetId>DeclarationBase</opc:TargetId>
                       </opc:Reference>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                        <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
+                      </opc:Reference>
                     </opc:References>
                   </opc:Variable>
                   <opc:Variable SymbolicName="Optional" TypeDefinition="SemanticVariableType"
@@ -377,6 +380,10 @@ namespace Opc.Ua.SourceGeneration
                       <opc:Reference>
                         <opc:ReferenceType>ua:HasDictionaryEntry</opc:ReferenceType>
                         <opc:TargetId>OptionalEntry</opc:TargetId>
+                      </opc:Reference>
+                      <opc:Reference>
+                        <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+                        <opc:TargetId>ua:BaseInterfaceType</opc:TargetId>
                       </opc:Reference>
                     </opc:References>
                   </opc:Variable>
