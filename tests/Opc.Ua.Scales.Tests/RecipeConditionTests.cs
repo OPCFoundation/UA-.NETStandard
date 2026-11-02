@@ -788,6 +788,73 @@ namespace Opc.Ua.Scales.Tests
         }
 
         /// <summary>
+        /// A failed timer cannot bypass an admitted subscriber drain, directly or through shared services.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailingTimerStillDrainsAdmittedSubscriberBeforeFaultingAsync(bool sharedServices)
+        {
+            Enable(BuiltInType.Double);
+            Analog(0, 10.0);
+            Analog(0, 10.0, "Second");
+            var failure = new InvalidOperationException("Timer disposal failed with an admitted subscriber.");
+            m_expectedShutdownFailure = failure;
+            m_clock.TimerDisposalGate = Task.FromException(failure);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var release = new ManualResetEventSlim(false);
+            int notifications = 0;
+            m_controller.ElementStarted += (_, _) =>
+            {
+                Interlocked.Increment(ref notifications);
+                entered.TrySetResult(true);
+                if (!release.Wait(TimeSpan.FromSeconds(15)))
+                {
+                    throw new TimeoutException("The admitted subscriber was not released.");
+                }
+            };
+            Task<ServiceResult> start = Task.Run(() => m_controller.Start(m_recipe.NodeId));
+            Task? first = null;
+            Task? second = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                first = sharedServices
+                    ? m_scale.Services.DisposeAsync().AsTask()
+                    : m_controller.DisposeAsync().AsTask();
+                second = sharedServices
+                    ? m_scale.Services.DisposeAsync().AsTask()
+                    : m_controller.DisposeAsync().AsTask();
+                Assert.That(first.IsCompleted, Is.False, "timer failure must not bypass the subscriber drain");
+                Assert.That(second.IsCompleted, Is.False, "every waiter must retain the subscriber drain");
+            }
+            finally
+            {
+                release.Set();
+                AssertGood(await start.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+            }
+            InvalidOperationException? firstFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await first!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+            InvalidOperationException? secondFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await second!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
+            InvalidOperationException? repeatedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () =>
+                {
+                    if (sharedServices)
+                    {
+                        await m_scale.Services.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await m_controller.DisposeAsync().ConfigureAwait(false);
+                    }
+                });
+            Assert.That(firstFailure, Is.SameAs(failure));
+            Assert.That(secondFailure, Is.SameAs(failure));
+            Assert.That(repeatedFailure, Is.SameAs(failure));
+            Assert.That(notifications, Is.EqualTo(1), "notifications queued behind the subscriber are discarded");
+        }
+
+        /// <summary>
         /// Shared services retain pending timer cleanup and its result across overlapping shutdown calls.
         /// </summary>
         [TestCase(false, false)]

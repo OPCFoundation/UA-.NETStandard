@@ -344,35 +344,43 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private async Task QuiesceAsync(ITimer? timer, TaskCompletionSource<bool> quiesced)
         {
+            Exception? failure = null;
             try
             {
                 if (timer != null)
                 {
                     await timer.DisposeAsync().ConfigureAwait(false);
                 }
-                Task? drained = null;
-                lock (m_lock)
-                {
-                    if (m_activeDrains != 0)
-                    {
-                        m_drained ??= new TaskCompletionSource<bool>(
-                            TaskCreationOptions.RunContinuationsAsynchronously);
-                        drained = m_drained.Task;
-                    }
-                }
-                if (drained != null)
-                {
-                    await drained.ConfigureAwait(false);
-                }
-                quiesced.TrySetResult(true);
             }
             catch (Exception ex)
             {
+                failure = ex;
                 // A synchronous Dispose discards the task, so the failure is logged here and
-                // still propagated to every DisposeAsync caller.
+                // propagated to every DisposeAsync caller after admitted notifications drain.
                 m_owner.Services.Logger.ShutdownFailed(ex, Scale.BrowseName.Name);
-                quiesced.TrySetException(ex);
+            }
+            Task? drained = null;
+            lock (m_lock)
+            {
+                if (m_activeDrains != 0)
+                {
+                    m_drained ??= new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    drained = m_drained.Task;
+                }
+            }
+            if (drained != null)
+            {
+                await drained.ConfigureAwait(false);
+            }
+            if (failure != null)
+            {
+                quiesced.TrySetException(failure);
                 _ = quiesced.Task.Exception;
+            }
+            else
+            {
+                quiesced.TrySetResult(true);
             }
         }
 

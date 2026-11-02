@@ -747,7 +747,9 @@ manager shuts down. A subscriber may call `DisposeAsync` from its own callback,
 but it must await the returned task instead of blocking on it, because the task
 completes only after that callback returns. If stopping the timer fails, the
 controller logs the failure at Error level with event ID 8231 even when only
-`Dispose` was called, and every `DisposeAsync` caller receives the exception.
+`Dispose` was called. It still waits for admitted subscriber callbacks to return
+before every `DisposeAsync` caller receives the exception, including callers
+disposing the shared runtime services.
 The runtime's asynchronous shutdown still releases the remaining scale resources
 before it rethrows.
 
@@ -923,6 +925,7 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 | Recipe subscriber failures and controller shutdown | 🧪 | `TimerDrivenSubscriberFailuresAreLoggedAfterEveryNotification`; `SynchronousCallersStillObserveSubscriberFailures`; `DisposeStopsDeliveryWithoutWaitingForARunningCallbackAsync`; `DisposeAsyncWaitsForARunningCallbackAsync`; `DisposeAsyncFromACallbackCompletesAfterTheCallbackReturnsAsync`; `DisposeAsyncAfterDisposeWaitsForTheRunningCallbackAsync`; `DisposeAsyncAfterDisposeWaitsForTheTimerAsync`; `DisposeAsyncAfterDisposeWaitsForARunningTimerCallbackAsync`; `TimerDisposalFailureIsLoggedAndPropagatedAsync` |
 | Equipment cancellation and shared resource shutdown | 🧪 | `ThrowingProviderCancellationStillDrainsCreationsAndReleasesResourcesAsync`; `RuntimeServicesShareTimerDrainAndFailureAcrossShutdownCallersAsync` |
 | Overlapping resource stops | 🧪 | `ConcurrentServicesDisposeStopsEveryControllerBeforeReturningAsync` |
+| Timer failure with an admitted subscriber | 🧪 | `FailingTimerStillDrainsAdmittedSubscriberBeforeFaultingAsync` |
 | Rejecting a second DI owner | 🧪 | `ServerHostingRefusesASecondDiOwner` |
 | Client hosting `AddScalesClient` | 🧪 | `ClientHostingRegistersTheFactory` |
 
