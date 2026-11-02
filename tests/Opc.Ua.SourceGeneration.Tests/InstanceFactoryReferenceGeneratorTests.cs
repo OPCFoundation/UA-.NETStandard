@@ -29,7 +29,9 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -72,6 +74,92 @@ namespace Opc.Ua.SourceGeneration
                 .Select(call => call.Ancestors().OfType<MethodDeclarationSyntax>().First().Identifier.ValueText)
                 .Where(name => name is "CreateDeviceType" or "CreateInstanceOfDeviceType")];
             Assert.That(factories, Is.EquivalentTo(expectedFactories));
+        }
+
+        /// <summary>
+        /// Verifies that adding an optional subtree rebases a retained type reference to its mandatory child.
+        /// </summary>
+        [Test]
+        public void AddingOptionalSubtreeRebasesTheRetainedReference()
+        {
+            GeneratorDriver driver = GenerateModel(out Compilation output);
+            output.GetDiagnostics().Check(TestContext.Out, out int errors, out _);
+            Assert.That(errors, Is.Zero);
+
+            output = output.AddSyntaxTrees(CSharpSyntaxTree.ParseText(
+                """
+                using System.Collections.Generic;
+                using Opc.Ua;
+                using Test.InstanceReferences;
+
+                public static class OptionalChildProbe
+                {
+                    public static bool Run()
+                    {
+                        var context = new SystemContext(null);
+                        context.NamespaceUris = new NamespaceTable();
+                        ushort namespaceIndex = context.NamespaceUris.GetIndexOrAppend(
+                            "http://test.org/UA/InstanceReferences/");
+                        context.NodeIdFactory = new ProbeNodeIdFactory(namespaceIndex);
+                        var state = context.CreateInstanceOfDeviceType();
+                        state.Create(context, new NodeId("Device", namespaceIndex),
+                            new QualifiedName("Device", namespaceIndex), new LocalizedText("Device"), false);
+                        state.AddBlocks(context);
+                        FolderState blocks = state.Blocks;
+                        var children = new List<BaseInstanceState>();
+                        blocks.GetChildren(context, children);
+                        NodeState block = null;
+                        foreach (BaseInstanceState child in children)
+                        {
+                            if (child.BrowseName.Name == "Block")
+                            {
+                                block = child;
+                                break;
+                            }
+                        }
+                        if (block == null)
+                        {
+                            return false;
+                        }
+                        var references = new List<IReference>();
+                        state.GetReferences(context, references);
+                        foreach (IReference reference in references)
+                        {
+                            if (reference.ReferenceTypeId == new NodeId(17604) &&
+                                ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris) == block.NodeId)
+                            {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+
+                    private sealed class ProbeNodeIdFactory : INodeIdFactory
+                    {
+                        private uint m_next = 1000;
+                        private readonly ushort m_namespaceIndex;
+
+                        public ProbeNodeIdFactory(ushort namespaceIndex)
+                        {
+                            m_namespaceIndex = namespaceIndex;
+                        }
+
+                        public NodeId New(ISystemContext context, NodeState node)
+                        {
+                            return new NodeId(m_next++, m_namespaceIndex);
+                        }
+                    }
+                }
+                """,
+                new CSharpParseOptions(LanguageVersion.CSharp11)));
+
+            using var stream = new MemoryStream();
+            var emitted = output.Emit(stream);
+            Assert.That(emitted.Success, Is.True, string.Join("\n", emitted.Diagnostics));
+            Assembly assembly = Assembly.Load(stream.ToArray());
+            bool preserved = (bool)assembly.GetType("OptionalChildProbe")!.GetMethod("Run")!
+                .Invoke(null, null)!;
+            Assert.That(preserved, Is.True);
         }
 
         private static GeneratorDriver GenerateModel(out Compilation output)
