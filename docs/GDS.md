@@ -536,6 +536,12 @@ process-local. A durable deployment must also retain accepted work or arrange
 for an explicit retry after restart. Device-side credential activation,
 endpoint transition and security reset still require a connected installer.
 
+The processor also serializes direct calls through installed-certificate proof,
+so a second call cannot replace the first attempt's pending device key or trust
+transaction. Cancellation while waiting does not contact the device. Direct
+owners must stop new work and await active attempts before disposing the
+processor. Hosts must stop the scheduler before disposing its service provider.
+
 `ProvideIdentities` requires an authenticated SecureChannel, as specified by
 [Part 21 §9.2.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/9.2.3).
 It records a candidate identity and returns the shared certificate-manager

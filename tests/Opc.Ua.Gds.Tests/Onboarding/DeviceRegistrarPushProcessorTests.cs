@@ -352,6 +352,66 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Repeated host disposal prevents new attempts without contacting a device.
+        /// </summary>
+        [Test]
+        public async Task DisposedProcessorRejectsNewAttemptsWithoutDeviceCalls()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            harness.Processor.Dispose();
+            harness.Processor.Dispose();
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(harness.CallMethods, Is.Empty);
+            Assert.That(harness.LeasesDisposed, Is.Zero);
+            harness.Identities.VerifyNoOtherCalls();
+            harness.Enrollments.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Direct callers cannot overlap device key or trust changes, and cancellation releases a waiting caller.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentAttemptCancellationDoesNotStartAnotherDeviceRequest()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.BeforeCsrAsync = async _ =>
+            {
+                entered.SetResult(true);
+                await resume.Task.ConfigureAwait(false);
+            };
+            Task first = harness.Processor.ProcessAsync(harness.Application).AsTask();
+            try
+            {
+                Task started = await Task.WhenAny(first, entered.Task).ConfigureAwait(false);
+                Assert.That(started, Is.SameAs(entered.Task));
+                await entered.Task.ConfigureAwait(false);
+                using var cancellation = new CancellationTokenSource();
+                Task second = harness.Processor.ProcessAsync(harness.Application, cancellation.Token).AsTask();
+                Assert.That(second.IsCompleted, Is.False);
+                cancellation.Cancel();
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await second.ConfigureAwait(false));
+                harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
+                    It.IsAny<OnboardingIdentitySelection>(), Harness.ApplicationId,
+                    It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()),
+                    Times.Once);
+                Assert.That(harness.CsrCalls, Is.Zero);
+            }
+            finally
+            {
+                resume.SetResult(true);
+                await first.ConfigureAwait(false);
+            }
+            Assert.That(harness.CsrCalls, Is.EqualTo(1));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Missing correlated issuance never creates credentials or records a fake pending installation.
         /// </summary>
         [Test]
@@ -705,6 +765,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         async (_, _, create, ct) =>
                         {
                             BeforeCsr?.Invoke();
+                            if (BeforeCsrAsync != null)
+                            {
+                                await BeforeCsrAsync(ct).ConfigureAwait(false);
+                            }
                             ByteString csr = await create(ct).ConfigureAwait(false);
                             Assert.That(csr, Is.EqualTo(m_csr));
                             if (RepeatCsr)
@@ -823,6 +887,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public bool RepeatCsr { get; set; }
 
             /// <summary>
+            /// Gets or sets a controlled asynchronous enrollment boundary before the device creates its CSR.
+            /// </summary>
+            public Func<CancellationToken, Task>? BeforeCsrAsync { get; set; }
+
+            /// <summary>
             /// Gets or sets one concrete enrollment-evidence substitution.
             /// </summary>
             public string EnrollmentMutation { get; set; } = string.Empty;
@@ -881,6 +950,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
+                Processor.Dispose();
                 await Initial.DisposeAsync().ConfigureAwait(false);
                 await Proof.DisposeAsync().ConfigureAwait(false);
             }

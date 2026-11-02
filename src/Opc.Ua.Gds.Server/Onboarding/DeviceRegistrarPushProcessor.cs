@@ -42,7 +42,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// Pushes an approved DCA credential using generated clients and retained, request-correlated GDS issuance.
     /// This processor never installs software or grants a singleton authority over managed applications.
     /// </summary>
-    public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor
+    public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor, IDisposable
     {
         /// <summary>
         /// Borrows host-selected connection, enrollment, policy, and shared registrar persistence providers.
@@ -75,6 +75,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ApplicationDescription application,
             CancellationToken cancellationToken = default)
         {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(DeviceRegistrarPushProcessor));
+            }
             if (application == null)
             {
                 throw new ArgumentNullException(nameof(application));
@@ -82,6 +86,36 @@ namespace Opc.Ua.Gds.Server.Onboarding
             cancellationToken.ThrowIfCancellationRequested();
             ApplicationDescription snapshot = CoreUtils.Clone(application)!;
             ValidateApplication(snapshot);
+            await m_attemptGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ProcessCoreAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_attemptGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Releases attempt coordination after the host has stopped scheduling work and awaited active attempts.
+        /// </summary>
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                m_attemptGate.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Completes one enrollment and its independent installed-certificate proof without another attempt
+        /// replacing the device's pending key or trust transaction through this processor.
+        /// </summary>
+        private async ValueTask ProcessCoreAsync(
+            ApplicationDescription snapshot,
+            CancellationToken cancellationToken)
+        {
             ByteString installed = default;
             NodeId applicationId = NodeId.Null;
             OnboardingIdentitySelection? acceptedIdentity = null;
@@ -737,5 +771,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>Serializes direct invocations as well as work admitted by the default push scheduler.</summary>
+        private readonly SemaphoreSlim m_attemptGate = new(1, 1);
+
+        /// <summary>Whether the owning host has released this processor.</summary>
+        private int m_disposed;
     }
 }
