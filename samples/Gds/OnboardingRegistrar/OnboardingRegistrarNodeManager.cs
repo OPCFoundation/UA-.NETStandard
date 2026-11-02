@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Gds;
+using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Identity;
 using Opc.Ua.Onboarding;
@@ -240,9 +241,18 @@ namespace OnboardingRegistrar
         /// Initializes the augmenter.
         /// </summary>
         public OnboardingRegistrarAdminAugmenter(string userName)
+            : this(userName, false)
+        {
+        }
+
+        /// <summary>
+        /// Grants GDS administration only when the connected pull registrar mode explicitly selects it.
+        /// </summary>
+        public OnboardingRegistrarAdminAugmenter(string userName, bool gdsAdministration)
         {
             m_userName = userName ??
                 throw new ArgumentNullException(nameof(userName));
+            m_gdsAdministration = gdsAdministration;
         }
 
         /// <inheritdoc/>
@@ -265,12 +275,18 @@ namespace OnboardingRegistrar
                 Opc.Ua.Onboarding.BrowseNames.WellKnownRole_RegistrarAdmin);
             var augmented = new RoleBasedIdentity(
                 identity,
-                [registrarAdmin],
+                m_gdsAdministration
+                    ? [registrarAdmin, GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin]
+                    : [registrarAdmin],
                 context.MessageContext.NamespaceUris);
             return new ValueTask<AuthenticationResult>(
                 AuthenticationResult.Accept(augmented));
         }
 
+        /// <summary>The authenticated sample administrator's configured account name.</summary>
         private readonly string m_userName;
+
+        /// <summary>Whether this account administers the sample's actual GDS directory.</summary>
+        private readonly bool m_gdsAdministration;
     }
 }

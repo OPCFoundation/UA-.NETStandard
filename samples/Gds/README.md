@@ -1,8 +1,8 @@
 # OPC 10000-21 Onboarding Demo
 
-This sample demonstrates the registrar-administration part of OPC
-10000-21 end to end over a real OPC UA connection. It uses only the
-model and runtime APIs shipped by this repository:
+This sample provides OPC 10000-21 registrar administration and an opt-in
+single-device pull registrar. It uses the model and runtime APIs shipped
+by this repository:
 
 - `OnboardingRegistrar` loads the generated `Opc.Ua.Onboarding` model,
   exposes the standard `DeviceRegistrar_Administration` object, and binds
@@ -20,10 +20,11 @@ model and runtime APIs shipped by this repository:
   ticket administration.
   The registrar process is stopped in a `finally` block.
 
-The demo covers ticket administration. It does not implement the
-device-facing `ProvideIdentities` flow or a complete production GDS.
-The client also has a pull-DCA mode for an independently configured
-registrar; the local administration demo does not supply that registrar.
+The default demo covers ticket administration. Select the registrar's
+separate pull mode to host the standard `DeviceRegistrar` and GDS
+`Directory` objects for one explicitly approved device. The client can
+also use its pull-DCA mode against an independently configured registrar.
+The administration script does not exercise pull onboarding.
 
 ## Run the complete demo
 
@@ -100,6 +101,62 @@ dotnet run --project samples/Gds/OnboardingClient -f net10.0 -- `
   --endpoint "opc.tcp://localhost:62560/OnboardingRegistrar" `
   --pkiRoot "$env:TEMP\opcua-onboarding-client"
 ```
+
+## Host the connected pull registrar
+
+`--pullRegistrar true` selects `AddGdsServer` and `AddDeviceRegistrar`
+instead of the administration-only node manager. Configure
+`--allowedProductInstanceUri` with the exact product instance URI in the
+device's validated identity and `--dcaApplicationUri` with that device's
+actual DCA application URI. A valid ticket alone does not admit another
+device. This sample accepts only the configured product and supplies a
+client-only `OnboardingClient` application record for its DCA.
+
+Prepare channel trust and ticket authority trust as described above.
+Also populate the registrar's `identity-authorities\trusted` and
+`identity-authorities\issuers` stores with the authorities required to
+validate the offered device identity, and trust its channel certificate
+through the registrar's ordinary peer trust store. Trust the registrar's
+channel certificate at the device. These are separate trust decisions;
+the sample does not accept an unknown certificate during connection.
+
+Set the same administrator environment variables as for the default
+mode, then start the registrar with the approved URIs:
+
+```powershell
+dotnet run --project samples/Gds/OnboardingRegistrar -f net10.0 -- `
+  --port 62560 `
+  --pkiRoot "D:\temp\configured-registrar-pki" `
+  --pullRegistrar true `
+  --allowedProductInstanceUri "<approved product instance URI>" `
+  --dcaApplicationUri "<actual DCA application URI>" `
+  --autoApprove true
+```
+
+`--autoApprove true` is an explicit demonstration option, not a production
+approval policy. Without it, certificate requests remain pending; this
+sample does not supply an approval UI. The configured administrator has
+`RegistrarAdmin`, `DiscoveryAdmin`, and `CertificateAuthorityAdmin` roles
+in this mode. Use `--anonymous true` for the device command; only the
+named administrator account receives these roles. Device certificate
+requests pass through the registrar's identity, lifecycle and software
+authorization checks.
+
+This mode assumes that the operator has already approved the device's
+installed software. It does not advertise software-update or configuration
+managers, rejects push scheduling with `BadNotSupported`, and denies
+management of other device applications. It is not a push-onboarding
+sample or a production registrar.
+
+Application records and pending request state use `applications.json`;
+device identity and certificate lifecycle state use
+`device-lifecycle.json`, both under the selected PKI root. The host binds
+these providers to its actual namespace table. Use one process and keep
+the PKI root and CA keys together across restarts. Tickets and issuance
+receipts remain in memory. Reimport tickets after a restart, and do not
+rely on this sample to retain consumed-request receipts or generated
+private-key responses across registrar restarts. A production host needs
+durable ticket and issuance providers.
 
 ## Pull DCA against a configured registrar
 

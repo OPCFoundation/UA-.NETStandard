@@ -35,6 +35,8 @@
     <Compile Include="..\..\samples\Reference\ConsoleReferenceServer\GdsNodeManagerFactory.cs" Link="GdsNodeManagerFactory.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingClient\OnboardingDeviceCredentials.cs"
              Link="Onboarding\OnboardingDeviceCredentials.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PullRegistrarPolicy.cs"
+             Link="Onboarding\PullRegistrarPolicy.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

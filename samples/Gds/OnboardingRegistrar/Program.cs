@@ -36,6 +36,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.Database;
+using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -91,49 +94,58 @@ try
         new UserManagement(services.GetRequiredService<IUserDatabase>()));
     builder.Services.AddSingleton<IServerStartupTask>(
         new OnboardingReadyStartupTask(endpoint));
-    builder.Services
-        .AddOpcUa()
-        .AddServer(options =>
-        {
-            options.ApplicationName = "OnboardingRegistrar";
-            options.SubjectName = Utils.ReplaceDCLocalhost("CN=OnboardingRegistrar, O=OPC Foundation, DC=localhost");
-            options.ApplicationUri =
-                "urn:localhost:OPCFoundation:OnboardingRegistrar";
-            options.ProductUri =
-                "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
-            options.PkiRoot = pkiRoot;
-            options.AutoAcceptUntrustedCertificates = false;
-            options.RejectSHA1Certificates = true;
-            options.MinCertificateKeySize = 2048;
-            options.IncludeSignAndEncryptPolicies = true;
-            options.IncludeUnsecurePolicyNone = false;
-            options.IncludeEccPolicies = false;
-            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+    bool runPullRegistrar = GetBooleanOption(builder, "pullRegistrar");
+    if (runPullRegistrar)
+    {
+        ConfigurePullRegistrar(builder, pkiRoot, endpoint, userName);
+    }
+    else
+    {
+        builder.Services
+            .AddOpcUa()
+            .AddServer(options =>
             {
-                TokenType = UserTokenType.Anonymous
-            });
-            options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+                options.ApplicationName = "OnboardingRegistrar";
+                options.SubjectName = Utils.ReplaceDCLocalhost(
+                    "CN=OnboardingRegistrar, O=OPC Foundation, DC=localhost");
+                options.ApplicationUri =
+                    "urn:localhost:OPCFoundation:OnboardingRegistrar";
+                options.ProductUri =
+                    "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
+                options.PkiRoot = pkiRoot;
+                options.AutoAcceptUntrustedCertificates = false;
+                options.RejectSHA1Certificates = true;
+                options.MinCertificateKeySize = 2048;
+                options.IncludeSignAndEncryptPolicies = true;
+                options.IncludeUnsecurePolicyNone = false;
+                options.IncludeEccPolicies = false;
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+                {
+                    TokenType = UserTokenType.Anonymous
+                });
+                options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
+                {
+                    TokenType = UserTokenType.UserName
+                });
+                options.EndpointUrls.Add(endpoint);
+            })
+            .AddDefaultIdentityAuthenticators(options =>
             {
-                TokenType = UserTokenType.UserName
-            });
-            options.EndpointUrls.Add(endpoint);
-        })
-        .AddDefaultIdentityAuthenticators(options =>
-        {
-            options.EnableAnonymous = true;
-            options.EnableUserNamePassword = true;
-            options.EnableX509 = false;
-            options.EnableJwt = false;
-        })
-        .AddIdentityAugmenter(_ =>
-            new OnboardingRegistrarAdminAugmenter(userName))
-        .AddOnboardingTickets(
-            Path.Combine(pkiRoot, "ticket-authorities", "trusted"),
-            Path.Combine(pkiRoot, "ticket-authorities", "issuers"))
-        .AddOnboardingIdentities(
-            Path.Combine(pkiRoot, "identity-authorities", "trusted"),
-            Path.Combine(pkiRoot, "identity-authorities", "issuers"))
-        .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
+                options.EnableAnonymous = true;
+                options.EnableUserNamePassword = true;
+                options.EnableX509 = false;
+                options.EnableJwt = false;
+            })
+            .AddIdentityAugmenter(_ =>
+                new OnboardingRegistrarAdminAugmenter(userName))
+            .AddOnboardingTickets(
+                Path.Combine(pkiRoot, "ticket-authorities", "trusted"),
+                Path.Combine(pkiRoot, "ticket-authorities", "issuers"))
+            .AddOnboardingIdentities(
+                Path.Combine(pkiRoot, "identity-authorities", "trusted"),
+                Path.Combine(pkiRoot, "identity-authorities", "issuers"))
+            .AddNodeManager<OnboardingRegistrarNodeManagerFactory>();
+    }
 
     using IHost host = builder.Build();
     await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -155,4 +167,74 @@ static string GetRequiredEnvironmentVariable(string name)
             $"Set the {name} environment variable before starting the demo.");
     }
     return value;
+}
+
+static void ConfigurePullRegistrar(
+    HostApplicationBuilder builder,
+    string pkiRoot,
+    string endpoint,
+    string userName)
+{
+    string product = builder.Configuration["allowedProductInstanceUri"] ??
+        throw new ArgumentException("Pull registrar mode requires --allowedProductInstanceUri.");
+    string application = builder.Configuration["dcaApplicationUri"] ??
+        throw new ArgumentException("Pull registrar mode requires --dcaApplicationUri.");
+    bool autoApprove = GetBooleanOption(builder, "autoApprove");
+    var policy = new PullRegistrarPolicy(product, application);
+    Directory.CreateDirectory(pkiRoot);
+    JsonApplicationsDatabase database = JsonApplicationsDatabase.Load(Path.Combine(pkiRoot, "applications.json"));
+    builder.Services.AddSingleton<IApplicationsDatabase>(database);
+    builder.Services.AddSingleton<ICertificateRequest>(database);
+    builder.Services.AddHostedFileSystemDeviceRegistrarLifecycle(Path.Combine(pkiRoot, "device-lifecycle.json"));
+    builder.Services.AddHostedDeviceRegistrarAuditing();
+    builder.Services.AddSingleton<IDeviceRegistrarOnboardingPolicy>(policy);
+    builder.Services.AddSingleton<IDeviceRegistrarApplicationAuthorization>(policy);
+    builder.Services.AddSingleton<IDeviceRegistrarPushScheduler>(policy);
+    builder.Services.AddSingleton<IDeviceRegistrarManagerProvider>(policy);
+    builder.Services.AddOpcUa()
+        .AddGdsServer(options =>
+        {
+            options.ApplicationName = "OnboardingRegistrar";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:OnboardingRegistrar";
+            options.ProductUri = "uri:opcfoundation.org:UA-.NETStandard:OnboardingRegistrar";
+            options.SubjectName = Utils.ReplaceDCLocalhost("CN=OnboardingRegistrar, O=OPC Foundation, DC=localhost");
+            options.PkiRoot = pkiRoot;
+            options.AutoAcceptUntrustedCertificates = false;
+            options.IncludeSignAndEncryptPolicies = true;
+            options.IncludeUnsecurePolicyNone = false;
+            options.AutoApprove = autoApprove;
+            options.EndpointUrls.Add(endpoint);
+        })
+        .AddInMemoryStores()
+        .AddDefaultIdentityAuthenticators(options =>
+        {
+            options.EnableAnonymous = true;
+            options.EnableUserNamePassword = true;
+            options.EnableX509 = false;
+            options.EnableJwt = false;
+            options.EnableGdsApplicationSelfAdminProvider = false;
+        })
+        .AddIdentityAugmenter(_ => new OnboardingRegistrarAdminAugmenter(userName, true))
+        .AddOnboardingTickets(
+            Path.Combine(pkiRoot, "ticket-authorities", "trusted"),
+            Path.Combine(pkiRoot, "ticket-authorities", "issuers"))
+        .AddOnboardingIdentities(
+            Path.Combine(pkiRoot, "identity-authorities", "trusted"),
+            Path.Combine(pkiRoot, "identity-authorities", "issuers"))
+        .AddSecretStoreCertificateRequestIssuanceStore(new InMemorySecretStore(), "pull-registrar")
+        .AddDeviceRegistrar(_ => { });
+}
+
+static bool GetBooleanOption(HostApplicationBuilder builder, string name)
+{
+    string? value = builder.Configuration[name];
+    if (value == null)
+    {
+        return false;
+    }
+    if (!bool.TryParse(value, out bool result))
+    {
+        throw new ArgumentException($"--{name} must be true or false.");
+    }
+    return result;
 }
