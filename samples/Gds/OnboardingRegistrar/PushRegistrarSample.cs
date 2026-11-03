@@ -193,6 +193,8 @@ namespace OnboardingRegistrar
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            // The sample denies every managed application, so registrar push provisions only the DCA.
+            // Return true for approved Client applications to provision them after DCA proof.
             return new ValueTask<bool>(false);
         }
 

@@ -208,6 +208,8 @@ namespace Opc.Ua.Gds.Server
 
         /// <summary>
         /// Rechecks persisted software approval and DCA ownership before local issuance publication.
+        /// A managed application is accepted only when the same device has a confirmed DCA credential,
+        /// is not singleton-restricted and records that application as one of its managed relations.
         /// </summary>
         internal static async ValueTask RequirePushApprovalAsync(
             OnboardingIdentitySelection identity,
@@ -221,12 +223,33 @@ namespace Opc.Ua.Gds.Server
             DeviceRegistrarDevice? device = await devices.FindDeviceAsync(identity.ProductInstanceUri, ct)
                 .ConfigureAwait(false);
             if (candidate == null || candidate.ProductInstanceUri != identity.ProductInstanceUri ||
-                candidate.ApplicationId != applicationId || !candidate.CertificateIssuanceAllowed ||
-                device == null || device.DcaApplicationId != applicationId ||
+                applicationId.IsNull || !candidate.CertificateIssuanceAllowed ||
+                device == null || device.DcaApplicationId != candidate.ApplicationId ||
                 (device.IsSingletonRestricted && !device.Applications.IsEmpty))
             {
                 throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
             }
+            if (applicationId != device.DcaApplicationId &&
+                (device.IsSingletonRestricted || device.DcaCertificate.IsEmpty ||
+                    !device.PendingDcaCertificate.IsEmpty || !IsManagedApplication(device, applicationId)))
+            {
+                throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+            }
+        }
+
+        /// <summary>
+        /// Checks the persisted managed-application relations of one device.
+        /// </summary>
+        private static bool IsManagedApplication(DeviceRegistrarDevice device, NodeId applicationId)
+        {
+            foreach (DeviceRegistrarApplication application in device.Applications)
+            {
+                if (application.ApplicationId == applicationId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

@@ -583,6 +583,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Selects the concrete generated-client push processor and its supervised bounded queue.
         /// The host must explicitly provide authenticated connections, durable enrollment/request recovery,
         /// the shared lifecycle, and the existing GDS issuance store. No trust or software approval is inferred.
+        /// Managed Client applications are authorized through the runtime's IDeviceRegistrarAuthorization.
         /// Register before AddDeviceRegistrarRuntime validates the remaining registrar providers.
         /// </summary>
         public static IServiceCollection AddDeviceRegistrarPush(
@@ -595,6 +596,7 @@ namespace Microsoft.Extensions.DependencyInjection
             }
             RequireProvider<IDeviceRegistrarPushConnectionProvider>(services);
             RequireProvider<IDeviceRegistrarPushEnrollmentProvider>(services);
+            RequireProvider<IDeviceRegistrarLifecycle>(services);
             RequireProvider<IDeviceRegistrarCertificateLifecycle>(services);
             RequireProvider<ICertificateRequestIssuanceStore>(services);
             services.TryAddSingleton<OnboardingPushIdentityValidator>();

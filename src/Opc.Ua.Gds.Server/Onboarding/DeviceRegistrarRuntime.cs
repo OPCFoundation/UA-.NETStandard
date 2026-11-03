@@ -116,6 +116,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(StatusCodes.BadConfigurationError);
             }
             NodeId applicationId = await RegisterSharedApplicationAsync(
+                m_applications,
                 decision.Application,
                 (id, ct) => identityLifecycle.RecordCandidateAsync(
                     selection.ProductInstanceUri, id, selected, decision.RequiresSoftwareUpdate, ct),
@@ -211,11 +212,36 @@ namespace Opc.Ua.Gds.Server.Onboarding
             string device = await m_authorization.RequireDcaAsync(
                 context,
                 cancellationToken).ConfigureAwait(false);
+            return await RegisterDeviceApplicationAsync(
+                m_applications,
+                m_lifecycle,
+                m_authorization,
+                device,
+                application,
+                protocolUri,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Authorizes and associates one managed application of an already identified device.
+        /// The DCA call path supplies the device from its session; registrar push supplies the device
+        /// whose installed DCA credential it has just proven. Each application is authorized independently
+        /// before any existing registry entry is read, and singleton-restricted devices are rejected.
+        /// </summary>
+        internal static async ValueTask<NodeId> RegisterDeviceApplicationAsync(
+            IApplicationsDatabase applications,
+            IDeviceRegistrarLifecycle lifecycle,
+            IDeviceRegistrarAuthorization authorization,
+            string device,
+            ApplicationRecordDataType application,
+            string protocolUri,
+            CancellationToken cancellationToken)
+        {
             if (application == null)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument);
             }
-            if (m_lifecycle is not IDeviceRegistrarApplicationScopeLifecycle scope)
+            if (lifecycle is not IDeviceRegistrarApplicationScopeLifecycle scope)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "Managed applications require persisted device application scope.");
@@ -229,15 +255,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
 
             // Authorize every call before even looking up an existing registry entry.
-            await m_authorization.RequireApplicationAsync(
+            await authorization.RequireApplicationAsync(
                 device,
                 application,
                 protocolUri,
                 cancellationToken).ConfigureAwait(false);
             await scope.RequireManagedApplicationAllowedAsync(device, cancellationToken).ConfigureAwait(false);
             return await RegisterSharedApplicationAsync(
+                applications,
                 application,
-                (id, ct) => m_lifecycle.AssociateApplicationAsync(device, id, protocolUri, ct),
+                (id, ct) => lifecycle.AssociateApplicationAsync(device, id, protocolUri, ct),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -245,7 +272,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Rejects conflicting ownership before changing existing shared metadata.
         /// New entries retain their identifier if recording the lifecycle relation fails.
         /// </summary>
-        private async ValueTask<NodeId> RegisterSharedApplicationAsync(
+        private static async ValueTask<NodeId> RegisterSharedApplicationAsync(
+            IApplicationsDatabase applications,
             ApplicationRecordDataType application,
             Func<NodeId, CancellationToken, ValueTask> associate,
             CancellationToken cancellationToken)
@@ -261,7 +289,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, error);
             }
 
-            ApplicationRecordDataType[]? existing = m_applications.FindApplications(application.ApplicationUri);
+            ApplicationRecordDataType[]? existing = applications.FindApplications(application.ApplicationUri);
             NodeId applicationId;
             if (existing is { Length: > 0 })
             {
@@ -290,7 +318,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 NodeId updatedId;
                 try
                 {
-                    updatedId = m_applications.UpdateApplication(update);
+                    updatedId = applications.UpdateApplication(update);
                 }
                 catch (ArgumentException error)
                 {
@@ -309,7 +337,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 try
                 {
-                    applicationId = m_applications.RegisterApplication(application);
+                    applicationId = applications.RegisterApplication(application);
                 }
                 catch (ArgumentException error)
                 {

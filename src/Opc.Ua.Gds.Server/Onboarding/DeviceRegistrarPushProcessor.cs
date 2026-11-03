@@ -26,6 +26,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
@@ -40,7 +41,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 {
     /// <summary>
     /// Pushes an approved DCA credential using generated clients and retained, request-correlated GDS issuance.
-    /// This processor never installs software or grants a singleton authority over managed applications.
+    /// After the DCA credential is confirmed on a non-singleton device, the processor pushes a credential and
+    /// trust list to each Client-type managed application; every application is authorized and approved on its
+    /// own. This processor never installs software or grants a singleton authority over managed applications.
     /// </summary>
     public sealed class DeviceRegistrarPushProcessor : IDeviceRegistrarPushProcessor, IDisposable
     {
@@ -57,6 +60,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IDeviceRegistrarIdentityLifecycle candidates,
             IDeviceRegistrarCertificateLifecycle certificates,
             ICertificateRequestIssuanceStore issuances,
+            IDeviceRegistrarLifecycle lifecycle,
+            IDeviceRegistrarAuthorization authorization,
             ITelemetryContext telemetry)
         {
             m_connections = connections ?? throw new ArgumentNullException(nameof(connections));
@@ -67,6 +72,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_candidates = candidates ?? throw new ArgumentNullException(nameof(candidates));
             m_certificates = certificates ?? throw new ArgumentNullException(nameof(certificates));
             m_issuances = issuances ?? throw new ArgumentNullException(nameof(issuances));
+            m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
+            m_authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
@@ -210,6 +217,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 {
                     await ConfirmAsync(dispatch, identity, applicationId, singleton, installed, cancellationToken)
                         .ConfigureAwait(false);
+                    if (!singleton)
+                    {
+                        await PushManagedApplicationsAsync(connection, dispatch, identity, applicationId,
+                            snapshot.ApplicationUri!, installed, cancellationToken).ConfigureAwait(false);
+                    }
                     return;
                 }
                 if (!current.PendingDcaCertificate.IsEmpty && current.PendingDcaCertificate != installed)
@@ -280,11 +292,331 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await device.RequestTicketsAsync(cancellationToken).ConfigureAwait(false);
                 bool singleton = await ReadSingletonAsync(
                     proof.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
-                await ConfirmAsync(proof,
-                    acceptedIdentity ?? throw new ServiceResultException(StatusCodes.BadInvalidState),
-                    applicationId, singleton, installed, cancellationToken)
+                OnboardingIdentitySelection identity = acceptedIdentity ??
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                await ConfirmAsync(proof, identity, applicationId, singleton, installed, cancellationToken)
                     .ConfigureAwait(false);
+                if (!singleton)
+                {
+                    await PushManagedApplicationsAsync(connection, proof, identity, applicationId,
+                        snapshot.ApplicationUri!, installed, cancellationToken).ConfigureAwait(false);
+                }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Pushes credentials to every managed application the confirmed DCA exposes on the proven channel.
+        /// A failure for one application does not prevent the others; all failures are reported together.
+        /// </summary>
+        private async ValueTask PushManagedApplicationsAsync(
+            IDeviceRegistrarPushConnection connection,
+            SessionRequestContext dispatch,
+            OnboardingIdentitySelection identity,
+            NodeId dcaApplicationId,
+            string dcaApplicationUri,
+            ByteString peer,
+            CancellationToken ct)
+        {
+            List<NodeId> nodes = await FindManagedApplicationsAsync(
+                dispatch.Session, connection.ProvisionableDeviceId, ct).ConfigureAwait(false);
+            List<Exception>? failures = null;
+            foreach (NodeId node in nodes)
+            {
+                try
+                {
+                    await PushManagedApplicationAsync(connection, dispatch, identity, dcaApplicationId,
+                        dcaApplicationUri, peer, node, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error)
+                {
+                    (failures ??= []).Add(error);
+                    if (dispatch.Invalidated.IsCompleted)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("One or more managed applications were not provisioned.", failures);
+            }
+        }
+
+        /// <summary>
+        /// Lists ApplicationConfiguration instances below the device and in the standard ManagedApplications folder.
+        /// </summary>
+        private static async ValueTask<List<NodeId>> FindManagedApplicationsAsync(
+            ISession session,
+            NodeId deviceId,
+            CancellationToken ct)
+        {
+            var found = new List<NodeId>();
+            var seen = new HashSet<NodeId>();
+            await AddManagedApplicationsAsync(session, deviceId, found, seen, ct).ConfigureAwait(false);
+            try
+            {
+                await AddManagedApplicationsAsync(session, s_managedApplicationsFolderId, found, seen, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadNodeIdUnknown)
+            {
+                // The ManagedApplications folder is optional on a device.
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// Adds the ApplicationConfigurationType instances, including vendor subtypes, referenced by one parent.
+        /// </summary>
+        private static async ValueTask AddManagedApplicationsAsync(
+            ISession session,
+            NodeId parent,
+            List<NodeId> found,
+            HashSet<NodeId> seen,
+            CancellationToken ct)
+        {
+            ArrayOf<ReferenceDescription> references = await ClientModelAccess.BrowseAsync(
+                session, parent, (uint)NodeClass.Object, ct).ConfigureAwait(false);
+            for (int index = 0; index < references.Count; index++)
+            {
+                ReferenceDescription reference = references[index];
+                NodeId node = ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris);
+                NodeId type = ExpandedNodeId.ToNodeId(reference.TypeDefinition, session.NamespaceUris);
+                if (!node.IsNull && !type.IsNull && !seen.Contains(node) &&
+                    await session.NodeCache.IsTypeOfAsync(
+                        type, Opc.Ua.ObjectTypeIds.ApplicationConfigurationType, ct).ConfigureAwait(false))
+                {
+                    seen.Add(node);
+                    found.Add(node);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers, authorizes and approves one managed Client application, then installs its retained
+        /// GDS issuance through the application's own ApplicationConfiguration methods and TrustList.
+        /// An application that already holds the issued certificate is left unchanged.
+        /// </summary>
+        private async ValueTask PushManagedApplicationAsync(
+            IDeviceRegistrarPushConnection connection,
+            SessionRequestContext dispatch,
+            OnboardingIdentitySelection identity,
+            NodeId dcaApplicationId,
+            string dcaApplicationUri,
+            ByteString peer,
+            NodeId node,
+            CancellationToken ct)
+        {
+            ISession session = dispatch.Session;
+            ApplicationRecordDataType record = await ReadManagedApplicationAsync(session, node, ct)
+                .ConfigureAwait(false);
+            if (string.Equals(record.ApplicationUri, dcaApplicationUri, StringComparison.Ordinal))
+            {
+                return;
+            }
+            if (record.ApplicationType != ApplicationType.Client)
+            {
+                // Part 21 exposes no DiscoveryUrls for a managed server, which a GDS server record requires.
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Registrar push provisions only Client managed applications.");
+            }
+            RequirePeer(dispatch, peer);
+            NodeId applicationId = await DeviceRegistrarRuntime.RegisterDeviceApplicationAsync(
+                m_applications, m_lifecycle, m_authorization, identity.ProductInstanceUri, record, string.Empty, ct)
+                .ConfigureAwait(false);
+            await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
+            RequirePeer(dispatch, peer);
+
+            NodeId groups = await RequireChildAsync(session, node, BrowseNames.CertificateGroups, ct)
+                .ConfigureAwait(false);
+            NodeId group = await RequireChildAsync(session, groups, BrowseNames.DefaultApplicationGroup, ct)
+                .ConfigureAwait(false);
+            NodeId trustListId = await RequireChildAsync(session, group, BrowseNames.TrustList, ct)
+                .ConfigureAwait(false);
+            var configuration = new ServerConfigurationTypeClient(session, node, m_telemetry);
+            ByteString createdSigningRequest = ByteString.Empty;
+            int signingRequestCreated = 0;
+            DeviceRegistrarPushEnrollment retained = await m_enrollments.GetOrCreateAsync(identity, applicationId,
+                async factoryCt =>
+                {
+                    if (Interlocked.Exchange(ref signingRequestCreated, 1) != 0)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "CSR creation was already attempted.");
+                    }
+                    RequirePeer(dispatch, peer);
+                    await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, factoryCt)
+                        .ConfigureAwait(false);
+                    ByteString csr = await configuration.CreateSigningRequestAsync(
+                        NodeId.Null, connection.CertificateTypeId, string.Empty,
+                        true, Nonce.CreateRandomNonceData(32).ToByteString(), factoryCt).ConfigureAwait(false);
+                    if (csr.IsEmpty)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState);
+                    }
+                    createdSigningRequest = ByteString.From(csr.Span);
+                    return ByteString.From(createdSigningRequest.Span);
+                }, ct).ConfigureAwait(false);
+            ValidateEnrollment(retained, identity, applicationId);
+            if (!createdSigningRequest.IsEmpty && retained.CertificateRequest != createdSigningRequest)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed, "The retained CSR differs from the application's response.");
+            }
+            CertificateRequestIssuance issuance = await ReadIssuanceAsync(retained, ct).ConfigureAwait(false);
+            RequireSigningResult(retained, issuance, record.ApplicationUri!, connection.CertificateTypeId);
+            if (await HoldsCertificateAsync(configuration, issuance.Certificate, ct).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
+            RequirePeer(dispatch, peer);
+            if (await WriteTrustListAsync(session, trustListId, retained.TrustList, ct).ConfigureAwait(false))
+            {
+                await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
+                    .ConfigureAwait(false);
+                RequirePeer(dispatch, peer);
+                await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
+            }
+            ArrayOf<ByteString> issuers = issuance.IssuerCertificates.ToList()
+                .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf();
+            await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct).ConfigureAwait(false);
+            RequirePeer(dispatch, peer);
+            bool applyCertificate = await configuration.UpdateCertificateAsync(
+                NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty, default, ct)
+                .ConfigureAwait(false);
+            if (applyCertificate)
+            {
+                RequirePeer(dispatch, peer);
+                await configuration.ApplyChangesAsync(ct).ConfigureAwait(false);
+            }
+            if (!await HoldsCertificateAsync(configuration, issuance.Certificate, ct).ConfigureAwait(false))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The managed application did not report the pushed certificate.");
+            }
+        }
+
+        /// <summary>
+        /// Requires the confirmed DCA's software approval and the shared database's managed-application approval.
+        /// </summary>
+        private async ValueTask RequireManagedApprovalAsync(
+            OnboardingIdentitySelection identity,
+            NodeId dcaApplicationId,
+            NodeId applicationId,
+            CancellationToken ct)
+        {
+            await RequireApprovalAsync(identity, dcaApplicationId, false, ct).ConfigureAwait(false);
+            await ApplicationsNodeManager.RequirePushApprovalAsync(
+                identity, applicationId, m_candidates, m_certificates, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Reads the standard identity properties of a managed ApplicationConfiguration instance.
+        /// ApplicationNames is an Optional property inherited from ServerConfigurationType; when the
+        /// application omits it or reports no name, the ApplicationUri becomes the registered name.
+        /// </summary>
+        private static async ValueTask<ApplicationRecordDataType> ReadManagedApplicationAsync(
+            ISession session,
+            NodeId node,
+            CancellationToken ct)
+        {
+            Variant uri = await ReadChildAsync(session, node, BrowseNames.ApplicationUri, ct).ConfigureAwait(false);
+            Variant product = await ReadChildAsync(session, node, BrowseNames.ProductUri, ct).ConfigureAwait(false);
+            Variant type = await ReadChildAsync(session, node, BrowseNames.ApplicationType, ct)
+                .ConfigureAwait(false);
+            if (!uri.TryGetValue(out string applicationUri) || string.IsNullOrEmpty(applicationUri) ||
+                !product.TryGetValue(out string productUri) || !type.TryGetValue(out int applicationType))
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+            }
+            ArrayOf<LocalizedText> applicationNames = default;
+            NodeId namesId = await ClientModelAccess.ResolveAsync(
+                session, node, Namespaces.OpcUa, BrowseNames.ApplicationNames, ct).ConfigureAwait(false);
+            if (!namesId.IsNull)
+            {
+                DataValue names = await session.ReadValueAsync(namesId, ct).ConfigureAwait(false);
+                if (StatusCode.IsBad(names.StatusCode))
+                {
+                    throw new ServiceResultException(names.StatusCode);
+                }
+                if (!names.WrappedValue.IsNull && !names.WrappedValue.TryGetValue(out applicationNames))
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                }
+            }
+            if (applicationNames.Count == 0 || applicationNames[0].IsNullOrEmpty)
+            {
+                applicationNames = [new LocalizedText(applicationUri)];
+            }
+            return new ApplicationRecordDataType
+            {
+                ApplicationUri = applicationUri,
+                ProductUri = productUri,
+                ApplicationType = (ApplicationType)applicationType,
+                ApplicationNames = applicationNames
+            };
+        }
+
+        /// <summary>
+        /// Reads one standard child value without converting a bad status to a default value.
+        /// </summary>
+        private static async ValueTask<Variant> ReadChildAsync(
+            ISession session,
+            NodeId parent,
+            string browseName,
+            CancellationToken ct)
+        {
+            NodeId child = await RequireChildAsync(session, parent, browseName, ct).ConfigureAwait(false);
+            DataValue value = await session.ReadValueAsync(child, ct).ConfigureAwait(false);
+            if (StatusCode.IsBad(value.StatusCode))
+            {
+                throw new ServiceResultException(value.StatusCode);
+            }
+            return value.WrappedValue;
+        }
+
+        /// <summary>
+        /// Resolves a mandatory standard child by its OPC UA browse name.
+        /// </summary>
+        private static async ValueTask<NodeId> RequireChildAsync(
+            ISession session,
+            NodeId parent,
+            string browseName,
+            CancellationToken ct)
+        {
+            NodeId child = await ClientModelAccess.ResolveAsync(session, parent, Namespaces.OpcUa, browseName, ct)
+                .ConfigureAwait(false);
+            if (child.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+            }
+            return child;
+        }
+
+        /// <summary>
+        /// Checks whether the application's default application group reports the exact certificate.
+        /// </summary>
+        private static async ValueTask<bool> HoldsCertificateAsync(
+            ServerConfigurationTypeClient configuration,
+            ByteString certificate,
+            CancellationToken ct)
+        {
+            var (_, certificates) = await configuration.GetCertificatesAsync(NodeId.Null, ct)
+                .ConfigureAwait(false);
+            for (int index = 0; index < certificates.Count; index++)
+            {
+                if (certificates[index] == certificate)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -808,8 +1140,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>The existing GDS request-correlated issuance receipts.</summary>
         private readonly ICertificateRequestIssuanceStore m_issuances;
 
+        /// <summary>The persisted device and managed-application relations.</summary>
+        private readonly IDeviceRegistrarLifecycle m_lifecycle;
+
+        /// <summary>The host's independent per-application authorization policy.</summary>
+        private readonly IDeviceRegistrarAuthorization m_authorization;
+
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>The standard ManagedApplications folder (OPC 10000-21, i=16706).</summary>
+        private static readonly NodeId s_managedApplicationsFolderId = new(16706u);
 
         /// <summary>Serializes direct invocations as well as work admitted by the default push scheduler.</summary>
         private readonly SemaphoreSlim m_attemptGate = new(1, 1);

@@ -307,7 +307,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Requires current persisted software approval and the original DCA application ownership.
+        /// Requires current persisted software approval and that the application is either the original
+        /// DCA application or a managed application recorded for the confirmed, non-singleton device.
         /// </summary>
         private ValueTask RequireApprovalAsync(
             OnboardingIdentitySelection identity,

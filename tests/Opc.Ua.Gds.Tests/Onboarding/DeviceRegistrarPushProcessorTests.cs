@@ -65,6 +65,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_issued = CertificateBuilder.Create("CN=Issued Push Device")
                 .AddExtension(new X509SubjectAltNameExtension("urn:push:application", ["localhost"]))
                 .SetRSAKeySize(2048).CreateForRSA();
+            m_managedA = CertificateBuilder.Create("CN=Managed Client A")
+                .AddExtension(new X509SubjectAltNameExtension(ManagedUriA, ["localhost"]))
+                .SetRSAKeySize(2048).CreateForRSA();
+            m_managedB = CertificateBuilder.Create("CN=Managed Client B")
+                .AddExtension(new X509SubjectAltNameExtension(ManagedUriB, ["localhost"]))
+                .SetRSAKeySize(2048).CreateForRSA();
         }
 
         /// <summary>
@@ -75,6 +81,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             m_bootstrap.Dispose();
             m_issued.Dispose();
+            m_managedA.Dispose();
+            m_managedB.Dispose();
         }
 
         /// <summary>
@@ -89,6 +97,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(6)]
         [TestCase(7)]
         [TestCase(8)]
+        [TestCase(9)]
+        [TestCase(10)]
         public void ConstructorRejectsEachMissingProvider(int missing)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -103,7 +113,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 missing == 5 ? null! : lifecycle,
                 missing == 6 ? null! : lifecycle,
                 missing == 7 ? null! : new Mock<ICertificateRequestIssuanceStore>().Object,
-                missing == 8 ? null! : telemetry));
+                missing == 8 ? null! : lifecycle,
+                missing == 9 ? null! : new Mock<IDeviceRegistrarAuthorization>().Object,
+                missing == 10 ? null! : telemetry));
         }
 
         /// <summary>
@@ -231,6 +243,140 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(device.SoftwareRevision, Is.EqualTo("approved-revision"));
             Assert.That(device.DcaCertificate, Is.EqualTo(harness.Issued));
             Assert.That(harness.CsrCalls, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A non-singleton device's managed Client applications are registered, authorized, associated and
+        /// provisioned through their own ApplicationConfiguration after the DCA credential is proven.
+        /// </summary>
+        [Test]
+        public async Task PushProvisionsEachManagedClientApplicationAfterDcaProof()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication first = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            first.InFolder = true;
+            ManagedApplication second = harness.AddManaged("managed-b", ManagedUriB, m_managedB);
+            second.OnDevice = false;
+            second.InFolder = true;
+            second.IncludeNames = false;
+            ManagedApplication dca = harness.AddManaged(
+                "managed-dca", harness.Application.ApplicationUri!, m_issued);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(first.Installed, Is.True);
+            Assert.That(second.Installed, Is.True);
+            Assert.That(first.CsrCalls, Is.EqualTo(1));
+            Assert.That(second.CsrCalls, Is.EqualTo(1));
+            Assert.That(dca.Calls, Is.Empty);
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA, ManagedUriB }));
+            Assert.That(harness.RegisteredName(first), Is.EqualTo("managed-a"));
+            Assert.That(harness.RegisteredName(second), Is.EqualTo(ManagedUriB));
+            Assert.That(first.Calls.IndexOf(Ua.MethodIds.ServerConfigurationType_ApplyChanges),
+                Is.LessThan(first.Calls.IndexOf(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+            DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(device!.DcaCertificate, Is.EqualTo(harness.Issued));
+            var associated = new List<NodeId>();
+            foreach (DeviceRegistrarApplication application in device.Applications)
+            {
+                associated.Add(application.ApplicationId);
+            }
+            Assert.That(associated, Is.EquivalentTo(new[] { first.Id, second.Id }));
+            Assert.That(harness.CsrCalls, Is.EqualTo(1));
+            Assert.That(harness.ApplyCalls, Is.EqualTo(2));
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// A rejected managed application is reported without blocking the others or the confirmed DCA.
+        /// </summary>
+        [Test]
+        public async Task DeniedManagedApplicationIsReportedWithoutBlockingOthers()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication denied = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            ManagedApplication allowed = harness.AddManaged("managed-b", ManagedUriB, m_managedB);
+            harness.DeniedUris.Add(ManagedUriA);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(error.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(denied.CsrCalls, Is.Zero);
+            Assert.That(denied.Installed, Is.False);
+            Assert.That(harness.RegisteredName(denied), Is.Null);
+            Assert.That(allowed.Installed, Is.True);
+            DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(device!.DcaCertificate, Is.EqualTo(harness.Issued));
+            Assert.That(device.Applications.Count, Is.EqualTo(1));
+            Assert.That(device.Applications[0].ApplicationId, Is.EqualTo(allowed.Id));
+        }
+
+        /// <summary>
+        /// A singleton device's DCA never registers or configures other applications.
+        /// </summary>
+        [Test]
+        public async Task SingletonDeviceDoesNotProvisionManagedApplications()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued) { Singleton = true };
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.Calls, Is.Empty);
+            Assert.That(harness.AuthorizedUris, Is.Empty);
+            Assert.That(harness.RegisteredName(application), Is.Null);
+            DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
+                .ConfigureAwait(false);
+            Assert.That(device!.DcaCertificate, Is.EqualTo(harness.Issued));
+            Assert.That(device.Applications.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// A managed server cannot be registered without DiscoveryUrls, which Part 21 does not expose.
+        /// </summary>
+        [Test]
+        public async Task ManagedServerApplicationIsNotSupported()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication server = harness.AddManaged(
+                "managed-a", ManagedUriA, m_managedA, ApplicationType.Server);
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
+
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(error.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
+            Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(server.Calls, Is.Empty);
+            Assert.That(harness.AuthorizedUris, Is.Empty);
+            Assert.That(harness.RegisteredName(server), Is.Null);
+        }
+
+        /// <summary>
+        /// An application that already reports the issued certificate receives no TrustList or certificate update.
+        /// </summary>
+        [Test]
+        public async Task ManagedApplicationHoldingIssuedCertificateIsNotUpdated()
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            ManagedApplication application = harness.AddManaged("managed-a", ManagedUriA, m_managedA);
+            application.Installed = true;
+
+            await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false);
+
+            Assert.That(application.Calls, Does.Contain(Ua.MethodIds.ServerConfigurationType_GetCertificates));
+            Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.FileType_Open));
+            Assert.That(application.Calls,
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
+            Assert.That(application.Calls, Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
+            Assert.That(harness.AuthorizedUris, Is.EqualTo(new[] { ManagedUriA }));
         }
 
         /// <summary>
@@ -728,6 +874,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var lifecycle = new MemoryDeviceRegistrarLifecycle();
             services.AddSingleton<IDeviceRegistrarCertificateLifecycle>(lifecycle);
             services.AddSingleton(new Mock<ICertificateRequestIssuanceStore>().Object);
+            Assert.Throws<InvalidOperationException>(() => services.AddDeviceRegistrarPush());
+            services.AddSingleton<IDeviceRegistrarLifecycle>(lifecycle);
+            services.AddSingleton(new Mock<IDeviceRegistrarAuthorization>().Object);
             services.AddSingleton(new Mock<IDeviceRegistrarIdentityLifecycle>().Object);
             services.AddSingleton(new Mock<IDeviceRegistrarOnboardingPolicy>().Object);
             services.AddSingleton(new Mock<IApplicationsDatabase>().Object);
@@ -800,15 +949,49 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         return proofLease.Object;
                     });
                 var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
-                database.Setup(value => value.FindApplications(ApplicationUri))
-                    .Returns(() => m_record == null ? [] : [m_record]);
-                database.Setup(value => value.RegisterApplication(It.IsAny<ApplicationRecordDataType>()))
-                    .Callback<ApplicationRecordDataType>(record =>
+                database.Setup(value => value.FindApplications(It.IsAny<string>()))
+                    .Returns<string>(uri =>
                     {
-                        m_record = CoreUtils.Clone(record)!;
-                        m_record.ApplicationId = ApplicationId;
-                    })
-                    .Returns(ApplicationId);
+                        if (uri == ApplicationUri)
+                        {
+                            return m_record == null ? [] : [m_record];
+                        }
+                        return m_managedRecords.TryGetValue(uri, out ApplicationRecordDataType? found) ? [found] : [];
+                    });
+                database.Setup(value => value.RegisterApplication(It.IsAny<ApplicationRecordDataType>()))
+                    .Returns<ApplicationRecordDataType>(record =>
+                    {
+                        ApplicationRecordDataType stored = CoreUtils.Clone(record)!;
+                        if (record.ApplicationUri == ApplicationUri)
+                        {
+                            stored.ApplicationId = ApplicationId;
+                            m_record = stored;
+                            return ApplicationId;
+                        }
+                        stored.ApplicationId = FindManaged(record.ApplicationUri).Id;
+                        m_managedRecords[record.ApplicationUri] = stored;
+                        return stored.ApplicationId;
+                    });
+                database.Setup(value => value.UpdateApplication(It.IsAny<ApplicationRecordDataType>()))
+                    .Returns<ApplicationRecordDataType>(record =>
+                    {
+                        if (record.ApplicationUri != ApplicationUri)
+                        {
+                            m_managedRecords[record.ApplicationUri] = CoreUtils.Clone(record)!;
+                        }
+                        return record.ApplicationId;
+                    });
+                Authorization.Setup(value => value.RequireApplicationAsync(
+                    Product, It.IsAny<ApplicationRecordDataType>(), string.Empty, It.IsAny<CancellationToken>()))
+                    .Returns<string, ApplicationRecordDataType, string, CancellationToken>((_, record, _, _) =>
+                    {
+                        AuthorizedUris.Add(record.ApplicationUri);
+                        if (DeniedUris.Contains(record.ApplicationUri))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadRequestNotAllowed);
+                        }
+                        return default;
+                    });
                 var policy = new Mock<IDeviceRegistrarOnboardingPolicy>(MockBehavior.Strict);
                 policy.Setup(value => value.EvaluateAsync(
                     It.IsAny<OnboardingIdentitySelection>(), It.IsAny<CancellationToken>()))
@@ -845,8 +1028,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Enrollments.Setup(provider => provider.FindAsync(Product, ApplicationId,
                     It.IsAny<CancellationToken>())).Returns(() =>
                         new ValueTask<DeviceRegistrarPushEnrollment?>(MissingRetained ? null : Enrollment()));
-                var issuances = new Mock<ICertificateRequestIssuanceStore>(MockBehavior.Strict);
-                issuances.Setup(store => store.GetOrCreateAsync(
+                ICertificateRequestIssuanceStore issuances = m_issuances.Object;
+                m_issuances.Setup(store => store.GetOrCreateAsync(
                     ApplicationId, RequestId,
                     It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
                     It.IsAny<CancellationToken>()))
@@ -863,7 +1046,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     policy.Object, database.Object, Lifecycle,
                     scopeCapability ? Lifecycle :
                         new Mock<IDeviceRegistrarCertificateLifecycle>(MockBehavior.Strict).Object,
-                    issuances.Object, Initial.Telemetry);
+                    issuances, Lifecycle, Authorization.Object, Initial.Telemetry);
             }
 
             /// <summary>
@@ -1022,6 +1205,70 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public int CsrCalls { get; private set; }
 
             /// <summary>
+            /// Gets the per-application authorization policy invoked for every managed application.
+            /// </summary>
+            public Mock<IDeviceRegistrarAuthorization> Authorization { get; } = new(MockBehavior.Strict);
+
+            /// <summary>
+            /// Gets managed application URIs the authorization policy rejects.
+            /// </summary>
+            public HashSet<string> DeniedUris { get; } = [];
+
+            /// <summary>
+            /// Gets managed application URIs submitted to the authorization policy, in order.
+            /// </summary>
+            public List<string> AuthorizedUris { get; } = [];
+
+            /// <summary>
+            /// Gets the scripted managed applications exposed by the device.
+            /// </summary>
+            public List<ManagedApplication> Managed { get; } = [];
+
+            /// <summary>
+            /// Exposes one scripted ApplicationConfiguration and its retained enrollment and issuance.
+            /// </summary>
+            public ManagedApplication AddManaged(
+                string name,
+                string applicationUri,
+                Certificate certificate,
+                ApplicationType type = ApplicationType.Client)
+            {
+                var application = new ManagedApplication(name, applicationUri, certificate, type);
+                Managed.Add(application);
+                Enrollments.Setup(provider => provider.GetOrCreateAsync(
+                    It.IsAny<OnboardingIdentitySelection>(), application.Id,
+                    It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()))
+                    .Returns<OnboardingIdentitySelection, NodeId,
+                        Func<CancellationToken, ValueTask<ByteString>>, CancellationToken>(
+                        async (_, _, create, ct) =>
+                        {
+                            ByteString csr = await create(ct).ConfigureAwait(false);
+                            Assert.That(csr, Is.EqualTo(application.Csr));
+                            return new DeviceRegistrarPushEnrollment(Identity, application.Id,
+                                application.RequestId, "DefaultApplicationGroup", "RsaSha256",
+                                new TrustListDataType { SpecifiedLists = (uint)TrustListMasks.All }, csr);
+                        });
+                m_issuances.Setup(store => store.GetOrCreateAsync(
+                    application.Id, application.RequestId,
+                    It.IsAny<Func<CancellationToken, ValueTask<CertificateRequestIssuance>>>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<CertificateRequestIssuance>(
+                        new CertificateRequestIssuance("DefaultApplicationGroup", "RsaSha256",
+                            application.Certificate, default, [application.Certificate])));
+                return application;
+            }
+
+            /// <summary>
+            /// Gets the registered name submitted for a managed application, or null when it was not registered.
+            /// </summary>
+            public string? RegisteredName(ManagedApplication application)
+            {
+                return m_managedRecords.TryGetValue(application.ApplicationUri, out ApplicationRecordDataType? record)
+                    ? record.ApplicationNames[0].Text
+                    : null;
+            }
+
+            /// <summary>
             /// Creates an existing shared candidate for recovery or singleton privilege tests.
             /// </summary>
             public async ValueTask SeedCandidateAsync()
@@ -1088,20 +1335,33 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// </summary>
             private IServiceResponse Respond(IServiceRequest request)
             {
-                if (request is BrowseRequest)
+                if (request is BrowseRequest browse)
                 {
-                    return new BrowseResponse { Results = [new BrowseResult { References = [] }] };
+                    return new BrowseResponse
+                    {
+                        Results = [new BrowseResult { References = Browse(browse.NodesToBrowse[0].NodeId) }]
+                    };
                 }
                 Assert.That(request.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token", 0)));
-                if (request is ReadRequest)
+                if (request is ReadRequest read)
                 {
-                    return new ReadResponse { Results = [new DataValue(Variant.From(Singleton))] };
+                    return new ReadResponse { Results = [new DataValue(ReadValue(read.NodesToRead[0].NodeId))] };
                 }
                 if (request is not CallRequest call)
                 {
                     throw new InvalidOperationException("Unexpected push request.");
                 }
                 CallMethodRequest method = call.MethodsToCall[0];
+                foreach (ManagedApplication application in Managed)
+                {
+                    if (method.ObjectId == application.Node || method.ObjectId == application.TrustList)
+                    {
+                        return new CallResponse
+                        {
+                            Results = [new CallMethodResult { OutputArguments = application.Call(method) }]
+                        };
+                    }
+                }
                 CallMethods.Add(method.MethodId);
                 ArrayOf<Variant> outputs = [];
                 if (method.ObjectId == s_deviceId)
@@ -1157,6 +1417,115 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     throw TrustCloseError;
                 }
                 return new CallResponse { Results = [new CallMethodResult { OutputArguments = outputs }] };
+            }
+
+            /// <summary>
+            /// Lists managed applications below the device object and the standard ManagedApplications folder,
+            /// and the standard children of each scripted ApplicationConfiguration.
+            /// </summary>
+            private ArrayOf<ReferenceDescription> Browse(NodeId node)
+            {
+                var references = new List<ReferenceDescription>();
+                foreach (ManagedApplication application in Managed)
+                {
+                    if ((node == s_deviceId && application.OnDevice) ||
+                        (node == s_managedApplicationsFolderId && application.InFolder))
+                    {
+                        references.Add(Reference(application.Node, application.Name, NodeClass.Object,
+                            Ua.ObjectTypeIds.ApplicationConfigurationType));
+                    }
+                    else if (node == application.Node)
+                    {
+                        references.Add(Reference(application.UriNode, BrowseNames.ApplicationUri,
+                            NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
+                        references.Add(Reference(application.ProductNode, BrowseNames.ProductUri,
+                            NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
+                        references.Add(Reference(application.TypeNode, BrowseNames.ApplicationType,
+                            NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
+                        if (application.IncludeNames)
+                        {
+                            references.Add(Reference(application.NamesNode, BrowseNames.ApplicationNames,
+                                NodeClass.Variable, Ua.VariableTypeIds.PropertyType));
+                        }
+                        references.Add(Reference(application.Groups, BrowseNames.CertificateGroups,
+                            NodeClass.Object, Ua.ObjectTypeIds.CertificateGroupFolderType));
+                    }
+                    else if (node == application.Groups)
+                    {
+                        references.Add(Reference(application.Group, BrowseNames.DefaultApplicationGroup,
+                            NodeClass.Object, Ua.ObjectTypeIds.CertificateGroupType));
+                    }
+                    else if (node == application.Group)
+                    {
+                        references.Add(Reference(application.TrustList, BrowseNames.TrustList,
+                            NodeClass.Object, Ua.ObjectTypeIds.TrustListType));
+                    }
+                }
+                return references.ToArrayOf();
+            }
+
+            /// <summary>
+            /// Reads scripted managed-application properties; every other value is the device's IsSingleton.
+            /// </summary>
+            private Variant ReadValue(NodeId node)
+            {
+                foreach (ManagedApplication application in Managed)
+                {
+                    if (node == application.UriNode)
+                    {
+                        return Variant.From(application.ApplicationUri);
+                    }
+                    if (node == application.ProductNode)
+                    {
+                        return Variant.From(ManagedProduct);
+                    }
+                    if (node == application.TypeNode)
+                    {
+                        return Variant.From((int)application.Type);
+                    }
+                    if (node == application.NamesNode)
+                    {
+                        ArrayOf<LocalizedText> names = [new LocalizedText(application.Name)];
+                        return Variant.From(names);
+                    }
+                }
+                return Variant.From(Singleton);
+            }
+
+            /// <summary>
+            /// Finds the scripted managed application that owns a registered URI.
+            /// </summary>
+            private ManagedApplication FindManaged(string applicationUri)
+            {
+                foreach (ManagedApplication application in Managed)
+                {
+                    if (application.ApplicationUri == applicationUri)
+                    {
+                        return application;
+                    }
+                }
+                throw new InvalidOperationException("Unexpected managed application registration.");
+            }
+
+            /// <summary>
+            /// Creates one forward hierarchical reference with a standard OPC UA browse name.
+            /// </summary>
+            private static ReferenceDescription Reference(
+                NodeId target,
+                string browseName,
+                NodeClass nodeClass,
+                NodeId typeDefinition)
+            {
+                return new ReferenceDescription
+                {
+                    ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent,
+                    IsForward = true,
+                    NodeId = target,
+                    BrowseName = new QualifiedName(browseName, 0),
+                    DisplayName = new LocalizedText(browseName),
+                    NodeClass = nodeClass,
+                    TypeDefinition = typeDefinition
+                };
             }
 
             /// <summary>
@@ -1225,6 +1594,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>The provisionable device object used by generated ticket calls.</summary>
             private static readonly NodeId s_deviceId = new("push-device", 1);
 
+            /// <summary>The standard ManagedApplications folder of a Part 21 device.</summary>
+            private static readonly NodeId s_managedApplicationsFolderId = new(16706u);
+
+            /// <summary>The product of every scripted managed application.</summary>
+            private const string ManagedProduct = "urn:push:managed-product";
+
+            /// <summary>The strict retained-issuance boundary shared by the DCA and managed applications.</summary>
+            private readonly Mock<ICertificateRequestIssuanceStore> m_issuances = new(MockBehavior.Strict);
+
+            /// <summary>Shared records registered for managed applications, keyed by ApplicationUri.</summary>
+            private readonly Dictionary<string, ApplicationRecordDataType> m_managedRecords = [];
+
             /// <summary>The device-generated signing request returned over the admitted generation.</summary>
             private readonly ByteString m_csr;
 
@@ -1241,10 +1622,170 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private bool m_trustApplied;
         }
 
+        /// <summary>
+        /// Scripts one managed Client or Server ApplicationConfiguration with its own key pair, CSR,
+        /// TrustList transfer, staged certificate and ApplyChanges semantics.
+        /// </summary>
+        private sealed class ManagedApplication
+        {
+            /// <summary>
+            /// Creates an application whose standard children use node identifiers derived from its name.
+            /// </summary>
+            public ManagedApplication(string name, string applicationUri, Certificate certificate, ApplicationType type)
+            {
+                Name = name;
+                ApplicationUri = applicationUri;
+                Type = type;
+                Node = new NodeId(name, 1);
+                UriNode = new NodeId(name + ":uri", 1);
+                ProductNode = new NodeId(name + ":product", 1);
+                TypeNode = new NodeId(name + ":type", 1);
+                NamesNode = new NodeId(name + ":names", 1);
+                Groups = new NodeId(name + ":groups", 1);
+                Group = new NodeId(name + ":group", 1);
+                TrustList = new NodeId(name + ":trust-list", 1);
+                Id = new NodeId(name + ":application", 1);
+                RequestId = new NodeId(name + ":request", 1);
+                Certificate = ByteString.From(certificate.RawData.AsSpan());
+                Csr = ByteString.From(DefaultCertificateFactory.Instance.CreateSigningRequest(certificate).AsSpan());
+            }
+
+            /// <summary>Gets the browse and application name.</summary>
+            public string Name { get; }
+
+            /// <summary>Gets the ApplicationUri reported by the configuration.</summary>
+            public string ApplicationUri { get; }
+
+            /// <summary>Gets the reported ApplicationType.</summary>
+            public ApplicationType Type { get; }
+
+            /// <summary>Gets the ApplicationConfiguration object.</summary>
+            public NodeId Node { get; }
+
+            /// <summary>Gets the ApplicationUri property.</summary>
+            public NodeId UriNode { get; }
+
+            /// <summary>Gets the ProductUri property.</summary>
+            public NodeId ProductNode { get; }
+
+            /// <summary>Gets the ApplicationType property.</summary>
+            public NodeId TypeNode { get; }
+
+            /// <summary>Gets the optional ApplicationNames property.</summary>
+            public NodeId NamesNode { get; }
+
+            /// <summary>Gets the CertificateGroups folder.</summary>
+            public NodeId Groups { get; }
+
+            /// <summary>Gets the DefaultApplicationGroup.</summary>
+            public NodeId Group { get; }
+
+            /// <summary>Gets the DefaultApplicationGroup TrustList.</summary>
+            public NodeId TrustList { get; }
+
+            /// <summary>Gets the shared registry identifier assigned on registration.</summary>
+            public NodeId Id { get; }
+
+            /// <summary>Gets the retained request identifier.</summary>
+            public NodeId RequestId { get; }
+
+            /// <summary>Gets the issued certificate for this application's key.</summary>
+            public ByteString Certificate { get; }
+
+            /// <summary>Gets the application-generated signing request.</summary>
+            public ByteString Csr { get; }
+
+            /// <summary>Gets or sets whether the application exposes the optional ApplicationNames.</summary>
+            public bool IncludeNames { get; set; } = true;
+
+            /// <summary>Gets or sets whether the device object references the application.</summary>
+            public bool OnDevice { get; set; } = true;
+
+            /// <summary>Gets or sets whether the ManagedApplications folder references the application.</summary>
+            public bool InFolder { get; set; }
+
+            /// <summary>Gets or sets whether the application already uses the issued certificate.</summary>
+            public bool Installed { get; set; }
+
+            /// <summary>Gets the methods called on this application, in order.</summary>
+            public List<NodeId> Calls { get; } = [];
+
+            /// <summary>Gets the number of signing requests the application created.</summary>
+            public int CsrCalls { get; private set; }
+
+            /// <summary>
+            /// Applies one generated method call with staged TrustList and certificate semantics.
+            /// </summary>
+            public ArrayOf<Variant> Call(CallMethodRequest method)
+            {
+                Calls.Add(method.MethodId);
+                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CreateSigningRequest)
+                {
+                    CsrCalls++;
+                    return [Variant.From(Csr)];
+                }
+                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_GetCertificates)
+                {
+                    ArrayOf<NodeId> types = Installed
+                        ? [Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType]
+                        : ArrayOf<NodeId>.Empty;
+                    ArrayOf<ByteString> certificates = Installed ? [Certificate] : ArrayOf<ByteString>.Empty;
+                    return [Variant.From(types), Variant.From(certificates)];
+                }
+                if (method.MethodId == Ua.MethodIds.FileType_Open)
+                {
+                    return [Variant.From(42u)];
+                }
+                if (method.MethodId == Ua.MethodIds.TrustListType_CloseAndUpdate)
+                {
+                    m_trustPending = true;
+                    return [Variant.From(true)];
+                }
+                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_UpdateCertificate)
+                {
+                    if (!m_trustApplied)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadCertificateChainIncomplete);
+                    }
+                    m_certificatePending = true;
+                    return [Variant.From(true)];
+                }
+                if (method.MethodId == Ua.MethodIds.ServerConfigurationType_ApplyChanges)
+                {
+                    m_trustApplied |= m_trustPending;
+                    m_trustPending = false;
+                    Installed |= m_certificatePending;
+                    m_certificatePending = false;
+                }
+                return [];
+            }
+
+            /// <summary>Whether a complete TrustList transfer still needs ApplyChanges.</summary>
+            private bool m_trustPending;
+
+            /// <summary>Whether UpdateCertificate can validate against the committed TrustList.</summary>
+            private bool m_trustApplied;
+
+            /// <summary>Whether an accepted certificate still needs ApplyChanges.</summary>
+            private bool m_certificatePending;
+        }
+
+        /// <summary>The first managed application's URI.</summary>
+        private const string ManagedUriA = "urn:push:managed:a";
+
+        /// <summary>The second managed application's URI.</summary>
+        private const string ManagedUriB = "urn:push:managed:b";
+
         /// <summary>The fixture-owned bootstrap identity.</summary>
         private Certificate m_bootstrap = null!;
 
         /// <summary>The fixture-owned issued identity.</summary>
         private Certificate m_issued = null!;
+
+        /// <summary>The fixture-owned first managed application identity.</summary>
+        private Certificate m_managedA = null!;
+
+        /// <summary>The fixture-owned second managed application identity.</summary>
+        private Certificate m_managedB = null!;
     }
 }

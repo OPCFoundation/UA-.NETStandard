@@ -574,6 +574,45 @@ Direct hosts can construct `SecretStoreDeviceRegistrarPushEnrollmentProvider`
 with their initialized `ApplicationsNodeManager` and register that instance as
 `IDeviceRegistrarPushEnrollmentProvider`.
 
+After the processor confirms the installed DCA credential of a non-singleton
+device, it provisions the device's managed Client applications through the same
+proven session. It browses `ApplicationConfigurationType` instances below the
+device object and in the standard `ManagedApplications` folder, then reads each
+instance's `ApplicationUri`, `ProductUri` and `ApplicationType`. When the
+optional `ApplicationNames` property is absent or empty, the `ApplicationUri`
+becomes the registered name. An instance that reports the DCA's own
+`ApplicationUri` is skipped.
+
+Each application is authorized on its own:
+`IDeviceRegistrarApplicationAuthorization` decides before the processor reads
+any existing registry entry. The processor then registers the application in
+the shared GDS database and associates it with the device. Before it creates
+the signing request and before each write to the application, the processor
+rechecks the DCA's persisted software approval and the device's recorded
+relation to that application. It performs the standard Part 12 sequence on the
+application's own `ApplicationConfiguration`: `CreateSigningRequest` for the
+default application group, issuance through the registrar's retained push
+enrollment, a TrustList write completed with `CloseAndUpdate`, and
+`UpdateCertificate`. `ApplyChanges` follows each method that reports it is
+required. An application whose `GetCertificates` result already contains the
+issued certificate receives no TrustList or certificate update, so repeating
+the push does not replace an installed credential.
+
+A denial or failure for one application leaves the confirmed DCA credential and
+the other applications unchanged. The processor attempts every application and
+reports the failures together in one `AggregateException`; cancellation and an
+invalidated session stop the loop. A singleton device provisions no managed
+applications. The sample policy's `CanManageAsync` returns `false`, so the
+sample registrar provisions only the DCA.
+
+The processor rejects managed `Server` and `ClientAndServer` applications with
+`BadNotSupported`. A GDS server record requires `DiscoveryUrls`, and Part 21
+exposes none for a managed application. The processor does not update
+`ConfigurationFile` contents; that Part 12 transaction remains outside
+registrar push. `GetCertificates` is the only evidence that the application
+uses its new certificate; the registrar does not connect to the application to
+prove it.
+
 `AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
 process-local. A durable deployment must also retain accepted work or arrange
@@ -1089,7 +1128,7 @@ has passed.
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
-| §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor, device-security, connection-provider, application-manager and lifecycle fixtures authored; real-channel fixtures cover roles, ownership and concrete certificate activation across a fresh host, and `DeviceSecurityCheckpointStoreTests` covers sample journal boundaries; multi-application provisioning and process-durable connected recovery remain incomplete; no executed push integration evidence |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, standard push authorization and transaction completion, generated-client processor with separate trust/certificate apply connections, secret-store enrollment journal, retained singleton scope and connected registrar/device samples | processor, device-security, connection-provider, application-manager and lifecycle fixtures authored; real-channel fixtures cover roles, ownership and concrete certificate activation across a fresh host, and `DeviceSecurityCheckpointStoreTests` covers sample journal boundaries; multi-application provisioning covers managed Client applications in processor fixtures, while managed Server applications and process-durable connected recovery remain incomplete; no executed push integration evidence |
 | §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
