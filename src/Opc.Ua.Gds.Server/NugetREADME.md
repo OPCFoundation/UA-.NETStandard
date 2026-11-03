@@ -77,6 +77,16 @@ restricted public journals and local/network reset. Its singleton object
 currently uses ordinary `Objects` placement pending shared Part 22 integration;
 connected device execution and multiapplication sample coverage remain incomplete.
 
+Deployments requiring software updates register
+`IProvisionableDeviceSoftwareUpdatePolicy` through
+`AddProvisionableDeviceSoftwareUpdatePolicy`. The concrete installer checks the
+existing software manager's durable readiness state before changing credentials
+or accepting an applied DCA certificate, including during startup recovery.
+Incomplete updates or missing approval stop that operation. Factory identity
+capture and security reset do not require approval or modify software state.
+Omitting the policy declares that no software update is required; it does not
+perform an update.
+
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.
 The filesystem provider writes version 2 checkpoints; version 1 devices load

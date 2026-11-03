@@ -319,6 +319,14 @@ Both paths restore retained factory security through the same provider; they
 do not remove installed software. Missing original defaults or key material
 stop recovery and prevent readiness.
 
+This device sample does not register a software-update engine or readiness
+policy and therefore represents a deployment without required software updates.
+A host that requires updates registers its existing manager through
+`AddProvisionableDeviceSoftwareUpdatePolicy`; incomplete updates then prevent
+the concrete installer from activating or accepting DCA credentials. The
+registrar's separate software approval does not implement that device-side
+update.
+
 ## Pull DCA against a configured registrar
 
 The client registers `PullDcaWorkflow` through `AddPullDcaWorkflow` when
