@@ -686,6 +686,14 @@ records before borrowing a connection. Changes to the caller's input buffers or
 application records during an operation do not change its identity offer or
 application registrations.
 
+For candidates retained by `IProvisionableDeviceRegistrarStore`, use
+`PullDcaRegistrarSelection.SelectConfigured` with the operator-selected endpoint,
+expected registrar application URI and resolved registrar/directory node identifiers.
+It rejects missing or ambiguous matches before a connection is opened. Selection
+does not validate the remote certificate or grant trust; the managed session must
+still enforce the host's registrar certificate policy. The connected device sample
+stores candidates but does not yet initiate this pull operation.
+
 Certificate polling is bounded by `MaximumFinishAttempts`. When approval remains
 pending, `PullDcaCertificatePendingException` retains the application and request
 identifiers. Persist those identifiers with the original registrar, certificate
@@ -825,10 +833,13 @@ configured device, as specified by
 
 `ProvisionableDeviceSecurityInstaller` retains the initial certificate and
 private key in a separate identity store before configuration listeners open.
-Unconfigured and configuring startup call its
-`IProvisionableDeviceSecurityDefaults` capability;
-failure to retain defaults aborts startup. Direct hosts call
-`PreserveDefaultsAsync` before exposing configuration methods.
+Unconfigured startup and the first direct configuration operation call
+`IProvisionableDeviceSecurityDefaults.PreserveDefaultsAsync` before recording a
+registrar or installation. Later recovery calls `VerifyDefaultsAsync`, which reads
+the retained identity key and original TrustList without creating either. Missing
+or corrupt defaults stop recovery; current operational trust cannot become the
+factory reset configuration. Direct hosts call `PreserveDefaultsAsync` before
+exposing configuration methods.
 It captures the original TrustList once in the selected secret
 store and binds that checkpoint to the application, stores and certificate
 group. A reset reloads the retained identity key and restores that TrustList; it

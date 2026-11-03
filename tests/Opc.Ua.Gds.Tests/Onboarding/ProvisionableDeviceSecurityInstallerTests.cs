@@ -25,6 +25,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -187,6 +189,100 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<Certificate>(), It.IsAny<char[]?>(), It.IsAny<CancellationToken>()), Times.Once);
             m_certificates.Verify(value => value.ReadTrustListAsync(
                 TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Verification reads retained defaults without creating or replacing them, even after trust has changed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DefaultVerificationNeverRecapturesMissingOriginalTrust(bool removeDefaults)
+        {
+            using var installer = CreateInstaller();
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            var id = new SecretIdentifier(
+                "ProvisionableDeviceDefaults-" +
+                    Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes("device"))),
+                m_secrets.StoreType);
+            if (removeDefaults)
+            {
+                Assert.That(await m_secrets.RemoveAsync(id).ConfigureAwait(false), Is.True);
+            }
+            m_events.Clear();
+            if (removeDefaults)
+            {
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await installer.VerifyDefaultsAsync().ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                using ISecret? missing = await m_secrets.GetAsync(id).ConfigureAwait(false);
+                Assert.That(missing, Is.Null);
+            }
+            else
+            {
+                await installer.VerifyDefaultsAsync().ConfigureAwait(false);
+            }
+            Assert.That(m_events, Has.Count.EqualTo(1));
+            Assert.That(m_events[0], Is.EqualTo("load-identity"));
+            m_identityStore.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), It.IsAny<char[]?>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_certificates.Verify(value => value.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Once);
+            m_certificates.Verify(value => value.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Losing original defaults cannot turn operational trust into a factory reset baseline.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task MissingOriginalDefaultsRejectPreservationResetAndInstallationAfterIdentityRotation(
+            int operation)
+        {
+            using var installer = CreateInstaller();
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            var id = new SecretIdentifier(
+                "ProvisionableDeviceDefaults-" +
+                    Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes("device"))),
+                m_secrets.StoreType);
+            Assert.That(await m_secrets.RemoveAsync(id).ConfigureAwait(false), Is.True);
+            using Certificate replacement = CreateCertificate(kApplicationUri);
+            Certificate previous = m_activeCertificate;
+            m_activeCertificate = replacement.AddRef();
+            previous.Dispose();
+            m_events.Clear();
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                switch (operation)
+                {
+                    case 0:
+                        await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+                        break;
+                    case 1:
+                        await installer.ResetToServerDefaultsAsync().ConfigureAwait(false);
+                        break;
+                    default:
+                        await installer.InstallAsync(Credentials(replacement)).ConfigureAwait(false);
+                        break;
+                }
+            });
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(m_activeCertificate.RawData, Is.EqualTo(replacement.RawData));
+            Assert.That(m_events, Has.Count.EqualTo(1));
+            Assert.That(m_events[0], Is.EqualTo("load-identity"));
+            using ISecret? missing = await m_secrets.GetAsync(id).ConfigureAwait(false);
+            Assert.That(missing, Is.Null);
+            m_certificates.Verify(value => value.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Once);
+            m_certificates.Verify(value => value.WriteTrustListAsync(
+                It.IsAny<TrustListIdentifier>(), It.IsAny<TrustListData>(), It.IsAny<TrustListMasks>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            m_activator.Verify(value => value.ActivateAsync(
+                It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>

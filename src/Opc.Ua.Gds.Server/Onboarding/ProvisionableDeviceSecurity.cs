@@ -104,6 +104,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Repeated calls verify and reuse the original retained defaults without replacing them.
         /// </summary>
         ValueTask PreserveDefaultsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Verifies the independently retained identity key and original trust defaults without creating either.
+        /// Missing or invalid defaults must throw; current operational security cannot replace them.
+        /// </summary>
+        ValueTask VerifyDefaultsAsync(CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -233,6 +239,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Unconfigured)
                 {
                     AuthorizationHelper.HasAuthorization(context, [Role.SecurityAdmin]);
+                    await PrepareDefaultsAsync(checkpoint.Stage, cancellationToken).ConfigureAwait(false);
                     await SaveAsync(new(ProvisionableDeviceSecurityStage.Configuring, peer, null), cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -308,6 +315,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         StatusCodes.BadInvalidState, "A different credential installation is already pending.");
                 }
                 await ValidateCredentialsAsync(pending.Credentials!, cancellationToken).ConfigureAwait(false);
+                await PrepareDefaultsAsync(current.Stage, cancellationToken).ConfigureAwait(false);
                 await m_secrets.SetAsync(m_identifier, proposed, cancellationToken).ConfigureAwait(false);
                 await CompleteInstallationAsync(pending, cancellationToken).ConfigureAwait(false);
             }
@@ -329,6 +337,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 m_stateRequiresRecovery = true;
                 Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
+                await PrepareDefaultsAsync(checkpoint.Stage, cancellationToken).ConfigureAwait(false);
                 switch (checkpoint.Stage)
                 {
                     case ProvisionableDeviceSecurityStage.Installing:
@@ -349,10 +358,6 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         break;
                     case ProvisionableDeviceSecurityStage.Unconfigured:
                     case ProvisionableDeviceSecurityStage.Configuring:
-                        if (m_installer is IProvisionableDeviceSecurityDefaults defaults)
-                        {
-                            await defaults.PreserveDefaultsAsync(cancellationToken).ConfigureAwait(false);
-                        }
                         if (checkpoint.Stage == ProvisionableDeviceSecurityStage.Configuring &&
                             m_installer is IProvisionableDeviceAppliedSecurity)
                         {
@@ -403,6 +408,22 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 m_gate.Dispose();
             }
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Captures defaults only before the first configuration claim; subsequent transitions may only verify them.
+        /// </summary>
+        private ValueTask PrepareDefaultsAsync(
+            ProvisionableDeviceSecurityStage stage,
+            CancellationToken cancellationToken)
+        {
+            if (m_installer is not IProvisionableDeviceSecurityDefaults defaults)
+            {
+                return default;
+            }
+            return stage == ProvisionableDeviceSecurityStage.Unconfigured
+                ? defaults.PreserveDefaultsAsync(cancellationToken)
+                : defaults.VerifyDefaultsAsync(cancellationToken);
         }
 
         /// <summary>

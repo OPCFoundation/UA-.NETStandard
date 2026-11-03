@@ -202,11 +202,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Standard push activates the issued key, a fresh host verifies the committed journal, and security reset
         /// restores the retained factory identity before another registrar can claim the device.
-        /// The checkpoint provider is retained in process; this does not prove process-durable storage.
+        /// File-backed cases reopen the sample's public checkpoint store for each fresh host.
+        /// The test does not launch a separate operating-system process.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset(bool networkReset)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+#if NET10_0_OR_GREATER
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+#endif
+        public async Task ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset(
+            bool networkReset,
+            bool fileCheckpoint)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             string temporary = Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath();
@@ -225,7 +232,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             var url = new Uri($"opc.tcp://localhost:{port}/onboarding-activation-test");
             string password = Guid.NewGuid().ToString("N");
-            var secrets = new InMemorySecretStore();
+            var memoryJournal = new InMemorySecretStore();
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
             ByteString factoryDer = default;
             ByteString issuedDer = default;
@@ -266,6 +273,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 };
                 for (int phase = 0; phase < 3; phase++)
                 {
+                    using IDisposable? checkpointLease = OpenDeviceCheckpoint(
+                        root, memoryJournal, fileCheckpoint, out ISecretStore secrets);
                     var observed = new ConnectedDeviceStartup();
                     ServiceCollection services = ConnectedDeviceServices(
                         root, applicationUri, url, password, secrets, observed);
@@ -433,6 +442,40 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Directory.Delete(root, recursive: true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Reopens only the sample's public device checkpoints; private keys remain in the retained PKI stores.
+        /// The in-memory variant remains available on all supported test frameworks.
+        /// </summary>
+        private static IDisposable? OpenDeviceCheckpoint(
+            string root,
+            ISecretStore memoryJournal,
+            bool fileCheckpoint,
+            out ISecretStore secrets)
+        {
+            if (!fileCheckpoint)
+            {
+                secrets = memoryJournal;
+                return null;
+            }
+#if NET10_0_OR_GREATER
+            OnboardingRegistrar.PushRegistrarCheckpointFiles? files = null;
+            try
+            {
+                files = new OnboardingRegistrar.PushRegistrarCheckpointFiles(Path.Combine(root, "device-state"));
+                secrets = new OnboardingDevice.DeviceSecurityCheckpointStore(files, "activation-test");
+                IDisposable lease = files;
+                files = null;
+                return lease;
+            }
+            finally
+            {
+                files?.Dispose();
+            }
+#else
+            throw new PlatformNotSupportedException("The device sample checkpoint adapter targets .NET 10.");
+#endif
         }
 
         /// <summary>

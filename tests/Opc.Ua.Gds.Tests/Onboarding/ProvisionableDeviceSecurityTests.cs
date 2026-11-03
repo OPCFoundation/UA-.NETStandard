@@ -134,6 +134,85 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A direct caller cannot publish configuration ownership or installation before retaining factory defaults.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DefaultPreservationFailureDoesNotClaimDirectConfiguration(bool install)
+        {
+            var failure = new IOException("Original device security cannot be retained.");
+            Mock<IProvisionableDeviceSecurityDefaults> defaults =
+                m_installer.As<IProvisionableDeviceSecurityDefaults>();
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>())).Throws(failure);
+            using var security = Create();
+
+            IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+            {
+                if (install)
+                {
+                    await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+            defaults.Verify(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Recovery cannot replace missing original defaults with the current registrar's operational trust.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryVerifiesOriginalDefaultsWithoutRecapturingTrust(bool installed)
+        {
+            var failure = new IOException("The original trust checkpoint is missing.");
+            Mock<IProvisionableDeviceSecurityDefaults> defaults =
+                m_installer.As<IProvisionableDeviceSecurityDefaults>();
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            defaults.Setup(value => value.VerifyDefaultsAsync(It.IsAny<CancellationToken>())).Throws(failure);
+            using (var first = Create())
+            {
+                if (installed)
+                {
+                    await first.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                }
+                else
+                {
+                    await first.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+                }
+            }
+            using var restarted = Create();
+
+            IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                await restarted.RecoverAsync().ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(installed
+                    ? ProvisionableDeviceSecurityStage.Installed
+                    : ProvisionableDeviceSecurityStage.Configuring));
+            defaults.Verify(value => value.VerifyDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            defaults.Verify(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()),
+                installed ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
         /// The first configuration owner survives restart before any credentials or installer effects exist.
         /// </summary>
         [Test]
@@ -142,6 +221,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Mock<IProvisionableDeviceSecurityDefaults> defaults =
                 m_installer.As<IProvisionableDeviceSecurityDefaults>();
             defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            defaults.Setup(value => value.VerifyDefaultsAsync(It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             using (var first = Create())
             {
@@ -162,6 +243,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
             defaults.Verify(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            defaults.Verify(value => value.VerifyDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
             m_certificates.VerifyNoOtherCalls();

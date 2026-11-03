@@ -173,7 +173,24 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     .AcquireApplicationCertificateByType(ApplicationCertificateType);
                 using Certificate identity = await EnsureDeviceIdentityAsync(current, cancellationToken)
                     .ConfigureAwait(false);
-                await CaptureDefaultTrustListAsync(cancellationToken).ConfigureAwait(false);
+                await CaptureDefaultTrustListAsync(current, identity, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask VerifyDefaultsAsync(CancellationToken cancellationToken = default)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using Certificate identity = await EnsureDeviceIdentityAsync(null, cancellationToken)
+                    .ConfigureAwait(false);
+                using TrustListData defaults = await ReadDefaultTrustListAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -251,9 +268,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 using CertificateEntry? current = m_certificates
                     .AcquireApplicationCertificateByType(ApplicationCertificateType);
-                using Certificate identity = await EnsureDeviceIdentityAsync(current, cancellationToken)
+                using Certificate identity = await EnsureDeviceIdentityAsync(null, cancellationToken)
                     .ConfigureAwait(false);
-                await CaptureDefaultTrustListAsync(cancellationToken).ConfigureAwait(false);
                 using TrustListData defaults = await ReadDefaultTrustListAsync(cancellationToken)
                     .ConfigureAwait(false);
 
@@ -324,7 +340,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             using CertificateEntry? current = m_certificates
                 .AcquireApplicationCertificateByType(ApplicationCertificateType);
             using Certificate identity = await EnsureDeviceIdentityAsync(current, ct).ConfigureAwait(false);
-            await CaptureDefaultTrustListAsync(ct).ConfigureAwait(false);
+            await CaptureDefaultTrustListAsync(current, identity, ct).ConfigureAwait(false);
 
             using CertificateCollection issuers = DecodeCertificates(credentials.IssuerCertificates);
             (Certificate pairedCertificateHandle, Certificate? claimedPendingKey) =
@@ -434,7 +450,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>
         /// Saves the pre-onboarding trust list once so retries and resets use the same device defaults.
         /// </summary>
-        private async ValueTask CaptureDefaultTrustListAsync(CancellationToken ct)
+        private async ValueTask CaptureDefaultTrustListAsync(
+            CertificateEntry? current,
+            Certificate identity,
+            CancellationToken ct)
         {
             using ISecret? existing = await m_secrets.GetAsync(m_defaultsIdentifier, ct).ConfigureAwait(false);
             if (existing != null)
@@ -443,6 +462,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 return;
             }
 
+            if (current == null || !current.Certificate.RawData.AsSpan().SequenceEqual(identity.RawData))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Original trust defaults cannot be captured after the device identity has been replaced.");
+            }
             using TrustListData trustList = await m_certificates
                 .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, ct)
                 .ConfigureAwait(false);
