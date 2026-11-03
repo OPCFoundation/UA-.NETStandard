@@ -89,6 +89,18 @@ namespace Opc.Ua.Gds.Server.Onboarding
     }
 
     /// <summary>
+    /// Retains factory security defaults before any network configuration handler can replace them.
+    /// </summary>
+    public interface IProvisionableDeviceSecurityDefaults
+    {
+        /// <summary>
+        /// Retains the initial identity private key and trust configuration before listeners open.
+        /// Repeated calls verify and reuse the original retained defaults without replacing them.
+        /// </summary>
+        ValueTask PreserveDefaultsAsync(CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
     /// Owns serialized device trust, installation recovery, and security reset.
     /// Implementations sharing storage must coordinate every writer, including pending registrar ownership.
     /// </summary>
@@ -264,6 +276,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
                         break;
                     case ProvisionableDeviceSecurityStage.Unconfigured:
+                        if (m_installer is IProvisionableDeviceSecurityDefaults defaults)
+                        {
+                            await defaults.PreserveDefaultsAsync(cancellationToken).ConfigureAwait(false);
+                        }
                         break;
                     default:
                         throw new InvalidDataException("The device security stage is invalid.");

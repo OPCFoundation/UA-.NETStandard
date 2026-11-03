@@ -90,6 +90,49 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Unconfigured startup retains device defaults before the host may expose configuration listeners.
+        /// </summary>
+        [Test]
+        public async Task UnconfiguredRecoveryPreservesFactoryDefaultsBeforeAcceptingConfiguration()
+        {
+            Mock<IProvisionableDeviceSecurityDefaults> defaults =
+                m_installer.As<IProvisionableDeviceSecurityDefaults>();
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            using var security = Create();
+
+            await security.RecoverAsync().ConfigureAwait(false);
+
+            defaults.Verify(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Failure to retain factory defaults aborts startup without publishing a configured device.
+        /// </summary>
+        [Test]
+        public async Task DefaultPreservationFailureRejectsUnconfiguredStartup()
+        {
+            var failure = new IOException("Device identity store is unavailable.");
+            Mock<IProvisionableDeviceSecurityDefaults> defaults =
+                m_installer.As<IProvisionableDeviceSecurityDefaults>();
+            defaults.Setup(value => value.PreserveDefaultsAsync(It.IsAny<CancellationToken>())).Throws(failure);
+            using var security = Create();
+
+            IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                await security.RecoverAsync().ConfigureAwait(false));
+
+            Assert.That(error, Is.SameAs(failure));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
         /// Installation intent survives a failed installer and is bound to the peer that authenticated the channel.
         /// </summary>
         [Test]

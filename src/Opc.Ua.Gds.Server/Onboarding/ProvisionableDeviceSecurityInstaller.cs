@@ -71,6 +71,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// </summary>
     public sealed class ProvisionableDeviceSecurityInstaller :
         IProvisionableDeviceSecurityInstaller,
+        IProvisionableDeviceSecurityDefaults,
         IDisposable
     {
         /// <summary>
@@ -159,6 +160,24 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 m_applicationCertificateType,
                 m_passwordProvider,
                 telemetry);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask PreserveDefaultsAsync(CancellationToken cancellationToken = default)
+        {
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                using CertificateEntry? current = m_certificates
+                    .AcquireApplicationCertificateByType(ApplicationCertificateType);
+                using Certificate identity = await EnsureDeviceIdentityAsync(current, cancellationToken)
+                    .ConfigureAwait(false);
+                await CaptureDefaultTrustListAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_gate.Release();
+            }
         }
 
         /// <inheritdoc/>

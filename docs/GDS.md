@@ -772,8 +772,11 @@ configured device, as specified by
 [Part 21 §7.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.3).
 
 `ProvisionableDeviceSecurityInstaller` retains the initial certificate and
-private key in a separate identity store before changing trust or application
-credentials. It captures the original TrustList once in the selected secret
+private key in a separate identity store before configuration listeners open.
+Unconfigured startup calls its `IProvisionableDeviceSecurityDefaults` capability;
+failure to retain defaults aborts startup. Direct hosts call
+`PreserveDefaultsAsync` before exposing configuration methods.
+It captures the original TrustList once in the selected secret
 store and binds that checkpoint to the application, stores and certificate
 group. A reset reloads the retained identity key and restores that TrustList; it
 does not call a software installer or remove installed software.
@@ -831,8 +834,10 @@ distributed coordination.
 The standard `CreateSigningRequest`, `UpdateCertificate`, TrustList and
 `ApplyChanges` handlers are not yet routed through this device security
 transition. Registering the installer alone therefore does not implement
-connected push onboarding or preserve device defaults for changes made through
-those unbound handlers.
+connected push onboarding or establish registrar ownership for changes made
+through those unbound handlers. The pre-startup defaults snapshot remains
+available for security reset even if a standard handler later replaces the
+application certificate.
 
 The same security instance is registered as `IServerConfigurationResetProvider`,
 so the existing configuration node manager retains ownership of network

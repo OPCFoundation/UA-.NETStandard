@@ -165,6 +165,31 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Retained startup defaults survive a standard configuration change outside the installer.
+        /// </summary>
+        [Test]
+        public async Task StartupPreservesIdentityBeforeExternalApplicationCertificateReplacement()
+        {
+            using var installer = CreateInstaller();
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            Certificate previous = m_activeCertificate;
+            using Certificate replacement = CreateCertificate(kApplicationUri);
+            m_activeCertificate = replacement.AddRef();
+            previous.Dispose();
+            m_events.Clear();
+
+            await installer.PreserveDefaultsAsync().ConfigureAwait(false);
+            await installer.ResetToServerDefaultsAsync().ConfigureAwait(false);
+
+            Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
+            Assert.That(m_storeCertificates["identity"].Single().Thumbprint, Is.EqualTo(m_identity.Thumbprint));
+            m_identityStore.Verify(value => value.AddAsync(
+                It.IsAny<Certificate>(), It.IsAny<char[]?>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_certificates.Verify(value => value.ReadTrustListAsync(
+                TrustListIdentifier.Peers, TrustListMasks.All, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// A retained trust checkpoint cannot be applied after moving the installer to another certificate group.
         /// </summary>
         [Test]
@@ -572,7 +597,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// Creates a concrete installer with a distinct identity store.
         /// </summary>
         private ProvisionableDeviceSecurityInstaller CreateInstaller(
-            NodeId? certificateType = null,
+            NodeId certificateType = default,
             ProvisionableDeviceSecurityInstallerOptions? options = null)
         {
             options ??= CreateOptions(certificateType);
@@ -591,7 +616,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Creates the mutable installer options used to verify constructor-time configuration snapshots.
         /// </summary>
-        private ProvisionableDeviceSecurityInstallerOptions CreateOptions(NodeId? certificateType = null)
+        private ProvisionableDeviceSecurityInstallerOptions CreateOptions(NodeId certificateType = default)
         {
             return new ProvisionableDeviceSecurityInstallerOptions
             {
@@ -599,7 +624,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     StorePath = kApplicationStorePath,
                     StoreType = kStoreType,
-                    CertificateType = certificateType ?? CertificateIdentifier.GetCertificateType(m_identity)
+                    CertificateType = certificateType.IsNull
+                        ? CertificateIdentifier.GetCertificateType(m_identity)
+                        : certificateType
                 },
                 DeviceIdentityStorePath = kIdentityStorePath,
                 DeviceIdentityStoreType = kStoreType,
