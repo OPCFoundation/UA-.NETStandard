@@ -826,6 +826,9 @@ the expected application URI and the device's current peer trust. It does not
 accept discovery certificates or invoke an untrusted-certificate acceptance
 callback. The local host selects the registrar from its persisted candidates
 before connecting, for example with `PullDcaRegistrarSelection.SelectConfigured`.
+Use `RequireConfiguredEndpoint` when the remote model NodeIds are not yet
+available; resolve those identifiers from the authenticated session after
+connecting.
 The method uses the same installation checkpoint and platform installer as
 inbound provisioning; the host does not fabricate an inbound administrator
 context or replace certificate stores independently.
@@ -846,8 +849,13 @@ await deviceSecurity.InstallFromPullAsync(
 ```
 
 This API does not start outbound connections or retain unfinished certificate
-requests. The connected `OnboardingDevice` sample does not yet initiate pull
-onboarding.
+requests. The connected `OnboardingDevice` sample can initiate one explicitly
+selected pull operation after recovery and listener activation. Its credential
+adapter reuses local identity selection and CSR generation but sends received
+material through `InstallFromPullAsync`, not through a second store writer.
+The sample requires a previously persisted registrar candidate and separately
+configured peer trust. It does not resume unfinished signing requests or
+execute a software update required by the registrar.
 
 Use `RequireInstalledRegistrarAsync` when access requires an already configured
 DCA. It checks the installed state and registrar trust together, without

@@ -36,6 +36,39 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class PullDcaRegistrarSelectionTests
     {
         /// <summary>
+        /// Pre-connection selection rejects missing and ambiguous candidates without invented remote NodeIds.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void RequireConfiguredEndpointChecksCandidatesBeforeConnection(int count)
+        {
+            var endpoint = new Uri("opc.tcp://registrar.example:4840/Registrar");
+            var candidates = new ApplicationDescription[count];
+            for (int i = 0; i < count; i++)
+            {
+                candidates[i] = new ApplicationDescription
+                {
+                    ApplicationUri = kApplicationUri,
+                    ApplicationType = ApplicationType.ClientAndServer,
+                    DiscoveryUrls = [endpoint.AbsoluteUri]
+                };
+            }
+            if (count == 1)
+            {
+                Assert.DoesNotThrow(() => PullDcaRegistrarSelection.RequireConfiguredEndpoint(
+                    candidates, kApplicationUri, endpoint));
+            }
+            else
+            {
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    PullDcaRegistrarSelection.RequireConfiguredEndpoint(candidates, kApplicationUri, endpoint))!;
+                Assert.That(error.StatusCode,
+                    Is.EqualTo(count == 0 ? StatusCodes.BadNotFound : StatusCodes.BadInvalidArgument));
+            }
+        }
+
+        /// <summary>
         /// The operator selects one advertised endpoint and supplies both resolved model identifiers.
         /// </summary>
         [Test]

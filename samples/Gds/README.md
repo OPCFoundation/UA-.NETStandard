@@ -27,7 +27,8 @@ also use its pull-DCA mode against an independently configured registrar.
 The separate push mode operates against an independently configured device
 server. The administration script does not exercise either provisioning mode.
 `OnboardingDevice` separately hosts a singleton provisionable device for push
-management, restart and reset. It does not initiate the pull-DCA workflow.
+management, restart and reset, with opt-in device-initiated pull provisioning
+through the same security state machine.
 
 ## Run the complete demo
 
@@ -300,7 +301,38 @@ Browse the standard `ServerConfiguration` application certificate group and
 TrustList for the other push selectors. `Device/RequestTickets` returns the
 validated signed envelopes, and `Device/SetRegistrarEndpoints` persists
 authorized candidate changes. Candidate persistence does not start outbound
-pull orchestration.
+pull orchestration unless the operator also selects a pull registrar on startup.
+
+To initiate pull from this device host, first run without pull options and use
+the authorized `Device/SetRegistrarEndpoints` method to persist the registrar's
+application description and discovery endpoint. Keep its actual channel
+certificate trusted in the device's ordinary peer store. Restart with the same
+device inputs and add both options:
+
+```powershell
+--pullRegistrarEndpoint "opc.tcp://localhost:62560/OnboardingRegistrar" `
+--pullRegistrarApplicationUri "<actual registrar application URI>"
+```
+
+Set `ONBOARDING_PULL_USER` and `ONBOARDING_PULL_PASSWORD` for the device's
+outbound login to that registrar. The password is placed in the host's ordinary
+in-memory secret store, never in the public checkpoint files. The endpoint must
+match exactly one persisted discovery entry for the selected application URI;
+the host rejects a missing or ambiguous candidate before connecting. It then
+checks the actual encrypted channel certificate and application URI before
+offering device tickets. Discovery metadata does not grant certificate trust.
+
+The host runs one bounded two-minute pull operation before printing readiness.
+It reuses the factory private key for the CSR and routes the issued certificate
+and complete TrustList through the device installer. Successful installation
+prints `ONBOARDING_DEVICE_PULL_INSTALLED`; startup with an already installed
+journal skips issuance and prints `ONBOARDING_DEVICE_PULL_ALREADY_INSTALLED`.
+Failures stop startup and remain visible to the caller. Installation interrupted
+after its checkpoint is saved uses normal device recovery on restart. The
+sample does not retain an unfinished registrar signing request, and it rejects
+a registrar-required software update because no software engine is registered.
+Do not combine pull options with `--physicalReset true`; reset and reprovision
+are separate invocations.
 
 Keep the same PKI root across restarts. `tickets.bin` and
 `registrar-candidates.bin` retain tickets and candidate endpoints; `device-state`

@@ -35,6 +35,8 @@
     <Compile Include="..\..\samples\Reference\ConsoleReferenceServer\GdsNodeManagerFactory.cs" Link="GdsNodeManagerFactory.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingClient\OnboardingDeviceCredentials.cs"
              Link="Onboarding\OnboardingDeviceCredentials.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DevicePullCredentials.cs"
+             Link="Onboarding\DevicePullCredentials.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingRegistrar\PullRegistrarPolicy.cs"
              Link="Onboarding\PullRegistrarPolicy.cs" />
   </ItemGroup>
@@ -45,6 +47,10 @@
              Link="Onboarding\PushEnrollmentCheckpointStore.cs" />
     <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSecurityCheckpointStore.cs"
              Link="Onboarding\DeviceSecurityCheckpointStore.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DeviceSampleOptions.cs"
+             Link="Onboarding\DeviceSampleOptions.cs" />
+    <Compile Include="..\..\samples\Gds\OnboardingDevice\DevicePullTask.cs"
+             Link="Onboarding\DevicePullTask.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />

@@ -72,6 +72,29 @@ namespace OnboardingDevice
                 throw new ArgumentException("--physicalReset must be true or false.");
             }
             PhysicalReset = bool.TryParse(reset, out bool enabled) && enabled;
+            string? pullEndpoint = configuration["pullRegistrarEndpoint"];
+            string? pullApplication = configuration["pullRegistrarApplicationUri"];
+            if ((pullEndpoint == null) != (pullApplication == null))
+            {
+                throw new ArgumentException(
+                    "--pullRegistrarEndpoint and --pullRegistrarApplicationUri must be supplied together.");
+            }
+            if (pullEndpoint != null)
+            {
+                if (!Uri.TryCreate(pullEndpoint, UriKind.Absolute, out Uri? selected) ||
+                    selected.Scheme != "opc.tcp" || selected.Port is < 1 or > 65535 ||
+                    selected.UserInfo.Length != 0 || selected.Fragment.Length != 0 || selected.Query.Length != 0 ||
+                    !Uri.TryCreate(pullApplication, UriKind.Absolute, out _))
+                {
+                    throw new ArgumentException("Pull onboarding requires an opc.tcp endpoint and application URI.");
+                }
+                if (PhysicalReset)
+                {
+                    throw new ArgumentException("Physical reset and outbound pull cannot run in the same invocation.");
+                }
+                PullRegistrarEndpoint = selected;
+                PullRegistrarApplicationUri = pullApplication;
+            }
         }
 
         /// <summary>
@@ -119,6 +142,16 @@ namespace OnboardingDevice
         /// Remove this option on subsequent restarts unless another physical reset is intended.
         /// </summary>
         public bool PhysicalReset { get; }
+
+        /// <summary>
+        /// Gets the optional operator-selected pull endpoint, which must already be a persisted registrar candidate.
+        /// </summary>
+        public Uri? PullRegistrarEndpoint { get; }
+
+        /// <summary>
+        /// Gets the expected application URI authenticated by the selected registrar's actual channel certificate.
+        /// </summary>
+        public string? PullRegistrarApplicationUri { get; }
 
         /// <summary>
         /// Gets the rotating application certificate store; original factory keys are never generated here.

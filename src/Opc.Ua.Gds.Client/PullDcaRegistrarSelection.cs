@@ -44,6 +44,24 @@ namespace Opc.Ua.Gds.Client
             NodeId registrarId,
             NodeId certificateDirectoryId)
         {
+            if (registrarId.IsNull || certificateDirectoryId.IsNull)
+            {
+                throw new ArgumentException("Resolved registrar and certificate-directory identifiers are required.");
+            }
+            RequireConfiguredEndpoint(candidates, expectedApplicationUri, selectedEndpointUrl);
+            return new PullDcaRegistrar(selectedEndpointUrl, registrarId, certificateDirectoryId);
+        }
+
+        /// <summary>
+        /// Checks the operator-selected endpoint before opening a connection, without requiring remote NodeIds.
+        /// Exactly one configured discovery entry must advertise this endpoint for the expected application URI.
+        /// This check does not establish certificate trust or authenticate the remote application.
+        /// </summary>
+        public static void RequireConfiguredEndpoint(
+            ArrayOf<ApplicationDescription> candidates,
+            string expectedApplicationUri,
+            Uri selectedEndpointUrl)
+        {
             if (expectedApplicationUri == null)
             {
                 throw new ArgumentNullException(nameof(expectedApplicationUri));
@@ -53,10 +71,9 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentNullException(nameof(selectedEndpointUrl));
             }
             if (!Uri.TryCreate(expectedApplicationUri, UriKind.Absolute, out _) ||
-                !selectedEndpointUrl.IsAbsoluteUri || registrarId.IsNull || certificateDirectoryId.IsNull)
+                !selectedEndpointUrl.IsAbsoluteUri)
             {
-                throw new ArgumentException(
-                    "An absolute registrar identity, endpoint and model identifiers are required.");
+                throw new ArgumentException("An absolute registrar application URI and endpoint are required.");
             }
 
             int matches = 0;
@@ -93,8 +110,6 @@ namespace Opc.Ua.Gds.Client
                         ? "The selected endpoint is not a configured candidate for this registrar."
                         : "The selected registrar endpoint is ambiguous in the configured candidates.");
             }
-
-            return new PullDcaRegistrar(selectedEndpointUrl, registrarId, certificateDirectoryId);
         }
     }
 }

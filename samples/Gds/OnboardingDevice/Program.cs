@@ -33,10 +33,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OnboardingClientSample;
 using OnboardingRegistrar;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server.Onboarding;
+using Opc.Ua.Identity;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
@@ -72,6 +77,10 @@ namespace OnboardingDevice
                 IHost host = builder.Build();
                 try
                 {
+                    if (options.PullRegistrarEndpoint != null)
+                    {
+                        await PreparePullPasswordAsync(host.Services, CancellationToken.None).ConfigureAwait(false);
+                    }
                     await DeviceBootstrap.PrepareAsync(
                         host.Services, options, tickets, CancellationToken.None).ConfigureAwait(false);
                     await host.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -214,8 +223,87 @@ namespace OnboardingDevice
                 builder.Services.AddSingleton<IServerPreStartupTask>(static services =>
                     new DevicePhysicalResetTask(services.GetRequiredService<IProvisionableDeviceSecurity>()));
             }
+            if (options.PullRegistrarEndpoint != null)
+            {
+                ConfigurePull(builder.Services, options);
+            }
             builder.Services.AddSingleton<IServerStartupTask>(static services =>
                 new DeviceReadyTask(services.GetRequiredService<DeviceSampleOptions>()));
+        }
+
+        /// <summary>
+        /// Shares the server's application identity and local key with the typed outbound pull workflow.
+        /// Received credentials pass through the device lifecycle instead of the standalone client's installer.
+        /// </summary>
+        private static void ConfigurePull(IServiceCollection services, DeviceSampleOptions options)
+        {
+            string user = RequiredEnvironment("ONBOARDING_PULL_USER");
+            services.AddSingleton<IClientIdentityProvider>(provider =>
+            {
+                ISecretStore secrets = provider.GetRequiredService<ISecretStore>();
+                return new UserNamePasswordIdentityProvider(
+                    user, new SecretRegistry(secrets), new SecretIdentifier("DevicePullPassword", secrets.StoreType));
+            });
+            services.AddOpcUa().AddClient(client =>
+            {
+                client.ApplicationName = "OnboardingDevice";
+                client.ApplicationUri = options.ApplicationUri;
+                client.ProductUri = options.ProductUri;
+                client.SubjectName = options.SubjectName;
+                client.PkiRoot = options.PkiRoot;
+                client.AutoAcceptUntrustedCertificates = false;
+                client.RejectSHA1SignedCertificates = true;
+                client.MinimumCertificateKeySize = 2048;
+                client.Session = new ManagedSessionOptions
+                {
+                    SessionName = "OnboardingDevicePull"
+                };
+            }).AddDiscoveryAndConnect(connection =>
+            {
+                connection.DiscoveryUrl = options.PullRegistrarEndpoint!.AbsoluteUri;
+                connection.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                connection.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+            }).AddGdsClient().AddOnboardingClient().AddPullDcaWorkflow();
+            services.AddSingleton(provider => new OnboardingDeviceCredentials(
+                provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>().Configuration,
+                provider.GetRequiredService<ITelemetryContext>(),
+                provider.GetServices<ICertificateStoreProvider>().ToArray().ToArrayOf()));
+            services.AddSingleton(provider => new DevicePullCredentials(
+                provider.GetRequiredService<OnboardingDeviceCredentials>(),
+                provider.GetRequiredService<OnboardingDeviceCredentials>(),
+                provider.GetRequiredService<IProvisionableDeviceSecurity>(),
+                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>(),
+                options.PullRegistrarApplicationUri!));
+            services.AddSingleton<IPullDcaIdentityProvider>(static provider =>
+                provider.GetRequiredService<DevicePullCredentials>());
+            services.AddSingleton<IPullDcaCredentialProvider>(static provider =>
+                provider.GetRequiredService<DevicePullCredentials>());
+            services.AddSingleton<IServerStartupTask>(static provider => new DevicePullTask(
+                provider.GetRequiredService<DeviceSampleOptions>(),
+                provider.GetRequiredService<IProvisionableDeviceSecurity>(),
+                provider.GetRequiredService<IProvisionableDeviceRegistrarStore>(),
+                provider.GetRequiredService<IProvisionableDeviceRuntime>(),
+                provider.GetRequiredService<IOpcUaApplicationConfigurationProvider>(),
+                provider.GetRequiredService<PullDcaWorkflow>(),
+                provider.GetRequiredService<Func<CancellationToken, Task<ManagedSession>>>()));
+        }
+
+        /// <summary>
+        /// Places the outbound password in the ordinary host secret store, separate from public device checkpoints.
+        /// </summary>
+        private static async ValueTask PreparePullPasswordAsync(IServiceProvider services, CancellationToken ct)
+        {
+            ISecretStore secrets = services.GetRequiredService<ISecretStore>();
+            byte[] password = Encoding.UTF8.GetBytes(RequiredEnvironment("ONBOARDING_PULL_PASSWORD"));
+            try
+            {
+                await secrets.SetAsync(new SecretIdentifier("DevicePullPassword", secrets.StoreType), password, ct)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(password);
+            }
         }
 
         /// <summary>
