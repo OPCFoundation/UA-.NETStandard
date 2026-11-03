@@ -190,7 +190,7 @@ namespace Opc.Ua.Gds.Server
                     registration.PendingKeyStore,
                     registration.KeyGenerator);
                 await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
-                NodeId parentId = device?.NodeId ?? ManagedApplicationsFolderId;
+                NodeId parentId = device is null ? ManagedApplicationsFolderId : device.NodeId;
                 NodeId referenceType = device == null ? ReferenceTypeIds.Organizes : ReferenceTypeIds.HasComponent;
                 node.AddReference(referenceType, true, parentId);
                 if (!externalReferences.TryGetValue(parentId, out IList<IReference>? references))

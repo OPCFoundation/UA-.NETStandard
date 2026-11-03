@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
                 {
                     group.Node = groups.DefaultApplicationGroup!;
                 }
-                NodeId id = group.Node?.NodeId ?? NodeId.Null;
+                NodeId id = group.Node is null ? NodeId.Null : group.Node.NodeId;
                 if (id.IsNull || id.NamespaceIndex == 0 || !groupIds.Add(id) ||
                     group.Node?.TrustList == null || group.Node.TrustList.NodeId.NamespaceIndex == 0)
                 {
