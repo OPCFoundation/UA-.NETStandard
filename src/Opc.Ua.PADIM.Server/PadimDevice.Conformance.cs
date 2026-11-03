@@ -526,8 +526,22 @@ namespace Opc.Ua.PADIM.Server
 
         private BaseInstanceState? FindMember(NodeState owner, string name, string namespaceUri)
         {
-            return owner.FindChild(Context,
-                new QualifiedName(name, (ushort)Context.NamespaceUris.GetIndex(namespaceUri)));
+            int namespaceIndex = Context.NamespaceUris.GetIndex(namespaceUri);
+            if (namespaceIndex < 0)
+            {
+                return null;
+            }
+            var browseName = new QualifiedName(name, (ushort)namespaceIndex);
+            var children = new List<BaseInstanceState>();
+            owner.GetChildren(Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (child.BrowseName == browseName)
+                {
+                    return child;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -585,7 +599,7 @@ namespace Opc.Ua.PADIM.Server
                 HasStringValue(State, "HardwareRevision") &&
                 HasStringValue(State, "ProductCode") &&
                 HasStringValue(State, "ProductInstanceUri") &&
-                HasStringValue(State, "AssetId", "http://opcfoundation.org/UA/DI/") &&
+                HasStringValue(State, "AssetId") &&
                 HasInt32Value(State, "RevisionCounter");
         }
 
@@ -617,21 +631,21 @@ namespace Opc.Ua.PADIM.Server
 
         private bool HasLocalizedText(NodeState owner, string name)
         {
-            return FindMember(owner, name) is BaseVariableState variable &&
+            return FindMember(owner, name, Di.Namespaces.OpcUaDi) is BaseVariableState variable &&
                 variable.WrappedValue.TryGetValue(out LocalizedText value) &&
                 !string.IsNullOrWhiteSpace(value.Text);
         }
 
-        private bool HasStringValue(NodeState owner, string name, string namespaceUri = Namespaces.PADIM)
+        private bool HasStringValue(NodeState owner, string name)
         {
-            return FindMember(owner, name, namespaceUri) is BaseVariableState variable &&
+            return FindMember(owner, name, Di.Namespaces.OpcUaDi) is BaseVariableState variable &&
                 variable.WrappedValue.TryGetValue(out string value) &&
                 !string.IsNullOrWhiteSpace(value);
         }
 
         private bool HasInt32Value(NodeState owner, string name)
         {
-            return FindMember(owner, name) is BaseVariableState variable &&
+            return FindMember(owner, name, Di.Namespaces.OpcUaDi) is BaseVariableState variable &&
                 variable.WrappedValue.TryGetValue(out int _);
         }
 

@@ -299,6 +299,74 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Remapped DI names and dynamically supplied identity members retain the base contribution.
+        /// </summary>
+        [Test]
+        public async Task IdentityUsesRemappedDiQualifiedNamesAndDynamicMembers()
+        {
+            PadimDevice device = await CreateDeviceAsync("IdentityNamespaceRemapping");
+            SetIdentity(device);
+            device.BindValue(device.State.DeviceHealth!, "health", new Mock<IPadimValueProvider>().Object);
+            int diNamespace = device.Context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi);
+            Assert.That(diNamespace, Is.GreaterThan(1),
+                "The runtime DI namespace must differ from the NodeSet's source index 1.");
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            foreach (string field in s_requiredIdentityFields)
+            {
+                Assert.That(children.Single(child => child.BrowseName.Name == field).BrowseName,
+                    Is.EqualTo(new QualifiedName(field, (ushort)diNamespace)), field);
+            }
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Contain(new QualifiedName("PA-DIM Base")));
+
+            device.State.Manufacturer!.BrowseName =
+                new QualifiedName("Manufacturer", device.Manager.InstanceNamespaceIndex);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")));
+            device.State.AddChild(new BaseDataVariableState(device.State)
+            {
+                NodeId = new NodeId("DynamicDiManufacturer", device.Manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("Manufacturer", (ushort)diNamespace),
+                WrappedValue = Variant.From(LocalizedText.From("Dynamic DI manufacturer"))
+            });
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Contain(new QualifiedName("PA-DIM Base")),
+                "A correct DI-qualified dynamic child must not be hidden by a generated same-name slot.");
+        }
+
+        /// <summary>
+        /// Same-name identity values outside DI cannot satisfy the mandatory base requirements.
+        /// </summary>
+        [TestCaseSource(nameof(s_requiredIdentityFields))]
+        public async Task IdentityRejectsSameNamedNonDiMembers(string field)
+        {
+            PadimDevice device = await CreateDeviceAsync($"WrongIdentityNamespace{field}");
+            SetIdentity(device);
+            device.BindValue(device.State.DeviceHealth!, "health", new Mock<IPadimValueProvider>().Object);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Contain(new QualifiedName("PA-DIM Base")));
+            var children = new List<BaseInstanceState>();
+            device.State.GetChildren(device.Context, children);
+            BaseInstanceState identity = children.Single(child => child.BrowseName.Name == field);
+            foreach (ushort namespaceIndex in new[]
+            {
+                (ushort)device.Context.NamespaceUris.GetIndex(Namespaces.PADIM),
+                device.Manager.InstanceNamespaceIndex
+            })
+            {
+                identity.BrowseName = new QualifiedName(field, namespaceIndex);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(device.ConformanceUnits.ToArray(),
+                        Does.Not.Contain(new QualifiedName("PA-DIM Base")), field);
+                    Assert.That(device.ServerProfiles.ToArray(),
+                        Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/Core"), field);
+                });
+            }
+        }
+
+        /// <summary>
         /// A primary pH reading cannot substitute for its required conditions, calibration and measurand.
         /// </summary>
         [Test]
@@ -590,5 +658,12 @@ namespace Opc.Ua.PADIM.Tests
         /// <summary>The mandatory condition fields required by the pH signal facet.</summary>
         private static readonly string[] s_requiredPhConditionFields =
             ["PhMeasuringMethod", "SensingElementTemperature"];
+
+        /// <summary>The mandatory identity fields declared in the DI namespace by PA-DIM.</summary>
+        private static readonly string[] s_requiredIdentityFields =
+        [
+            "Manufacturer", "ManufacturerUri", "Model", "SerialNumber", "SoftwareRevision",
+            "HardwareRevision", "ProductCode", "ProductInstanceUri", "AssetId", "RevisionCounter"
+        ];
     }
 }
