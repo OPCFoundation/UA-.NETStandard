@@ -603,18 +603,16 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                var notification = new DataChangeSnapshot
-                {
-                    Context = context,
-                    NodeId = node.NodeId,
-                    Changes = changes,
-                    MonitoredItems = monitoredItems,
-                    HasValueSnapshot = hasValue,
-                    ValueSnapshot = reportedValue,
-                    AttributeSnapshots = attributeSnapshots,
-                    SubscriberValueSnapshots = subscriberValueSnapshots,
-                    SourceEmission = emission
-                };
+                DataChangeSnapshot notification = RentSnapshot();
+                notification.Context = context;
+                notification.NodeId = node.NodeId;
+                notification.Changes = changes;
+                notification.MonitoredItems = monitoredItems;
+                notification.HasValueSnapshot = hasValue;
+                notification.ValueSnapshot = reportedValue;
+                notification.AttributeSnapshots = attributeSnapshots;
+                notification.SubscriberValueSnapshots = subscriberValueSnapshots;
+                notification.SourceEmission = emission;
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
                 emission = null;
             }
@@ -775,8 +773,15 @@ namespace Opc.Ua.Server
                     using var emission = notification.SourceEmission;
                     if (notification is DataChangeSnapshot dataChangeSnapshot)
                     {
-                        await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            ReturnSnapshot(dataChangeSnapshot);
+                        }
                     }
                     else if (notification is SemanticResample semanticResample)
                     {
@@ -2325,7 +2330,55 @@ namespace Opc.Ua.Server
             public uint[] NonValueAttributeIds { get; }
         }
 
+        /// <summary>
+        /// Takes a snapshot the consumer has finished with, or a new one.
+        /// </summary>
+        private DataChangeSnapshot RentSnapshot()
+        {
+            DataChangeSnapshot?[] spares = m_spareSnapshots;
+            for (int i = 0; i < spares.Length; i++)
+            {
+                DataChangeSnapshot? spare = Interlocked.Exchange(ref spares[i], null);
+                if (spare != null)
+                {
+                    return spare;
+                }
+            }
+            return new DataChangeSnapshot();
+        }
+
+        /// <summary>
+        /// Keeps a delivered snapshot for the next change. The consumer no longer references it,
+        /// and clearing it releases the value, the items and the reporter's context it held.
+        /// </summary>
+        private void ReturnSnapshot(DataChangeSnapshot snapshot)
+        {
+            snapshot.Context = null!;
+            snapshot.SourceEmission = null;
+            snapshot.NodeId = default;
+            snapshot.Changes = NodeStateChangeMasks.None;
+            snapshot.MonitoredItems = [];
+            snapshot.HasValueSnapshot = false;
+            snapshot.ValueSnapshot = default;
+            snapshot.AttributeSnapshots = null;
+            snapshot.SubscriberValueSnapshots = null;
+            DataChangeSnapshot?[] spares = m_spareSnapshots;
+            for (int i = 0; i < spares.Length; i++)
+            {
+                if (Interlocked.CompareExchange(ref spares[i], snapshot, null) == null)
+                {
+                    return;
+                }
+            }
+        }
+
         private DataChangeItemSet? m_dataChangeItems;
+
+        /// <summary>
+        /// Delivered snapshots kept for reuse: as many as the channel holds plus the one the
+        /// consumer delivers and the one a producer fills.
+        /// </summary>
+        private readonly DataChangeSnapshot?[] m_spareSnapshots = new DataChangeSnapshot?[k_defaultChannelCapacity + 2];
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
