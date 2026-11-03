@@ -233,7 +233,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             CurrencyUnitType? currency = null;
             if (captured is AutomaticWeightPriceLabelerProductState capturedLabeler)
             {
-                unitPrice = capturedLabeler.UnitPrice?.WrappedValue ?? Variant.Null;
+                unitPrice = capturedLabeler.UnitPrice is { } capturedPrice ? capturedPrice.WrappedValue : Variant.Null;
                 CurrencyUnitType? configuredCurrency = ScaleItemPublisher.CurrencyOf(
                     m_owner.Services.Context, capturedLabeler.UnitPrice);
                 currency = configuredCurrency == null ? null : ScaleItemPublisher.CopyCurrency(configuredCurrency);
@@ -284,7 +284,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return ServiceResult.Create(StatusCodes.BadEntryExists, "The acquisition was already superseded.");
                 }
                 if (product is AutomaticWeightPriceLabelerProductState labeler &&
-                    ((labeler.UnitPrice?.WrappedValue ?? Variant.Null) != unitPrice ||
+                    ((labeler.UnitPrice is { } currentPrice ? currentPrice.WrappedValue : Variant.Null) != unitPrice ||
                     !ScaleItemPublisher.SameOptionalCurrency(
                         currency, ScaleItemPublisher.CurrencyOf(m_owner.Services.Context, labeler.UnitPrice))))
                 {
@@ -344,8 +344,10 @@ namespace Opc.Ua.Scales.Server.Runtime
                 EUInformation? lowerUnit = ScaleValues.UnitsOf(m_owner.Services.Context, zone.LowerLimit);
                 EUInformation? upperUnit = ScaleValues.UnitsOf(m_owner.Services.Context, zone.UpperLimit);
                 if (!ScaleUnits.SameUnit(lowerUnit, upperUnit) || lowerUnit == null ||
-                    !ScaleItemPublisher.TryNumber(zone.LowerLimit?.WrappedValue ?? Variant.Null, out double lower) ||
-                    !ScaleItemPublisher.TryNumber(zone.UpperLimit?.WrappedValue ?? Variant.Null, out double upper) ||
+                    !ScaleItemPublisher.TryNumber(
+                        zone.LowerLimit is { } lowerLimit ? lowerLimit.WrappedValue : Variant.Null, out double lower) ||
+                    !ScaleItemPublisher.TryNumber(
+                        zone.UpperLimit is { } upperLimit ? upperLimit.WrappedValue : Variant.Null, out double upper) ||
                     !ScaleUnits.TryConvertMass(lower, lowerUnit, m_owner.Unit, out lower) ||
                     !ScaleUnits.TryConvertMass(upper, upperUnit, m_owner.Unit, out upper) || !(lower < upper))
                 {

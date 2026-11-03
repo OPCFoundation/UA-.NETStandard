@@ -440,7 +440,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             wait.Timeout = timeout > 0 ? TimeSpan.FromMilliseconds(timeout) : null;
             if (element is AnalogConditionSleepState analog)
             {
-                wait.Target = analog.TargetThresholdValue?.WrappedValue ?? Variant.Null;
+                wait.Target = analog.TargetThresholdValue is { } analogTarget ? analogTarget.WrappedValue : Variant.Null;
                 wait.Mode = (int)(analog.ConditionMode?.Value ?? (EqualityAndRelationalOperator)(-1));
                 BaseVariableState? units = analog.TargetThresholdValue?.FindChild(
                     m_owner.Services.Context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
@@ -463,7 +463,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             else if (element is EdgeTriggeredSleepState edge)
             {
-                wait.Target = edge.TargetThresholdValue?.WrappedValue ?? Variant.Null;
+                wait.Target = edge.TargetThresholdValue is { } edgeTarget ? edgeTarget.WrappedValue : Variant.Null;
                 wait.IsEdge = true;
                 wait.Mode = (int)(edge.ConditionMode?.Value ?? (EdgeOperator)(-1));
                 if (source.DataType != BuiltInType.Boolean || wait.Mode is < 0 or > 1 ||
