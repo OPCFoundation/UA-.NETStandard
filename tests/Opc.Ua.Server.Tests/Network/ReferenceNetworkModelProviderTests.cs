@@ -112,6 +112,197 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects repeated SR-class identifiers during construction and publication without replacing state.
+        /// </summary>
+        [Test]
+        public async Task DuplicateSrClassIdsAreRejectedWithoutReplacingTheAcquisitionAsync()
+        {
+            NetworkModelSnapshot initial = EmptySnapshot() with
+            {
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("physical", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        SrClasses = [new NetworkSrClassSnapshot(1, 1, 1)]
+                    }
+                ]
+            };
+            NetworkInterfaceSnapshot duplicateInterface = initial.Interfaces[0] with
+            {
+                SrClasses =
+                [
+                    new NetworkSrClassSnapshot(1, 1, 1),
+                    new NetworkSrClassSnapshot(1, 2, 2)
+                ]
+            };
+            NetworkModelSnapshot invalid = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                Interfaces = [duplicateInterface]
+            };
+            var provider = new ReferenceNetworkModelProvider(initial);
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("unique within an interface"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("unique within an interface"));
+            NetworkModelSnapshot retained = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(retained.Revision, Is.Zero);
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retained.Interfaces.Count, Is.EqualTo(1));
+            Assert.That(retained.Interfaces[0].SrClasses.Count, Is.EqualTo(1));
+            Assert.That(retained.Interfaces[0].SrClasses[0].Id, Is.EqualTo((byte)1));
+            Assert.That(retained.Interfaces[0].SrClasses[0].Priority, Is.EqualTo((byte)1));
+        }
+
+        /// <summary>
+        /// Allows an SR-class identifier to recur on a different interface.
+        /// </summary>
+        [Test]
+        public async Task SrClassIdsMayRepeatAcrossInterfacesAsync()
+        {
+            NetworkModelSnapshot snapshot = EmptySnapshot() with
+            {
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("physical", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        SrClasses = [new NetworkSrClassSnapshot(6, 3, 1)]
+                    },
+                    new NetworkInterfaceSnapshot("vlan", "eth0.2")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        SrClasses = [new NetworkSrClassSnapshot(6, 5, 2)]
+                    }
+                ]
+            };
+            var provider = new ReferenceNetworkModelProvider(snapshot);
+            Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Interfaces
+                .ToList().Select(networkInterface => networkInterface.SrClasses[0].Id),
+                Is.EqualTo(new byte[] { 6, 6 }));
+
+            provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(1) });
+            NetworkModelSnapshot published = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(published.Revision, Is.EqualTo(1));
+            Assert.That(published.Interfaces.ToList().Select(networkInterface => networkInterface.SrClasses[0].Id),
+                Is.EqualTo(new byte[] { 6, 6 }));
+        }
+
+        /// <summary>
+        /// Rejects repeated stream-interface identifiers during construction and publication without replacing state.
+        /// </summary>
+        [Test]
+        public async Task DuplicateStreamInterfaceIdsAreRejectedWithoutReplacingTheAcquisitionAsync()
+        {
+            NetworkModelSnapshot initial = EmptySnapshot() with
+            {
+                Streams =
+                [
+                    new NetworkStreamSnapshot("talker", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[8].AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        Interfaces =
+                        [
+                            new NetworkStreamInterfaceSnapshot("port", "00:00:00:00:00:01")
+                            {
+                                InterfaceName = "port"
+                            }
+                        ]
+                    }
+                ]
+            };
+            NetworkStreamSnapshot duplicateStream = initial.Streams[0] with
+            {
+                Interfaces =
+                [
+                    new NetworkStreamInterfaceSnapshot("duplicate", "00:00:00:00:00:01")
+                    {
+                        InterfaceName = "first"
+                    },
+                    new NetworkStreamInterfaceSnapshot("duplicate", "00:00:00:00:00:02")
+                    {
+                        InterfaceName = "second"
+                    }
+                ]
+            };
+            NetworkModelSnapshot invalid = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                Streams = [duplicateStream]
+            };
+            var provider = new ReferenceNetworkModelProvider(initial);
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("Stream interface identities"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("Stream interface identities"));
+            NetworkModelSnapshot retained = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(retained.Revision, Is.Zero);
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(retained.Streams.Count, Is.EqualTo(1));
+            Assert.That(retained.Streams[0].Interfaces.Count, Is.EqualTo(1));
+            Assert.That(retained.Streams[0].Interfaces[0].Id, Is.EqualTo("port"));
+            Assert.That(retained.Streams[0].Interfaces[0].MacAddress, Is.EqualTo("00:00:00:00:00:01"));
+        }
+
+        /// <summary>
+        /// Allows a stream-interface identifier to recur on another stream.
+        /// </summary>
+        [Test]
+        public async Task StreamInterfaceIdsMayRepeatAcrossStreamsAsync()
+        {
+            NetworkModelSnapshot snapshot = EmptySnapshot() with
+            {
+                Streams =
+                [
+                    new NetworkStreamSnapshot("talker", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }.AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        Interfaces =
+                        [
+                            new NetworkStreamInterfaceSnapshot("shared", "00:00:00:00:00:01")
+                            {
+                                InterfaceName = "talker port"
+                            }
+                        ]
+                    },
+                    new NetworkStreamSnapshot("listener", "test", false)
+                    {
+                        StreamId = ByteString.From(new byte[] { 8, 7, 6, 5, 4, 3, 2, 1 }.AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        Interfaces =
+                        [
+                            new NetworkStreamInterfaceSnapshot("shared", "00:00:00:00:00:02")
+                            {
+                                InterfaceName = "listener port"
+                            }
+                        ]
+                    }
+                ]
+            };
+            var provider = new ReferenceNetworkModelProvider(snapshot);
+            Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Streams
+                .ToList().Select(stream => stream.Interfaces[0].Id),
+                Is.EqualTo(new[] { "shared", "shared" }));
+
+            provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(1) });
+            NetworkModelSnapshot published = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(published.Revision, Is.EqualTo(1));
+            Assert.That(published.Streams.ToList().Select(stream => stream.Interfaces[0].Id),
+                Is.EqualTo(new[] { "shared", "shared" }));
+        }
+
+        /// <summary>
         /// Accepts an absent stream SR-class identifier and both ends of its defined range.
         /// </summary>
         [TestCase(false, (byte)0)]

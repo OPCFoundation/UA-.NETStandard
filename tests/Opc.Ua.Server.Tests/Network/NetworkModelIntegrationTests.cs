@@ -1386,10 +1386,14 @@ namespace Opc.Ua.Server.Tests.Network
             m_provider.Publish(initial with { Timestamp = publicationTimestamp });
             await WaitForAsync(async () =>
             {
-                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                ArrayOf<NetworkParameterValue> physicalValues = await ReadParameterSetAsync(
                     physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
-                return Parameter(values, BrowseNames.Id).DataValue.SourceTimestamp ==
-                    (DateTimeUtc)publicationTimestamp;
+                ArrayOf<NetworkParameterValue> vlanValues = await ReadParameterSetAsync(
+                    vlan, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+                return Parameter(physicalValues, BrowseNames.Id).DataValue.SourceTimestamp ==
+                        (DateTimeUtc)publicationTimestamp &&
+                    Parameter(vlanValues, BrowseNames.Id).DataValue.SourceTimestamp ==
+                        (DateTimeUtc)publicationTimestamp;
             }, cancellationToken).ConfigureAwait(false);
             foreach ((NodeId id, byte priority) in new[] { (physical, (byte)0), (vlan, (byte)1) })
             {
@@ -1555,8 +1559,14 @@ namespace Opc.Ua.Server.Tests.Network
             DateTime publicationTimestamp = initial.Timestamp.AddSeconds(1);
             m_provider.Publish(initial with { Timestamp = publicationTimestamp });
             await WaitForAsync(async () =>
-                (await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
-                    .StreamId.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp,
+            {
+                NetworkStreamValues talkerValues = await m_client.ReadStreamAsync(
+                    talker, cancellationToken).ConfigureAwait(false);
+                NetworkStreamValues listenerValues = await m_client.ReadStreamAsync(
+                    listener, cancellationToken).ConfigureAwait(false);
+                return talkerValues.StreamId.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp &&
+                    listenerValues.StreamId.DataValue.SourceTimestamp == (DateTimeUtc)publicationTimestamp;
+            },
                 cancellationToken).ConfigureAwait(false);
             foreach ((NodeId id, string name, NodeId interfaceType) in new[]
             {
@@ -1718,6 +1728,123 @@ namespace Opc.Ua.Server.Tests.Network
                 .ConfigureAwait(false);
             Assert.That(recovered.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(recovered.Speed.DataValue.WrappedValue, Is.EqualTo(before.Speed.DataValue.WrappedValue));
+        }
+
+        /// <summary>
+        /// Rejects an initial non-UTC read before publishing dynamic nodes, then accepts a later UTC watch item.
+        /// </summary>
+        [TestCase(DateTimeKind.Local)]
+        [TestCase(DateTimeKind.Unspecified)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderNonUtcInitialReadPublishesNoDynamicNodesAndRecovers(
+            DateTimeKind kind, CancellationToken cancellationToken)
+        {
+            string pkiRoot = Path.Combine(
+                "D:\\temp", "OpcUaNetworkTests", Guid.NewGuid().ToString("N")[..8]);
+            ReferenceNetworkModelProvider provider = NetworkScenario.Create();
+            var watchRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var providerBoundary = new FaultInjectingProvider(provider)
+            {
+                ReadTransform = snapshot => snapshot with
+                {
+                    Timestamp = DateTime.SpecifyKind(snapshot.Timestamp.AddSeconds(1), kind)
+                },
+                WatchRelease = watchRelease
+            };
+            ServerFixture<StandardServer>? server = null;
+            ClientFixture? clientFixture = null;
+            Client.ISession? session = null;
+            try
+            {
+                server = new ServerFixture<StandardServer>(telemetry =>
+                {
+                    var standardServer = new StandardServer(telemetry);
+                    standardServer.AddNodeManager(new NetworkModelNodeManagerFactory(
+                        providerBoundary, _ => false));
+                    return standardServer;
+                })
+                {
+                    SecurityNone = true,
+                    AutoAccept = true
+                };
+                await server.LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                await server.StartAsync(pkiRoot).ConfigureAwait(false);
+                clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
+                await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
+                ConfiguredEndpoint endpoint = await clientFixture.GetEndpointAsync(
+                    new Uri("opc.tcp://localhost:" + server.Port.ToString(CultureInfo.InvariantCulture)),
+                    SecurityPolicies.None).ConfigureAwait(false);
+                session = await clientFixture.ConnectAsync(endpoint).ConfigureAwait(false);
+                var client = new NetworkModelClient(session, NUnitTelemetryContext.Create());
+
+                Assert.That((await client.DiscoverInterfacesAsync(cancellationToken).ConfigureAwait(false)).Count,
+                    Is.Zero);
+                Assert.That((await client.DiscoverMappingTablesAsync(cancellationToken).ConfigureAwait(false)).Count,
+                    Is.Zero);
+                Assert.That((await client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false)).Count,
+                    Is.Zero);
+                Assert.That((await client.DiscoverStreamsAsync(false, cancellationToken).ConfigureAwait(false)).Count,
+                    Is.Zero);
+                Assert.That((await client.DiscoverLldpPortsAsync(cancellationToken).ConfigureAwait(false)).Count,
+                    Is.Zero);
+
+                NetworkModelSnapshot initial = await provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+                DateTime recoveryTimestamp = initial.Timestamp.AddSeconds(1);
+                provider.Publish(initial with { Timestamp = recoveryTimestamp });
+                watchRelease.TrySetResult(true);
+                await WaitForAsync(async () =>
+                {
+                    ArrayOf<NodeId> interfaces = await client.DiscoverInterfacesAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    ArrayOf<NodeId> talkers = await client.DiscoverStreamsAsync(true, cancellationToken)
+                        .ConfigureAwait(false);
+                    ArrayOf<NodeId> listeners = await client.DiscoverStreamsAsync(false, cancellationToken)
+                        .ConfigureAwait(false);
+                    ArrayOf<NodeId> ports = await client.DiscoverLldpPortsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    return interfaces.Count == 2 && talkers.Count == 1 && listeners.Count == 1 && ports.Count == 1;
+                }, cancellationToken).ConfigureAwait(false);
+
+                ArrayOf<NodeId> recoveredInterfaces = await client.DiscoverInterfacesAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (NodeId interfaceId in recoveredInterfaces.ToList())
+                {
+                    NetworkInterfaceValues values = await client.ReadInterfaceAsync(
+                        interfaceId, cancellationToken).ConfigureAwait(false);
+                    Assert.That(values.Speed.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values.Speed.DataValue.SourceTimestamp, Is.EqualTo((DateTimeUtc)recoveryTimestamp));
+                }
+                foreach (bool talker in new[] { true, false })
+                {
+                    NodeId streamId = (await client.DiscoverStreamsAsync(talker, cancellationToken)
+                        .ConfigureAwait(false))[0];
+                    NetworkStreamValues values = await client.ReadStreamAsync(streamId, cancellationToken)
+                        .ConfigureAwait(false);
+                    Assert.That(values.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(values.StreamId.DataValue.SourceTimestamp,
+                        Is.EqualTo((DateTimeUtc)recoveryTimestamp));
+                }
+            }
+            finally
+            {
+                if (session is not null)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                if (clientFixture is not null)
+                {
+                    await clientFixture.DisposeAsync().ConfigureAwait(false);
+                }
+                if (server is not null)
+                {
+                    await server.StopAsync().ConfigureAwait(false);
+                }
+                if (Directory.Exists(pkiRoot))
+                {
+                    Directory.Delete(pkiRoot, recursive: true);
+                }
+            }
         }
 
         /// <summary>
@@ -3116,6 +3243,24 @@ namespace Opc.Ua.Server.Tests.Network
             }
 
             /// <summary>
+            /// Rewrites the initial acquisition returned before watch observation begins.
+            /// </summary>
+            public Func<NetworkModelSnapshot, NetworkModelSnapshot>? ReadTransform
+            {
+                get => Volatile.Read(ref m_readTransform);
+                set => Volatile.Write(ref m_readTransform, value);
+            }
+
+            /// <summary>
+            /// Holds watch observation until the test releases the initial address-space inspection.
+            /// </summary>
+            public TaskCompletionSource<bool>? WatchRelease
+            {
+                get => Volatile.Read(ref m_watchRelease);
+                set => Volatile.Write(ref m_watchRelease, value);
+            }
+
+            /// <summary>
             /// Signals that the server consumed or rejected the yielded acquisition.
             /// </summary>
             public Action<NetworkModelSnapshot>? AfterDelivery
@@ -3125,15 +3270,22 @@ namespace Opc.Ua.Server.Tests.Network
             }
 
             /// <inheritdoc/>
-            public ValueTask<NetworkModelSnapshot> ReadAsync(CancellationToken cancellationToken = default)
+            public async ValueTask<NetworkModelSnapshot> ReadAsync(
+                CancellationToken cancellationToken = default)
             {
-                return inner.ReadAsync(cancellationToken);
+                NetworkModelSnapshot snapshot = await inner.ReadAsync(cancellationToken).ConfigureAwait(false);
+                return ReadTransform?.Invoke(snapshot) ?? snapshot;
             }
 
             /// <inheritdoc/>
             public async IAsyncEnumerable<NetworkModelSnapshot> WatchAsync(
                 [EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
+                TaskCompletionSource<bool>? watchRelease = WatchRelease;
+                if (watchRelease is not null)
+                {
+                    await watchRelease.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
                 await foreach (NetworkModelSnapshot snapshot in inner.WatchAsync(cancellationToken)
                     .ConfigureAwait(false))
                 {
@@ -3165,6 +3317,12 @@ namespace Opc.Ua.Server.Tests.Network
 
             /// <summary>Acquisition rewrite selected by the test.</summary>
             private Func<NetworkModelSnapshot, NetworkModelSnapshot>? m_watchTransform;
+
+            /// <summary>Initial acquisition rewrite selected by the test.</summary>
+            private Func<NetworkModelSnapshot, NetworkModelSnapshot>? m_readTransform;
+
+            /// <summary>Signal that permits provider watch observation.</summary>
+            private TaskCompletionSource<bool>? m_watchRelease;
 
             /// <summary>Notification after the yielded acquisition has been consumed.</summary>
             private Action<NetworkModelSnapshot>? m_afterDelivery;
