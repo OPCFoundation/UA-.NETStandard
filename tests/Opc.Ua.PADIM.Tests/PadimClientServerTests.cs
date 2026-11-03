@@ -602,6 +602,115 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Runtime contribution changes reach the live arrays and support lookup only through explicit publication.
+        /// </summary>
+        [Test]
+        public async Task HostedRuntimeFacetChangesRequireExplicitPublication()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+            string endpoint = $"opc.tcp://localhost:{port.ToString(CultureInfo.InvariantCulture)}/PadimPublication";
+            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory, "padim-publication",
+                Guid.NewGuid().ToString("N"));
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var configured = new TaskCompletionSource<PadimDevice>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddOpcUa().AddServer<StandardServer>(options =>
+            {
+                options.ApplicationName = "PadimPublication";
+                options.ApplicationUri = "urn:localhost:PadimPublication";
+                options.ProductUri = "urn:OPCFoundation:PadimPublication";
+                options.PkiRoot = Path.Combine(root, "server-pki");
+                options.AutoAcceptUntrustedCertificates = true;
+                options.IncludeUnsecurePolicyNone = true;
+                options.EndpointUrls.Clear();
+                options.EndpointUrls.Add(endpoint);
+            }).AddPadim().ConfigurePadim(async context =>
+            {
+                var builder = await context.Manager.CreatePadimDeviceAsync(
+                    new QualifiedName("RuntimeDevice", context.Manager.InstanceNamespaceIndex));
+                configured.TrySetResult(builder.BindPadim());
+            });
+            await using ServiceProvider container = services.BuildServiceProvider();
+            IHostedService host = container.GetServices<IHostedService>().Single();
+            await host.StartAsync(timeout.Token);
+            try
+            {
+                PadimDevice device;
+                using (timeout.Token.Register(() => configured.TrySetCanceled()))
+                {
+                    device = await configured.Task.ConfigureAwait(false);
+                }
+                Assert.That(device.Manager.Server, Is.InstanceOf<ServerInternalData>());
+                ConformanceUnitsManager catalog = ((ServerInternalData)device.Manager.Server).ConformanceUnitsManager;
+                var unit = new QualifiedName("PA-DIM TwoStateDiscreteVariable");
+                using var fixture = new ClientFixture(telemetry)
+                {
+                    SessionFactory = new ManagedSessionFactory(telemetry)
+                };
+                await fixture.LoadClientConfigurationAsync(Path.Combine(root, "client-pki"));
+                using ISession session = await fixture.ConnectAsync(new Uri(endpoint), SecurityPolicies.None);
+                await AssertPublicationAsync([], [], false);
+
+                var samples = new PadimPublishedSampleSet();
+                var signal = (TwoStateDiscreteSignalObjectState)await device.AddSignalAsync(
+                    new QualifiedName("RuntimeSignal", device.Manager.InstanceNamespaceIndex),
+                    PadimSignalKind.TwoStateDiscrete, "DI-RUNTIME", cancellationToken: timeout.Token);
+                samples.Bind(device, signal.TwoStateDiscreteSignal!);
+                await device.RegisterAsync(timeout.Token);
+                await device.RefreshAsync(timeout.Token);
+                string[] expectedProfiles = device.ServerProfiles.ToArray();
+                QualifiedName[] expectedUnits = device.ConformanceUnits.ToArray();
+                Assert.That(expectedProfiles,
+                    Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TwoStateDiscreteSignal"));
+                Assert.That(expectedUnits, Does.Contain(unit));
+                await AssertPublicationAsync([], [], false);
+                await catalog.PublishAsync(timeout.Token);
+                await AssertPublicationAsync(expectedProfiles, expectedUnits, true);
+
+                await device.DisposeAsync();
+                Assert.That(device.ServerProfiles.Count, Is.Zero);
+                Assert.That(device.ConformanceUnits.Count, Is.Zero);
+                await AssertPublicationAsync(expectedProfiles, expectedUnits, true);
+                await catalog.PublishAsync(timeout.Token);
+                await AssertPublicationAsync([], [], false);
+
+                async Task AssertPublicationAsync(string[] profiles, QualifiedName[] units, bool supported)
+                {
+                    (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await session.ReadValuesAsync(
+                        [Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray,
+                            Opc.Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits], timeout.Token);
+                    Assert.That(values.Count, Is.EqualTo(2));
+                    Assert.That(errors.Count, Is.EqualTo(2));
+                    for (int ii = 0; ii < errors.Count; ii++)
+                    {
+                        Assert.That(ServiceResult.IsGood(errors[ii]), Is.True);
+                        Assert.That(values[ii].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    }
+                    Assert.That(values[0].WrappedValue.TryGetValue(out ArrayOf<string> liveProfiles), Is.True);
+                    Assert.That(values[1].WrappedValue.TryGetValue(out ArrayOf<QualifiedName> liveUnits), Is.True);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(liveProfiles.ToList().Where(profile => profile.StartsWith(
+                            "http://opcfoundation.org/UA-Profile/PADIM/Server/", StringComparison.Ordinal)),
+                            Is.EquivalentTo(profiles));
+                        Assert.That(liveUnits.ToList().Where(value =>
+                            value.Name.StartsWith("PA-DIM ", StringComparison.Ordinal)), Is.EquivalentTo(units));
+                        Assert.That(catalog.IsSupported(unit), Is.EqualTo(supported));
+                    });
+                }
+            }
+            finally
+            {
+                await host.StopAsync(CancellationToken.None);
+            }
+        }
+
+        /// <summary>
         /// Verifies that late-bound dynamic members contribute only after registration and are readable over UA.
         /// </summary>
         private static async Task AssertDynamicMembersRequireRegistrationAsync(

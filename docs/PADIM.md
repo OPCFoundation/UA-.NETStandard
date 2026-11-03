@@ -116,6 +116,29 @@ provider after registration does not contribute its capability until
 `RegisterAsync` registers that addition; configuration before initial
 registration uses the same check.
 
+The contributor getters describe current configuration; the server's live
+`ServerProfileArray` and `ConformanceUnits` arrays are publication snapshots.
+`StandardServer` publishes them at startup. After configuring or disposing a
+device at runtime, explicitly publish the aggregate through the existing
+`ConformanceUnitsManager` contract:
+
+```csharp
+await device.RegisterAsync(cancellationToken);
+await device.RefreshAsync(cancellationToken);
+var server = (ServerInternalData)device.Manager.Server;
+await server.ConformanceUnitsManager.PublishAsync(cancellationToken);
+
+await device.DisposeAsync();
+await server.ConformanceUnitsManager.PublishAsync(cancellationToken);
+```
+
+`RegisterAsync`, `RefreshAsync` and `DisposeAsync` do not publish those arrays.
+Until `PublishAsync` completes, clients retain the preceding advertised
+capabilities and `ConformanceUnitsManager.IsSupported` may retain its preceding
+result. Publish once after a batch of configuration changes rather than after
+each provider sample. The example uses `StandardServer`'s `ServerInternalData`;
+a custom server host must use its own conformance manager.
+
 The generated family accessors retain the specification's spelling, including
 `Ph` and `OpticalFluorescenseQuenching`.
 
@@ -425,6 +448,7 @@ suite or a list of advertised URIs as verification of every published unit:
 | 56 facet URIs | `ConfiguredFamiliesCoverAllFiftySixReleasedFacetUris` checks the exact URI set. The hosted test reads `ServerProfileArray` and `ConformanceUnits` and compares their PA-DIM entries with the configured contributors. These tests do not constitute a 194-unit behavioral conformance test. |
 | Simulation, authorization, operations and alarms | Runtime tests exercise accepted/rejected writes, cancellation, provider drain, simulation reversal, health-category transitions, acknowledgement and retained-condition refresh. Physical adjustment success remains the provider's responsibility. |
 | Required family members | Contributor tests withhold incomplete pH and TOC configurations, unregistered dynamic members and unregistered ownership paths, and reject combining different calibration or signal instances. The hosted fixture checks that late-bound health and primary measurement nodes return `BadNodeIdUnknown` before registration, then browses and reads their exact provider samples after registration. |
+| Runtime publication | `HostedRuntimeFacetChangesRequireExplicitPublication` starts with no PA-DIM facet, configures a discrete signal after startup, and reads both live arrays before and after explicit publication. It disposes the device and republishes to verify withdrawal; `ConformanceUnitsManager.IsSupported` is checked at each stage. |
 
 Two catalogue inconsistencies remain unresolved. The `CatalyticBeadSensor`
 facet lists seven optional `CatalyticBeadSignalType` condition units, but its
