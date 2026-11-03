@@ -632,8 +632,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(5)]
         public async Task PushEnrollmentRecoversInterruptedTransitionsWithoutIssuingAgain(int failedJournalWrite)
         {
-            string path = Path.Combine(
-                Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath(), Path.GetRandomFileName());
+            string path = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             try
             {
                 var database = new LinqApplicationsDatabase();

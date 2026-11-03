@@ -48,7 +48,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [SetUp]
         public void SetUp()
         {
-            string temporary = Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath();
+            string temporary = Path.GetTempPath();
             m_directory = Path.Combine(
                 temporary, nameof(DeviceSecurityCheckpointStoreTests), Guid.NewGuid().ToString("N"));
         }

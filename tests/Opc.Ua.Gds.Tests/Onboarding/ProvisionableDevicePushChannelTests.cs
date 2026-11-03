@@ -216,7 +216,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             bool fileCheckpoint)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            string temporary = Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath();
+            string temporary = Path.GetTempPath();
             string root = Path.Combine(temporary, "onboarding-activation", Guid.NewGuid().ToString("N"));
             const string applicationUri = "urn:localhost:onboarding:activation-test";
             var listener = new TcpListener(IPAddress.Loopback, 0);

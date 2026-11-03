@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [SetUp]
         public async Task SetUpAsync()
         {
-            string tempRoot = Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath();
+            string tempRoot = Path.GetTempPath();
             m_root = Path.Combine(tempRoot, nameof(PullRegistrarIntegrationTests), Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(m_root);
             m_telemetry = NUnitTelemetryContext.Create();
