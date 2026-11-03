@@ -221,6 +221,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Copies array storage while preserving the distinction between absent and empty parameters.
         /// </summary>
+        /// <typeparam name="T">The parameter array element type.</typeparam>
         private static ArrayOf<T> CopyParameterArray<T>(ArrayOf<T> values)
         {
             return values.IsNull ? default : values.Span.ToArray().ToArrayOf();

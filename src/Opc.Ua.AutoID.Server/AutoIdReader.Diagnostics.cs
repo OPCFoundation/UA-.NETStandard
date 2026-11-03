@@ -133,7 +133,7 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Adds a DI FunctionalGroup using the AutoID-qualified declaration name.
         /// </summary>
-        private static BaseObjectState AddDiagnosticGroup(
+        private static Di.FunctionalGroupState AddDiagnosticGroup(
             ISystemContext context, BaseObjectState parent, string name)
         {
             var group = new Di.FunctionalGroupState(parent);
@@ -291,7 +291,7 @@ namespace Opc.Ua.AutoID.Server
                 (fields & (uint)RfidAccessResultFields.CurrentPowerLevel) != 0);
             SetDiagnostic(access, "PC", Variant.From(result.PC), timestamp,
                 (fields & (uint)RfidAccessResultFields.PC) != 0);
-            SetDiagnostic(access, "Polarization", Variant.From(result.Polarization), timestamp,
+            SetDiagnostic(access, "Polarization", Variant.From(result.Polarization ?? string.Empty), timestamp,
                 (fields & (uint)RfidAccessResultFields.Polarization) != 0);
             SetDiagnostic(access, "Strength", Variant.From(result.Strength), timestamp,
                 (fields & (uint)RfidAccessResultFields.Strength) != 0);
