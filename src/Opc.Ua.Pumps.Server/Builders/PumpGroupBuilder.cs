@@ -284,7 +284,16 @@ namespace Opc.Ua.Pumps.Server.Builders
                 BaseInstanceState? child = parent.CreateChild(m_context, qualifiedName);
                 if (child != null)
                 {
+                    if (child is FileState file)
+                    {
+                        file.Create(m_context, file.NodeId, qualifiedName, file.DisplayName, assignNodeIds: true);
+                    }
                     CompleteFromDeclaration(child, FindDeclarationChild(declaration, child));
+                    if (parent is PumpIdentificationState && child is BaseVariableState identityField)
+                    {
+                        identityField.AccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                        identityField.UserAccessLevel &= unchecked((byte)~AccessLevels.CurrentWrite);
+                    }
 
                     // A child materialised after the pump was registered is
                     // reachable through its parent but unknown to the node

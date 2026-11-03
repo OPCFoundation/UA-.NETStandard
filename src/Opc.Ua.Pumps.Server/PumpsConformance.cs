@@ -146,7 +146,8 @@ namespace Opc.Ua.Pumps.Server
             var visited = new HashSet<NodeId>();
             while (!typeId.IsNull && visited.Add(typeId))
             {
-                if (typeId == Opc.Ua.ObjectTypeIds.BaseObjectType)
+                // FolderType adds no mandatory children and is owned by the core manager.
+                if (typeId == Opc.Ua.ObjectTypeIds.BaseObjectType || typeId == Opc.Ua.ObjectTypeIds.FolderType)
                 {
                     return true;
                 }
@@ -243,7 +244,7 @@ namespace Opc.Ua.Pumps.Server
             return node is BaseVariableState { Historizing: true } variable &&
                 (variable.AccessLevel & AccessLevels.HistoryRead) != 0 &&
                 m_runtime.SystemContext.TypeTable.IsTypeOf(
-                    variable.TypeDefinitionId, Opc.Ua.VariableTypeIds.AnalogItemType) &&
+                    variable.TypeDefinitionId, Opc.Ua.VariableTypeIds.BaseAnalogType) &&
                 m_runtime.Manager.Server is IHistorianRegistryProvider registry &&
                 registry.HistorianRegistry.Resolve(variable.NodeId) is IHistorianDataProvider;
         }
