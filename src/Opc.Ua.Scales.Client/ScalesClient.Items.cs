@@ -62,7 +62,8 @@ namespace Opc.Ua.Scales.Client
             QualifiedName unitPrice = ScalesName(BrowseNames.UnitPrice);
             QualifiedName units = new(Ua.BrowseNames.EngineeringUnits);
             QualifiedName currency = ScalesName(BrowseNames.CurrencyUnit);
-            ArrayOf<NodeId> itemIds = await ResolvePathsAsync(item?.ObjectId ?? NodeId.Null,
+            ArrayOf<NodeId> itemIds = await ResolvePathsAsync(
+                item is { } resolvedItem ? resolvedItem.ObjectId : NodeId.Null,
                 [
                     [ScalesName(BrowseNames.ItemId)], [weight], [weight, units],
                     [height], [height, units], [length], [length, units],
@@ -95,7 +96,7 @@ namespace Opc.Ua.Scales.Client
             return new ScaleLastItemSnapshot
             {
                 ProductNodeId = product,
-                LastItemNodeId = item?.ObjectId ?? NodeId.Null,
+                LastItemNodeId = item is { } lastItem ? lastItem.ObjectId : NodeId.Null,
                 ItemId = TextField(values[1]),
                 MeasuredWeight = Field(values[2], hasWeight, reading),
                 MeasuredHeight = NumberField(values[4]),

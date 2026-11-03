@@ -407,7 +407,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             var wait = new ConditionWait { Started = m_conditionClock.GetTimestamp() };
             m_conditionWaits.Add(element, wait);
             string id = condition.ThresholdValueId?.Value ?? string.Empty;
-            NodeId nodeId = condition.ThresholdValueNodeId?.Value ?? NodeId.Null;
+            NodeId nodeId = condition.ThresholdValueNodeId is { } thresholdNode ? thresholdNode.Value : NodeId.Null;
             ConditionSource? source = null;
             if (!string.IsNullOrEmpty(id) &&
                 uint.TryParse(id, NumberStyles.None, CultureInfo.InvariantCulture, out uint number) &&
