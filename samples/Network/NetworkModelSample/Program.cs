@@ -146,8 +146,9 @@ try
             throw new InvalidOperationException("The scenario requires exactly one talker and one listener.");
         }
         NetworkStreamValues stream = await client.ReadStreamAsync(talkers[0], ct).ConfigureAwait(false);
-        await using IAsyncEnumerator<DataValueChange> changes = client.ObserveAsync(
+        IAsyncEnumerator<DataValueChange> changes = client.ObserveAsync(
             stream.State.NodeId, session.DefaultStreaming, cancellationToken: ct).GetAsyncEnumerator(ct);
+        await using var changesLifetime = changes.ConfigureAwait(false);
         if (!await changes.MoveNextAsync().ConfigureAwait(false))
         {
             throw new InvalidOperationException("The state subscription ended before its initial observation.");
