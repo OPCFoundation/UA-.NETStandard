@@ -561,8 +561,8 @@ namespace Opc.Ua.PADIM.Tests
                     new DateTimeUtc(new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc))),
                 BuiltInType.Guid => Variant.From(new Uuid("2d711642-b726-4a2f-9f2d-2f157b6f3a01")),
                 BuiltInType.ByteString => Variant.From(new ByteString(new byte[] { 7, 11, 13 })),
-                BuiltInType.XmlElement => Variant.From(new System.Xml.XmlDocument().CreateElement("sample")),
-                BuiltInType.NodeId => Variant.From(new NodeId($"sample-{key}")),
+                BuiltInType.XmlElement => Variant.From(XmlElement.From("<sample />")),
+                BuiltInType.NodeId => Variant.From(new NodeId($"sample-{key}", 0)),
                 BuiltInType.QualifiedName => Variant.From(new QualifiedName($"sample-{key}")),
                 BuiltInType.LocalizedText => Variant.From(new LocalizedText($"sample-{key}")),
                 BuiltInType.StatusCode => Variant.From(StatusCodes.Good),
@@ -621,7 +621,7 @@ namespace Opc.Ua.PADIM.Tests
                     new Uuid("2d711642-b726-4a2f-9f2d-2f157b6f3a01")]),
                 BuiltInType.ByteString => Variant.From((ArrayOf<ByteString>)[
                     new ByteString(new byte[] { 7, 11, 13 })]),
-                BuiltInType.NodeId => Variant.From((ArrayOf<NodeId>)[new NodeId($"sample-{key}")]),
+                BuiltInType.NodeId => Variant.From((ArrayOf<NodeId>)[new NodeId($"sample-{key}", 0)]),
                 BuiltInType.QualifiedName => Variant.From((ArrayOf<QualifiedName>)[
                     new QualifiedName($"sample-{key}")]),
                 BuiltInType.LocalizedText => Variant.From((ArrayOf<LocalizedText>)[
@@ -679,12 +679,12 @@ namespace Opc.Ua.PADIM.Tests
             if (TypeInfo.GetBuiltInType(variable.DataType, device.Context.TypeTable) == BuiltInType.UInt32 &&
                 value.TryGetValue(out uint raw))
             {
-                return enumeration.EnumValues!.Value
+                return enumeration.EnumValues!.Value.ToList()
                     .Single(item => checked((uint)item.Value) == raw).DisplayName.Text;
             }
             if (value.TryGetValue(out int signed))
             {
-                return enumeration.EnumValues!.Value
+                return enumeration.EnumValues!.Value.ToList()
                     .Single(item => checked((int)item.Value) == signed).DisplayName.Text;
             }
             throw Unsupported(variable, "multi-state sample did not retain its raw integer type");

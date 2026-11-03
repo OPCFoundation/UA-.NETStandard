@@ -586,7 +586,7 @@ namespace Opc.Ua.PADIM.Server
                 HasStringValue(State, "ProductCode") &&
                 HasStringValue(State, "ProductInstanceUri") &&
                 HasStringValue(State, "AssetId", "http://opcfoundation.org/UA/DI/") &&
-                HasUInt32Value(State, "RevisionCounter");
+                HasInt32Value(State, "RevisionCounter");
         }
 
         /// <summary>
@@ -629,10 +629,10 @@ namespace Opc.Ua.PADIM.Server
                 !string.IsNullOrWhiteSpace(value);
         }
 
-        private bool HasUInt32Value(NodeState owner, string name)
+        private bool HasInt32Value(NodeState owner, string name)
         {
             return FindMember(owner, name) is BaseVariableState variable &&
-                variable.WrappedValue.TryGetValue(out uint _);
+                variable.WrappedValue.TryGetValue(out int _);
         }
 
         /// <summary>Published optional member units with names relative to their owning condition or value.</summary>

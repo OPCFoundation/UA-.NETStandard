@@ -409,7 +409,7 @@ namespace Opc.Ua.PADIM.Tests
             });
             await device.ConfigureSignalConditionsAsync(signal, group =>
             {
-                foreach (string field in new[] { "PhMeasuringMethod", "SensingElementTemperature" })
+                foreach (string field in s_requiredPhConditionFields)
                 {
                     if (field != omitted)
                     {
@@ -584,7 +584,11 @@ namespace Opc.Ua.PADIM.Tests
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
             device.State.AssetId!.Value = $"asset:{device.State.NodeId}";
-            device.State.RevisionCounter!.Value = 0u;
+            device.State.RevisionCounter!.Value = 0;
         }
+
+        /// <summary>The mandatory condition fields required by the pH signal facet.</summary>
+        private static readonly string[] s_requiredPhConditionFields =
+            ["PhMeasuringMethod", "SensingElementTemperature"];
     }
 }

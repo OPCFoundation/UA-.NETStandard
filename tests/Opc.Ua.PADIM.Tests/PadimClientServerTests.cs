@@ -535,7 +535,7 @@ namespace Opc.Ua.PADIM.Tests
                                 {
                                     ArrayOf<ReferenceDescription> children = await client.BrowseChildrenAsync(
                                         signal.NodeId, timeout.Token);
-                                    ReferenceDescription primary = children.Single(child =>
+                                    ReferenceDescription primary = children.ToList().Single(child =>
                                         child.BrowseName.Name == "AnalogSignal");
                                     Assert.That(ExpandedNodeId.ToNodeId(
                                         primary.TypeDefinition, session.NamespaceUris), Is.EqualTo(
@@ -572,7 +572,7 @@ namespace Opc.Ua.PADIM.Tests
                         });
                         PadimPublishedSampleSet.AssertSample(
                             expected.Sample.WrappedValue, actual.Sample.WrappedValue, expected.Key);
-                        ReferenceDescription reference = references.Single(candidate =>
+                        ReferenceDescription reference = references.ToList().Single(candidate =>
                             ExpandedNodeId.ToNodeId(candidate.NodeId, session.NamespaceUris) == variableId);
                         Assert.That(ExpandedNodeId.ToNodeId(reference.TypeDefinition, session.NamespaceUris),
                             Is.EqualTo(MapNodeId(
@@ -684,7 +684,7 @@ namespace Opc.Ua.PADIM.Tests
             device.State.ProductCode!.Value = "fixture";
             device.State.ProductInstanceUri!.Value = $"urn:fixture:{device.State.NodeId}";
             device.State.AssetId!.Value = $"asset:{device.State.NodeId}";
-            device.State.RevisionCounter!.Value = 0u;
+            device.State.RevisionCounter!.Value = 0;
         }
 
         /// <summary>Returns the generated primary variable BrowseName for a signal family.</summary>
