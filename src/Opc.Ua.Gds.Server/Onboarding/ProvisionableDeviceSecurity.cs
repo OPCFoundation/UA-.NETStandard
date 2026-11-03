@@ -30,8 +30,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using ClientSession = Opc.Ua.Client.ISession;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Server.Onboarding
@@ -161,6 +163,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         ValueTask InstallAsync(
             ISystemContext context,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Installs credentials obtained by the local host through an encrypted registrar session.
+        /// The host selects the expected application URI from its configured registrar candidates.
+        /// The transport's actual certificate must match that URI and validate against the device's current
+        /// peer trust without auto-acceptance; discovery metadata alone never authorizes installation.
+        /// The session remains owned by its caller.
+        /// </summary>
+        ValueTask InstallFromPullAsync(
+            ClientSession registrarSession,
+            string expectedRegistrarApplicationUri,
             ProvisionableDeviceCredentials credentials,
             CancellationToken cancellationToken = default);
 
@@ -352,6 +367,70 @@ namespace Opc.Ua.Gds.Server.Onboarding
             await ExecuteSecurityTransitionAsync(
                 () => InstallCoreAsync(peer, pending, proposed, cancellationToken), cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask InstallFromPullAsync(
+            ClientSession registrarSession,
+            string expectedRegistrarApplicationUri,
+            ProvisionableDeviceCredentials credentials,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            if (registrarSession == null)
+            {
+                throw new ArgumentNullException(nameof(registrarSession));
+            }
+            if (!Uri.TryCreate(expectedRegistrarApplicationUri, UriKind.Absolute, out _))
+            {
+                throw new ArgumentException("An absolute registrar application URI is required.",
+                    nameof(expectedRegistrarApplicationUri));
+            }
+            if (credentials == null)
+            {
+                throw new ArgumentNullException(nameof(credentials));
+            }
+            var detached = new ProvisionableDeviceCredentials(
+                ByteString.From(credentials.Certificate.Span),
+                credentials.IssuerCertificates.ToList()
+                    .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf(),
+                CoreUtils.Clone(credentials.TrustList) ??
+                    throw new ArgumentException("A complete trust list is required.", nameof(credentials)));
+            await using SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
+                registrarSession, cancellationToken).ConfigureAwait(false);
+            ITransportChannel channel = dispatch.Session.TransportChannel;
+            ByteString capturedPeer = ByteString.From(channel.ServerChannelCertificate.AsSpan());
+            if (capturedPeer.IsEmpty)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(capturedPeer.Memory);
+            if (chain.Count == 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+            }
+            ByteString peer = ByteString.From(chain[0].RawData.AsSpan());
+            if (!string.Equals(channel.EndpointDescription.Server.ApplicationUri,
+                    expectedRegistrarApplicationUri, StringComparison.Ordinal) ||
+                !X509Utils.GetApplicationUrisFromCertificate(chain[0]).Contains(expectedRegistrarApplicationUri))
+            {
+                throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid);
+            }
+            var pending = new Checkpoint(ProvisionableDeviceSecurityStage.Installing, peer, detached);
+            byte[] proposed = Encode(pending);
+            await ExecuteSecurityTransitionAsync(async () =>
+            {
+                CertificateValidationResult result = await m_certificates.ValidateAsync(
+                    chain, TrustListIdentifier.Peers, StrictValidationOptions(), cancellationToken)
+                    .ConfigureAwait(false);
+                result.ThrowIfInvalid();
+                if (dispatch.Invalidated.IsCompleted ||
+                    !capturedPeer.Span.SequenceEqual(channel.ServerChannelCertificate))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+                }
+                await InstallCoreAsync(peer, pending, proposed, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -754,10 +833,19 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "A complete trust list is required.");
             }
+            return StrictValidationOptions(new CertificateValidationScope(
+                trust.TrustedCertificates, trust.IssuerCertificates,
+                (trust.TrustedCrls.ToArray() ?? []).Concat(trust.IssuerCrls.ToArray() ?? []).ToArrayOf()));
+        }
+
+        /// <summary>
+        /// Requires the selected trust scope or the configured peer stores without interactive acceptance.
+        /// </summary>
+        private static ValidationOptions StrictValidationOptions(CertificateValidationScope? scope = null)
+        {
             return new ValidationOptions
             {
-                TrustScope = new CertificateValidationScope(trust.TrustedCertificates, trust.IssuerCertificates,
-                    (trust.TrustedCrls.ToArray() ?? []).Concat(trust.IssuerCrls.ToArray() ?? []).ToArrayOf()),
+                TrustScope = scope,
                 AutoAcceptUntrustedCertificates = false,
                 AcceptError = static (_, _) => false,
                 RecordRejectedCertificates = false,

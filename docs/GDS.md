@@ -820,6 +820,35 @@ Restart preserves that owner without invoking credential installation, and
 security reset releases the claim. Security checkpoints support versions 1
 through 3; the configuration-owner state requires version 2 or later.
 
+For device-initiated installation, `InstallFromPullAsync` borrows an encrypted
+stack session and checks the transport's actual registrar certificate against
+the expected application URI and the device's current peer trust. It does not
+accept discovery certificates or invoke an untrusted-certificate acceptance
+callback. The local host selects the registrar from its persisted candidates
+before connecting, for example with `PullDcaRegistrarSelection.SelectConfigured`.
+The method uses the same installation checkpoint and platform installer as
+inbound provisioning; the host does not fabricate an inbound administrator
+context or replace certificate stores independently.
+
+A pull credential provider can forward the downloaded public credentials to the
+shared device-security owner. The existing private key must remain in the
+device installer's configured application store:
+
+```csharp
+await deviceSecurity.InstallFromPullAsync(
+    registrarSession,
+    configuredRegistrarApplicationUri,
+    new ProvisionableDeviceCredentials(
+        downloaded.Certificate,
+        downloaded.IssuerCertificates,
+        downloaded.TrustList),
+    cancellationToken);
+```
+
+This API does not start outbound connections or retain unfinished certificate
+requests. The connected `OnboardingDevice` sample does not yet initiate pull
+onboarding.
+
 Use `RequireInstalledRegistrarAsync` when access requires an already configured
 DCA. It checks the installed state and registrar trust together, without
 claiming an unconfigured device. Reading `GetStageAsync` and then calling

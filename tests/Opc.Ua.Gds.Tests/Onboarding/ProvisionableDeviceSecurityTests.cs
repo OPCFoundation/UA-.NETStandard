@@ -31,11 +31,13 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client.Tests.SessionContexts;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Tests;
+using ClientSession = Opc.Ua.Client.ISession;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -109,6 +111,196 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
             m_installer.Verify(value => value.InstallAsync(
                 It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Pull installation uses the authenticated transport rather than its advertised certificate,
+        /// preserves caller ownership and detaches credentials before asynchronous validation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PullInstallationUsesActualRegistrarAndRetainsBorrowedSession(bool managed)
+        {
+            await using SessionRequestContextTestContext session = PullSession();
+            using var security = Create();
+            ProvisionableDeviceCredentials credentials = Credentials();
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.Is<CertificateCollection>(chain => chain[0].Thumbprint == m_firstRegistrar.Thumbprint),
+                    TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == null &&
+                        options.AutoAcceptUntrustedCertificates == false &&
+                        options.RejectUnknownRevocationStatus == true),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => credentials.TrustList.SpecifiedLists = 0)
+                .ReturnsAsync(CertificateValidationResult.Success);
+            ClientSession borrowed = managed ? session.ManagedSession : session.InnerSession;
+
+            await security.InstallFromPullAsync(borrowed, "urn:first:registrar", credentials).ConfigureAwait(false);
+
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.Is<ProvisionableDeviceCredentials>(installed =>
+                    installed.Certificate == credentials.Certificate &&
+                    installed.TrustList.SpecifiedLists == (uint)TrustListMasks.All),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(session.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
+            Assert.That(session.Requests.Exists(static request => request is CloseSessionRequest), Is.False);
+        }
+
+        /// <summary>
+        /// An insecure channel, absent transport certificate or mismatched registrar identity cannot claim state.
+        /// </summary>
+        [TestCase("unencrypted")]
+        [TestCase("none-policy")]
+        [TestCase("missing-certificate")]
+        [TestCase("endpoint-uri")]
+        [TestCase("certificate-uri")]
+        public async Task PullInstallationRejectsInvalidRegistrarEvidenceBeforeChangingState(string scenario)
+        {
+            await using SessionRequestContextTestContext session = PullSession();
+            EndpointDescription endpoint = session.Channel.Object.EndpointDescription;
+            string expectedUri = "urn:first:registrar";
+            StatusCode expected;
+            switch (scenario)
+            {
+                case "unencrypted":
+                    endpoint.SecurityMode = MessageSecurityMode.Sign;
+                    expected = StatusCodes.BadSecurityModeInsufficient;
+                    break;
+                case "none-policy":
+                    endpoint.SecurityPolicyUri = SecurityPolicies.None;
+                    expected = StatusCodes.BadSecurityModeInsufficient;
+                    break;
+                case "missing-certificate":
+                    session.Channel.SetupGet(value => value.ServerChannelCertificate).Returns(Array.Empty<byte>());
+                    expected = StatusCodes.BadCertificateInvalid;
+                    break;
+                case "endpoint-uri":
+                    endpoint.Server.ApplicationUri = "urn:other:registrar";
+                    expected = StatusCodes.BadCertificateUriInvalid;
+                    break;
+                case "certificate-uri":
+                    expectedUri = "urn:other:registrar";
+                    endpoint.Server.ApplicationUri = expectedUri;
+                    expected = StatusCodes.BadCertificateUriInvalid;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scenario));
+            }
+            using var security = Create();
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallFromPullAsync(session.ManagedSession, expectedUri, Credentials())
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_certificates.VerifyNoOtherCalls();
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Session recreation or replacement of the actual peer during trust validation rejects installation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PullInstallationRejectsChangedAuthenticatedGeneration(bool replacePeer)
+        {
+            await using SessionRequestContextTestContext session = PullSession();
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == null),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    if (replacePeer)
+                    {
+                        session.Channel.SetupGet(value => value.ServerChannelCertificate)
+                            .Returns(m_otherRegistrar.RawData);
+                    }
+                    else
+                    {
+                        session.Recreate();
+                    }
+                })
+                .ReturnsAsync(CertificateValidationResult.Success);
+            using var security = Create();
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallFromPullAsync(session.ManagedSession, "urn:first:registrar", Credentials())
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A registrar rejected by current peer trust cannot become the device's first installation owner.
+        /// </summary>
+        [Test]
+        public async Task PullInstallationPreservesRegistrarTrustFailureWithoutClaimingState()
+        {
+            await using SessionRequestContextTestContext session = PullSession();
+            var expected = new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.Is<ValidationOptions>(options => options.TrustScope == null),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(expected);
+            using var security = Create();
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.InstallFromPullAsync(session.ManagedSession, "urn:first:registrar", Credentials())
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure, Is.SameAs(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Interrupted pull installation keeps its actual registrar owner and recovers through the same checkpoint.
+        /// </summary>
+        [Test]
+        public async Task InterruptedPullInstallationRetainsOwnerAcrossProviderRecreation()
+        {
+            await using SessionRequestContextTestContext session = PullSession();
+            var expected = new IOException("The device installer was interrupted.");
+            m_installer.Setup(value => value.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Throws(expected);
+            using (var security = Create())
+            {
+                IOException? failure = await Assert.ThrowsAsync<IOException>(async () =>
+                    await security.InstallFromPullAsync(session.ManagedSession, "urn:first:registrar", Credentials())
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure, Is.SameAs(expected));
+                Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                    Is.EqualTo(ProvisionableDeviceSecurityStage.Installing));
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            m_installer.Setup(value => value.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            using var restarted = Create();
+
+            await restarted.RecoverAsync().ConfigureAwait(false);
+
+            Assert.That(await restarted.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         /// <summary>
@@ -1321,6 +1513,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<CancellationToken>()), Times.Once);
             Assert.That(await provider.GetRequiredService<IProvisionableDeviceSecurity>().GetStageAsync()
                 .ConfigureAwait(false), Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+        }
+
+        /// <summary>
+        /// Creates an encrypted stack session whose advertised and authenticated peer certificates differ.
+        /// </summary>
+        private SessionRequestContextTestContext PullSession()
+        {
+            var session = new SessionRequestContextTestContext(securityMode: MessageSecurityMode.SignAndEncrypt);
+            session.Channel.Object.EndpointDescription.Server.ApplicationUri = "urn:first:registrar";
+            session.Channel.Object.EndpointDescription.ServerCertificate = Encoded(m_otherRegistrar);
+            session.Channel.SetupGet(value => value.ServerChannelCertificate).Returns(m_firstRegistrar.RawData);
+            return session;
         }
 
         /// <summary>
