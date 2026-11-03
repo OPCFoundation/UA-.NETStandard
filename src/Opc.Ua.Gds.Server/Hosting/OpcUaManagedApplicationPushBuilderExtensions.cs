@@ -118,7 +118,9 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-#pragma warning disable CA2000 // Ownership transfers to the server; TODO: teach the analyzer ValueTask ownership.
+                // MasterNodeManager owns and disposes this manager; no push bindings exist before it does.
+                // TODO: Remove this suppression when CA2000 recognizes ownership through ValueTask.
+#pragma warning disable CA2000 // Ownership transfers to MasterNodeManager; see the comment above.
                 return new ValueTask<IAsyncNodeManager>(
                     new DefaultManagedApplicationsNodeManager(server, configuration, m_provider));
 #pragma warning restore CA2000
