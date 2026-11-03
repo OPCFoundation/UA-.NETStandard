@@ -241,10 +241,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(content, Does.Contain("ValueTask<uint> ExecuteAsync("));
-            Assert.That(content, Does.Contain("StatusCode CallStatus_, uint CallStatus)> ExecuteWithStatusAsync("));
+            Assert.That(content, Does.Contain("StatusCode CallStatus, uint callStatusOut)> ExecuteWithStatusAsync("));
             Assert.That(content, Does.Contain("int _callStatus,"));
             Assert.That(content, Does.Contain("var (_callStatus_, _outputArguments)"));
-            Assert.That(content, Does.Contain("return (_callStatus_, _CallStatus);"));
+            Assert.That(content, Does.Contain("return (_callStatus_, _callStatusOut);"));
         }
 
         [Test]

@@ -367,6 +367,15 @@ namespace Opc.Ua.ECM.Tests
                 standby.CreateChild(context, new QualifiedName(
                     Di.BrowseNames.Lock, context.NamespaceUris.GetIndexOrAppend(Di.Namespaces.OpcUaDi)));
                 Assert.That(standby.Lock, Is.Not.Null);
+                var lockState = Required(standby.Lock);
+                lockState.InitLock = new Di.InitLockMethodState(lockState);
+                lockState.RenewLock = new Di.RenewLockMethodState(lockState);
+                lockState.ExitLock = new Di.ExitLockMethodState(lockState);
+                lockState.BreakLock = new Di.BreakLockMethodState(lockState);
+                lockState.Locked = PropertyState<bool>.With<VariantBuilder>(lockState);
+                lockState.LockingClient = PropertyState<string>.With<VariantBuilder>(lockState);
+                lockState.LockingUser = PropertyState<string>.With<VariantBuilder>(lockState);
+                lockState.RemainingLockTime = PropertyState<double>.With<VariantBuilder>(lockState);
             }
 
             InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>

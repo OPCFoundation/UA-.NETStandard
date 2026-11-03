@@ -162,9 +162,29 @@ namespace Opc.Ua.ECM.IntegrationTests
                         }
                         finally
                         {
-                            if (Directory.Exists(m_pkiRoot))
+                            try
                             {
-                                Directory.Delete(m_pkiRoot, recursive: true);
+                                if (m_binding != null)
+                                {
+                                    await m_binding.DisposeAsync().ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                try
+                                {
+                                    if (m_wol != null)
+                                    {
+                                        await m_wol.DisposeAsync().ConfigureAwait(false);
+                                    }
+                                }
+                                finally
+                                {
+                                    if (Directory.Exists(m_pkiRoot))
+                                    {
+                                        Directory.Delete(m_pkiRoot, recursive: true);
+                                    }
+                                }
                             }
                         }
                     }
