@@ -37,6 +37,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Executes an operation that returns a typed result.
         /// </summary>
+        /// <typeparam name="T">The operation result type.</typeparam>
         ValueTask<T> ExecuteAsync<T>(
             Func<ValueTask<T>> operation,
             CancellationToken cancellationToken = default);

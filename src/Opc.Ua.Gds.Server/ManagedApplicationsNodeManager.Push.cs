@@ -248,8 +248,10 @@ namespace Opc.Ua.Gds.Server
 
         /// <summary>The externally owned application runtime provider.</summary>
         private readonly IManagedApplicationPushProvider? m_pushProvider;
+
         /// <summary>The management server's configuration, excluded from child application security.</summary>
         private readonly ApplicationConfiguration m_managementConfiguration;
+
         /// <summary>The independent engines owned by this node manager.</summary>
         private readonly List<ApplicationConfigurationPushBinding> m_pushBindings = [];
     }

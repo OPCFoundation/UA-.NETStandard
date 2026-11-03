@@ -303,6 +303,7 @@ namespace Opc.Ua.Server
 
         /// <summary>The application-specific effects provider, absent for the management server's own engine.</summary>
         private IApplicationConfigurationPushTarget? m_applicationPushTarget;
+
         /// <summary>The optional deployment admission shared by calls, registry reload and runtime effects.</summary>
         private IApplicationConfigurationPushOperations? m_applicationOperations;
     }

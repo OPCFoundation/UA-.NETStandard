@@ -114,10 +114,20 @@ namespace Opc.Ua.Server
                     });
                 m_manager.BindApplicationConfiguration(context, node, target, this);
             }
-            catch
+            catch (Exception error)
             {
-                m_manager?.Dispose();
-                ReleaseRegistration();
+                try
+                {
+                    m_manager?.Dispose();
+                }
+                catch (Exception cleanupError)
+                {
+                    throw new AggregateException(error, cleanupError);
+                }
+                finally
+                {
+                    ReleaseRegistration();
+                }
                 throw;
             }
         }
@@ -174,6 +184,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Keeps the push engine alive for the entire asynchronous method call.
         /// </summary>
+        /// <typeparam name="T">The method result type.</typeparam>
         internal async ValueTask<T> RunAsync<T>(
             Func<ValueTask<T>> action,
             CancellationToken cancellationToken = default)
@@ -237,7 +248,14 @@ namespace Opc.Ua.Server
                 await CompleteAsync(() => new ValueTask(m_manager.DrainPendingApplyChangesAsync()))
                     .ConfigureAwait(false);
                 await CompleteAsync(((INodeManagerShutdown)m_manager).PrepareForShutdownAsync).ConfigureAwait(false);
-                await CompleteAsync(m_manager.DisposeAsync).ConfigureAwait(false);
+                try
+                {
+                    await m_manager.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception error)
+                {
+                    errors.Add(error);
+                }
             }
             finally
             {
@@ -384,29 +402,39 @@ namespace Opc.Ua.Server
 
             /// <summary>Serializes security reservations without exposing synchronization to callers.</summary>
             private readonly Lock m_sync = new();
+
             /// <summary>The configurations and pending keys reserved until their bindings have drained.</summary>
             private readonly Dictionary<ApplicationConfiguration, IPendingCertificateKeyStore> m_applications = [];
         }
 
         /// <summary>The externally owned application runtime.</summary>
         private readonly IApplicationConfigurationPushTarget m_target;
+
         /// <summary>The deployment admission shared by calls and deferred effects.</summary>
         private readonly IApplicationConfigurationPushOperations? m_operations;
+
         /// <summary>The binding-owned push engine.</summary>
         private readonly ConfigurationNodeManager m_manager;
+
         /// <summary>The management server's active security reservations.</summary>
         private readonly BindingRegistry m_registry;
+
         /// <summary>Serializes dispatch admission and shutdown state.</summary>
         private readonly Lock m_lifetime = new();
+
         /// <summary>Completes once stopped dispatch has no active calls.</summary>
         private readonly TaskCompletionSource<bool> m_drained =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         /// <summary>The count of admitted calls still using the engine.</summary>
         private int m_activeCalls;
+
         /// <summary>Whether shutdown has stopped new dispatch.</summary>
         private bool m_stopping;
+
         /// <summary>The shared asynchronous disposal completion.</summary>
         private Task? m_disposal;
+
         /// <summary>Associates live security reservations with their management server.</summary>
         private static readonly ConditionalWeakTable<IServerInternal, BindingRegistry> s_registries = new();
     }

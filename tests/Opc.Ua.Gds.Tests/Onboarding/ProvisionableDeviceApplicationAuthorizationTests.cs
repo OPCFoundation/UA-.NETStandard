@@ -172,6 +172,68 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Typed calls and deferred effects use the same deployment provider with their original cancellation.
+        /// </summary>
+        [Test]
+        public async Task ApplicationOperationsPreserveDeploymentAdmissionAndCancellation()
+        {
+            using var cancellation = new CancellationTokenSource();
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            int calls = 0;
+            Func<ValueTask<int>> call = () => new ValueTask<int>(++calls);
+            Func<ValueTask> effect = () =>
+            {
+                calls++;
+                return default;
+            };
+            operations.Setup(value => value.ExecuteAsync(call, cancellation.Token))
+                .Returns((Func<ValueTask<int>> action, CancellationToken _) => action());
+            operations.Setup(value => value.ExecuteAsync(effect, cancellation.Token))
+                .Returns((Func<ValueTask> action, CancellationToken _) => action());
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            security.Setup(value => value.CreateApplicationOperations()).Returns(operations.Object);
+            var authorization = new ProvisionableDeviceApplicationAuthorization("urn:application", security.Object);
+
+            int result = await authorization.ExecuteAsync(call, cancellation.Token).ConfigureAwait(false);
+            await authorization.ExecuteAsync(effect, cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(1));
+            Assert.That(calls, Is.EqualTo(2));
+            security.Verify(value => value.CreateApplicationOperations(), Times.Once);
+            operations.Verify(value => value.ExecuteAsync(call, cancellation.Token), Times.Once);
+            operations.Verify(value => value.ExecuteAsync(effect, cancellation.Token), Times.Once);
+            security.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A revoked deployment rejects a deferred effect before invoking the target runtime.
+        /// </summary>
+        [Test]
+        public async Task RejectedDeploymentDoesNotInvokeApplicationEffect()
+        {
+            bool invoked = false;
+            Func<ValueTask> effect = () =>
+            {
+                invoked = true;
+                return default;
+            };
+            var expected = new ServiceResultException(StatusCodes.BadInvalidState);
+            var operations = new Mock<IApplicationConfigurationPushOperations>(MockBehavior.Strict);
+            operations.Setup(value => value.ExecuteAsync(effect, It.IsAny<CancellationToken>())).Throws(expected);
+            var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
+            security.Setup(value => value.CreateApplicationOperations()).Returns(operations.Object);
+            var authorization = new ProvisionableDeviceApplicationAuthorization("urn:application", security.Object);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await authorization.ExecuteAsync(effect).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(failure, Is.SameAs(expected));
+            Assert.That(invoked, Is.False);
+            security.Verify(value => value.CreateApplicationOperations(), Times.Once);
+            security.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// The fluent registration uses the supplied runtime provider without constructing replacement security.
         /// </summary>
         [Test]

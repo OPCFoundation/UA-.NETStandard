@@ -959,19 +959,26 @@ namespace Opc.Ua.Gds.Tests
 
             /// <summary>The isolated test store root.</summary>
             private readonly string m_root;
+
             /// <summary>The target-owned certificate manager.</summary>
             private readonly CertificateManager m_certificates;
+
             /// <summary>Protects effect snapshots while asynchronous enforcement updates them.</summary>
             private readonly Lock m_effects = new();
+
             /// <summary>The activated certificate groups.</summary>
             private readonly List<NodeId> m_activatedGroups = [];
+
             /// <summary>The public certificates supplied for channel retirement.</summary>
             private readonly List<ApplicationCertificateRotation> m_previousCertificates = [];
+
             /// <summary>The observed target trust effects.</summary>
             private readonly List<TrustListChangeEffect> m_trustEffects = [];
+
             /// <summary>Signals target certificate activation without polling the live registry.</summary>
             private readonly TaskCompletionSource<bool> m_activation =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             /// <summary>Signals target trust revalidation without polling effect state.</summary>
             private readonly TaskCompletionSource<bool> m_trustActivation =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -95,12 +95,16 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The application URI checked by software management.</summary>
         private readonly string m_applicationUri;
+
         /// <summary>The installed DCA trust authority.</summary>
         private readonly IProvisionableDeviceSecurity m_security;
+
         /// <summary>The deployment-bound operation provider, revoked by device reset.</summary>
         private readonly IApplicationConfigurationPushOperations m_operations;
+
         /// <summary>The optional deployment-owned software prerequisite.</summary>
         private readonly IProvisionableDeviceSoftwareUpdatePolicy? m_softwareUpdates;
+
         /// <summary>The target application's additional access policy.</summary>
         private readonly IPushConfigurationAuthorization? m_applicationAuthorization;
     }

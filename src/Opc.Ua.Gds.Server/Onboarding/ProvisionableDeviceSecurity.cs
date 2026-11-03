@@ -511,6 +511,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Rechecks the deployment and installed credentials before invoking application store or runtime effects.
         /// Authorization within the operation still validates the actual calling registrar.
         /// </summary>
+        /// <typeparam name="T">The operation result type.</typeparam>
         private async ValueTask<T> ExecuteApplicationOperationAsync<T>(
             ApplicationEpoch epoch,
             Func<ValueTask<T>> operation,
@@ -961,8 +962,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The local serialization gate, not a distributed transaction.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>Orders application operations and platform security transitions.</summary>
         private readonly SemaphoreSlim m_applicationGate = new(1, 1);
+
         /// <summary>The current deployment identity, replaced when reset intent becomes durable.</summary>
         private ApplicationEpoch m_applicationEpoch = new();
 
