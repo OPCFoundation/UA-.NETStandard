@@ -261,11 +261,13 @@ namespace Opc.Ua.AMB.Tests
                 Is.Null);
         }
 
-        [Test]
-        public async Task PatchIdentifiersUpdateBesideSoftwareRevisionInIdentificationAsync()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task PatchIdentifiersUpdateBesideSoftwareRevisionInIdentificationAsync(bool initiallyIndexed)
         {
             BaseObjectState? machine = null;
             PropertyState? existingPatchIdentifiers = null;
+            NodeId originalId = NodeId.Null;
             await using AmbHostedServer server = await AmbHostedServer.StartAsync(
                 nameof(PatchIdentifiersUpdateBesideSoftwareRevisionInIdentificationAsync),
                 builder => builder
@@ -296,7 +298,14 @@ namespace Opc.Ua.AMB.Tests
                             context,
                             identification,
                             diNamespaceIndex,
-                            ["existing-patch"]);
+                            ["existing-patch"],
+                            initiallyIndexed);
+                        originalId = existingPatchIdentifiers.NodeId;
+                        Assert.That(
+                            context.Manager.FindPredefinedNode<PropertyState>(originalId) != null,
+                            Is.EqualTo(initiallyIndexed));
+                        existingPatchIdentifiers.AddReference(
+                            Ua.ReferenceTypeIds.Organizes, false, machine.NodeId);
                         await context.Assets.RegisterAssetAsync(
                             node,
                             asset => asset.WithVersionInformation(
@@ -315,11 +324,21 @@ namespace Opc.Ua.AMB.Tests
                 server.Manager.SystemContext,
                 Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers))!;
             ArrayOf<string> expected = ["fixture-only-patch"];
+            IReadOnlyList<ReferenceDescription> browsed = await server.BrowseAsync(
+                group.NodeId, Ua.ReferenceTypeIds.HasProperty).ConfigureAwait(false);
+            DataValue read = await server.ReadAsync(originalId).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(patchIdentifiers.Parent, Is.SameAs(group));
                 Assert.That(patchIdentifiers, Is.SameAs(existingPatchIdentifiers));
+                Assert.That(patchIdentifiers.NodeId, Is.EqualTo(originalId));
+                Assert.That(browsed.Any(reference => server.ToNodeId(reference.NodeId) == originalId), Is.True);
+                Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.WrappedValue.TryGetValue(out ArrayOf<string> readValues), Is.True);
+                Assert.That(readValues, Is.EqualTo(expected));
+                Assert.That(patchIdentifiers.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, asset.NodeId), Is.True);
                 Assert.That(
                     server.Server.NamespaceUris.GetString(patchIdentifiers.BrowseName.NamespaceIndex),
                     Is.EqualTo(Opc.Ua.Di.Namespaces.OpcUaDi));
@@ -330,11 +349,14 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
-        [Test]
-        public async Task PatchIdentifiersMoveBesideGroupedSoftwareRevisionWhenInitiallyOnAssetAsync()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task PatchIdentifiersMoveBesideGroupedSoftwareRevisionWhenInitiallyOnAssetAsync(
+            bool initiallyIndexed)
         {
             BaseObjectState? machine = null;
             PropertyState? existingPatchIdentifiers = null;
+            NodeId originalId = NodeId.Null;
             await using AmbHostedServer server = await AmbHostedServer.StartAsync(
                 nameof(PatchIdentifiersMoveBesideGroupedSoftwareRevisionWhenInitiallyOnAssetAsync),
                 builder => builder
@@ -352,7 +374,14 @@ namespace Opc.Ua.AMB.Tests
                             context,
                             machine,
                             diNamespaceIndex,
-                            ["existing-patch"]);
+                            ["existing-patch"],
+                            initiallyIndexed);
+                        originalId = existingPatchIdentifiers.NodeId;
+                        Assert.That(
+                            context.Manager.FindPredefinedNode<PropertyState>(originalId) != null,
+                            Is.EqualTo(initiallyIndexed));
+                        existingPatchIdentifiers.AddReference(
+                            Ua.ReferenceTypeIds.Organizes, false, machine.NodeId);
                         var identification = (BaseObjectState)machine.FindChild(
                             context.Manager.SystemContext,
                             new QualifiedName("Identification", diNamespaceIndex))!;
@@ -384,6 +413,11 @@ namespace Opc.Ua.AMB.Tests
                 server.Manager.SystemContext,
                 Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers))!;
             ArrayOf<string> expected = ["fixture-only-patch"];
+            IReadOnlyList<ReferenceDescription> browsed = await server.BrowseAsync(
+                group.NodeId, Ua.ReferenceTypeIds.HasProperty).ConfigureAwait(false);
+            IReadOnlyList<ReferenceDescription> previous = await server.BrowseAsync(
+                asset.NodeId, Ua.ReferenceTypeIds.HasProperty).ConfigureAwait(false);
+            DataValue read = await server.ReadAsync(originalId).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -392,6 +426,14 @@ namespace Opc.Ua.AMB.Tests
                     Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers)), Is.Null);
                 Assert.That(patchIdentifiers.Parent, Is.SameAs(group));
                 Assert.That(patchIdentifiers, Is.SameAs(existingPatchIdentifiers));
+                Assert.That(patchIdentifiers.NodeId, Is.EqualTo(originalId));
+                Assert.That(browsed.Any(reference => server.ToNodeId(reference.NodeId) == originalId), Is.True);
+                Assert.That(previous.Any(reference => server.ToNodeId(reference.NodeId) == originalId), Is.False);
+                Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.WrappedValue.TryGetValue(out ArrayOf<string> readValues), Is.True);
+                Assert.That(readValues, Is.EqualTo(expected));
+                Assert.That(patchIdentifiers.ReferenceExists(
+                    Ua.ReferenceTypeIds.Organizes, false, asset.NodeId), Is.True);
                 Assert.That(
                     patchIdentifiers.WrappedValue.TryGetValue(out ArrayOf<string> values),
                     Is.True);
@@ -1042,7 +1084,8 @@ namespace Opc.Ua.AMB.Tests
             IAssetManagementSetupContext context,
             BaseObjectState parent,
             ushort namespaceIndex,
-            ArrayOf<string> value)
+            ArrayOf<string> value,
+            bool register = true)
         {
             var property = new PropertyState(parent)
             {
@@ -1059,7 +1102,10 @@ namespace Opc.Ua.AMB.Tests
             };
             property.NodeId = context.Manager.New(context.Manager.SystemContext, property);
             parent.AddChild(property);
-            context.Manager.AddNode(property);
+            if (register)
+            {
+                context.Manager.AddNode(property);
+            }
             return property;
         }
 

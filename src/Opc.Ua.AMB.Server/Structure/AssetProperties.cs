@@ -133,6 +133,7 @@ namespace Opc.Ua.AMB.Server.Structure
 
         /// <summary>
         /// Finds or creates a DI property beside an existing DI property.
+        /// Registers the asset subtree so an attached but unindexed parent or property is service-visible.
         /// </summary>
         /// <param name="handle">The asset.</param>
         /// <param name="name">The DI browse name.</param>
@@ -195,6 +196,7 @@ namespace Opc.Ua.AMB.Server.Structure
                 target.WrappedValue = value;
                 target.Timestamp = DateTimeUtc.Now;
                 target.ClearChangeMasks(handle.Context, false);
+                handle.Owner.AddNode(handle.Asset);
                 return target;
             }
 
@@ -211,6 +213,7 @@ namespace Opc.Ua.AMB.Server.Structure
             variable.WrappedValue = value;
             variable.Timestamp = DateTimeUtc.Now;
             AssetNodes.Register(handle, variable);
+            handle.Owner.AddNode(handle.Asset);
             return variable;
         }
 
