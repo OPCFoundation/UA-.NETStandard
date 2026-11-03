@@ -370,16 +370,18 @@ namespace Opc.Ua.PADIM.Client
             foreach (ExpandedNodeId id in required.KnownTypeIds)
             {
                 if (required.TryGetEncodeableType(id, out IEncodeableType? structure) &&
-                    factory.TryGetEncodeableType(id, out _) &&
+                    factory.TryGetEncodeableType(id, out IEncodeableType? actualStructure) &&
+                    actualStructure.Type == structure.Type &&
                     factory.TryGetType(structure.XmlName, out IType? xmlStructure) &&
-                    xmlStructure is IEncodeableType)
+                    xmlStructure is IEncodeableType && xmlStructure.Type == structure.Type)
                 {
                     continue;
                 }
                 if (required.TryGetEnumeratedType(id, out IEnumeratedType? enumeration) &&
-                    factory.TryGetEnumeratedType(id, out _) &&
+                    factory.TryGetEnumeratedType(id, out IEnumeratedType? actualEnumeration) &&
+                    actualEnumeration.Type == enumeration.Type &&
                     factory.TryGetType(enumeration.XmlName, out IType? xmlEnumeration) &&
-                    xmlEnumeration is IEnumeratedType)
+                    xmlEnumeration is IEnumeratedType && xmlEnumeration.Type == enumeration.Type)
                 {
                     continue;
                 }

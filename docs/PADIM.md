@@ -310,11 +310,15 @@ as `ChemicalSubstance`. The built-in factory checks for existing mappings under
 the same commit gate used by other registrations; construction does not replace
 caller-provided mappings, including mappings committed concurrently by another
 library. A later ordinary `Commit()` can still replace them.
-Construction checks the required mapping kinds after registration. If a
-caller-provided identifier or XML name has the wrong kind, construction throws
+Construction checks the required mapping kinds and declared .NET types after
+registration. If a caller-provided identifier or XML name has the wrong kind
+or declares a different .NET type, construction throws
 `InvalidOperationException` without replacing that mapping. Missing mappings
 already added by the commit remain registered; construction does not roll them
 back. This check is not a reservation against later caller changes.
+Custom activators declaring the expected generated PA-DIM type remain in place.
+They must return instances of that type from `CreateInstance`; construction
+does not invoke custom activators to verify their behavior.
 
 A third-party factory with every required PA-DIM mapping is reused without
 modification. If mappings are missing and its builder does not implement

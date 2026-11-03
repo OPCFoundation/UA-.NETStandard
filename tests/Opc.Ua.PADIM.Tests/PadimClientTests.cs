@@ -109,8 +109,11 @@ namespace Opc.Ua.PADIM.Tests
                 DataTypeIds.PatDictionaryEnum, out IEnumeratedType? generatedEnum), Is.True);
             var custom = new Mock<IEncodeableType>();
             custom.SetupGet(type => type.XmlName).Returns(generated!.XmlName);
+            custom.SetupGet(type => type.Type).Returns(typeof(ChemicalSubstance));
+            custom.Setup(type => type.CreateInstance()).Returns(() => new ChemicalSubstance());
             var customEnum = new Mock<IEnumeratedType>();
             customEnum.SetupGet(type => type.XmlName).Returns(generatedEnum!.XmlName);
+            customEnum.SetupGet(type => type.Type).Returns(typeof(PatDictionaryEnum));
             ExpandedNodeId registeredId = structureIds[structureIdIndex];
             factory.Builder.AddEncodeableType(registeredId, custom.Object)
                 .AddEnumeratedType(DataTypeIds.PatDictionaryEnum, customEnum.Object).Commit();
@@ -137,7 +140,97 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(factory.TryGetType(customEnum.Object.XmlName, out IType? xmlEnum), Is.True);
                 Assert.That(xmlEnum, Is.SameAs(customEnum.Object));
             }
+            using var encoder = new BinaryEncoder(session.Object.MessageContext);
+            encoder.WriteVariant(null, Variant.From(new ExtensionObject(new ChemicalSubstance
+            {
+                PatDictionary = PatDictionaryEnum.CAS,
+                Label = new LocalizedText("custom activator"),
+                Id = new LocalizedText("PAT-CUSTOM")
+            })));
+            using var decoder = new BinaryDecoder(
+                encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded PAT sample."),
+                session.Object.MessageContext);
+            Variant decoded = decoder.ReadVariant(null);
+            Assert.That(decoded.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? substance), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(substance!.PatDictionary, Is.EqualTo(PatDictionaryEnum.CAS));
+                Assert.That(substance.Label.Text, Is.EqualTo("custom activator"));
+                Assert.That(substance.Id.Text, Is.EqualTo("PAT-CUSTOM"));
+            });
+            if (structureIdIndex == 1)
+            {
+                custom.Verify(type => type.CreateInstance(), Times.Once);
+            }
             session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Rejects different structure representations for binary or XML mappings without replacing them.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConstructionRejectsIncompatibleStructureTypes(bool xmlNameCollision)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Mock<ISession> session = CreateSession(ServiceMessageContext.CreateEmpty(telemetry).Factory);
+            IEncodeableFactory factory = session.Object.MessageContext.Factory;
+            IEncodeableFactory required = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            required.Builder.AddOpcUaPADIM().Commit();
+            Assert.That(required.TryGetEncodeableType(
+                DataTypeIds.ChemicalSubstance, out IEncodeableType? generated), Is.True);
+            var incompatible = new Mock<IEncodeableType>();
+            incompatible.SetupGet(type => type.Type).Returns(typeof(Argument));
+            incompatible.Setup(type => type.CreateInstance()).Returns(() => new Argument());
+            incompatible.SetupGet(type => type.XmlName).Returns(xmlNameCollision
+                ? generated!.XmlName
+                : new System.Xml.XmlQualifiedName("CallerStructure", "urn:padim:caller"));
+            ExpandedNodeId id = xmlNameCollision
+                ? new ExpandedNodeId("CallerStructure", "urn:padim:caller")
+                : ObjectIds.ChemicalSubstance_Encoding_DefaultBinary;
+            factory.Builder.AddEncodeableType(id, incompatible.Object).Commit();
+
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+
+            Assert.That(factory.TryGetEncodeableType(id, out IEncodeableType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(incompatible.Object));
+            Assert.That(factory.TryGetType(incompatible.Object.XmlName, out IType? xml), Is.True);
+            Assert.That(xml, Is.SameAs(incompatible.Object));
+            incompatible.Verify(type => type.CreateInstance(), Times.Never);
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Rejects different enum representations for identifiers or XML names without replacing them.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConstructionRejectsIncompatibleEnumerationTypes(bool xmlNameCollision)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Mock<ISession> session = CreateSession(ServiceMessageContext.CreateEmpty(telemetry).Factory);
+            IEncodeableFactory factory = session.Object.MessageContext.Factory;
+            IEncodeableFactory required = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            required.Builder.AddOpcUaPADIM().Commit();
+            Assert.That(required.TryGetEnumeratedType(
+                DataTypeIds.PatDictionaryEnum, out IEnumeratedType? generated), Is.True);
+            var incompatible = new Mock<IEnumeratedType>();
+            incompatible.SetupGet(type => type.Type).Returns(typeof(DayOfWeek));
+            incompatible.SetupGet(type => type.XmlName).Returns(xmlNameCollision
+                ? generated!.XmlName
+                : new System.Xml.XmlQualifiedName("CallerEnum", "urn:padim:caller"));
+            ExpandedNodeId id = xmlNameCollision
+                ? new ExpandedNodeId("CallerEnum", "urn:padim:caller")
+                : DataTypeIds.PatDictionaryEnum;
+            factory.Builder.AddEnumeratedType(id, incompatible.Object).Commit();
+
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+
+            Assert.That(factory.TryGetEnumeratedType(id, out IEnumeratedType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(incompatible.Object));
+            Assert.That(factory.TryGetType(incompatible.Object.XmlName, out IType? xml), Is.True);
+            Assert.That(xml, Is.SameAs(incompatible.Object));
+            session.Verify(value => value.Dispose(), Times.Never);
         }
 
         /// <summary>
