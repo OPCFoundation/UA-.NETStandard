@@ -138,6 +138,102 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Reset waits for a started application operation, including its asynchronous store or runtime effects.
+        /// </summary>
+        [Test]
+        public async Task ResetWaitsForApplicationOperationToComplete()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            IApplicationConfigurationPushOperations operations = security.CreateApplicationOperations();
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool operationCompleted = false;
+            bool resetObservedCompletedOperation = false;
+            m_installer.Setup(i => i.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                .Callback(() => resetObservedCompletedOperation = operationCompleted)
+                .Returns(default(ValueTask));
+            Task<int> operation = operations.ExecuteAsync(async () =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                operationCompleted = true;
+                return 42;
+            }).AsTask();
+            await entered.Task.ConfigureAwait(false);
+
+            Task reset = security.ResetToServerDefaultsAsync().AsTask();
+            bool resetWaited = !reset.IsCompleted;
+            release.SetResult(true);
+            int result = await operation.ConfigureAwait(false);
+            await reset.ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(42));
+            Assert.That(resetWaited, Is.True);
+            Assert.That(resetObservedCompletedOperation, Is.True);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+        }
+
+        /// <summary>
+        /// A deferred effect from the previous deployment cannot run after reset, even after reinstallation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ResetRevokesApplicationOperationsAcrossReinstallation(bool reinstall)
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            IApplicationConfigurationPushOperations previous = security.CreateApplicationOperations();
+            await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+            if (reinstall)
+            {
+                await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            }
+            bool invoked = false;
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await previous.ExecuteAsync(() =>
+                {
+                    invoked = true;
+                    return default(ValueTask);
+                }).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(invoked, Is.False);
+            if (reinstall)
+            {
+                await security.CreateApplicationOperations().ExecuteAsync(() =>
+                {
+                    invoked = true;
+                    return default(ValueTask);
+                }).ConfigureAwait(false);
+                Assert.That(invoked, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// An application failure propagates unchanged and does not prevent later device reset.
+        /// </summary>
+        [Test]
+        public async Task FailedApplicationOperationPreservesFailureAndAllowsReset()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            IApplicationConfigurationPushOperations operations = security.CreateApplicationOperations();
+            var expected = new InvalidOperationException("Application activation failed.");
+
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await operations.ExecuteAsync(() => new ValueTask(Task.FromException(expected)))
+                    .ConfigureAwait(false));
+            await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+
+            Assert.That(failure, Is.SameAs(expected));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+        }
+
+        /// <summary>
         /// A reset between observing installed state and authorizing an application does not claim a new owner.
         /// </summary>
         [Test]

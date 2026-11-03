@@ -653,16 +653,47 @@ namespace Opc.Ua.Server
             ServerSystemContext systemContext,
             ApplicationConfiguration configuration)
         {
+            ConfigurePushConfiguration(systemContext, configuration);
+
+            // Namespace metadata and user management belong to the hosting server,
+            // not to independently managed ApplicationConfiguration instances.
+            m_namespaceMetadata.Attach(systemContext);
+
+            if (Server.UserManagement != null)
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
+                    this,
+                    Server.UserManagement,
+                    Server.SessionManager);
+            }
+            else
+            {
+                m_userManagementBinding?.Dispose();
+                m_userManagementBinding = null;
+                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
+                    .AsTask().GetAwaiter().GetResult();
+            }
+        }
+
+        /// <summary>
+        /// Wires certificate and trust management without binding host-only configuration services.
+        /// </summary>
+        private void ConfigurePushConfiguration(
+            ServerSystemContext systemContext,
+            ApplicationConfiguration configuration)
+        {
+            ServerConfiguration serverConfiguration = configuration.ServerConfiguration ?? new ServerConfiguration();
             // setup server configuration node
             ServerConfigurationState configNode = m_serverConfigurationNode!;
             configNode.ServerCapabilities!.Value =
             [
-                .. configuration.ServerConfiguration!.ServerCapabilities
+                .. serverConfiguration.ServerCapabilities
             ];
             configNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
             configNode.SupportedPrivateKeyFormats!.Value =
             [
-                .. configuration.ServerConfiguration.SupportedPrivateKeyFormats
+                .. serverConfiguration.SupportedPrivateKeyFormats
             ];
             configNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks
                 .OneDimension;
@@ -673,10 +704,10 @@ namespace Opc.Ua.Server
             // handlers actually enforce — instead of a raw 0 while a hidden cap
             // is in force.
             int effectiveMaxTrustListSize = TrustList.ComputeEffectiveMaxTrustListSize(
-                configuration.ServerConfiguration!.MaxTrustListSize,
+                serverConfiguration.MaxTrustListSize,
                 m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
             configNode.MaxTrustListSize!.Value = (uint)effectiveMaxTrustListSize;
-            configNode.MulticastDnsEnabled!.Value = configuration.ServerConfiguration
+            configNode.MulticastDnsEnabled!.Value = serverConfiguration
                 .MultiCastDnsEnabled;
 
             configNode.UpdateCertificate!.OnCallAsync
@@ -721,13 +752,18 @@ namespace Opc.Ua.Server
                         new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
                         Server.Telemetry,
                         m_coordinator,
-                        m_configuration.ServerConfiguration!.MaxTrustListSize,
+                        serverConfiguration.MaxTrustListSize,
                         m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
                         m_configuration.CertificateManager as ICertificateStoreResolver);
                     if (m_serverConfigurationOptions.PushAuthorization != null)
                     {
                         trustList.SetWriteAuthorization((context, _, ct) =>
                             AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                        if (m_applicationPushTarget != null)
+                        {
+                            trustList.SetReadAuthorization((context, _, ct) =>
+                                AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                        }
                     }
                     if (IsApplicationCertificateGroup(certGroup))
                     {
@@ -766,28 +802,6 @@ namespace Opc.Ua.Server
             // CreateAddressSpace; StartAlarmMonitoring re-evaluates with events
             // once the server is running.
             m_alarmScheduler.UpdateAndEvaluate(systemContext, emitEvents: false);
-
-            // Track Server/Namespaces so metadata lookups stay consistent and
-            // default-permission changes invalidate permission caches.
-            m_namespaceMetadata.Attach(systemContext);
-
-            // Bind ServerConfiguration.UserManagement (i=24290) per Part 18 §5
-            // if startup supplied an IUserManagement through CreateUserManagement.
-            if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
-            {
-                m_userManagementBinding?.Dispose();
-                m_userManagementBinding = UserManagement.UserManagementBinding.Bind(
-                    this,
-                    serverInternal.UserManagement,
-                    serverInternal.SessionManager);
-            }
-            else
-            {
-                m_userManagementBinding?.Dispose();
-                m_userManagementBinding = null;
-                DeleteNodeAsync(systemContext, new NodeId(Objects.UserManagement))
-                    .AsTask().GetAwaiter().GetResult();
-            }
         }
 
         /// <summary>
@@ -1116,9 +1130,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool IsApplicationCertificateGroup(ServerCertificateGroup certificateGroup)
         {
-            return Utils.IsEqual(
-                certificateGroup.NodeId,
-                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
+            return certificateGroup.BrowseName == BrowseNames.DefaultApplicationGroup;
         }
 
         /// <summary>
@@ -1156,8 +1168,8 @@ namespace Opc.Ua.Server
         {
             if (certificateGroupId.IsNull)
             {
-                certificateGroupId = ObjectIds
-                    .ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+                certificateGroupId = m_certificateGroups
+                    .First(group => group.BrowseName == BrowseNames.DefaultApplicationGroup).NodeId;
             }
 
             return m_certificateGroups.FirstOrDefault(

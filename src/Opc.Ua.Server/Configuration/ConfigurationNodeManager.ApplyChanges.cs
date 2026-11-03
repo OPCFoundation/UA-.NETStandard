@@ -395,7 +395,8 @@ namespace Opc.Ua.Server
             List<TrustListChangeEffect> trustListEffects =
                 BuildTrustListEffects(committedEffects.TrustLists);
 
-            if (rotations.Count > 0 || trustListEffects.Count > 0)
+            if (rotations.Count > 0 || trustListEffects.Count > 0 ||
+                (m_applicationPushTarget != null && committedEffects.CertificateGroups.Count > 0))
             {
                 // Schedule the deferred apply: wait a short grace period for
                 // the method response to be flushed, then re-sync the
@@ -407,7 +408,7 @@ namespace Opc.Ua.Server
                 // completion handle is exposed via DrainPendingApplyChangesAsync
                 // so tests and hosts can deterministically await the effects
                 // rather than racing the delay.
-                ScheduleDeferredApplyChanges(rotations, trustListEffects);
+                ScheduleDeferredApplyChanges(rotations, trustListEffects, committedEffects.CertificateGroups);
             }
 
             // OPC 10000-12 §7.8.3: a committed TrustList change updates the
@@ -460,7 +461,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void ScheduleDeferredApplyChanges(
             List<PendingCertificateRotation> rotations,
-            List<TrustListChangeEffect> trustListEffects)
+            List<TrustListChangeEffect> trustListEffects,
+            ArrayOf<NodeId> certificateGroups)
         {
             CancellationToken shutdownToken;
             try
@@ -555,13 +557,23 @@ namespace Opc.Ua.Server
 
                     m_logger.ApplyChangesRunning();
 
+                    if (m_applicationPushTarget != null)
+                    {
+                        await ApplyManagedApplicationChangesAsync(rotations, certificateGroups, trustListEffects)
+                            .ConfigureAwait(false);
+                        m_logger.ApplyChangesCompleted(0);
+                        completion.TrySetResult(null);
+                        return;
+                    }
+
                     // Reload the certificate manager only when a server
                     // application certificate actually rotated. A TrustList-
                     // only change does not touch the server's own
                     // certificates, and the validator's directory-backed
                     // trust stores refresh themselves, so an app-cert reload
                     // here would be needless work.
-                    if (rotations.Count > 0 && m_configuration.CertificateManager != null)
+                    if (rotations.Count > 0 &&
+                        m_configuration.CertificateManager != null)
                     {
                         // Deliberately not cancellable: a rotation that has begun
                         // must finish updating the configuration, otherwise the
@@ -576,9 +588,8 @@ namespace Opc.Ua.Server
                     // Force-close affected SecureChannels on every
                     // transport listener that opted into
                     // ITransportListenerCertificateRotation.
-                    IReadOnlyList<ITransportListener> listeners
-                        = (Server as ITransportListenerRegistryProvider)?.TransportListeners
-                            ?? [];
+                    IReadOnlyList<ITransportListener> listeners =
+                        (Server as ITransportListenerRegistryProvider)?.TransportListeners ?? [];
 
                     int totalCut = 0;
                     foreach (PendingCertificateRotation rotation in rotations)
@@ -649,14 +660,7 @@ namespace Opc.Ua.Server
                     // change may clear (or raise) the CertificateExpired /
                     // TrustListOutOfDate alarms, so re-evaluate now that the new
                     // certificate has been reloaded from disk.
-                    try
-                    {
-                        m_alarmScheduler.UpdateAndEvaluate(SystemContext, emitEvents: m_alarmScheduler.IsActive);
-                    }
-                    catch (Exception alarmEx)
-                    {
-                        m_logger.CertificateAlarmReevaluationFailed(alarmEx);
-                    }
+                    ReevaluateCertificateAlarms();
 
                     completion.TrySetResult(null);
                 }
@@ -670,6 +674,21 @@ namespace Opc.Ua.Server
                     DisposeRotations(rotations);
                 }
             });
+        }
+
+        /// <summary>
+        /// Updates certificate and trust alarms after the managed registry and runtime effects complete.
+        /// </summary>
+        private void ReevaluateCertificateAlarms()
+        {
+            try
+            {
+                m_alarmScheduler.UpdateAndEvaluate(SystemContext, emitEvents: m_alarmScheduler.IsActive);
+            }
+            catch (Exception alarmEx)
+            {
+                m_logger.CertificateAlarmReevaluationFailed(alarmEx);
+            }
         }
 
         /// <summary>

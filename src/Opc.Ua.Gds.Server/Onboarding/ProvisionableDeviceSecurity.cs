@@ -151,6 +151,12 @@ namespace Opc.Ua.Gds.Server.Onboarding
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Creates an application operation provider for the current device deployment.
+        /// A reset permanently revokes this provider, including effects deferred until after a method response.
+        /// </summary>
+        IApplicationConfigurationPushOperations CreateApplicationOperations();
+
+        /// <summary>
         /// Authorizes and persists a registrar's installation before invoking idempotent platform effects.
         /// </summary>
         ValueTask InstallAsync(
@@ -284,6 +290,13 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <inheritdoc/>
+        public IApplicationConfigurationPushOperations CreateApplicationOperations()
+        {
+            ThrowIfDisposed();
+            return new ApplicationOperations(this, Volatile.Read(ref m_applicationEpoch));
+        }
+
+        /// <inheritdoc/>
         ValueTask IPushConfigurationAuthorization.AuthorizeAsync(
             ISystemContext context,
             CancellationToken cancellationToken)
@@ -336,6 +349,54 @@ namespace Opc.Ua.Gds.Server.Onboarding
             // Snapshot before the first await so caller-owned arrays and model objects cannot change the operation.
             byte[] proposed = Encode(new(ProvisionableDeviceSecurityStage.Installing, peer, credentials));
             Checkpoint pending = Decode(proposed);
+            await ExecuteSecurityTransitionAsync(
+                () => InstallCoreAsync(peer, pending, proposed, cancellationToken), cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Restores installed credentials, resumes a claimed installation, or completes a previously requested reset.
+        /// Call before advertising or accepting operational endpoints. Failure leaves the persisted transition intact.
+        /// </summary>
+        public ValueTask RecoverAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            return ExecuteSecurityTransitionAsync(() => RecoverCoreAsync(cancellationToken), cancellationToken);
+        }
+
+        /// <summary>
+        /// Persists reset intent before invoking the host's security reset, without deleting installed software.
+        /// The standard configuration node manager owns network authorization, auditing and shutdown.
+        /// An application-controlled physical reset may call this same local entry point.
+        /// </summary>
+        public ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            return ExecuteSecurityTransitionAsync(() => ResetCoreAsync(cancellationToken), cancellationToken);
+        }
+
+        /// <summary>
+        /// Releases the local gates after the host has drained operations; borrowed providers are not disposed.
+        /// </summary>
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            {
+                m_gate.Dispose();
+                m_applicationGate.Dispose();
+            }
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Installs the captured credentials after admitted application operations have completed.
+        /// </summary>
+        private async ValueTask InstallCoreAsync(
+            ByteString peer,
+            Checkpoint pending,
+            byte[] proposed,
+            CancellationToken cancellationToken)
+        {
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -359,12 +420,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Restores installed credentials, resumes a claimed installation, or completes a previously requested reset.
-        /// Call before advertising or accepting operational endpoints. Failure leaves the persisted transition intact.
+        /// Recovers persistent device state without overlapping application store or runtime changes.
         /// </summary>
-        public async ValueTask RecoverAsync(CancellationToken cancellationToken = default)
+        private async ValueTask RecoverCoreAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDisposed();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -387,6 +446,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                         }
                         break;
                     case ProvisionableDeviceSecurityStage.Resetting:
+                        Volatile.Write(ref m_applicationEpoch, new ApplicationEpoch());
                         await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
                         break;
                     case ProvisionableDeviceSecurityStage.Unconfigured:
@@ -410,19 +470,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Persists reset intent before invoking the host's security reset, without deleting installed software.
-        /// The standard configuration node manager owns network authorization, auditing and shutdown.
-        /// An application-controlled physical reset may call this same local entry point.
+        /// Revokes the prior application deployment after reset intent is durable and before platform reset effects.
         /// </summary>
-        public async ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
+        private async ValueTask ResetCoreAsync(CancellationToken cancellationToken)
         {
-            ThrowIfDisposed();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 await LoadAsync(cancellationToken).ConfigureAwait(false);
                 await SaveAsync(new(ProvisionableDeviceSecurityStage.Resetting, default, null), cancellationToken)
                     .ConfigureAwait(false);
+                Volatile.Write(ref m_applicationEpoch, new ApplicationEpoch());
                 await CompleteResetAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -432,15 +490,100 @@ namespace Opc.Ua.Gds.Server.Onboarding
         }
 
         /// <summary>
-        /// Releases the local gate after the host has drained operations; borrowed providers are not disposed.
+        /// Runs platform credential transitions after earlier application operations have returned.
         /// </summary>
-        public void Dispose()
+        private async ValueTask ExecuteSecurityTransitionAsync(
+            Func<ValueTask> transition,
+            CancellationToken cancellationToken)
         {
-            if (Interlocked.Exchange(ref m_disposed, 1) == 0)
+            await m_applicationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                m_gate.Dispose();
+                await transition().ConfigureAwait(false);
             }
-            GC.SuppressFinalize(this);
+            finally
+            {
+                m_applicationGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Rechecks the deployment and installed credentials before invoking application store or runtime effects.
+        /// Authorization within the operation still validates the actual calling registrar.
+        /// </summary>
+        private async ValueTask<T> ExecuteApplicationOperationAsync<T>(
+            ApplicationEpoch epoch,
+            Func<ValueTask<T>> operation,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfDisposed();
+            await m_applicationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
+                    if (!ReferenceEquals(epoch, m_applicationEpoch) ||
+                        checkpoint.Stage != ProvisionableDeviceSecurityStage.Installed || m_stateRequiresRecovery)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "The application's device deployment is not installed.");
+                    }
+                }
+                finally
+                {
+                    m_gate.Release();
+                }
+                return await operation().ConfigureAwait(false);
+            }
+            finally
+            {
+                m_applicationGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Identifies one device deployment independently of repeated credential installation.
+        /// </summary>
+        private sealed class ApplicationEpoch
+        {
+        }
+
+        /// <summary>
+        /// Binds application calls and deferred effects to the deployment that created their configuration engine.
+        /// </summary>
+        private sealed class ApplicationOperations(
+            ProvisionableDeviceSecurity owner,
+            ApplicationEpoch epoch) : IApplicationConfigurationPushOperations
+        {
+            /// <inheritdoc/>
+            public ValueTask<T> ExecuteAsync<T>(
+                Func<ValueTask<T>> operation,
+                CancellationToken cancellationToken = default)
+            {
+                if (operation == null)
+                {
+                    throw new ArgumentNullException(nameof(operation));
+                }
+                return owner.ExecuteApplicationOperationAsync(epoch, operation, cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask ExecuteAsync(
+                Func<ValueTask> operation,
+                CancellationToken cancellationToken = default)
+            {
+                if (operation == null)
+                {
+                    throw new ArgumentNullException(nameof(operation));
+                }
+                await ExecuteAsync(async () =>
+                {
+                    await operation().ConfigureAwait(false);
+                    return true;
+                }, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -818,6 +961,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The local serialization gate, not a distributed transaction.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+        /// <summary>Orders application operations and platform security transitions.</summary>
+        private readonly SemaphoreSlim m_applicationGate = new(1, 1);
+        /// <summary>The current deployment identity, replaced when reset intent becomes durable.</summary>
+        private ApplicationEpoch m_applicationEpoch = new();
 
         /// <summary>Whether an uncertain standard-push checkpoint must be reconciled before further access.</summary>
         private bool m_stateRequiresRecovery;

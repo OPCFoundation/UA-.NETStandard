@@ -828,6 +828,17 @@ cause bootstrap authorization to record a new configuration owner. The installed
 check authorizes the current state; it does not reserve that state for a later
 application mutation.
 
+`CreateApplicationOperations` supplies the deployment lifetime used by independent
+application configuration engines. The provider admits an operation only while
+DCA credentials are installed and no uncertain security publication requires
+recovery. Device installation, recovery and reset wait for admitted application
+operations to finish. Once reset intent is persistent, existing providers reject
+further operations, including deferred activation after a successful
+`ApplyChanges` response; installing credentials again does not restore the old
+providers. Recreate the application bindings for the new deployment. This
+provider orders operations within one host; it neither authorizes a registrar
+nor persists deferred effects across process termination.
+
 The installation checkpoint retains complete credentials and the actual
 registrar channel certificate before invoking the installer. If installation
 fails, only
@@ -1237,9 +1248,10 @@ public class MyGdsUserDatabase : LinqUserDatabase, IGdsUserDatabase
 
 ### IConfigurationDataStore
 
-Persistence backend for ManagedApplications (§7.10.16). The
-`DefaultManagedApplicationsNodeManager` uses this to populate
-`ApplicationConfigurationState` nodes:
+The metadata-backed `DefaultManagedApplicationsNodeManager` uses this store to
+enumerate `ApplicationConfigurationState` nodes under ManagedApplications
+(§7.10.16). Its address-space binding does not call the store's write or confirm
+methods and does not expose a ConfigurationFile transaction:
 
 ```csharp
 public class FileConfigurationDataStore : IConfigurationDataStore
@@ -1265,6 +1277,52 @@ public class FileConfigurationDataStore : IConfigurationDataStore
     }
 }
 ```
+
+### Independent application push management
+
+Use `IManagedApplicationPushProvider` when each managed application has its own
+configuration, certificate manager and runtime. Its registrations pair an
+`IApplicationConfigurationPushTarget` with application-specific authorization.
+The target owns its configuration and certificate manager; the node manager owns
+the push engine and drains its calls and committed effects before disposal.
+Targets must keep their configuration and store paths stable for that lifetime.
+
+The same registration is available on regular servers and GDS hosts. Given an
+application provider created by the composition root:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "DeviceManagement")
+    .AddManagedApplicationPush(_ => applicationProvider);
+```
+
+Each target has separate certificate groups, pending keys and trust handlers in
+the node manager's namespace. The binding rejects shared configuration objects,
+certificate managers, application URIs, normalized store locations and
+pending-key store instances. Store comparison does not resolve filesystem links
+or detect arbitrary custom-store aliases; providers must supply independent
+backing stores. Authorization requires the standard secure-channel and
+SecurityAdmin checks as well as the registered policy.
+
+`ApplyCertificateChangesAsync` activates certificates on the target and retires
+its affected channels after the method response grace period.
+`ApplyTrustListChangesAsync` revalidates the target's channels and certificate
+user identities. Providers implement these effects against their own runtime;
+the binding does not close the management server's channels on their behalf.
+The runtime provider does not implement a ConfigurationFile proxy to a remote
+application.
+
+For a non-singleton device, call
+`BindProvisionableDeviceApplicationsAsync` before publishing its existing
+`ProvisionableDeviceState`. The binding rejects singleton devices, requires
+installed DCA trust and evaluates the application's software policy before its
+access policy. Its deployment provider covers each method call, certificate
+registry reload and deferred runtime effect, so reset cannot overlap those
+operations or replay an old deployment's effects after reinstallation. This
+binding does not create Part 22 Resources or reset an application's stores;
+the platform reset provider remains responsible for restoring all device
+security. Connected rotation, trust-change and reset evidence across multiple
+applications remains required.
 
 ---
 
@@ -1533,12 +1591,15 @@ These optional members are exposed **only when their backing option/provider is 
 
 ### GDS-managed applications proxy (§7.10.14–§7.10.16)
 
-The GDS-side proxy that exposes *other* applications' configurations under a `ManagedApplications` folder is a separate, partially-implemented feature (out of scope for a self-managed push Server).
+The ManagedApplications folder supports independent in-process application
+targets through `IManagedApplicationPushProvider`. Metadata-only registration
+does not supply push handlers, and a remote ConfigurationFile update/confirm
+proxy remains unimplemented.
 
 | Section | Feature | Status | Source |
 |---------|---------|--------|--------|
-| §7.10.14 | `ApplicationConfigurationType` | ⚠️ | `DefaultManagedApplicationsNodeManager` creates `ApplicationConfigurationState` nodes; `IConfigurationDataStore` abstracts persistence |
-| §7.10.16 | `ManagedApplications` folder | ⚠️ | `DefaultManagedApplicationsNodeManager`; optimistic concurrency via version tracking |
+| §7.10.14 | `ApplicationConfigurationType` | ⚠️ | Runtime-backed registrations bind independent certificate and trust handlers; connected multiapplication lifecycle evidence remains incomplete |
+| §7.10.16 | `ManagedApplications` folder | ⚠️ | `DefaultManagedApplicationsNodeManager` supports metadata or runtime providers; remote ConfigurationFile update/confirm is not implemented |
 
 ## TrustList (§7.8)
 
@@ -1645,7 +1706,7 @@ The following optional Part 12 members are **not** implemented (or only partiall
 | Item (§) | Status | Notes |
 |----------|--------|-------|
 | `ServerConfiguration.AuthorizationServices` folder (§9.6.2 / *Authorization Service Configuration Server* CU) | ❌ not exposed | A push Server does not expose the configuration folder listing trusted Authorization Services. Client access-token validation is instead handled by the pluggable [Identity Providers](IdentityProviders.md). |
-| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | `DefaultManagedApplicationsNodeManager` creates the nodes with an `IConfigurationDataStore`; the full GDS-as-proxy update/confirm flow to *remote* managed applications is not complete. |
+| `ManagedApplications` / `ApplicationConfigurationType` proxy (§7.10.14–§7.10.16) | ⚠️ partial | Runtime providers bind independent in-process certificate and trust management. Metadata-backed nodes do not implement ConfigurationFile transactions; remote update/confirm and connected multiapplication lifecycle evidence remain incomplete. |
 | KeyCredential authentication `ProfileUris` — AMQP SASL Plain / MQTT UserName / UA transport UserName (§8, optional CUs) | 🔲 provider-defined | The push binding is implemented; the concrete ProfileUri set advertised is defined by the credential provider, not fixed by the stack. |
 | A & C CertificateExpiration optional CUs — *Comment* / *Confirm* / *Shelving* | 🔲 inherited | Available through the standard OPC 10000-9 condition model on the alarm instances; not separately exercised by the certificate-alarm tests. |
 | Onboarding / OPC 10000-21 device setup interplay with `ResetToServerDefaults` / `InApplicationSetup` (§7.10.13, Annex G) | ⚠️ partial | Ticket administration, signing, ticket-scoped identity trust, composite-aware selection, and registrar runtime bindings are implemented. GDS issuance integration, durable lifecycle storage, and complete pull/push device workflows remain incomplete. |

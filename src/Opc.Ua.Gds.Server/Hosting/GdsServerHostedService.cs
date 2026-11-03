@@ -291,6 +291,7 @@ namespace Opc.Ua.Gds.Server.Hosting
             m_server.DeviceRegistrarPushEnrollments =
                 m_services.GetService<SecretStoreDeviceRegistrarPushEnrollmentProvider>();
             m_server.DeviceRegistrarFactory = registrar?.Factory;
+            m_server.ManagedApplicationPushProvider = m_services.GetService<IManagedApplicationPushProvider>();
 
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
             {
@@ -720,6 +721,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             public IDeviceRegistrarCertificateAuthorization? DeviceRegistrarCertificateAuthorization { get; set; }
 
             /// <summary>
+            /// Gets or sets the independent application runtimes exposed through standard push management.
+            /// </summary>
+            public IManagedApplicationPushProvider? ManagedApplicationPushProvider { get; set; }
+
+            /// <summary>
             /// Gets or sets the host-owned secret issuance store used for completion retries.
             /// </summary>
             public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
@@ -813,7 +819,14 @@ namespace Opc.Ua.Gds.Server.Hosting
                         server, configuration, cancellationToken).ConfigureAwait(false));
                 }
 
-                if (m_configurationStore != null)
+                if (ManagedApplicationPushProvider != null)
+                {
+                    nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
+                        server,
+                        configuration,
+                        ManagedApplicationPushProvider));
+                }
+                else if (m_configurationStore != null)
                 {
                     nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
                         server,

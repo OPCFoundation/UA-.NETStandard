@@ -215,6 +215,12 @@ namespace Opc.Ua.Server
             IReadOnlyList<ITransportListener> listeners,
             CancellationToken cancellationToken = default)
         {
+            if (m_applicationPushTarget != null)
+            {
+                return ApplyManagedApplicationTrustChangesAsync(
+                    trustListEffects.ToArrayOf(), cancellationToken);
+            }
+
             var context = new PushConfigurationTrustListEffectContext
             {
                 Effects = trustListEffects,
@@ -317,9 +323,9 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            IReadOnlyList<ITransportListener> listeners
-                = (Server as ITransportListenerRegistryProvider)?.TransportListeners
-                    ?? [];
+            IReadOnlyList<ITransportListener> listeners = m_applicationPushTarget == null
+                ? (Server as ITransportListenerRegistryProvider)?.TransportListeners ?? []
+                : [];
 
             // Propagate the shutdown token: a pass overlapping shutdown must
             // stop instead of sweeping listeners/sessions being torn down.

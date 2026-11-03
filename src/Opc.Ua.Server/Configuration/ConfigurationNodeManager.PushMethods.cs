@@ -217,6 +217,14 @@ namespace Opc.Ua.Server
                         "Certificate type of new certificate doesn't match the provided certificate type.");
                 }
 
+                if (m_applicationPushTarget != null && isApplicationCertificateGroup &&
+                    !X509Utils.CompareApplicationUriWithCertificate(newCert, m_configuration.ApplicationUri!))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "The certificate does not identify the managed application.");
+                }
+
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier;
