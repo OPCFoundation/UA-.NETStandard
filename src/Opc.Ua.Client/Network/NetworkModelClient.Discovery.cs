@@ -433,16 +433,31 @@ namespace Opc.Ua.Client.Network
             {
                 if (continuationPoints.Count > 0)
                 {
+                    ArrayOf<ByteString> points = ArrayOf.Wrapped(continuationPoints.ToArray());
                     try
                     {
-                        await Session.BrowseNextAsync(
-                            null, true, ArrayOf.Wrapped(continuationPoints.ToArray()), CancellationToken.None)
+                        BrowseNextResponse release = await Session.BrowseNextAsync(
+                            null, true, points, CancellationToken.None)
                             .ConfigureAwait(false);
+                        ValidateService(release.ResponseHeader);
+                        ClientBase.ValidateResponse(release.Results, points);
+                        ClientBase.ValidateDiagnosticInfos(release.DiagnosticInfos, points);
+                        for (int index = 0; index < release.Results.Count; index++)
+                        {
+                            if (StatusCode.IsBad(release.Results[index].StatusCode))
+                            {
+                                throw new ServiceResultException(release.Results[index].StatusCode);
+                            }
+                        }
                     }
-                    catch (Exception exception) when (failed)
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
                     {
                         NetworkModelClientLog.ContinuationReleaseFailed(
                             Telemetry.CreateLogger<NetworkModelClient>(), exception);
+                        if (!failed)
+                        {
+                            throw;
+                        }
                     }
                 }
             }
@@ -476,12 +491,12 @@ namespace Opc.Ua.Client.Network
     internal static partial class NetworkModelClientLog
     {
         /// <summary>
-        /// Reports a cleanup failure while preserving the original browse failure.
+        /// Reports a failed release of a browse continuation point.
         /// </summary>
         [LoggerMessage(
             EventId = ClientEventIds.NetworkModelClient,
             Level = LogLevel.Warning,
-            Message = "Releasing a network-model browse continuation failed after the browse operation failed.")]
+            Message = "Releasing a network-model browse continuation failed.")]
         internal static partial void ContinuationReleaseFailed(ILogger logger, Exception exception);
     }
 }

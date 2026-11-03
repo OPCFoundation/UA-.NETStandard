@@ -416,6 +416,42 @@ namespace Opc.Ua.Client.Tests.Network
         }
 
         /// <summary>
+        /// Preserves the browse failure and reports a bad per-point release status.
+        /// </summary>
+        [Test]
+        public async Task BrowseReleaseFailureDoesNotReplaceTheOriginalBrowseFailure()
+        {
+            ByteString point = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = point }]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadCommunicationError));
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { StatusCode = StatusCodes.BadContinuationPointInvalid }]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadCommunicationError)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
         /// Releases the continuation returned before initial-page diagnostics fail validation.
         /// </summary>
         [Test]
