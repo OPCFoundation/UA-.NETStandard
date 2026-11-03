@@ -153,6 +153,18 @@ namespace Opc.Ua.Server
             string expectedThumbprint,
             CancellationToken cancellationToken = default)
         {
+            ActivateCertificate(certificateType, expectedThumbprint, cancellationToken);
+            return default;
+        }
+
+        /// <summary>
+        /// Applies the current certificate-manager entry to listeners before releasing its registry lease.
+        /// </summary>
+        private void ActivateCertificate(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
             if (certificateType.IsNull || string.IsNullOrWhiteSpace(expectedThumbprint))
             {
@@ -181,7 +193,6 @@ namespace Opc.Ua.Server
             // the new registry reference and endpoint certificate before this method returns.
             RefreshCertificateReferences(validator, registry);
             cancellationToken.ThrowIfCancellationRequested();
-            return ValueTask.CompletedTask;
         }
 
         /// <summary>

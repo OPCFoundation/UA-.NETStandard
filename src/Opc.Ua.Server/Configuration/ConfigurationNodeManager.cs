@@ -710,33 +710,42 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                var trustList = new TrustList(
-                    certGroup.Node.TrustList!,
-                    certGroup.TrustedStore,
-                    certGroup.IssuerStore,
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
-                    Server.Telemetry,
-                    m_coordinator,
-                    m_configuration.ServerConfiguration!.MaxTrustListSize,
-                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
-                    m_configuration.CertificateManager as ICertificateStoreResolver);
-                if (m_serverConfigurationOptions.PushAuthorization != null)
+                TrustList? trustList = null;
+                try
                 {
-                    trustList.SetWriteAuthorization((context, _, ct) =>
-                        AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                    trustList = new TrustList(
+                        certGroup.Node.TrustList!,
+                        certGroup.TrustedStore,
+                        certGroup.IssuerStore,
+                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                        new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
+                        Server.Telemetry,
+                        m_coordinator,
+                        m_configuration.ServerConfiguration!.MaxTrustListSize,
+                        m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                        m_configuration.CertificateManager as ICertificateStoreResolver);
+                    if (m_serverConfigurationOptions.PushAuthorization != null)
+                    {
+                        trustList.SetWriteAuthorization((context, _, ct) =>
+                            AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                    }
+                    if (IsApplicationCertificateGroup(certGroup))
+                    {
+                        // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
+                        // an ApplicationCertificateType TrustList are validated
+                        // with the OPC 10000-4 process.
+                        trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                    }
+                    // §7.8.2: the TrustList audit events must reach Clients that
+                    // subscribe to the Server Object.
+                    trustList.SetAuditEventServer(Server);
+                    certGroup.Node.TrustList!.Handle = trustList;
+                    trustList = null;
                 }
-                if (IsApplicationCertificateGroup(certGroup))
+                finally
                 {
-                    // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
-                    // an ApplicationCertificateType TrustList are validated
-                    // with the OPC 10000-4 process.
-                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                    trustList?.Dispose();
                 }
-                // §7.8.2: the TrustList audit events must reach Clients that
-                // subscribe to the Server Object.
-                trustList.SetAuditEventServer(Server);
-                certGroup.Node.TrustList!.Handle = trustList;
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
