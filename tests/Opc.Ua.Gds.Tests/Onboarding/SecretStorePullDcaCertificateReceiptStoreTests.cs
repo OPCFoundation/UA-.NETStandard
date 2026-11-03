@@ -264,7 +264,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var backing = new InMemorySecretStore();
             Mock<ISecretStore> secrets = ForwardReads(backing);
-            SecretIdentifier captured = default;
+            SecretIdentifier? captured = null;
             byte[] persisted = [];
             secrets.Setup(s => s.SetAsync(
                     It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
@@ -284,14 +284,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 "oversized" => new byte[16 * 1024 * 1024 + 1],
                 _ => throw new ArgumentOutOfRangeException(nameof(corruption))
             };
-            await backing.SetAsync(captured, damaged).ConfigureAwait(false);
+            SecretIdentifier identifier = captured ??
+                throw new AssertionException("Reception did not publish its receipt.");
+            await backing.SetAsync(identifier, damaged).ConfigureAwait(false);
 
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await store.GetOrCreateAsync(Registrar(), Id("app"), Id("request"), Profile(),
                     _ => throw new AssertionException("Corruption cannot authorize another FinishRequest."))
                     .ConfigureAwait(false));
 
-            using ISecret? retained = await backing.GetAsync(captured).ConfigureAwait(false);
+            using ISecret? retained = await backing.GetAsync(identifier).ConfigureAwait(false);
             Assert.That(retained!.Bytes.ToArray(), Is.EqualTo(damaged));
             secrets.Verify(s => s.SetAsync(
                 It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()),

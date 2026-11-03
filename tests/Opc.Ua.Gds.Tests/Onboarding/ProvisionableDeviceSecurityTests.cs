@@ -175,7 +175,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task ConfigurationOwnerInstallsAndRecoversCompatibleCheckpoint(bool legacyVersion)
         {
             Mock<ISecretStore> storage = ForwardStorage();
-            SecretIdentifier captured = default;
+            SecretIdentifier? captured = null;
             byte[] checkpoint = [];
             storage.Setup(value => value.SetAsync(
                     It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
@@ -196,7 +196,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 checkpoint = checkpoint.AsSpan(0, checkpoint.Length - 1).ToArray();
                 BinaryPrimitives.WriteUInt32LittleEndian(checkpoint, 1);
-                await m_secrets.SetAsync(captured, checkpoint).ConfigureAwait(false);
+                await m_secrets.SetAsync(
+                    captured ?? throw new AssertionException("Installation did not publish its checkpoint."),
+                    checkpoint).ConfigureAwait(false);
             }
             using var restarted = Create();
 
@@ -842,7 +844,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task CorruptCheckpointRejectsRecoveryRegistrarAccessAndReset(string corruption)
         {
             Mock<ISecretStore> storage = ForwardStorage();
-            SecretIdentifier captured = default;
+            SecretIdentifier? captured = null;
             byte[] original = [];
             storage.Setup(s => s.SetAsync(
                     It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
@@ -886,7 +888,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 damaged = corruption == "truncated" ? original.Take(5).ToArray() :
                     original.Concat(new byte[] { 1 }).ToArray();
             }
-            await m_secrets.SetAsync(captured, damaged).ConfigureAwait(false);
+            SecretIdentifier identifier = captured ??
+                throw new AssertionException("Installation did not publish its checkpoint.");
+            await m_secrets.SetAsync(identifier, damaged).ConfigureAwait(false);
             m_installer.Invocations.Clear();
             using var restarted = Create();
 
@@ -897,7 +901,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await restarted.ResetToServerDefaultsAsync().ConfigureAwait(false));
 
-            using ISecret? retained = await m_secrets.GetAsync(captured).ConfigureAwait(false);
+            using ISecret? retained = await m_secrets.GetAsync(identifier).ConfigureAwait(false);
             Assert.That(retained!.Bytes.ToArray(), Is.EqualTo(damaged));
             m_installer.VerifyNoOtherCalls();
         }
