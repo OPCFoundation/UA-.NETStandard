@@ -112,7 +112,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 [DefaultManagedApplicationsNodeManager.ManagedApplicationsNamespaceUri];
 
             /// <inheritdoc/>
-            public ValueTask<IAsyncNodeManager> CreateAsync(
+            public async ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
@@ -122,13 +122,16 @@ namespace Microsoft.Extensions.DependencyInjection
                     new DefaultManagedApplicationsNodeManager(server, configuration, m_provider);
                 try
                 {
-                    var result = new ValueTask<IAsyncNodeManager>(manager);
+                    IAsyncNodeManager result = manager;
                     manager = null;
                     return result;
                 }
                 finally
                 {
-                    manager?.Dispose();
+                    if (manager != null)
+                    {
+                        await manager.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             }
 
