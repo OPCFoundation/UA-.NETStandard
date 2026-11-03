@@ -700,13 +700,17 @@ namespace Opc.Ua.Client.Tests
             Assert.That(targetProvider.PendingConfirmations, Is.EqualTo(1));
             Assert.That(decision.Deferred.ToArray(), Is.EqualTo(s_deferredSecondIndex),
                 "Only the retained handle that was confirmed at the source remains eligible.");
+            // Removing the subscription's acknowledgements retires the two retained
+            // handles and reports them to the same observer, so take the hand-over
+            // outcomes before that report can land.
+            AcknowledgementOutcome[] handoverOutcomes = fixture.TargetObserver.Outcomes;
             Assert.That(targetEngine.RemoveAcknowledgementsForSubscription(targetSubscription.Id), Is.EqualTo(2),
                 "Both retained handles are queued on the destination subscription.");
-            Assert.That(fixture.TargetObserver.Outcomes, Has.Length.EqualTo(1));
-            Assert.That(fixture.TargetObserver.Outcomes[0].Handle, Is.EqualTo(unavailableSourceHandle));
-            Assert.That(fixture.TargetObserver.Outcomes[0].Disposition,
+            Assert.That(handoverOutcomes, Has.Length.EqualTo(1));
+            Assert.That(handoverOutcomes[0].Handle, Is.EqualTo(unavailableSourceHandle));
+            Assert.That(handoverOutcomes[0].Disposition,
                 Is.EqualTo(AcknowledgementDisposition.NotRetained));
-            Assert.That(fixture.TargetObserver.Outcomes[0].Status, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
+            Assert.That(handoverOutcomes[0].Status, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
             Assert.That(fixture.SourceObserver.Outcomes, Is.Empty);
             Assert.That(
                 ((ConfirmedAcknowledgementProvider)fixture.SourceAcknowledgements.Provider!).TrackedAcknowledgements,

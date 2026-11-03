@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -92,12 +91,12 @@ namespace Opc.Ua.MachineTool.Tests
         }
 
         /// <summary>
-        /// Anchors PKI to the short source worktree, not the long external multi-target artifact directory.
+        /// Anchors PKI to the test output directory. The source path is not usable:
+        /// deterministic CI builds map it to '/_/', which cannot be created.
         /// </summary>
-        private static string CreatePkiRoot([CallerFilePath] string sourcePath = "")
+        private static string CreatePkiRoot()
         {
-            string repository = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourcePath)!, "..", ".."));
-            return Path.Combine(repository, ".wp", Guid.NewGuid().ToString("N")[..8]);
+            return Path.Combine(AppContext.BaseDirectory, ".wp", Guid.NewGuid().ToString("N")[..8]);
         }
 
         /// <summary>

@@ -210,6 +210,76 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A queued slot change selects the generation published before admission, while an exact target stays stale.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SlotChangeSetResolvesAfterAdmissionAndPreservesExactTargetAsync(bool stableTarget)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            LifecycleResult added = await lifecycle.ApplyAsync(
+                [LifecycleChange.Add(CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }))],
+                timeout.Token).ConfigureAwait(false);
+            NodeManagerRegistration original = added.Registrations[0];
+            await using IPreparedChanges competing = await lifecycle.PrepareAsync(
+                [LifecycleChange.Replace(original.Slot,
+                    CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }))], timeout.Token)
+                .ConfigureAwait(false);
+            var decisionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<LifecycleResult> winner = Task.Run(async () => await competing.CommitAsync(async token =>
+            {
+                decisionEntered.TrySetResult(true);
+                await releaseDecision.Task.WaitAsync(token).ConfigureAwait(false);
+            }, timeout.Token).ConfigureAwait(false), timeout.Token);
+            var factory = new CountingNodeManagerFactory([kModelNamespaceUri],
+                CreateTrackingNodeManagementFactory(kGeneration2Value + 1, _ => { }).CreateAsync);
+            Task<IPreparedChanges>? slotPreparation = null;
+            Task<IPreparedNodeManagerBatch>? exactPreparation = null;
+            try
+            {
+                await decisionEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (stableTarget)
+                {
+                    slotPreparation = lifecycle.PrepareAsync(
+                        [LifecycleChange.Replace(original.Slot, factory)], timeout.Token).AsTask();
+                    Assert.That(slotPreparation.IsCompleted, Is.False);
+                }
+                else
+                {
+                    exactPreparation = lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Replace(original, factory)], timeout.Token).AsTask();
+                    Assert.That(exactPreparation.IsCompleted, Is.False);
+                }
+                Assert.That(factory.CreateCount, Is.Zero);
+            }
+            finally
+            {
+                releaseDecision.TrySetResult(true);
+            }
+            LifecycleResult published = await winner.WaitAsync(timeout.Token).ConfigureAwait(false);
+            if (stableTarget)
+            {
+                await using IPreparedChanges prepared =
+                    await slotPreparation!.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(prepared.Registrations[0].Slot, Is.SameAs(original.Slot));
+                Assert.That(prepared.Registrations[0].Generation, Is.EqualTo(3));
+                Assert.That(factory.CreateCount, Is.EqualTo(1));
+                LifecycleResult result = await prepared.CommitAsync(cancellationToken: timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(result.Revision, Is.EqualTo(published.Revision + 1));
+            }
+            else
+            {
+                await Assert.ThatAsync(() => exactPreparation!.WaitAsync(timeout.Token),
+                    Throws.InvalidOperationException).ConfigureAwait(false);
+                Assert.That(factory.CreateCount, Is.Zero);
+                Assert.That(lifecycle.Revision, Is.EqualTo(published.Revision));
+            }
+        }
+
+        /// <summary>
         /// Unknown, removed and duplicate targets fail before factories run.
         /// </summary>
         [Test]
@@ -467,7 +537,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             prepared.SetMetadata(candidate.Slot, candidateImage.Object);
             Assert.That(() => prepared.SetMetadata(stable.Slot, stableImage.Object), Throws.InvalidOperationException);
             var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
+            NodeManagerRoutingTable routing = GetRoutingTable((MasterNodeManager)m_server.CurrentInstance.NodeManager);
+            using var pinnedContext = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            pinnedContext.PinRouting(routing);
+            NodeManagerRoutingTable.RoutingSnapshot before = pinnedContext.RoutingSnapshot!;
             Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.False);
+            Assert.That(Array.IndexOf(before.NodeManagers, candidate.NodeManager), Is.EqualTo(-1));
             int decisions = 0;
             if (commit)
             {
@@ -481,6 +557,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(host.RoutingRevision.ReadImages[stable.NodeManager], Is.SameAs(stableImage.Object));
                     Assert.That(host.RoutingRevision.ReadImages[candidate.NodeManager],
                         Is.SameAs(candidateImage.Object));
+                    Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, candidate.NodeManager),
+                        Is.GreaterThanOrEqualTo(0));
+                    Assert.That(pinnedContext.RoutingSnapshot, Is.SameAs(before));
+                    Assert.That(before.ReadImages.ContainsKey(stable.NodeManager), Is.False);
+                    Assert.That(Array.IndexOf(before.NodeManagers, candidate.NodeManager), Is.EqualTo(-1));
                 }).ConfigureAwait(false);
                 Assert.That(result.Revision, Is.EqualTo(initial.Revision + 1));
                 Assert.That(result.Issues, Is.Empty);
@@ -493,6 +574,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(stable.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
             Assert.That(current.NodeManager, Is.SameAs(stable.NodeManager));
             Assert.That(host.RoutingRevision.ReadImages.ContainsKey(stable.NodeManager), Is.EqualTo(commit));
+            Assert.That(host.RoutingRevision.ReadImages.ContainsKey(candidate.NodeManager), Is.EqualTo(commit));
+            Assert.That(Array.IndexOf(host.RoutingRevision.NodeManagers, candidate.NodeManager),
+                commit ? Is.GreaterThanOrEqualTo(0) : Is.EqualTo(-1));
+            if (!commit)
+            {
+                Assert.That(host.RoutingRevision, Is.SameAs(before));
+            }
         }
 
         /// <summary>
@@ -532,6 +620,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             ILifecycleCapture capture = lifecycle.CaptureChanges();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var inputRequested = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseInput = new TaskCompletionSource<LifecycleChange>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<LifecycleChange> inputs = CaptureInputsAsync();
+            var factory = new CountingNodeManagerFactory([kSecondModelNamespaceUri],
+                CreateTrackingNodeManagementFactory(
+                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
+            await inputRequested.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             switch (changed)
             {
                 case "Routing":
@@ -549,17 +646,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         new ExpandedNodeId(99002), rangeType!).Commit();
                     break;
             }
-            await using ILifecycleWriter writer = await capture.BeginAsync().ConfigureAwait(false);
-            var factory = new CountingNodeManagerFactory([kSecondModelNamespaceUri],
-                CreateTrackingNodeManagementFactory(
-                    kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
-            await Assert.ThatAsync(async () => await writer.PrepareAsync([LifecycleChange.Add(factory)])
+            releaseInput.TrySetResult(LifecycleChange.Add(factory));
+            LifecycleChange acquired = await inputs.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await using ILifecycleWriter writer = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
+            await Assert.ThatAsync(async () => await writer.PrepareAsync([acquired], timeout.Token)
                 .ConfigureAwait(false), Throws.InvalidOperationException).ConfigureAwait(false);
             await Assert.ThatAsync(async () => await writer.ValidateAsync(
-                [LifecycleChange.Add(factory)], (_, _) => default).ConfigureAwait(false),
+                [acquired], (_, _) => default, timeout.Token).ConfigureAwait(false),
                 Throws.InvalidOperationException).ConfigureAwait(false);
             Assert.That(writer.IsCurrent, Is.False);
             Assert.That(factory.CreateCount, Is.Zero);
+
+            Task<LifecycleChange> CaptureInputsAsync()
+            {
+                inputRequested.TrySetResult(true);
+                return releaseInput.Task.WaitAsync(timeout.Token);
+            }
         }
 
         /// <summary>

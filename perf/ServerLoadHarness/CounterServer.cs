@@ -112,10 +112,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             double expected = elapsedMs / samplingIntervalMs;
             double min = double.MaxValue;
             double sum = 0;
+            ulong taken = 0;
             int belowTarget = 0;
             for (int i = 0; i < m_values.Length; i++)
             {
-                double progress = (Interlocked.Read(ref m_values[i]) - m_marked[i]) / expected;
+                ulong samples = Interlocked.Read(ref m_values[i]) - m_marked[i];
+                taken += samples;
+                double progress = samples / expected;
                 min = Math.Min(min, progress);
                 sum += progress;
                 if (progress < 0.99)
@@ -124,7 +127,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
             return FormattableString.Invariant(
-                $"counters={m_values.Length} samplesExpected={expected:F0} progressMin={min:P2} ") +
+                $"counters={m_values.Length} samplesExpected={expected:F0} samplesTaken={taken} progressMin={min:P2} ") +
                 FormattableString.Invariant(
                 $"progressMean={sum / m_values.Length:P2} itemsBelow99={belowTarget}");
         }
