@@ -820,6 +820,14 @@ Restart preserves that owner without invoking credential installation, and
 security reset releases the claim. Security checkpoints support versions 1
 through 3; the configuration-owner state requires version 2 or later.
 
+Use `RequireInstalledRegistrarAsync` when access requires an already configured
+DCA. It checks the installed state and registrar trust together, without
+claiming an unconfigured device. Reading `GetStageAsync` and then calling
+`RequireRegistrarAsync` is not equivalent: a reset between those calls could
+cause bootstrap authorization to record a new configuration owner. The installed
+check authorizes the current state; it does not reserve that state for a later
+application mutation.
+
 The installation checkpoint retains complete credentials and the actual
 registrar channel certificate before invoking the installer. If installation
 fails, only
