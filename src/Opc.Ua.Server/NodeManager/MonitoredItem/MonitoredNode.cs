@@ -212,6 +212,7 @@ namespace Opc.Ua.Server
                 }
                 bool wasEmpty = !HasMonitoredItems;
                 DataChangeMonitoredItems.TryAdd(datachangeItem.Id, datachangeItem);
+                m_dataChangeItems = null;
 
                 Node.OnStateChangedAsync = OnMonitoredNodeChangedAsync;
 
@@ -233,6 +234,7 @@ namespace Opc.Ua.Server
             {
                 if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
                 {
+                    m_dataChangeItems = null;
                     Interlocked.Increment(ref m_permissionGeneration);
                     m_permissionCache.TryRemove(datachangeItem.Id, out _);
                 }
@@ -500,9 +502,9 @@ namespace Opc.Ua.Server
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
                     generation?.Gate.State == NodeManagerGenerationState.Live)
                 {
-                    foreach (IDataChangeMonitoredItem2 monitoredItem in
-                        DataChangeMonitoredItems.Values)
+                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in GetDataChangeItems())
                     {
+                        IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
                         if (IsInCurrentGeneration(monitoredItem) &&
                             monitoredItem is IMonitoredItemGenerationBinding binding)
                         {
@@ -532,8 +534,7 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                // A collection expression races the dictionary's Count against CopyTo during concurrent registration.
-                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = DataChangeMonitoredItems.ToArray();
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = GetDataChangeItems();
                 // Collect the distinct attribute IDs being monitored so we can pre-read them.
                 // The raw value is read once without any index range or data encoding; each
                 // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
@@ -2213,6 +2214,35 @@ namespace Opc.Ua.Server
                     () => new ServerSystemContext(m_server))!;
         }
 
+        /// <summary>
+        /// Gets the data change items as an array that add and remove replace rather than change,
+        /// so every change captures them without a copy, a lock or an enumerator allocation.
+        /// Snapshots share the array, so it is never modified.
+        /// </summary>
+        private KeyValuePair<uint, IDataChangeMonitoredItem2>[] GetDataChangeItems()
+        {
+            KeyValuePair<uint, IDataChangeMonitoredItem2>[]? items = Volatile.Read(ref m_dataChangeItems);
+            if (items != null)
+            {
+                return items;
+            }
+
+            // Rebuilt on first use rather than in Add, so attaching many items costs one copy.
+            // Add, Remove and Dispose change the dictionary under the same lock, so the copy
+            // cannot miss a concurrent registration.
+            lock (m_rebindLock)
+            {
+                items = m_dataChangeItems;
+                if (items == null)
+                {
+                    items = DataChangeMonitoredItems.IsEmpty ? [] : DataChangeMonitoredItems.ToArray();
+                    Volatile.Write(ref m_dataChangeItems, items);
+                }
+                return items;
+            }
+        }
+
+        private KeyValuePair<uint, IDataChangeMonitoredItem2>[]? m_dataChangeItems;
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
@@ -2306,6 +2336,7 @@ namespace Opc.Ua.Server
                     InvalidatePermissionCaches();
 
                     DataChangeMonitoredItems.Clear();
+                    m_dataChangeItems = null;
                     EventMonitoredItems.Clear();
                 }
             }
