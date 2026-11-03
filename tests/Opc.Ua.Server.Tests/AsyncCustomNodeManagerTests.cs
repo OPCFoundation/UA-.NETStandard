@@ -2395,10 +2395,12 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// OPC 10000-4 §5.9.2.2 ignores the nodeClassMask for a remote target whose NodeClass is
-        /// unknown, while local targets remain filtered by their NodeClass.
+        /// unknown, while local targets remain filtered by their NodeClass. A URI-qualified target
+        /// on this server (ServerIndex 0) is not remote and keeps the previous masked behavior.
         /// </summary>
         [TestCase(NodeClass.Object)]
         [TestCase(NodeClass.Variable)]
+        [TestCase(NodeClass.Unspecified)]
         public async Task BrowseAsyncIgnoresNodeClassMaskForRemoteTargetsAsync(NodeClass mask)
         {
             using ITestNodeManager manager = CreateManager();
@@ -2426,6 +2428,9 @@ namespace Opc.Ua.Server.Tests
 
             var remote = new ExpandedNodeId("RemoteTarget", "urn:test:remote", 1);
             parent.AddReference(ReferenceTypeIds.Organizes, false, remote);
+            var sameServer = new ExpandedNodeId("MaskVariable", m_namespaceTable.GetString(nsIdx), 0);
+            Assert.That(sameServer.IsAbsolute, Is.True);
+            parent.AddReference(ReferenceTypeIds.Organizes, false, sameServer);
 
             object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
             var continuationPoint = new ContinuationPoint
@@ -2446,12 +2451,16 @@ namespace Opc.Ua.Server.Tests
                 references).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
-            ExpandedNodeId expectedLocal = new(mask == NodeClass.Object ? child.NodeId : variable.NodeId);
-            ExpandedNodeId excludedLocal = new(mask == NodeClass.Object ? variable.NodeId : child.NodeId);
-            Assert.That(references.Select(reference => reference.NodeId),
-                Is.EquivalentTo(new[] { expectedLocal, remote }));
-            Assert.That(references.Select(reference => reference.NodeId), Does.Not.Contain(excludedLocal));
-            ReferenceDescription remoteDescription = references.Single(reference => reference.NodeId == remote);
+            var objectChild = new ExpandedNodeId(child.NodeId);
+            var variableChild = new ExpandedNodeId(variable.NodeId);
+            ExpandedNodeId[] expected = mask switch
+            {
+                NodeClass.Object => [objectChild, remote],
+                NodeClass.Variable => [variableChild, remote],
+                _ => [objectChild, variableChild, remote, sameServer]
+            };
+            Assert.That(references.Select(reference => reference.NodeId), Is.EquivalentTo(expected));
+            ReferenceDescription remoteDescription = references.Single(reference => reference.NodeId.Equals(remote));
             Assert.That(remoteDescription.NodeClass, Is.EqualTo(NodeClass.Unspecified));
             Assert.That(remoteDescription.Unfiltered, Is.False);
         }

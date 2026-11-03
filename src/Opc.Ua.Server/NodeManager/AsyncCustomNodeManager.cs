@@ -4849,8 +4849,14 @@ namespace Opc.Ua.Server
             // do not cache target parameters for remote nodes.
             if (reference.TargetId.IsAbsolute)
             {
-                // The NodeClass of a remote target is unknown here, so OPC 10000-4 §5.9.2.2
-                // requires the nodeClassMask to be ignored for it.
+                // The NodeClass of a target on another server is unknown here, so
+                // OPC 10000-4 §5.9.2.2 requires the nodeClassMask to be ignored for it. A
+                // URI-qualified target on this server is not remote and keeps the class filter.
+                if (reference.TargetId.ServerIndex == 0 && continuationPoint.NodeClassMask != 0)
+                {
+                    return null!;
+                }
+
                 return description;
             }
 
