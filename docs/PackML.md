@@ -349,11 +349,15 @@ The [PackML test project](../tests/Opc.Ua.PackML.Tests/) contains direct runtime
 administration and real-session scenarios. Existing controller regression cases
 remain in [the Scales tests](../tests/Opc.Ua.Scales.Tests/ScalesNodeManagerTests.cs).
 Those scenarios do not replace testing the provider, inherited server facets
-or an equipment installation. OPC 30050 v1.01 §6.3.5 identifies the five dashed
-Hold transitions in Figure 15 as optional state-model extensions. The runtime
-exposes and executes those transitions when a configured mode includes their
-source and destination states, and reports the optional StateModel extensions
-conformance unit when one mode enables the complete set. The standard does not
-define arbitrary vendor-added state identifiers. OPC 30050 remains Partial in
-the [published specification support matrix](Profiles.md#published-specification-support-matrix)
-until exact-head validation confirms the implementation.
+or an equipment installation. The optional StateModel extensions conformance
+unit appears in [Table 66 (§7.2.2.1)](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/7.2.2.1),
+but [Table 63 (§7.1.2)](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/7.1)
+has no entry for it. [Section 6.3.5](https://reference.opcfoundation.org/specs/OPC-30050/v1.01/6.3.5)
+identifies the dashed Hold transitions in Figure 15 as optional state-model
+extensions. The runtime exposes and executes those five Hold transitions when a
+configured mode includes their source and destination states. The specification
+does not say whether the conformance unit requires one, some or all five, or
+define other criteria; the runtime therefore does not advertise it. OPC 30050
+remains Partial in the
+[published specification support matrix](Profiles.md#published-specification-support-matrix)
+until the conformance unit is defined.

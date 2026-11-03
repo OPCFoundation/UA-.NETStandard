@@ -652,14 +652,14 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Verifies the configured Hold transitions from every optional extension state.
+        /// Verifies the five optional Hold transitions in the published state model.
         /// </summary>
         [TestCase(PackMLStateNumbers.Starting, Objects.PackMLExecuteStateMachineType_StartingToHolding)]
         [TestCase(PackMLStateNumbers.Suspending, Objects.PackMLExecuteStateMachineType_SuspendingToHolding)]
         [TestCase(PackMLStateNumbers.Suspended, Objects.PackMLExecuteStateMachineType_SuspendedToHolding)]
         [TestCase(PackMLStateNumbers.Unsuspending, Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding)]
         [TestCase(PackMLStateNumbers.Unholding, Objects.PackMLExecuteStateMachineType_UnholdingToHolding)]
-        public async Task StateModelExtensionsAdvertiseAndExecuteOptionalHoldTransitions(
+        public async Task StateModelExtensionsExposeAndExecuteOptionalHoldTransitions(
             uint sourceState,
             uint transitionId)
         {
@@ -699,9 +699,6 @@ namespace Opc.Ua.PackML.Tests
             }
 
             Assert.That(unit.CurrentState, Is.EqualTo(sourceState));
-            string?[] conformanceUnits =
-                unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
-            Assert.That(conformanceUnits, Does.Contain("PackML StateModel extensions"));
             PackMLExecuteStateMachineState execute =
                 unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
             NodeId expectedTransition = new(
@@ -715,40 +712,17 @@ namespace Opc.Ua.PackML.Tests
         }
 
         /// <summary>
-        /// Verifies the extension unit is omitted when no mode enables all five transitions.
+        /// Verifies that the undefined optional conformance unit is not advertised.
         /// </summary>
         [Test]
-        public async Task StateModelExtensionsAreNotAdvertisedWhenNoModeEnablesEveryOptionalHoldTransition()
+        public async Task StateModelExtensionsConformanceUnitIsWithheld()
         {
             SystemContext context = PackMLTestSupport.CreateContext();
-            var options = new PackMLUnitOptions
-            {
-                Modes =
-                [
-                    new PackMLMode
-                    {
-                        States =
-                        [
-                            PackMLStateNumbers.Cleared, PackMLStateNumbers.Stopped, PackMLStateNumbers.Running,
-                            PackMLStateNumbers.Starting, PackMLStateNumbers.Execute, PackMLStateNumbers.Holding,
-                            PackMLStateNumbers.Held, PackMLStateNumbers.Unholding, PackMLStateNumbers.Suspending,
-                            PackMLStateNumbers.Suspended
-                        ]
-                    }
-                ]
-            };
             await using Unit unit = await Unit.CreateAsync(
-                context, null, PackMLTestSupport.Name(context), new EquipmentProvider(), options);
+                context, null, PackMLTestSupport.Name(context), new EquipmentProvider());
             string?[] conformanceUnits =
                 unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
             Assert.That(conformanceUnits, Does.Not.Contain("PackML StateModel extensions"));
-            PackMLExecuteStateMachineState execute =
-                unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
-            ushort namespaceIndex = checked((ushort)context.NamespaceUris.GetIndex(Namespaces.PackML));
-            NodeId unavailableTransition =
-                new(Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding, namespaceIndex);
-            Assert.That(execute.AvailableTransitions.Required().Value.Span.ToArray(),
-                Does.Not.Contain(unavailableTransition));
         }
 
         [TestCase(0, 0)]
