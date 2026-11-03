@@ -56,6 +56,7 @@ namespace Opc.Ua.ECM.Tests
         {
             SystemContext context = CreateContext();
             var types = new TypeTable(context.NamespaceUris);
+            types.AddSubtype(Opc.Ua.DataTypeIds.Double, NodeId.Null);
             types.AddSubtype(Opc.Ua.DataTypeIds.Duration, Opc.Ua.DataTypeIds.Double);
             context.TypeTable = types;
             await using EcmPowerBinding binding = CreateBinding(context, CreateProvider());
