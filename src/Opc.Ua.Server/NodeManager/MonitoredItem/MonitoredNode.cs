@@ -534,56 +534,34 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = GetDataChangeItems();
-                // Collect the distinct attribute IDs being monitored so we can pre-read them.
-                // The raw value is read once without any index range or data encoding; each
-                // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
-                var attributeIds = new HashSet<uint>();
-                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in monitoredItems)
+                DataChangeItemSet itemSet = GetDataChangeItemSet();
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = itemSet.Items;
+                // Read each monitored attribute once, without any index range or data encoding;
+                // each monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
+                // The Value attribute has its own slot, so a value change allocates no lookup.
+                bool hasValue = false;
+                DataValue reportedValue = default;
+                if (itemSet.ReadsValue && (changes & NodeStateChangeMasks.Value) != 0)
                 {
-                    IDataChangeMonitoredItem2 item = kvp.Value;
-                    if (item is MonitoredItem { UsesExternalValueSource: true })
-                    {
-                        continue;
-                    }
-                    bool isValueAttribute = item.AttributeId == Attributes.Value;
-                    if (isValueAttribute && (changes & NodeStateChangeMasks.Value) == 0)
-                    {
-                        continue;
-                    }
-                    if (!isValueAttribute && (changes & NodeStateChangeMasks.NonValue) == 0)
-                    {
-                        continue;
-                    }
-                    attributeIds.Add(item.AttributeId);
+                    reportedValue = await ReadSnapshotAttributeAsync(
+                        context, node, Attributes.Value, cancellationToken).ConfigureAwait(false);
+                    hasValue = true;
                 }
 
-                var attributeSnapshots = new Dictionary<uint, DataValue>(attributeIds.Count);
-
-                foreach (uint attributeId in attributeIds)
+                Dictionary<uint, DataValue>? attributeSnapshots = null;
+                if (itemSet.NonValueAttributeIds.Length != 0 && (changes & NodeStateChangeMasks.NonValue) != 0)
                 {
-                    var dataValue = new DataValue(
-                        default,
-                        StatusCodes.Good,
-                        DateTime.MinValue,
-                        m_timeProvider.GetUtcNow().UtcDateTime);
-
-                    // Read at enqueue time via the async entry point: ReadAttributeAsync honors an
-                    // asynchronous value read handler (OnReadValueAsync) when one is registered and
-                    // otherwise completes synchronously. The value is therefore materialised for this
-                    // change before it is enqueued (strict enqueue-time snapshot) without blocking.
-                    (_, attributeSnapshots[attributeId]) = await node.ReadAttributeAsync(
-                        context,
-                        attributeId,
-                        default,
-                        QualifiedName.Null,
-                        dataValue,
-                        cancellationToken).ConfigureAwait(false);
+                    attributeSnapshots = new Dictionary<uint, DataValue>(itemSet.NonValueAttributeIds.Length);
+                    foreach (uint attributeId in itemSet.NonValueAttributeIds)
+                    {
+                        attributeSnapshots[attributeId] = await ReadSnapshotAttributeAsync(
+                            context, node, attributeId, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
                     subscriberValueSnapshots = null;
-                if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
+                if (hasValue &&
                     reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
                     node is BaseVariableState variable &&
                     (variable.OnReadUserAccessLevel is not null ||
@@ -631,6 +609,8 @@ namespace Opc.Ua.Server
                     NodeId = node.NodeId,
                     Changes = changes,
                     MonitoredItems = monitoredItems,
+                    HasValueSnapshot = hasValue,
+                    ValueSnapshot = reportedValue,
                     AttributeSnapshots = attributeSnapshots,
                     SubscriberValueSnapshots = subscriberValueSnapshots,
                     SourceEmission = emission
@@ -646,6 +626,32 @@ namespace Opc.Ua.Server
             {
                 emission?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Reads an attribute at enqueue time via the async entry point: ReadAttributeAsync honors an
+        /// asynchronous value read handler (OnReadValueAsync) when one is registered and otherwise
+        /// completes synchronously. The value is therefore materialised for this change before it is
+        /// enqueued (strict enqueue-time snapshot) without blocking.
+        /// </summary>
+        private async ValueTask<DataValue> ReadSnapshotAttributeAsync(
+            ISystemContext context,
+            NodeState node,
+            uint attributeId,
+            CancellationToken cancellationToken)
+        {
+            (_, DataValue value) = await node.ReadAttributeAsync(
+                context,
+                attributeId,
+                default,
+                QualifiedName.Null,
+                new DataValue(
+                    default,
+                    StatusCodes.Good,
+                    DateTime.MinValue,
+                    m_timeProvider.GetUtcNow().UtcDateTime),
+                cancellationToken).ConfigureAwait(false);
+            return value;
         }
 
         /// <summary>
@@ -1669,7 +1675,7 @@ namespace Opc.Ua.Server
             bool attributeChanged = monitoredItem.AttributeId != Attributes.Value &&
                 (snapshot.Changes & NodeStateChangeMasks.NonValue) != 0;
             if ((!valueChanged && !attributeChanged) ||
-                !snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
+                !snapshot.TryGetAttributeSnapshot(monitoredItem.AttributeId, out DataValue snapshotValue))
             {
                 return;
             }
@@ -2221,10 +2227,15 @@ namespace Opc.Ua.Server
         /// </summary>
         private KeyValuePair<uint, IDataChangeMonitoredItem2>[] GetDataChangeItems()
         {
-            KeyValuePair<uint, IDataChangeMonitoredItem2>[]? items = Volatile.Read(ref m_dataChangeItems);
-            if (items != null)
+            return GetDataChangeItemSet().Items;
+        }
+
+        private DataChangeItemSet GetDataChangeItemSet()
+        {
+            DataChangeItemSet? itemSet = Volatile.Read(ref m_dataChangeItems);
+            if (itemSet != null)
             {
-                return items;
+                return itemSet;
             }
 
             // Rebuilt on first use rather than in Add, so attaching many items costs one copy.
@@ -2232,17 +2243,62 @@ namespace Opc.Ua.Server
             // cannot miss a concurrent registration.
             lock (m_rebindLock)
             {
-                items = m_dataChangeItems;
-                if (items == null)
+                itemSet = m_dataChangeItems;
+                if (itemSet == null)
                 {
-                    items = DataChangeMonitoredItems.IsEmpty ? [] : DataChangeMonitoredItems.ToArray();
-                    Volatile.Write(ref m_dataChangeItems, items);
+                    itemSet = new DataChangeItemSet(
+                        DataChangeMonitoredItems.IsEmpty ? [] : DataChangeMonitoredItems.ToArray());
+                    Volatile.Write(ref m_dataChangeItems, itemSet);
                 }
-                return items;
+                return itemSet;
             }
         }
 
-        private KeyValuePair<uint, IDataChangeMonitoredItem2>[]? m_dataChangeItems;
+        /// <summary>
+        /// The data change items of the node and the attributes a change must read for them.
+        /// </summary>
+        private sealed class DataChangeItemSet
+        {
+            public DataChangeItemSet(KeyValuePair<uint, IDataChangeMonitoredItem2>[] items)
+            {
+                Items = items;
+                List<uint>? nonValueAttributeIds = null;
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in items)
+                {
+                    IDataChangeMonitoredItem2 item = kvp.Value;
+                    if (item is MonitoredItem { UsesExternalValueSource: true })
+                    {
+                        continue;
+                    }
+                    if (item.AttributeId == Attributes.Value)
+                    {
+                        ReadsValue = true;
+                    }
+                    else if (nonValueAttributeIds?.Contains(item.AttributeId) != true)
+                    {
+                        (nonValueAttributeIds ??= []).Add(item.AttributeId);
+                    }
+                }
+                NonValueAttributeIds = nonValueAttributeIds?.ToArray() ?? [];
+            }
+
+            /// <summary>
+            /// The data change items.
+            /// </summary>
+            public KeyValuePair<uint, IDataChangeMonitoredItem2>[] Items { get; }
+
+            /// <summary>
+            /// Whether an item sampled by the node monitors the Value attribute.
+            /// </summary>
+            public bool ReadsValue { get; }
+
+            /// <summary>
+            /// The distinct other attributes that items sampled by the node monitor.
+            /// </summary>
+            public uint[] NonValueAttributeIds { get; }
+        }
+
+        private DataChangeItemSet? m_dataChangeItems;
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
         private IAsyncNodeManager m_nodeManager = null!;
