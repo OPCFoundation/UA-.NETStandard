@@ -48,10 +48,13 @@ namespace Opc.Ua.AMB.Tests
         /// <summary>
         /// Filters classifications without discarding local or unresolved remote asset relations.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
         public async Task ReadRelationsIgnoresUnregisteredLocalNamespacesWithoutLosingAssetRelationsAsync(
-            bool registerDictionaryNamespace)
+            bool registerDictionaryNamespace,
+            bool verified)
         {
             Mock<ISession> session = CreateSession();
             const string dictionaryNamespace = "urn:example:eclass";
@@ -64,8 +67,16 @@ namespace Opc.Ua.AMB.Tests
             var target = new NodeId("confirmed", 4);
             var alias = new NodeId("alias", 4);
             var remote = new ExpandedNodeId(new NodeId("group", 4), "urn:test:remote-only", 1);
+            var remoteAsset = new ExpandedNodeId(new NodeId("remote-asset", 4), "urn:test:remote-only", 1);
+            session.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:local", "urn:test:remote"]));
+            Mock<ISession> remoteSession = CreateSession();
+            ushort remoteNamespace = remoteSession.Object.NamespaceUris.GetIndexOrAppend("urn:test:remote-only");
+            var remoteTarget = new NodeId("remote-asset", remoteNamespace);
+            remoteSession.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:remote"]));
             NodeId category = ExpandedNodeId.ToNodeId(
                 ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
+            NodeId remoteCategory = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, remoteSession.Object.NamespaceUris);
             ReferenceDescription Relation(NodeId type, bool forward, ExpandedNodeId node)
             {
                 ReferenceDescription reference = Reference(node);
@@ -86,38 +97,82 @@ namespace Opc.Ua.AMB.Tests
                                 Relation(Ua.ReferenceTypeIds.Utilizes, false,
                                     new ExpandedNodeId(target, InstanceNamespace)),
                                 Relation(Ua.ReferenceTypeIds.Utilizes, true, remote),
+                                Relation(Ua.ReferenceTypeIds.Utilizes, true, remoteAsset),
                                 Relation(Ua.ReferenceTypeIds.Utilizes, true, s_asset),
                                 Relation(Ua.ReferenceTypeIds.Utilizes, true, new NodeId("not-an-asset", 4))
                             ]
                         }
                         : new BrowseResult());
-
-            ArrayOf<AssetRelation> relations = await CreateClient(session).ReadRelationsAsync(s_asset)
-                .ConfigureAwait(false);
-
-            Assert.That(relations.ToList(), Is.EqualTo(new[]
+            SetupBrowse(remoteSession, request => request.NodeId == remoteCategory
+                ? new BrowseResult { References = [Reference(alias)] }
+                : request.NodeId == alias
+                    ? new BrowseResult { References = [Reference(remoteTarget)] }
+                    : new BrowseResult());
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(remoteSession.Object);
+            var client = new AmbClient(session.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
             {
-                new AssetRelation(Ua.ReferenceTypeIds.Utilizes, true, new ExpandedNodeId(target, InstanceNamespace)),
-                new AssetRelation(Ua.ReferenceTypeIds.Utilizes, false, remote)
-            }));
+                SessionResolver = resolver.Object
+            });
+
+            if (verified)
+            {
+                ArrayOf<AssetRelationReference> relations = await client.ReadRelationReferencesAsync(s_asset)
+                    .ConfigureAwait(false);
+                Assert.That(relations.ToList(), Is.EqualTo(new[]
+                {
+                    new AssetRelationReference(Ua.ReferenceTypeIds.Utilizes, true,
+                        new AssetNodeReference("urn:test:local", new ExpandedNodeId(target, InstanceNamespace))),
+                    new AssetRelationReference(Ua.ReferenceTypeIds.Utilizes, false,
+                        new AssetNodeReference("urn:test:remote",
+                            new ExpandedNodeId(remoteTarget, "urn:test:remote-only")))
+                }));
+            }
+            else
+            {
+                ArrayOf<AssetRelation> relations = await client.ReadRelationsAsync(s_asset).ConfigureAwait(false);
+                Assert.That(relations.ToList(), Is.EqualTo(new[]
+                {
+                    new AssetRelation(Ua.ReferenceTypeIds.Utilizes, true,
+                        new ExpandedNodeId(target, InstanceNamespace)),
+                    new AssetRelation(Ua.ReferenceTypeIds.Utilizes, false, remote),
+                    new AssetRelation(Ua.ReferenceTypeIds.Utilizes, false, remoteAsset)
+                }));
+            }
+            resolver.Verify(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()),
+                verified ? Times.Once() : Times.Never());
             Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(namespaceCount),
                 "relation filtering must not register an external dictionary namespace");
             VerifyNoMutationOrDisposal(session);
+            VerifyNoMutationOrDisposal(remoteSession);
         }
 
         /// <summary>
         /// Keeps strict validation for a local namespace index outside the session table.
         /// </summary>
-        [Test]
-        public async Task ReadRelationsRejectsUnmappedNamespaceIndexAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadRelationsRejectsUnmappedNamespaceIndexAsync(bool verified)
         {
             Mock<ISession> session = CreateSession();
             SetupBrowse(session, request => request.NodeId == s_asset
                 ? new BrowseResult { References = [Reference(new NodeId("invalid", 100))] }
                 : new BrowseResult());
 
+            AmbClient client = CreateClient(session);
             await AssertStatusAsync(
-                () => CreateClient(session).ReadRelationsAsync(s_asset).AsTask(),
+                async () =>
+                {
+                    if (verified)
+                    {
+                        await client.ReadRelationReferencesAsync(s_asset).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await client.ReadRelationsAsync(s_asset).ConfigureAwait(false);
+                    }
+                },
                 StatusCodes.BadNodeIdInvalid).ConfigureAwait(false);
 
             VerifyNoMutationOrDisposal(session);
@@ -126,9 +181,13 @@ namespace Opc.Ua.AMB.Tests
         /// <summary>
         /// Requires a current namespace table for alias-listed assets before filtering relation candidates.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ReadRelationsRejectsAliasTargetsOutsideTheSessionNamespaceTableAsync(bool uriQualified)
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReadRelationsRejectsAliasTargetsOutsideTheSessionNamespaceTableAsync(
+            bool uriQualified,
+            bool verified)
         {
             Mock<ISession> session = CreateSession();
             var alias = new NodeId("alias", 4);
@@ -151,8 +210,19 @@ namespace Opc.Ua.AMB.Tests
                         : new BrowseResult();
             });
 
+            AmbClient client = CreateClient(session);
             await AssertStatusAsync(
-                () => CreateClient(session).ReadRelationsAsync(s_asset).AsTask(),
+                async () =>
+                {
+                    if (verified)
+                    {
+                        await client.ReadRelationReferencesAsync(s_asset).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await client.ReadRelationsAsync(s_asset).ConfigureAwait(false);
+                    }
+                },
                 StatusCodes.BadNodeIdInvalid).ConfigureAwait(false);
 
             Assert.That(browsedRelations, Is.False,

@@ -83,6 +83,11 @@ namespace Opc.Ua.AMB.Tests
                 serverIndex);
             local.PumpNode!.AddReference(Ua.ReferenceTypeIds.HasComponent, false, groupId);
             local.PumpNode!.AddReference(Ua.ReferenceTypeIds.Utilizes, false, groupId);
+            var remotePumpTarget = new ExpandedNodeId(
+                remotePumpId,
+                remote.Server.Server.NamespaceUris.GetString(remotePumpId.NamespaceIndex),
+                serverIndex);
+            local.PumpNode!.AddReference(Ua.ReferenceTypeIds.Utilizes, false, remotePumpTarget);
             await using Connection rootConnection = await Connection.OpenAsync(local.Server, "remote-root")
                 .ConfigureAwait(false);
             await using Connection remoteConnection = await Connection.OpenAsync(remote.Server, "remote-borrowed")
@@ -135,6 +140,19 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
                 "URI-aware traversal requires a resolver even with the original constructor");
             Assert.That(unresolved.All(node => node.ServerUri != remoteUri), Is.True);
+            ArrayOf<AssetRelationReference> verifiedRelations = await client
+                .ReadRelationReferencesAsync(local.Pump!.NodeId).ConfigureAwait(false);
+            Assert.That(verifiedRelations.ToList(), Is.EquivalentTo(new[]
+            {
+                new AssetRelationReference(Ua.ReferenceTypeIds.Utilizes, true,
+                    new AssetNodeReference(local.Server.Server.ServerUris.GetString(0)!,
+                        new ExpandedNodeId(local.Sensor!.NodeId,
+                            local.Server.Server.NamespaceUris.GetString(local.Sensor.NodeId.NamespaceIndex)))),
+                new AssetRelationReference(Ua.ReferenceTypeIds.Utilizes, false,
+                    new AssetNodeReference(remoteUri,
+                        new ExpandedNodeId(remotePumpId,
+                            remote.Server.Server.NamespaceUris.GetString(remotePumpId.NamespaceIndex))))
+            }), "classification and grouping targets are not verified asset relations");
             foreach (AmbClient referenceClient in new[]
             {
                 rootConnection.Client,
