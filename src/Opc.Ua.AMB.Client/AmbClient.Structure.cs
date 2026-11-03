@@ -546,6 +546,13 @@ namespace Opc.Ua.AMB.Client
                 NodeClass.Unspecified, budget, cancellationToken).ConfigureAwait(false))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (!IsRemote(reference.NodeId) &&
+                    reference.NodeId.NamespaceUri is string namespaceUri &&
+                    Session.NamespaceUris.GetIndex(namespaceUri) < 0)
+                {
+                    // External dictionary entries cannot belong to the discovered local asset set.
+                    continue;
+                }
                 NodeId target = IsRemote(reference.NodeId) ? NodeId.Null : ToNodeId(reference.NodeId);
                 if (IsRemote(reference.NodeId) || (target != asset && assets.Contains(target)))
                 {

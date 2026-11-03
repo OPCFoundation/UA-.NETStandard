@@ -45,6 +45,121 @@ namespace Opc.Ua.AMB.Tests
 {
     public sealed partial class AmbBoundedClientTests
     {
+        /// <summary>
+        /// Filters classifications without discarding local or unresolved remote asset relations.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadRelationsIgnoresUnregisteredLocalNamespacesWithoutLosingAssetRelationsAsync(
+            bool registerDictionaryNamespace)
+        {
+            Mock<ISession> session = CreateSession();
+            const string dictionaryNamespace = "urn:example:eclass";
+            if (registerDictionaryNamespace)
+            {
+                session.Object.NamespaceUris.GetIndexOrAppend(dictionaryNamespace);
+            }
+            int namespaceCount = session.Object.NamespaceUris.Count;
+            var dictionaryEntry = new ExpandedNodeId("classification", dictionaryNamespace);
+            var target = new NodeId("confirmed", 4);
+            var alias = new NodeId("alias", 4);
+            var remote = new ExpandedNodeId(new NodeId("group", 4), "urn:test:remote-only", 1);
+            NodeId category = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
+            ReferenceDescription Relation(NodeId type, bool forward, ExpandedNodeId node)
+            {
+                ReferenceDescription reference = Reference(node);
+                reference.ReferenceTypeId = type;
+                reference.IsForward = forward;
+                return reference;
+            }
+            SetupBrowse(session, request => request.NodeId == category
+                ? new BrowseResult { References = [Reference(alias)] }
+                : request.NodeId == alias
+                    ? new BrowseResult { References = [Reference(target), Reference(s_asset)] }
+                    : request.NodeId == s_asset
+                        ? new BrowseResult
+                        {
+                            References =
+                            [
+                                Relation(Ua.ReferenceTypeIds.HasDictionaryEntry, true, dictionaryEntry),
+                                Relation(Ua.ReferenceTypeIds.Utilizes, false,
+                                    new ExpandedNodeId(target, InstanceNamespace)),
+                                Relation(Ua.ReferenceTypeIds.Utilizes, true, remote),
+                                Relation(Ua.ReferenceTypeIds.Utilizes, true, s_asset),
+                                Relation(Ua.ReferenceTypeIds.Utilizes, true, new NodeId("not-an-asset", 4))
+                            ]
+                        }
+                        : new BrowseResult());
+
+            ArrayOf<AssetRelation> relations = await CreateClient(session).ReadRelationsAsync(s_asset)
+                .ConfigureAwait(false);
+
+            Assert.That(relations.ToList(), Is.EqualTo(new[]
+            {
+                new AssetRelation(Ua.ReferenceTypeIds.Utilizes, true, new ExpandedNodeId(target, InstanceNamespace)),
+                new AssetRelation(Ua.ReferenceTypeIds.Utilizes, false, remote)
+            }));
+            Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(namespaceCount),
+                "relation filtering must not register an external dictionary namespace");
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        /// <summary>
+        /// Keeps strict validation for a local namespace index outside the session table.
+        /// </summary>
+        [Test]
+        public async Task ReadRelationsRejectsUnmappedNamespaceIndexAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            SetupBrowse(session, request => request.NodeId == s_asset
+                ? new BrowseResult { References = [Reference(new NodeId("invalid", 100))] }
+                : new BrowseResult());
+
+            await AssertStatusAsync(
+                () => CreateClient(session).ReadRelationsAsync(s_asset).AsTask(),
+                StatusCodes.BadNodeIdInvalid).ConfigureAwait(false);
+
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        /// <summary>
+        /// Requires a current namespace table for alias-listed assets before filtering relation candidates.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadRelationsRejectsAliasTargetsOutsideTheSessionNamespaceTableAsync(bool uriQualified)
+        {
+            Mock<ISession> session = CreateSession();
+            var alias = new NodeId("alias", 4);
+            var target = uriQualified
+                ? new ExpandedNodeId("new-asset", "urn:test:new-namespace")
+                : new ExpandedNodeId(new NodeId("new-asset", (ushort)session.Object.NamespaceUris.Count));
+            NodeId category = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
+            bool browsedRelations = false;
+            SetupBrowse(session, request =>
+            {
+                if (request.NodeId == s_asset)
+                {
+                    browsedRelations = true;
+                }
+                return request.NodeId == category
+                    ? new BrowseResult { References = [Reference(alias)] }
+                    : request.NodeId == alias
+                        ? new BrowseResult { References = [Reference(target)] }
+                        : new BrowseResult();
+            });
+
+            await AssertStatusAsync(
+                () => CreateClient(session).ReadRelationsAsync(s_asset).AsTask(),
+                StatusCodes.BadNodeIdInvalid).ConfigureAwait(false);
+
+            Assert.That(browsedRelations, Is.False,
+                "an alias-listed asset outside the cached namespace table must not be silently filtered");
+            VerifyNoMutationOrDisposal(session);
+        }
+
         [TestCase(16, true, true)]
         [TestCase(4, true, false)]
         [TestCase(16, false, false)]
