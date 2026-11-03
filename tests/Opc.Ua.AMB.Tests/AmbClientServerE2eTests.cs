@@ -82,6 +82,7 @@ namespace Opc.Ua.AMB.Tests
                 remote.Server.Server.NamespaceUris.GetString(remoteGroup.NodeId.NamespaceIndex),
                 serverIndex);
             local.PumpNode!.AddReference(Ua.ReferenceTypeIds.HasComponent, false, groupId);
+            local.PumpNode!.AddReference(Ua.ReferenceTypeIds.Utilizes, false, groupId);
             await using Connection rootConnection = await Connection.OpenAsync(local.Server, "remote-root")
                 .ConfigureAwait(false);
             await using Connection remoteConnection = await Connection.OpenAsync(remote.Server, "remote-borrowed")
@@ -100,39 +101,61 @@ namespace Opc.Ua.AMB.Tests
             using ServiceProvider provider = services.BuildServiceProvider();
             AmbClient client = await provider.GetRequiredService<AmbClientFactory>().CreateAsync()
                 .ConfigureAwait(false);
-            var found = new List<ExpandedNodeId>();
+            var found = new List<AssetNodeReference>();
 
-            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(local.Pump!.NodeId)
+            await foreach (AssetNodeReference sub in client.EnumerateSubAssetReferencesAsync(local.Pump!.NodeId)
                 .ConfigureAwait(false))
             {
                 found.Add(sub);
             }
 
-            Assert.That(found, Does.Not.Contain(groupId), "the remote grouping Object is not an asset");
-            ExpandedNodeId remotePump = found.Single(node =>
-                node.ServerIndex != 0 && node.InnerNodeId.WithNamespaceIndex(remotePumpId.NamespaceIndex)
+            Assert.That(found.Any(node => node.ServerUri == remoteUri &&
+                node.NodeId.InnerNodeId.WithNamespaceIndex(remoteGroup.NodeId.NamespaceIndex) == remoteGroup.NodeId),
+                Is.False, "the remote grouping Object is not an asset");
+            AssetNodeReference remotePump = found.Single(node =>
+                node.ServerUri == remoteUri && node.NodeId.InnerNodeId.WithNamespaceIndex(remotePumpId.NamespaceIndex)
                     == remotePumpId);
-            Assert.That(rootConnection.Session.ServerUris.GetString(remotePump.ServerIndex), Is.EqualTo(remoteUri));
-            Assert.That(remotePump.NamespaceUri, Is.EqualTo(
+            Assert.That(remotePump.NodeId.NamespaceUri, Is.EqualTo(
                 remote.Server.Server.NamespaceUris.GetString(remotePumpId.NamespaceIndex)));
-            Assert.That(found.Count(node => node.ServerIndex != 0), Is.EqualTo(2),
+            Assert.That(found.Count(node => node.ServerUri == remoteUri), Is.EqualTo(2),
                 "the remote pump and its nested motor are confirmed assets");
             DataValue alive = await remoteConnection.Session.ReadValueAsync(
                 Ua.VariableIds.Server_NamespaceArray, CancellationToken.None).ConfigureAwait(false);
             Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good), "the borrowed remote session remains usable");
-            var unresolved = new List<ExpandedNodeId>();
+            var unresolved = new List<AssetNodeReference>();
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                await foreach (ExpandedNodeId sub in rootConnection.Client
-                    .EnumerateSubAssetsAsync(local.Pump!.NodeId).ConfigureAwait(false))
+                await foreach (AssetNodeReference sub in rootConnection.Client
+                    .EnumerateSubAssetReferencesAsync(local.Pump!.NodeId).ConfigureAwait(false))
                 {
                     unresolved.Add(sub);
                 }
             }).ConfigureAwait(false) ??
                 throw new AssertionException("Expected an unresolved remote candidate failure.");
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
-                "the original constructor must also reject unverified remote candidates");
-            Assert.That(unresolved.All(node => node.ServerIndex == 0), Is.True);
+                "URI-aware traversal requires a resolver even with the original constructor");
+            Assert.That(unresolved.All(node => node.ServerUri != remoteUri), Is.True);
+            foreach (AmbClient referenceClient in new[]
+            {
+                rootConnection.Client,
+                new AmbClient(rootConnection.Session, NUnitTelemetryContext.Create(), new AmbClientOptions())
+            })
+            {
+                var references = new List<ExpandedNodeId>();
+                await foreach (ExpandedNodeId reference in referenceClient
+                    .EnumerateSubAssetsAsync(local.Pump!.NodeId).ConfigureAwait(false))
+                {
+                    references.Add(reference);
+                }
+                Assert.That(references, Does.Contain(groupId),
+                    "both constructors report the published remote reference without following it");
+                Assert.That(references.Any(node => node.ServerIndex == 0), Is.True,
+                    "an unresolved remote reference must not discard local sub-assets");
+                Assert.That(references.Count(node => node.ServerIndex != 0), Is.EqualTo(1));
+                ArrayOf<AssetRelation> relations = await referenceClient.ReadRelationsAsync(local.Pump!.NodeId)
+                    .ConfigureAwait(false);
+                Assert.That(relations.ToList().Any(relation => relation.Target == groupId), Is.True);
+            }
         }
 
         private const string PumpUri = "urn:acme:pump:1";

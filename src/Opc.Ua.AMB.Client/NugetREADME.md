@@ -43,16 +43,20 @@ beside SoftwareRevision. Its `ArrayOf<string>` value preserves a null list
 separately from an empty list. Both client constructors report denied paths,
 read failures and invalid array types rather than returning an empty list.
 
-`EnumerateSubAssetsAsync` traverses grouping Objects and returns only assets
-listed in each server's AMB alias categories. For remote references, supply
+`EnumerateSubAssetsAsync` traverses local grouping Objects and identifies local
+assets through AMB alias categories. Both client constructors report remote
+references without following or verifying them; `ReadRelationsAsync` preserves
+the same behavior, including mixed local and remote results.
+
+For verified remote traversal, use `EnumerateSubAssetReferencesAsync` and supply
 `AmbClientOptions.SessionResolver` or register `IAmbSessionResolver` in DI.
 The resolver borrows application-owned sessions by server ApplicationUri;
 AMB does not create connections or select credentials or trust. Missing remote
 sessions and failed remote reads are explicit errors, not unverified assets
 or omitted subtrees. `EnumerateSubAssetReferencesAsync` returns stable server
 ApplicationUris and namespace-qualified NodeIds without changing session tables.
-The existing index-based API rejects remote identities that the originating
-server's authoritative ServerArray cannot represent.
+The existing index-based APIs retain the published originating-server identity
+and do not traverse nested servers.
 `ReadRelationReferencesAsync` returns URI-qualified relation targets only after
 the target server's alias categories establish asset membership; grouping and
 other non-asset Objects are not reported as asset relations.

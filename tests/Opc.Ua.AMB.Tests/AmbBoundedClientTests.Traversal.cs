@@ -100,8 +100,8 @@ namespace Opc.Ua.AMB.Tests
                     false,
                     new AssetNodeReference("urn:test:remote", new ExpandedNodeId(target, InstanceNamespace)))));
                 ArrayOf<AssetRelation> legacy = await client.ReadRelationsAsync(s_asset).ConfigureAwait(false);
-                Assert.That(legacy.Count, Is.EqualTo(1));
-                Assert.That(legacy[0].Target, Is.EqualTo(new ExpandedNodeId(target, InstanceNamespace, 1)));
+                Assert.That(legacy.Count, Is.EqualTo(3), "published remote references remain unverified");
+                Assert.That(legacy[1].Target, Is.EqualTo(new ExpandedNodeId(target, InstanceNamespace, 1)));
             }
             else
             {
@@ -124,11 +124,12 @@ namespace Opc.Ua.AMB.Tests
                 ? new BrowseResult { References = [Reference(candidate)] }
                 : new BrowseResult());
             AmbClient client = CreateClient(session);
-            var found = new List<ExpandedNodeId>();
+            var found = new List<AssetNodeReference>();
 
             ServiceResultException failure = await FailureAsync<ServiceResultException>(async () =>
             {
-                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                await foreach (AssetNodeReference sub in client.EnumerateSubAssetReferencesAsync(s_asset)
+                    .ConfigureAwait(false))
                 {
                     found.Add(sub);
                 }
@@ -183,11 +184,12 @@ namespace Opc.Ua.AMB.Tests
             {
                 SessionResolver = resolver.Object
             });
-            var found = new List<ExpandedNodeId>();
+            var found = new List<AssetNodeReference>();
 
             await AssertStatusAsync(async () =>
             {
-                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                await foreach (AssetNodeReference sub in client.EnumerateSubAssetReferencesAsync(s_asset)
+                    .ConfigureAwait(false))
                 {
                     found.Add(sub);
                 }
@@ -224,7 +226,8 @@ namespace Opc.Ua.AMB.Tests
 
             await Assert.ThatAsync(async () =>
             {
-                await foreach (ExpandedNodeId _ in client.EnumerateSubAssetsAsync(s_asset, cancellation.Token)
+                await foreach (AssetNodeReference _ in client
+                    .EnumerateSubAssetReferencesAsync(s_asset, cancellation.Token)
                     .ConfigureAwait(false))
                 {
                     Assert.Fail("an unresolved candidate must not be yielded");
@@ -346,14 +349,13 @@ namespace Opc.Ua.AMB.Tests
                     "a server append/refresh must not reinterpret a returned identity as the new server");
                 Assert.That(localServers.GetString(2), Is.EqualTo("urn:test:new-server"));
                 var legacy = new List<ExpandedNodeId>();
-                await AssertStatusAsync(async () =>
+                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
                 {
-                    await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
-                    {
-                        legacy.Add(sub);
-                    }
-                }, StatusCodes.BadNotSupported).ConfigureAwait(false);
-                Assert.That(legacy, Is.EqualTo(new[] { new ExpandedNodeId(first, "urn:test:remote:assets", 1) }));
+                    legacy.Add(sub);
+                }
+                Assert.That(legacy, Does.Contain(new ExpandedNodeId(group, "urn:test:remote:assets", 1)));
+                Assert.That(legacy.All(node => node.ServerIndex != 2), Is.True,
+                    "reference reporting does not traverse to the nested server");
                 Assert.That(localServers.Count, Is.EqualTo(3),
                     "legacy traversal must also leave ServerArray unchanged");
             }
@@ -363,7 +365,7 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(found, Is.Empty);
             }
             resolver.Verify(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()),
-                Times.Exactly(succeeds ? 2 : 1));
+                Times.Once);
             VerifyNoMutationOrDisposal(local);
             VerifyNoMutationOrDisposal(remote);
             VerifyNoMutationOrDisposal(third);
@@ -403,10 +405,11 @@ namespace Opc.Ua.AMB.Tests
             {
                 SessionResolver = resolver.Object
             });
-            var found = new List<ExpandedNodeId>();
+            var found = new List<AssetNodeReference>();
             async Task TraverseAsync()
             {
-                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                await foreach (AssetNodeReference sub in client.EnumerateSubAssetReferencesAsync(s_asset)
+                    .ConfigureAwait(false))
                 {
                     found.Add(sub);
                 }

@@ -723,10 +723,16 @@ Invalid limits are rejected before the factory opens a session.
 
 ### Sub-assets across servers
 
-`EnumerateSubAssetsAsync` follows hierarchical references through grouping
-Objects, which OPC 10000-110 §14.1 permits between assets. An Object is returned
-only when its server's AMB alias categories identify it as an asset; a remote
-reference alone does not establish that identity.
+`EnumerateSubAssetsAsync` traverses local grouping Objects and returns local
+assets identified by the server's AMB alias categories. Both client constructors
+report remote references as published, without following them or verifying that
+their targets are assets. `ReadRelationsAsync` preserves the same remote-reference
+behavior. Mixed local and unresolved remote references do not require a resolver.
+
+Use `EnumerateSubAssetReferencesAsync` to opt into verified recursive remote
+traversal. It follows grouping Objects, which OPC 10000-110 §14.1 permits between
+assets, and returns only targets identified by their owning server's AMB alias
+categories. A remote reference alone does not establish asset identity.
 
 Supply an `IAmbSessionResolver` to borrow sessions that the application has
 already opened and authorized. Its `ResolveAsync(serverUri, cancellationToken)`
@@ -770,13 +776,11 @@ when the remote alias categories establish asset membership; an arbitrary
 remote Object is not an asset relation. The returned `AssetRelationReference`
 retains the reference type and direction with the URI-qualified target.
 
-The existing `EnumerateSubAssetsAsync` API returns remote server indexes from
-the originating session's authoritative table. When a nested server is not
-listed there, this API reports `BadNotSupported`; use the URI-aware API rather
-than interpreting an index from another session or inventing a table entry.
-`ReadRelationsAsync` applies the same representation rule.
-Previously returned index-based identifiers still require their original
-session context and must not be persisted across table refreshes.
+The URI-aware operations report an explicit error when the resolver or remote
+session is unavailable, or remote verification fails. They never substitute an
+unverified reference. The existing index-based APIs retain remote identities
+from the originating server and do not visit nested servers; their results require
+the original session context and must not be persisted across table refreshes.
 
 Without a resolver, a remote candidate stops enumeration with `BadNotSupported`.
 An unavailable application session produces `BadNotConnected`; unknown
