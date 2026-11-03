@@ -189,8 +189,9 @@ namespace Opc.Ua.AutoID.Server
             {
                 return (invalid, default);
             }
-            NodeId owner = variableControl ? NodeId.Null :
-                (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+            NodeId owner = !variableControl && context is ISessionSystemContext { SessionId: NodeId sessionId }
+                ? sessionId
+                : NodeId.Null;
             string client = ClientOf(context);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
