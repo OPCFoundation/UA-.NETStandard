@@ -304,6 +304,8 @@ for (int ii = 0; ii < devices.Count; ii++)
 The injectable factory borrows the cached session registered by `AddClient`;
 consumers must not close or dispose that session. Direct construction accepts
 an existing `ISession` and `ITelemetryContext` with the same borrowing rule.
+Client construction registers the generated PA-DIM structure decoders in that
+session's message context so PAT values can be read as `ChemicalSubstance`.
 
 Discovery follows the DI hierarchy, recognizes vendor subtypes and prevents
 cycles. Its default limit is 4,096 visited nodes; exceeding the configured

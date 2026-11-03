@@ -29,6 +29,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PADIM;
 using Opc.Ua.PADIM.Client;
 using Opc.Ua.PADIM.Server;
 
@@ -39,6 +40,37 @@ namespace Opc.Ua.Aot.Tests
     /// </summary>
     public sealed class PadimAotTests
     {
+        /// <summary>
+        /// Decodes PAT values through the generated activators used by the PA-DIM client.
+        /// </summary>
+        [Test]
+        public async Task PadimPatValuesDecodeWithGeneratedActivators()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.SetMinimumLevel(LogLevel.Warning));
+            var context = ServiceMessageContext.Create(telemetry);
+            context.NamespaceUris.GetIndexOrAppend("urn:padim:aot:shift");
+            context.NamespaceUris.GetIndexOrAppend(PADIM.Namespaces.PADIM);
+            context.Factory.Builder.AddOpcUaPADIM().Commit();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteVariant(null, Variant.From(new ExtensionObject(new PADIM.ChemicalSubstance
+            {
+                PatDictionary = PADIM.PatDictionaryEnum.CAS,
+                Label = new LocalizedText("AOT substance"),
+                Id = new LocalizedText("PAT-AOT-001")
+            })));
+            using var decoder = new BinaryDecoder(
+                encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded PAT sample."),
+                context);
+            Variant decoded = decoder.ReadVariant(null);
+            bool extracted = decoded.TryGetStructure<PADIM.ChemicalSubstance>(
+                out PADIM.ChemicalSubstance? substance);
+            await Assert.That(extracted).IsTrue();
+            await Assert.That(substance!.PatDictionary).IsEqualTo(PADIM.PatDictionaryEnum.CAS);
+            await Assert.That(substance.Label.Text).IsEqualTo("AOT substance");
+            await Assert.That(substance.Id.Text).IsEqualTo("PAT-AOT-001");
+        }
+
         /// <summary>
         /// Loads the sole PA-DIM/IRDI producer with shifted indexes and resolves its client factory.
         /// </summary>

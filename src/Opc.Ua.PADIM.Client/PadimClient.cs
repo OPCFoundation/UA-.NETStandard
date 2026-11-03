@@ -57,6 +57,15 @@ namespace Opc.Ua.PADIM.Client
                 throw new ArgumentOutOfRangeException(nameof(maximumNodes));
             }
             m_maximumNodes = maximumNodes;
+            IServiceMessageContext messageContext = session.MessageContext ??
+                throw new ArgumentException("The session must provide a message context.", nameof(session));
+            lock (s_registrationLock)
+            {
+                if (!messageContext.Factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance))
+                {
+                    messageContext.Factory.Builder.AddOpcUaPADIM().Commit();
+                }
+            }
         }
 
         /// <summary>
@@ -350,6 +359,9 @@ namespace Opc.Ua.PADIM.Client
                 throw new ArgumentException("A local node identifier is required.", nameof(nodeId));
             }
         }
+
+        /// <summary>Serializes generated type registration across clients borrowing one session.</summary>
+        private static readonly System.Threading.Lock s_registrationLock = new();
 
         /// <summary>The per-discovery and per-browse node bound.</summary>
         private readonly int m_maximumNodes;

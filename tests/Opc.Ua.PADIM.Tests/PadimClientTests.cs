@@ -46,6 +46,40 @@ namespace Opc.Ua.PADIM.Tests
     public sealed class PadimClientTests
     {
         /// <summary>
+        /// Registers PAT decoding on the borrowed session and permits another client to reuse it.
+        /// </summary>
+        [Test]
+        public void ConstructionRegistersPatTypesOnBorrowedSession()
+        {
+            Mock<ISession> session = CreateSession();
+            IEncodeableFactory factory = session.Object.MessageContext.Factory;
+            Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.False);
+            var client = new PadimClient(session.Object, NUnitTelemetryContext.Create());
+            Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.True);
+            var secondClient = new PadimClient(session.Object, NUnitTelemetryContext.Create());
+            Assert.That(client.Session, Is.SameAs(secondClient.Session));
+            using var encoder = new BinaryEncoder(session.Object.MessageContext);
+            encoder.WriteVariant(null, Variant.From(new ExtensionObject(new ChemicalSubstance
+            {
+                PatDictionary = PatDictionaryEnum.CAS,
+                Label = new LocalizedText("borrowed-session substance"),
+                Id = new LocalizedText("PAT-001")
+            })));
+            using var decoder = new BinaryDecoder(
+                encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded PAT sample."),
+                session.Object.MessageContext);
+            Variant decoded = decoder.ReadVariant(null);
+            Assert.That(decoded.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? substance), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(substance!.PatDictionary, Is.EqualTo(PatDictionaryEnum.CAS));
+                Assert.That(substance.Label.Text, Is.EqualTo("borrowed-session substance"));
+                Assert.That(substance.Id.Text, Is.EqualTo("PAT-001"));
+            });
+            session.Verify(s => s.Dispose(), Times.Never);
+        }
+
+        /// <summary>
         /// Rejects node limits outside the documented inclusive interval.
         /// </summary>
         [TestCase(-1)]
