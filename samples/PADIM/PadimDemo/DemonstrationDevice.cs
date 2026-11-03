@@ -140,7 +140,7 @@ namespace PadimSample
             pat.AddPatMeasurandDescription(manager.SystemContext, property =>
                 property.Value = new()
                 {
-                    PatDictionary = (PatDictionaryEnum)2,
+                    PatDictionary = PatDictionaryEnum.User_defined,
                     Label = LocalizedText.From("pH"),
                     Id = LocalizedText.From("urn:OPCFoundation:PadimDemo:measurand:ph")
                 });

@@ -462,9 +462,9 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(actual.TypeInfo.BuiltInType, Is.EqualTo(expected.TypeInfo.BuiltInType), context);
                 Assert.That(actual.TypeInfo.ValueRank, Is.EqualTo(expected.TypeInfo.ValueRank), context);
             });
-            if (expected.TryGetStructure(out ChemicalSubstanceDataType expectedSubstance))
+            if (expected.TryGetStructure(out ChemicalSubstance expectedSubstance))
             {
-                Assert.That(actual.TryGetStructure(out ChemicalSubstanceDataType actualSubstance), Is.True, context);
+                Assert.That(actual.TryGetStructure(out ChemicalSubstance actualSubstance), Is.True, context);
                 AssertChemicalSubstance(expectedSubstance, actualSubstance!, context);
                 return;
             }
@@ -474,9 +474,9 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(actualStructures.Count, Is.EqualTo(expectedStructures.Count), context);
                 for (int ii = 0; ii < expectedStructures.Count; ii++)
                 {
-                    Assert.That(expectedStructures[ii].TryGetValue(out ChemicalSubstanceDataType expectedItem),
+                    Assert.That(expectedStructures[ii].TryGetValue(out ChemicalSubstance expectedItem),
                         Is.True, context);
-                    Assert.That(actualStructures[ii].TryGetValue(out ChemicalSubstanceDataType actualItem),
+                    Assert.That(actualStructures[ii].TryGetValue(out ChemicalSubstance actualItem),
                         Is.True, context);
                     AssertChemicalSubstance(expectedItem!, actualItem!, context);
                 }
@@ -487,8 +487,8 @@ namespace Opc.Ua.PADIM.Tests
 
         /// <summary>Checks every scalar field of the structured PAT test value.</summary>
         private static void AssertChemicalSubstance(
-            ChemicalSubstanceDataType expected,
-            ChemicalSubstanceDataType actual,
+            ChemicalSubstance expected,
+            ChemicalSubstance actual,
             string context)
         {
             Assert.Multiple(() =>
@@ -567,9 +567,9 @@ namespace Opc.Ua.PADIM.Tests
                 BuiltInType.LocalizedText => Variant.From(new LocalizedText($"sample-{key}")),
                 BuiltInType.StatusCode => Variant.From(StatusCodes.Good),
                 BuiltInType.ExtensionObject when IsChemicalSubstance(device, variable.DataType) =>
-                    Variant.From(new ExtensionObject(new ChemicalSubstanceDataType
+                    Variant.From(new ExtensionObject(new ChemicalSubstance
                     {
-                        PatDictionary = (PatDictionaryEnum)0,
+                        PatDictionary = PatDictionaryEnum.CAS,
                         Label = new LocalizedText("fixture substance"),
                         Id = new LocalizedText("PADIM-TEST-001")
                     })),
@@ -628,9 +628,9 @@ namespace Opc.Ua.PADIM.Tests
                     new LocalizedText($"sample-{key}")]),
                 BuiltInType.StatusCode => Variant.From((ArrayOf<StatusCode>)[StatusCodes.Good]),
                 BuiltInType.ExtensionObject when IsChemicalSubstance(device, variable.DataType) =>
-                    Variant.From((ArrayOf<ExtensionObject>)[new ExtensionObject(new ChemicalSubstanceDataType
+                    Variant.From((ArrayOf<ExtensionObject>)[new ExtensionObject(new ChemicalSubstance
                     {
-                        PatDictionary = (PatDictionaryEnum)0,
+                        PatDictionary = PatDictionaryEnum.CAS,
                         Label = new LocalizedText("fixture substance"),
                         Id = new LocalizedText("PADIM-TEST-001")
                     })]),
