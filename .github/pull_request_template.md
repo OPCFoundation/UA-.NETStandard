@@ -18,6 +18,6 @@ _Put an `x` in the boxes that apply. You can complete these step by step after o
 - [ ] I have added tests that prove my fix is effective or that my feature works and increased code coverage.
 - [ ] I have added all necessary documentation.
 - [ ] I have verified that my changes do not introduce (new) build or analyzer warnings.
-- [ ] I ran **all** tests locally using the **UA.slnx** solution against at least .net **framework** and .net **10**, and all passed.
+- [ ] If this PR changes C# source files, I ran **all** tests locally using the **UA.slnx** solution against at least .NET **Framework** and .NET **10**, and all passed. PRs changing only non-C# files do not require these .NET test runs.
 - [ ] I fixed **all** failing and flaky tests in the CI pipelines and **all** CodeQL warnings.
 - [ ] I have addressed **all** PR feedback received.
