@@ -369,6 +369,23 @@ namespace Opc.Ua.PADIM.Client
             required.Builder.AddOpcUaPADIM().Commit();
             foreach (ExpandedNodeId id in required.KnownTypeIds)
             {
+                if (required.TryGetType(id, out IType? expected))
+                {
+                    bool incompatibleId = factory.TryGetType(id, out IType? actual) &&
+                        (actual.Type != expected.Type ||
+                            (actual is IEncodeableType) != (expected is IEncodeableType));
+                    bool incompatibleXml = factory.TryGetType(expected.XmlName, out IType? actualXml) &&
+                        (actualXml.Type != expected.Type ||
+                            (actualXml is IEncodeableType) != (expected is IEncodeableType));
+                    if (incompatibleId || incompatibleXml)
+                    {
+                        throw new InvalidOperationException(
+                            $"The session factory has an incompatible PA-DIM mapping '{id}'.");
+                    }
+                }
+            }
+            foreach (ExpandedNodeId id in required.KnownTypeIds)
+            {
                 if (required.TryGetEncodeableType(id, out IEncodeableType? structure) &&
                     factory.TryGetEncodeableType(id, out IEncodeableType? actualStructure) &&
                     actualStructure.Type == structure.Type &&

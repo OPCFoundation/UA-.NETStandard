@@ -270,6 +270,42 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Reports incompatible legacy mappings distinctly from missing additive capability.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConstructionRejectsIncompatibleLegacyMappings(bool xmlNameCollision)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            backing.Builder.AddOpcUaPADIM().Commit();
+            Assert.That(backing.TryGetEncodeableType(
+                DataTypeIds.ChemicalSubstance, out IEncodeableType? generated), Is.True);
+            var incompatible = new Mock<IEncodeableType>();
+            incompatible.SetupGet(type => type.Type).Returns(typeof(Argument));
+            incompatible.SetupGet(type => type.XmlName).Returns(xmlNameCollision
+                ? generated!.XmlName
+                : new System.Xml.XmlQualifiedName("LegacyStructure", "urn:padim:caller"));
+            ExpandedNodeId id = xmlNameCollision
+                ? new ExpandedNodeId("LegacyStructure", "urn:padim:caller")
+                : ObjectIds.ChemicalSubstance_Encoding_DefaultBinary;
+            backing.Builder.AddEncodeableType(id, incompatible.Object).Commit();
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            InvalidOperationException? error = Assert.Throws<InvalidOperationException>(() =>
+                new PadimClient(session.Object, telemetry));
+
+            Assert.That(error!.Message, Does.Contain("incompatible PA-DIM mapping"));
+            Assert.That(backing.TryGetEncodeableType(id, out IEncodeableType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(incompatible.Object));
+            Assert.That(backing.TryGetType(incompatible.Object.XmlName, out IType? xml), Is.True);
+            Assert.That(xml, Is.SameAs(incompatible.Object));
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
         /// Rejects an opposite-kind binary identifier or XML-name collision without replacing it.
         /// </summary>
         [TestCase(false)]

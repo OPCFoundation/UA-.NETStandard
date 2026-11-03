@@ -321,7 +321,8 @@ They must return instances of that type from `CreateInstance`; construction
 does not invoke custom activators to verify their behavior.
 
 A third-party factory with every required PA-DIM mapping is reused without
-modification. If mappings are missing and its builder does not implement
+modification. Incompatible existing mappings cause `InvalidOperationException`
+for these factories too. If mappings are missing and its builder does not implement
 `IAdditiveEncodeableFactoryBuilder`, construction throws `NotSupportedException`
 instead of calling an ordinary commit that could overwrite custom mappings.
 The host can register the complete model before constructing the client or
