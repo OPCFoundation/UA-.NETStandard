@@ -73,6 +73,12 @@ namespace Opc.Ua.AMB.Client
         public int? RevisionCounter { get; init; }
 
         /// <summary>
+        /// Gets vendor-supplied DI patch identifiers beside SoftwareRevision (§10.2).
+        /// A null array means absent or null; an empty array is a published empty list.
+        /// </summary>
+        public ArrayOf<string> PatchIdentifiers { get; init; }
+
+        /// <summary>
         /// Gets original identification reads, including absent optional paths,
         /// when the client uses AmbClientOptions; empty for legacy construction.
         /// </summary>

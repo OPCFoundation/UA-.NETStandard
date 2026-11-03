@@ -279,6 +279,11 @@ namespace Opc.Ua.AMB.Tests
                 {
                     ArrayOf<RelativePathElement> elements = paths[ii].RelativePath.Elements;
                     string name = elements[elements.Count - 1].TargetName.Name!;
+                    if (name == Opc.Ua.Di.BrowseNames.PatchIdentifiers)
+                    {
+                        results[ii] = Missing();
+                        continue;
+                    }
                     if (elements.Count == 2)
                     {
                         grouped++;
@@ -313,7 +318,7 @@ namespace Opc.Ua.AMB.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(grouped, Is.EqualTo(1));
-                Assert.That(identification.Values.Count, Is.EqualTo(10));
+                Assert.That(identification.Values.Count, Is.EqualTo(11));
                 Assert.That(identification.AssetId, Is.EqualTo("value"));
                 Assert.That(identification.Manufacturer.IsNull, Is.True);
                 Assert.That(identification.RevisionCounter, Is.Null);
@@ -323,6 +328,114 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(identification.Values[2].IsAbsent, Is.False, "a null structure is not a missing variable");
                 Assert.That(identification.Values[9].Value.WrappedValue, Is.EqualTo(Variant.From(-1)));
             });
+        }
+
+        [Test]
+        [Combinatorial]
+        public async Task IdentificationReadsPatchIdentifiersAtSoftwareRevisionParentAsync(
+            [Values(false, true)] bool grouped,
+            [Values(false, true)] bool legacy,
+            [Values("absent", "null", "empty", "value", "no-revision")] string content)
+        {
+            Mock<ISession> session = CreateSession();
+            NodeId revision = new("revision", 4);
+            NodeId patch = new("patches", 4);
+            SetupTranslate(session, paths =>
+            {
+                var results = new BrowsePathResult[paths.Count];
+                for (int ii = 0; ii < paths.Count; ii++)
+                {
+                    ArrayOf<RelativePathElement> elements = paths[ii].RelativePath.Elements;
+                    QualifiedName name = elements[elements.Count - 1].TargetName;
+                    if (name.Name == Opc.Ua.Di.BrowseNames.PatchIdentifiers)
+                    {
+                        Assert.That(elements.Count, Is.EqualTo(grouped ? 2 : 1));
+                        Assert.That(session.Object.NamespaceUris.GetString(name.NamespaceIndex),
+                            Is.EqualTo(Opc.Ua.Di.Namespaces.OpcUaDi));
+                        results[ii] = content == "absent" ? Missing() : Resolved(patch);
+                    }
+                    else
+                    {
+                        results[ii] = content != "no-revision" &&
+                            name.Name == Opc.Ua.Di.BrowseNames.SoftwareRevision &&
+                            elements.Count == (grouped ? 2 : 1) ? Resolved(revision) : Missing();
+                    }
+                }
+                return results;
+            });
+            ArrayOf<string> expected = content == "empty" ? [] : ["vendor-patch"];
+            SetupRead(session, (node, _) => new DataValue(node == revision
+                ? Variant.From("revision")
+                : content == "null" ? Variant.Null : Variant.From(expected)),
+                legacy ? TimestampsToReturn.Source : TimestampsToReturn.Both);
+            AmbClient client = legacy
+                ? new AmbClient(session.Object, NUnitTelemetryContext.Create())
+                : CreateClient(session);
+
+            AssetIdentificationRecord identification = await client.ReadIdentificationAsync(s_asset)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(identification.SoftwareRevision,
+                    Is.EqualTo(content == "no-revision" ? null : "revision"));
+                Assert.That(identification.PatchIdentifiers.IsNull,
+                    Is.EqualTo(content is "absent" or "null" or "no-revision"));
+                if (content is "empty" or "value")
+                {
+                    Assert.That(identification.PatchIdentifiers, Is.EqualTo(expected));
+                }
+                if (!legacy)
+                {
+                    Assert.That(identification.Values[10].IsAbsent,
+                        Is.EqualTo(content is "absent" or "no-revision"));
+                    Assert.That(identification.Values[10].BrowsePath.Count,
+                        Is.EqualTo(grouped || content == "no-revision" ? 2 : 1));
+                }
+            });
+        }
+
+        [Test]
+        [Combinatorial]
+        public async Task IdentificationPatchIdentifiersPropagateReadAndTypeFailuresAsync(
+            [Values(false, true)] bool legacy,
+            [Values("translate", "read", "type")] string failure)
+        {
+            Mock<ISession> session = CreateSession();
+            NodeId revision = new("revision", 4);
+            NodeId patch = new("patches", 4);
+            SetupTranslate(session, paths =>
+            {
+                var results = new BrowsePathResult[paths.Count];
+                for (int ii = 0; ii < paths.Count; ii++)
+                {
+                    ArrayOf<RelativePathElement> elements = paths[ii].RelativePath.Elements;
+                    string? name = elements[elements.Count - 1].TargetName.Name;
+                    results[ii] = name switch
+                    {
+                        Opc.Ua.Di.BrowseNames.SoftwareRevision => Resolved(revision),
+                        Opc.Ua.Di.BrowseNames.PatchIdentifiers => failure == "translate"
+                            ? new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }
+                            : Resolved(patch),
+                        _ => Missing()
+                    };
+                }
+                return results;
+            });
+            SetupRead(session, (node, _) => node == revision
+                ? new DataValue(Variant.From("revision"))
+                : failure == "read"
+                    ? DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied)
+                    : new DataValue(Variant.From("not an array")),
+                legacy ? TimestampsToReturn.Source : TimestampsToReturn.Both);
+            AmbClient client = legacy
+                ? new AmbClient(session.Object, NUnitTelemetryContext.Create())
+                : CreateClient(session);
+
+            await AssertStatusAsync(
+                () => client.ReadIdentificationAsync(s_asset).AsTask(),
+                failure == "type" ? StatusCodes.BadTypeMismatch : StatusCodes.BadUserAccessDenied)
+                .ConfigureAwait(false);
         }
 
         [Test]

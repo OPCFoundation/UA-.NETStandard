@@ -582,6 +582,14 @@ The extension uses the optional `IAssetVersionInformationBuilder` capability,
 so existing `IAssetBuilder` implementations do not need a new member. A builder
 without that capability rejects the four-argument call with `NotSupportedException`.
 
+`ReadIdentificationAsync` returns the list in
+`AssetIdentificationRecord.PatchIdentifiers`. It resolves the DI-qualified
+Property beside the selected SoftwareRevision rather than searching an
+unrelated level. `ArrayOf<string>.IsNull` distinguishes an absent or null list
+from a published empty array; bounded clients retain the original value and
+path as the last identification entry in `Values`. Translation denials, read
+failures and non-array values are errors for both client constructors.
+
 Requirements and capabilities are folders in the AMB namespace whose entries
 may reference entries of external dictionaries such as IEC CDD or ECLASS;
 `ClassifiedAs` classifies the asset itself. OPC 10000-19 asks the target of

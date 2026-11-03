@@ -172,7 +172,9 @@ namespace Opc.Ua.AMB.Tests
             {
                 Assert.That(assets.ToArray(), Does.Contain(pump));
                 Assert.That(snapshot.Identification.ProductInstanceUri, Is.EqualTo(PumpUri));
-                Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(10));
+                Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(11));
+                Assert.That(snapshot.Identification.PatchIdentifiers.ToList(),
+                    Is.EqualTo(new[] { "fixture-patch" }));
                 Assert.That(snapshot.DeviceHealthValue!.IsAbsent, Is.False);
                 Assert.That(snapshot.DeviceHealthValue.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(snapshot.HealthAlarms.Count, Is.EqualTo(1));
@@ -859,7 +861,7 @@ namespace Opc.Ua.AMB.Tests
                                         .Add("Manual", "https://acme.example/pump/manual.pdf")
                                         .AddEditable("Handbook")
                                         .AllowUserLinks())
-                                    .WithVersionInformation("HW-1", "SW-1", 1)
+                                    .WithVersionInformation("HW-1", "SW-1", 1, ["fixture-patch"])
                                     .LocatedIn(AssetLocationKind.Hierarchical, "Plant1/Hall3/Line2")
                                     .WithLocation(AssetLocationKind.Hierarchical, "Plant1/Hall3/Line2")
                                     .WithLocalTime(60)

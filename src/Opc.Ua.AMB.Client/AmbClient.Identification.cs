@@ -49,7 +49,7 @@ namespace Opc.Ua.AMB.Client
             (NodeId[] nodes, QualifiedName[][] paths) = await ResolveIdentificationAsync(asset, cancellationToken)
                 .ConfigureAwait(false);
             DataValue[] values = await ReadAsync(nodes, Attributes.Value, cancellationToken).ConfigureAwait(false);
-            var fields = new AssetReadValue[values.Length];
+            var fields = new AssetReadValue[values.Length + 1];
             for (int ii = 0; ii < values.Length; ii++)
             {
                 fields[ii] = new AssetReadValue(nodes[ii], paths[ii].ToArrayOf(), Attributes.Value, values[ii]);
@@ -61,6 +61,26 @@ namespace Opc.Ua.AMB.Client
                     _ => value.TryGetValue(out string? _)
                 });
             }
+            QualifiedName[] patchPath = (QualifiedName[])paths[8].Clone();
+            patchPath[patchPath.Length - 1] = Di(Opc.Ua.Di.BrowseNames.PatchIdentifiers);
+            NodeId patchNode = NodeId.Null;
+            if (!nodes[8].IsNull)
+            {
+                NodeId[] resolved = await ResolveAsync(
+                    asset, [patchPath], cancellationToken, requireComplete: true).ConfigureAwait(false);
+                patchNode = resolved[0];
+            }
+            DataValue[] patchValues = await ReadAsync(
+                [patchNode], Attributes.Value, cancellationToken, requireGoodStatus: true).ConfigureAwait(false);
+            var patchField = new AssetReadValue(
+                patchNode, patchPath.ToArrayOf(), Attributes.Value, patchValues[0]);
+            ArrayOf<string> patches = default;
+            if (!patchField.IsAbsent && !patchField.Value.WrappedValue.IsNull &&
+                !patchField.Value.WrappedValue.TryGetValue(out patches))
+            {
+                throw new AmbValueReadException(StatusCodes.BadTypeMismatch, patchField);
+            }
+            fields[values.Length] = patchField;
             Variant Value(int index) => StatusCode.IsGood(values[index].StatusCode)
                 ? values[index].WrappedValue
                 : Variant.Null;
@@ -79,6 +99,7 @@ namespace Opc.Ua.AMB.Client
                 SoftwareRevision = StringOf(Value(8)),
                 // OPC 10000-100: -1 says the asset does not support it.
                 RevisionCounter = Value(9).TryGetValue(out int counter) && counter >= 0 ? counter : null,
+                PatchIdentifiers = patches,
                 Values = EvidenceOf(fields)
             };
         }

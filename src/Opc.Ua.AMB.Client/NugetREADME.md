@@ -38,6 +38,11 @@ and strict response validation. Read records then retain original source nodes,
 quality and timestamps in their `Values` evidence. A present Good-null structure
 is not an absent optional path; scalar type mismatches are still rejected.
 
+`ReadIdentificationAsync` also returns DI `PatchIdentifiers` (§10.2), resolved
+beside SoftwareRevision. Its `ArrayOf<string>` value preserves a null list
+separately from an empty list. Both client constructors report denied paths,
+read failures and invalid array types rather than returning an empty list.
+
 `EnumerateSubAssetsAsync` traverses grouping Objects and returns only assets
 listed in each server's AMB alias categories. For remote references, supply
 `AmbClientOptions.SessionResolver` or register `IAmbSessionResolver` in DI.
