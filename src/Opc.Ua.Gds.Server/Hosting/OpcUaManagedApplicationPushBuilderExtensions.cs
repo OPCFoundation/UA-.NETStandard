@@ -118,20 +118,23 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                DefaultManagedApplicationsNodeManager? manager =
+                var manager =
                     new DefaultManagedApplicationsNodeManager(server, configuration, m_provider);
                 try
                 {
-                    var result = new ValueTask<IAsyncNodeManager>(manager);
-                    manager = null;
-                    return await result.ConfigureAwait(false);
+                    return await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
                 }
-                finally
+                catch (Exception transferError)
                 {
-                    if (manager != null)
+                    try
                     {
                         await manager.DisposeAsync().ConfigureAwait(false);
                     }
+                    catch (Exception cleanupError)
+                    {
+                        throw new AggregateException(transferError, cleanupError);
+                    }
+                    throw;
                 }
             }
 
