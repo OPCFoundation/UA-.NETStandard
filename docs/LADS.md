@@ -482,7 +482,9 @@ precedence over the requested end outcome; cancellation caused by an accepted
 Stop or Abort does not itself constitute an execution failure.
 The run's lifetime task exists before its active-program nodes are published.
 An end request or shutdown during startup waits for execution and result cleanup,
-or receives the startup failure after cleanup. Provider rejection is retained
+or receives the startup failure after cleanup. Result finalization failures
+also fault the lifetime task after cleanup, so accepted end requests and disposal
+observe the error as well as result waiters. Provider rejection is retained
 when observed; a later cancellation cannot reinterpret it as a cancelled request.
 `DelayAsync` uses the runtime clock. Set
 `LadsServerOptions.TimeProvider` to advance LADS execution in tests without

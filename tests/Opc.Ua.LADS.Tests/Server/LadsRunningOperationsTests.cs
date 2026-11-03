@@ -686,6 +686,89 @@ namespace Opc.Ua.LADS.Tests.Server
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task ResultStoreFailureFaultsAcceptedEndAndResultWaiterAfterCleanupAsync(bool abort)
+        {
+            var entered = NewSignal();
+            var saving = NewSignal();
+            var release = NewSignal();
+            var executorExited = NewSignal();
+            var failure = new InvalidOperationException("The result snapshot could not be saved.");
+            var store = new Mock<ILadsStore>();
+            store.Setup(value => value.SaveAsync(
+                    It.IsAny<string>(), It.IsAny<LadsStoredDeviceData>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, LadsStoredDeviceData data, CancellationToken _) =>
+                {
+                    if (data.FunctionalUnits.ToList().Any(unit => unit.Results.Count != 0))
+                    {
+                        return new ValueTask(FailSaveAsync());
+                    }
+                    return default;
+                });
+            async Task FailSaveAsync()
+            {
+                saving.TrySetResult(true);
+                await release.Task.ConfigureAwait(false);
+                throw failure;
+            }
+            var executor = new ControlledExecutor(
+                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                async (_, cancellationToken) =>
+                {
+                    entered.TrySetResult(true);
+                    try
+                    {
+                        await NewSignal().Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        executorExited.TrySetResult(true);
+                    }
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(ResultStoreFailureFaultsAcceptedEndAndResultWaiterAfterCleanupAsync),
+                executor,
+                store: store.Object).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (Opc.Ua.LADS.Server.LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            var programs = (LadsProgramManager)unit.Programs!;
+            string runId = await programs.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            Task<ILadsResult> result = programs.WaitForResultAsync(runId).AsTask();
+            Task? end = null;
+            try
+            {
+                await entered.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                end = abort ? unit.AbortAsync().AsTask() : unit.StopAsync().AsTask();
+                await saving.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(executorExited.Task.IsCompleted, Is.True);
+                Assert.That(end.IsCompleted, Is.False);
+                Assert.That(result.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await Assert.ThatAsync(
+                async () => await end!.WaitAsync(s_timeout).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                async () => await result.WaitAsync(s_timeout).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message)).ConfigureAwait(false);
+            Assert.That(programs.ActiveRun, Is.Null);
+            Assert.That(programs.Results.Count, Is.Zero);
+            var children = new List<BaseInstanceState>();
+            programs.Node.ResultSet!.GetChildren(
+                ((Opc.Ua.LADS.Server.LadsDevice)device).Runtime.Context, children);
+            Assert.That(children.OfType<ResultState>(), Is.Empty);
+            Assert.That(unit.State, Is.EqualTo(LadsFunctionalStateValue.Aborted));
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(device.OperationCycleCounter, Is.Zero);
+            Assert.That(await unit.Gate.WaitAsync(0).ConfigureAwait(false), Is.True);
+            unit.Gate.Release();
+            await device.SaveStoredDataAsync().ConfigureAwait(false);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task ActiveRunCancellationPublishesCancelledAcknowledgmentBeforeExecutionEndsAsync(bool abort)
         {
             var entered = NewSignal();

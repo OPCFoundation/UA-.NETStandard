@@ -965,6 +965,7 @@ namespace Opc.Ua.LADS.Server
                     m_waiters.TryGetValue(active.Run.RunId, out waiter);
                 }
                 waiter?.TrySetException(ex);
+                throw;
             }
             finally
             {
