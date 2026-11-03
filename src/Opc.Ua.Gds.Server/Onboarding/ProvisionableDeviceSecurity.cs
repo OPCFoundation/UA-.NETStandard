@@ -143,6 +143,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
         ValueTask RequireRegistrarAsync(ISystemContext context, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Requires installed DCA credentials and validates the authenticated registrar in the same state read.
+        /// Unlike bootstrap authorization, this never claims ownership of an unconfigured device.
+        /// </summary>
+        ValueTask RequireInstalledRegistrarAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Authorizes and persists a registrar's installation before invoking idempotent platform effects.
         /// </summary>
         ValueTask InstallAsync(
@@ -243,6 +251,31 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     await SaveAsync(new(ProvisionableDeviceSecurityStage.Configuring, peer, null), cancellationToken)
                         .ConfigureAwait(false);
                 }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask RequireInstalledRegistrarAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken = default)
+        {
+            ThrowIfDisposed();
+            ByteString peer = GetPeer(context);
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                Checkpoint checkpoint = await LoadAsync(cancellationToken).ConfigureAwait(false);
+                if (checkpoint.Stage != ProvisionableDeviceSecurityStage.Installed)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "DCA credentials must be installed before application configuration.");
+                }
+                await RequireRegistrarAsync(checkpoint, peer, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

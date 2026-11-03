@@ -112,6 +112,146 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// Application authorization cannot claim an unconfigured device or advance a pending configuration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InstalledRegistrarCheckNeverClaimsAnUnconfiguredDevice(bool configuring)
+        {
+            using var security = Create();
+            if (configuring)
+            {
+                await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            }
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireInstalledRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(configuring
+                    ? ProvisionableDeviceSecurityStage.Configuring
+                    : ProvisionableDeviceSecurityStage.Unconfigured));
+            m_certificates.VerifyNoOtherCalls();
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A reset between observing installed state and authorizing an application does not claim a new owner.
+        /// </summary>
+        [Test]
+        public async Task InstalledRegistrarCheckRejectsResetWithoutRecapturingOwnership()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireInstalledRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+            await security.RequireRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false);
+            ServiceResultException? otherOwner = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+            Assert.That(otherOwner!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// Installed application access validates each authenticated peer against the installed DCA trust.
+        /// </summary>
+        [Test]
+        public async Task InstalledRegistrarCheckRevalidatesPeerWithoutInstallingCredentials()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            m_certificates.Invocations.Clear();
+
+            await security.RequireInstalledRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false);
+
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_certificates.Verify(value => value.ValidateAsync(
+                It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()), Times.Once);
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// An interrupted installation or reset cannot authorize application access using pending credentials.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InstalledRegistrarCheckRejectsInterruptedSecurityTransition(bool reset)
+        {
+            using var security = Create();
+            var transitionFailure = new IOException("The platform security transition was interrupted.");
+            if (reset)
+            {
+                m_installer.Setup(value => value.ResetToServerDefaultsAsync(It.IsAny<CancellationToken>()))
+                    .Throws(transitionFailure);
+            }
+            else
+            {
+                m_installer.Setup(value => value.InstallAsync(
+                    It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()))
+                    .Throws(transitionFailure);
+            }
+            IOException? interrupted = await Assert.ThrowsAsync<IOException>(async () =>
+            {
+                if (reset)
+                {
+                    await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+                }
+            });
+            m_certificates.Invocations.Clear();
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireInstalledRegistrarAsync(Context(m_firstRegistrar)).ConfigureAwait(false));
+
+            Assert.That(interrupted, Is.SameAs(transitionFailure));
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(reset
+                    ? ProvisionableDeviceSecurityStage.Resetting
+                    : ProvisionableDeviceSecurityStage.Installing));
+            m_certificates.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Installed status does not hide a registrar validation failure or alter installed credentials.
+        /// </summary>
+        [Test]
+        public async Task InstalledRegistrarCheckPreservesTrustFailure()
+        {
+            using var security = Create();
+            await security.InstallAsync(Context(m_firstRegistrar), Credentials()).ConfigureAwait(false);
+            var rejection = new ServiceResultException(StatusCodes.BadCertificateUntrusted);
+            m_certificates.Setup(value => value.ValidateAsync(
+                    It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
+                    It.IsAny<ValidationOptions>(), It.IsAny<CancellationToken>()))
+                .Throws(rejection);
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await security.RequireInstalledRegistrarAsync(Context(m_otherRegistrar)).ConfigureAwait(false));
+
+            Assert.That(failure, Is.SameAs(rejection));
+            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+            m_installer.Verify(value => value.InstallAsync(
+                It.IsAny<ProvisionableDeviceCredentials>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// Failure to retain factory defaults aborts startup without publishing a configured device.
         /// </summary>
         [Test]
