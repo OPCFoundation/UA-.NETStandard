@@ -49,6 +49,113 @@ namespace Opc.Ua.Server.Tests.Network
     public sealed class ReferenceNetworkModelProviderTests
     {
         /// <summary>
+        /// Accepts both ends of the normative SR-class identifier range.
+        /// </summary>
+        [TestCase((byte)0)]
+        [TestCase((byte)7)]
+        public async Task SrClassIdentifierBoundariesSurviveConstructionAndPublicationAsync(byte id)
+        {
+            var snapshot = EmptySnapshot() with
+            {
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("physical", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        SrClasses = [new NetworkSrClassSnapshot(id, 0, 1)]
+                    }
+                ]
+            };
+            var provider = new ReferenceNetworkModelProvider(snapshot);
+            Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Interfaces[0].SrClasses[0].Id,
+                Is.EqualTo(id));
+
+            provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(1) });
+            NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(actual.Interfaces[0].SrClasses[0].Id, Is.EqualTo(id));
+            Assert.That(actual.Revision, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Rejects invalid identifiers at construction and before replacing an accepted acquisition.
+        /// </summary>
+        [TestCase((byte)8)]
+        [TestCase(byte.MaxValue)]
+        public async Task InvalidSrClassIdentifiersDoNotReplaceTheAcquisitionAsync(byte id)
+        {
+            NetworkModelSnapshot initial = EmptySnapshot();
+            var provider = new ReferenceNetworkModelProvider(initial);
+            var invalid = initial with
+            {
+                Interfaces =
+                [
+                    new NetworkInterfaceSnapshot("physical", "eth0")
+                    {
+                        AdminStatus = InterfaceAdminStatus.Up,
+                        OperStatus = InterfaceOperStatus.Up,
+                        Speed = 1_000_000_000,
+                        SrClasses = [new NetworkSrClassSnapshot(id, 0, 1)]
+                    }
+                ]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid), Throws.ArgumentException);
+            Assert.That(() => provider.Publish(invalid), Throws.ArgumentException);
+            NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(actual.Revision, Is.Zero);
+            Assert.That(actual.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(actual.Interfaces.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Applies the stream VLAN tag ranges independently of interface VLAN validation.
+        /// </summary>
+        [TestCase((ushort)0, (byte)0, true)]
+        [TestCase((ushort)4095, (byte)7, true)]
+        [TestCase((ushort)4096, (byte)0, false)]
+        [TestCase(ushort.MaxValue, (byte)0, false)]
+        [TestCase((ushort)1, (byte)8, false)]
+        [TestCase((ushort)1, byte.MaxValue, false)]
+        public async Task StreamVlanTagBoundariesApplyToConstructionAndPublicationAsync(
+            ushort vlanId, byte priority, bool valid)
+        {
+            NetworkModelSnapshot initial = EmptySnapshot();
+            var candidate = initial with
+            {
+                Streams =
+                [
+                    new NetworkStreamSnapshot("talker", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[8].AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        VlanTag = new NetworkVlanTagSnapshot(vlanId, priority)
+                    }
+                ]
+            };
+            var provider = new ReferenceNetworkModelProvider(initial);
+            if (valid)
+            {
+                var constructed = new ReferenceNetworkModelProvider(candidate);
+                NetworkModelSnapshot read = await constructed.ReadAsync().ConfigureAwait(false);
+                Assert.That(read.Streams[0].VlanTag, Is.EqualTo(candidate.Streams[0].VlanTag));
+                provider.Publish(candidate);
+                NetworkModelSnapshot published = await provider.ReadAsync().ConfigureAwait(false);
+                Assert.That(published.Streams[0].VlanTag, Is.EqualTo(candidate.Streams[0].VlanTag));
+                Assert.That(published.Revision, Is.EqualTo(1));
+            }
+            else
+            {
+                Assert.That(() => new ReferenceNetworkModelProvider(candidate), Throws.ArgumentException);
+                Assert.That(() => provider.Publish(candidate), Throws.ArgumentException);
+                NetworkModelSnapshot retained = await provider.ReadAsync().ConfigureAwait(false);
+                Assert.That(retained.Revision, Is.Zero);
+                Assert.That(retained.Streams.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
         /// Preserves empty acquisitions when optional collections are omitted.
         /// </summary>
         [Test]

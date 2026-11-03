@@ -665,6 +665,176 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Validates SR-class boundaries even when custom acquisitions bypass the reference provider.
+        /// </summary>
+        [TestCase((byte)0)]
+        [TestCase((byte)7)]
+        [TestCase((byte)8)]
+        [TestCase(byte.MaxValue)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderSrClassIdentifiersAreValidatedBeforePublication(
+            byte id, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
+                ObjectIds.NetworkInterfaces, cancellationToken).ConfigureAwait(false);
+            NodeId physical = ExpandedNodeId.ToNodeId(interfaces.ToList()
+                .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
+            NetworkInterfaceValues before = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                .ConfigureAwait(false);
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkInterfaceSnapshot[] updated = snapshot.Interfaces.Span.ToArray();
+                for (int index = 0; index < updated.Length; index++)
+                {
+                    if (updated[index].Id == "physical")
+                    {
+                        updated[index] = updated[index] with
+                        {
+                            Speed = 100_000_000,
+                            SrClasses = [new NetworkSrClassSnapshot(id, 0, 1)]
+                        };
+                    }
+                }
+                return snapshot with { Interfaces = ArrayOf.Wrapped(updated) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            bool valid = id <= 7;
+            await WaitForAsync(async () =>
+            {
+                NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                    .ConfigureAwait(false);
+                return valid
+                    ? values.Speed.DataValue.WrappedValue == new Variant(100_000_000UL)
+                    : values.Speed.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> parameters = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue actualId = Parameter(parameters, BrowseNames.Id);
+            if (valid)
+            {
+                Assert.That(actualId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actualId.DataValue.WrappedValue, Is.EqualTo(new Variant(id)));
+                Assert.That(actualId.DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+            }
+            else
+            {
+                NetworkInterfaceValues failed = await m_client.ReadInterfaceAsync(physical, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(failed.Speed.DataValue.WrappedValue.IsNull, Is.True);
+                Assert.That(failed.Speed.DataValue.SourceTimestamp, Is.EqualTo(before.Speed.DataValue.SourceTimestamp));
+                Assert.That(actualId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(physical, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(children.ToList().Select(child => child.BrowseName.Name),
+                    Does.Not.Contain("SrClass" + id.ToString(CultureInfo.InvariantCulture)));
+                NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                    .OfType<NetworkModelNodeManager>().Single();
+                BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(before.Speed.NodeId);
+                Assert.That(retained.Value, Is.EqualTo(before.Speed.DataValue.WrappedValue));
+                BaseVariableState retainedId = manager.FindPredefinedNode<BaseVariableState>(actualId.NodeId);
+                Assert.That(retainedId.Value, Is.EqualTo(new Variant((byte)6)));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_provider.Publish(current with { Timestamp = initial.Timestamp.AddSeconds(2) });
+            await WaitForAsync(async () =>
+                (await m_client.ReadInterfaceAsync(physical, cancellationToken).ConfigureAwait(false))
+                    .Speed.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(2),
+                cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> recovered = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(recovered, BrowseNames.Id).DataValue.WrappedValue,
+                Is.EqualTo(new Variant((byte)6)));
+            Assert.That(Parameter(recovered, BrowseNames.Id).DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Publishes valid VLAN-tag boundaries and rejects malformed custom acquisitions without changing values.
+        /// </summary>
+        [TestCase((ushort)0, (byte)0, true)]
+        [TestCase((ushort)4095, (byte)7, true)]
+        [TestCase((ushort)4096, (byte)0, false)]
+        [TestCase(ushort.MaxValue, (byte)0, false)]
+        [TestCase((ushort)1, (byte)8, false)]
+        [TestCase((ushort)1, byte.MaxValue, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderStreamVlanTagsAreValidatedBeforePublication(
+            ushort vlanId, byte priority, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            ArrayOf<NetworkParameterValue> original = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnVlanTagType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue before = Parameter(original, BrowseNames.VlanId);
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with
+                        {
+                            VlanTag = new NetworkVlanTagSnapshot(vlanId, priority)
+                        };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeTsnVlanTagType, cancellationToken).ConfigureAwait(false);
+                DataValue value = Parameter(values, BrowseNames.VlanId).DataValue;
+                return valid
+                    ? value.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(1)
+                    : value.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> actual = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnVlanTagType, cancellationToken).ConfigureAwait(false);
+            DataValue actualVlan = Parameter(actual, BrowseNames.VlanId).DataValue;
+            DataValue actualPriority = Parameter(actual, BrowseNames.PriorityCodePoint).DataValue;
+            if (valid)
+            {
+                Assert.That(actualVlan.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actualVlan.WrappedValue, Is.EqualTo(new Variant(vlanId)));
+                Assert.That(actualPriority.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actualPriority.WrappedValue, Is.EqualTo(new Variant(priority)));
+            }
+            else
+            {
+                Assert.That(actualVlan.WrappedValue.IsNull, Is.True);
+                Assert.That(actualVlan.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actualPriority.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actualVlan.SourceTimestamp, Is.EqualTo(before.DataValue.SourceTimestamp));
+                NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                    .OfType<NetworkModelNodeManager>().Single();
+                BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(before.NodeId);
+                Assert.That(retained.Value, Is.EqualTo(before.DataValue.WrappedValue));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_provider.Publish(current with { Timestamp = initial.Timestamp.AddSeconds(2) });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeTsnVlanTagType, cancellationToken).ConfigureAwait(false);
+                return Parameter(values, BrowseNames.VlanId).DataValue.SourceTimestamp ==
+                    (DateTimeUtc)initial.Timestamp.AddSeconds(2);
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> recovered = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnVlanTagType, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(recovered, BrowseNames.VlanId).DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(Parameter(recovered, BrowseNames.VlanId).DataValue.WrappedValue,
+                Is.EqualTo(before.DataValue.WrappedValue));
+        }
+
+        /// <summary>
         /// Rejects timestamp regression even when the provider advances its revision.
         /// </summary>
         [Test]

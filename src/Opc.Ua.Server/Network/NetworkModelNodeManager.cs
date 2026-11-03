@@ -312,6 +312,14 @@ namespace Opc.Ua.Server.Network
 
             foreach (NetworkInterfaceSnapshot networkInterface in snapshot.Interfaces)
             {
+                foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
+                {
+                    if (srClass.Id > 7)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                            "SR class identifiers must be between zero and seven.");
+                    }
+                }
                 BaseObjectState root = BuildInterface(networkInterface, snapshot);
                 entities.Add(EntityKey("interface", networkInterface.Id),
                     new EntityDefinition(ObjectIds.NetworkInterfaces, root));
@@ -479,6 +487,11 @@ namespace Opc.Ua.Server.Network
         /// </summary>
         private BaseObjectState BuildStream(NetworkStreamSnapshot stream, NetworkModelSnapshot snapshot)
         {
+            if (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream VLAN identifiers must be between zero and 4095 and priority code points zero and seven.");
+            }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
                 stream.Id,

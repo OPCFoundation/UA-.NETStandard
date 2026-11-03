@@ -265,7 +265,8 @@ namespace Opc.Ua.Server.Network
                 var classes = new HashSet<byte>();
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
-                    if (srClass is null || !classes.Add(srClass.Id) || srClass.Priority > 7 || srClass.Vid > 4094)
+                    if (srClass is null || srClass.Id > 7 || !classes.Add(srClass.Id) ||
+                        srClass.Priority > 7 || srClass.Vid > 4094)
                     {
                         throw new ArgumentException(
                             "SR classes require unique identities and valid PCP/VLAN values.", nameof(snapshot));
@@ -307,7 +308,7 @@ namespace Opc.Ua.Server.Network
                     !IsOptionalLength(stream.SourceAddress, 6) ||
                     !IsOptionalLength(stream.DestinationAddress, 6) ||
                     (stream.SourceAddress.Length != 0 && stream.DestinationAddress.Length == 0) ||
-                    (stream.VlanTag is { } tag && (tag.VlanId > 4094 || tag.PriorityCodePoint > 7)) ||
+                    (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7)) ||
                     (stream.Traffic is { } traffic && traffic.Denominator == 0))
                 {
                     throw new ArgumentException(
