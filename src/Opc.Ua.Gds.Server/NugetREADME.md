@@ -71,8 +71,11 @@ security after committing the store changes and compensates them if completion
 fails. Recovery verifies applied credentials against actual keyed certificate
 and trust stores instead of replaying them over a compensated transaction.
 Custom installers and coordinators need the applied-security capture and
-transaction-completion contracts for standard push. Connected device sample
-coverage remains incomplete.
+transaction-completion contracts for standard push. The repository's
+`OnboardingDevice` sample composes these providers with retained factory keys,
+restricted public journals and local/network reset. Its singleton object
+currently uses ordinary `Objects` placement pending shared Part 22 integration;
+connected device execution and multiapplication sample coverage remain incomplete.
 
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.

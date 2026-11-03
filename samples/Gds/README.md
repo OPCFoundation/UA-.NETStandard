@@ -26,6 +26,8 @@ separate pull mode to host the standard `DeviceRegistrar` and GDS
 also use its pull-DCA mode against an independently configured registrar.
 The separate push mode operates against an independently configured device
 server. The administration script does not exercise either provisioning mode.
+`OnboardingDevice` separately hosts a singleton provisionable device for push
+management, restart and reset. It does not initiate the pull-DCA workflow.
 
 ## Run the complete demo
 
@@ -231,8 +233,91 @@ software. To require an externally operated manager, supply all of
 `--softwareManagerProtocolUri`. The registrar advertises that manager and leaves
 provisioning blocked until an authorized caller reports completion. In that mode
 the configured sample administrator also receives `SecurityAdmin` to report the
-result. The sample does not execute firmware updates or supply a device server,
-and does not demonstrate device restart, endpoint activation or reset.
+result. The registrar does not execute firmware updates. Use the separate
+device host below to expose standard push and reset operations; the
+administration script does not exercise that host.
+
+## Host the connected singleton device
+
+`OnboardingDevice` hosts the generated `ProvisionableDevice` methods and the
+standard `ServerConfiguration` certificate, TrustList and reset methods. It
+uses the concrete certificate-store installer and the same device security
+state machine for registrar ownership, installation completion and recovery.
+The host is a net10.0 executable configured for Native AOT publication.
+
+This sample currently places its device object directly under `Objects`.
+Normative placement under Part 22 `Resources` remains blocked on the shared
+Base Network implementation; the sample neither creates replacement Resources
+infrastructure nor demonstrates full profile conformance. It exposes one
+singleton DCA/operational server, not a multiapplication device.
+
+Prepare an absolute, operator-controlled PKI root before startup. Install the
+factory RSA application certificate and its private key in `own`, and supply
+that same certificate as an independent public DER file. The certificate must
+contain both the selected application URI and product instance URI. Startup
+disables automatic certificate creation: a missing key or mismatched identity
+stops the process rather than creating a replacement identity.
+
+Prepare ordinary channel trust for the registrar, plus separate
+`ticket-authorities\trusted`, `ticket-authorities\issuers`,
+`identity-authorities\trusted` and `identity-authorities\issuers` stores under
+the PKI root. Supply existing signed device-ticket envelopes matching the
+factory identity. Startup verifies the signatures and identity trust before
+publishing any device methods. Unknown channel certificates are not accepted
+through a callback.
+
+Set `ONBOARDING_DEVICE_USER` and `ONBOARDING_DEVICE_PASSWORD` for the
+registrar's authenticated outbound login. To permit standard certificate and
+TrustList administration, explicitly set `ONBOARDING_DEVICE_ADMIN_USER` to
+that exact username; otherwise the account receives only `AuthenticatedUser`.
+Use those credentials as `ONBOARDING_PUSH_USER` and `ONBOARDING_PUSH_PASSWORD`
+in the push registrar process.
+
+```powershell
+dotnet run --project samples/Gds/OnboardingDevice -f net10.0 -- `
+  --pkiRoot "D:\temp\configured-device-server-pki" `
+  --applicationUri "<actual DCA application URI>" `
+  --productUri "<device product URI>" `
+  --productInstanceUri "<approved product instance URI>" `
+  --subjectName "<factory application certificate subject>" `
+  --endpointUrl "opc.tcp://localhost:62561/OnboardingDevice" `
+  --factoryCertificate "D:\temp\factory-identity.der" `
+  --ticketFiles "D:\temp\device-ticket.json"
+```
+
+`--ticketFiles` accepts up to 32 semicolon-separated absolute paths. Each
+input must be an unchanged signed UTF-8 envelope, at most 1 MiB. Duplicate
+envelopes are rejected. Keep the original DER and signed inputs available on
+restart; the host revalidates them rather than trusting cached input metadata.
+Protect all input and state paths against modification by other applications.
+
+`ONBOARDING_DEVICE_READY` is printed only after startup recovery and model
+publication. The namespace URI is
+`urn:opcfoundation.org:UA:Samples:OnboardingDevice`; use
+`nsu=urn:opcfoundation.org:UA:Samples:OnboardingDevice;s=Device` and the
+corresponding `Device/IsSingleton` address for the registrar's device selectors.
+Browse the standard `ServerConfiguration` application certificate group and
+TrustList for the other push selectors. `Device/RequestTickets` returns the
+validated signed envelopes, and `Device/SetRegistrarEndpoints` persists
+authorized candidate changes. Candidate persistence does not start outbound
+pull orchestration.
+
+Keep the same PKI root across restarts. `tickets.bin` and
+`registrar-candidates.bin` retain tickets and candidate endpoints; `device-state`
+retains the device security journal and original trust defaults through an
+exclusive writer lease. The public checkpoint adapter accepts only those two
+exact device-scoped producer identifiers and is not the host's general secret
+store. Original identity keys remain in `device-identity`; rotating application
+keys remain in `own`. Removing the journal while retaining an operational
+certificate does not authorize recapturing that certificate as the factory
+identity.
+
+Add `--physicalReset true` for an explicit local reset before listeners open.
+Remove the option on the next normal restart unless another reset is intended.
+Network reset uses the standard authorized `ResetToServerDefaults` method.
+Both paths restore retained factory security through the same provider; they
+do not remove installed software. Missing original defaults or key material
+stop recovery and prevent readiness.
 
 ## Pull DCA against a configured registrar
 
