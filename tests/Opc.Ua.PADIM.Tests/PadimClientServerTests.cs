@@ -576,7 +576,7 @@ namespace Opc.Ua.PADIM.Tests
                             Assert.That(actual.Sample.SourceTimestamp, Is.EqualTo(expected.Sample.SourceTimestamp),
                                 expected.Key);
                         });
-                        PadimPublishedSampleSet.AssertSample(
+                        PadimPublishedSampleSet.AssertWireSample(
                             expected.Sample.WrappedValue, actual.Sample.WrappedValue, expected.Key);
                         ReferenceDescription reference = references.ToList().Single(candidate =>
                             ExpandedNodeId.ToNodeId(candidate.NodeId, session.NamespaceUris) == variableId);
@@ -800,7 +800,7 @@ namespace Opc.Ua.PADIM.Tests
                 (ArrayOf<DataValue> values, ArrayOf<ServiceResult> readErrors) =
                     await session.ReadValuesAsync([variableId], cancellationToken);
                 Assert.That(ServiceResult.IsGood(readErrors[0]), Is.True);
-                PadimPublishedSampleSet.AssertSample(
+                PadimPublishedSampleSet.AssertWireSample(
                     expected.Sample.WrappedValue, values[0].WrappedValue, expected.Key);
                 Assert.That(values[0].StatusCode, Is.EqualTo(expected.Sample.StatusCode), expected.Key);
                 Assert.That(values[0].SourceTimestamp, Is.EqualTo(expected.Sample.SourceTimestamp), expected.Key);

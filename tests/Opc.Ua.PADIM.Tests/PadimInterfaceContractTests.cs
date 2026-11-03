@@ -454,6 +454,31 @@ namespace Opc.Ua.PADIM.Tests
             m_provider.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Asserts the binary wire representation, where enumeration Variants are encoded as Int32.
+        /// </summary>
+        internal static void AssertWireSample(Variant expected, Variant actual, string context)
+        {
+            if (expected.TypeInfo.BuiltInType == BuiltInType.Enumeration)
+            {
+                if (expected.TryGetValue(out EnumValue scalar))
+                {
+                    expected = Variant.From(scalar.Value);
+                }
+                else
+                {
+                    Assert.That(expected.TryGetValue(out ArrayOf<EnumValue> values), Is.True, context);
+                    var integers = new int[values.Count];
+                    for (int ii = 0; ii < values.Count; ii++)
+                    {
+                        integers[ii] = values[ii].Value;
+                    }
+                    expected = Variant.From((ArrayOf<int>)integers);
+                }
+            }
+            AssertSample(expected, actual, context);
+        }
+
         /// <summary>Asserts an exact Variant raw type and value, including PAT structure members.</summary>
         internal static void AssertSample(Variant expected, Variant actual, string context)
         {
