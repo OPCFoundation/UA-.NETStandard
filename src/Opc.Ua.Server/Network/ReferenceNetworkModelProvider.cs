@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Network
                     string.IsNullOrWhiteSpace(stream.Name) ||
                     !streamIds.Add(stream.Id) ||
                     !IsDefinedEnum(stream.State) ||
-                    stream.StreamId.Length != 8 ||
+                    !NetworkModelSnapshotValidator.IsValidStreamId(stream.StreamId) ||
                     !IsOptionalLength(stream.SourceAddress, 6) ||
                     !IsOptionalLength(stream.DestinationAddress, 6) ||
                     (stream.SourceAddress.Length != 0 && stream.DestinationAddress.Length == 0) ||
@@ -315,6 +315,11 @@ namespace Opc.Ua.Server.Network
                     throw new ArgumentException(
                         "Stream identities, fixed-size fields and traffic/VLAN values must be valid.",
                         nameof(snapshot));
+                }
+                if (!NetworkModelSnapshotValidator.IsValidSrClassId(stream.SrClassId))
+                {
+                    throw new ArgumentException(
+                        "Stream SR class identifiers must be between zero and seven.", nameof(snapshot));
                 }
                 if (stream.Status is { } status)
                 {

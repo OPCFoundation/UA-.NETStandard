@@ -493,6 +493,16 @@ namespace Opc.Ua.Server.Network
                     "Stream VLAN identifiers must be between zero and 4095 " +
                     "and priority code points between zero and seven.");
             }
+            if (!NetworkModelSnapshotValidator.IsValidStreamId(stream.StreamId))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream identifiers must contain exactly eight bytes.");
+            }
+            if (!NetworkModelSnapshotValidator.IsValidSrClassId(stream.SrClassId))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream SR class identifiers must be between zero and seven.");
+            }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
                 stream.Id,

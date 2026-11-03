@@ -864,6 +864,190 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Validates the fixed StreamId length for custom providers and recovers after rejected acquisitions.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(7, false)]
+        [TestCase(8, true)]
+        [TestCase(9, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderStreamIdLengthIsValidatedBeforePublication(
+            int length, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NetworkStreamValues before = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(before.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString previousId), Is.True);
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(before.StreamId.NodeId);
+            byte[] bytes = Enumerable.Range(1, length).Select(value => (byte)value).ToArray();
+            if (length == 8 && bytes.AsSpan().SequenceEqual(previousId.ToArray()))
+            {
+                bytes[0] = byte.MaxValue;
+            }
+            ByteString replacementId = ByteString.From(bytes.AsSpan());
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with { StreamId = replacementId };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return valid
+                    ? values.StreamId.DataValue.StatusCode == StatusCodes.Good &&
+                        values.StreamId.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(1)
+                    : values.StreamId.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            NetworkStreamValues actual = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            if (valid)
+            {
+                Assert.That(actual.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString publishedId), Is.True);
+                Assert.That(publishedId.ToArray(), Is.EqualTo(bytes));
+                Assert.That(actual.StreamId.DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+                Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                Assert.That(actual.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString retainedId), Is.True);
+                Assert.That(retainedId.ToArray(), Is.EqualTo(previousId.ToArray()));
+                Assert.That(actual.StreamId.DataValue.SourceTimestamp,
+                    Is.EqualTo(before.StreamId.DataValue.SourceTimestamp));
+                Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(retained.Value, Is.EqualTo(before.StreamId.DataValue.WrappedValue));
+                Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+                Assert.That((await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))
+                    .ToArray(), Is.EqualTo(new[] { talker }));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_provider.Publish(current with { Timestamp = initial.Timestamp.AddSeconds(2) });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.StreamId.DataValue.StatusCode == StatusCodes.Good &&
+                    values.StreamId.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(2);
+            }, cancellationToken).ConfigureAwait(false);
+            NetworkStreamValues recovered = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(recovered.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString recoveredId), Is.True);
+            Assert.That(recoveredId.ToArray(), Is.EqualTo(previousId.ToArray()));
+            Assert.That(recovered.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Validates optional stream SR-class identifiers on custom-provider acquisitions.
+        /// </summary>
+        [TestCase(false, (byte)0, true)]
+        [TestCase(true, (byte)0, true)]
+        [TestCase(true, (byte)7, true)]
+        [TestCase(true, (byte)8, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderStreamSrClassIdBoundariesAreValidatedBeforePublication(
+            bool includeId, byte id, bool valid, CancellationToken cancellationToken)
+        {
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NetworkStreamValues before = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(before.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString previousId), Is.True);
+            ArrayOf<ReferenceDescription> originalTalkers = await m_client.BrowseObjectsAsync(
+                ObjectIds.TalkerStreams, cancellationToken).ConfigureAwait(false);
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(before.SrClassId.NodeId);
+            byte? srClassId = includeId ? id : null;
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with { SrClassId = srClassId };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return valid
+                    ? values.StreamId.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(1) &&
+                        (includeId
+                            ? values.SrClassId.DataValue.StatusCode == StatusCodes.Good
+                            : values.SrClassId.DataValue.StatusCode == StatusCodes.BadNotSupported)
+                    : values.SrClassId.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            NetworkStreamValues actual = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            if (valid)
+            {
+                if (includeId)
+                {
+                    Assert.That(actual.SrClassId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(actual.SrClassId.DataValue.WrappedValue, Is.EqualTo(new Variant(id)));
+                }
+                else
+                {
+                    Assert.That(actual.SrClassId.NodeId.IsNull, Is.True);
+                    Assert.That(actual.SrClassId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                }
+                Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actual.StreamId.DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+            }
+            else
+            {
+                Assert.That(actual.SrClassId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actual.SrClassId.DataValue.WrappedValue, Is.EqualTo(new Variant((byte)6)));
+                Assert.That(actual.SrClassId.DataValue.SourceTimestamp,
+                    Is.EqualTo(before.SrClassId.DataValue.SourceTimestamp));
+                Assert.That(actual.StreamId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actual.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString retainedId), Is.True);
+                Assert.That(retainedId.ToArray(), Is.EqualTo(previousId.ToArray()));
+                Assert.That((await m_client.BrowseObjectsAsync(ObjectIds.TalkerStreams, cancellationToken)
+                    .ConfigureAwait(false)).ToList().Select(reference => reference.NodeId),
+                    Is.EquivalentTo(originalTalkers.ToList().Select(reference => reference.NodeId)));
+                Assert.That(retained.Value, Is.EqualTo(before.SrClassId.DataValue.WrappedValue));
+                Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_provider.Publish(current with { Timestamp = initial.Timestamp.AddSeconds(2) });
+            await WaitForAsync(async () =>
+                (await m_client.ReadStreamAsync(talker, cancellationToken).ConfigureAwait(false))
+                    .StreamId.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(2),
+                cancellationToken).ConfigureAwait(false);
+            NetworkStreamValues recovered = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(recovered.SrClassId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(recovered.SrClassId.DataValue.WrappedValue, Is.EqualTo(new Variant((byte)6)));
+            Assert.That(recovered.StreamId.DataValue.WrappedValue.TryGetValue(out ByteString recoveredId), Is.True);
+            Assert.That(recoveredId.ToArray(), Is.EqualTo(previousId.ToArray()));
+        }
+
+        /// <summary>
         /// Rejects timestamp regression even when the provider advances its revision.
         /// </summary>
         [Test]

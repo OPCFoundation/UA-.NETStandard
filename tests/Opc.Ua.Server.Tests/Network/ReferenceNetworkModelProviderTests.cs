@@ -112,6 +112,69 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Accepts an absent stream SR-class identifier and both ends of its defined range.
+        /// </summary>
+        [TestCase(false, (byte)0)]
+        [TestCase(true, (byte)0)]
+        [TestCase(true, (byte)7)]
+        public async Task StreamSrClassIdBoundariesSurviveConstructionAndPublicationAsync(
+            bool includeId, byte id)
+        {
+            byte? expectedId = includeId ? id : null;
+            NetworkModelSnapshot snapshot = EmptySnapshot() with
+            {
+                Streams =
+                [
+                    new NetworkStreamSnapshot("stream-1", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[8].AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        SrClassId = includeId ? id : null
+                    }
+                ]
+            };
+            var provider = new ReferenceNetworkModelProvider(snapshot);
+            Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Streams[0].SrClassId,
+                Is.EqualTo(expectedId));
+
+            provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(1) });
+            NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(actual.Streams[0].SrClassId, Is.EqualTo(expectedId));
+            Assert.That(actual.Revision, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Rejects an out-of-range optional stream SR-class identifier without replacing the acquisition.
+        /// </summary>
+        [TestCase((byte)8)]
+        public async Task PublishRejectsOutOfRangeStreamSrClassIdWithoutReplacingSnapshotAsync(byte id)
+        {
+            NetworkModelSnapshot initial = EmptySnapshot();
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkModelSnapshot invalid = initial with
+            {
+                Streams =
+                [
+                    new NetworkStreamSnapshot("stream-1", "test", true)
+                    {
+                        StreamId = ByteString.From(new byte[8].AsSpan()),
+                        State = TsnStreamState.Disabled,
+                        SrClassId = id
+                    }
+                ]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("Stream SR class identifiers"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("Stream SR class identifiers"));
+            NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(actual.Revision, Is.Zero);
+            Assert.That(actual.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(actual.Streams.Count, Is.Zero);
+        }
+
+        /// <summary>
         /// Applies the stream VLAN tag ranges independently of interface VLAN validation.
         /// </summary>
         [TestCase((ushort)0, (byte)0, true)]
@@ -475,10 +538,13 @@ namespace Opc.Ua.Server.Tests.Network
         /// Rejects a malformed stream identity without publishing it.
         /// </summary>
         [Test]
-        public async Task PublishRejectsMalformedStreamIdentityWithoutReplacingCurrentSnapshotAsync()
+        [TestCase(0)]
+        [TestCase(7)]
+        [TestCase(9)]
+        public async Task PublishRejectsMalformedStreamIdentityWithoutReplacingCurrentSnapshotAsync(int length)
         {
             var provider = new ReferenceNetworkModelProvider(EmptySnapshot());
-            byte[] malformedStreamId = [1, 2, 3];
+            byte[] malformedStreamId = new byte[length];
             NetworkModelSnapshot malformed = EmptySnapshot() with
             {
                 Streams = ArrayOf.Wrapped(
