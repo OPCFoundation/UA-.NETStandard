@@ -502,15 +502,29 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// </summary>
         private enum Stage : byte
         {
-            /// <summary>CSR creation may have begun; never automatically repeat it.</summary>
+            /// <summary>
+            /// CSR creation may have begun; never automatically repeat it.
+            /// </summary>
             CreatingCsr,
-            /// <summary>The exact returned CSR is durable and has not been submitted.</summary>
+
+            /// <summary>
+            /// The exact returned CSR is durable and has not been submitted.
+            /// </summary>
             CsrRetained,
-            /// <summary>Queue insertion may have begun; its request identifier requires explicit recovery.</summary>
+
+            /// <summary>
+            /// Queue insertion may have begun; its request identifier requires explicit recovery.
+            /// </summary>
             StartingRequest,
-            /// <summary>The exact shared GDS request is durable and awaits approval or receipt recovery.</summary>
+
+            /// <summary>
+            /// The exact shared GDS request is durable and awaits approval or receipt recovery.
+            /// </summary>
             RequestRetained,
-            /// <summary>The immutable receipt and full trust output have been retained.</summary>
+
+            /// <summary>
+            /// The immutable receipt and full trust output have been retained.
+            /// </summary>
             Completed
         }
 
@@ -526,24 +540,34 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The maximum complete binary journal value.</summary>
         private const int kMaximumCheckpointSize = 16 * 1024 * 1024;
+
         /// <summary>The host-owned durable storage.</summary>
         private readonly ISecretStore m_secrets;
+
         /// <summary>The exclusive deployment scope.</summary>
         private readonly string m_scope;
+
         /// <summary>The existing authority selected by namespace URI.</summary>
         private readonly ExpandedNodeId m_groupId;
+
         /// <summary>The selected standard concrete application certificate type.</summary>
         private readonly NodeId m_typeId;
+
         /// <summary>The persisted software approval gate.</summary>
         private readonly IDeviceRegistrarIdentityLifecycle m_candidates;
+
         /// <summary>The shared DCA ownership and application scope.</summary>
         private readonly IDeviceRegistrarCertificateLifecycle m_devices;
+
         /// <summary>The bounded OPC UA checkpoint codec context.</summary>
         private readonly IServiceMessageContext m_context;
+
         /// <summary>Serializes one exclusive journal owner.</summary>
         private readonly SemaphoreSlim m_gate = new(1, 1);
+
         /// <summary>The one running GDS that owns application and request identities.</summary>
         private ApplicationsNodeManager? m_manager;
+
         /// <summary>Whether the owning host released this provider.</summary>
         private int m_disposed;
     }

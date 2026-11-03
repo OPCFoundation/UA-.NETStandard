@@ -495,11 +495,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
             }
             catch (Exception transferError)
             {
-                using var cleanup = new CancellationTokenSource();
-                cleanup.CancelAfter(TimeSpan.FromSeconds(5));
                 try
                 {
-                    await client.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
+                    await CloseTrustListAfterFailureAsync(client, handle).ConfigureAwait(false);
                 }
                 catch (Exception closeError)
                 {
@@ -507,6 +505,15 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 }
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Releases the remote writer with an independent timeout after transfer cancellation or failure.
+        /// </summary>
+        private static async ValueTask CloseTrustListAfterFailureAsync(TrustListTypeClient client, uint handle)
+        {
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await client.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -671,10 +678,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 using Certificate certificate = Certificate.FromRawData(issuance.Certificate);
                 if (!certificate.RawData.AsSpan().SequenceEqual(issuance.Certificate.Span) ||
                     !CertificateIdentifier.ValidateCertificateType(certificate, certificateType) ||
-                    !string.Equals(
-                        X509Utils.GetApplicationUriFromCertificate(certificate),
-                        applicationUri,
-                        StringComparison.Ordinal))
+                    !X509Utils.GetApplicationUrisFromCertificate(certificate).Contains(applicationUri))
                 {
                     throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
                 }
@@ -689,7 +693,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 encoded.ThrowIfNotEmpty();
                 using System.Security.Cryptography.X509Certificates.X509Certificate2 leaf =
                     certificate.AsX509Certificate2();
-                if (padding != 0 || !string.Equals(oid, leaf.PublicKey.Oid.Value, StringComparison.Ordinal) ||
+                if (padding != 0 || !string.Equals(oid, leaf.PublicKey.Oid?.Value, StringComparison.Ordinal) ||
                     !parameters.Span.SequenceEqual(leaf.PublicKey.EncodedParameters.RawData) ||
                     !key.AsSpan().SequenceEqual(leaf.PublicKey.EncodedKeyValue.RawData))
                 {

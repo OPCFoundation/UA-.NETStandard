@@ -579,7 +579,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             if (!CertificateIdentifier.ValidateCertificateType(certificate, ApplicationCertificateType))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadCertificateTypeInvalid,
+                    StatusCodes.BadCertificateUseNotAllowed,
                     "The application certificate does not match the configured OPC UA certificate type.");
             }
             if (!X509Utils.GetApplicationUrisFromCertificate(certificate).Contains(m_applicationUri))

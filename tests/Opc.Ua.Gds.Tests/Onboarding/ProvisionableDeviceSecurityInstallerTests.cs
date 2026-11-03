@@ -296,7 +296,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await installer.InstallAsync(Credentials(m_identity)).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateTypeInvalid));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUseNotAllowed));
             Assert.That(m_events, Is.Empty);
             m_stores.Verify(s => s.OpenCertificateStore(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>()), Times.Never);

@@ -26,6 +26,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -154,7 +155,7 @@ namespace Opc.Ua.Gds.Server
                 if (state != CertificateRequestState.Accepted)
                 {
                     ServiceResult? approval = VerifyApprovedState(state);
-                    if (ServiceResult.IsBad(approval))
+                    if (approval != null && ServiceResult.IsBad(approval))
                     {
                         throw new ServiceResultException(approval);
                     }
