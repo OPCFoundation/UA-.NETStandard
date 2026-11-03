@@ -296,7 +296,25 @@ namespace Opc.Ua.SourceGeneration
         private static GeneratorDriver GenerateModel(out Compilation output, string model = kModel)
         {
             CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
-                .AddCode(new Dictionary<string, string>().WithOpcUaGeneratedStack(), LanguageVersion.CSharp11);
+                .AddCode(new Dictionary<string, string>
+                {
+                    ["SemanticModelDependencies"] = """
+                        namespace Opc.Ua
+                        {
+                            public static partial class DataTypes
+                            {
+                                public const uint Double = 11;
+                            }
+
+                            public sealed class IrdiDictionaryEntryState : BaseObjectState
+                            {
+                                public IrdiDictionaryEntryState(NodeState parent) : base(parent)
+                                {
+                                }
+                            }
+                        }
+                        """
+                }.WithOpcUaGeneratedStack(), LanguageVersion.CSharp11);
             var options = new AnalyzerOptionsProvider(new Dictionary<string, string>
             {
                 ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
