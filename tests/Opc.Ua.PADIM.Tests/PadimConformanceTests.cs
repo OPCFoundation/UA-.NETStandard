@@ -272,8 +272,9 @@ namespace Opc.Ua.PADIM.Tests
             Assert.That(device.ConformanceUnits.ToArray(),
                 Does.Contain(new QualifiedName("PA-DIM Nano Embedded")));
 
-            BaseVariableState profileArray = m_manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
-                Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            BaseVariableState profileArray =
+                m_manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                    Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
             Assert.That(profileArray.Value.TryGetValue(out ArrayOf<string> originalProfiles), Is.True);
             try
             {
@@ -363,6 +364,87 @@ namespace Opc.Ua.PADIM.Tests
                     Assert.That(device.ServerProfiles.ToArray(),
                         Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/Core"), field);
                 });
+            }
+        }
+
+        /// <summary>
+        /// Health requires a bound DI-qualified child, including a dynamically supplied child.
+        /// </summary>
+        [Test]
+        public async Task CoreFacetRequiresDiQualifiedHealthBinding()
+        {
+            PadimDevice device = await CreateDeviceAsync("HealthNamespaceRequirements");
+            SetIdentity(device);
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            device.BindValue(device.State.DeviceHealth!, "health", provider.Object);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Contain(new QualifiedName("PA-DIM Base")));
+            device.State.DeviceHealth!.BrowseName = ModelName("DeviceHealth");
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")));
+            device.State.DeviceHealth.BrowseName =
+                new QualifiedName("DeviceHealth", device.Manager.InstanceNamespaceIndex);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")));
+            var dynamicHealth = new BaseDataVariableState(device.State)
+            {
+                NodeId = new NodeId("DynamicDiHealth", device.Manager.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName(
+                    "DeviceHealth", (ushort)device.Context.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi)),
+                DataType = device.State.DeviceHealth.DataType,
+                TypeDefinitionId = device.State.DeviceHealth.TypeDefinitionId
+            };
+            device.State.AddChild(dynamicHealth);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Base")),
+                "A correctly named but unbound health child is insufficient.");
+            device.BindValue(dynamicHealth, "dynamicHealth", provider.Object);
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Contain(new QualifiedName("PA-DIM Base")));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Only declared 2017/2022 Nano profiles and their mandatory including profiles satisfy the PA-DIM unit.
+        /// </summary>
+        [TestCase("NanoEmbeddedDevice2017", true)]
+        [TestCase("MicroEmbeddedDevice2017", true)]
+        [TestCase("EmbeddedUA2017", true)]
+        [TestCase("StandardUA2017", true)]
+        [TestCase("NanoEmbeddedDevice2022", true)]
+        [TestCase("MicroEmbeddedDevice2022", true)]
+        [TestCase("EmbeddedUA2022", true)]
+        [TestCase("StandardUA2022", true)]
+        [TestCase("NanoEmbeddedDevice2025", false)]
+        [TestCase("MicroEmbeddedDevice2025", false)]
+        [TestCase("EmbeddedUA2025", false)]
+        [TestCase("StandardUA2025", false)]
+        public async Task CoreFacetFollowsPublishedNanoProfileVersionRequirement(string profile, bool supported)
+        {
+            PadimDevice device = await CreateDeviceAsync($"NanoProfile{profile}");
+            SetIdentity(device);
+            device.BindValue(device.State.DeviceHealth!, "health", new Mock<IPadimValueProvider>().Object);
+            BaseVariableState profileArray =
+                m_manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                    Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            Assert.That(profileArray.Value.TryGetValue(out ArrayOf<string> originalProfiles), Is.True);
+            try
+            {
+                profileArray.Value = (ArrayOf<string>)[$"http://opcfoundation.org/UA-Profile/Server/{profile}"];
+                Assert.Multiple(() =>
+                {
+                    Assert.That(device.ConformanceUnits.ToArray(),
+                        Does.Contain(new QualifiedName("PA-DIM Base")));
+                    Assert.That(device.ConformanceUnits.ToList().Contains(new QualifiedName("PA-DIM Nano Embedded")),
+                        Is.EqualTo(supported), profile);
+                    Assert.That(device.ServerProfiles.ToList().Contains(
+                        "http://opcfoundation.org/UA-Profile/PADIM/Server/Core"),
+                        Is.EqualTo(supported), profile);
+                });
+            }
+            finally
+            {
+                profileArray.Value = originalProfiles;
             }
         }
 
@@ -572,6 +654,38 @@ namespace Opc.Ua.PADIM.Tests
             BindRequiredValueMembers(device, signal.AnalogSignal!, provider.Object, omitted);
             Assert.That(device.ServerProfiles.ToArray(),
                 Does.Not.Contain($"http://opcfoundation.org/UA-Profile/PADIM/Server/{facet}"));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A same-type sibling cannot replace the bound, PA-DIM-qualified AnalogSignal child.
+        /// </summary>
+        [Test]
+        public async Task MeasurementFacetRequiresQualifiedPrimaryBindingIncludingDynamicMembers()
+        {
+            PadimDevice device = await CreateDeviceAsync("PrimaryMeasurementRequirements");
+            var provider = new Mock<IPadimValueProvider>(MockBehavior.Strict);
+            AnalogSignalObjectState signal = await device.AddMeasurementAsync(
+                Name("Value"), PadimMeasurementKind.Temperature, "PV-PRIMARY");
+            TemperatureMeasurementVariableState sibling =
+                device.Context.CreateInstanceOfTemperatureMeasurementVariableType(signal, ModelName("Unrelated"));
+            signal.AddChild(sibling);
+            device.BindValue(sibling, "sibling", provider.Object);
+            BindRequiredValueMembers(device, sibling, provider.Object);
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"),
+                "A bound same-type sibling must not substitute for the unbound primary measurement.");
+            sibling.BrowseName = new QualifiedName("AnalogSignal", device.Manager.InstanceNamespaceIndex);
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Not.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"),
+                "The primary name in a vendor namespace must not satisfy the PA-DIM path.");
+            Assert.That(device.ConformanceUnits.ToArray(),
+                Does.Not.Contain(new QualifiedName("PA-DIM Analog Signal")));
+            signal.AnalogSignal!.BrowseName = ModelName("UnboundOriginal");
+            sibling.BrowseName = ModelName("AnalogSignal");
+            Assert.That(device.ServerProfiles.ToArray(),
+                Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TemperatureSignal"),
+                "A bound dynamic child at the exact primary path is valid despite the old generated slot.");
             provider.VerifyNoOtherCalls();
         }
 

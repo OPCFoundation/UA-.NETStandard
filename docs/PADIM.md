@@ -354,7 +354,9 @@ and no mandatory units.
 `PadimDevice` contributes configured capabilities through the DI owner's
 existing `IConformanceContributor` aggregation. A signal-family facet requires
 a provider binding for its primary process variable, not merely its tag or a
-loaded type. Analytical facets additionally require the condition interfaces
+loaded type. Measurement facets require the bound PA-DIM-qualified
+`AnalogSignal` child; a same-type sibling does not satisfy that path.
+Analytical facets additionally require the condition interfaces
 and fields named by their mandatory family unit; four families also require
 a complete calibration on one calibration instance. Where the facet requires
 `PatMeasurementVariableType`, bind the generated `PatMeasurandDescription`
@@ -396,8 +398,10 @@ support for these configuration parameters.
 Device-family and Core facets require a health provider and all mandatory
 base identity values: `Manufacturer`, `ManufacturerUri`, `Model`,
 `SerialNumber`, `SoftwareRevision`, `HardwareRevision`, `ProductCode`,
-`ProductInstanceUri`, `AssetId` and `RevisionCounter`. The TOC analyser
-additionally requires its device-condition interface and
+`ProductInstanceUri`, `AssetId` and `RevisionCounter`. The SDK resolves
+these identity members and `DeviceHealth` by their full DI-qualified
+BrowseNames, including when namespace indexes are remapped.
+The TOC analyser additionally requires its device-condition interface and
 `ReactorTemperature`, `CoolerTemperature`, `CarrierGasVolumeFlow` and
 `ReferenceInjectionVolume` bindings.
 Administration, simulation and alarming facets follow their explicit
@@ -426,12 +430,22 @@ those fields. The `InfraredSignalType PowerOnDurationSensor` and
 The SDK retains the published model and uses the named members; it does not
 invent device fields or treat these descriptions as interchangeable.
 
-The Core facet is contributed only when the host's `ServerProfileArray`
-declares Nano Embedded 2017, Nano Embedded 2022 or Standard UA 2017. This
-checks the host's declaration; it does not verify the host's behavior against
-every Nano Embedded requirement. Loading PA-DIM alone does not establish host
-profile support. The hosted fixture exercises all configured PA-DIM facet
-contributions and reads them back, but it does not independently test the
+The PA-DIM Nano Embedded unit explicitly requires Nano Embedded Device 2017
+for OPC UA v1.04 or Nano Embedded Device 2022 for OPC UA v1.05. The Core facet
+therefore requires the host's `ServerProfileArray` to declare one of those
+profiles or a Micro Embedded, Embedded UA or Standard UA profile from the
+same year; the [published profile graph](https://profiles.opcfoundation.org/?pg=171)
+includes the required Nano profile through mandatory inclusion edges.
+A 2025-only declaration does not satisfy this check. Nano Embedded Device
+2025 supersedes the 2022 profile, but makes Security ECC Policy optional,
+whereas the 2022 profile requires it. Supersession alone does not establish
+support for the profile named by PA-DIM. A host that implements the required
+2017 or 2022 profile can declare it alongside its 2025 profile.
+
+This checks the host's declaration; it does not verify the host's behavior
+against every Nano Embedded requirement. Loading PA-DIM alone does not
+establish host profile support. The hosted fixture exercises all configured
+PA-DIM facet contributions and reads them back, but it does not independently test the
 host's Nano Embedded behavior or every optional-only conformance unit. Keep the
 rating at Partial until those evidence limits and the catalogue
 interpretations above are resolved. No OPC Foundation certification is implied.

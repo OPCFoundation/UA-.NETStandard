@@ -61,17 +61,18 @@ namespace Opc.Ua.PADIM.Server
             }
             var units = new HashSet<string>(StringComparer.Ordinal);
             var profiles = new HashSet<string>(StringComparer.Ordinal);
-            bool health = false;
             var signals = new HashSet<SignalState>(RefEqualityComparer.Default);
             var bound = new HashSet<BaseVariableState>(RefEqualityComparer.Default);
             foreach (PadimValueBinding binding in bindings)
             {
                 bound.Add(binding.Variable);
             }
+            bool health =
+                FindMember(State, "DeviceHealth", Di.Namespaces.OpcUaDi) is BaseVariableState healthVariable &&
+                bound.Contains(healthVariable);
             foreach (PadimValueBinding binding in bindings)
             {
                 BaseVariableState variable = binding.Variable;
-                health |= ReferenceEquals(variable, State.DeviceHealth);
                 if (ReferenceEquals(variable, State.DisplayLanguage))
                 {
                     Add("Admin", "IAdmin DisplayLanguage");
@@ -102,7 +103,8 @@ namespace Opc.Ua.PADIM.Server
                     if (instance is SignalState signal && ReferenceEquals(variable.Parent, signal) &&
                         variable.BrowseName.Name is
                             "AnalogSignal" or "ControlSignal" or "DiscreteSignal" or
-                            "TwoStateDiscreteSignal" or "MultiStateDiscreteSignal")
+                            "TwoStateDiscreteSignal" or "MultiStateDiscreteSignal" &&
+                        ReferenceEquals(FindMember(signal, variable.BrowseName.Name), variable))
                     {
                         signals.Add(signal);
                     }
@@ -184,7 +186,7 @@ namespace Opc.Ua.PADIM.Server
                     }
                 }
                 if (nanoEmbeddedSupported &&
-                    FindMember(State, "DeviceRevision", "http://opcfoundation.org/UA/DI/") is BaseVariableState revision &&
+                    FindMember(State, "DeviceRevision", Di.Namespaces.OpcUaDi) is BaseVariableState revision &&
                     revision.WrappedValue.TryGetValue(out string deviceRevision) &&
                     !string.IsNullOrWhiteSpace(deviceRevision))
                 {
@@ -291,7 +293,8 @@ namespace Opc.Ua.PADIM.Server
 
             void AddMeasurement(BaseVariableState variable)
             {
-                if (variable.Parent is not AnalogSignalObjectState signal)
+                if (variable.Parent is not AnalogSignalObjectState signal ||
+                    !ReferenceEquals(FindMember(signal, "AnalogSignal"), variable))
                 {
                     return;
                 }
@@ -608,8 +611,9 @@ namespace Opc.Ua.PADIM.Server
         /// </summary>
         private bool SupportsNanoEmbeddedProfile()
         {
-            BaseVariableState? profileArray = Manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
-                Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            BaseVariableState? profileArray =
+                Manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
+                    Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
             if (profileArray == null ||
                 !profileArray.Value.TryGetValue(out ArrayOf<string> profiles) ||
                 profiles.IsNull)
@@ -621,7 +625,12 @@ namespace Opc.Ua.PADIM.Server
                 if (profiles[ii] is
                     "http://opcfoundation.org/UA-Profile/Server/NanoEmbeddedDevice2017" or
                     "http://opcfoundation.org/UA-Profile/Server/NanoEmbeddedDevice2022" or
-                    "http://opcfoundation.org/UA-Profile/Server/StandardUA2017")
+                    "http://opcfoundation.org/UA-Profile/Server/MicroEmbeddedDevice2017" or
+                    "http://opcfoundation.org/UA-Profile/Server/MicroEmbeddedDevice2022" or
+                    "http://opcfoundation.org/UA-Profile/Server/EmbeddedUA2017" or
+                    "http://opcfoundation.org/UA-Profile/Server/EmbeddedUA2022" or
+                    "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" or
+                    "http://opcfoundation.org/UA-Profile/Server/StandardUA2022")
                 {
                     return true;
                 }
