@@ -112,30 +112,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 [DefaultManagedApplicationsNodeManager.ManagedApplicationsNamespaceUri];
 
             /// <inheritdoc/>
-            public async ValueTask<IAsyncNodeManager> CreateAsync(
+            public ValueTask<IAsyncNodeManager> CreateAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var manager =
-                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider);
-                try
-                {
-                    return await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
-                }
-                catch (Exception transferError)
-                {
-                    try
-                    {
-                        await manager.DisposeAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception cleanupError)
-                    {
-                        throw new AggregateException(transferError, cleanupError);
-                    }
-                    throw;
-                }
+                return new ValueTask<IAsyncNodeManager>(Task.FromResult<IAsyncNodeManager>(
+                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider)));
             }
 
             /// <summary>The host-owned runtime provider.</summary>
