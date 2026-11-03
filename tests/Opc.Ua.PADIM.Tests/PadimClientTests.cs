@@ -67,7 +67,7 @@ namespace Opc.Ua.PADIM.Tests
             using (var unregisteredDecoder = new BinaryDecoder(encoded, session.Object.MessageContext))
             {
                 Variant unregistered = unregisteredDecoder.ReadVariant(null);
-                Assert.That(unregistered.TryGetStructure<ChemicalSubstance>(out _), Is.False);
+                Assert.That(unregistered.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? _), Is.False);
             }
             var client = new PadimClient(session.Object, telemetry);
             Assert.That(factory.ContainsEncodeableType(DataTypeIds.ChemicalSubstance), Is.True);
