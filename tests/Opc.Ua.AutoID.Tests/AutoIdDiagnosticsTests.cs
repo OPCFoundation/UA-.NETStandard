@@ -335,6 +335,32 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Preserves the existing typed-null EPC representation without dereferencing a missing structure.
+        /// </summary>
+        [TestCase("Identifier")]
+        [TestCase("RWData")]
+        public async Task AccessDiagnosticsPreserveNullEpcValuesAsync(string field)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            var data = new ScanData { SwitchField = ScanDataFields.Epc, Epc = null! };
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            await reader.ReportAccessAsync("ReadTag", "Controller", [report]).ConfigureAwait(false);
+            BaseVariableState variable = Variable(reader, "LastAccess", field);
+            Assert.That(variable.Value, Is.EqualTo(Variant.From(ExtensionObject.Null)));
+            Assert.That(variable.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(variable.Timestamp, Is.EqualTo(report.Timestamp));
+        }
+
+        /// <summary>
         /// Rejects a custom value exceeding codec limits before replacing any LastAccess field.
         /// </summary>
         [TestCase("Identifier")]

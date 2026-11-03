@@ -297,12 +297,16 @@ namespace Opc.Ua.AutoID.Server
                 case ScanDataFields.ByteString:
                     return Variant.From(SnapshotDiagnosticBytes(data.ByteString));
                 case ScanDataFields.Epc:
+                    if (data.Epc is not { } epc)
+                    {
+                        return VariantOf(data);
+                    }
                     return Variant.FromStructure(new ScanDataEpc
                     {
-                        PC = data.Epc.PC,
-                        UId = SnapshotDiagnosticBytes(data.Epc.UId),
-                        XPC_W1 = data.Epc.XPC_W1,
-                        XPC_W2 = data.Epc.XPC_W2
+                        PC = epc.PC,
+                        UId = SnapshotDiagnosticBytes(epc.UId),
+                        XPC_W1 = epc.XPC_W1,
+                        XPC_W2 = epc.XPC_W2
                     });
                 case ScanDataFields.Custom:
                     // Variant.Copy does not copy scalar ByteString or every nested mutable payload.
