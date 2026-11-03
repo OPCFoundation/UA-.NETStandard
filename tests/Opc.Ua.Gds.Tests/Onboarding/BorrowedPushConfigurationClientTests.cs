@@ -216,8 +216,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(calls[2].MethodId, Is.EqualTo(Ua.MethodIds.TrustListType_CloseAndUpdate));
             foreach (CallMethodRequest call in calls)
             {
-                Assert.That(call.ObjectId, Is.EqualTo(new NodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList));
+                Assert.That(
+                    call.ObjectId,
+                    Is.EqualTo(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList));
             }
             Assert.That(calls[1].InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(42u));
