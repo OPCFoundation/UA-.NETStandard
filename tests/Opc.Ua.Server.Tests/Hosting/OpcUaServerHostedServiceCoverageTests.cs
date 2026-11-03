@@ -496,7 +496,7 @@ namespace Opc.Ua.Server.Tests.Hosting
 
             Assert.That(
                 await WaitForAsync(
-                    () => RegistryCaptureServer.StartedInstance != null,
+                    () => RegistryCaptureServer.StartedServer != null,
                     TimeSpan.FromSeconds(60)).ConfigureAwait(false),
                 Is.True);
             Assert.That(RegistryCaptureServer.StartedInstance!.SessionBindingProvider, Is.SameAs(configured));
