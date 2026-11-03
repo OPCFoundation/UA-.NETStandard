@@ -175,15 +175,15 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(first.TryGetValue(out Argument? argumentCopy)).IsTrue();
             await Assert.That(ReferenceEquals(argumentCopy, argument)).IsFalse();
             await Assert.That(argumentCopy!.Name).IsEqualTo("Input");
-            await Assert.That(argumentCopy.ArrayDimensions.Span.SequenceEqual(new uint[] { 2, 3 })).IsTrue();
+            await Assert.That(argumentCopy.ArrayDimensions.Span.SequenceEqual(s_dimensions)).IsTrue();
 
             await Assert.That(custom.WrappedValue.TryGetValue(out ExtensionObject second)).IsTrue();
             await Assert.That(second.TryGetValue(out MutableStructure? structureCopy)).IsTrue();
             await Assert.That(ReferenceEquals(structureCopy, structure)).IsFalse();
-            await Assert.That(structureCopy!.Values.Span.SequenceEqual(new double[] { 1, 2 })).IsTrue();
-            await Assert.That(structureCopy.Payload.Span.SequenceEqual(new byte[] { 3, 4 })).IsTrue();
+            await Assert.That(structureCopy!.Values.Span.SequenceEqual(s_values)).IsTrue();
+            await Assert.That(structureCopy.Payload.Span.SequenceEqual(s_payload)).IsTrue();
             await Assert.That(structureCopy.Nested.TryGetValue(out ArrayOf<uint> nestedCopy)).IsTrue();
-            await Assert.That(nestedCopy.Span.SequenceEqual(new uint[] { 5, 6 })).IsTrue();
+            await Assert.That(nestedCopy.Span.SequenceEqual(s_nested)).IsTrue();
         }
 
         /// <summary>
@@ -199,6 +199,18 @@ namespace Opc.Ua.Aot.Tests
             owner.AddChild(value);
             return value;
         }
+
+        /// <summary>The published argument dimensions.</summary>
+        private static readonly uint[] s_dimensions = [2, 3];
+
+        /// <summary>The published primitive-array field.</summary>
+        private static readonly double[] s_values = [1, 2];
+
+        /// <summary>The published byte string field.</summary>
+        private static readonly byte[] s_payload = [3, 4];
+
+        /// <summary>The published nested variant elements.</summary>
+        private static readonly uint[] s_nested = [5, 6];
 
         /// <summary>
         /// Allocates unique instance identities in a test-local namespace.

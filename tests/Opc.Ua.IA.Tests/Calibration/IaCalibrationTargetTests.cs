@@ -300,7 +300,7 @@ namespace Opc.Ua.IA.Tests.Calibration
                 .OfType<BaseVariableState>().Single();
             Assert.That(actual.WrappedValue.TryGetValue(out MatrixOf<double> published), Is.True);
             Assert.That(published.Span.ToArray(), Is.EqualTo(new double[] { 10, 20, 30, 40 }));
-            Assert.That(published.Dimensions, Is.EqualTo(new[] { 2, 2 }));
+            Assert.That(published.Dimensions, Is.EqualTo(s_twoByTwo));
         }
 
         /// <summary>
@@ -474,5 +474,8 @@ namespace Opc.Ua.IA.Tests.Calibration
             provider.Setup(source => source.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(snapshot);
             return provider;
         }
+
+        /// <summary>The dimensions of the two-by-two calibration matrix.</summary>
+        private static readonly int[] s_twoByTwo = [2, 2];
     }
 }

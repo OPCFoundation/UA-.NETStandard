@@ -708,7 +708,7 @@ namespace Opc.Ua.IA.Tests.Statistics
                 () => buffer[0] = 99).ConfigureAwait(false);
             Assert.That(published.TryGetValue(out MatrixOf<double> matrix), Is.True);
             Assert.That(matrix.Span.ToArray(), Is.EqualTo(new double[] { 1, 2, 3, 4, 5, 6 }));
-            Assert.That(matrix.Dimensions, Is.EqualTo(new[] { 2, 3 }));
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_twoByThree));
         }
 
         /// <summary>
@@ -945,6 +945,9 @@ namespace Opc.Ua.IA.Tests.Statistics
             Assert.That(variable.WrappedValue.TryGetValue(out uint actual), Is.True);
             Assert.That(actual, Is.EqualTo(expected));
         }
+
+        /// <summary>The dimensions of the two-by-three statistics matrix.</summary>
+        private static readonly int[] s_twoByThree = [2, 3];
 
         /// <summary>
         /// A structure that the encodeable factory does not know, with fields whose
