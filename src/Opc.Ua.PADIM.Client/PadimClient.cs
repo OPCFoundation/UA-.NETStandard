@@ -360,10 +360,10 @@ namespace Opc.Ua.PADIM.Client
         private static void RegisterDataTypes(IEncodeableFactory factory, ITelemetryContext telemetry)
         {
             IEncodeableFactoryBuilder builder = factory.Builder;
-            if (builder is IAdditiveEncodeableFactoryBuilder)
+            bool supportsAdditiveCommit = builder is IAdditiveEncodeableFactoryBuilder;
+            if (supportsAdditiveCommit)
             {
                 builder.AddOpcUaPADIM().CommitIfAbsent();
-                return;
             }
             IEncodeableFactory required = ServiceMessageContext.CreateEmpty(telemetry).Factory;
             required.Builder.AddOpcUaPADIM().Commit();
@@ -383,8 +383,13 @@ namespace Opc.Ua.PADIM.Client
                 {
                     continue;
                 }
-                throw new NotSupportedException(
-                    $"The session factory is missing PA-DIM mapping '{id}' and does not support additive commits.");
+                if (!supportsAdditiveCommit)
+                {
+                    throw new NotSupportedException(
+                        $"The session factory is missing PA-DIM mapping '{id}' and does not support additive commits.");
+                }
+                throw new InvalidOperationException(
+                    $"The session factory has a missing or incompatible PA-DIM mapping '{id}' after registration.");
             }
         }
 

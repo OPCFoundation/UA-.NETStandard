@@ -370,7 +370,10 @@ The built-in factory checks datatype and encoding identifiers across structure
 and enum registrations, and checks XML names independently, under the same gate
 as ordinary commits. Existing mappings remain unchanged even when another
 builder commits them after the additive builder was created. A later ordinary
-`Commit()` can still replace them. The original factory and builder interfaces
+`Commit()` can still replace them. Only writer checks and additions are
+serialized: readers do not take the commit gate and can observe the individual
+registration maps during publication, rather than one combined snapshot.
+The original factory and builder interfaces
 are unchanged; custom builders opt in through
 `IAdditiveEncodeableFactoryBuilder`. `CommitIfAbsent()` throws
 `NotSupportedException` for a builder without that capability and never falls

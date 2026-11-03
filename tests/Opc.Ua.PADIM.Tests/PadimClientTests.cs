@@ -177,6 +177,67 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// Rejects an opposite-kind binary identifier or XML-name collision without replacing it.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConstructionRejectsOppositeKindMappingsAfterAdditiveCommit(bool xmlNameCollision)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Mock<ISession> session = CreateSession(ServiceMessageContext.CreateEmpty(telemetry).Factory);
+            IServiceMessageContext context = session.Object.MessageContext;
+            IEncodeableFactory required = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            required.Builder.AddOpcUaPADIM().Commit();
+            Assert.That(required.TryGetEncodeableType(
+                DataTypeIds.ChemicalSubstance, out IEncodeableType? generated), Is.True);
+            var collision = new Mock<IEnumeratedType>();
+            collision.SetupGet(type => type.XmlName).Returns(xmlNameCollision
+                ? generated!.XmlName
+                : new System.Xml.XmlQualifiedName("CallerEnum", "urn:padim:caller"));
+            ExpandedNodeId collisionId = xmlNameCollision
+                ? new ExpandedNodeId("CallerEnum", "urn:padim:caller")
+                : ObjectIds.ChemicalSubstance_Encoding_DefaultBinary;
+            context.Factory.Builder.AddEnumeratedType(collisionId, collision.Object).Commit();
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteVariant(null, Variant.From(new ExtensionObject(new ChemicalSubstance
+            {
+                PatDictionary = PatDictionaryEnum.CAS,
+                Label = new LocalizedText("collision sample"),
+                Id = new LocalizedText("PAT-COLLISION")
+            })));
+            byte[] encoded = encoder.CloseAndReturnBuffer() ??
+                throw new InvalidOperationException("No encoded PAT sample.");
+
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+
+            Assert.That(context.Factory.TryGetEnumeratedType(
+                collisionId, out IEnumeratedType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(collision.Object));
+            Assert.That(context.Factory.TryGetType(collision.Object.XmlName, out IType? xmlType), Is.True);
+            Assert.That(xmlType, Is.SameAs(collision.Object));
+            using var decoder = new BinaryDecoder(encoded, context);
+            Variant decoded = decoder.ReadVariant(null);
+            bool extracted = decoded.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? substance);
+            Assert.That(extracted, Is.EqualTo(xmlNameCollision));
+            if (xmlNameCollision)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(substance!.PatDictionary, Is.EqualTo(PatDictionaryEnum.CAS));
+                    Assert.That(substance.Label.Text, Is.EqualTo("collision sample"));
+                    Assert.That(substance.Id.Text, Is.EqualTo("PAT-COLLISION"));
+                });
+            }
+            else
+            {
+                Assert.That(context.Factory.TryGetEncodeableType(
+                    ObjectIds.ChemicalSubstance_Encoding_DefaultBinary, out _), Is.False);
+            }
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
         /// Rejects node limits outside the documented inclusive interval.
         /// </summary>
         [TestCase(-1)]

@@ -293,6 +293,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Type identifiers are checked across both structure and enumeration registrations.
         /// An existing XML-name mapping is preserved independently of the type-identifier mappings.
+        /// Readers can observe individual maps during publication; this is not a single-snapshot update.
         /// A later ordinary commit can still replace mappings.
         /// </remarks>
         void CommitIfAbsent();
