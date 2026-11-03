@@ -2406,26 +2406,25 @@ namespace Opc.Ua.Server.Historian
             granted = false;
             try
             {
-                (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                    .GetManagerHandleAsync(nodeId, cancellationToken)
-                    .ConfigureAwait(false);
-                if (handle != null && nodeManager != null)
+                bool? verdict = await TryGetReceiveEventsVerdictAsync(
+                    systemContext,
+                    operationContext,
+                    nodeId,
+                    cancellationToken).ConfigureAwait(false);
+                if (verdict == null &&
+                    systemContext.Server.NodeManager is IDynamicNodeManagerBatchHost routingHost)
                 {
-                    NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                    // A resumed page routes only to the owners its continuation retained. The EventType
+                    // and SourceNode of a stored event can belong to other owners, so a node the
+                    // retained routing cannot resolve is checked against the live routing instead.
+                    using IDisposable routing = routingHost.UseLiveRouting();
+                    verdict = await TryGetReceiveEventsVerdictAsync(
+                        systemContext,
                         operationContext,
-                        handle,
-                        BrowseResultMask.All,
+                        nodeId,
                         cancellationToken).ConfigureAwait(false);
-                    granted = metadata != null &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents)) &&
-                        !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
-                            operationContext,
-                            metadata,
-                            PermissionType.ReceiveEvents));
                 }
+                granted = verdict == true;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -2438,6 +2437,40 @@ namespace Opc.Ua.Server.Historian
 
             verdicts[nodeId] = granted;
             return granted;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents on a node through the routing active in the current flow.
+        /// </summary>
+        /// <returns>The verdict, or null if the active routing has no owner for the node.</returns>
+        private static async ValueTask<bool?> TryGetReceiveEventsVerdictAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
+                .GetManagerHandleAsync(nodeId, cancellationToken)
+                .ConfigureAwait(false);
+            if (handle == null || nodeManager == null)
+            {
+                return null;
+            }
+
+            NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                operationContext,
+                handle,
+                BrowseResultMask.All,
+                cancellationToken).ConfigureAwait(false);
+            return metadata != null &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents)) &&
+                !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
+                    operationContext,
+                    metadata,
+                    PermissionType.ReceiveEvents));
         }
 
         /// <summary>

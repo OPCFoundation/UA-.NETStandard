@@ -951,6 +951,88 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
+        public async Task ResumedEventHistoryAuthorizesSourcesOutsideRetainedOwnersAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var data = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
+            var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            var other = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            owner.Manager.HistoryProvider = CreatePagedEventHistoryProbe(data);
+            BaseObjectState notifier = RequireLifecycleValue(owner.Manager.Find(
+                new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0])) as BaseObjectState);
+            notifier.EventNotifier |= EventNotifiers.HistoryRead;
+            data.Register(notifier.NodeId);
+            var foreignSource = new NodeId(kRootNodeId, other.NamespaceIndex);
+            Assert.That(other.Manager.Find(foreignSource), Is.Not.Null);
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var context = new HistorianOperationContext(
+                new ServerSystemContext(m_server.CurrentInstance, operation), operation, notifier,
+                HistoryUpdateType.Insert);
+            ByteString firstId = new("foreign-source-first"u8.ToArray());
+            ByteString secondId = new("foreign-source-second"u8.ToArray());
+            await data.InsertEventsAsync(context, notifier.NodeId,
+                [
+                    CreateHistoryEvent(firstId, "first", s_historyTime, foreignSource),
+                    CreateHistoryEvent(secondId, "second", s_historyTime.AddSeconds(1), foreignSource)
+                ], timeout.Token).ConfigureAwait(false);
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                var details = new ReadEventDetails
+                {
+                    StartTime = s_historyTime.AddSeconds(-1),
+                    EndTime = s_historyTime.AddSeconds(2),
+                    NumValuesPerNode = 1,
+                    Filter = filter
+                };
+                HistoryReadResponse first = await session.HistoryReadAsync(
+                    null, new ExtensionObject(details), TimestampsToReturn.Both, false,
+                    [new HistoryReadValueId { NodeId = notifier.NodeId }], timeout.Token).ConfigureAwait(false);
+                Assert.That(first.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIds(first.Results[0]), Is.EqualTo(new[] { firstId }));
+                Assert.That(first.Results[0].ContinuationPoint.IsEmpty, Is.False);
+                HistoryReadResponse resumed = await session.HistoryReadAsync(
+                    null, new ExtensionObject(details), TimestampsToReturn.Both, false,
+                    [new HistoryReadValueId
+                    {
+                        NodeId = notifier.NodeId,
+                        ContinuationPoint = first.Results[0].ContinuationPoint
+                    }], timeout.Token).ConfigureAwait(false);
+                Assert.That(resumed.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIds(resumed.Results[0]), Is.EqualTo(new[] { secondId }),
+                    "a SourceNode owned outside the retained owners must still be authorized");
+                Assert.That(resumed.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        private static List<ByteString> ReadEventIds(HistoryReadResult result)
+        {
+            Assert.That(result.HistoryData.TryGetValue(out HistoryEvent? history), Is.True);
+            AssertLifecycleValue(history);
+            var ids = new List<ByteString>();
+            for (int index = 0; index < history.Events.Count; index++)
+            {
+                Assert.That(history.Events[index].EventFields[0].TryGetValue(out ByteString id), Is.True);
+                ids.Add(id);
+            }
+            return ids;
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
         public async Task NativeAnnotationHistoryKeepsOriginalPropertyAndParentSourceAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -1151,6 +1233,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [
                     new(BrowseNames.EventId, new Variant(id)),
                     new(BrowseNames.EventType, new Variant(ObjectTypeIds.BaseEventType)),
+                    new(BrowseNames.Message, new Variant(new LocalizedText(message))),
+                    new(BrowseNames.Time, new Variant((DateTimeUtc)time))
+                ]);
+        }
+
+        private static HistorianEventRecord CreateHistoryEvent(
+            ByteString id,
+            string message,
+            DateTime time,
+            NodeId sourceNode)
+        {
+            return new HistorianEventRecord(id, ObjectTypeIds.BaseEventType, time,
+                [
+                    new(BrowseNames.EventId, new Variant(id)),
+                    new(BrowseNames.EventType, new Variant(ObjectTypeIds.BaseEventType)),
+                    new(BrowseNames.SourceNode, new Variant(sourceNode)),
                     new(BrowseNames.Message, new Variant(new LocalizedText(message))),
                     new(BrowseNames.Time, new Variant((DateTimeUtc)time))
                 ]);
