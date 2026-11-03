@@ -122,8 +122,9 @@ try
             .ConfigureAwait(false))
         {
             found = true;
+            NodeId powerOffId = discovered.PowerOff is { } powerOff ? powerOff.ObjectId : NodeId.Null;
             EcmClient client = await host.Services.GetRequiredService<EcmClientFactory>()
-                .CreateAsync(discovered.Standby.ObjectId, discovered.PowerOff?.ObjectId ?? NodeId.Null, ct)
+                .CreateAsync(discovered.Standby.ObjectId, powerOffId, ct)
                 .ConfigureAwait(false);
             var initial = await client.Standby.StandbyManagementStatusVariable().ReadAsync(ct).ConfigureAwait(false);
             Console.WriteLine(
