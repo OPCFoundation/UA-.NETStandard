@@ -61,8 +61,8 @@ namespace Opc.Ua.Gds.Tests
     public sealed class ManagedApplicationPushTests : GdsTestFixture
     {
         /// <summary>
-        /// Fluent hosting publishes independent application certificates over a real encrypted management channel.
-        /// An observer cannot read application certificates through the management endpoint.
+        /// Fluent hosting isolates certificate rotation and trust changes over a real encrypted management channel.
+        /// The management channel survives target changes and an observer cannot read application certificates.
         /// </summary>
         [Test]
         public async Task EncryptedChannelRoutesIndependentApplicationsAndEnforcesSecurityAdmin()
@@ -154,6 +154,59 @@ namespace Opc.Ua.Gds.Tests
                 Assert.That(firstCertificate.Thumbprint, Is.EqualTo(first.CurrentThumbprint()));
                 Assert.That(secondCertificate.Thumbprint, Is.EqualTo(second.CurrentThumbprint()));
                 Assert.That(firstCertificate.Thumbprint, Is.Not.EqualTo(secondCertificate.Thumbprint));
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                using Certificate replacement = CertificateBuilder.Create("CN=Managed Push Test")
+                    .SetNotBefore(DateTime.UtcNow.AddDays(-1))
+                    .SetLifeTime(TimeSpan.FromDays(365))
+                    .AddExtension(new X509SubjectAltNameExtension(first.Configuration.ApplicationUri!, ["localhost"]))
+                    .SetRSAKeySize(2048)
+                    .CreateForRSA();
+                ByteString managementCertificate = session.ConfiguredEndpoint.Description.ServerCertificate;
+                bool applyRequired = await firstClient.UpdateCertificateAsync(
+                    NodeId.Null, CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    replacement.RawData.ToByteString(), [], "PFX",
+                    replacement.Export(X509ContentType.Pfx).ToByteString(), timeout.Token).ConfigureAwait(false);
+                Assert.That(applyRequired, Is.True);
+                Assert.That(first.CurrentThumbprint(), Is.EqualTo(firstCertificate.Thumbprint));
+                await firstClient.ApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+                await first.Activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                var (_, rotatedCertificates) = await firstClient.GetCertificatesAsync(NodeId.Null, timeout.Token)
+                    .ConfigureAwait(false);
+                using var rotated = Certificate.FromRawData(rotatedCertificates[0]);
+                Assert.That(rotated.Thumbprint, Is.EqualTo(replacement.Thumbprint));
+                Assert.That(second.CurrentThumbprint(), Is.EqualTo(secondCertificate.Thumbprint));
+                Assert.That(second.ActivatedGroups, Is.Empty);
+                Assert.That(first.PreviousCertificates, Has.Count.EqualTo(1));
+                using var previous = Certificate.FromRawData(first.PreviousCertificates[0].PreviousCertificate);
+                Assert.That(previous.Thumbprint, Is.EqualTo(firstCertificate.Thumbprint));
+                Assert.That(session.ConfiguredEndpoint.Description.ServerCertificate,
+                    Is.EqualTo(managementCertificate));
+
+                NodeId trustListId = await ResolveChildAsync(session, firstNode,
+                    [BrowseNames.CertificateGroups, BrowseNames.DefaultApplicationGroup, BrowseNames.TrustList],
+                    timeout.Token).ConfigureAwait(false);
+                var trust = new TrustListTypeClient(session, trustListId, s_telemetry);
+                await trust.AddCertificateAsync(secondCertificate.RawData.ToByteString(), true, timeout.Token)
+                    .ConfigureAwait(false);
+                await firstClient.ApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+                await first.TrustActivation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using TrustListData? firstTrust = await first.Configuration.CertificateManager!
+                    .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, timeout.Token)
+                    .ConfigureAwait(false);
+                using TrustListData? secondTrust = await second.Configuration.CertificateManager!
+                    .ReadTrustListAsync(TrustListIdentifier.Peers, TrustListMasks.All, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(firstTrust, Is.Not.Null);
+                Assert.That(firstTrust!.TrustedCertificates, Has.Count.EqualTo(1));
+                Assert.That(firstTrust.TrustedCertificates[0].Thumbprint, Is.EqualTo(secondCertificate.Thumbprint));
+                Assert.That(secondTrust, Is.Not.Null);
+                Assert.That(secondTrust!.TrustedCertificates, Is.Empty);
+                Assert.That(first.TrustEffects.ToList().Select(static effect => effect.TrustListId),
+                    Has.All.EqualTo(trustListId));
+                Assert.That(second.TrustEffects, Is.Empty);
+                var (_, stillAccessible) = await secondClient.GetCertificatesAsync(NodeId.Null, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(stillAccessible[0], Is.EqualTo(secondCertificate.RawData.ToByteString()));
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
 
                 using Opc.Ua.Client.ISession observer = await client.ConnectAsync(
@@ -656,6 +709,42 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// Resolves standard browse names relative to the application instance rather than namespace-zero ids.
+        /// </summary>
+        private static async ValueTask<NodeId> ResolveChildAsync(
+            Opc.Ua.Client.ISession session,
+            NodeId parent,
+            ArrayOf<string> names,
+            CancellationToken cancellationToken)
+        {
+            var elements = new RelativePathElement[names.Count];
+            for (int i = 0; i < names.Count; i++)
+            {
+                elements[i] = new RelativePathElement
+                {
+                    ReferenceTypeId = ReferenceTypeIds.HasChild,
+                    IncludeSubtypes = true,
+                    IsInverse = false,
+                    TargetName = new QualifiedName(names[i])
+                };
+            }
+            TranslateBrowsePathsToNodeIdsResponse response = await session.TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                [new BrowsePath
+                {
+                    StartingNode = parent,
+                    RelativePath = new RelativePath { Elements = elements }
+                }],
+                cancellationToken).ConfigureAwait(false);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            BrowsePathResult result = response.Results[0];
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Targets, Has.Count.EqualTo(1));
+            Assert.That(result.Targets[0].RemainingPathIndex, Is.EqualTo(uint.MaxValue));
+            return ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, session.NamespaceUris);
+        }
+
+        /// <summary>
         /// Creates a node manager whose provider returns exactly the independent applications under test.
         /// </summary>
         private DefaultManagedApplicationsNodeManager CreateManager(params TestTarget[] targets)
@@ -733,17 +822,54 @@ namespace Opc.Ua.Gds.Tests
             /// <summary>
             /// Gets the certificate groups activated by successful commits.
             /// </summary>
-            public List<NodeId> ActivatedGroups { get; } = [];
+            public ArrayOf<NodeId> ActivatedGroups
+            {
+                get
+                {
+                    lock (m_effects)
+                    {
+                        return m_activatedGroups.ToArrayOf();
+                    }
+                }
+            }
 
             /// <summary>
             /// Gets previous certificates passed to target-specific channel retirement.
             /// </summary>
-            public List<ApplicationCertificateRotation> PreviousCertificates { get; } = [];
+            public ArrayOf<ApplicationCertificateRotation> PreviousCertificates
+            {
+                get
+                {
+                    lock (m_effects)
+                    {
+                        return m_previousCertificates.ToArrayOf();
+                    }
+                }
+            }
 
             /// <summary>
             /// Gets committed target trust effects.
             /// </summary>
-            public List<TrustListChangeEffect> TrustEffects { get; } = [];
+            public ArrayOf<TrustListChangeEffect> TrustEffects
+            {
+                get
+                {
+                    lock (m_effects)
+                    {
+                        return m_trustEffects.ToArrayOf();
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets completion after the first target certificate activation.
+            /// </summary>
+            public Task Activation => m_activation.Task;
+
+            /// <summary>
+            /// Gets completion after the first target trust revalidation.
+            /// </summary>
+            public Task TrustActivation => m_trustActivation.Task;
 
             /// <summary>
             /// Creates and loads the initial application instance certificate through its real private store.
@@ -799,8 +925,12 @@ namespace Opc.Ua.Gds.Tests
                 ArrayOf<ApplicationCertificateRotation> previousCertificates,
                 CancellationToken cancellationToken = default)
             {
-                ActivatedGroups.AddRange(certificateGroups.ToList());
-                PreviousCertificates.AddRange(previousCertificates.ToList());
+                lock (m_effects)
+                {
+                    m_activatedGroups.AddRange(certificateGroups.ToList());
+                    m_previousCertificates.AddRange(previousCertificates.ToList());
+                }
+                m_activation.TrySetResult(true);
                 return default;
             }
 
@@ -809,7 +939,11 @@ namespace Opc.Ua.Gds.Tests
                 ArrayOf<TrustListChangeEffect> effects,
                 CancellationToken cancellationToken = default)
             {
-                TrustEffects.AddRange(effects.ToList());
+                lock (m_effects)
+                {
+                    m_trustEffects.AddRange(effects.ToList());
+                }
+                m_trustActivation.TrySetResult(true);
                 return default;
             }
 
@@ -827,6 +961,20 @@ namespace Opc.Ua.Gds.Tests
             private readonly string m_root;
             /// <summary>The target-owned certificate manager.</summary>
             private readonly CertificateManager m_certificates;
+            /// <summary>Protects effect snapshots while asynchronous enforcement updates them.</summary>
+            private readonly Lock m_effects = new();
+            /// <summary>The activated certificate groups.</summary>
+            private readonly List<NodeId> m_activatedGroups = [];
+            /// <summary>The public certificates supplied for channel retirement.</summary>
+            private readonly List<ApplicationCertificateRotation> m_previousCertificates = [];
+            /// <summary>The observed target trust effects.</summary>
+            private readonly List<TrustListChangeEffect> m_trustEffects = [];
+            /// <summary>Signals target certificate activation without polling the live registry.</summary>
+            private readonly TaskCompletionSource<bool> m_activation =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            /// <summary>Signals target trust revalidation without polling effect state.</summary>
+            private readonly TaskCompletionSource<bool> m_trustActivation =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>The test telemetry context.</summary>
