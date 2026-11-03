@@ -396,8 +396,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     .Select(static issuer => ByteString.From(issuer.Span)).ToArrayOf(),
                 CoreUtils.Clone(credentials.TrustList) ??
                     throw new ArgumentException("A complete trust list is required.", nameof(credentials)));
-            await using SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
+            SessionRequestContext dispatch = await SessionRequestContext.CaptureConfidentialAsync(
                 registrarSession, cancellationToken).ConfigureAwait(false);
+            await using var lifetime = dispatch.ConfigureAwait(false);
             ITransportChannel channel = dispatch.Session.TransportChannel;
             ByteString capturedPeer = ByteString.From(channel.ServerChannelCertificate.AsSpan());
             if (capturedPeer.IsEmpty)

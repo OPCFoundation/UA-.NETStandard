@@ -127,9 +127,29 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
-        protected override ValueTask DisposeAsyncCore()
+        protected override async ValueTask DisposeAsyncCore()
         {
-            return DisposePushBindingsThenAsync(base.DisposeAsyncCore);
+            Exception? bindingFailure = null;
+            try
+            {
+                await DisposePushBindingsAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                bindingFailure = error;
+            }
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (bindingFailure != null)
+            {
+                throw new AggregateException(bindingFailure, error);
+            }
+            if (bindingFailure != null)
+            {
+                ExceptionDispatchInfo.Capture(bindingFailure).Throw();
+            }
         }
 
         /// <summary>

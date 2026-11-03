@@ -118,8 +118,18 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return new ValueTask<IAsyncNodeManager>(
-                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider));
+                DefaultManagedApplicationsNodeManager? manager =
+                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider);
+                try
+                {
+                    var result = new ValueTask<IAsyncNodeManager>(manager);
+                    manager = null;
+                    return result;
+                }
+                finally
+                {
+                    manager?.Dispose();
+                }
             }
 
             /// <summary>The host-owned runtime provider.</summary>
