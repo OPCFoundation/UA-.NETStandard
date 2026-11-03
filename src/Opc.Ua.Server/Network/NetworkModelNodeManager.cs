@@ -943,19 +943,16 @@ namespace Opc.Ua.Server.Network
             entry.PriorityLabel = priorityLabel;
             entry.PriorityValue_PCP = byte.MaxValue;
             entry.PriorityValue_DSCP = uint.MaxValue;
-            if (!isDelete &&
-                (!inputs[2].TryGetValue(out byte pcp) ||
-                 !inputs[3].TryGetValue(out uint dscp)))
-            {
-                return false;
-            }
-
             if (!isDelete)
             {
-                inputs[2].TryGetValue(out byte pcpValue);
-                inputs[3].TryGetValue(out uint dscpValue);
-                entry.PriorityValue_PCP = pcpValue;
-                entry.PriorityValue_DSCP = dscpValue;
+                if (!inputs[2].TryGetValue(out byte pcp) ||
+                    !inputs[3].TryGetValue(out uint dscp))
+                {
+                    return false;
+                }
+
+                entry.PriorityValue_PCP = pcp;
+                entry.PriorityValue_DSCP = dscp;
             }
             return StatusCode.IsGood(NetworkModelSnapshotValidator.ValidatePriorityMappingEntry(entry));
         }
