@@ -641,8 +641,13 @@ request can still stage its changes after cancellation returns. Part 4 §7.32
 defines `timeoutHint` as a hint to the server, not a completion barrier, so the
 processor never proceeds to another application on that lease after an
 uncertain staging or apply result. `CancelChanges` runs without the caller's
-cancellation token. `Bad_NothingToDo` adds no cleanup error to the original
-failure.
+cancellation token and has an independent five-second deadline, including when
+the transport has no operation timeout. If the device does not reply before
+that deadline, the processor retains the original failure and the cancellation
+cleanup timeout together, then disposes the lease. A lease disposal failure is
+also retained. `Bad_NothingToDo` adds no cleanup error to the original failure.
+The processor accepts a `TimeProvider` for cleanup deadlines; fluent hosting
+uses the registered clock when available and otherwise uses the system clock.
 
 A denial or failure before mutation does not stop the processor from trying
 other applications. An approval rejection after a completed staging request

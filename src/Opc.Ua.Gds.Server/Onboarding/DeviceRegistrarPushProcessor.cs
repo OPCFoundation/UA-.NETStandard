@@ -64,6 +64,28 @@ namespace Opc.Ua.Gds.Server.Onboarding
             IDeviceRegistrarLifecycle lifecycle,
             IDeviceRegistrarAuthorization authorization,
             ITelemetryContext telemetry)
+            : this(connections, enrollments, identities, policy, applications, candidates, certificates,
+                issuances, lifecycle, authorization, telemetry, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates the processor with an injectable clock for independent transaction cleanup deadlines.
+        /// All connection and registrar providers retain their existing ownership.
+        /// </summary>
+        public DeviceRegistrarPushProcessor(
+            IDeviceRegistrarPushConnectionProvider connections,
+            IDeviceRegistrarPushEnrollmentProvider enrollments,
+            OnboardingPushIdentityValidator identities,
+            IDeviceRegistrarOnboardingPolicy policy,
+            IApplicationsDatabase applications,
+            IDeviceRegistrarIdentityLifecycle candidates,
+            IDeviceRegistrarCertificateLifecycle certificates,
+            ICertificateRequestIssuanceStore issuances,
+            IDeviceRegistrarLifecycle lifecycle,
+            IDeviceRegistrarAuthorization authorization,
+            ITelemetryContext telemetry,
+            TimeProvider timeProvider)
         {
             m_connections = connections ?? throw new ArgumentNullException(nameof(connections));
             m_enrollments = enrollments ?? throw new ArgumentNullException(nameof(enrollments));
@@ -76,6 +98,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
             m_authorization = authorization ?? throw new ArgumentNullException(nameof(authorization));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
         /// <inheritdoc/>
@@ -790,7 +813,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Cancellation is attempted, but the session must be retired even if it succeeds.
         /// A failed cancellation is reported together with the original error.
         /// </summary>
-        private static async ValueTask<bool> StageChangesAsync(
+        private async ValueTask<bool> StageChangesAsync(
             ServerConfigurationTypeClient configuration,
             Func<ValueTask<bool>> stage,
             StrongBox<bool>? retireSession)
@@ -817,7 +840,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// ApplyChanges is cancelled the same way and the session is retired because the request may still run.
         /// If CancelChanges also fails, both errors are thrown together and the session is retired.
         /// </summary>
-        private static async ValueTask CommitStagedChangesAsync(
+        private async ValueTask CommitStagedChangesAsync(
             ServerConfigurationTypeClient configuration,
             Func<ValueTask> authorize,
             StrongBox<bool>? retireSession,
@@ -849,15 +872,17 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// cleanup error together. Bad_NothingToDo means no transaction is active when cancellation executes
         /// (OPC 10000-12, 7.10.11), not that an earlier timed-out request cannot stage changes later.
         /// </summary>
-        private static async ValueTask CancelStagedChangesAsync(
+        private async ValueTask CancelStagedChangesAsync(
             ServerConfigurationTypeClient configuration,
             Exception error,
             StrongBox<bool>? retireSession)
         {
             try
             {
-                // Cleanup must run even when the push itself was cancelled.
-                await configuration.CancelChangesAsync(CancellationToken.None).ConfigureAwait(false);
+                // Cleanup must finish even with an infinite transport timeout or a cancelled caller.
+                using CancellationTokenSource cleanup =
+                    m_timeProvider.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
+                await configuration.CancelChangesAsync(cleanup.Token).ConfigureAwait(false);
             }
             catch (ServiceResultException cleanup) when (cleanup.StatusCode == StatusCodes.BadNothingToDo)
             {
@@ -1431,6 +1456,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;
+
+        /// <summary>Clock used for transaction cleanup deadlines independent of caller cancellation.</summary>
+        private readonly TimeProvider m_timeProvider;
 
         /// <summary>The largest encoded TrustList the registrar uploads to or downloads from a device.</summary>
         private const int MaxTrustListBytes = 4 * 1024 * 1024;

@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -100,6 +101,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(8)]
         [TestCase(9)]
         [TestCase(10)]
+        [TestCase(11)]
         public void ConstructorRejectsEachMissingProvider(int missing)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -116,7 +118,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 missing == 7 ? null! : new Mock<ICertificateRequestIssuanceStore>().Object,
                 missing == 8 ? null! : lifecycle,
                 missing == 9 ? null! : new Mock<IDeviceRegistrarAuthorization>().Object,
-                missing == 10 ? null! : telemetry));
+                missing == 10 ? null! : telemetry,
+                missing == 11 ? null! : TimeProvider.System));
         }
 
         /// <summary>
@@ -1290,6 +1293,64 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         /// <summary>
+        /// A nonresponding cancellation request has an independent deadline even when transport timeouts are
+        /// infinite and the caller cancels. Its timeout and any lease disposal error retain the primary failure.
+        /// </summary>
+        [TestCase(0, false)]
+        [TestCase(0, true)]
+        [TestCase(int.MaxValue, false)]
+        [TestCase(int.MaxValue, true)]
+        public async Task NonrespondingCancellationExpiresAndDisposesLease(int operationTimeout, bool failDisposal)
+        {
+            await using var harness = new Harness(m_bootstrap, m_issued);
+            harness.Initial.Channel.SetupGet(channel => channel.OperationTimeout).Returns(operationTimeout);
+            harness.Initial.InnerSession.OperationTimeout = operationTimeout;
+            var primary = new ServiceResultException(StatusCodes.BadTimeout);
+            var disposal = new IOException("lease disposal failed");
+            harness.TrustStagedError = primary;
+            if (failDisposal)
+            {
+                harness.CleanupError = disposal;
+            }
+            using var caller = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<CancellationToken>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.WaitForCancellation = async token =>
+            {
+                var response = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                using CancellationTokenRegistration registration = token.Register(
+                    () => response.TrySetCanceled(token));
+                entered.TrySetResult(token);
+                await response.Task.ConfigureAwait(false);
+            };
+            Task processing = harness.Processor.ProcessAsync(harness.Application, caller.Token).AsTask();
+            CancellationToken cleanup = await entered.Task.ConfigureAwait(false);
+            caller.Cancel();
+            Assert.That(cleanup.CanBeCanceled, Is.True);
+            Assert.That(cleanup.IsCancellationRequested, Is.False);
+            harness.CleanupTime.Advance(TimeSpan.FromMilliseconds(4999));
+            Assert.That(cleanup.IsCancellationRequested, Is.False);
+            Assert.That(processing.IsCompleted, Is.False);
+            Assert.That(harness.LeasesDisposed, Is.Zero);
+            harness.CleanupTime.Advance(TimeSpan.FromMilliseconds(1));
+
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await processing.ConfigureAwait(false));
+
+            Assert.That(cleanup.IsCancellationRequested, Is.True);
+            Assert.That(error!.Flatten().InnerExceptions, Does.Contain(primary));
+            Assert.That(error.Flatten().InnerExceptions, Has.Exactly(1).InstanceOf<OperationCanceledException>());
+            Assert.That(error.Flatten().InnerExceptions, Has.Count.EqualTo(failDisposal ? 3 : 2));
+            if (failDisposal)
+            {
+                Assert.That(error.Flatten().InnerExceptions, Does.Contain(disposal));
+            }
+            Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
+            Assert.That(harness.Update.Requests, Is.Empty);
+            Assert.That(harness.Proof.Requests, Is.Empty);
+        }
+
+        /// <summary>
         /// Staging, transaction cancellation and lease cleanup errors survive together; no later lease is opened.
         /// </summary>
         [Test]
@@ -1372,10 +1433,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Fluent registration requires explicit missing boundaries instead of providing no-op implementations.
         /// </summary>
-        [Test]
-        public void FluentRegistrationRequiresExplicitProvidersAndSharesTheHostedQueue()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FluentRegistrationRequiresExplicitProvidersAndSharesTheHostedQueue(bool registeredClock)
         {
             var services = new ServiceCollection();
+            if (registeredClock)
+            {
+                services.AddSingleton<TimeProvider>(new FakeTimeProvider());
+            }
             Assert.Throws<InvalidOperationException>(() => services.AddDeviceRegistrarPush());
             services.AddSingleton(new Mock<IDeviceRegistrarPushConnectionProvider>().Object);
             services.AddSingleton(new Mock<IDeviceRegistrarPushEnrollmentProvider>().Object);
@@ -1618,7 +1684,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     policy.Object, database.Object, Lifecycle,
                     scopeCapability ? Lifecycle :
                         new Mock<IDeviceRegistrarCertificateLifecycle>(MockBehavior.Strict).Object,
-                    issuances, Lifecycle, Authorization.Object, Initial.Telemetry);
+                    issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime);
             }
 
             /// <summary>
@@ -1745,6 +1811,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// Gets or sets work after processing finishes and before the provider releases its lease.
             /// </summary>
             public Func<ValueTask>? BeforeLeaseDisposal { get; set; }
+
+            /// <summary>
+            /// Gets the clock that advances cancellation cleanup without waiting for wall time.
+            /// </summary>
+            public FakeTimeProvider CleanupTime { get; } = new();
+
+            /// <summary>
+            /// Gets or sets a cancellation request that waits for its independent deadline.
+            /// </summary>
+            public Func<CancellationToken, ValueTask>? WaitForCancellation { get; set; }
 
             /// <summary>
             /// Gets or sets an explicit generated trust-file Write failure.
@@ -1912,7 +1988,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 var session = new SessionRequestContextTestContext(securityMode: MessageSecurityMode.SignAndEncrypt);
                 session.Channel.SetupGet(channel => channel.ServerChannelCertificate).Returns(peer.RawData);
                 session.Channel.Object.EndpointDescription.Server.ApplicationUri = ApplicationUri;
-                session.Handler = (request, _) => RespondAsync(request);
+                session.Handler = (request, ct) => RespondAsync(request, ct);
                 return session;
             }
 
@@ -1952,7 +2028,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Answers generated method resolution and typed method calls without bypassing session dispatch.
             /// </summary>
-            private async ValueTask<IServiceResponse> RespondAsync(IServiceRequest request)
+            private async ValueTask<IServiceResponse> RespondAsync(IServiceRequest request, CancellationToken ct)
             {
                 if (request is BrowseRequest browse)
                 {
@@ -2084,6 +2160,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 else if (method.MethodId == Ua.MethodIds.ServerConfigurationType_CancelChanges)
                 {
                     CancelCalls++;
+                    if (WaitForCancellation != null)
+                    {
+                        await WaitForCancellation(ct).ConfigureAwait(false);
+                    }
                     if (CancelError != null)
                     {
                         throw CancelError;
