@@ -570,10 +570,12 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <summary>
-        /// Override some of the default user token policies for some endpoints.
+        /// Override the default user token policies of the endpoints.
         /// </summary>
         /// <remarks>
-        /// Sample to show how to override default user token policies.
+        /// Sample to show how to override default user token policies. Every endpoint
+        /// offers the same token types: clients pick the most secure endpoint of a
+        /// security policy and expect it to accept every configured token type.
         /// </remarks>
         public override ArrayOf<UserTokenPolicy> GetUserTokenPolicies(
             ApplicationConfiguration configuration,
@@ -587,23 +589,6 @@ namespace Quickstarts.ReferenceServer
             if (ProvisioningMode)
             {
                 return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
-            }
-
-            // sample how to modify default user token policies
-            if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.Certificate);
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.Sign)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.Anonymous);
-            }
-            else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
-                description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
-            {
-                return policies.Filter(u => u.TokenType != UserTokenType.UserName);
             }
             return policies;
         }

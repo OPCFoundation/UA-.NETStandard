@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.LADS.Server;
 
@@ -144,6 +145,134 @@ namespace Opc.Ua.LADS.Tests.Server
             await AssertChildrenAsync(server, file, "MimeType", "Name", "File").ConfigureAwait(false);
             NodeId variables = await server.ChildAsync(result.NodeId, "VariableSet").ConfigureAwait(false);
             await AssertChildrenAsync(server, variables, "Steps").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that hierarchical instance references do not lead to type declarations.
+        /// </summary>
+        [Test]
+        public async Task InstanceTreeDoesNotReferenceTypeDeclarationsAsync()
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(InstanceTreeDoesNotReferenceTypeDeclarationsAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(LadsIncubator.UnitName);
+            string runId = await unit.Programs!.StartProgramAsync(LadsIncubator.QuickTemplate).ConfigureAwait(false);
+            await unit.Programs.WaitForResultAsync(runId).ConfigureAwait(false);
+
+            ushort instances = device.NodeId.NamespaceIndex;
+            var visited = new HashSet<NodeId> { device.NodeId };
+            var pending = new Queue<NodeId>(visited);
+            var leaks = new List<string>();
+            while (pending.Count > 0)
+            {
+                NodeId current = pending.Dequeue();
+                foreach (ReferenceDescription reference in await server.BrowseAsync(current).ConfigureAwait(false))
+                {
+                    NodeId target = server.ToNodeId(reference.NodeId);
+                    if (target.NamespaceIndex != instances)
+                    {
+                        leaks.Add($"{current} -> {target} ({reference.BrowseName})");
+                    }
+                    else if (visited.Add(target))
+                    {
+                        pending.Enqueue(target);
+                    }
+                }
+            }
+
+            Assert.That(visited, Has.Count.GreaterThan(100));
+            Assert.That(leaks, Is.Empty, string.Join("\n", leaks));
+        }
+
+        /// <summary>
+        /// Verifies that Operational organizes the registered state-machine members and values.
+        /// </summary>
+        [TestCase("Temperature", "ControlFunctionState", "CurrentValue", "TargetValue")]
+        [TestCase("Timer", "ControlFunctionState", "CurrentValue", "TargetValue")]
+        [TestCase("Door", "CoverState")]
+        public async Task OperationalOrganizesTheStateMachineAndItsMethodsAsync(
+            string function,
+            string stateMachine,
+            params string[] variables)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartIncubatorAsync(
+                nameof(OperationalOrganizesTheStateMachineAndItsMethodsAsync)).ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(LadsIncubator.UnitName);
+            NodeId node = await server.ChildAsync(unit.NodeId, "FunctionSet", function).ConfigureAwait(false);
+            NodeId operational = await server.ChildAsync(node, "Operational").ConfigureAwait(false);
+            NodeId machine = await server.ChildAsync(node, stateMachine).ConfigureAwait(false);
+
+            var organized = (await server.BrowseAsync(operational).ConfigureAwait(false))
+                .Select(reference => server.ToNodeId(reference.NodeId))
+                .ToHashSet();
+            var expected = new List<NodeId>
+            {
+                await server.ChildAsync(machine, "CurrentState").ConfigureAwait(false)
+            };
+            foreach (ReferenceDescription reference in await server.BrowseAsync(machine).ConfigureAwait(false))
+            {
+                if (reference.NodeClass == NodeClass.Method)
+                {
+                    expected.Add(server.ToNodeId(reference.NodeId));
+                }
+            }
+            foreach (string variable in variables)
+            {
+                expected.Add(await server.ChildAsync(node, variable).ConfigureAwait(false));
+            }
+
+            Assert.That(expected, Has.Count.GreaterThan(variables.Length + 3));
+            Assert.That(organized, Is.SupersetOf(expected));
+            foreach (ReferenceDescription reference in await server.BrowseAsync(operational).ConfigureAwait(false))
+            {
+                if (reference.NodeClass == NodeClass.Method)
+                {
+                    Assert.That(expected, Does.Contain(server.ToNodeId(reference.NodeId)), reference.BrowseName.Name);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Preserves the Operational members declared by specialized controls and sensors.
+        /// </summary>
+        [TestCase("Totalizer", "TotalizedValue", "ResetTotalizer")]
+        [TestCase("Relative", "IncreaseRate", "DecreaseRate", "ModifyTargetValueBy")]
+        [TestCase("Sensor", "SensorValue", "RawValue")]
+        public async Task OperationalPreservesTypeSpecificMembersAsync(string function, params string[] members)
+        {
+            await using LadsHostedServer server = await LadsHostedServer.StartAsync(
+                nameof(OperationalPreservesTypeSpecificMembersAsync),
+                builder => builder.AddLads().ConfigureLads(context => context.AddDevice(
+                    "Device",
+                    device => device.FunctionalUnit("Unit", unit => unit
+                        .AnalogControl("Totalizer", options => options.Kind = LadsAnalogControlKind.Totalizer)
+                        .AnalogControl("Relative", options =>
+                        {
+                            options.Kind = LadsAnalogControlKind.Relative;
+                            options.IncreaseRate = 1;
+                            options.DecreaseRate = 1;
+                        })
+                        .AnalogScalarSensor("Sensor")))),
+                "Device").ConfigureAwait(false);
+            ILadsDevice device = await server.DeviceAsync("Device").ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit("Unit");
+            NodeId node = await server.ChildAsync(unit.NodeId, "FunctionSet", function).ConfigureAwait(false);
+            NodeId operational = await server.ChildAsync(node, "Operational").ConfigureAwait(false);
+            var organized = (await server.BrowseAsync(operational, ReferenceTypeIds.Organizes).ConfigureAwait(false))
+                .Select(reference => server.ToNodeId(reference.NodeId))
+                .ToHashSet();
+
+            foreach (string member in members)
+            {
+                NodeId expected = await server.ChildAsync(node, member).ConfigureAwait(false);
+                Assert.That(organized, Does.Contain(expected), $"{function}/{member}");
+                var inverse = (await server.BrowseAsync(
+                    expected, ReferenceTypeIds.Organizes, BrowseDirection.Inverse).ConfigureAwait(false))
+                    .Select(reference => server.ToNodeId(reference.NodeId));
+                Assert.That(inverse, Does.Contain(operational), $"{function}/{member}");
+            }
         }
 
         private static async Task AssertChildrenAsync(
