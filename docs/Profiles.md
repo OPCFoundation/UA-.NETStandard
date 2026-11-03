@@ -189,11 +189,14 @@ canonical URI string before claiming a facet):
   including RSL spatial lists and model changes plus the GPOS GlobalPosition,
   GlobalLocation, and Zones conformance units. See
   [Positioning](Positioning.md).
-- **Industrial Automation** (OPC 10000-200) — shared `Opc.Ua.IA` model with
-  `Opc.Ua.IA.Server` provider bindings for stacklights, statistics and
-  calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
-  access, discovery and feature inspection. Physical procedures and storage
-  remain application-owned. See [Industrial Automation](IndustrialAutomation.md).
+- **Industrial Automation** (OPC 10000-200), **Partial** — shared `Opc.Ua.IA`
+  model with `Opc.Ua.IA.Server` provider bindings for stacklights, statistics
+  and calibration-target information, and `Opc.Ua.IA.Client` generated-proxy
+  access, discovery and feature inspection. Statistics and calibration
+  readings reject structure values whose structure types are not all
+  registered with the encodeable factory (`BadNotSupported`). Physical
+  procedures and storage remain application-owned. See
+  [Industrial Automation](IndustrialAutomation.md).
 - **Robotics** (OPC 40010-1) over **Industrial Automation** (OPC 10000-200) —
   `Opc.Ua.Robotics` / `Opc.Ua.Robotics.Server` / `Opc.Ua.Robotics.Client`
   library trio implementing the released Robotics 1.02 model over IA and
@@ -251,7 +254,7 @@ limitations and the actual configured instance before claiming a facet.
 | --- | --- | --- |
 | [Device Integration](DeviceIntegration.md), OPC 10000-100 | Device composition, locking and software-update server/client interfaces | Equipment and storage behavior use application providers |
 | [Asset Management Basics](AMB.md), OPC 10000-110 | Asset discovery/identity, health, maintenance, documentation and location | Sidecar registry composes with the asset's existing namespace owner |
-| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | Shared generated model, provider bindings, typed clients and a companion-owned sample | Full support requires executed requirement-linked framework, integration and NativeAOT evidence; physical drivers and calibration remain application-owned; structure values publish only when all their structure types are registered with the encodeable factory, otherwise the refresh is rejected with `BadNotSupported` |
+| [Industrial Automation](IndustrialAutomation.md), OPC 10000-200 | **Partial**: shared generated model, provider bindings, typed clients and a companion-owned sample | Partial because OPC 10000-200 §6.2.1.1 admits statistics of any kind, but the binding rejects structure values with `BadNotSupported` unless all their structure types are registered with the encodeable factory; executed requirement-linked framework, integration and NativeAOT evidence is also required; physical drivers and calibration remain application-owned |
 | [Machinery](Machinery.md), OPC 40001-1/-2/-3/-4/-101 | Building blocks, process values, jobs, energy and result-transfer runtime/client interfaces | Select capabilities and providers; durable result storage is application-supplied |
 | [MachineTool and WMTP](MachineTool.md), OPC 40501-1 and OPC 40505 | Native monitoring, tools, retained/modern production, files, peripheral measurements/configuration/records and typed clients/MCP | WMTP is bundled but independently modeled; no included Bluetooth driver or physical CNC executor |
 | [GMS](GMS.md), OPC 40210 | Native systems, sensors/qualification, calibration observations, jobs/parts and Machinery-backed results | Full GMS Production facet is withheld because its required `GMS_ProductionStatisticsType` is undefined upstream; no invented acquisition/calibration-control methods |

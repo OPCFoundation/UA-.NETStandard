@@ -291,6 +291,8 @@ Support remains bounded by executed evidence rather than loaded declarations.
 The IA test project separates provider/topology tests from the encrypted
 client/server scenario. NativeAOT, supported-framework solution results, and
 companion compatibility results must be recorded before changing a support
-rating to Full. Full support for statistics and calibration readings also
-requires every published structure type to be registered with the encodeable
-factory. The binding rejects a structure it cannot copy without loss.
+rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
+statistics of any kind, but the binding rejects a structure value with
+`BadNotSupported` when it cannot copy the value without loss. This happens
+when one of the value's structure types is not registered with the
+encodeable factory.
