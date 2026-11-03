@@ -724,10 +724,14 @@ Invalid limits are rejected before the factory opens a session.
 ### Sub-assets across servers
 
 `EnumerateSubAssetsAsync` traverses local grouping Objects and returns local
-assets identified by the server's AMB alias categories. Both client constructors
-report remote references as published, without following them or verifying that
-their targets are assets. `ReadRelationsAsync` preserves the same remote-reference
-behavior. Mixed local and unresolved remote references do not require a resolver.
+assets identified by the server's AMB alias categories. Its hierarchical browse
+applies an Object NodeClassMask. A server cannot read the NodeClass of a target
+on another server, so this stack's server omits remote targets from that browse.
+When a server returns a remote reference anyway, the method reports it as
+published. `ReadRelationsAsync` browses without a NodeClassMask and reports
+remote references as published. Neither method follows a remote reference or
+verifies that its target is an asset, and both client constructors behave the
+same way. Mixed local and unresolved remote references do not require a resolver.
 
 Use `EnumerateSubAssetReferencesAsync` to opt into verified recursive remote
 traversal. It follows grouping Objects, which OPC 10000-110 §14.1 permits between

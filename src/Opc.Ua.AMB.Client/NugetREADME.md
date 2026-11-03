@@ -44,9 +44,12 @@ separately from an empty list. Both client constructors report denied paths,
 read failures and invalid array types rather than returning an empty list.
 
 `EnumerateSubAssetsAsync` traverses local grouping Objects and identifies local
-assets through AMB alias categories. Both client constructors report remote
-references without following or verifying them; `ReadRelationsAsync` preserves
-the same behavior, including mixed local and remote results.
+assets through AMB alias categories. Its hierarchical browse applies an Object
+NodeClassMask, so a server that cannot classify a remote target, such as this
+stack's server, omits it. `ReadRelationsAsync` browses without a mask and
+reports remote references. Neither method follows or verifies a remote
+reference, and both client constructors behave the same way, including for
+mixed local and remote results.
 
 For verified remote traversal, use `EnumerateSubAssetReferencesAsync` and supply
 `AmbClientOptions.SessionResolver` or register `IAmbSessionResolver` in DI.

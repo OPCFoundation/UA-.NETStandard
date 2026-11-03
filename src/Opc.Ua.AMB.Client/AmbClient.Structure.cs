@@ -265,7 +265,9 @@ namespace Opc.Ua.AMB.Client
         /// <summary>
         /// Walks the hierarchical references below an asset and reports the
         /// other assets found (§14.1), including through grouping Objects.
-        /// Remote references are reported as published, without verification or traversal.
+        /// The browse applies an Object NodeClassMask, so a server that cannot classify a
+        /// remote target omits it. Remote references the server returns are reported as
+        /// published, without verification or traversal.
         /// </summary>
         /// <param name="asset">The asset.</param>
         /// <param name="cancellationToken">The cancellation token.</param>

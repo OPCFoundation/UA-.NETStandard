@@ -542,30 +542,37 @@ namespace Opc.Ua.AMB.Tests
         [Test]
         public async Task PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync()
         {
-            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
-                async () =>
-                {
-                    await using AmbHostedServer server = await AmbHostedServer.StartAsync(
-                        nameof(PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync),
-                        builder => builder
-                            .AddOpcUaDi()
-                            .AddAssetManagement()
-                            .ConfigureAssetManagement(async context =>
-                            {
-                                INodeBuilder<BaseObjectState> node = AssetRegistrationTests.CreateMachine(
-                                    context, "urn:acme:press:no-software-revision");
-                                await context.Assets.RegisterAssetAsync(
-                                    node,
-                                    asset => asset.WithVersionInformation(
-                                        hardwareRevision: null,
-                                        softwareRevision: null,
-                                        revisionCounter: null,
-                                        patchIdentifiers: ["fixture-only-patch"]),
-                                    context.CancellationToken).ConfigureAwait(false);
-                            })).ConfigureAwait(false);
-                }).ConfigureAwait(false))!;
+            // The hosted server does not surface startup callback failures, so
+            // the refusal is captured where the asset is registered.
+            ServiceResultException? error = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureAssetManagement(async context =>
+                    {
+                        INodeBuilder<BaseObjectState> node = AssetRegistrationTests.CreateMachine(
+                            context, "urn:acme:press:no-software-revision");
+                        try
+                        {
+                            await context.Assets.RegisterAssetAsync(
+                                node,
+                                asset => asset.WithVersionInformation(
+                                    hardwareRevision: null,
+                                    softwareRevision: null,
+                                    revisionCounter: null,
+                                    patchIdentifiers: ["fixture-only-patch"]),
+                                context.CancellationToken).ConfigureAwait(false);
+                        }
+                        catch (ServiceResultException ex)
+                        {
+                            error = ex;
+                        }
+                    })).ConfigureAwait(false);
 
-            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(error?.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(error!.Message, Does.Contain("SoftwareRevision"));
         }
 
         [Test]
