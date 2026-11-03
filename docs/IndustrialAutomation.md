@@ -122,10 +122,14 @@ matrices, byte strings, opaque identifiers, nested variants and extension object
 type identifiers are copied into new storage with their type and dimensions
 unchanged. A decoded structure is binary encoded and decoded into a new
 instance, because its generated clone shares array, byte string and variant
-fields. A structure whose decoded copy differs from the original, for example
-because a nested type is not registered with the encodeable factory, fails the
-refresh with `BadNotSupported` and is not published. Calibration feature and
-operational-condition readings use the same copy.
+fields. Register every structure type a provider publishes, including types
+nested in another structure, with the server's encodeable factory. When a
+decoded copy differs from the original, the refresh throws `BadNotSupported`
+and the binding publishes nothing. An unregistered nested type causes this,
+because it decodes as an opaque binary body. Statistics with such a type are
+therefore not supported, even though the specification admits statistics of
+any kind. Calibration feature and operational-condition readings use the same
+copy.
 
 For vendor-defined grouping ObjectTypes, supply
 `.WithGroupTypeResolver(nodeId => manager.FindPredefinedNode<BaseObjectTypeState>(nodeId))`.
@@ -287,4 +291,6 @@ Support remains bounded by executed evidence rather than loaded declarations.
 The IA test project separates provider/topology tests from the encrypted
 client/server scenario. NativeAOT, supported-framework solution results, and
 companion compatibility results must be recorded before changing a support
-rating to Full.
+rating to Full. Full support for statistics and calibration readings also
+requires every published structure type to be registered with the encodeable
+factory. The binding rejects a structure it cannot copy without loss.
