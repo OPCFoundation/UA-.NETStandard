@@ -291,7 +291,7 @@ namespace Opc.Ua.Server
         private ArrayOf<EndpointDescription> PushEndpoints =>
             m_applicationPushTarget != null
                 ? m_applicationPushTarget.Endpoints
-                : (Server as IServerEndpointRegistryProvider)?.ServerEndpoints ?? default;
+                : Server is IServerEndpointRegistryProvider provider ? provider.ServerEndpoints : default;
 
         /// <summary>
         /// Selects the policy registry corresponding to the endpoints being managed.
