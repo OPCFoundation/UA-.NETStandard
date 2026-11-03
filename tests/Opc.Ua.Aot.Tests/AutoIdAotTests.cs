@@ -148,13 +148,17 @@ namespace Opc.Ua.Aot.Tests
                         .BuildAsync(context.CancellationToken)
                         .ConfigureAwait(false);
                     m_readerId = reader.NodeId;
-                    m_readerReady.TrySetResult();
+                })
+                .AddStartupTask((_, _, _) =>
+                {
+                    m_serverReady.TrySetResult();
+                    return default;
                 });
 
             m_serviceProvider = services.BuildServiceProvider();
             m_host = m_serviceProvider.GetServices<IHostedService>().Single();
             await m_host.StartAsync(CancellationToken.None).ConfigureAwait(false);
-            await m_readerReady.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            await m_serverReady.Task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             ApplicationConfiguration configuration = await CreateClientConfigurationAsync()
                 .ConfigureAwait(false);
@@ -315,9 +319,9 @@ namespace Opc.Ua.Aot.Tests
         private string m_endpointUrl = string.Empty;
 
         /// <summary>
-        /// Signals that the server has registered the test reader.
+        /// Signals that the hosted server has completed startup, including reader registration.
         /// </summary>
-        private readonly TaskCompletionSource m_readerReady =
+        private readonly TaskCompletionSource m_serverReady =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
