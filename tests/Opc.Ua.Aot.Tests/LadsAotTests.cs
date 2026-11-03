@@ -181,6 +181,7 @@ namespace Opc.Ua.Aot.Tests
             ILadsProgramExecutor executor)
         {
             var services = new ServiceCollection();
+            services.AddLogging();
             services.AddSingleton(executor);
             services.AddOpcUa().AddServer<StandardServer>(options =>
             {
