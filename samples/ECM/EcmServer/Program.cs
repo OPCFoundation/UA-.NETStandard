@@ -92,8 +92,9 @@ builder.Services.AddOpcUa().AddServer(options =>
             return new ValueTask<bool>(true);
         },
         cancellationToken: context.CancellationToken).ConfigureAwait(false);
+    string powerOffNodeId = binding.PowerOff is { } powerOff ? $"{powerOff.NodeId}" : string.Empty;
     await Console.Out.WriteLineAsync(
-        $"SIMULATED power only. Standby NodeId: {binding.Standby.NodeId}; WOL NodeId: {binding.PowerOff?.NodeId}")
+        $"SIMULATED power only. Standby NodeId: {binding.Standby.NodeId}; WOL NodeId: {powerOffNodeId}")
         .ConfigureAwait(false);
     await Console.Out.WriteLineAsync($"WOL-only NodeId: {standaloneWol.PowerOff.NodeId}").ConfigureAwait(false);
 });
