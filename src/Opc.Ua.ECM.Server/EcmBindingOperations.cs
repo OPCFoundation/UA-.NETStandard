@@ -77,6 +77,9 @@ namespace Opc.Ua.ECM.Server
                 await m_commands.WaitAsync(pending.Token).ConfigureAwait(false);
                 try
                 {
+                    // Release can hand the slot to a queued waiter while shutdown is still signalling linked tokens.
+                    m_stoppingToken.ThrowIfCancellationRequested();
+                    pending.Token.ThrowIfCancellationRequested();
                     return await callback(pending.Token).ConfigureAwait(false);
                 }
                 finally
