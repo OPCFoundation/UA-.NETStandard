@@ -415,10 +415,11 @@ namespace Opc.Ua.Client.Network
                     ArrayOf<ByteString> points = [point];
                     BrowseNextResponse next = await Session.BrowseNextAsync(
                         null, false, points, cancellationToken).ConfigureAwait(false);
-                    continuationPoints.Clear();
+                    int previousContinuationPointCount = continuationPoints.Count;
                     RetainContinuationPoints(next.Results, continuationPoints);
                     ValidateService(next.ResponseHeader);
                     ClientBase.ValidateResponse(next.Results, points);
+                    continuationPoints.RemoveRange(0, previousContinuationPointCount);
                     ClientBase.ValidateDiagnosticInfos(next.DiagnosticInfos, points);
                     result = next.Results[0];
                 }

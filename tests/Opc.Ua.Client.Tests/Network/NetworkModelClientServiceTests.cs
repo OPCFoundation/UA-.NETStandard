@@ -491,6 +491,46 @@ namespace Opc.Ua.Client.Tests.Network
         }
 
         /// <summary>
+        /// Retains the last known continuation when BrowseNext fails before returning results.
+        /// </summary>
+        [Test]
+        public async Task BrowseContinuationIsReleasedWhenNextPageServiceFailsWithoutResults()
+        {
+            ByteString point = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = point }]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadServerTooBusy },
+                    Results = []
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadServerTooBusy)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
         /// Releases every continuation point in an initial response with extra results.
         /// </summary>
         [Test]
