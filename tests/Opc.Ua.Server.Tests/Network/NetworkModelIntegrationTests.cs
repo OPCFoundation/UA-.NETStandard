@@ -667,13 +667,17 @@ namespace Opc.Ua.Server.Tests.Network
         /// <summary>
         /// Validates SR-class boundaries even when custom acquisitions bypass the reference provider.
         /// </summary>
-        [TestCase((byte)0)]
-        [TestCase((byte)7)]
-        [TestCase((byte)8)]
-        [TestCase(byte.MaxValue)]
+        [TestCase((byte)0, (byte)0)]
+        [TestCase((byte)7, (byte)0)]
+        [TestCase((byte)8, (byte)0)]
+        [TestCase(byte.MaxValue, (byte)0)]
+        [TestCase((byte)6, (byte)0)]
+        [TestCase((byte)6, (byte)7)]
+        [TestCase((byte)6, (byte)8)]
+        [TestCase((byte)6, byte.MaxValue)]
         [CancelAfter(60_000)]
         public async Task CustomProviderSrClassIdentifiersAreValidatedBeforePublication(
-            byte id, CancellationToken cancellationToken)
+            byte id, byte priority, CancellationToken cancellationToken)
         {
             NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
             ArrayOf<ReferenceDescription> interfaces = await m_client.BrowseObjectsAsync(
@@ -682,6 +686,11 @@ namespace Opc.Ua.Server.Tests.Network
                 .Single(reference => reference.BrowseName.Name == "eth0").NodeId, m_session.NamespaceUris);
             NetworkInterfaceValues before = await m_client.ReadInterfaceAsync(physical, cancellationToken)
                 .ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> original = await ReadParameterSetAsync(
+                physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue beforePriority = Parameter(original, BrowseNames.Priority);
+            ArrayOf<ReferenceDescription> originalChildren = await m_client.BrowseObjectsAsync(
+                physical, cancellationToken).ConfigureAwait(false);
             m_providerBoundary.WatchTransform = snapshot =>
             {
                 NetworkInterfaceSnapshot[] updated = snapshot.Interfaces.Span.ToArray();
@@ -692,14 +701,14 @@ namespace Opc.Ua.Server.Tests.Network
                         updated[index] = updated[index] with
                         {
                             Speed = 100_000_000,
-                            SrClasses = [new NetworkSrClassSnapshot(id, 0, 1)]
+                            SrClasses = [new NetworkSrClassSnapshot(id, priority, 1)]
                         };
                     }
                 }
                 return snapshot with { Interfaces = ArrayOf.Wrapped(updated) };
             };
             m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
-            bool valid = id <= 7;
+            bool valid = id <= 7 && priority <= 7;
             await WaitForAsync(async () =>
             {
                 NetworkInterfaceValues values = await m_client.ReadInterfaceAsync(physical, cancellationToken)
@@ -711,11 +720,16 @@ namespace Opc.Ua.Server.Tests.Network
             ArrayOf<NetworkParameterValue> parameters = await ReadParameterSetAsync(
                 physical, ObjectTypeIds.ISrClassType, cancellationToken).ConfigureAwait(false);
             NetworkParameterValue actualId = Parameter(parameters, BrowseNames.Id);
+            NetworkParameterValue actualPriority = Parameter(parameters, BrowseNames.Priority);
             if (valid)
             {
                 Assert.That(actualId.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(actualId.DataValue.WrappedValue, Is.EqualTo(new Variant(id)));
                 Assert.That(actualId.DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+                Assert.That(actualPriority.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actualPriority.DataValue.WrappedValue, Is.EqualTo(new Variant(priority)));
+                Assert.That(actualPriority.DataValue.SourceTimestamp,
                     Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
             }
             else
@@ -725,16 +739,28 @@ namespace Opc.Ua.Server.Tests.Network
                 Assert.That(failed.Speed.DataValue.WrappedValue.IsNull, Is.True);
                 Assert.That(failed.Speed.DataValue.SourceTimestamp, Is.EqualTo(before.Speed.DataValue.SourceTimestamp));
                 Assert.That(actualId.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actualPriority.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actualPriority.DataValue.WrappedValue.IsNull, Is.True);
+                Assert.That(actualPriority.DataValue.SourceTimestamp,
+                    Is.EqualTo(beforePriority.DataValue.SourceTimestamp));
                 ArrayOf<ReferenceDescription> children = await m_client.BrowseObjectsAsync(physical, cancellationToken)
                     .ConfigureAwait(false);
-                Assert.That(children.ToList().Select(child => child.BrowseName.Name),
-                    Does.Not.Contain("SrClass" + id.ToString(CultureInfo.InvariantCulture)));
+                if (id > 7)
+                {
+                    Assert.That(children.ToList().Select(child => child.BrowseName.Name),
+                        Does.Not.Contain("SrClass" + id.ToString(CultureInfo.InvariantCulture)));
+                }
+                Assert.That(children.ToList().Select(child => child.NodeId),
+                    Is.EquivalentTo(originalChildren.ToList().Select(child => child.NodeId)));
                 NetworkModelNodeManager manager = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
                     .OfType<NetworkModelNodeManager>().Single();
                 BaseVariableState retained = manager.FindPredefinedNode<BaseVariableState>(before.Speed.NodeId);
                 Assert.That(retained.Value, Is.EqualTo(before.Speed.DataValue.WrappedValue));
                 BaseVariableState retainedId = manager.FindPredefinedNode<BaseVariableState>(actualId.NodeId);
                 Assert.That(retainedId.Value, Is.EqualTo(new Variant((byte)6)));
+                BaseVariableState retainedPriority = manager.FindPredefinedNode<BaseVariableState>(
+                    beforePriority.NodeId);
+                Assert.That(retainedPriority.Value, Is.EqualTo(beforePriority.DataValue.WrappedValue));
             }
 
             m_providerBoundary.WatchTransform = null;
@@ -749,6 +775,9 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(Parameter(recovered, BrowseNames.Id).DataValue.WrappedValue,
                 Is.EqualTo(new Variant((byte)6)));
             Assert.That(Parameter(recovered, BrowseNames.Id).DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(Parameter(recovered, BrowseNames.Priority).DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(Parameter(recovered, BrowseNames.Priority).DataValue.WrappedValue,
+                Is.EqualTo(beforePriority.DataValue.WrappedValue));
         }
 
         /// <summary>

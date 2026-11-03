@@ -314,10 +314,10 @@ namespace Opc.Ua.Server.Network
             {
                 foreach (NetworkSrClassSnapshot srClass in networkInterface.SrClasses)
                 {
-                    if (srClass.Id > 7)
+                    if (srClass.Id > 7 || srClass.Priority > 7)
                     {
                         throw new ServiceResultException(StatusCodes.BadOutOfRange,
-                            "SR class identifiers must be between zero and seven.");
+                            "SR class identifiers and priorities must be between zero and seven.");
                     }
                 }
                 BaseObjectState root = BuildInterface(networkInterface, snapshot);
