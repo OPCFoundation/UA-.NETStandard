@@ -1154,7 +1154,7 @@ namespace Opc.Ua.Scales.Tests
         /// <summary>
         /// A manually advanced clock; evaluation remains synchronous and never sleeps.
         /// </summary>
-        private sealed class RecipeClock : TimeProvider
+        internal sealed class RecipeClock : TimeProvider
         {
             public override long TimestampFrequency => TimeSpan.TicksPerSecond;
 

@@ -874,26 +874,12 @@ Status key: ✅ implemented and tested over a real session ·
 test · ❌ not shipped.
 
 The tables identify implementation paths and their tests, not certification.
-The four Scales TRX artifacts for fork CI run `41599999425` at source
-`8e34fc31e21fe09f422adae8e66dc9e3b8a9053a` each report 338/338 passing:
-Windows net48 artifact `13219263694`, Windows net10 artifact `13232132588`,
-Linux net10 artifact `13235438540`, and macOS net10 artifact `13232716018`.
-All seven timer-failure, admitted-subscriber-drain and shared-disposal cases
-passed. The workflow failed overall. A Windows Client request-count test saw
-six requests where five were expected. Source review found a possible ABA
-interleaving in unchanged `ClassicSubscriptionEngine.TryReservePublishRequest`,
-but the CI thread schedule and any connection to Scales are unproven. A Linux
-runner exhausted disk, nine macOS jobs could not acquire hosted runners, and
-the summary marked build-and-test abandoned. Fork package run `41599997741`
-stopped at relevance detection because `origin/master` was unavailable; signing
-was not reached.
-
 Analog and edge condition waits have deterministic in-process tests. Real
-host/client tests have been added to exercise an unsatisfied wait and
-client-visible progression after the source changes, but those additions have
-not been run. The prior TRX results do not validate them. The
+host/client tests have been added for an unsatisfied wait and client-visible
+progression after a source update; they have not been run. The
 [published-specification matrix](Profiles.md#published-specification-support-matrix)
-therefore retains Partial support for OPC 40200.
+therefore retains Partial support for OPC 40200 until that integration coverage
+is validated.
 
 OPC 40200 defines server facets only; there are no client facets or client
 conformance units (§12). The server advertises the facets and CUs of what

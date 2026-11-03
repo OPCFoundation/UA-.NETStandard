@@ -81,6 +81,7 @@ namespace Opc.Ua.Scales.Tests
         private readonly bool m_composed;
         private const uint s_analogConditionSourceId = 41;
         private const uint s_edgeConditionSourceId = 42;
+        private readonly RecipeConditionTests.RecipeClock m_conditionClock = new();
         private static string s_endpointUrl = string.Empty;
         private readonly Dictionary<string, ScaleHandle> m_scales = [];
         private ScaleSystemHandle? m_system;
@@ -276,7 +277,7 @@ namespace Opc.Ua.Scales.Tests
                 },
                 ct);
             RecipeController recipes = m_scales["Recipe"].Recipes!;
-            recipes.EnableConditionWaits(TimeSpan.FromMinutes(5));
+            recipes.EnableConditionWaits(TimeSpan.FromMinutes(5), m_conditionClock);
             recipes.RegisterConditionSource(
                 s_analogConditionSourceId,
                 NodeId.Null,
@@ -895,21 +896,40 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(conditionId.IsNull || nextId.IsNull, Is.False);
 
             var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
-            product.RecipeNodeId!.Value = recipe;
-            await WriteAnalogConditionAsync(conditionId);
-            ObserveConditionSource(s_analogConditionSourceId, Variant.From(0.0));
+            NodeId previousRecipe = product.RecipeNodeId!.Value;
+            bool startAttempted = false;
+            try
+            {
+                product.RecipeNodeId!.Value = recipe;
+                await WriteAnalogConditionAsync(conditionId);
+                m_conditionClock.Advance(TimeSpan.FromMilliseconds(1));
+                ObserveConditionSource(s_analogConditionSourceId, Variant.From(0.0));
 
-            await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
-            string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
-            Assert.That(waitingReport, Does.Contain("Element 'AnalogWait' started."));
-            Assert.That(waitingReport, Does.Not.Contain("Element 'AnalogWait' condition satisfied."));
-            Assert.That(waitingReport, Does.Not.Contain("Element 'AfterAnalogWait' started."));
+                startAttempted = true;
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
+                string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
+                Assert.That(waitingReport, Does.Contain("Element 'AnalogWait' started."));
+                Assert.That(waitingReport, Does.Not.Contain("Element 'AnalogWait' condition satisfied."));
+                Assert.That(waitingReport, Does.Not.Contain("Element 'AfterAnalogWait' started."));
 
-            ObserveConditionSource(s_analogConditionSourceId, Variant.From(10.0));
-            string[] progressedReport = await WaitForRecipeMessageAsync(
-                product.NodeId,
-                "Element 'AfterAnalogWait' started.");
-            Assert.That(progressedReport, Does.Contain("Element 'AnalogWait' condition satisfied."));
+                m_conditionClock.Advance(TimeSpan.FromMilliseconds(1));
+                ObserveConditionSource(s_analogConditionSourceId, Variant.From(10.0));
+                string[] progressedReport = await WaitForRecipeMessageAsync(
+                    product.NodeId,
+                    "Element 'AfterAnalogWait' started.");
+                Assert.That(progressedReport, Does.Contain("Element 'AnalogWait' condition satisfied."));
+            }
+            finally
+            {
+                try
+                {
+                    await AbortRecipeIfRunningAsync(scale, recipe, startAttempted);
+                }
+                finally
+                {
+                    product.RecipeNodeId.Value = previousRecipe;
+                }
+            }
         }
 
         /// <summary>
@@ -935,21 +955,40 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(conditionId.IsNull || nextId.IsNull, Is.False);
 
             var product = (RecipeProductState)scale.ProductionPreset!.ActiveProduct!;
-            product.RecipeNodeId!.Value = recipe;
-            await WriteEdgeConditionAsync(conditionId);
-            ObserveConditionSource(s_edgeConditionSourceId, Variant.From(false));
+            NodeId previousRecipe = product.RecipeNodeId!.Value;
+            bool startAttempted = false;
+            try
+            {
+                product.RecipeNodeId!.Value = recipe;
+                await WriteEdgeConditionAsync(conditionId);
+                m_conditionClock.Advance(TimeSpan.FromMilliseconds(1));
+                ObserveConditionSource(s_edgeConditionSourceId, Variant.From(false));
 
-            await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
-            string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
-            Assert.That(waitingReport, Does.Contain("Element 'EdgeWait' started."));
-            Assert.That(waitingReport, Does.Not.Contain("Element 'EdgeWait' condition satisfied."));
-            Assert.That(waitingReport, Does.Not.Contain("Element 'AfterEdgeWait' started."));
+                startAttempted = true;
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.StartRecipe, recipe);
+                string[] waitingReport = await ReadRecipeMessagesAsync(product.NodeId);
+                Assert.That(waitingReport, Does.Contain("Element 'EdgeWait' started."));
+                Assert.That(waitingReport, Does.Not.Contain("Element 'EdgeWait' condition satisfied."));
+                Assert.That(waitingReport, Does.Not.Contain("Element 'AfterEdgeWait' started."));
 
-            ObserveConditionSource(s_edgeConditionSourceId, Variant.From(true));
-            string[] progressedReport = await WaitForRecipeMessageAsync(
-                product.NodeId,
-                "Element 'AfterEdgeWait' started.");
-            Assert.That(progressedReport, Does.Contain("Element 'EdgeWait' condition satisfied."));
+                m_conditionClock.Advance(TimeSpan.FromMilliseconds(1));
+                ObserveConditionSource(s_edgeConditionSourceId, Variant.From(true));
+                string[] progressedReport = await WaitForRecipeMessageAsync(
+                    product.NodeId,
+                    "Element 'AfterEdgeWait' started.");
+                Assert.That(progressedReport, Does.Contain("Element 'EdgeWait' condition satisfied."));
+            }
+            finally
+            {
+                try
+                {
+                    await AbortRecipeIfRunningAsync(scale, recipe, startAttempted);
+                }
+                finally
+                {
+                    product.RecipeNodeId.Value = previousRecipe;
+                }
+            }
         }
 
         /// <summary>
@@ -990,7 +1029,7 @@ namespace Opc.Ua.Scales.Tests
                 }.ToArrayOf(),
                 CancellationToken.None);
             Assert.That(response.Results.Count, Is.EqualTo(4));
-            Assert.That(response.Results.ToArray().All(StatusCode.IsGood), Is.True);
+            Assert.That(response.Results.ToList().All(StatusCode.IsGood), Is.True);
         }
 
         /// <summary>
@@ -1025,7 +1064,7 @@ namespace Opc.Ua.Scales.Tests
                 }.ToArrayOf(),
                 CancellationToken.None);
             Assert.That(response.Results.Count, Is.EqualTo(3));
-            Assert.That(response.Results.ToArray().All(StatusCode.IsGood), Is.True);
+            Assert.That(response.Results.ToList().All(StatusCode.IsGood), Is.True);
         }
 
         /// <summary>
@@ -1033,8 +1072,21 @@ namespace Opc.Ua.Scales.Tests
         /// </summary>
         private void ObserveConditionSource(uint sourceId, Variant value)
         {
-            var sample = new DataValue(value, StatusCodes.Good, (DateTimeUtc)DateTime.UtcNow);
+            DateTimeUtc timestamp = (DateTimeUtc)m_conditionClock.GetUtcNow().UtcDateTime;
+            var sample = new DataValue(value, StatusCodes.Good, timestamp);
             m_scales["Recipe"].Recipes!.ObserveConditionSource(sourceId, sample);
+        }
+
+        /// <summary>
+        /// Aborts a recipe left active by a test assertion or timeout.
+        /// </summary>
+        private async Task AbortRecipeIfRunningAsync(
+            ScaleHandle scale, NodeId recipe, bool startAttempted)
+        {
+            if (startAttempted && scale.Recipes!.State != RecipeRunState.Idle)
+            {
+                await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.AbortRecipe, recipe);
+            }
         }
 
         /// <summary>
@@ -1045,7 +1097,8 @@ namespace Opc.Ua.Scales.Tests
         {
             ScaleRecipeStatus status = await m_client.ReadRecipeStatusAsync(productId, cancellationToken);
             Assert.That(status.Report.HasValue, Is.True);
-            return status.Report.Value.ToArray()!
+            Assert.That(status.Report.Value.IsNull, Is.False);
+            return status.Report.Value.ToList()
                 .Select(entry => entry.ReportMessage.Text ?? string.Empty)
                 .ToArray();
         }
