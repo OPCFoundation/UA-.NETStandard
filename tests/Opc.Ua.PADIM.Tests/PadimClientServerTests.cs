@@ -450,7 +450,7 @@ namespace Opc.Ua.PADIM.Tests
                     .ToArray();
                 Assert.That(expectedPadimProfiles, Has.Length.EqualTo(56));
                 DataValue profileReadback = await session.ReadValueAsync(
-                    VariableIds.Server_ServerCapabilities_ServerProfileArray, timeout.Token);
+                    Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray, timeout.Token);
                 Assert.That(profileReadback.WrappedValue.TryGetValue(out ArrayOf<string> advertisedProfiles), Is.True);
                 Assert.That(
                     advertisedProfiles.ToList().Where(profile =>
@@ -463,7 +463,7 @@ namespace Opc.Ua.PADIM.Tests
                     .Distinct()
                     .ToArray();
                 DataValue unitReadback = await session.ReadValueAsync(
-                    VariableIds.Server_ServerCapabilities_ConformanceUnits, timeout.Token);
+                    Opc.Ua.VariableIds.Server_ServerCapabilities_ConformanceUnits, timeout.Token);
                 Assert.That(unitReadback.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> advertisedUnits), Is.True);
                 Assert.That(
                     advertisedUnits.ToList().Where(unit =>

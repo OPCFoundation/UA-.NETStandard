@@ -273,7 +273,7 @@ namespace Opc.Ua.PADIM.Tests
                 Does.Contain(new QualifiedName("PA-DIM Nano Embedded")));
 
             BaseVariableState profileArray = m_manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
-                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+                Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
             Assert.That(profileArray.Value.TryGetValue(out ArrayOf<string> originalProfiles), Is.True);
             try
             {

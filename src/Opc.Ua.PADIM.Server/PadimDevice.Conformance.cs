@@ -386,8 +386,8 @@ namespace Opc.Ua.PADIM.Server
                 {
                     return false;
                 }
-                (ExpandedNodeId conditionInterface, string[] conditions,
-                    ExpandedNodeId calibrationInterface, string[] calibrationFields) = unit switch
+                (ExpandedNodeId ConditionInterface, string[] Conditions,
+                    ExpandedNodeId CalibrationInterface, string[] CalibrationFields) requirements = unit switch
                 {
                     "AmperometricSignalType" => (ObjectTypeIds.IAmperometricSignalConditionSetType,
                         ["SensingElementTemperature"], ObjectTypeIds.IAmperometricCalibrationType,
@@ -430,6 +430,7 @@ namespace Opc.Ua.PADIM.Server
                         [], ExpandedNodeId.Null, []),
                     _ => (ExpandedNodeId.Null, [], ExpandedNodeId.Null, [])
                 };
+                var (conditionInterface, conditions, calibrationInterface, calibrationFields) = requirements;
                 if (!conditionInterface.IsNull &&
                     !SupportsGroup(signal, "SignalConditionSet", conditionInterface, conditions))
                 {
@@ -594,7 +595,7 @@ namespace Opc.Ua.PADIM.Server
         private bool SupportsNanoEmbeddedProfile()
         {
             BaseVariableState? profileArray = Manager.Server.DiagnosticsNodeManager.FindPredefinedNode<BaseVariableState>(
-                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+                Opc.Ua.VariableIds.Server_ServerCapabilities_ServerProfileArray);
             if (profileArray == null ||
                 !profileArray.Value.TryGetValue(out ArrayOf<string> profiles) ||
                 profiles.IsNull)
