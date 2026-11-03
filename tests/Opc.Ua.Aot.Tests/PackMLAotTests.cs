@@ -170,11 +170,12 @@ namespace Opc.Ua.Aot.Tests
                 services.AddOpcUa().AddClient(options => options.ApplicationName = "PackMLAotClient")
                     .AddPackMLClient();
                 int borrowed = 0;
+                using var borrowGate = new SemaphoreSlim(0, 1);
                 services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(_ => async ct =>
                 {
-                    ct.ThrowIfCancellationRequested();
+                    await borrowGate.WaitAsync(ct).ConfigureAwait(false);
                     borrowed++;
-                    return await Task.FromResult(session).ConfigureAwait(false);
+                    return session;
                 });
                 await using (ServiceProvider provider = services.BuildServiceProvider())
                 {
@@ -187,8 +188,16 @@ namespace Opc.Ua.Aot.Tests
                     await Assert.That(factory.NamespacesUris[1]).IsEqualTo(PackML.Namespaces.PackML);
                     Func<CancellationToken, Task<PackMLClient>> create =
                         provider.GetRequiredService<Func<CancellationToken, Task<PackMLClient>>>();
-                    PackMLClient first = await create(CancellationToken.None).ConfigureAwait(false);
-                    PackMLClient second = await create(CancellationToken.None).ConfigureAwait(false);
+                    Task<PackMLClient> firstBorrow = create(CancellationToken.None);
+                    bool firstWaited = !firstBorrow.IsCompleted;
+                    borrowGate.Release();
+                    PackMLClient first = await firstBorrow.ConfigureAwait(false);
+                    await Assert.That(firstWaited).IsTrue();
+                    Task<PackMLClient> secondBorrow = create(CancellationToken.None);
+                    bool secondWaited = !secondBorrow.IsCompleted;
+                    borrowGate.Release();
+                    PackMLClient second = await secondBorrow.ConfigureAwait(false);
+                    await Assert.That(secondWaited).IsTrue();
                     await Assert.That(first.Session).IsSameReferenceAs(session);
                     await Assert.That(second.Session).IsSameReferenceAs(session);
                     await Assert.That(borrowed).IsEqualTo(2);
