@@ -270,7 +270,7 @@ support gap.
 | [Machine Vision](Vision.md), OPC 40100-1/-2 | Full | Control, configuration, recipes, results, asset/condition monitoring and clients; providers supply acquisition, separate from the Perception draft |
 | [WoT Connectivity](WotCon.md), OPC 10100-1 | Full | Published 1.02 asset-connection API, server and client; additive registry extensions have separate scope |
 | [WoT Binding](WotBindings.md), OPC 10101 | Partial | Published 1.00 consumer mode and conversions; general UA Binary payload codec and complete TD/TM/Binding-result schema validation are missing |
-| [PackML](PackML.md), OPC 30050 | Partial | Standalone provider-backed units, configured mode and state subsets, status, administration, typed clients and Scales composition; the optional StateModel extensions conformance unit is not implemented |
+| [PackML](PackML.md), OPC 30050 | Partial | Standalone provider-backed units, configured modes and state subsets, status, administration, typed clients and Scales composition; the five optional Hold transitions are implemented, pending exact-head verification |
 | [PA-DIM and ECM](Machinery.md), OPC 30081 and OPC 34100 | Partial | Generated dependency models and Machinery process-value/energy bindings; not complete standalone PA-DIM/ECM device runtimes |
 | [LADS](LADS.md), OPC 30500-1 | Partial | Devices, functional units, functions, programs, results and maintenance; optional Hold/Unhold/Suspend/Unsuspend/Reset/ToComplete server methods and persistence are missing |
 | [Plastics and rubber common types](PlasticsRubber.md), OPC 40083 | Full | Common controls, monitoring, maintenance, materials, diagnostics and production datasets; independently authored 1.03 interface implementation on the licensed 1.02 basis |
@@ -866,7 +866,7 @@ does not establish executable management, serialization or logging methods.
 | [OPC 30020: MDIS](https://reference.opcfoundation.org/specs/OPC-30020) | 1.3 | No | - |
 | [OPC 30030: BACnet](https://reference.opcfoundation.org/specs/OPC-30030) | 2.00.1 | No | - |
 | [OPC 30040: AutomationML](https://reference.opcfoundation.org/specs/OPC-30040) | 1.00 | No | - |
-| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | Optional StateModel extensions conformance unit (vendor-defined states) missing |
+| [OPC 30050: PackML](https://reference.opcfoundation.org/specs/OPC-30050) | 1.01 | Partial | The five optional Hold transitions identified in §6.3.5 are implemented; exact-head verification is pending |
 | [OPC 30060: Tobacco Machine Communication](https://reference.opcfoundation.org/specs/OPC-30060) | 2.00.1 | No | - |
 | [OPC 30081: PA-DIM](https://reference.opcfoundation.org/specs/OPC-30081) | 1.02.0 | Partial | Generated model and Machinery process values; no complete standalone PA-DIM runtime |
 | [OPC 30090: Field Device Tool (FDT)](https://reference.opcfoundation.org/specs/OPC-30090) | 1.01 | No | - |

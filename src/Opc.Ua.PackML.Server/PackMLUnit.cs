@@ -123,6 +123,10 @@ namespace Opc.Ua.PackML.Server
                         names.Add($"PackML State {name}");
                     }
                 }
+                if (m_modes.Values.Any(SupportsStateModelExtensions))
+                {
+                    names.Add("PackML StateModel extensions");
+                }
                 if (m_options.TagId is not null)
                 {
                     names.Add("PackML Base TagID");
@@ -680,6 +684,22 @@ namespace Opc.Ua.PackML.Server
                 PackMLCommand.ToComplete => PackMLStateNumbers.Complete,
                 _ => PackMLStateNumbers.Execute
             };
+        }
+
+        /// <summary>
+        /// Checks whether a mode enables every optional Hold transition.
+        /// </summary>
+        /// <param name="mode">The configured mode to check.</param>
+        /// <returns>True when all five optional transitions are available.</returns>
+        private static bool SupportsStateModelExtensions(PackMLMode mode)
+        {
+            return mode.States.Count == 0 ||
+                (mode.States.Contains(PackMLStateNumbers.Starting) &&
+                mode.States.Contains(PackMLStateNumbers.Suspending) &&
+                mode.States.Contains(PackMLStateNumbers.Suspended) &&
+                mode.States.Contains(PackMLStateNumbers.Unsuspending) &&
+                mode.States.Contains(PackMLStateNumbers.Unholding) &&
+                mode.States.Contains(PackMLStateNumbers.Holding));
         }
 
         /// <summary>

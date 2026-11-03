@@ -651,6 +651,100 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(names.Contains("PackML ProdDefectiveCount"), Is.EqualTo(defectiveCapacity > 0));
         }
 
+        [TestCase(PackMLStateNumbers.Starting, Objects.PackMLExecuteStateMachineType_StartingToHolding)]
+        [TestCase(PackMLStateNumbers.Suspending, Objects.PackMLExecuteStateMachineType_SuspendingToHolding)]
+        [TestCase(PackMLStateNumbers.Suspended, Objects.PackMLExecuteStateMachineType_SuspendedToHolding)]
+        [TestCase(PackMLStateNumbers.Unsuspending, Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding)]
+        [TestCase(PackMLStateNumbers.Unholding, Objects.PackMLExecuteStateMachineType_UnholdingToHolding)]
+        public async Task StateModelExtensionsAdvertiseAndExecuteOptionalHoldTransitions(
+            uint sourceState,
+            uint transitionId)
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), new EquipmentProvider());
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Reset)));
+            Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Resetting));
+
+            if (sourceState == PackMLStateNumbers.Starting)
+            {
+                Good(await unit.RequestAsync(context, Command(PackMLCommand.Start)));
+            }
+            else
+            {
+                Good(await unit.RequestAsync(context, Command(PackMLCommand.Start)));
+                Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Starting));
+                if (sourceState == PackMLStateNumbers.Unholding)
+                {
+                    Good(await unit.RequestAsync(context, Command(PackMLCommand.Hold)));
+                    Good(await unit.CompleteActingStateAsync(unit.PendingRequestId, PackMLStateNumbers.Holding));
+                    Good(await unit.RequestAsync(context, Command(PackMLCommand.Unhold)));
+                }
+                else
+                {
+                    Good(await unit.RequestAsync(context, Command(PackMLCommand.Suspend)));
+                    if (sourceState != PackMLStateNumbers.Suspending)
+                    {
+                        Good(await unit.CompleteActingStateAsync(
+                            unit.PendingRequestId, PackMLStateNumbers.Suspending));
+                        if (sourceState == PackMLStateNumbers.Unsuspending)
+                        {
+                            Good(await unit.RequestAsync(context, Command(PackMLCommand.Unsuspend)));
+                        }
+                    }
+                }
+            }
+
+            Assert.That(unit.CurrentState, Is.EqualTo(sourceState));
+            string?[] conformanceUnits =
+                unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            Assert.That(conformanceUnits, Does.Contain("PackML StateModel extensions"));
+            PackMLExecuteStateMachineState execute =
+                unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
+            NodeId expectedTransition = new(
+                transitionId,
+                checked((ushort)context.NamespaceUris.GetIndex(Namespaces.PackML)));
+            Assert.That(execute.AvailableTransitions.Required().Value.Span.ToArray(),
+                Does.Contain(expectedTransition));
+
+            Good(await unit.RequestAsync(context, Command(PackMLCommand.Hold)));
+            Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Holding));
+        }
+
+        [Test]
+        public async Task StateModelExtensionsAreNotAdvertisedWhenNoModeEnablesEveryOptionalHoldTransition()
+        {
+            SystemContext context = PackMLTestSupport.CreateContext();
+            var options = new PackMLUnitOptions
+            {
+                Modes =
+                [
+                    new PackMLMode
+                    {
+                        States =
+                        [
+                            PackMLStateNumbers.Cleared, PackMLStateNumbers.Stopped, PackMLStateNumbers.Running,
+                            PackMLStateNumbers.Starting, PackMLStateNumbers.Execute, PackMLStateNumbers.Holding,
+                            PackMLStateNumbers.Held, PackMLStateNumbers.Unholding, PackMLStateNumbers.Suspending,
+                            PackMLStateNumbers.Suspended
+                        ]
+                    }
+                ]
+            };
+            await using Unit unit = await Unit.CreateAsync(
+                context, null, PackMLTestSupport.Name(context), new EquipmentProvider(), options);
+            string?[] conformanceUnits =
+                unit.ConformanceUnits.Span.ToArray().Select(name => name.Name).ToArray();
+            Assert.That(conformanceUnits, Does.Not.Contain("PackML StateModel extensions"));
+            PackMLExecuteStateMachineState execute =
+                unit.Node.BaseStateMachine.Required().MachineState.Required().ExecuteState.Required();
+            ushort namespaceIndex = checked((ushort)context.NamespaceUris.GetIndex(Namespaces.PackML));
+            NodeId unavailableTransition =
+                new(Objects.PackMLExecuteStateMachineType_UnsuspendingToHolding, namespaceIndex);
+            Assert.That(execute.AvailableTransitions.Required().Value.Span.ToArray(),
+                Does.Not.Contain(unavailableTransition));
+        }
+
         [TestCase(0, 0)]
         [TestCase(1, 0)]
         [TestCase(2, 0)]
