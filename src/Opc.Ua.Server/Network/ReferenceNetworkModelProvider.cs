@@ -269,7 +269,8 @@ namespace Opc.Ua.Server.Network
                         srClass.Priority > 7 || srClass.Vid > 4094)
                     {
                         throw new ArgumentException(
-                            "SR classes require unique identities and valid PCP/VLAN values.", nameof(snapshot));
+                            "SR classes require unique IDs between zero and seven and valid PCP/VLAN values.",
+                            nameof(snapshot));
                     }
                 }
             }

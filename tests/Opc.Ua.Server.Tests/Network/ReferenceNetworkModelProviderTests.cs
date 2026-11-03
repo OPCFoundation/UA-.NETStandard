@@ -101,8 +101,10 @@ namespace Opc.Ua.Server.Tests.Network
                 ]
             };
 
-            Assert.That(() => new ReferenceNetworkModelProvider(invalid), Throws.ArgumentException);
-            Assert.That(() => provider.Publish(invalid), Throws.ArgumentException);
+            Assert.That(() => new ReferenceNetworkModelProvider(invalid),
+                Throws.ArgumentException.With.Message.Contains("IDs between zero and seven"));
+            Assert.That(() => provider.Publish(invalid),
+                Throws.ArgumentException.With.Message.Contains("IDs between zero and seven"));
             NetworkModelSnapshot actual = await provider.ReadAsync().ConfigureAwait(false);
             Assert.That(actual.Revision, Is.Zero);
             Assert.That(actual.Timestamp, Is.EqualTo(initial.Timestamp));

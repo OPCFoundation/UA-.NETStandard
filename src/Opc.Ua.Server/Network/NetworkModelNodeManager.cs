@@ -490,7 +490,8 @@ namespace Opc.Ua.Server.Network
             if (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7))
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
-                    "Stream VLAN identifiers must be between zero and 4095 and priority code points zero and seven.");
+                    "Stream VLAN identifiers must be between zero and 4095 " +
+                    "and priority code points between zero and seven.");
             }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
