@@ -130,6 +130,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
             bool updateRequired = false;
             NodeId applicationId = NodeId.Null;
             OnboardingIdentitySelection? acceptedIdentity = null;
+            TrustListDataType? intendedTrust = null;
             await WithConnectionAsync(snapshot, default, async (connection, dispatch) =>
             {
                 ValidateConnection(snapshot, connection, dispatch.Session);
@@ -213,15 +214,36 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
                 DeviceRegistrarDevice current = await RequireDeviceAsync(
                     productInstanceUri, applicationId, cancellationToken).ConfigureAwait(false);
+                TrustListDataType trustList = retained.TrustList;
+                intendedTrust = trustList;
+                var server = new ServerConfigurationTypeClient(
+                    dispatch.Session, connection.ServerConfigurationId, m_telemetry);
                 if (peer == installed &&
                     (current.PendingDcaCertificate == peer || current.DcaCertificate == peer))
                 {
-                    await ConfirmAsync(dispatch, identity, applicationId, singleton, installed, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (!singleton)
+                    // The channel proves only the installed certificate. Application setup also includes the
+                    // TrustList (OPC 10000-21, 4.3.3), which may have been replaced since it was applied.
+                    // Confirmation always happens on the proof lease, which reads the TrustList back first.
+                    if (await HoldsTrustListAsync(
+                        dispatch.Session, connection.TrustListId, trustList, cancellationToken).ConfigureAwait(false))
                     {
-                        await PushManagedApplicationsAsync(connection, dispatch, identity, applicationId,
-                            snapshot.ApplicationUri!, installed, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+                    // Applying the TrustList may close this channel, so confirmation waits for the new lease.
+                    await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken)
+                        .ConfigureAwait(false);
+                    RequirePeer(dispatch, peer);
+                    if (await StageChangesAsync(server,
+                        () => WriteTrustListAsync(
+                            dispatch.Session, connection.TrustListId, trustList, cancellationToken),
+                        null).ConfigureAwait(false))
+                    {
+                        await CommitStagedChangesAsync(server, async () =>
+                        {
+                            await RequireApprovalAsync(identity, applicationId, singleton, cancellationToken)
+                                .ConfigureAwait(false);
+                            RequirePeer(dispatch, peer);
+                        }, null, cancellationToken).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -233,11 +255,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     productInstanceUri, applicationId, installed, cancellationToken).ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
 
-                var server = new ServerConfigurationTypeClient(
-                    dispatch.Session, connection.ServerConfigurationId, m_telemetry);
-                bool applyTrust = await WriteTrustListAsync(
-                    dispatch.Session, connection.TrustListId, retained.TrustList, cancellationToken)
-                    .ConfigureAwait(false);
+                bool applyTrust = await StageChangesAsync(server,
+                    () => WriteTrustListAsync(dispatch.Session, connection.TrustListId, trustList, cancellationToken),
+                    null).ConfigureAwait(false);
                 if (applyTrust)
                 {
                     await CommitStagedChangesAsync(server, async () =>
@@ -276,9 +296,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     RequirePeer(dispatch, configuringPeer);
                     var server = new ServerConfigurationTypeClient(
                         dispatch.Session, connection.ServerConfigurationId, m_telemetry);
-                    bool applyCertificate = await server.UpdateCertificateAsync(
-                        connection.CertificateGroupId, connection.CertificateTypeId, installed,
-                        issuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false);
+                    bool applyCertificate = await StageChangesAsync(server,
+                        async () => await server.UpdateCertificateAsync(
+                            connection.CertificateGroupId, connection.CertificateTypeId, installed,
+                            issuerCertificates, string.Empty, default, cancellationToken).ConfigureAwait(false),
+                        null).ConfigureAwait(false);
                     if (applyCertificate)
                     {
                         await CommitStagedChangesAsync(server, async () =>
@@ -306,6 +328,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
                     proof.Session, connection.IsSingletonId, cancellationToken).ConfigureAwait(false);
                 OnboardingIdentitySelection identity = acceptedIdentity ??
                     throw new ServiceResultException(StatusCodes.BadInvalidState);
+                TrustListDataType trustList = intendedTrust ??
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                if (!await HoldsTrustListAsync(proof.Session, connection.TrustListId, trustList, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The device did not report the pushed TrustList.");
+                }
                 await ConfirmAsync(proof, identity, applicationId, singleton, installed, cancellationToken)
                     .ConfigureAwait(false);
                 if (!singleton)
@@ -503,7 +533,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
                     .ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
-                if (await WriteTrustListAsync(session, trustListId, retained.TrustList, ct).ConfigureAwait(false))
+                if (await StageChangesAsync(configuration,
+                    () => WriteTrustListAsync(session, trustListId, retained.TrustList, ct),
+                    uncancelled).ConfigureAwait(false))
                 {
                     await CommitStagedChangesAsync(configuration, async () =>
                     {
@@ -520,9 +552,11 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 await RequireManagedApprovalAsync(identity, dcaApplicationId, applicationId, ct)
                     .ConfigureAwait(false);
                 RequirePeer(dispatch, peer);
-                bool applyCertificate = await configuration.UpdateCertificateAsync(
-                    NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty, default,
-                    ct).ConfigureAwait(false);
+                bool applyCertificate = await StageChangesAsync(configuration,
+                    async () => await configuration.UpdateCertificateAsync(
+                        NodeId.Null, connection.CertificateTypeId, issuance.Certificate, issuers, string.Empty,
+                        default, ct).ConfigureAwait(false),
+                    uncancelled).ConfigureAwait(false);
                 if (applyCertificate)
                 {
                     // Approval or association can be revoked while the device stages the credential.
@@ -721,6 +755,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// Checks whether the resolved certificate group reports the exact certificate for the pushed type.
         /// GetCertificates is optional in Part 12; a device without it fails the push with the returned
         /// status, because the registrar cannot otherwise prove which credential the application holds.
+        /// The CertificateTypeIds and Certificates outputs are parallel arrays (OPC 10000-12, 7.10.8), so a
+        /// response with different lengths is rejected rather than read as an untyped certificate.
         /// </summary>
         private static async ValueTask<bool> HoldsCertificateAsync(
             ServerConfigurationTypeClient configuration,
@@ -731,15 +767,42 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             var (types, certificates) = await configuration.GetCertificatesAsync(group, ct)
                 .ConfigureAwait(false);
+            if (types.Count != certificates.Count)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnknownResponse,
+                    "GetCertificates returned CertificateTypeIds and Certificates of different lengths.");
+            }
             for (int index = 0; index < certificates.Count; index++)
             {
-                if (certificates[index] == certificate &&
-                    (index >= types.Count || types[index] == certificateType))
+                if (certificates[index] == certificate && types[index] == certificateType)
                 {
                     return true;
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Runs one call that can stage changes in the session transaction: Open(write) through CloseAndUpdate,
+        /// or UpdateCertificate. If the call fails or is cancelled, the server may already have staged the
+        /// change before the reply was lost, so the session's changes are cancelled before the error is
+        /// rethrown. A failed cancellation is reported together with the original error.
+        /// </summary>
+        private static async ValueTask<bool> StageChangesAsync(
+            ServerConfigurationTypeClient configuration,
+            Func<ValueTask<bool>> stage,
+            StrongBox<bool>? uncancelled)
+        {
+            try
+            {
+                return await stage().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                await CancelStagedChangesAsync(configuration, error, uncancelled).ConfigureAwait(false);
+                throw;
+            }
         }
 
         /// <summary>
@@ -778,7 +841,8 @@ namespace Opc.Ua.Gds.Server.Onboarding
 
         /// <summary>
         /// Discards the changes staged in the session after a failure, preserving the failure and any
-        /// cleanup error together.
+        /// cleanup error together. Bad_NothingToDo means the session has no active transaction, so there is
+        /// nothing left to discard (OPC 10000-12, 7.10.11).
         /// </summary>
         private static async ValueTask CancelStagedChangesAsync(
             ServerConfigurationTypeClient configuration,
@@ -789,6 +853,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 // Cleanup must run even when the push itself was cancelled.
                 await configuration.CancelChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException cleanup) when (cleanup.StatusCode == StatusCodes.BadNothingToDo)
+            {
+                // No transaction is active in the session, so no staged change can remain.
             }
             catch (Exception cleanup)
             {
@@ -1359,8 +1427,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
         /// <summary>The host's generated-client telemetry.</summary>
         private readonly ITelemetryContext m_telemetry;
 
-        /// <summary>The standard ManagedApplications folder (OPC 10000-21, i=16706).</summary>
+        /// <summary>The largest encoded TrustList the registrar uploads to or downloads from a device.</summary>
         private const int MaxTrustListBytes = 4 * 1024 * 1024;
+
+        /// <summary>The standard ManagedApplications folder (OPC 10000-21, i=16706).</summary>
         private static readonly NodeId s_managedApplicationsFolderId = new(16706u);
 
         /// <summary>Serializes direct invocations as well as work admitted by the default push scheduler.</summary>

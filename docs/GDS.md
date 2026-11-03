@@ -574,6 +574,16 @@ Direct hosts can construct `SecretStoreDeviceRegistrarPushEnrollmentProvider`
 with their initialized `ApplicationsNodeManager` and register that instance as
 `IDeviceRegistrarPushEnrollmentProvider`.
 
+A secure channel to the issued DCA certificate proves only that certificate.
+Part 21 §4.3.3 also counts the TrustList as part of application setup, and the
+TrustList can change after the registrar applied it. When the DCA already
+presents the issued certificate, the processor reads its TrustList and writes
+the retained TrustList only when it differs; it does not request another
+certificate. The processor confirms the credential only on a new connection,
+after that connection has read back the intended TrustList. A device that
+reports any other TrustList leaves the credential pending with
+`BadInvalidState`.
+
 After the processor confirms the installed DCA credential of a non-singleton
 device, it provisions the device's managed Client applications through the same
 proven session. It browses `ApplicationConfigurationType` instances below the
@@ -608,7 +618,9 @@ with the resolved `DefaultApplicationGroup` and reads the TrustList file. It
 replaces only what differs: an application that holds the issued certificate
 with a missing or stale TrustList receives the TrustList alone, and repeating
 the push does not replace an installed credential. Each replaced value is read
-back before the application counts as provisioned.
+back before the application counts as provisioned. Part 12 §7.10.8 returns
+`CertificateTypeIds` and `Certificates` as parallel arrays; a response whose
+arrays differ in length fails with `BadUnknownResponse` and changes nothing.
 
 `ApplyChanges` commits every change queued in the session, so the processor
 rechecks approval and the actual peer immediately before each `ApplyChanges`.
@@ -617,6 +629,16 @@ to `CancelChanges` instead of activation. When `ApplyChanges` itself fails, the
 processor also calls `CancelChanges`, so a later application's `ApplyChanges`
 cannot commit the rejected changes.
 
+A failed reply does not prove that nothing was staged. Opening the TrustList
+for writing starts a transaction (Part 12 §7.8.2.2), and a device can stage
+`CloseAndUpdate` or `UpdateCertificate` and then lose or fail the reply. Any
+failure or cancellation of the TrustList transfer, `CloseAndUpdate` or
+`UpdateCertificate` therefore leads to `CancelChanges` before the processor
+continues; the DCA and managed paths behave the same way. `Bad_NothingToDo`
+from `CancelChanges` means the session holds no transaction, so only the
+original error is reported. `CancelChanges` runs without the caller's
+cancellation token.
+
 A denial or failure for one application leaves the confirmed DCA credential and
 the other applications unchanged. The processor attempts every application and
 reports the failures together in one `AggregateException`; cancellation and an
@@ -624,7 +646,11 @@ invalidated session stop the loop. When `CancelChanges` fails, for example on a
 device without transaction support, the staged changes are still queued. The
 processor then stops before the next application and reports the original
 error and the cleanup error together in a nested `AggregateException`. It does
-not close the borrowed session and does not assume the device rolled back. A
+not close the borrowed session and does not assume the device rolled back.
+Only this processing run knows that the changes remain queued; another user of
+a custom lease over a shared session could still commit them with its own
+`ApplyChanges`. Use the default connection provider, which opens a dedicated
+session for each lease, unless the custom session has no other users. A
 singleton device provisions no managed applications. The sample policy's
 `CanManageAsync` returns `false`, so the sample registrar provisions only the
 DCA.
