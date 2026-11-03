@@ -38,7 +38,10 @@ namespace Opc.Ua.AutoID.Server.Builders
     /// The default <see cref="IAutoIdReaderBuilder"/>: collects the configuration and hands it to
     /// the runtime in one step.
     /// </summary>
-    internal sealed class AutoIdReaderBuilder : IAutoIdReaderBuilder
+    internal sealed class AutoIdReaderBuilder :
+        IAutoIdReaderBuilder,
+        IAutoIdRuntimeParametersBuilder,
+        IAutoIdDiagnosticsBuilder
     {
         internal AutoIdReaderBuilder(
             AutoIdRuntime runtime,

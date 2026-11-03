@@ -466,6 +466,14 @@ Shutdown cancels queued operations, stops scanning and detaches the provider.
 `ScanActive` and every standard writable runtime parameter; the owning server enforces
 them through its normal write authorization.
 
+The original `IAutoIdReaderBuilder` contract remains unchanged. The fluent
+`WithRuntimeParameters` and `WithScanWritePermissions` extensions require
+`IAutoIdRuntimeParametersBuilder`; `WithDiagnostics` requires
+`IAutoIdDiagnosticsBuilder`. The SDK builder implements both optional interfaces.
+Import `Opc.Ua.AutoID.Server` to use the extensions. A third-party builder can
+implement either capability independently; requesting an unsupported option throws
+`NotSupportedException` without changing the builder.
+
 #### Standard reader-specific parameters
 
 A provider can additionally implement `IAutoIdReaderParametersProvider`.
