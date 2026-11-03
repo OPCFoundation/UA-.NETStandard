@@ -468,7 +468,14 @@ cannot cross an `await`.
 The run completes when `ExecuteAsync` returns, with the outcome `Completed`,
 unless a pending `ToComplete` still requires provider acknowledgment.
 `Stop` cancels the token and records the outcome `Stopped`. `Abort` cancels the
-token and records `Aborted`. An exception from the executor also records
+token and records `Aborted`. The first accepted end request determines the
+result until finalization starts. Finalization freezes that outcome before
+changing states or saving the result. A later Stop or Abort waits for publication
+and then applies its standalone functional-unit transition; it does not rewrite
+the completed result or cancel a disposed execution token. Cancellation of a
+pending completion acknowledgment preserves an accepted end request's outcome;
+provider rejection without an end request records Aborted.
+An exception from the executor also records
 `Aborted`. `DelayAsync` uses the runtime clock. Set
 `LadsServerOptions.TimeProvider` to advance LADS execution in tests without
 advancing session expiry; otherwise the runtime uses the registered

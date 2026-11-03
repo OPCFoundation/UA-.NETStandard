@@ -744,7 +744,7 @@ namespace Opc.Ua.LADS.Server
             {
                 return false;
             }
-            active.RequestEnd(outcome);
+            bool accepted = active.RequestEnd(outcome);
             Task? completion = active.Completion;
             if (completion != null)
             {
@@ -758,7 +758,7 @@ namespace Opc.Ua.LADS.Server
                     }
                 }
             }
-            return true;
+            return accepted;
         }
 
         /// <summary>
@@ -941,6 +941,7 @@ namespace Opc.Ua.LADS.Server
             Exception? failure = null;
             try
             {
+                outcome = active.BeginFinalization(outcome);
                 if (outcome != LadsProgramOutcome.Completed)
                 {
                     m_unit.CancelExecutionControl();
@@ -1723,12 +1724,30 @@ namespace Opc.Ua.LADS.Server
             }
 
             /// <summary>
-            /// Requests the end of the run. The first request determines the outcome.
+            /// Freezes the result outcome before changing state or publishing stored data.
+            /// Later end requests must wait for publication and use the standalone unit transition.
             /// </summary>
-            public void RequestEnd(LadsProgramOutcome outcome)
+            public LadsProgramOutcome BeginFinalization(LadsProgramOutcome outcome)
             {
                 lock (m_lock)
                 {
+                    m_finalizing = true;
+                    return m_requested ?? outcome;
+                }
+            }
+
+            /// <summary>
+            /// Requests the end of the run. The first accepted request determines the outcome.
+            /// Returns false once result finalization has started, including for stale active entries.
+            /// </summary>
+            public bool RequestEnd(LadsProgramOutcome outcome)
+            {
+                lock (m_lock)
+                {
+                    if (m_finalizing)
+                    {
+                        return false;
+                    }
                     m_requested ??= outcome;
                 }
                 try
@@ -1739,10 +1758,12 @@ namespace Opc.Ua.LADS.Server
                 {
                     // The run already ended.
                 }
+                return true;
             }
 
             private readonly Lock m_lock = new();
             private LadsProgramOutcome? m_requested;
+            private bool m_finalizing;
         }
 
         private readonly Lock m_lock = new();

@@ -684,6 +684,138 @@ namespace Opc.Ua.LADS.Tests.Server
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EndRequestBeforeFinalizationOverridesCompletedCandidateAsync(bool abort)
+        {
+            var finish = NewSignal();
+            var executorReturned = NewSignal();
+            var executor = new ControlledExecutor(
+                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                async (_, _) =>
+                {
+                    await finish.Task.ConfigureAwait(false);
+                    executorReturned.SetResult(true);
+                });
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(EndRequestBeforeFinalizationOverridesCompletedCandidateAsync), executor).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            var unit = (Opc.Ua.LADS.Server.LadsFunctionalUnit)device.GetFunctionalUnit(UnitName);
+            var programs = (LadsProgramManager)unit.Programs!;
+            string runId = await programs.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            await unit.Gate.WaitAsync().ConfigureAwait(false);
+            Task<bool>? end = null;
+            try
+            {
+                finish.SetResult(true);
+                await executorReturned.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                end = programs.EndActiveRunAsync(
+                    abort ? LadsProgramOutcome.Aborted : LadsProgramOutcome.Stopped,
+                    CancellationToken.None).AsTask();
+                Assert.That(end.IsCompleted, Is.False);
+            }
+            finally
+            {
+                finish.TrySetResult(true);
+                unit.Gate.Release();
+            }
+            Assert.That(await end!.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            ILadsResult result = await programs.WaitForResultAsync(runId).ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(abort ? LadsProgramOutcome.Aborted : LadsProgramOutcome.Stopped));
+            Assert.That(unit.State, Is.EqualTo(
+                abort ? LadsFunctionalStateValue.Aborted : LadsFunctionalStateValue.Stopped));
+            Assert.That(programs.Results.Count, Is.EqualTo(1));
+            Assert.That(device.OperationCycleCounter, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FinalizationArbitratesCandidateAndStaleEndRequests(bool abort)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var run = new LadsProgramRun(
+                "finalization-order",
+                Mock.Of<ILadsFunctionalUnit>(),
+                new Opc.Ua.LADS.Server.LadsProgramTemplate(TemplateName),
+                [],
+                string.Empty,
+                string.Empty,
+                [],
+                DateTimeUtc.MinValue,
+                TimeProvider.System,
+                static (_, _) => { });
+            var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
+            LadsProgramOutcome candidate = active.GetCompletionOutcome(true);
+            Assert.That(candidate, Is.EqualTo(LadsProgramOutcome.Completed));
+            LadsProgramOutcome requested = abort ? LadsProgramOutcome.Aborted : LadsProgramOutcome.Stopped;
+            using var requestedCancellation = new CancellationTokenSource();
+            var requestedActive = new LadsProgramManager.ActiveRunEntry(run, requestedCancellation);
+            Assert.That(requestedActive.RequestEnd(requested), Is.True);
+            Assert.That(requestedActive.RequestEnd(
+                abort ? LadsProgramOutcome.Stopped : LadsProgramOutcome.Aborted), Is.True);
+            Assert.That(requestedActive.BeginFinalization(candidate), Is.EqualTo(requested));
+            Assert.That(active.BeginFinalization(candidate), Is.EqualTo(LadsProgramOutcome.Completed));
+            Assert.That(active.RequestEnd(
+                abort ? LadsProgramOutcome.Aborted : LadsProgramOutcome.Stopped), Is.False);
+            Assert.That(cancellation.IsCancellationRequested, Is.False);
+            cancellation.Dispose();
+            Assert.That(active.RequestEnd(LadsProgramOutcome.Stopped), Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EndDuringResultPublicationWaitsThenTransitionsStandaloneAsync(bool abort)
+        {
+            var finish = NewSignal();
+            var saving = NewSignal();
+            var release = NewSignal();
+            var store = new Mock<ILadsStore>();
+            store.Setup(value => value.SaveAsync(
+                    It.IsAny<string>(), It.IsAny<LadsStoredDeviceData>(), It.IsAny<CancellationToken>()))
+                .Returns((string _, LadsStoredDeviceData data, CancellationToken _) =>
+                {
+                    if (data.FunctionalUnits.ToList().Any(unit => unit.Results.Count != 0))
+                    {
+                        saving.TrySetResult(true);
+                        return new ValueTask(release.Task);
+                    }
+                    return default;
+                });
+            var executor = new ControlledExecutor(
+                (_, _, _) => ValueTask.FromResult(ServiceResult.Good),
+                async (_, _) => await finish.Task.ConfigureAwait(false));
+            await using LadsClientConnection connection = await StartAsync(
+                nameof(EndDuringResultPublicationWaitsThenTransitionsStandaloneAsync),
+                executor,
+                store: store.Object).ConfigureAwait(false);
+            ILadsDevice device = await connection.Server.DeviceAsync().ConfigureAwait(false);
+            ILadsFunctionalUnit unit = device.GetFunctionalUnit(UnitName);
+            ILadsProgramManager programs = unit.Programs!;
+            string runId = await programs.StartProgramAsync(TemplateName).ConfigureAwait(false);
+            Task? end = null;
+            try
+            {
+                finish.SetResult(true);
+                await saving.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+                Assert.That(programs.ActiveRun, Is.Not.Null);
+                end = abort ? unit.AbortAsync().AsTask() : unit.StopAsync().AsTask();
+                Assert.That(end.IsCompleted, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await end!.WaitAsync(s_timeout).ConfigureAwait(false);
+            ILadsResult result = await programs.WaitForResultAsync(runId).ConfigureAwait(false);
+            Assert.That(result.Outcome, Is.EqualTo(LadsProgramOutcome.Completed));
+            Assert.That(unit.State, Is.EqualTo(
+                abort ? LadsFunctionalStateValue.Aborted : LadsFunctionalStateValue.Stopped));
+            Assert.That(unit.RunningState, Is.EqualTo(LadsRunningStateValue.Idle));
+            Assert.That(programs.ActiveRun, Is.Null);
+            Assert.That(programs.Results.Count, Is.EqualTo(1));
+            Assert.That(device.OperationCycleCounter, Is.EqualTo(1));
+        }
+
         [TestCase("Reject")]
         [TestCase("Throw")]
         [TestCase("Cancel")]
@@ -1177,11 +1309,16 @@ namespace Opc.Ua.LADS.Tests.Server
         private static Task<LadsClientConnection> StartAsync(
             string name,
             ILadsProgramExecutor? executor = null,
-            ManualClock? clock = null)
+            ManualClock? clock = null,
+            ILadsStore? store = null)
         {
             return LadsClientConnection.StartAsync(name, builder =>
             {
-                builder.AddLads(options => options.TimeProvider = clock)
+                builder.AddLads(options =>
+                {
+                    options.TimeProvider = clock;
+                    options.Store = store;
+                })
                     .ConfigureLads(context => LadsIncubator.Configure(
                     context,
                     LadsIncubator.DeviceName,
