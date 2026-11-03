@@ -38,6 +38,20 @@ and strict response validation. Read records then retain original source nodes,
 quality and timestamps in their `Values` evidence. A present Good-null structure
 is not an absent optional path; scalar type mismatches are still rejected.
 
+`EnumerateSubAssetsAsync` traverses grouping Objects and returns only assets
+listed in each server's AMB alias categories. For remote references, supply
+`AmbClientOptions.SessionResolver` or register `IAmbSessionResolver` in DI.
+The resolver borrows application-owned sessions by server ApplicationUri;
+AMB does not create connections or select credentials or trust. Missing remote
+sessions and failed remote reads are explicit errors, not unverified assets
+or omitted subtrees. `EnumerateSubAssetReferencesAsync` returns stable server
+ApplicationUris and namespace-qualified NodeIds without changing session tables.
+The existing index-based API rejects remote identities that the originating
+server's authoritative ServerArray cannot represent.
+`ReadRelationReferencesAsync` returns URI-qualified relation targets only after
+the target server's alias categories establish asset membership; grouping and
+other non-asset Objects are not reported as asset relations.
+
 ## Events
 
 `ObserveHealthAlarmsAsync` and `ObserveMaintenanceAsync` subscribe to the

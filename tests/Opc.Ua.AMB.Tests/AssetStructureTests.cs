@@ -41,6 +41,7 @@ using Opc.Ua.AMB.Server.Structure;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
+using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.AMB.Tests
@@ -203,6 +204,108 @@ namespace Opc.Ua.AMB.Tests
                     server.Manager.ConformanceUnits.ToArray(),
                     Does.Contain(new QualifiedName("AMB Version Information")));
             });
+        }
+
+        [Test]
+        public async Task PatchIdentifiersArePublishedAsAnOptInReadOnlyArrayAsync()
+        {
+            ArrayOf<string> suppliedIdentifiers = ["fixture-only-patch"];
+            (AmbHostedServer server, _, DeviceState device) = await HealthAlarmTests
+                .StartWithSensorAsync(
+                    nameof(PatchIdentifiersArePublishedAsAnOptInReadOnlyArrayAsync),
+                    builder => builder.WithVersionInformation(
+                        hardwareRevision: null,
+                        softwareRevision: "fixture-software-revision",
+                        revisionCounter: null,
+                        patchIdentifiers: suppliedIdentifiers))
+                .ConfigureAwait(false);
+            await using AmbHostedServer serverScope = server;
+            BaseVariableState patchIdentifiers = (BaseVariableState)device.FindChildWithQualifiedName(
+                server.Manager.SystemContext,
+                Amb(server, AmbBrowseNames.PatchIdentifiers))!;
+
+            DataValue value = await server.ReadAsync(patchIdentifiers.NodeId).ConfigureAwait(false);
+            ArrayOf<string> changedIdentifiers = ["changed"];
+            StatusCode write = await server.WriteAsync(patchIdentifiers.NodeId, Variant.From(changedIdentifiers))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(patchIdentifiers.DataType, Is.EqualTo(Ua.DataTypeIds.String));
+                Assert.That(patchIdentifiers.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(patchIdentifiers.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(patchIdentifiers.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                Assert.That(value.WrappedValue.TryGetValue(out ArrayOf<string> actual), Is.True);
+                Assert.That(actual, Is.EqualTo(suppliedIdentifiers));
+                Assert.That(write, Is.EqualTo(StatusCodes.BadNotWritable));
+            });
+        }
+
+        [Test]
+        public async Task PatchIdentifiersStayAbsentWhenNotConfiguredAsync()
+        {
+            (AmbHostedServer server, _, DeviceState device) = await HealthAlarmTests
+                .StartWithSensorAsync(
+                    nameof(PatchIdentifiersStayAbsentWhenNotConfiguredAsync),
+                    builder => builder.WithVersionInformation(softwareRevision: "fixture-software-revision"))
+                .ConfigureAwait(false);
+            await using AmbHostedServer serverScope = server;
+
+            Assert.That(
+                device.FindChildWithQualifiedName(
+                    server.Manager.SystemContext,
+                    Amb(server, AmbBrowseNames.PatchIdentifiers)),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task PatchIdentifiersAreNotAddedWhenSoftwareUpdateAddInExistsAsync()
+        {
+            DeviceState? device = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(PatchIdentifiersAreNotAddedWhenSoftwareUpdateAddInExistsAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureDevicesFor<DiNodeManager>(async context =>
+                    {
+                        IDeviceBuilder<DeviceState> sensor = await AssetRegistrationTests.CreateDeviceAsync(
+                            context,
+                            "Sensor",
+                            "urn:acme:sensor").ConfigureAwait(false);
+                        sensor.WithSoftwareUpdate(new MemoryPackageStore());
+                        device = sensor.Device;
+                        await sensor.RegisterAsAssetAsync(
+                            context.GetRequiredService<IAssetManagement>(),
+                            asset => asset.WithVersionInformation(
+                                hardwareRevision: null,
+                                softwareRevision: "fixture-software-revision",
+                                revisionCounter: null,
+                                patchIdentifiers: ["fixture-only-patch"]))
+                            .ConfigureAwait(false);
+                    })).ConfigureAwait(false);
+
+            Assert.That(
+                device!.FindChildWithQualifiedName(
+                    server.Manager.SystemContext,
+                    Amb(server, AmbBrowseNames.PatchIdentifiers)),
+                Is.Null);
+        }
+
+        [Test]
+        public async Task PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync()
+        {
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await HealthAlarmTests.StartWithSensorAsync(
+                    nameof(PatchIdentifiersRequireASoftwareRevisionWhenSoftwareUpdateIsAbsentAsync),
+                    builder => builder.WithVersionInformation(
+                        hardwareRevision: null,
+                        softwareRevision: null,
+                        revisionCounter: null,
+                        patchIdentifiers: ["fixture-only-patch"]))
+                    .ConfigureAwait(false)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]

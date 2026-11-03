@@ -199,7 +199,21 @@ namespace Opc.Ua.AMB.Server.Assets
             string? softwareRevision = null,
             int? revisionCounter = null)
         {
-            Structure.Version = new VersionRequest(hardwareRevision, softwareRevision, revisionCounter);
+            return WithVersionInformation(hardwareRevision, softwareRevision, revisionCounter, default);
+        }
+
+        /// <inheritdoc/>
+        public IAssetBuilder WithVersionInformation(
+            string? hardwareRevision,
+            string? softwareRevision,
+            int? revisionCounter,
+            ArrayOf<string> patchIdentifiers)
+        {
+            Structure.Version = new VersionRequest(
+                hardwareRevision,
+                softwareRevision,
+                revisionCounter,
+                patchIdentifiers);
             return this;
         }
 

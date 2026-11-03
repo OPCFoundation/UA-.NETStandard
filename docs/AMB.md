@@ -229,7 +229,7 @@ assets registered later as well.
 | `WithMaintenance(name, class, details, onStateChanged)` | a maintenance condition with its state machine | 12 |
 | `WithHistory(options)` | a per-asset history override; `null` disables AMB capture for this asset | 9.6, 12 |
 | `WithDocumentationLinks(links)` | the DocumentationLinks AddIn | 10.5 |
-| `WithVersionInformation(hardware, software, counter)` | revisions and `RevisionCounter` | 10.2 |
+| `WithVersionInformation(hardware, software, counter)` | revisions and `RevisionCounter`; the four-argument overload also accepts vendor-supplied patch identifiers | 10.2 |
 | `WithLocation(kind, value, writable)` | `HierarchicalLocation`, `OperationalLocation` or `DigitalLocation` | 13.3.2, 13.4.2, 13.5 |
 | `WithLocalTime(offset, daylightSaving, writable)` | `0:LocalTime` | 13.2 |
 | `LocatedIn(kind, "A/B/C")` | membership in a location hierarchy | 13.3.3, 13.4.3 |
@@ -561,6 +561,17 @@ OPC 10000-100 defaults - empty revisions and a `RevisionCounter` of -1 - say
 that the device does not provide them and do not count as version
 information. Asking for version information starts a counter of -1 at 0.
 
+The four-argument `WithVersionInformation(hardware, software, counter, patches)`
+overload accepts an `ArrayOf<string>` of application-supplied patch identifiers.
+When the SoftwareUpdate AddIn is absent, a configured list is published as the
+read-only AMB `2:PatchIdentifiers` Property alongside SoftwareRevision (§10.2).
+The list follows OPC 10000-100 §8.4.7.5: its entries identify vendor-supplied
+patches, not values inferred from a revision string. An explicitly empty array
+publishes an empty list; a default array leaves the Property unchanged.
+When neither SoftwareRevision nor the AddIn exists, a configured list is rejected with
+`BadConfigurationError`. When the SoftwareUpdate AddIn exists, AMB does not
+add this alternative Property or change the AddIn's patch information.
+
 Requirements and capabilities are folders in the AMB namespace whose entries
 may reference entries of external dictionaries such as IEC CDD or ECLASS;
 `ClassifiedAs` classifies the asset itself. OPC 10000-19 asks the target of
@@ -644,7 +655,7 @@ whose only mandatory unit is AMB Client Asset Identification.
 | AMB Client Current and Future Maintenance Activities | Implemented | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync` |
 | AMB Client Past Maintenance Activities | Implemented | `ReadPastMaintenanceAsync` |
 | AMB Client sub-assets | Implemented | `EnumerateSubAssetsAsync` |
-| AMB Client sub-assets remote | Partly: an asset of another server is reported, not followed | `EnumerateSubAssetsAsync` |
+| AMB Client sub-assets remote | Application-supplied sessions; grouping Objects are traversed and only alias-listed assets are returned | `EnumerateSubAssetReferencesAsync`, `IAmbSessionResolver` |
 
 ## Client reference
 
@@ -692,6 +703,71 @@ options directly to the three-argument `AmbClientFactory` constructor. Without
 options, the existing factory and builder APIs retain tolerant behavior.
 Invalid limits are rejected before the factory opens a session.
 
+### Sub-assets across servers
+
+`EnumerateSubAssetsAsync` follows hierarchical references through grouping
+Objects, which OPC 10000-110 §14.1 permits between assets. An Object is returned
+only when its server's AMB alias categories identify it as an asset; a remote
+reference alone does not establish that identity.
+
+Supply an `IAmbSessionResolver` to borrow sessions that the application has
+already opened and authorized. Its `ResolveAsync(serverUri, cancellationToken)`
+receives the target server's ApplicationUri from the referring session's
+`ServerUris` table, not an endpoint URL. AMB verifies the returned session's
+server identity. It neither creates remote connections nor selects credentials
+or certificate trust.
+
+```csharp
+var assets = new AmbClient(session, telemetry, new AmbClientOptions
+{
+    SessionResolver = applicationSessionResolver,
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128
+});
+await foreach (AssetNodeReference subAsset in assets.EnumerateSubAssetReferencesAsync(assetId, cancellationToken))
+{
+    Console.WriteLine($"{subAsset.ServerUri}: {subAsset.NodeId}");
+}
+```
+
+For DI hosting, register the application implementation with
+`services.AddSingleton<IAmbSessionResolver>(applicationSessionResolver)` before
+resolving `AmbClientFactory`. `AddAssetManagementClient` uses that resolver and
+the configured `AmbClientOptions`, or default bounded options when no options
+were registered. Direct construction supplies the resolver in the options.
+All sessions remain application-owned and are never closed or disposed by AMB.
+
+Remote discovery and traversal share the originating operation's reference
+budget and depth limit. Server identities and namespace URIs distinguish
+otherwise identical NodeIds, and repeated references and cross-server cycles
+are visited once. `EnumerateSubAssetReferencesAsync` returns `AssetNodeReference`
+records containing the server ApplicationUri and an absolute namespace-qualified
+NodeId with `ServerIndex` zero. These identities remain meaningful when a server
+appends to ServerArray or a session refreshes its tables. Traversal never changes
+the authoritative `ServerUris` table.
+
+`ReadRelationReferencesAsync` applies the same resolver, identity and budget
+rules to non-hierarchical relations (§14.2). It includes a remote target only
+when the remote alias categories establish asset membership; an arbitrary
+remote Object is not an asset relation. The returned `AssetRelationReference`
+retains the reference type and direction with the URI-qualified target.
+
+The existing `EnumerateSubAssetsAsync` API returns remote server indexes from
+the originating session's authoritative table. When a nested server is not
+listed there, this API reports `BadNotSupported`; use the URI-aware API rather
+than interpreting an index from another session or inventing a table entry.
+`ReadRelationsAsync` applies the same representation rule.
+Previously returned index-based identifiers still require their original
+session context and must not be persisted across table refreshes.
+
+Without a resolver, a remote candidate stops enumeration with `BadNotSupported`.
+An unavailable application session produces `BadNotConnected`; unknown
+identities and namespaces produce `BadNodeIdInvalid`. Cancellation and remote
+service failures propagate to the caller. Results yielded before a failure
+are verified assets, but do not constitute a complete traversal.
+
+### Bounded read behavior
+
 Strict traversal limits apply while collecting pages and walking the asset
 graph. Reads are batched, and returned records expose source identity, browse
 path and the original `DataValue` in `Values`. Non-Good and wrongly typed reads
@@ -725,7 +801,7 @@ for the prepared, owned-simulation workflow.
 | Maintenance | `ReadMaintenanceActivitiesAsync`, `ObserveMaintenanceAsync`, `AcknowledgeAsync` |
 | History | `GetHistoryCapabilitiesAsync`, `ReadHealthHistoryAsync`, `ReadHealthEventsAsync`, `ReadPastMaintenanceAsync`, `GetHistoryEventFields` |
 | Documentation links | `ReadDocumentationLinksAsync` (with `IsWritable` from the `UserAccessLevel` and `IsUserLink` from the `UserLink` Property), `AddDocumentationLinkAsync`, `RemoveDocumentationLinkAsync`, `WriteDocumentationLinkAsync` |
-| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `ReadRelationsAsync` |
+| Locations and structure | `BrowseLocationsAsync`, `ReadLocationsOfAssetAsync`, `ReadContextAsync`, `ReadEntriesAsync`, `EnumerateSubAssetsAsync`, `EnumerateSubAssetReferencesAsync`, `ReadRelationsAsync`, `ReadRelationReferencesAsync` |
 | Snapshot | `ReadAssetAsync` |
 
 The observe calls need an `IStreamingSubscription`; without one they use the
@@ -797,7 +873,6 @@ dotnet test tests/Opc.Ua.AMB.Tests
 | --- | --- | --- |
 | Source timestamp of `DeviceHealth` after a restart | Preserved when an opted-in historian retains the last matching state under the same NodeId; otherwise the timestamp starts at registration | 9.2 ("should") |
 | Optional members of a maintenance activity | Once published, a member keeps its property; `UpdateAsync` changes its value but does not remove it | 12.2 |
-| `2:PatchIdentifiers` | `WithVersionInformation` does not create it; an asset that publishes it keeps it | 10.2 |
 | Location objects | An asset is contained by the deepest level of each path it is put into, not by the levels above | 13.3.3.1 |
 | History backend | Opt-in Part 11 providers supply retention, availability and persistence; the memory provider loses its archive on restart | 9.6, 12 |
 

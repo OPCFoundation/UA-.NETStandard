@@ -63,6 +63,65 @@ namespace Opc.Ua.AMB.Tests
     [NonParallelizable]
     public sealed class AmbClientServerE2eTests
     {
+        [Test]
+        public async Task RemoteSubAssetsAreVerifiedThroughGroupingObjectsOnTwoBorrowedSessionsAsync()
+        {
+            await using Plant remote = await Plant.StartAsync(
+                nameof(RemoteSubAssetsAreVerifiedThroughGroupingObjectsOnTwoBorrowedSessionsAsync) + "Remote",
+                null,
+                createGroup: true).ConfigureAwait(false);
+            await using Plant local = await Plant.StartAsync(
+                nameof(RemoteSubAssetsAreVerifiedThroughGroupingObjectsOnTwoBorrowedSessionsAsync) + "Local",
+                null).ConfigureAwait(false);
+            string remoteUri = remote.Server.Server.ServerUris.GetString(0)!;
+            ushort serverIndex = local.Server.Server.ServerUris.GetIndexOrAppend(remoteUri);
+            DeviceState remoteGroup = remote.Group!;
+            NodeId remotePumpId = remote.Pump!.NodeId;
+            var groupId = new ExpandedNodeId(
+                remoteGroup.NodeId,
+                remote.Server.Server.NamespaceUris.GetString(remoteGroup.NodeId.NamespaceIndex),
+                serverIndex);
+            local.PumpNode!.AddReference(Ua.ReferenceTypeIds.HasComponent, false, groupId);
+            await using Connection rootConnection = await Connection.OpenAsync(local.Server, "remote-root")
+                .ConfigureAwait(false);
+            await using Connection remoteConnection = await Connection.OpenAsync(remote.Server, "remote-borrowed")
+                .ConfigureAwait(false);
+            var resolver = new BorrowedSessionResolver(remoteUri, remoteConnection.Session);
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "AmbRemoteTraversal";
+                options.ApplicationUri = "urn:localhost:AmbRemoteTraversal";
+            });
+            services.AddSingleton<IAmbSessionResolver>(resolver);
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(
+                _ => Task.FromResult(rootConnection.Session));
+            builder.AddAssetManagementClient();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            AmbClient client = await provider.GetRequiredService<AmbClientFactory>().CreateAsync()
+                .ConfigureAwait(false);
+            var found = new List<ExpandedNodeId>();
+
+            await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(local.Pump!.NodeId)
+                .ConfigureAwait(false))
+            {
+                found.Add(sub);
+            }
+
+            Assert.That(found, Does.Not.Contain(groupId), "the remote grouping Object is not an asset");
+            ExpandedNodeId remotePump = found.Single(node =>
+                node.ServerIndex != 0 && node.InnerNodeId.WithNamespaceIndex(remotePumpId.NamespaceIndex)
+                    == remotePumpId);
+            Assert.That(rootConnection.Session.ServerUris.GetString(remotePump.ServerIndex), Is.EqualTo(remoteUri));
+            Assert.That(remotePump.NamespaceUri, Is.EqualTo(
+                remote.Server.Server.NamespaceUris.GetString(remotePumpId.NamespaceIndex)));
+            Assert.That(found.Count(node => node.ServerIndex != 0), Is.EqualTo(2),
+                "the remote pump and its nested motor are confirmed assets");
+            DataValue alive = await remoteConnection.Session.ReadValueAsync(
+                Ua.VariableIds.Server_NamespaceArray, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good), "the borrowed remote session remains usable");
+        }
+
         private const string PumpUri = "urn:acme:pump:1";
         private const string MotorUri = "urn:acme:motor:1";
         private const string SensorUri = "urn:acme:sensor:7";
@@ -731,11 +790,17 @@ namespace Opc.Ua.AMB.Tests
 
             public IAssetHandle? Sensor { get; private set; }
 
-            public static async Task<Plant> StartAsync(string name, string? state)
+            public DeviceState? PumpNode { get; private set; }
+
+            public DeviceState? Group { get; private set; }
+
+            public static async Task<Plant> StartAsync(string name, string? state, bool createGroup = false)
             {
                 IAssetHandle? motor = null;
                 IAssetHandle? pump = null;
                 IAssetHandle? sensor = null;
+                DeviceState? pumpNode = null;
+                DeviceState? group = null;
                 AmbHostedServer server = await AmbHostedServer.StartAsync(
                     name,
                     builder => builder
@@ -759,6 +824,7 @@ namespace Opc.Ua.AMB.Tests
 
                             IDeviceBuilder<DeviceState> pumpDevice = await AssetRegistrationTests
                                 .CreateDeviceAsync(context, "Pump", PumpUri).ConfigureAwait(false);
+                            pumpNode = pumpDevice.Node.Node;
                             pump = await pumpDevice.RegisterAsAssetAsync(
                                 assets,
                                 asset => asset
@@ -796,13 +862,41 @@ namespace Opc.Ua.AMB.Tests
                                 assets,
                                 asset => asset.RelatesTo(Ua.ReferenceTypeIds.Utilizes, pump.NodeId),
                                 context.CancellationToken).ConfigureAwait(false);
+                            if (createGroup)
+                            {
+                                IDeviceBuilder<DeviceState> grouping = await AssetRegistrationTests
+                                    .CreateDeviceAsync(context, "Group", "urn:test:non-asset-group")
+                                    .ConfigureAwait(false);
+                                group = grouping.Node.Node;
+                                group.AddReference(Ua.ReferenceTypeIds.HasComponent, false, pump.NodeId);
+                            }
                         })).ConfigureAwait(false);
-                return new Plant(server) { Motor = motor, Pump = pump, Sensor = sensor };
+                return new Plant(server)
+                {
+                    Motor = motor,
+                    Pump = pump,
+                    Sensor = sensor,
+                    PumpNode = pumpNode,
+                    Group = group
+                };
             }
 
             public ValueTask DisposeAsync()
             {
                 return Server.DisposeAsync();
+            }
+        }
+
+        /// <summary>
+        /// Borrows the explicitly supplied second-server session.
+        /// </summary>
+        private sealed class BorrowedSessionResolver(string expectedUri, ISession session) : IAmbSessionResolver
+        {
+            /// <inheritdoc/>
+            public ValueTask<ISession?> ResolveAsync(string serverUri, CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<ISession?>(serverUri == expectedUri ? session : null);
             }
         }
 

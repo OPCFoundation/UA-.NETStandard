@@ -57,7 +57,14 @@ namespace Opc.Ua.AMB.Server.Structure
     /// <param name="HardwareRevision">The hardware revision, or null.</param>
     /// <param name="SoftwareRevision">The software revision, or null.</param>
     /// <param name="RevisionCounter">The revision counter, or null to keep it.</param>
-    internal sealed record VersionRequest(string? HardwareRevision, string? SoftwareRevision, int? RevisionCounter);
+    /// <param name="PatchIdentifiers">
+    /// The vendor-supplied patch identifiers, or the default array value to omit them.
+    /// </param>
+    internal sealed record VersionRequest(
+        string? HardwareRevision,
+        string? SoftwareRevision,
+        int? RevisionCounter,
+        ArrayOf<string> PatchIdentifiers);
 
     /// <summary>
     /// What an application asked for about the version information,
@@ -184,7 +191,7 @@ namespace Opc.Ua.AMB.Server.Structure
 
             if (request.Version is VersionRequest version)
             {
-                ApplyVersion(handle, version);
+                ApplyVersion(manager, handle, version);
             }
 
             foreach (KeyValuePair<AssetLocationKind, LocationPropertyRequest> location in request.LocationProperties)
@@ -380,7 +387,7 @@ namespace Opc.Ua.AMB.Server.Structure
             };
         }
 
-        private static void ApplyVersion(AssetHandle handle, VersionRequest version)
+        private static void ApplyVersion(AmbNodeManager manager, AssetHandle handle, VersionRequest version)
         {
             if (version.HardwareRevision != null)
             {
@@ -427,6 +434,42 @@ namespace Opc.Ua.AMB.Server.Structure
                 counterValue,
                 Variant.From(0),
                 interfaceId: ExpandedNodeId.Null);
+
+            if (!version.PatchIdentifiers.IsNull &&
+                !HasSoftwareUpdateAddIn(manager, handle))
+            {
+                if (AssetIdentification.FindProperty(
+                    handle.Context,
+                    handle.Asset,
+                    handle.DiNamespaceIndex,
+                    Opc.Ua.Di.BrowseNames.SoftwareRevision) == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "Asset '{0}' has PatchIdentifiers but no SoftwareRevision.",
+                        handle.BrowseName);
+                }
+
+                BaseVariableState patchIdentifiers = AssetProperties.Ensure(
+                    handle,
+                    new QualifiedName(AmbBrowseNames.PatchIdentifiers, manager.AmbNamespaceIndex),
+                    Ua.DataTypeIds.String,
+                    Variant.From(version.PatchIdentifiers));
+                patchIdentifiers.DataType = Ua.DataTypeIds.String;
+                patchIdentifiers.ValueRank = ValueRanks.OneDimension;
+                patchIdentifiers.AccessLevel = AccessLevels.CurrentRead;
+                patchIdentifiers.UserAccessLevel = AccessLevels.CurrentRead;
+            }
+        }
+
+        private static bool HasSoftwareUpdateAddIn(AmbNodeManager manager, AssetHandle handle)
+        {
+            return handle.Asset.FindChildWithQualifiedName(
+                    handle.Context,
+                    new QualifiedName("SoftwareUpdate", handle.DiNamespaceIndex)) is BaseObjectState softwareUpdate &&
+                manager.Server.TypeTree.IsTypeOf(
+                    softwareUpdate.TypeDefinitionId,
+                    Opc.Ua.Di.ObjectTypeIds.SoftwareUpdateType);
         }
 
         private static void RequireProductInstanceUri(AssetHandle handle, string productInstanceUri, string property)

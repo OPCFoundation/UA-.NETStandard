@@ -691,12 +691,11 @@ namespace Opc.Ua.AMB.Tests
         }
 
         [Test]
-        public async Task SubAssetsHandleNullCyclesDuplicatesAndRemoteTargetsWithoutFollowingThemAsync()
+        public async Task SubAssetsHandleNullCyclesAndDuplicatesAsync()
         {
             Mock<ISession> session = CreateSession();
             var alias = new NodeId("alias", 4);
             var child = new NodeId("child", 4);
-            var remote = new ExpandedNodeId(new NodeId("remote", 4), null, 2);
             NodeId category = ExpandedNodeId.ToNodeId(
                 ObjectIds.AssetsByProductInstanceUri, session.Object.NamespaceUris);
             var browsed = new List<NodeId>();
@@ -717,8 +716,7 @@ namespace Opc.Ua.AMB.Tests
                     {
                         References =
                         [
-                            Reference(s_asset), Reference(child), Reference(child),
-                            Reference(remote), Reference(remote), Reference(ExpandedNodeId.Null)
+                            Reference(s_asset), Reference(child), Reference(child), Reference(ExpandedNodeId.Null)
                         ]
                     };
                 }
@@ -735,9 +733,8 @@ namespace Opc.Ua.AMB.Tests
                 found.Add(sub);
             }
 
-            Assert.That(found, Is.EqualTo(new[] { (ExpandedNodeId)child, remote }));
+            Assert.That(found, Is.EqualTo(new[] { (ExpandedNodeId)child }));
             Assert.That(browsed.Count(node => node == child), Is.EqualTo(1));
-            Assert.That(browsed, Does.Not.Contain(new NodeId("remote", 4)));
             VerifyNoMutationOrDisposal(session);
         }
 

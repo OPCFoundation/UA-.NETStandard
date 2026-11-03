@@ -49,7 +49,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <remarks>
         /// Resolves <see cref="AmbClientOptions"/> when registered in the service
-        /// collection; otherwise clients retain their tolerant behavior.
+        /// collection. A registered <see cref="IAmbSessionResolver"/> supplies
+        /// borrowed remote sessions and enables default bounds when no options exist.
+        /// Without either registration, clients retain their tolerant local behavior.
         /// </remarks>
         /// <param name="builder">The client builder; <c>AddClient</c> must be called first.</param>
         /// <returns>The same builder, for chaining.</returns>
@@ -66,7 +68,13 @@ namespace Microsoft.Extensions.DependencyInjection
                     throw new InvalidOperationException(
                         "AddAssetManagementClient requires AddClient to be called first.");
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                return new AmbClientFactory(sessionFactory, telemetry, sp.GetService<AmbClientOptions>());
+                AmbClientOptions? options = sp.GetService<AmbClientOptions>();
+                IAmbSessionResolver? resolver = sp.GetService<IAmbSessionResolver>();
+                if (resolver is not null)
+                {
+                    options = (options ?? new AmbClientOptions()) with { SessionResolver = resolver };
+                }
+                return new AmbClientFactory(sessionFactory, telemetry, options);
             });
             builder.Services.TryAddSingleton<Func<CancellationToken, Task<AmbClient>>>(sp =>
             {

@@ -351,6 +351,21 @@ namespace Opc.Ua.AMB.Client
     }
 
     /// <summary>
+    /// An asset identity independent of session-relative namespace and server indexes.
+    /// </summary>
+    /// <param name="ServerUri">The server ApplicationUri.</param>
+    /// <param name="NodeId">The absolute namespace-qualified NodeId, with ServerIndex zero.</param>
+    public sealed record AssetNodeReference(string ServerUri, ExpandedNodeId NodeId);
+
+    /// <summary>
+    /// A non-hierarchical relation with a URI-qualified, verified asset target.
+    /// </summary>
+    /// <param name="ReferenceTypeId">The reference type in the originating session's namespace table.</param>
+    /// <param name="IsInverse">Whether the target holds the forward reference.</param>
+    /// <param name="Target">The verified asset identity.</param>
+    public sealed record AssetRelationReference(NodeId ReferenceTypeId, bool IsInverse, AssetNodeReference Target);
+
+    /// <summary>
     /// A non-hierarchical relation of an asset to another asset
     /// (OPC 10000-110 §14.2).
     /// </summary>

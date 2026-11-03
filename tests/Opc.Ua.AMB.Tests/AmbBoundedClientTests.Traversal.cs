@@ -44,6 +44,381 @@ namespace Opc.Ua.AMB.Tests
 {
     public sealed partial class AmbBoundedClientTests
     {
+        [TestCase(16, true, true)]
+        [TestCase(4, true, false)]
+        [TestCase(16, false, false)]
+        public async Task RemoteRelationsRequireVerifiedAssetMembershipAndShareBrowseBudgetAsync(
+            int maximumReferences,
+            bool hasResolver,
+            bool succeeds)
+        {
+            Mock<ISession> local = CreateSession();
+            Mock<ISession> remote = CreateSession();
+            var localServers = new StringTable(["urn:test:local", "urn:test:remote"]);
+            local.SetupGet(s => s.ServerUris).Returns(localServers);
+            remote.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:remote"]));
+            var target = new NodeId("confirmed", 4);
+            var alias = new NodeId("alias", 4);
+            NodeId category = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, remote.Object.NamespaceUris);
+            ReferenceDescription Relation(string name)
+            {
+                ReferenceDescription reference = Reference(
+                    new ExpandedNodeId(new NodeId(name, 4), InstanceNamespace, 1));
+                reference.ReferenceTypeId = Ua.ReferenceTypeIds.Utilizes;
+                reference.IsForward = true;
+                return reference;
+            }
+            SetupBrowse(local, request => request.NodeId == s_asset
+                ? new BrowseResult
+                {
+                    References = [Relation("group"), Relation("confirmed"), Relation("confirmed")]
+                }
+                : new BrowseResult());
+            SetupBrowse(remote, request => request.NodeId == category
+                ? new BrowseResult { References = [Reference(alias)] }
+                : request.NodeId == alias
+                    ? new BrowseResult { References = [Reference(target)] }
+                    : new BrowseResult());
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(remote.Object);
+            var client = new AmbClient(local.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                SessionResolver = hasResolver ? resolver.Object : null,
+                MaximumBrowseReferences = maximumReferences
+            });
+            if (succeeds)
+            {
+                ArrayOf<AssetRelationReference> relations = await client.ReadRelationReferencesAsync(s_asset)
+                    .ConfigureAwait(false);
+                Assert.That(relations.Count, Is.EqualTo(1),
+                    "neither grouping Objects nor duplicate relations are assets");
+                Assert.That(relations[0], Is.EqualTo(new AssetRelationReference(
+                    Ua.ReferenceTypeIds.Utilizes,
+                    false,
+                    new AssetNodeReference("urn:test:remote", new ExpandedNodeId(target, InstanceNamespace)))));
+                ArrayOf<AssetRelation> legacy = await client.ReadRelationsAsync(s_asset).ConfigureAwait(false);
+                Assert.That(legacy.Count, Is.EqualTo(1));
+                Assert.That(legacy[0].Target, Is.EqualTo(new ExpandedNodeId(target, InstanceNamespace, 1)));
+            }
+            else
+            {
+                await AssertStatusAsync(
+                    () => client.ReadRelationReferencesAsync(s_asset).AsTask(),
+                    hasResolver ? StatusCodes.BadEncodingLimitsExceeded : StatusCodes.BadNotSupported)
+                    .ConfigureAwait(false);
+            }
+            Assert.That(localServers.Count, Is.EqualTo(2));
+            VerifyNoMutationOrDisposal(local);
+            VerifyNoMutationOrDisposal(remote);
+        }
+
+        [Test]
+        public async Task RemoteSubAssetCandidateWithoutResolverIsNotReportedAsAnAssetAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            var candidate = new ExpandedNodeId(new NodeId("group", 4), null, 1);
+            SetupBrowse(session, request => request.NodeId == s_asset
+                ? new BrowseResult { References = [Reference(candidate)] }
+                : new BrowseResult());
+            AmbClient client = CreateClient(session);
+            var found = new List<ExpandedNodeId>();
+
+            ServiceResultException failure = await FailureAsync<ServiceResultException>(async () =>
+            {
+                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                {
+                    found.Add(sub);
+                }
+            }).ConfigureAwait(false);
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(failure.Message, Does.Contain(candidate.ToString()));
+            Assert.That(found, Is.Empty, "a grouping Object has no evidence establishing asset identity");
+            VerifyNoMutationOrDisposal(session);
+        }
+
+        [TestCase("missing", StatusCodes.BadNotConnected)]
+        [TestCase("wrong-server", StatusCodes.BadNodeIdInvalid)]
+        [TestCase("unknown-server", StatusCodes.BadNodeIdInvalid)]
+        [TestCase("denied", StatusCodes.BadUserAccessDenied)]
+        [TestCase("namespace", StatusCodes.BadNodeIdInvalid)]
+        [TestCase("browse", StatusCodes.BadUserAccessDenied)]
+        public async Task RemoteSubAssetResolutionPropagatesFailuresWithoutReturningCandidatesAsync(
+            string scenario,
+            uint expected)
+        {
+            Mock<ISession> local = CreateSession();
+            Mock<ISession> remote = CreateSession();
+            local.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:local", "urn:test:remote"]));
+            remote.SetupGet(s => s.ServerUris).Returns(new StringTable(
+                [scenario == "wrong-server" ? "urn:test:wrong" : "urn:test:remote"]));
+            var candidate = new ExpandedNodeId(
+                new NodeId("group", 4),
+                scenario == "namespace" ? "urn:test:unknown" : InstanceNamespace,
+                scenario == "unknown-server" ? 9u : 1u);
+            SetupBrowse(local, request => request.NodeId == s_asset
+                ? new BrowseResult { References = [Reference(candidate)] }
+                : new BrowseResult());
+            SetupBrowse(remote, _ => new BrowseResult { StatusCode = StatusCodes.BadUserAccessDenied });
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            if (scenario == "denied")
+            {
+                resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                    .ThrowsAsync(new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            }
+            else
+            {
+                resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(scenario == "missing" ? null : remote.Object);
+            }
+            var client = new AmbClient(local.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                SessionResolver = resolver.Object
+            });
+            var found = new List<ExpandedNodeId>();
+
+            await AssertStatusAsync(async () =>
+            {
+                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                {
+                    found.Add(sub);
+                }
+            }, expected).ConfigureAwait(false);
+
+            Assert.That(found, Is.Empty);
+            VerifyNoMutationOrDisposal(local);
+            VerifyNoMutationOrDisposal(remote);
+        }
+
+        [Test]
+        public async Task RemoteSubAssetResolutionHonorsCancellationAndDoesNotOwnSessionsAsync()
+        {
+            Mock<ISession> local = CreateSession();
+            local.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:local", "urn:test:remote"]));
+            SetupBrowse(local, request => request.NodeId == s_asset
+                ? new BrowseResult
+                {
+                    References = [Reference(new ExpandedNodeId(new NodeId("group", 4), InstanceNamespace, 1))]
+                }
+                : new BrowseResult());
+            using var cancellation = new CancellationTokenSource();
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            resolver.Setup(r => r.ResolveAsync("urn:test:remote", cancellation.Token))
+                .Returns((string _, CancellationToken token) =>
+                {
+                    cancellation.Cancel();
+                    return new ValueTask<ISession?>(Task.FromCanceled<ISession?>(token));
+                });
+            var client = new AmbClient(local.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                SessionResolver = resolver.Object
+            });
+
+            await Assert.ThatAsync(async () =>
+            {
+                await foreach (ExpandedNodeId _ in client.EnumerateSubAssetsAsync(s_asset, cancellation.Token)
+                    .ConfigureAwait(false))
+                {
+                    Assert.Fail("an unresolved candidate must not be yielded");
+                }
+            }, Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+            VerifyNoMutationOrDisposal(local);
+        }
+
+        [TestCase(32, true)]
+        [TestCase(5, false)]
+        public async Task RemoteSubAssetsTraverseGroupingObjectsAndNormalizeCyclesWithOneBudgetAsync(
+            int maximumReferences,
+            bool succeeds)
+        {
+            Mock<ISession> local = CreateSession();
+            Mock<ISession> remote = CreateSession();
+            Mock<ISession> third = CreateSession();
+            var localServers = new StringTable(["urn:test:local", "urn:test:remote"]);
+            var remoteServers = new StringTable(
+                ["urn:test:remote", "urn:test:local", "urn:test:unused", "urn:test:third"]);
+            local.SetupGet(s => s.ServerUris).Returns(localServers);
+            remote.SetupGet(s => s.ServerUris).Returns(remoteServers);
+            third.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:third"]));
+            remote.Object.NamespaceUris.GetIndexOrAppend("urn:test:other");
+            ushort remoteNs = remote.Object.NamespaceUris.GetIndexOrAppend("urn:test:remote:assets");
+            var group = new NodeId("group", remoteNs);
+            var first = new NodeId("first", remoteNs);
+            ushort thirdNs = third.Object.NamespaceUris.GetIndexOrAppend("urn:test:third:assets");
+            var nested = new NodeId("nested", thirdNs);
+            var localGroup = new NodeId("local-group", 4);
+            var alias = new NodeId("remote-alias", remoteNs);
+            NodeId category = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, remote.Object.NamespaceUris);
+            var foreignGroup = new ExpandedNodeId(group, "urn:test:remote:assets", 1);
+            SetupBrowse(local, request =>
+            {
+                if (request.NodeId == s_asset)
+                {
+                    return new BrowseResult { References = [Reference(localGroup)] };
+                }
+                return request.NodeId == localGroup
+                    ? new BrowseResult { References = [Reference(foreignGroup), Reference(foreignGroup)] }
+                    : new BrowseResult();
+            });
+            var remoteBrowses = new List<NodeId>();
+            SetupBrowse(remote, request =>
+            {
+                remoteBrowses.Add(request.NodeId);
+                if (request.NodeId == category)
+                {
+                    return new BrowseResult { References = [Reference(alias)] };
+                }
+                if (request.NodeId == alias)
+                {
+                    return new BrowseResult { References = [Reference(first)] };
+                }
+                if (request.NodeId == group)
+                {
+                    return new BrowseResult { References = [Reference(first)] };
+                }
+                if (request.NodeId == first)
+                {
+                    return new BrowseResult
+                    {
+                        References =
+                        [
+                            Reference(new ExpandedNodeId(nested, "urn:test:third:assets", 3)),
+                            Reference(new ExpandedNodeId(s_asset, InstanceNamespace, 1))
+                        ]
+                    };
+                }
+                return new BrowseResult();
+            });
+            NodeId thirdCategory = ExpandedNodeId.ToNodeId(
+                ObjectIds.AssetsByProductInstanceUri, third.Object.NamespaceUris);
+            var thirdAlias = new NodeId("third-alias", thirdNs);
+            SetupBrowse(third, request =>
+            {
+                if (request.NodeId == thirdCategory)
+                {
+                    return new BrowseResult { References = [Reference(thirdAlias)] };
+                }
+                return request.NodeId == thirdAlias
+                    ? new BrowseResult { References = [Reference(nested)] }
+                    : new BrowseResult();
+            });
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(remote.Object);
+            resolver.Setup(r => r.ResolveAsync("urn:test:third", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(third.Object);
+            var client = new AmbClient(local.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                SessionResolver = resolver.Object,
+                MaximumBrowseReferences = maximumReferences
+            });
+            var found = new List<AssetNodeReference>();
+            async Task TraverseAsync()
+            {
+                await foreach (AssetNodeReference sub in client.EnumerateSubAssetReferencesAsync(s_asset)
+                    .ConfigureAwait(false))
+                {
+                    found.Add(sub);
+                }
+            }
+            if (succeeds)
+            {
+                await TraverseAsync().ConfigureAwait(false);
+                Assert.That(found, Is.EqualTo(new[]
+                {
+                    new AssetNodeReference("urn:test:remote", new ExpandedNodeId(first, "urn:test:remote:assets")),
+                    new AssetNodeReference("urn:test:third", new ExpandedNodeId(nested, "urn:test:third:assets"))
+                }));
+                Assert.That(remoteBrowses.Count(node => node == group), Is.EqualTo(1));
+                Assert.That(localServers.Count, Is.EqualTo(2), "traversal must not synthesize ServerArray entries");
+                localServers.Update(["urn:test:local", "urn:test:remote", "urn:test:new-server"]);
+                Assert.That(found[1].ServerUri, Is.EqualTo("urn:test:third"),
+                    "a server append/refresh must not reinterpret a returned identity as the new server");
+                Assert.That(localServers.GetString(2), Is.EqualTo("urn:test:new-server"));
+                var legacy = new List<ExpandedNodeId>();
+                await AssertStatusAsync(async () =>
+                {
+                    await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                    {
+                        legacy.Add(sub);
+                    }
+                }, StatusCodes.BadNotSupported).ConfigureAwait(false);
+                Assert.That(legacy, Is.EqualTo(new[] { new ExpandedNodeId(first, "urn:test:remote:assets", 1) }));
+                Assert.That(localServers.Count, Is.EqualTo(3),
+                    "legacy traversal must also leave ServerArray unchanged");
+            }
+            else
+            {
+                await AssertStatusAsync(TraverseAsync, StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+                Assert.That(found, Is.Empty);
+            }
+            resolver.Verify(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()),
+                Times.Exactly(succeeds ? 2 : 1));
+            VerifyNoMutationOrDisposal(local);
+            VerifyNoMutationOrDisposal(remote);
+            VerifyNoMutationOrDisposal(third);
+        }
+
+        [TestCase(16, true)]
+        [TestCase(17, false)]
+        public async Task RemoteGroupingTraversalSharesTheOriginatingDepthLimitAsync(int levels, bool succeeds)
+        {
+            Mock<ISession> local = CreateSession();
+            Mock<ISession> remote = CreateSession();
+            local.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:local", "urn:test:remote"]));
+            remote.SetupGet(s => s.ServerUris).Returns(new StringTable(["urn:test:remote"]));
+            SetupBrowse(local, request => request.NodeId == s_asset
+                ? new BrowseResult
+                {
+                    References = [Reference(new ExpandedNodeId(new NodeId(1u, 4), InstanceNamespace, 1))]
+                }
+                : new BrowseResult());
+            int deepest = 0;
+            SetupBrowse(remote, request =>
+            {
+                if (request.NodeId.NamespaceIndex == 4 && request.NodeId.TryGetValue(out uint level))
+                {
+                    deepest = Math.Max(deepest, (int)level);
+                    if (level < levels)
+                    {
+                        return new BrowseResult { References = [Reference(new NodeId(level + 1, 4))] };
+                    }
+                }
+                return new BrowseResult();
+            });
+            var resolver = new Mock<IAmbSessionResolver>(MockBehavior.Strict);
+            resolver.Setup(r => r.ResolveAsync("urn:test:remote", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(remote.Object);
+            var client = new AmbClient(local.Object, NUnitTelemetryContext.Create(), new AmbClientOptions
+            {
+                SessionResolver = resolver.Object
+            });
+            var found = new List<ExpandedNodeId>();
+            async Task TraverseAsync()
+            {
+                await foreach (ExpandedNodeId sub in client.EnumerateSubAssetsAsync(s_asset).ConfigureAwait(false))
+                {
+                    found.Add(sub);
+                }
+            }
+            if (succeeds)
+            {
+                await TraverseAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await AssertStatusAsync(TraverseAsync, StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+            }
+            Assert.That(deepest, Is.EqualTo(16));
+            Assert.That(found, Is.Empty, "traversed grouping Objects are not confirmed assets");
+            VerifyNoMutationOrDisposal(local);
+            VerifyNoMutationOrDisposal(remote);
+        }
+
         [Test]
         public async Task ResolutionRejectsUnmappedNamespaceIndexAsync()
         {
