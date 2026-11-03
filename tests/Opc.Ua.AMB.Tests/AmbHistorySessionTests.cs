@@ -1797,7 +1797,7 @@ namespace Opc.Ua.AMB.Tests
                 [
                     new SimpleAttributeOperand
                     {
-                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseEventType,
                         BrowsePath = [new QualifiedName(Opc.Ua.BrowseNames.Message)],
                         AttributeId = Attributes.Value
                     }
