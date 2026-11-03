@@ -56,6 +56,8 @@ optional members for intensities, control channels, RGBW values, and health.
 ```csharp
 BasicStacklightState state = context.CreateInstanceOfBasicStacklightType(
     parent, new QualifiedName("Stacklight", instanceNamespace));
+// Type-level factories leave the parent reference unset; browse needs a hierarchical one.
+state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
 IaStacklight light = new IaStacklightBuilder(context, state)
     .WithModes(0, 100)
@@ -169,6 +171,7 @@ IaCalibrationTargetConfiguration configuration =
 // targetProvider.Configuration supplies this configuration.
 CalibrationTargetState state = context.CreateInstanceOfCalibrationTargetType(
     parent, new QualifiedName("ReferenceTarget", instanceNamespace));
+state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 var target = new IaCalibrationTarget(context, state, targetProvider);
 await target.RefreshAsync(cancellationToken);
 ```

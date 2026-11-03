@@ -112,6 +112,7 @@ namespace IndustrialAutomationSample
             ushort ns = setup.Manager.InstanceNamespaceIndex;
             BasicStacklightState stack = context.CreateInstanceOfBasicStacklightType(
                 device.Device, new QualifiedName("Stacklight", ns));
+            stack.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             m_stacklight = new IaStacklightBuilder(context, stack).WithModes()
                 .AddLight(new QualifiedName("Lamp", ns))
                 .AddAcoustic(new QualifiedName("Sound", ns), new QualifiedName("Warning", ns))
@@ -133,6 +134,7 @@ namespace IndustrialAutomationSample
             var source = new CalibrationSource(ns);
             CalibrationTargetState target = context.CreateInstanceOfCalibrationTargetType(
                 device.Device, new QualifiedName("ReferenceTarget", ns));
+            target.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
             m_calibration = new IaCalibrationTarget(context, target, source);
             var geometry = new BaseObjectState(target.CalibrationTargetFeatures);
             geometry.Create(context, NodeId.Null, new QualifiedName("VendorGeometry", ns),

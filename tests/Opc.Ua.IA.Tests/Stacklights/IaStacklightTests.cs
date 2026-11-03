@@ -219,13 +219,15 @@ namespace Opc.Ua.IA.Tests.Stacklights
                 .Returns(() => new ValueTask<IaStacklightSnapshot>(snapshot));
             using IaStacklight binding = builder.Build(provider.Object);
             await binding.RefreshAsync().ConfigureAwait(false);
-            Assert.That(acoustic!.OperationMode!.Value, Is.Zero);
+            Assert.That(acoustic!.OperationMode!.WrappedValue.TryGetValue(out uint mode), Is.True);
+            Assert.That(mode, Is.Zero);
             Assert.That(acoustic.NumberInList!.WrappedValue.TryGetValue(out uint number), Is.True);
             Assert.That(number, Is.Zero);
             snapshot = snapshot with { Elements = [new IaStacklightAcousticSnapshot(null, Sample(4u), null)] };
             await Assert.ThatAsync(async () => await binding.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>());
-            Assert.That(acoustic.OperationMode.Value, Is.Zero);
+            Assert.That(acoustic.OperationMode.WrappedValue.TryGetValue(out uint retained), Is.True);
+            Assert.That(retained, Is.Zero);
         }
 
         /// <summary>

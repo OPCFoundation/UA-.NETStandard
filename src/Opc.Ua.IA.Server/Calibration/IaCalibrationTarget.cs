@@ -371,7 +371,7 @@ namespace Opc.Ua.IA.Server
                 IaCalibrationReading reading = readings[ii];
                 copy[ii] = reading with
                 {
-                    Value = reading.Value.WithWrappedValue(reading.Value.WrappedValue.Copy())
+                    Value = reading.Value.WithWrappedValue(IaValueCopy.Own(reading.Value.WrappedValue))
                 };
             }
             return copy;
