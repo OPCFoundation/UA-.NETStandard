@@ -523,7 +523,8 @@ namespace OnboardingClientSample
                     profile.CertificateTypeId) ?? throw new ServiceResultException(StatusCodes.BadConfigurationError);
                 using Certificate key = CertificateBuilder.Create(identity.Certificate.SubjectName)
                     .AddExtension(new X509SubjectAltNameExtension(
-                        m_configuration.ApplicationUri,
+                        m_configuration.ApplicationUri ?? throw new ServiceResultException(
+                            StatusCodes.BadConfigurationError, "The DCA application URI is missing."),
                         X509Utils.GetDomainsFromCertificate(identity.Certificate).ToArray() ?? []))
                     .SetLifeTime(kSigningKeyLifeTimeMonths)
                     .SetRSAKeySize(kSigningKeySize)
@@ -710,7 +711,7 @@ namespace OnboardingClientSample
                     using Certificate issuer = Certificate.FromRawData(credentials.IssuerCertificates[i]);
                     chain.Add(issuer);
                 }
-                Opc.Ua.Security.Certificates.CertificateValidationResult validation = await m_manager.ValidateAsync(
+                Opc.Ua.CertificateValidationResult validation = await m_manager.ValidateAsync(
                     chain, TrustListIdentifier.Peers, new ValidationOptions
                     {
                         TrustScope = new CertificateValidationScope(

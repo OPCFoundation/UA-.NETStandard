@@ -50,7 +50,7 @@ namespace OnboardingDevice
         public ArrayOf<string> NamespacesUris => [OnboardingDeviceNodeManager.NamespaceUri];
 
         /// <inheritdoc/>
-        public ValueTask<IAsyncNodeManager> CreateAsync(
+        public async ValueTask<IAsyncNodeManager> CreateAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
@@ -60,7 +60,8 @@ namespace OnboardingDevice
             try
             {
                 manager = new OnboardingDeviceNodeManager(server, configuration, m_runtime);
-                var result = ValueTask.FromResult<IAsyncNodeManager>(manager);
+                IAsyncNodeManager result = await ValueTask.FromResult<IAsyncNodeManager>(manager)
+                    .ConfigureAwait(false);
                 manager = null;
                 return result;
             }

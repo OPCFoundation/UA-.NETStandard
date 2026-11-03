@@ -24,6 +24,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -111,10 +112,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.IsAny<TrustListMasks>(),
                 It.IsAny<CancellationToken>()), Times.Never);
             manager.Verify(m => m.ValidateAsync(
-                chain,
+                It.IsAny<CertificateCollection>(),
                 OnboardingTicketTrustProvider.TicketAuthorities,
                 It.IsAny<ValidationOptions>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(manager.Invocations
+                .Single(call => call.Method.Name == nameof(ICertificateManager.ValidateAsync)).Arguments[0],
+                Is.SameAs(chain));
         }
 
         [Test]
@@ -130,10 +134,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(trusted, Is.False);
             manager.Verify(m => m.ValidateAsync(
-                chain,
+                It.IsAny<CertificateCollection>(),
                 OnboardingTicketTrustProvider.TicketAuthorities,
                 It.IsAny<ValidationOptions>(),
                 It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(manager.Invocations
+                .Single(call => call.Method.Name == nameof(ICertificateManager.ValidateAsync)).Arguments[0],
+                Is.SameAs(chain));
         }
 
         [Test]
@@ -166,7 +173,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await Assert.ThatAsync(
                 async () => await provider.IsTrustedAsync(
                     certificates, (OnboardingTicketSource)42).ConfigureAwait(false),
-                Throws.ArgumentOutOfRangeException);
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]

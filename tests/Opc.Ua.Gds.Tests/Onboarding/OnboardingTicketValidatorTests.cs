@@ -691,7 +691,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Throws.ArgumentNullException);
             await Assert.ThatAsync(
                 async () => await validator.ValidateAsync("{}", (OnboardingTicketSource)99).ConfigureAwait(false),
-                Throws.ArgumentOutOfRangeException);
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
 
         [Test]
@@ -948,7 +948,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create(subject)
                 .SetNotBefore(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc))
                 .SetNotAfter(new DateTime(2090, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-                .SetRSAKeySize(keySize)
+                .SetRSAKeySize(checked((ushort)keySize))
                 .CreateForRSA();
         }
 

@@ -72,7 +72,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using JsonDocument envelope = JsonDocument.Parse(encoded);
             JsonElement root = envelope.RootElement;
             Assert.That(root.EnumerateObject().Select(property => property.Name),
-                Is.EquivalentTo(new[] { "payload", "signatures" }));
+                Is.EquivalentTo(s_envelopeProperties));
             string payloadText = root.GetProperty("payload").GetString()!;
             JsonElement signatureEntry = root.GetProperty("signatures")[0];
             string protectedText = signatureEntry.GetProperty("protected").GetString()!;
@@ -310,9 +310,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             string original = await originalWriter.WriteAsync(
                 DeviceTicket(), Identifier(m_rsaCertificate)).ConfigureAwait(false);
             original = original.Replace(
-                "\"signatures\":[", "\"vendor\":{\"reference\":\"shipment-7\"},\"signatures\":[");
+                "\"signatures\":[", "\"vendor\":{\"reference\":\"shipment-7\"},\"signatures\":[",
+                StringComparison.Ordinal);
             original = original.Replace(
-                "\"signature\":", "\"header\":{\"timestamp\":\"retained-unverified-metadata\"},\"signature\":");
+                "\"signature\":", "\"header\":{\"timestamp\":\"retained-unverified-metadata\"},\"signature\":",
+                StringComparison.Ordinal);
             var trust = new Mock<IOnboardingTicketTrustProvider>(MockBehavior.Strict);
             trust.Setup(t => t.IsTrustedAsync(
                 It.IsAny<CertificateCollection>(), OnboardingTicketSource.Device, It.IsAny<CancellationToken>()))
@@ -610,7 +612,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             int paddingLength = OnboardingTicketWriter.MaximumEncodedLength -
                 original.Length - prefix.Length - suffix.Length;
             string padded = original.Insert(1, prefix + new string('x', paddingLength) + suffix);
-            Assert.That(padded.Length, Is.EqualTo(OnboardingTicketWriter.MaximumEncodedLength));
+            Assert.That(padded, Has.Length.EqualTo(OnboardingTicketWriter.MaximumEncodedLength));
             var trust = new Mock<IOnboardingTicketTrustProvider>();
             trust.Setup(t => t.IsTrustedAsync(
                 It.IsAny<CertificateCollection>(), OnboardingTicketSource.Device, It.IsAny<CancellationToken>()))
@@ -694,7 +696,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create(subject)
                 .SetNotBefore(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc))
                 .SetNotAfter(new DateTime(2090, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-                .SetRSAKeySize(keySize)
+                .SetRSAKeySize(checked((ushort)keySize))
                 .CreateForRSA();
         }
 
@@ -706,6 +708,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .SetECCurve(curve)
                 .CreateForECDsa();
         }
+
+        private static readonly string[] s_envelopeProperties = ["payload", "signatures"];
 
         private IServiceMessageContext m_messageContext = null!;
         private Certificate m_rsaCertificate = null!;

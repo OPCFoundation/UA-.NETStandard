@@ -92,11 +92,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             OnboardingIdentitySelection selection = await selector.SelectAsync(
                 [
-                    ByteString.Null, ByteString.From(new byte[] { 1, 2, 3 }),
+                    default, ByteString.From(new byte[] { 1, 2, 3 }),
                     ByteString.From(certificate.RawData.AsSpan())
                 ],
                 [
-                    ByteString.Null, ByteString.From(new byte[] { 1, 2, 3 }),
+                    default, ByteString.From(new byte[] { 1, 2, 3 }),
                     ByteString.From(certificate.RawData.AsSpan())
                 ],
                 ["invalid", "ticket"]).ConfigureAwait(false);
@@ -438,7 +438,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Stores an encoded ticket independently of its validated fixture.
         /// </summary>
-        private static ValueTask AddStoredAsync(ITicketStore store, string encoded)
+        private static ValueTask AddStoredAsync(MemoryTicketStore store, string encoded)
         {
             return store.AddAsync(
                 encoded, Encoding.UTF8.GetBytes(encoded),
@@ -453,15 +453,15 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create("CN=Onboarding identity selection")
                 .SetNotBefore(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc))
                 .SetNotAfter(new DateTime(2090, 1, 1, 0, 0, 0, DateTimeKind.Utc))
-                .SetRSAKeySize(2048)
                 .AddExtension(new X509SubjectAltNameExtension(uris, []))
+                .SetRSAKeySize(2048)
                 .CreateForRSA();
         }
 
         /// <summary>
         /// Checks the exact method-level status rather than just the exception type.
         /// </summary>
-        private static async Task AssertStatusAsync(uint status, Func<Task> action)
+        private static async Task AssertStatusAsync(StatusCode status, Func<Task> action)
         {
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(action);
             Assert.That(error!.StatusCode, Is.EqualTo(status));

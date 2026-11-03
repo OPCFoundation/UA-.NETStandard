@@ -206,12 +206,16 @@ namespace OnboardingDevice
                     services.GetRequiredService<IProvisionableDeviceSecurityInstaller>(),
                     services.GetRequiredService<ITelemetryContext>())));
             server.AddProvisionableDeviceRuntime(true, tickets.ToList().Select(static ticket => ticket.Id).ToArrayOf())
-                .AddNodeManager<OnboardingDeviceNodeManagerFactory>();
+                .AddNodeManagers(static (services, _) =>
+                    [new OnboardingDeviceNodeManagerFactory(
+                        services.GetRequiredService<IProvisionableDeviceRuntime>())]);
             if (options.PhysicalReset)
             {
-                builder.Services.AddSingleton<IServerPreStartupTask, DevicePhysicalResetTask>();
+                builder.Services.AddSingleton<IServerPreStartupTask>(static services =>
+                    new DevicePhysicalResetTask(services.GetRequiredService<IProvisionableDeviceSecurity>()));
             }
-            builder.Services.AddSingleton<IServerStartupTask, DeviceReadyTask>();
+            builder.Services.AddSingleton<IServerStartupTask>(static services =>
+                new DeviceReadyTask(services.GetRequiredService<DeviceSampleOptions>()));
         }
 
         /// <summary>

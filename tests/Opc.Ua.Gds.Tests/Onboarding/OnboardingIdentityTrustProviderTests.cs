@@ -239,7 +239,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 [
                     new CertificateAuthorityType
                     {
-                        AuthorityCertificate = new ByteString((ReadOnlyMemory<byte>)[0x30, 0x00])
+                        AuthorityCertificate = ByteString.From(new byte[] { 0x30, 0x00 }.AsSpan())
                     }
                 ]
             };
@@ -424,13 +424,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var builder = CertificateBuilder.Create(subject)
                 .SetNotBefore(s_notBefore)
-                .SetNotAfter(s_notAfter)
-                .SetRSAKeySize(2048);
+                .SetNotAfter(s_notAfter);
             if (extensionOid != null)
             {
                 builder.AddExtension(new X509Extension(new Oid(extensionOid), [0x30, 0x00], false));
             }
-            return builder.CreateForRSA();
+            return builder.SetRSAKeySize(2048).CreateForRSA();
         }
 
         private static IX509CRL CreateCrl(Certificate issuer, Certificate revoked)
@@ -449,7 +448,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         private sealed class ValidationCapture
         {
-            public TrustListIdentifier ReadTrustList { get; set; }
+            public TrustListIdentifier? ReadTrustList { get; set; }
             public TrustListMasks ReadMasks { get; set; }
             public CancellationToken ReadToken { get; set; }
             public byte[]? ValidatedIdentityRawData { get; set; }
