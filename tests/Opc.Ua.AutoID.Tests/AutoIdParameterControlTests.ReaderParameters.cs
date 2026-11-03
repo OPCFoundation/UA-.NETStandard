@@ -288,7 +288,7 @@ namespace Opc.Ua.AutoID.Tests
             provider.RejectWrites = false;
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await template.OnWriteValueAsync!(
                     m_fixture.Context, template, default, Variant.From("B"), cancelled.Token).ConfigureAwait(false));
             await WriteAsync(reader.Device.ScanActive!, Variant.From(true));
@@ -318,7 +318,7 @@ namespace Opc.Ua.AutoID.Tests
                 ReaderParameterCapabilities = rfid.ReaderParameterCapabilities,
                 Parameters = rfid.Parameters
             };
-            ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_fixture.Runtime.Reader(Name(), invalid).WithRuntimeParameters().BuildAsync()
                     .ConfigureAwait(false));
             Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -384,7 +384,7 @@ namespace Opc.Ua.AutoID.Tests
                 Parameters = parameters
             };
             QualifiedName name = Name();
-            ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_fixture.Runtime.Reader(name, provider).WithRuntimeParameters().BuildAsync()
                     .ConfigureAwait(false));
             Assert.That(rejected!.StatusCode, Is.EqualTo(status));

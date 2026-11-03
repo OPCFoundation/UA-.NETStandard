@@ -232,7 +232,8 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Projects the first result of an access report, matching LastScanData's selection.
         /// </summary>
-        private void PublishLastAccess(string client, string command, AccessResult result)
+        private void PublishLastAccess(
+            string client, string command, AccessResult result, bool tolerateDiagnosticCopyFailure = false)
         {
             if (Device.Diagnostics == null)
             {
@@ -243,11 +244,24 @@ namespace Opc.Ua.AutoID.Server
                 !result.Timestamp.IsNull;
             DateTimeUtc timestamp = hasTimestamp ? result.Timestamp : DateTimeUtc.Now;
             bool hasIdentifier = (result.EncodingMask & (uint)AccessResultFields.Identifier) != 0;
-            Variant identifier = hasIdentifier ? SnapshotDiagnosticData(result.Identifier) : Variant.Null;
-            Variant data = Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfidData &&
-                (rfidData.EncodingMask & (uint)RfidAccessResultFields.RWData) != 0
-                ? SnapshotDiagnosticData(rfidData.RWData)
-                : Variant.Null;
+            Variant identifier;
+            Variant data;
+            try
+            {
+                identifier = hasIdentifier ? SnapshotDiagnosticData(result.Identifier) : Variant.Null;
+                data = Kind == AutoIdReaderKind.Rfid && result is RfidAccessResult rfidData &&
+                    (rfidData.EncodingMask & (uint)RfidAccessResultFields.RWData) != 0
+                    ? SnapshotDiagnosticData(rfidData.RWData)
+                    : Variant.Null;
+            }
+            catch (ServiceResultException ex) when (tolerateDiagnosticCopyFailure &&
+                (ex.StatusCode == StatusCodes.BadEncodingError ||
+                    ex.StatusCode == StatusCodes.BadDecodingError ||
+                    ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
+            {
+                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "copying the access diagnostics");
+                return;
+            }
             lock (m_lock)
             {
                 SetDiagnostic(access, "Client", Variant.From(client), timestamp);

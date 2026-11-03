@@ -607,6 +607,10 @@ acquisition rather than retaining caller-owned data or an unequal copy.
 Direct `ReportAccessAsync` calls still propagate these errors before publishing
 their access event. Diagnostic isolation does not suppress validation errors
 for invalid report types.
+This isolation surrounds snapshot creation only. A change-notification callback
+that throws after LastAccess has changed is not treated as a copy rejection:
+provider reporting propagates that failure. Completed physical commands retain
+their existing logging and result policy for publication failures.
 
 Providers must keep the report stable until the reporting operation completes;
 later buffer reuse does not change diagnostic

@@ -393,7 +393,7 @@ namespace Opc.Ua.AutoID.Tests
             {
                 report.RWData = data;
             }
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await reader.ReportAccessAsync("Replacement", "Other controller", [report]).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             foreach (var snapshot in previous)
@@ -470,25 +470,25 @@ namespace Opc.Ua.AutoID.Tests
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
             BaseVariableState presence = Variable(reader, "Presence");
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await presence.OnReadValueAsync!(m_fixture.Context, presence, default, default, cancelled.Token)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await reader.ReportPresenceAsync(4, cancelled.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await reader.ReportLogEntryAsync("Cancelled", cancelled.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await reader.ReportAccessAsync("WriteTag", "Cancelled", [Access()], cancelled.Token)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await reader.ReportLogEntryAsync(string.Empty).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await reader.ReportAccessAsync("Scan", "Invalid", []).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await reader.ReportAccessAsync(string.Empty, "Invalid", [Access()]).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await reader.ReportAccessAsync("Scan", "Invalid", [new AccessResult()]).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await reader.ReportAccessAsync("Scan", "Invalid", [Access(), new AccessResult()])
                     .ConfigureAwait(false));
             Assert.Multiple(() =>
@@ -499,11 +499,11 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(Variable(reader, "LastAccess", "Client").Timestamp, Is.EqualTo(timestamp));
             });
             await reader.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await reader.ReportPresenceAsync(9).ConfigureAwait(false));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await reader.ReportLogEntryAsync("Disposed").ConfigureAwait(false));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await reader.ReportAccessAsync("Scan", "Disposed", [Access()]).ConfigureAwait(false));
             Assert.That(Variable(reader, "LastAccess", "Client").Timestamp, Is.EqualTo(timestamp));
         }
@@ -554,7 +554,7 @@ namespace Opc.Ua.AutoID.Tests
             }
             if (!registered)
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await reader.ReportAccessAsync("Replacement", "Other", [report]).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
                 foreach (var snapshot in previous)
@@ -710,6 +710,53 @@ namespace Opc.Ua.AutoID.Tests
             foreach (var snapshot in previous)
             {
                 Assert.That(snapshot.Variable.Value, Is.EqualTo(snapshot.Value));
+            }
+        }
+
+        /// <summary>
+        /// Notification failures after publication are not treated as diagnostic snapshot rejection.
+        /// </summary>
+        [TestCase(StatusCodes.BadEncodingError)]
+        [TestCase(StatusCodes.BadDecodingError)]
+        [TestCase(StatusCodes.BadEncodingLimitsExceeded)]
+        public async Task ScanNotificationFailureIsNotSuppressedAsCopyRejectionAsync(uint status)
+        {
+            await using var fixture = new AutoIdManagerFixture();
+            await fixture.StartAsync(new AutoIdServerOptions { PublishAccessEvents = true }).ConfigureAwait(false);
+            await using AutoIdReader reader = await fixture.Runtime.Reader(fixture.Name("NotificationFailure"),
+                new FakeProvider()).WithDiagnostics().BuildAsync().ConfigureAwait(false);
+            ushort ns = fixture.Context.NamespaceUris.GetIndexOrAppend(AutoIdModel.NamespaceUri);
+            NodeState access = reader.Device.Diagnostics!.FindChildWithQualifiedName(
+                fixture.Context, new QualifiedName("LastAccess", ns))!;
+            var identifier = (BaseVariableState)access.FindChildWithQualifiedName(
+                fixture.Context, new QualifiedName("Identifier", ns))!;
+            var failure = new ServiceResultException(status, "Notification failed after the cache update.");
+            int notifications = 0;
+            identifier.OnStateChanged += (_, _, _) =>
+            {
+                notifications++;
+                throw failure;
+            };
+            RfidScanResult scan = AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1, 2));
+            var events = new EventCapture(reader.Device);
+            try
+            {
+                ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await reader.ReportScanAsync([scan]).ConfigureAwait(false));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual, Is.SameAs(failure));
+                    Assert.That(notifications, Is.EqualTo(1));
+                    Assert.That(identifier.Value, Is.EqualTo(Variant.FromStructure(scan.ScanData.Epc)));
+                    Assert.That(identifier.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(identifier.Timestamp, Is.EqualTo(scan.Timestamp));
+                    Assert.That(events.Of<RfidScanEventState>().Count(), Is.EqualTo(1));
+                    Assert.That(events.Of<RfidAccessEventState>().Count(), Is.Zero);
+                });
+            }
+            finally
+            {
+                identifier.OnStateChanged = null;
             }
         }
 

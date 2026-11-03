@@ -247,17 +247,7 @@ namespace Opc.Ua.AutoID.Server
                     }
                 }
             }
-            try
-            {
-                PublishLastAccess(client, command, results[0]);
-            }
-            catch (ServiceResultException ex) when (tolerateDiagnosticCopyFailure &&
-                (ex.StatusCode == StatusCodes.BadEncodingError ||
-                    ex.StatusCode == StatusCodes.BadDecodingError ||
-                    ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded))
-            {
-                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "copying the access diagnostics");
-            }
+            PublishLastAccess(client, command, results[0], tolerateDiagnosticCopyFailure);
             if (!Runtime.Options.PublishAccessEvents)
             {
                 return;
