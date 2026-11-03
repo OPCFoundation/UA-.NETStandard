@@ -2478,11 +2478,19 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(remoteDescription.Unfiltered, Is.False);
             }
 
-            // The URI-qualified same-server reference resolves to the local MaskVariable, so it is
-            // returned with the same local id and target attributes as the child reference.
-            foreach (ReferenceDescription sameServerDescription in references.Where(
-                reference => reference.NodeId.Equals(variableChild)))
+            // The URI-qualified same-server Organizes reference resolves to the local MaskVariable,
+            // so it is returned with the same local id and target attributes as the HasComponent
+            // child reference. Distinct ReferenceTypes keep the two References distinct.
+            ReferenceDescription[] variableDescriptions =
+                [.. references.Where(reference => reference.NodeId.Equals(variableChild))];
+            Assert.That(
+                variableDescriptions.Select(reference => reference.ReferenceTypeId),
+                Is.EquivalentTo(mask == NodeClass.Object
+                    ? Array.Empty<NodeId>()
+                    : [ReferenceTypeIds.HasComponent, ReferenceTypeIds.Organizes]));
+            foreach (ReferenceDescription sameServerDescription in variableDescriptions)
             {
+                Assert.That(sameServerDescription.IsForward, Is.True);
                 Assert.That(sameServerDescription.NodeId.IsAbsolute, Is.False);
                 Assert.That(sameServerDescription.NodeClass, Is.EqualTo(NodeClass.Variable));
                 Assert.That(sameServerDescription.BrowseName, Is.EqualTo(variable.BrowseName));
