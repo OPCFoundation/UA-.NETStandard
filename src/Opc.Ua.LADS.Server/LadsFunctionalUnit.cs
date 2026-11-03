@@ -334,6 +334,22 @@ namespace Opc.Ua.LADS.Server
         }
 
         /// <summary>
+        /// Organizes the Operational FunctionalGroups of the registered functions.
+        /// </summary>
+        internal void OrganizeOperationalGroups()
+        {
+            LadsFunction[] functions;
+            lock (m_lock)
+            {
+                functions = [.. m_functions.Values];
+            }
+            foreach (LadsFunction function in functions)
+            {
+                function.OrganizeOperational();
+            }
+        }
+
+        /// <summary>
         /// Creates the function set on first use.
         /// </summary>
         internal NodeState EnsureFunctionSet()

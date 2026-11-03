@@ -2244,9 +2244,8 @@ namespace Opc.Ua.Client.Subscriptions
         /// Mirrors the classic test's exact arrival order — <c>[3]</c>,
         /// <c>[2]</c>, <c>[4]</c>, <c>[1]</c>, <c>[5]</c> — but queues all five
         /// while the worker is parked inside a sentinel keep-alive dispatch.
-        /// The new <see cref="MessageProcessor"/> uses
-        /// <see cref="System.Threading.Channels.Channel.CreateUnboundedPrioritized"/>
-        /// keyed by <see cref="NotificationMessage.SequenceNumber"/>, so any
+        /// The new <see cref="MessageProcessor"/> uses a
+        /// <see cref="SingleReaderPriorityQueue{T}"/> keyed by <see cref="NotificationMessage.SequenceNumber"/>, so any
         /// items present in the channel at a single read are sorted by
         /// sequence number. With the consumer held, the five data messages
         /// land together and drain as <c>[1, 2, 3, 4, 5]</c> with no
