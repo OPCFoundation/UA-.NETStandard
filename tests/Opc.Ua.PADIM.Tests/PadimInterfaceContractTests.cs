@@ -462,9 +462,10 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(actual.TypeInfo.BuiltInType, Is.EqualTo(expected.TypeInfo.BuiltInType), context);
                 Assert.That(actual.TypeInfo.ValueRank, Is.EqualTo(expected.TypeInfo.ValueRank), context);
             });
-            if (expected.TryGetStructure(out ChemicalSubstance? expectedSubstance))
+            if (expected.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? expectedSubstance))
             {
-                Assert.That(actual.TryGetStructure(out ChemicalSubstance? actualSubstance), Is.True, context);
+                Assert.That(actual.TryGetStructure<ChemicalSubstance>(out ChemicalSubstance? actualSubstance),
+                    Is.True, context);
                 AssertChemicalSubstance(expectedSubstance!, actualSubstance!, context);
                 return;
             }

@@ -584,7 +584,7 @@ namespace Opc.Ua.PADIM.Tests
                 PadimPublishedSample patMeasurand = samples.Samples.Single(
                     sample => sample.BrowseName.Name == "PatMeasurandDescription");
                 Assert.That(patMeasurand.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
-                Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure(
+                Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure<ChemicalSubstance>(
                     out ChemicalSubstance? patSubstance), Is.True);
                 Assert.That(patSubstance!.PatDictionary, Is.EqualTo(PatDictionaryEnum.CAS));
                 PadimPublishedSample patMatrix = samples.Samples.Single(
