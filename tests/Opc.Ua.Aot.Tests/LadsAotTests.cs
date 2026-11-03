@@ -30,10 +30,11 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Opc.Ua.AMB;
+using Opc.Ua.LADS;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
 using Opc.Ua.Server;
+using LadsProgramTemplate = Opc.Ua.LADS.Server.LadsProgramTemplate;
 
 namespace Opc.Ua.Aot.Tests
 {
