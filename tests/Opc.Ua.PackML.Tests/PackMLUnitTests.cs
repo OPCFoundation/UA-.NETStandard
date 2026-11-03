@@ -651,6 +651,9 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(names.Contains("PackML ProdDefectiveCount"), Is.EqualTo(defectiveCapacity > 0));
         }
 
+        /// <summary>
+        /// Verifies the configured Hold transitions from every optional extension state.
+        /// </summary>
         [TestCase(PackMLStateNumbers.Starting, Objects.PackMLExecuteStateMachineType_StartingToHolding)]
         [TestCase(PackMLStateNumbers.Suspending, Objects.PackMLExecuteStateMachineType_SuspendingToHolding)]
         [TestCase(PackMLStateNumbers.Suspended, Objects.PackMLExecuteStateMachineType_SuspendedToHolding)]
@@ -711,6 +714,9 @@ namespace Opc.Ua.PackML.Tests
             Assert.That(unit.CurrentState, Is.EqualTo(PackMLStateNumbers.Holding));
         }
 
+        /// <summary>
+        /// Verifies the extension unit is omitted when no mode enables all five transitions.
+        /// </summary>
         [Test]
         public async Task StateModelExtensionsAreNotAdvertisedWhenNoModeEnablesEveryOptionalHoldTransition()
         {
