@@ -522,10 +522,12 @@ RFID portal.
 The runtime does not invent vendor IO definitions. OPC 30010 6.1.3.2 defines
 `IOData` as an optional FunctionalGroup for application or reader-specific sensor
 and actuator variables, without standard children. No such hardware points are
-defined by the simulated reader, so it does not publish that group. Hardware
-configuration such as RFID power, tag selection and supported `RWData` format
-selection still requires provider-specific parameters; `WithDiagnostics()` does
-not add writable configuration for those capabilities.
+defined by the simulated reader, so it does not publish that group.
+The generic runtime-parameter binder does not publish the standard RFID
+`CodeTypesRWData`, `EnableAntennas`, `MinRssi`, `RfPower` or `TagTypes` parameters.
+These still need provider-backed bindings for the reader's supported formats,
+antenna configuration and RF settings; `WithDiagnostics()` does not implement
+that writable configuration.
 
 ## Behavior of the methods
 
