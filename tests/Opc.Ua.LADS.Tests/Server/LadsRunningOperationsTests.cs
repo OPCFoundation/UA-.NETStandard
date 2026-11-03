@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.LADS.Client;
 using Opc.Ua.LADS.Server;
@@ -549,6 +550,46 @@ namespace Opc.Ua.LADS.Tests.Server
                 finishExecution.TrySetResult(true);
                 release.TrySetResult(true);
             }
+        }
+
+        [TestCase("Stop", LadsProgramOutcome.Stopped)]
+        [TestCase("Abort", LadsProgramOutcome.Aborted)]
+        [TestCase("Reject", LadsProgramOutcome.Aborted)]
+        public async Task CompletedFalseAcknowledgmentPreservesRequestedEndOutcomeAsync(
+            string action,
+            LadsProgramOutcome expected)
+        {
+            var run = new LadsProgramRun(
+                "completion-order",
+                Mock.Of<ILadsFunctionalUnit>(),
+                new Opc.Ua.LADS.Server.LadsProgramTemplate(TemplateName),
+                [],
+                string.Empty,
+                string.Empty,
+                [],
+                DateTimeUtc.MinValue,
+                TimeProvider.System,
+                static (_, _) => { });
+            using var cancellation = new CancellationTokenSource();
+            var active = new LadsProgramManager.ActiveRunEntry(run, cancellation);
+            var acknowledgment = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using CancellationTokenRegistration registration = cancellation.Token.Register(
+                () => acknowledgment.TrySetResult(false));
+            if (action == "Reject")
+            {
+                acknowledgment.SetResult(false);
+            }
+            else
+            {
+                active.RequestEnd(expected);
+            }
+
+            Assert.That(acknowledgment.Task.IsCompleted, Is.True);
+            Assert.That(cancellation.IsCancellationRequested, Is.EqualTo(action != "Reject"));
+            bool acknowledged = await acknowledgment.Task.WaitAsync(cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(acknowledged, Is.False);
+            Assert.That(active.GetCompletionOutcome(acknowledged), Is.EqualTo(expected));
         }
 
         [TestCase("Accept")]

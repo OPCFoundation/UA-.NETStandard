@@ -885,8 +885,9 @@ namespace Opc.Ua.LADS.Server
                 else
                 {
                     active.Run.ExecutionFinished();
-                    outcome = await m_unit.WaitForCompletionAcknowledgmentAsync(active.Cancellation.Token)
-                        .ConfigureAwait(false) ? LadsProgramOutcome.Completed : LadsProgramOutcome.Aborted;
+                    bool acknowledged = await m_unit.WaitForCompletionAcknowledgmentAsync(active.Cancellation.Token)
+                        .ConfigureAwait(false);
+                    outcome = active.GetCompletionOutcome(acknowledged);
                 }
             }
             catch (OperationCanceledException) when (active.Cancellation.IsCancellationRequested)
@@ -1705,6 +1706,19 @@ namespace Opc.Ua.LADS.Server
                     {
                         return m_requested ?? LadsProgramOutcome.Aborted;
                     }
+                }
+            }
+
+            /// <summary>
+            /// Resolves completion without losing an end request when its cancellation completes
+            /// the acknowledgment with false before the acknowledgment wait observes cancellation.
+            /// </summary>
+            public LadsProgramOutcome GetCompletionOutcome(bool acknowledged)
+            {
+                lock (m_lock)
+                {
+                    return m_requested ??
+                        (acknowledged ? LadsProgramOutcome.Completed : LadsProgramOutcome.Aborted);
                 }
             }
 
