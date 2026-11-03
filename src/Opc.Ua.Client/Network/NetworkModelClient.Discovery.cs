@@ -376,7 +376,6 @@ namespace Opc.Ua.Client.Network
             ];
             var references = new List<ReferenceDescription>();
             var continuationPoints = new List<ByteString>();
-            bool failed = false;
             try
             {
                 BrowseResponse response = await Session.BrowseAsync(
@@ -424,11 +423,6 @@ namespace Opc.Ua.Client.Network
                     result = next.Results[0];
                 }
             }
-            catch
-            {
-                failed = true;
-                throw;
-            }
             finally
             {
                 if (continuationPoints.Count > 0)
@@ -454,10 +448,6 @@ namespace Opc.Ua.Client.Network
                     {
                         NetworkModelClientLog.ContinuationReleaseFailed(
                             Telemetry.CreateLogger<NetworkModelClient>(), exception);
-                        if (!failed)
-                        {
-                            throw;
-                        }
                     }
                 }
             }
