@@ -1048,6 +1048,244 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Validates each failure-system identifier row before publishing the two-dimensional value.
+        /// </summary>
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderFailureSystemIdentifierRowsAreValidatedBeforePublication(
+            CancellationToken cancellationToken)
+        {
+            static ByteString Identifier(byte first)
+            {
+                return ByteString.From(Enumerable.Range(first, 8).Select(value => (byte)value).ToArray().AsSpan());
+            }
+
+            static NetworkModelSnapshot WithTalkerStatus(
+                NetworkModelSnapshot snapshot, NetworkStreamStatusSnapshot status)
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with { Status = status };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            }
+
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NetworkStreamStatusSnapshot baselineStatus = new(TsnFailureCode.NoFailure)
+            {
+                FailureSystemIdentifiers = [Identifier(1), Identifier(9)]
+            };
+            m_provider.Publish(WithTalkerStatus(initial, baselineStatus) with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1)
+            });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+                return Parameter(values, BrowseNames.FailureSystemIdentifier).DataValue.SourceTimestamp ==
+                    (DateTimeUtc)initial.Timestamp.AddSeconds(1);
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> baseline = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue failure = Parameter(baseline, BrowseNames.FailureSystemIdentifier);
+            Assert.That(failure.DataValue.WrappedValue.TryGetValue(out MatrixOf<byte> previousMatrix), Is.True);
+            Assert.That(previousMatrix.Dimensions, Is.EqualTo(new[] { 2, 8 }));
+            byte[] previousBytes = Identifier(1).ToArray().Concat(Identifier(9).ToArray()).ToArray();
+            Assert.That(previousMatrix.Span.ToArray(), Is.EqualTo(previousBytes));
+            BaseVariableState retained = m_server.Server.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<NetworkModelNodeManager>().Single()
+                .FindPredefinedNode<BaseVariableState>(failure.NodeId);
+
+            NetworkStreamStatusSnapshot malformedStatus = new(TsnFailureCode.NoFailure)
+            {
+                FailureSystemIdentifiers =
+                [
+                    ByteString.From(new byte[7].AsSpan()),
+                    ByteString.From(new byte[9].AsSpan())
+                ]
+            };
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            m_providerBoundary.WatchTransform = snapshot => WithTalkerStatus(snapshot, malformedStatus);
+            m_provider.Publish(current with { Timestamp = current.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+                return Parameter(values, BrowseNames.FailureSystemIdentifier).DataValue.StatusCode ==
+                    StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> rejected = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue rejectedFailure = Parameter(rejected, BrowseNames.FailureSystemIdentifier);
+            Assert.That(rejectedFailure.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(rejectedFailure.DataValue.SourceTimestamp,
+                Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+            Assert.That(rejectedFailure.DataValue.WrappedValue, Is.EqualTo(failure.DataValue.WrappedValue));
+            Assert.That(retained.Value, Is.EqualTo(failure.DataValue.WrappedValue));
+            Assert.That(retained.Timestamp, Is.EqualTo(initial.Timestamp.AddSeconds(1)));
+
+            NetworkStreamStatusSnapshot recoveredStatus = new(TsnFailureCode.NoFailure)
+            {
+                FailureSystemIdentifiers = [Identifier(17), Identifier(25)]
+            };
+            m_providerBoundary.WatchTransform = null;
+            current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(1);
+            m_provider.Publish(WithTalkerStatus(current, recoveredStatus) with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                ArrayOf<NetworkParameterValue> values = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+                DataValue dataValue = Parameter(values, BrowseNames.FailureSystemIdentifier).DataValue;
+                return dataValue.StatusCode == StatusCodes.Good &&
+                    dataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> recovered = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeBaseTsnStatusStreamType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue recoveredFailure = Parameter(recovered, BrowseNames.FailureSystemIdentifier);
+            Assert.That(recoveredFailure.DataValue.WrappedValue.TryGetValue(
+                out MatrixOf<byte> recoveredMatrix), Is.True);
+            Assert.That(recoveredMatrix.Dimensions, Is.EqualTo(new[] { 2, 8 }));
+            Assert.That(recoveredMatrix.Span.ToArray(),
+                Is.EqualTo(Identifier(17).ToArray().Concat(Identifier(25).ToArray()).ToArray()));
+            Assert.That(recoveredFailure.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Validates custom-provider stream MAC addresses while preserving absent optional values and recovery.
+        /// </summary>
+        [TestCase(0, 0, true)]
+        [TestCase(6, 0, true)]
+        [TestCase(6, 6, true)]
+        [TestCase(5, 0, false)]
+        [TestCase(0, 6, false)]
+        [TestCase(6, 5, false)]
+        [CancelAfter(60_000)]
+        public async Task CustomProviderStreamMacAddressesAreValidatedBeforePublication(
+            int destinationLength, int sourceLength, bool valid, CancellationToken cancellationToken)
+        {
+            static ByteString Address(int length, byte first)
+            {
+                return ByteString.From(
+                    Enumerable.Range(first, length).Select(value => (byte)value).ToArray().AsSpan());
+            }
+
+            NetworkModelSnapshot initial = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            NodeId talker = (await m_client.DiscoverStreamsAsync(true, cancellationToken).ConfigureAwait(false))[0];
+            NetworkStreamValues before = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            ArrayOf<NetworkParameterValue> beforeMac = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
+            NetworkParameterValue beforeDestination = Parameter(beforeMac, BrowseNames.DestinationAddress);
+            NetworkParameterValue beforeSource = Parameter(beforeMac, BrowseNames.SourceAddress);
+            Assert.That(beforeDestination.DataValue.WrappedValue.TryGetValue(
+                out ArrayOf<byte> previousDestination), Is.True);
+            ByteString destination = Address(destinationLength, 1);
+            ByteString source = Address(sourceLength, 7);
+            m_providerBoundary.WatchTransform = snapshot =>
+            {
+                NetworkStreamSnapshot[] streams = snapshot.Streams.Span.ToArray();
+                for (int index = 0; index < streams.Length; index++)
+                {
+                    if (streams[index].IsTalker)
+                    {
+                        streams[index] = streams[index] with
+                        {
+                            DestinationAddress = destination,
+                            SourceAddress = source
+                        };
+                    }
+                }
+                return snapshot with { Streams = ArrayOf.Wrapped(streams) };
+            };
+            m_provider.Publish(initial with { Timestamp = initial.Timestamp.AddSeconds(1) });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return valid
+                    ? values.State.DataValue.StatusCode == StatusCodes.Good &&
+                        values.State.DataValue.SourceTimestamp == (DateTimeUtc)initial.Timestamp.AddSeconds(1)
+                    : values.State.DataValue.StatusCode == StatusCodes.BadOutOfRange;
+            }, cancellationToken).ConfigureAwait(false);
+
+            NetworkStreamValues actual = await m_client.ReadStreamAsync(talker, cancellationToken)
+                .ConfigureAwait(false);
+            bool hasMacInterface = await HasInterfaceAsync(
+                talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
+            if (valid)
+            {
+                Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(actual.State.DataValue.SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)initial.Timestamp.AddSeconds(1)));
+                Assert.That(hasMacInterface, Is.EqualTo(destinationLength == 6));
+                if (destinationLength == 6)
+                {
+                    ArrayOf<NetworkParameterValue> actualMac = await ReadParameterSetAsync(
+                        talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
+                    Assert.That(Parameter(actualMac, BrowseNames.DestinationAddress).DataValue.WrappedValue
+                        .TryGetValue(out ArrayOf<byte> actualDestination), Is.True);
+                    Assert.That(actualDestination.ToArray(), Is.EqualTo(destination.ToArray()));
+                    bool hasSource = actualMac.ToList()
+                        .Any(value => value.BrowseName.Name == BrowseNames.SourceAddress);
+                    Assert.That(hasSource, Is.EqualTo(sourceLength == 6));
+                    if (sourceLength == 6)
+                    {
+                        Assert.That(Parameter(actualMac, BrowseNames.SourceAddress).DataValue.WrappedValue
+                            .TryGetValue(out ArrayOf<byte> actualSource), Is.True);
+                        Assert.That(actualSource.ToArray(), Is.EqualTo(source.ToArray()));
+                    }
+                }
+            }
+            else
+            {
+                Assert.That(actual.State.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(actual.State.DataValue.WrappedValue, Is.EqualTo(before.State.DataValue.WrappedValue));
+                Assert.That(actual.State.DataValue.SourceTimestamp,
+                    Is.EqualTo(before.State.DataValue.SourceTimestamp));
+                Assert.That(hasMacInterface, Is.True);
+                ArrayOf<NetworkParameterValue> rejectedMac = await ReadParameterSetAsync(
+                    talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
+                NetworkParameterValue rejectedDestination = Parameter(rejectedMac, BrowseNames.DestinationAddress);
+                NetworkParameterValue rejectedSource = Parameter(rejectedMac, BrowseNames.SourceAddress);
+                Assert.That(rejectedDestination.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(rejectedSource.DataValue.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
+                Assert.That(rejectedDestination.DataValue.WrappedValue,
+                    Is.EqualTo(beforeDestination.DataValue.WrappedValue));
+                Assert.That(rejectedSource.DataValue.WrappedValue, Is.EqualTo(beforeSource.DataValue.WrappedValue));
+                Assert.That(rejectedDestination.DataValue.SourceTimestamp,
+                    Is.EqualTo(beforeDestination.DataValue.SourceTimestamp));
+            }
+
+            m_providerBoundary.WatchTransform = null;
+            NetworkModelSnapshot current = await m_provider.ReadAsync(cancellationToken).ConfigureAwait(false);
+            DateTime recoveryTimestamp = current.Timestamp.AddSeconds(1);
+            m_provider.Publish(current with { Timestamp = recoveryTimestamp });
+            await WaitForAsync(async () =>
+            {
+                NetworkStreamValues values = await m_client.ReadStreamAsync(talker, cancellationToken)
+                    .ConfigureAwait(false);
+                return values.State.DataValue.StatusCode == StatusCodes.Good &&
+                    values.State.DataValue.SourceTimestamp == (DateTimeUtc)recoveryTimestamp;
+            }, cancellationToken).ConfigureAwait(false);
+            Assert.That(await HasInterfaceAsync(
+                talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false), Is.True);
+            ArrayOf<NetworkParameterValue> recoveredMac = await ReadParameterSetAsync(
+                talker, ObjectTypeIds.IIeeeTsnMacAddressType, cancellationToken).ConfigureAwait(false);
+            Assert.That(Parameter(recoveredMac, BrowseNames.DestinationAddress).DataValue.WrappedValue
+                .TryGetValue(out ArrayOf<byte> recoveredDestination), Is.True);
+            Assert.That(recoveredDestination.ToArray(), Is.EqualTo(previousDestination.ToArray()));
+            Assert.That(Parameter(recoveredMac, BrowseNames.DestinationAddress).DataValue.StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
         /// Rejects timestamp regression even when the provider advances its revision.
         /// </summary>
         [Test]
@@ -1421,6 +1659,29 @@ namespace Opc.Ua.Server.Tests.Network
                 }
             }
             throw new InvalidOperationException("The expected Part 22 interface is not published: " + interfaceType);
+        }
+
+        /// <summary>
+        /// Checks whether an object directly implements a Part 22 interface.
+        /// </summary>
+        private async Task<bool> HasInterfaceAsync(
+            NodeId node, NodeId interfaceType, CancellationToken cancellationToken)
+        {
+            BrowseResponse response = await m_session.BrowseAsync(null, null, 0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = node,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasInterface,
+                        IncludeSubtypes = true,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ], cancellationToken).ConfigureAwait(false);
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            return response.Results[0].References.ToList()
+                .Any(reference => reference.NodeId == new ExpandedNodeId(interfaceType));
         }
 
         /// <summary>

@@ -565,6 +565,98 @@ namespace Opc.Ua.Server.Tests.Network
         }
 
         /// <summary>
+        /// Rejects malformed failure-system identifier rows without replacing the accepted acquisition.
+        /// </summary>
+        [Test]
+        public async Task PublishRejectsMalformedFailureSystemIdentifierRowsWithoutReplacingSnapshotAsync()
+        {
+            ByteString firstIdentifier = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 }.AsSpan());
+            ByteString secondIdentifier = ByteString.From(new byte[] { 9, 10, 11, 12, 13, 14, 15, 16 }.AsSpan());
+            NetworkStreamSnapshot stream = new("stream-1", "test", true)
+            {
+                StreamId = ByteString.From(new byte[8].AsSpan()),
+                State = TsnStreamState.Disabled,
+                Status = new NetworkStreamStatusSnapshot(TsnFailureCode.NoFailure)
+                {
+                    FailureSystemIdentifiers = [firstIdentifier, secondIdentifier]
+                }
+            };
+            NetworkModelSnapshot initial = EmptySnapshot() with { Streams = [stream] };
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkStreamSnapshot malformedStream = stream with
+            {
+                Status = stream.Status! with
+                {
+                    FailureSystemIdentifiers =
+                    [
+                        ByteString.From(new byte[7].AsSpan()),
+                        ByteString.From(new byte[9].AsSpan())
+                    ]
+                }
+            };
+            NetworkModelSnapshot malformed = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                Streams = [malformedStream]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(malformed),
+                Throws.ArgumentException.With.Message.Contains("Failure-system identifiers"));
+            Assert.That(() => provider.Publish(malformed),
+                Throws.ArgumentException.With.Message.Contains("Failure-system identifiers"));
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(current.Streams[0].Status!.FailureSystemIdentifiers.ToArray(),
+                Is.EqualTo(new[] { firstIdentifier, secondIdentifier }));
+        }
+
+        /// <summary>
+        /// Rejects malformed stream MAC address fields without replacing the accepted acquisition.
+        /// </summary>
+        [TestCase(5, 0)]
+        [TestCase(0, 6)]
+        [TestCase(6, 5)]
+        public async Task PublishRejectsInvalidStreamMacAddressesWithoutReplacingSnapshotAsync(
+            int destinationLength, int sourceLength)
+        {
+            NetworkStreamSnapshot stream = new("stream-1", "test", true)
+            {
+                StreamId = ByteString.From(new byte[8].AsSpan()),
+                State = TsnStreamState.Disabled,
+                DestinationAddress = ByteString.From(new byte[] { 1, 2, 3, 4, 5, 6 }.AsSpan()),
+                SourceAddress = ByteString.From(new byte[] { 7, 8, 9, 10, 11, 12 }.AsSpan())
+            };
+            NetworkModelSnapshot initial = EmptySnapshot() with { Streams = [stream] };
+            var provider = new ReferenceNetworkModelProvider(initial);
+            NetworkStreamSnapshot malformedStream = stream with
+            {
+                DestinationAddress = ByteString.From(
+                    Enumerable.Range(1, destinationLength).Select(value => (byte)value).ToArray().AsSpan()),
+                SourceAddress = ByteString.From(
+                    Enumerable.Range(7, sourceLength).Select(value => (byte)value).ToArray().AsSpan())
+            };
+            NetworkModelSnapshot malformed = initial with
+            {
+                Timestamp = initial.Timestamp.AddSeconds(1),
+                Streams = [malformedStream]
+            };
+
+            Assert.That(() => new ReferenceNetworkModelProvider(malformed),
+                Throws.ArgumentException.With.Message.Contains("fixed-size fields"));
+            Assert.That(() => provider.Publish(malformed),
+                Throws.ArgumentException.With.Message.Contains("fixed-size fields"));
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(current.Revision, Is.Zero);
+            Assert.That(current.Timestamp, Is.EqualTo(initial.Timestamp));
+            Assert.That(current.Streams[0].DestinationAddress.ToArray(),
+                Is.EqualTo(stream.DestinationAddress.ToArray()));
+            Assert.That(current.Streams[0].SourceAddress.ToArray(), Is.EqualTo(stream.SourceAddress.ToArray()));
+        }
+
+        /// <summary>
         /// Requires UTC acquisition timestamps and retains the previous revision on rejection.
         /// </summary>
         [Test]

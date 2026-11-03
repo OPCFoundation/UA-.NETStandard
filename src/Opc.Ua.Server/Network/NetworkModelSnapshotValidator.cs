@@ -53,5 +53,35 @@ namespace Opc.Ua.Server.Network
         {
             return !srClassId.HasValue || srClassId.Value <= 7;
         }
+
+        /// <summary>
+        /// Determines whether the optional stream MAC addresses have valid lengths and dependencies.
+        /// </summary>
+        /// <param name="sourceAddress">The optional stream source address.</param>
+        /// <param name="destinationAddress">The optional stream destination address.</param>
+        /// <returns>True when both values are absent or valid and a source has a destination.</returns>
+        internal static bool AreValidStreamMacAddresses(ByteString sourceAddress, ByteString destinationAddress)
+        {
+            return (sourceAddress.Length is 0 or 6) &&
+                (destinationAddress.Length is 0 or 6) &&
+                (sourceAddress.Length == 0 || destinationAddress.Length == 6);
+        }
+
+        /// <summary>
+        /// Determines whether each failure-system identifier contains the eight bytes required by Part 22.
+        /// </summary>
+        /// <param name="identifiers">The failure-system identifiers to validate.</param>
+        /// <returns>True when every identifier contains exactly eight bytes.</returns>
+        internal static bool AreValidFailureSystemIdentifiers(ArrayOf<ByteString> identifiers)
+        {
+            foreach (ByteString identifier in identifiers)
+            {
+                if (identifier.Length != 8)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 }

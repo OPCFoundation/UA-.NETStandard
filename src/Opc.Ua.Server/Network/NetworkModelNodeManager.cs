@@ -503,6 +503,19 @@ namespace Opc.Ua.Server.Network
                 throw new ServiceResultException(StatusCodes.BadOutOfRange,
                     "Stream SR class identifiers must be between zero and seven.");
             }
+            if (!NetworkModelSnapshotValidator.AreValidStreamMacAddresses(
+                stream.SourceAddress, stream.DestinationAddress))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Stream MAC addresses must contain six bytes, and a source address requires a destination.");
+            }
+            if (stream.Status is { } streamStatus &&
+                !NetworkModelSnapshotValidator.AreValidFailureSystemIdentifiers(
+                    streamStatus.FailureSystemIdentifiers))
+            {
+                throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    "Failure-system identifiers must each contain exactly eight bytes.");
+            }
             var node = CreateObject(
                 stream.IsTalker ? "talker" : "listener",
                 stream.Id,

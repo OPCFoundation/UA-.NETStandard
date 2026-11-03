@@ -306,9 +306,8 @@ namespace Opc.Ua.Server.Network
                     !streamIds.Add(stream.Id) ||
                     !IsDefinedEnum(stream.State) ||
                     !NetworkModelSnapshotValidator.IsValidStreamId(stream.StreamId) ||
-                    !IsOptionalLength(stream.SourceAddress, 6) ||
-                    !IsOptionalLength(stream.DestinationAddress, 6) ||
-                    (stream.SourceAddress.Length != 0 && stream.DestinationAddress.Length == 0) ||
+                    !NetworkModelSnapshotValidator.AreValidStreamMacAddresses(
+                        stream.SourceAddress, stream.DestinationAddress) ||
                     (stream.VlanTag is { } tag && (tag.VlanId > 4095 || tag.PriorityCodePoint > 7)) ||
                     (stream.Traffic is { } traffic && traffic.Denominator == 0))
                 {
@@ -329,13 +328,11 @@ namespace Opc.Ua.Server.Network
                     {
                         throw new ArgumentException("Stream status values must be defined.", nameof(snapshot));
                     }
-                    foreach (ByteString identifier in status.FailureSystemIdentifiers)
+                    if (!NetworkModelSnapshotValidator.AreValidFailureSystemIdentifiers(
+                        status.FailureSystemIdentifiers))
                     {
-                        if (identifier.Length != 8)
-                        {
-                            throw new ArgumentException(
-                                "Failure-system identifiers must contain eight bytes.", nameof(snapshot));
-                        }
+                        throw new ArgumentException(
+                            "Failure-system identifiers must contain eight bytes.", nameof(snapshot));
                     }
                 }
                 var streamInterfaceIds = new HashSet<string>(StringComparer.Ordinal);
