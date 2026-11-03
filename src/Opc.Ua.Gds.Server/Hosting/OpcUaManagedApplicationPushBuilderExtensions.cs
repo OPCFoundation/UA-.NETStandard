@@ -122,10 +122,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     new DefaultManagedApplicationsNodeManager(server, configuration, m_provider);
                 try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    IAsyncNodeManager result = manager;
+                    var result = new ValueTask<IAsyncNodeManager>(manager);
                     manager = null;
-                    return result;
+                    return await result.ConfigureAwait(false);
                 }
                 finally
                 {
