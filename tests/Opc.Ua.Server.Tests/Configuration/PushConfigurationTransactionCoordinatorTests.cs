@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -52,6 +53,7 @@ namespace Opc.Ua.Server.Tests
         private static readonly int[] s_expectedRollbackOrder = [2, 1];
         private static readonly string[] s_expectedPrepareCommitOrder =
             ["prepare-1", "prepare-2", "commit-1", "commit-2"];
+        private static readonly string[] s_expectedStoreCompletionOrder = ["store", "checkpoint"];
 
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
         private static readonly NodeId s_sessionA = new(Guid.NewGuid(), 1);
@@ -100,7 +102,7 @@ namespace Opc.Ua.Server.Tests
             await entered.Task.ConfigureAwait(false);
             try
             {
-                Assert.That(observed, Is.EqualTo(new[] { "store", "checkpoint" }));
+                Assert.That(observed, Is.EqualTo(s_expectedStoreCompletionOrder));
                 Assert.That(coordinator.OwnerSessionId, Is.EqualTo(s_sessionA));
                 ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
                     coordinator.Stage(s_sessionB, new PushConfigurationOperation

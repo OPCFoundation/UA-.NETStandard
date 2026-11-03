@@ -726,8 +726,9 @@ namespace Opc.Ua.Gds.Server.Onboarding
                 encoded.ThrowIfNotEmpty();
                 using System.Security.Cryptography.X509Certificates.X509Certificate2 leaf =
                     certificate.AsX509Certificate2();
+                ReadOnlySpan<byte> certificateParameters = leaf.PublicKey.EncodedParameters?.RawData;
                 if (padding != 0 || !string.Equals(oid, leaf.PublicKey.Oid?.Value, StringComparison.Ordinal) ||
-                    !parameters.Span.SequenceEqual(leaf.PublicKey.EncodedParameters.RawData) ||
+                    !parameters.Span.SequenceEqual(certificateParameters) ||
                     !key.AsSpan().SequenceEqual(leaf.PublicKey.EncodedKeyValue.RawData))
                 {
                     throw new ServiceResultException(

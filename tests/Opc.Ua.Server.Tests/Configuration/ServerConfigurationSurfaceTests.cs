@@ -269,7 +269,8 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true)]
         public async Task ApplyChangesRecordsHostCompletionWithinStoreTransaction(bool rejectCompletion)
         {
-            SessionSystemContext context = CreateAdminContextForSession(new NodeId(902, 1));
+            var sessionId = new NodeId(902, 1);
+            SessionSystemContext context = CreateAdminContextForSession(sessionId);
             var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
             policy.Setup(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
@@ -283,7 +284,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
                     }
-                    return default(ValueTask);
+                    return default;
                 });
             Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
             {
@@ -291,7 +292,7 @@ namespace Opc.Ua.Server.Tests
             }).ConfigureAwait(false);
             using (harness.Manager)
             {
-                harness.Coordinator.Stage(context.SessionId, new PushConfigurationOperation
+                harness.Coordinator.Stage(sessionId, new PushConfigurationOperation
                 {
                     CommitAsync = _ =>
                     {

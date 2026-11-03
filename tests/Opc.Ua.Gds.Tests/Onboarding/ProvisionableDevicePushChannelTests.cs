@@ -36,11 +36,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Configuration;
+using Opc.Ua.Gds.Client;
 using Opc.Ua.Gds.Server.Onboarding;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
@@ -55,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 {
     /// <summary>
     /// Exercises device ownership through real encrypted channels and the standard generated push client.
-    /// The platform installer is isolated; these tests do not establish device certificate activation.
+    /// Includes concrete certificate installation, endpoint activation and host-restart recovery.
     /// </summary>
     [TestFixture]
     [Category("Onboarding")]
@@ -192,6 +195,386 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         Directory.Delete(root, recursive: true);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Standard push activates the issued key, a fresh host verifies the committed journal, and security reset
+        /// restores the retained factory identity before another registrar can claim the device.
+        /// The checkpoint provider is retained in process; this does not prove process-durable storage.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConcretePushActivatesCertificateAndRecoversAcrossHostRestartAndFactoryReset(bool networkReset)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string temporary = Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath();
+            string root = Path.Combine(temporary, "onboarding-activation", Guid.NewGuid().ToString("N"));
+            const string applicationUri = "urn:localhost:onboarding:activation-test";
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            int port;
+            try
+            {
+                listener.Start();
+                port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            }
+            finally
+            {
+                listener.Stop();
+            }
+            var url = new Uri($"opc.tcp://localhost:{port}/onboarding-activation-test");
+            string password = Guid.NewGuid().ToString("N");
+            var secrets = new InMemorySecretStore();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            ByteString factoryDer = default;
+            ByteString issuedDer = default;
+            var factoryTrust = new TrustListDataType();
+            try
+            {
+                using var firstClient = new ClientFixture(telemetry: telemetry);
+                using var nextClient = new ClientFixture(telemetry: telemetry);
+                await firstClient.LoadClientConfigurationAsync(Path.Combine(root, "first"), "ActivationRegistrar")
+                    .ConfigureAwait(false);
+                await nextClient.LoadClientConfigurationAsync(Path.Combine(root, "next"), "ReplacementRegistrar")
+                    .ConfigureAwait(false);
+                CertificateIdentifier registrarIdentifier =
+                    firstClient.Config.SecurityConfiguration.ApplicationCertificates[0];
+                using ICertificateStore registrarStore = new CertificateStoreIdentifier(
+                    registrarIdentifier.StorePath ??
+                        throw new AssertionException("The registrar certificate store path is missing."),
+                    registrarIdentifier.StoreType ??
+                        throw new AssertionException("The registrar certificate store type is missing."))
+                    .OpenStore(telemetry);
+                using CertificateCollection registrarCertificates =
+                    await registrarStore.EnumerateAsync().ConfigureAwait(false);
+                using Certificate registrarCertificate = registrarCertificates.Single(certificate =>
+                    CertificateIdentifier.ValidateCertificateType(
+                        certificate, Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)).AddRef();
+                using Certificate issuer = CertificateBuilder.Create("CN=Onboarding Activation Issuer")
+                    .SetCAConstraint().CreateForRSA();
+                X509CRL crl = DefaultCertificateIssuer.Instance.RevokeCertificates(issuer, null!, null!);
+                var trust = new TrustListDataType
+                {
+                    SpecifiedLists = (uint)TrustListMasks.All,
+                    TrustedCertificates =
+                    [
+                        ByteString.From(registrarCertificate.RawData.AsSpan()),
+                        ByteString.From(issuer.RawData.AsSpan())
+                    ],
+                    TrustedCrls = [ByteString.From(crl.RawData.AsSpan())]
+                };
+                for (int phase = 0; phase < 3; phase++)
+                {
+                    var observed = new ConnectedDeviceStartup();
+                    ServiceCollection services = ConnectedDeviceServices(
+                        root, applicationUri, url, password, secrets, observed);
+                    await using ServiceProvider provider = services.BuildServiceProvider();
+                    IHostedService hosted = provider.GetServices<IHostedService>()
+                        .Single(static service => service is OpcUaServerHostedService);
+                    try
+                    {
+                        await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                        var security = provider.GetRequiredService<ProvisionableDeviceSecurity>();
+                        ICertificateManager certificates = provider.GetRequiredService<ICertificateManager>();
+                        using CertificateEntry active = certificates.AcquireApplicationCertificateByType(
+                            Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ??
+                            throw new AssertionException("The device has no active application certificate.");
+                        using ISession session = await firstClient.ConnectAsync(
+                            url, SecurityPolicies.Basic256Sha256, default,
+                            new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                        ByteString peer = ChannelPeer(session);
+                        Assert.That(peer, Is.EqualTo(ByteString.From(active.Certificate.RawData.AsSpan())));
+                        if (phase == 0)
+                        {
+                            factoryDer = peer;
+                            using (TrustListData initial = await certificates.ReadTrustListAsync(
+                                TrustListIdentifier.Peers, TrustListMasks.All).ConfigureAwait(false))
+                            {
+                                factoryTrust.TrustedCertificates = initial.TrustedCertificates
+                                    .Select(static certificate => ByteString.From(certificate.RawData.AsSpan()))
+                                    .ToArrayOf();
+                                factoryTrust.IssuerCertificates = initial.IssuerCertificates
+                                    .Select(static certificate => ByteString.From(certificate.RawData.AsSpan()))
+                                    .ToArrayOf();
+                                factoryTrust.TrustedCrls = initial.TrustedCrls
+                                    .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArrayOf();
+                                factoryTrust.IssuerCrls = initial.IssuerCrls
+                                    .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArrayOf();
+                            }
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+                            ByteString requestBytes = await CreateSigningRequestAsync(session, telemetry)
+                                .ConfigureAwait(false);
+                            var request = new Pkcs10CertificationRequest(requestBytes.ToArray());
+                            Assert.That(request.Verify(), Is.True);
+                            using Certificate issued = DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                                applicationUri, "OnboardingActivationTest", request.Subject.Name,
+                                X509Utils.GetDomainsFromCertificate(active.Certificate).ToArray())
+                                .SetIssuer(issuer)
+                                .SetRSAPublicKey(request.SubjectPublicKeyInfo)
+                                .CreateForRSA();
+                            issuedDer = ByteString.From(issued.RawData.AsSpan());
+                            Assert.That(issuedDer, Is.Not.EqualTo(factoryDer));
+                            await using (ServerPushConfigurationClient push = await ServerPushConfigurationClient
+                                .CaptureAsync(firstClient.Config, session).ConfigureAwait(false))
+                            {
+                                bool applyTrust = await push.UpdateTrustListAsync(trust).ConfigureAwait(false);
+                                Assert.That(applyTrust, Is.True);
+                                await push.ApplyChangesAsync().ConfigureAwait(false);
+                                await observed.Manager.DrainPendingApplyChangesAsync(timeout.Token)
+                                    .ConfigureAwait(false);
+                            }
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+
+                            using ISession certificateSession = await firstClient.ConnectAsync(
+                                url, SecurityPolicies.Basic256Sha256, default,
+                                new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                            Assert.That(ChannelPeer(certificateSession), Is.EqualTo(factoryDer));
+                            var configuration = new ServerConfigurationTypeClient(
+                                certificateSession, Ua.ObjectIds.ServerConfiguration, telemetry);
+                            bool applyCertificate = await configuration.UpdateCertificateAsync(
+                                Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                                issuedDer, [], string.Empty, ByteString.Empty).ConfigureAwait(false);
+                            Assert.That(applyCertificate, Is.True);
+                            await configuration.ApplyChangesAsync().ConfigureAwait(false);
+                            await observed.Manager.DrainPendingApplyChangesAsync(timeout.Token).ConfigureAwait(false);
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+                            using ISession proof = await firstClient.ConnectAsync(
+                                url, SecurityPolicies.Basic256Sha256, default,
+                                new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                            Assert.That(ChannelPeer(proof), Is.EqualTo(issuedDer));
+                            Assert.That(ChannelPeer(proof), Is.Not.EqualTo(factoryDer));
+                            using CertificateEntry installed = certificates.AcquireApplicationCertificateByType(
+                                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType) ??
+                                throw new AssertionException("The installed application certificate is missing.");
+                            Assert.That(installed.Certificate.HasPrivateKey, Is.True);
+                            Assert.That(installed.Certificate.RawData, Is.EqualTo(issued.RawData));
+                        }
+                        else if (phase == 1)
+                        {
+                            Assert.That(peer, Is.EqualTo(issuedDer));
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+                            using ISession other = await nextClient.ConnectAsync(
+                                url, SecurityPolicies.Basic256Sha256, default,
+                                new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                            ServiceResultException? untrusted = await Assert.ThrowsAsync<ServiceResultException>(
+                                async () => await CreateSigningRequestAsync(other, telemetry).ConfigureAwait(false));
+                            Assert.That(untrusted!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Installed));
+
+                            if (networkReset)
+                            {
+                                var configuration = new ServerConfigurationTypeClient(
+                                    session, Ua.ObjectIds.ServerConfiguration, telemetry);
+                                await configuration.ResetToServerDefaultsAsync().ConfigureAwait(false);
+                                Assert.That(await observed.Reset.Task.WaitAsync(timeout.Token).ConfigureAwait(false),
+                                    Is.True);
+                            }
+                            else
+                            {
+                                await security.ResetToServerDefaultsAsync().ConfigureAwait(false);
+                            }
+
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+                            using ISession resetProof = await firstClient.ConnectAsync(
+                                url, SecurityPolicies.Basic256Sha256, default,
+                                new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                            Assert.That(ChannelPeer(resetProof), Is.EqualTo(factoryDer));
+                            using TrustListData defaults = await certificates.ReadTrustListAsync(
+                                TrustListIdentifier.Peers, TrustListMasks.All).ConfigureAwait(false);
+                            Assert.That(defaults.TrustedCertificates
+                                .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArray(),
+                                Is.EquivalentTo(factoryTrust.TrustedCertificates.ToList()));
+                            Assert.That(defaults.IssuerCertificates
+                                .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArray(),
+                                Is.EquivalentTo(factoryTrust.IssuerCertificates.ToList()));
+                            Assert.That(defaults.TrustedCrls
+                                .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArray(),
+                                Is.EquivalentTo(factoryTrust.TrustedCrls.ToList()));
+                            Assert.That(defaults.IssuerCrls
+                                .Select(static value => ByteString.From(value.RawData.AsSpan())).ToArray(),
+                                Is.EquivalentTo(factoryTrust.IssuerCrls.ToList()));
+                        }
+                        else
+                        {
+                            Assert.That(peer, Is.EqualTo(factoryDer));
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Unconfigured));
+                            using ISession replacement = await nextClient.ConnectAsync(
+                                url, SecurityPolicies.Basic256Sha256, default,
+                                new UserIdentity("registrar", Encoding.UTF8.GetBytes(password))).ConfigureAwait(false);
+                            ByteString replacementRequest = await CreateSigningRequestAsync(replacement, telemetry)
+                                .ConfigureAwait(false);
+                            Assert.That(replacementRequest.IsEmpty, Is.False);
+                            Assert.That(await security.GetStageAsync().ConfigureAwait(false),
+                                Is.EqualTo(ProvisionableDeviceSecurityStage.Configuring));
+                            ServiceResultException? previous = await Assert.ThrowsAsync<ServiceResultException>(
+                                async () => await CreateSigningRequestAsync(session, telemetry).ConfigureAwait(false));
+                            Assert.That(previous!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                        }
+                    }
+                    finally
+                    {
+                        await hosted.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recreates all container-owned device services while retaining only the explicit journal and PKI stores.
+        /// Automatic channel acceptance is confined to this fixture; installed device authorization still uses
+        /// the complete installed trust scope with automatic acceptance disabled.
+        /// </summary>
+        private static ServiceCollection ConnectedDeviceServices(
+            string root,
+            string applicationUri,
+            Uri url,
+            string password,
+            ISecretStore secrets,
+            ConnectedDeviceStartup observed)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton(secrets);
+            services.AddSingleton<ICertificateManager>(provider =>
+                new CertificateManager(provider.GetRequiredService<ITelemetryContext>()));
+            var users = new LinqUserDatabase();
+            if (!users.CreateUser("registrar", Encoding.UTF8.GetBytes(password),
+                [Role.AuthenticatedUser, Role.SecurityAdmin]))
+            {
+                throw new InvalidOperationException("The test registrar account could not be created.");
+            }
+            services.AddSingleton<IUserDatabase>(users);
+            services.AddSingleton<IUserManagement>(provider =>
+                new UserManagement(provider.GetRequiredService<IUserDatabase>()));
+            services.AddSingleton<IServerStartupTask>(observed);
+            string pkiRoot = Path.Combine(root, "server");
+            var identifier = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = Path.Combine(pkiRoot, "own"),
+                SubjectName = "CN=OnboardingActivationTest, O=OPC Foundation, DC=localhost",
+                CertificateType = Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            services.AddOpcUa()
+                .ConfigureApplication(application =>
+                {
+                    application.ApplicationName = "OnboardingActivationTest";
+                    application.ApplicationUri = applicationUri;
+                    application.ProductUri = "urn:opcfoundation:test:onboarding";
+                    application.SubjectName = identifier.SubjectName;
+                    application.PkiRoot = pkiRoot;
+                    application.AutoAcceptUntrustedCertificates = true;
+                    application.ConfigureSecurity = security => security.SetApplicationCertificates([identifier]);
+                })
+                .AddServer(options =>
+                {
+                    options.ApplicationName = "OnboardingActivationTest";
+                    options.ApplicationUri = applicationUri;
+                    options.ProductUri = "urn:opcfoundation:test:onboarding";
+                    options.SubjectName = identifier.SubjectName;
+                    options.PkiRoot = pkiRoot;
+                    options.AutoAcceptUntrustedCertificates = true;
+                    options.IncludeSignAndEncryptPolicies = true;
+                    options.IncludeUnsecurePolicyNone = false;
+                    options.IncludeEccPolicies = false;
+                    options.EndpointUrls.Add(url.AbsoluteUri);
+                    options.UserTokenPolicies.Add(new OpcUaUserTokenPolicy { TokenType = UserTokenType.UserName });
+                })
+                .AddDefaultIdentityAuthenticators(options =>
+                {
+                    options.EnableAnonymous = false;
+                    options.EnableUserNamePassword = true;
+                    options.EnableX509 = false;
+                    options.EnableJwt = false;
+                })
+                .ConfigureServerConfiguration(options => options.ResetShutdownDelay = TimeSpan.FromSeconds(1))
+                .AddProvisionableDeviceSecurity(
+                    "activation-test", applicationUri,
+                    new ProvisionableDeviceSecurityInstallerOptions
+                    {
+                        ApplicationCertificate = identifier,
+                        DeviceIdentityStorePath = Path.Combine(root, "factory"),
+                        DeviceIdentityStoreType = CertificateStoreType.Directory,
+                        CertificateGroupId = Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup
+                    });
+            services.Replace(ServiceDescriptor.Singleton<IServerConfigurationResetProvider>(provider =>
+                new ObservedDeviceReset(provider.GetRequiredService<IProvisionableDeviceSecurity>(), observed.Reset)));
+            return services;
+        }
+
+        /// <summary>
+        /// Reads the actual encrypted channel peer rather than the discovery endpoint's advertised certificate.
+        /// </summary>
+        private static ByteString ChannelPeer(ISession session)
+        {
+            using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(
+                session.TransportChannel.ServerChannelCertificate.AsMemory());
+            Assert.That(chain.Count, Is.GreaterThan(0));
+            return ByteString.From(chain[0].RawData.AsSpan());
+        }
+
+        /// <summary>
+        /// Captures the real configuration manager so deferred endpoint rotation can be awaited without sleeps.
+        /// </summary>
+        private sealed class ConnectedDeviceStartup : IServerStartupTask
+        {
+            /// <summary>
+            /// Gets the completion evidence from the standard network reset provider callback.
+            /// </summary>
+            public TaskCompletionSource<bool> Reset { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the actual configuration manager after server startup.
+            /// </summary>
+            public ConfigurationNodeManager Manager { get; private set; } = null!;
+
+            /// <inheritdoc/>
+            public ValueTask OnServerStartedAsync(
+                IServerContext server,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Manager = server.FindNodeManagers<ConfigurationNodeManager>().Single();
+                return default;
+            }
+        }
+
+        /// <summary>
+        /// Observes the same device security reset called by the standard configuration manager.
+        /// Provider failures are both observable to the test and propagated to the server's background-work owner.
+        /// </summary>
+        private sealed class ObservedDeviceReset(
+            IProvisionableDeviceSecurity security,
+            TaskCompletionSource<bool> completion) : IServerConfigurationResetProvider
+        {
+            /// <inheritdoc/>
+            public async ValueTask ResetToServerDefaultsAsync(CancellationToken cancellationToken = default)
+            {
+                try
+                {
+                    await security.ResetToServerDefaultsAsync(cancellationToken).ConfigureAwait(false);
+                    completion.TrySetResult(true);
+                }
+                catch (Exception error)
+                {
+                    completion.TrySetException(error);
+                    throw;
                 }
             }
         }
