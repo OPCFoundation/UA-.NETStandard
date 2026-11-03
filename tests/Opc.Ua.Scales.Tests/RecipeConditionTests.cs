@@ -60,10 +60,14 @@ namespace Opc.Ua.Scales.Tests
         public async Task SetUpAsync()
         {
             m_expectedShutdownFailure = null;
+            m_controller = null!;
             m_fixture = new ScalesServerFixture();
             await m_fixture.StartAsync().ConfigureAwait(false);
             ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
-                m_fixture.Name("ConditionScale"), ScaleKind.Recipe, b => b.WithTypeFeatures());
+                m_fixture.Name("ConditionScale"), ScaleKind.Recipe, b => b
+                    .WithIdentification(ScalesNodeManagerTests.Identity("ConditionScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
+                    .WithTypeFeatures());
             m_scale = scale;
             m_controller = scale.Recipes!;
             m_clock = new RecipeClock();
@@ -73,7 +77,7 @@ namespace Opc.Ua.Scales.Tests
         [TearDown]
         public async Task TearDownAsync()
         {
-            m_controller.Dispose();
+            m_controller?.Dispose();
             try
             {
                 await m_fixture.DisposeAsync().ConfigureAwait(false);
@@ -446,6 +450,8 @@ namespace Opc.Ua.Scales.Tests
         {
             ScaleHandle scale = await m_fixture.Manager.CreateScaleAsync(
                 m_fixture.Name("OwnedConditionScale"), ScaleKind.Recipe, b => b
+                    .WithIdentification(ScalesNodeManagerTests.Identity("OwnedConditionScale"))
+                    .WithWeighingRange(new WeighingRangeDefinition(0, 100, 0.001, 0.001))
                     .WithTypeFeatures()
                     .WithProductionPreset(p => p.AllowSelection()
                         .AddProduct("A", new LocalizedText("First"))
