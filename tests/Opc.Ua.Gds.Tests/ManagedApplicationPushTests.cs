@@ -709,6 +709,160 @@ namespace Opc.Ua.Gds.Tests
         }
 
         /// <summary>
+        /// A completed activation failure remains observable to later drain and disposal callers.
+        /// </summary>
+        [Test]
+        public async Task CompletedApplicationActivationFailureRemainsObservableDuringDisposal()
+        {
+            using var target = TestTarget.CreateEmpty("urn:managed:failed-activation");
+            await using var manager = CreateManager();
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var expected = new InvalidOperationException("The target certificate activation failed.");
+            var runtime = new Mock<IApplicationConfigurationPushTarget>(MockBehavior.Strict);
+            runtime.SetupGet(value => value.Configuration).Returns(target.Configuration);
+            runtime.SetupGet(value => value.Endpoints).Returns(ArrayOf<EndpointDescription>.Empty);
+            runtime.SetupGet(value => value.SecurityPolicies).Returns((ISecurityPolicyRegistry?)null);
+            runtime.Setup(value => value.ApplyCertificateChangesAsync(
+                    It.IsAny<ArrayOf<NodeId>>(), It.IsAny<ArrayOf<ApplicationCertificateRotation>>(),
+                    It.IsAny<CancellationToken>()))
+                .Throws(expected);
+            var node = new ApplicationConfigurationState(null);
+            node.Create(manager.SystemContext, new NodeId("failed-activation", 2),
+                new QualifiedName("failed-activation", 2), "failed-activation", true);
+            node.ApplicationUri!.Value = target.Configuration.ApplicationUri!;
+            var binding = new ApplicationConfigurationPushBinding(
+                ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
+                node, runtime.Object, Mock.Of<IPushConfigurationAuthorization>());
+            try
+            {
+                NodeId group = node.CertificateGroups!.DefaultApplicationGroup!.NodeId;
+                CreateSelfSignedCertificateMethodStateResult created =
+                    await node.CreateSelfSignedCertificate!.OnCallAsync!(
+                        manager.SystemContext, node.CreateSelfSignedCertificate, node.NodeId,
+                        group, CoreObjectTypeIds.RsaSha256ApplicationCertificateType, "CN=Managed Push Test",
+                        ["localhost"], [], 365, 2048, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(created.ServiceResult), Is.True);
+                ServiceResult applied = await node.ApplyChanges!.OnCallMethod2Async!(
+                    manager.SystemContext, node.ApplyChanges, node.NodeId, [], [], CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(applied), Is.True);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                Task drain = binding.DrainPendingApplyChangesAsync();
+                InvalidOperationException? first = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await drain.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+
+                Task completedDrain = binding.DrainPendingApplyChangesAsync();
+                InvalidOperationException? repeated = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await completedDrain.ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.That(first, Is.SameAs(expected));
+                Assert.That(repeated, Is.SameAs(expected));
+                Assert.That(completedDrain, Is.SameAs(drain));
+            }
+            finally
+            {
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await binding.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.That(failure, Is.SameAs(expected));
+            }
+        }
+
+        /// <summary>
+        /// Shutdown publishes one completion before invoking external cancellation callbacks and retains isolation
+        /// until the trust callback returns, including when its cancellation registration throws.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposalPublishesSharedCompletionAndDrainsReentrantTrustCallback(bool throwOnCancellation)
+        {
+            using var target = await TestTarget.CreateAsync("urn:managed:reentrant-disposal").ConfigureAwait(false);
+            await using var manager = CreateManager();
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var cancelled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var expected = new InvalidOperationException("The target cancellation registration failed.");
+            ApplicationConfigurationPushBinding? binding = null;
+            Task? reentrantDisposal = null;
+            CancellationTokenRegistration registration = default;
+            int cancellationCalls = 0;
+            var runtime = new Mock<IApplicationConfigurationPushTarget>(MockBehavior.Strict);
+            runtime.SetupGet(value => value.Configuration).Returns(target.Configuration);
+            runtime.SetupGet(value => value.Endpoints).Returns(ArrayOf<EndpointDescription>.Empty);
+            runtime.SetupGet(value => value.SecurityPolicies).Returns((ISecurityPolicyRegistry?)null);
+            runtime.Setup(value => value.ApplyTrustListChangesAsync(
+                    It.IsAny<ArrayOf<TrustListChangeEffect>>(), It.IsAny<CancellationToken>()))
+                .Returns((ArrayOf<TrustListChangeEffect> _, CancellationToken token) =>
+                {
+                    registration = token.Register(() =>
+                    {
+                        Interlocked.Increment(ref cancellationCalls);
+                        reentrantDisposal = binding!.DisposeAsync().AsTask();
+                        cancelled.TrySetResult(true);
+                        if (throwOnCancellation)
+                        {
+                            throw expected;
+                        }
+                    });
+                    entered.TrySetResult(true);
+                    return new ValueTask(release.Task);
+                });
+            var node = new ApplicationConfigurationState(null);
+            node.Create(manager.SystemContext, new NodeId("shutdown", 2),
+                new QualifiedName("shutdown", 2), "shutdown", true);
+            node.ApplicationUri!.Value = target.Configuration.ApplicationUri!;
+            binding = new ApplicationConfigurationPushBinding(
+                ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
+                node, runtime.Object, Mock.Of<IPushConfigurationAuthorization>());
+            Task? disposal = null;
+            try
+            {
+                target.Configuration.CertificateManager!.NotifyTrustListChanged(
+                    TrustListIdentifier.Peers, trustChanged: true, crlChanged: false);
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                disposal = binding.DisposeAsync().AsTask();
+                await cancelled.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(reentrantDisposal, Is.SameAs(disposal));
+                Assert.That(binding.DisposeAsync().AsTask(), Is.SameAs(disposal));
+                Assert.That(disposal.IsCompleted, Is.False);
+                Assert.Throws<ArgumentException>(() => new ApplicationConfigurationPushBinding(
+                    ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
+                    node, runtime.Object, Mock.Of<IPushConfigurationAuthorization>()));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                try
+                {
+                    Task completion = disposal ?? binding.DisposeAsync().AsTask();
+                    if (throwOnCancellation)
+                    {
+                        AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
+                            await completion.WaitAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
+                        Assert.That(failure!.Flatten().InnerExceptions, Does.Contain(expected));
+                    }
+                    else
+                    {
+                        await completion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    registration.Dispose();
+                }
+            }
+            Assert.That(cancellationCalls, Is.EqualTo(1));
+            runtime.Verify(value => value.ApplyTrustListChangesAsync(
+                It.IsAny<ArrayOf<TrustListChangeEffect>>(), It.IsAny<CancellationToken>()), Times.Once);
+            await using var replacement = new ApplicationConfigurationPushBinding(
+                ReferenceServer.CurrentInstance, ServerFixture.Config, manager.SystemContext,
+                node, runtime.Object, Mock.Of<IPushConfigurationAuthorization>());
+        }
+
+        /// <summary>
         /// Resolves standard browse names relative to the application instance rather than namespace-zero ids.
         /// </summary>
         private static async ValueTask<NodeId> ResolveChildAsync(

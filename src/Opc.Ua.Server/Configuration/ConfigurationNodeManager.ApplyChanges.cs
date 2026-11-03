@@ -54,12 +54,7 @@ namespace Opc.Ua.Server
                 pending = m_pendingApplyChangesTask;
             }
 
-            if (pending == null || pending.IsCompleted)
-            {
-                return Task.CompletedTask;
-            }
-
-            if (!cancellationToken.CanBeCanceled)
+            if (!cancellationToken.CanBeCanceled || pending.IsCompleted)
             {
                 return pending;
             }

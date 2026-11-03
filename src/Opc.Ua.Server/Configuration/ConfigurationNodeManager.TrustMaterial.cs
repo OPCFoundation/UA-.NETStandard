@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
@@ -45,6 +46,37 @@ namespace Opc.Ua.Server
     /// </summary>
     public partial class ConfigurationNodeManager
     {
+        /// <summary>
+        /// Stops further trust notifications and drains admitted target effects even when cancellation failed.
+        /// Subscription disposal errors remain observable after the in-flight callback has returned.
+        /// </summary>
+        internal async Task StopAndDrainTrustMaterialChangesAsync()
+        {
+            ExceptionDispatchInfo? disposalError = null;
+            try
+            {
+                m_trustMaterialPump?.Dispose();
+            }
+            catch (Exception error)
+            {
+                disposalError = ExceptionDispatchInfo.Capture(error);
+            }
+            Task pending;
+            lock (m_pendingApplyChangesLock)
+            {
+                pending = m_trustMaterialPumpTask;
+            }
+            try
+            {
+                await pending.ConfigureAwait(false);
+            }
+            catch (Exception error) when (disposalError != null)
+            {
+                throw new AggregateException(disposalError.SourceException, error);
+            }
+            disposalError?.Throw();
+        }
+
         /// <summary>
         /// Maps the TrustList NodeIds committed by a transaction to the
         /// §7.10.9 post-<c>ApplyChanges</c> effect that must be applied to

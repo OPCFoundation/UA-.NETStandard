@@ -169,6 +169,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public ValueTask DisposeAsync()
         {
+            TaskCompletionSource<bool>? completion = null;
+            Task disposal;
             lock (m_lifetime)
             {
                 m_stopping = true;
@@ -176,9 +178,18 @@ namespace Opc.Ua.Server
                 {
                     m_drained.TrySetResult(true);
                 }
-                m_disposal ??= DisposeCoreAsync();
-                return new ValueTask(m_disposal);
+                if (m_disposal == null)
+                {
+                    completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    m_disposal = completion.Task;
+                }
+                disposal = m_disposal;
             }
+            if (completion != null)
+            {
+                _ = CompleteDisposalAsync(completion);
+            }
+            return new ValueTask(disposal);
         }
 
         /// <summary>
@@ -237,6 +248,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Publishes teardown's result to the task shared by concurrent and reentrant callers.
+        /// </summary>
+        private async Task CompleteDisposalAsync(TaskCompletionSource<bool> completion)
+        {
+            try
+            {
+                await DisposeCoreAsync().ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception error)
+            {
+                completion.TrySetException(error);
+            }
+        }
+
+        /// <summary>
         /// Releases the engine only after dispatch and deferred work have drained.
         /// </summary>
         private async Task DisposeCoreAsync()
@@ -248,6 +275,8 @@ namespace Opc.Ua.Server
                 await CompleteAsync(() => new ValueTask(m_manager.DrainPendingApplyChangesAsync()))
                     .ConfigureAwait(false);
                 await CompleteAsync(((INodeManagerShutdown)m_manager).PrepareForShutdownAsync).ConfigureAwait(false);
+                await CompleteAsync(() => new ValueTask(m_manager.StopAndDrainTrustMaterialChangesAsync()))
+                    .ConfigureAwait(false);
                 try
                 {
                     await m_manager.DisposeAsync().ConfigureAwait(false);
