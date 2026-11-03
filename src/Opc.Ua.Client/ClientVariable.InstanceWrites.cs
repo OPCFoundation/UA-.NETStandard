@@ -68,10 +68,13 @@ namespace Opc.Ua.Client
             cancellationToken.ThrowIfCancellationRequested();
             WriteResponse response = await m_owner.Session.WriteAsync(
                 null, writes, cancellationToken).ConfigureAwait(false);
-            if (response.ResponseHeader is null || !StatusCode.IsGood(response.ResponseHeader.ServiceResult))
+            if (response is null || response.ResponseHeader is null)
             {
-                throw new ServiceResultException(
-                    response.ResponseHeader?.ServiceResult ?? StatusCodes.BadDecodingError);
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+            if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
             }
             if (response.Results.Count != 1)
             {

@@ -125,9 +125,9 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Missing headers and malformed result or diagnostic cardinalities are explicit errors.
+        /// Missing responses and malformed result or diagnostic cardinalities are explicit errors.
         /// </summary>
-        [TestCase("missing-header")]
+        [TestCase("missing-response")]
         [TestCase("missing-result")]
         [TestCase("extra-result")]
         [TestCase("extra-diagnostic")]
@@ -140,8 +140,8 @@ namespace Opc.Ua.Client.Tests
             };
             switch (shape)
             {
-                case "missing-header":
-                    response.ResponseHeader = null!;
+                case "missing-response":
+                    response = null!;
                     break;
                 case "missing-result":
                     response.Results = [];
@@ -158,6 +158,29 @@ namespace Opc.Ua.Client.Tests
                 async () => await m_variable.WriteInstanceAsync(new NodeId("resolved", 4), "value"));
             Assert.That(failure!.StatusCode, Is.EqualTo((StatusCode)(shape == "extra-diagnostic"
                 ? StatusCodes.BadUnexpectedError : StatusCodes.BadDecodingError)));
+            VerifyOneWrite();
+        }
+
+        /// <summary>
+        /// Generated response headers normalize null assignments before the write helper receives them.
+        /// </summary>
+        [Test]
+        public async Task InstanceWriteAcceptsNormalizedResponseHeaderAsync()
+        {
+            var response = new WriteResponse
+            {
+                ResponseHeader = null!,
+                Results = [StatusCodes.Good]
+            };
+            ResponseHeader header = response.ResponseHeader
+                ?? throw new AssertionException("The generated response did not normalize its header.");
+            Assert.That(header.ServiceResult, Is.EqualTo((StatusCode)StatusCodes.Good));
+            SetupResponse(response);
+
+            await m_variable.WriteInstanceAsync(new NodeId("resolved", 4), "value");
+
+            Assert.That(m_encodings, Is.EqualTo(1));
+            Assert.That(m_variable.Writable, Is.False);
             VerifyOneWrite();
         }
 

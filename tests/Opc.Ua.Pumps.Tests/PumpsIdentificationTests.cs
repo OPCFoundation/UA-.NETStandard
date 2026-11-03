@@ -58,7 +58,8 @@ namespace Opc.Ua.Pumps.Tests
         public async Task RestartRestoresCommittedIdentityAndLocaleOverConfiguredDefaultsAsync(
             string? locale, string? text)
         {
-            string directory = Path.Combine(Path.GetTempPath(), "pumps-identity-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory, "pumps-identity-" + Guid.NewGuid().ToString("N"));
             try
             {
                 using (var store = new FileSystemAssetConfigurationStore(directory))
