@@ -1083,7 +1083,8 @@ namespace Opc.Ua.Scales.Tests
         private async Task AbortRecipeIfRunningAsync(
             ScaleHandle scale, NodeId recipe, bool startAttempted)
         {
-            if (startAttempted && scale.Recipes!.State != RecipeRunState.Idle)
+            RecipeState? activeRecipe = scale.Recipes!.ActiveRecipe;
+            if (startAttempted && activeRecipe?.NodeId == recipe)
             {
                 await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.AbortRecipe, recipe);
             }
