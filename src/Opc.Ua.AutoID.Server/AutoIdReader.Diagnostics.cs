@@ -319,7 +319,14 @@ namespace Opc.Ua.AutoID.Server
                         }
                         stream.Position = 0;
                         using var decoder = new BinaryDecoder(stream, context, true);
-                        return decoder.ReadVariant(null);
+                        Variant snapshot = decoder.ReadVariant(null);
+                        if (!data.Custom.Equals(snapshot))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadEncodingError,
+                                "The custom diagnostic value cannot be copied without changing its semantic value.");
+                        }
+                        return snapshot;
                     }
                 default:
                     return VariantOf(data);

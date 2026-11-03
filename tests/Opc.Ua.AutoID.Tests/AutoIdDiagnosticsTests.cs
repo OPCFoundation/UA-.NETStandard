@@ -32,6 +32,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.AutoID.Server;
 
@@ -507,6 +509,164 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         /// <summary>
+        /// Rejects unregistered decoded values at any nesting depth without replacing the previous acquisition.
+        /// </summary>
+        [Test]
+        public async Task CustomDecodedStructuresRequireSemanticRoundTripAsync(
+            [Values("Identifier", "RWData")] string field,
+            [Values("Scalar", "VariantArray", "Structure")] string nesting,
+            [Values] bool registered)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            await reader.ReportAccessAsync("Previous", "Controller", [Access()]).ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            Group(reader, "LastAccess").GetChildren(m_fixture.Context, children);
+            var previous = children.Cast<BaseVariableState>()
+                .Select(variable => (Variable: variable, variable.Value, variable.StatusCode, variable.Timestamp))
+                .ToArray();
+            string uri = "urn:opcfoundation:autoid:diagnostic:" + Interlocked.Increment(ref m_sequence);
+            m_fixture.Context.NamespaceUris.GetIndexOrAppend(uri);
+            byte[] bytes = [1, 2, 3];
+            var payload = new DiagnosticPayload(uri) { PC = 7, UId = ByteString.From(bytes) };
+            if (registered)
+            {
+                var activator = new Mock<IEncodeableType>();
+                activator.SetupGet(value => value.Type).Returns(typeof(DiagnosticPayload));
+                activator.SetupGet(value => value.XmlName).Returns(new XmlQualifiedName("Payload", uri));
+                activator.Setup(value => value.CreateInstance()).Returns(() => new DiagnosticPayload(uri));
+                m_fixture.Context.EncodeableFactory.Builder
+                    .AddEncodeableType(payload.TypeId, activator.Object)
+                    .AddEncodeableType(payload.BinaryEncodingId, activator.Object).Commit();
+            }
+            Assert.That(m_fixture.Context.EncodeableFactory.TryGetEncodeableType(
+                payload.BinaryEncodingId, out _), Is.EqualTo(registered));
+            Variant custom = NestDiagnosticValue(Variant.FromStructure(payload), nesting);
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            var data = new ScanData { SwitchField = ScanDataFields.Custom, Custom = custom };
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            if (!registered)
+            {
+                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await reader.ReportAccessAsync("Replacement", "Other", [report]).ConfigureAwait(false));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+                foreach (var snapshot in previous)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(snapshot.Variable.Value, Is.EqualTo(snapshot.Value));
+                        Assert.That(snapshot.Variable.StatusCode, Is.EqualTo(snapshot.StatusCode));
+                        Assert.That(snapshot.Variable.Timestamp, Is.EqualTo(snapshot.Timestamp));
+                    });
+                }
+                return;
+            }
+            await reader.ReportAccessAsync("Replacement", "Other", [report]).ConfigureAwait(false);
+            bytes[0] = 9;
+            payload.PC = 99;
+            Variant expected = NestDiagnosticValue(Variant.FromStructure(
+                new DiagnosticPayload(uri) { PC = 7, UId = ByteString.From(1, 2, 3) }), nesting);
+            BaseVariableState stored = Variable(reader, "LastAccess", field);
+            Assert.That(DiagnosticLeaf(stored.Value, nesting).TryGetValue(out ExtensionObject encoded), Is.True);
+            Assert.That(encoded.TryGetValue(out DiagnosticPayload? retained), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(retained, Is.Not.SameAs(payload));
+                Assert.That(retained!.BinaryEncodingId, Is.EqualTo(payload.BinaryEncodingId));
+                Assert.That(stored.Value, Is.EqualTo(expected));
+                Assert.That(stored.Value.Equals(custom), Is.False);
+                Assert.That(stored.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(stored.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+        }
+
+        /// <summary>
+        /// Copies caller-supplied opaque binary values without requiring an activator for their encoding id.
+        /// </summary>
+        [Test]
+        public async Task CustomOpaqueStructuresRemainValidAndIndependentAsync(
+            [Values("Identifier", "RWData")] string field,
+            [Values("Scalar", "VariantArray", "Structure")] string nesting)
+        {
+            await using AutoIdReader reader = await CreateAsync().ConfigureAwait(false);
+            string uri = "urn:opcfoundation:autoid:opaque:" + Interlocked.Increment(ref m_sequence);
+            m_fixture.Context.NamespaceUris.GetIndexOrAppend(uri);
+            var encodingId = new ExpandedNodeId(2u, uri);
+            byte[] bytes = [1, 2, 3];
+            Variant custom = NestDiagnosticValue(Variant.From(
+                new ExtensionObject(encodingId, ByteString.From(bytes))), nesting);
+            Assert.That(m_fixture.Context.EncodeableFactory.TryGetEncodeableType(encodingId, out _), Is.False);
+            var data = new ScanData { SwitchField = ScanDataFields.Custom, Custom = custom };
+            RfidAccessResult report = Access();
+            report.EncodingMask |= (uint)RfidAccessResultFields.RWData;
+            if (field == "Identifier")
+            {
+                report.Identifier = data;
+            }
+            else
+            {
+                report.RWData = data;
+            }
+            await reader.ReportAccessAsync("Replacement", "Controller", [report]).ConfigureAwait(false);
+            bytes[0] = 9;
+            BaseVariableState stored = Variable(reader, "LastAccess", field);
+            Variant expected = NestDiagnosticValue(Variant.From(
+                new ExtensionObject(encodingId, ByteString.From(1, 2, 3))), nesting);
+            Assert.That(DiagnosticLeaf(stored.Value, nesting).TryGetValue(out ExtensionObject encoded), Is.True);
+            Assert.That(encoded.TryGetAsBinary(out ByteString retained), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(encoded.TypeId, Is.EqualTo(encodingId));
+                Assert.That(retained, Is.EqualTo(ByteString.From(1, 2, 3)));
+                Assert.That(stored.Value, Is.EqualTo(expected));
+                Assert.That(stored.Value.Equals(custom), Is.False);
+                Assert.That(stored.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(stored.Timestamp, Is.EqualTo(report.Timestamp));
+            });
+        }
+
+        /// <summary>
+        /// Places the value directly, in a Variant array, or inside a registered generated structure.
+        /// </summary>
+        private static Variant NestDiagnosticValue(Variant value, string nesting)
+        {
+            return nesting switch
+            {
+                "Scalar" => value,
+                "VariantArray" => Variant.From(new[] { value }.ToArrayOf()),
+                "Structure" => Variant.FromStructure(
+                    new ScanData { SwitchField = ScanDataFields.Custom, Custom = value }),
+                _ => throw new ArgumentOutOfRangeException(nameof(nesting))
+            };
+        }
+
+        /// <summary>
+        /// Selects the leaf without asking the factory to decode an opaque ExtensionObject.
+        /// </summary>
+        private static Variant DiagnosticLeaf(Variant value, string nesting)
+        {
+            if (nesting == "VariantArray")
+            {
+                Assert.That(value.TryGetValue(out ArrayOf<Variant> items), Is.True);
+                return items[0];
+            }
+            if (nesting == "Structure")
+            {
+                Assert.That(value.TryGetValue(out ExtensionObject encoded), Is.True);
+                Assert.That(encoded.TryGetValue(out ScanData? data), Is.True);
+                return data!.Custom;
+            }
+            return value;
+        }
+
+        /// <summary>
         /// Creates a reader without transferring ownership of the shared test runtime.
         /// </summary>
         private async Task<AutoIdReader> CreateAsync(
@@ -596,5 +756,20 @@ namespace Opc.Ua.AutoID.Tests
 
         /// <summary>The unique reader-name suffix.</summary>
         private int m_sequence;
+
+        /// <summary>
+        /// Carries an otherwise ordinary EPC value under a test-specific, initially unregistered encoding id.
+        /// </summary>
+        private sealed class DiagnosticPayload(string namespaceUri) : ScanDataEpc
+        {
+            /// <inheritdoc/>
+            public override ExpandedNodeId TypeId => new(1u, namespaceUri);
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId BinaryEncodingId => new(2u, namespaceUri);
+
+            /// <inheritdoc/>
+            public override ExpandedNodeId XmlEncodingId => new(3u, namespaceUri);
+        }
     }
 }

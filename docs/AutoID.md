@@ -586,10 +586,20 @@ events when all results are needed.
 
 The diagnostic cache copies ByteString buffers and EPC fields before retaining
 them. Custom values are snapshotted through the existing UA binary codec and the
-runtime's encodeable factory, including nested mutable values. A custom value
-that exceeds codec limits or cannot be encoded rejects the report before any
-LastAccess field changes. Providers must keep the report stable until the
-reporting operation completes; later buffer reuse does not change diagnostic
+runtime's encodeable factory, then compared with the original Variant using
+the existing semantic equality rules, including nested structures and arrays.
+Custom structures encoded as ExtensionObjects require compatible registered
+activators. If a decoded structure becomes an opaque ExtensionObject, or the copied value
+otherwise compares unequal, the report throws `Bad_EncodingError` before any
+LastAccess field changes. Already-opaque values are accepted when their type
+and body round-trip unchanged; a representation change that compares unequal
+is rejected rather than silently retained with Good quality. Codec errors and
+encoding limits also reject the report without changing the previous values,
+quality or timestamps. Custom structures must implement `IEncodeable.IsEqual`
+according to their value semantics.
+
+Providers must keep the report stable until the reporting operation completes;
+later buffer reuse does not change diagnostic
 values, quality or timestamps. This copying applies only to the diagnostic
 projection and does not change access-event payloads.
 
