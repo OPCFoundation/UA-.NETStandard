@@ -173,8 +173,8 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(assets.ToArray(), Does.Contain(pump));
                 Assert.That(snapshot.Identification.ProductInstanceUri, Is.EqualTo(PumpUri));
                 Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(11));
-                Assert.That(snapshot.Identification.PatchIdentifiers.ToList(),
-                    Is.EqualTo(new[] { "fixture-patch" }));
+                Assert.That(snapshot.Identification.PatchIdentifiers.Count, Is.EqualTo(1));
+                Assert.That(snapshot.Identification.PatchIdentifiers[0], Is.EqualTo("fixture-patch"));
                 Assert.That(snapshot.DeviceHealthValue!.IsAbsent, Is.False);
                 Assert.That(snapshot.DeviceHealthValue.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(snapshot.HealthAlarms.Count, Is.EqualTo(1));
