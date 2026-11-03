@@ -118,7 +118,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             int calls = context.Requests.Count;
             await connection.DisposeAsync().ConfigureAwait(false);
             Assert.That(context.Requests, Has.Count.EqualTo(calls));
-            Assert.That(context.Requests.OfType<CloseSessionRequest>(), Has.Count.EqualTo(1));
+            Assert.That(context.Requests.OfType<CloseSessionRequest>(), Has.Exactly(1).Items);
         }
 
         /// <summary>

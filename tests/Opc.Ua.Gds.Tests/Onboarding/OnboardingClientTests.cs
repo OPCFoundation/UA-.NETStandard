@@ -267,9 +267,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 : nameof(OnboardingClient.RegisterTicketsAsync);
             var method = typeof(OnboardingClient).GetMethod(methodName, s_legacyTicketSignature) ??
                 throw new AssertionException("The legacy byte-ticket overload is missing.");
+#if NETFRAMEWORK
             return (Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>>)
                 method.CreateDelegate(
                     typeof(Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>>), client);
+#else
+            return method.CreateDelegate<
+                Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>>>(client);
+#endif
         }
 
         private static Mock<ISession> CreateSessionMock(
@@ -327,6 +332,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 StatusCode = StatusCodes.BadMethodInvalid
             };
         }
+
+        /// <summary>The exact retained byte-ticket signature, separate from the corrected string API.</summary>
+        private static readonly Type[] s_legacyTicketSignature =
+            [typeof(ArrayOf<ByteString>), typeof(CancellationToken)];
     }
 
     /// <summary>
@@ -581,8 +590,5 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return null;
         }
 
-        /// <summary>The exact retained byte-ticket signature, separate from the corrected string API.</summary>
-        private static readonly Type[] s_legacyTicketSignature =
-            [typeof(ArrayOf<ByteString>), typeof(CancellationToken)];
     }
 }

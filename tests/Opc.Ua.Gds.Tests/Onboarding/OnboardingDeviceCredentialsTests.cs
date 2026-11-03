@@ -34,7 +34,7 @@ using OnboardingClientSample;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using ObjectTypeIds = Opc.Ua.ObjectTypeIds;
+using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = "sample-store-not-opened",
-                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                CertificateType = CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
                 RawData = m_identity.RawData
             };
             m_configuration = new ApplicationConfiguration(m_telemetry)
@@ -132,7 +132,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     null, null, cancellation.Token))
                 .Returns(() => new ValueTask<Certificate?>(m_identity.AddRef()));
             m_manager.Setup(m => m.UpdateApplicationCertificateAsync(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
                     It.Is<Certificate>(c => c.Thumbprint == m_identity.Thumbprint && c.HasPrivateKey),
                     null, cancellation.Token))
                 .Returns(Task.CompletedTask);
@@ -145,7 +145,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(m_identity.HasPrivateKey, Is.True);
             m_provider.VerifyAll();
             m_manager.Verify(m => m.UpdateApplicationCertificateAsync(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType, It.IsAny<Certificate>(),
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType, It.IsAny<Certificate>(),
                 null, cancellation.Token), Times.Once);
         }
 
@@ -206,7 +206,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             m_manager.Verify(m => m.AcquireApplicationCertificateByType(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType), Times.Once);
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType), Times.Once);
         }
 
         /// <summary>
@@ -249,7 +249,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     new PullDcaCredentials(Encoded(wrongUri), [], CompleteTrustList())).ConfigureAwait(false));
             Assert.That(certificateError!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
             m_manager.Verify(m => m.AcquireApplicationCertificateByType(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType), Times.Once);
+                CoreObjectTypeIds.RsaSha256ApplicationCertificateType), Times.Once);
             VerifyNoInstallation();
         }
 
@@ -449,7 +449,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     })
                 .Returns(() => failureStage == "trust-list" ? Task.FromException(failure) : Task.CompletedTask);
             m_manager.Setup(m => m.UpdateApplicationCertificateAsync(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
                     It.IsAny<Certificate>(), It.IsAny<CertificateCollection>(), cancellation.Token))
                 .Callback<NodeId, Certificate, CertificateCollection?, CancellationToken>(
                     (_, certificate, issuers, _) =>
@@ -521,12 +521,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private void SetupActiveKey()
         {
             m_manager.Setup(m => m.AcquireApplicationCertificateByType(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType))
                 .Returns(() =>
                 {
                     using var issuers = new CertificateCollection();
                     return new CertificateEntry(
-                        m_identity, issuers, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                        m_identity, issuers, CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
                 });
         }
 
@@ -588,7 +588,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The sample's supported credential profile.</summary>
         private static readonly PullDcaCertificateProfile s_profile = new(
-            new NodeId("default-group", 0), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            new NodeId("default-group", 0), CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
 
         /// <summary>The fixture-owned private identity.</summary>
         private Certificate m_identity = null!;

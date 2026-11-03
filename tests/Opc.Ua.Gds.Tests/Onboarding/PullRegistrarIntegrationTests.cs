@@ -569,8 +569,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>The owning dependency-injection container.</summary>
         private ServiceProvider m_provider = null!;
 
-        /// <summary>The existing GDS hosted service.</summary>
-        private GdsServerHostedService m_host = null!;
+        /// <summary>The borrowed GDS hosted service; the dependency-injection container owns its disposal.</summary>
+        private IHostedService m_host = null!;
 
         /// <summary>Prevents repeated disposal after NUnit teardown.</summary>
         private int m_disposed;

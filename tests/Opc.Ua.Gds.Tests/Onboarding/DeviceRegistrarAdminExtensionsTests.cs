@@ -333,8 +333,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var method = typeof(DeviceRegistrarAdminExtensions).GetMethod(
                 nameof(DeviceRegistrarAdminExtensions.BindToTicketStore), s_legacyBindingSignature) ??
                 throw new AssertionException("The legacy unvalidated binding overload is missing.");
+#if NETFRAMEWORK
             var bind = (Action<BaseObjectState, ITicketStore>)method.CreateDelegate(
                 typeof(Action<BaseObjectState, ITicketStore>));
+#else
+            Action<BaseObjectState, ITicketStore> bind = method.CreateDelegate<Action<BaseObjectState, ITicketStore>>();
+#endif
             bind(registrar, store.Object);
             ArrayOf<string> tickets = ["ticket"];
 

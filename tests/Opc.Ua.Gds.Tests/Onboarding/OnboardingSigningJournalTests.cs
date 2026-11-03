@@ -34,7 +34,7 @@ using OnboardingClientSample;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
-using ObjectTypeIds = Opc.Ua.ObjectTypeIds;
+using CoreObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ManagerDescription = Opc.Ua.Onboarding.ManagerDescription;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
@@ -79,12 +79,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_issued = [];
             m_manager = new Mock<ICertificateManager>(MockBehavior.Strict);
             m_manager.Setup(m => m.AcquireApplicationCertificateByType(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType))
                 .Returns(() =>
                 {
                     using var issuers = new CertificateCollection();
                     return new CertificateEntry(
-                        m_identity, issuers, ObjectTypeIds.RsaSha256ApplicationCertificateType);
+                        m_identity, issuers, CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
                 });
             m_manager.Setup(m => m.ValidateAsync(
                     It.IsAny<CertificateCollection>(), TrustListIdentifier.Peers,
@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             m_manager.Setup(m => m.UpdateApplicationCertificateAsync(
-                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
                     It.IsAny<Certificate>(), It.IsAny<CertificateCollection>(), It.IsAny<CancellationToken>()))
                 .Callback<NodeId, Certificate, CertificateCollection?, CancellationToken>(
                     (_, certificate, _, _) =>
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = applicationStorePath,
-                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                CertificateType = CoreObjectTypeIds.RsaSha256ApplicationCertificateType,
                 RawData = m_identity.RawData
             };
             m_configuration = CreateConfiguration(kApplicationUri);
@@ -733,7 +733,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new NodeId("dca", namespaceIndex),
                 new NodeId("request", namespaceIndex),
                 new PullDcaCertificateProfile(
-                    new NodeId("group", namespaceIndex), ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                    new NodeId("group", namespaceIndex), CoreObjectTypeIds.RsaSha256ApplicationCertificateType));
         }
 
         /// <summary>
@@ -834,7 +834,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using CertificateCollection keys = await store.EnumerateAsync().ConfigureAwait(false);
             Assert.That(keys, Has.Count.EqualTo(1));
             Certificate? retained = await store.LoadPrivateKeyAsync(
-                keys[0].Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
+                keys[0].Thumbprint, null, null, CoreObjectTypeIds.RsaSha256ApplicationCertificateType, null)
                 .ConfigureAwait(false);
             Assert.That(retained, Is.Not.Null);
             return retained!;
@@ -994,7 +994,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(certificateGroupId, Is.EqualTo(m_fixture.m_binding.Profile.CertificateGroupId));
                 CertificateReads++;
                 Assigned = m_assign(SigningRequest);
-                ArrayOf<NodeId> types = [ObjectTypeIds.RsaSha256ApplicationCertificateType];
+                ArrayOf<NodeId> types = [CoreObjectTypeIds.RsaSha256ApplicationCertificateType];
                 ArrayOf<ByteString> certificates = [Encoded(Assigned)];
                 return new ValueTask<(ArrayOf<NodeId>, ArrayOf<ByteString>)>((types, certificates));
             }
