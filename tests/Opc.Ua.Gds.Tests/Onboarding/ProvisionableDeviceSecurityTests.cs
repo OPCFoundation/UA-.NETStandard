@@ -774,6 +774,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
             Assert.That(provider.GetRequiredService<IProvisionableDeviceSecurity>(),
                 Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
+            Assert.That(provider.GetRequiredService<IPushConfigurationAuthorization>(),
+                Is.SameAs(provider.GetRequiredService<ProvisionableDeviceSecurity>()));
         }
 
         /// <summary>

@@ -64,9 +64,12 @@ installation, explicit endpoint activation and reset through a separate retained
 device-identity key and captured TrustList defaults. The selected secret and
 certificate stores own restart durability. The device security gate retains
 the first authorized registrar before protected configuration proceeds; restart
-preserves that owner, and reset releases it. Standard push configuration methods
-are not yet routed through that device security transition, so this registration
-alone does not complete connected device provisioning.
+preserves that owner, and reset releases it. Fluent hosting installs that same
+owner as `IPushConfigurationAuthorization` for standard push mutations and
+TrustList writes. The existing transaction coordinator retains staging and
+rollback ownership. Recording its completed transaction as the installed device
+security transition remains incomplete, so this registration alone does not
+complete connected device provisioning.
 
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.

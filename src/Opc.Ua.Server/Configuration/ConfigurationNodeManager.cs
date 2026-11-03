@@ -721,6 +721,11 @@ namespace Opc.Ua.Server
                     m_configuration.ServerConfiguration!.MaxTrustListSize,
                     m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
                     m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (m_serverConfigurationOptions.PushAuthorization != null)
+                {
+                    trustList.SetWriteAuthorization((context, _, ct) =>
+                        AuthorizePushMutationAsync(context, requireEncryptedChannel: true, ct));
+                }
                 if (IsApplicationCertificateGroup(certGroup))
                 {
                     // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
@@ -951,6 +956,20 @@ namespace Opc.Ua.Server
                         "Security Admin Role required to access this item.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Awaits host policy only after the standard channel and role checks succeed.
+        /// </summary>
+        private ValueTask AuthorizePushMutationAsync(
+            ISystemContext context,
+            bool requireEncryptedChannel,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            HasApplicationSecureAdminAccess(context, requireEncryptedChannel);
+            return m_serverConfigurationOptions.PushAuthorization?
+                .AuthorizeAsync(context, cancellationToken) ?? default;
         }
 
         /// <summary>

@@ -147,6 +147,121 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Host ownership decisions complete before any standard push mutation or transaction state changes.
+        /// </summary>
+        [TestCase("csr")]
+        [TestCase("update")]
+        [TestCase("selfSigned")]
+        [TestCase("delete")]
+        [TestCase("apply")]
+        [TestCase("cancel")]
+        [TestCase("reset")]
+        public async Task PushMutationAwaitsHostAuthorizationBeforeConfigurationEffects(string operation)
+        {
+            var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            SessionSystemContext context = CreateAdminContextForSession(new NodeId(901, 1));
+            policy.Setup(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()))
+                .Returns(async (ISystemContext _, CancellationToken ct) =>
+                {
+                    await decision.Task.ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                });
+            var reset = new Mock<IServerConfigurationResetProvider>(MockBehavior.Strict);
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object,
+                ResetProvider = reset.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ServerConfigurationState node = harness.Node;
+                Task pending = InvokeAsync();
+                Assert.That(pending.IsCompleted, Is.False);
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+                var failure = new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                decision.SetException(failure);
+
+                ServiceResultException? actual = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await pending.ConfigureAwait(false));
+
+                Assert.That(actual, Is.SameAs(failure));
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+                policy.Verify(value => value.AuthorizeAsync(context, It.IsAny<CancellationToken>()), Times.Once);
+                reset.VerifyNoOtherCalls();
+
+                async Task InvokeAsync()
+                {
+                    switch (operation)
+                    {
+                        case "csr":
+                            await node.CreateSigningRequest!.OnCallAsync!(
+                                context, node.CreateSigningRequest, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, true,
+                                ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "update":
+                            await node.UpdateCertificate!.OnCallAsync!(
+                                context, node.UpdateCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, ByteString.Empty,
+                                [], string.Empty, ByteString.Empty, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "selfSigned":
+                            await node.CreateSelfSignedCertificate!.OnCallAsync!(
+                                context, node.CreateSelfSignedCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, "CN=NotCreated", [], [],
+                                1, 2048, CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        case "delete":
+                            await node.DeleteCertificate!.OnCallAsync!(
+                                context, node.DeleteCertificate, node.NodeId, NodeId.Null,
+                                ObjectTypeIds.RsaSha256ApplicationCertificateType, CancellationToken.None)
+                                .ConfigureAwait(false);
+                            break;
+                        default:
+                            MethodState method = operation switch
+                            {
+                                "apply" => node.ApplyChanges!,
+                                "cancel" => node.CancelChanges!,
+                                _ => node.ResetToServerDefaults!
+                            };
+                            await method.OnCallMethod2Async!(
+                                context, method, node.NodeId, [], [], CancellationToken.None).ConfigureAwait(false);
+                            break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Host policy cannot authorize an anonymous caller before the standard SecurityAdmin check.
+        /// </summary>
+        [Test]
+        public async Task PushMutationChecksStandardRoleBeforeHostPolicy()
+        {
+            var policy = new Mock<IPushConfigurationAuthorization>(MockBehavior.Strict);
+            Harness harness = await CreateHarnessAsync(new ServerConfigurationOptions
+            {
+                PushAuthorization = policy.Object
+            }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                SessionSystemContext context = CreateContext(
+                    UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
+
+                ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await harness.Node.CreateSigningRequest!.OnCallAsync!(
+                        context, harness.Node.CreateSigningRequest, harness.Node.NodeId, NodeId.Null,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, true,
+                        ByteString.Empty, CancellationToken.None).ConfigureAwait(false));
+
+                Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                policy.VerifyNoOtherCalls();
+                Assert.That(harness.Coordinator.GetSnapshot().IsActive, Is.False);
+            }
+        }
+
         [Test]
         public async Task ResetToServerDefaultsExposedOnlyWhenProviderConfiguredAsync()
         {

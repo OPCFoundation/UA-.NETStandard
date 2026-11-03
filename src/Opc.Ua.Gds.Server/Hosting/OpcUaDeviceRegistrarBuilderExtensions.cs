@@ -273,6 +273,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (!descriptor.IsKeyedService &&
                     (descriptor.ServiceType == typeof(ProvisionableDeviceSecurity) ||
                     descriptor.ServiceType == typeof(IProvisionableDeviceSecurity) ||
+                    descriptor.ServiceType == typeof(IPushConfigurationAuthorization) ||
                     descriptor.ServiceType == typeof(IServerConfigurationResetProvider)))
                 {
                     throw new InvalidOperationException("Select only one device security/reset provider.");
@@ -286,6 +287,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IServerConfigurationResetProvider>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IProvisionableDeviceSecurity>(provider =>
+                provider.GetRequiredService<ProvisionableDeviceSecurity>());
+            services.AddSingleton<IPushConfigurationAuthorization>(provider =>
                 provider.GetRequiredService<ProvisionableDeviceSecurity>());
             services.AddSingleton<IServerPreStartupTask>(provider => new DeviceSecurityStartupTask(
                 () => provider.GetRequiredService<IProvisionableDeviceSecurity>()));

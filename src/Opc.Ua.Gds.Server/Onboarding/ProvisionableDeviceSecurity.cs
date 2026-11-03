@@ -142,7 +142,10 @@ namespace Opc.Ua.Gds.Server.Onboarding
     /// restart durability is a property of the selected store, not of ISecretStore itself.
     /// This adapter provides no multi-process or distributed writer coordination.
     /// </summary>
-    public sealed class ProvisionableDeviceSecurity : IProvisionableDeviceSecurity, IDisposable
+    public sealed class ProvisionableDeviceSecurity :
+        IProvisionableDeviceSecurity,
+        IPushConfigurationAuthorization,
+        IDisposable
     {
         /// <summary>
         /// Borrows host-owned stores, validation, and platform-specific installation.
@@ -223,6 +226,14 @@ namespace Opc.Ua.Gds.Server.Onboarding
             {
                 m_gate.Release();
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask IPushConfigurationAuthorization.AuthorizeAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            return RequireRegistrarAsync(context, cancellationToken);
         }
 
         /// <summary>

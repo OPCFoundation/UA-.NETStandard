@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
         /// Client can receive this response, and then invokes the injected
         /// <see cref="IServerConfigurationResetProvider"/>.
         /// </summary>
-        private ValueTask<ServiceResult> ResetToServerDefaultsAsync(
+        private async ValueTask<ServiceResult> ResetToServerDefaultsAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -106,12 +106,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             // §7.10.13: authenticated SecureChannel + SecurityAdmin Role.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             if (m_serverConfigurationOptions.ResetProvider == null)
             {
-                return new ValueTask<ServiceResult>(
-                    (ServiceResult)StatusCodes.BadNotSupported);
+                return StatusCodes.BadNotSupported;
             }
 
             // A reset invalidates the whole configuration, so it must not race
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException ex)
             {
-                return new ValueTask<ServiceResult>((ServiceResult)ex.StatusCode);
+                return ex.StatusCode;
             }
 
             m_logger.ResetToServerDefaultsRequested(sessionId);
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
             ScheduleDeferredReset();
 
             // §7.10.13: the response is returned before the reset/shutdown runs.
-            return new ValueTask<ServiceResult>(ServiceResult.Good);
+            return ServiceResult.Good;
         }
 
         /// <summary>
@@ -314,7 +314,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             // §7.10.9: ApplyChanges requires an authenticated SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
 
@@ -411,7 +412,7 @@ namespace Opc.Ua.Server
         /// transaction owned by the calling Session (OPC UA Part 12
         /// §7.10.2/§7.10.11).
         /// </summary>
-        private ValueTask<ServiceResult> CancelChangesAsync(
+        private async ValueTask<ServiceResult> CancelChangesAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -421,12 +422,13 @@ namespace Opc.Ua.Server
         {
             // §7.10.2/§7.10.11: CancelChanges requires an authenticated
             // SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: false);
+            await AuthorizePushMutationAsync(context, requireEncryptedChannel: false, cancellationToken)
+                .ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = m_coordinator.CancelChanges(sessionId);
             UpdateTransactionDiagnostics(context);
-            return new ValueTask<ServiceResult>(result);
+            return result;
         }
 
         /// <summary>

@@ -863,19 +863,37 @@ registration. The fluent registration adds an `IServerPreStartupTask` that calls
 listeners. Recovery errors abort startup. A directly constructed host must call
 `RecoverAsync` before exposing operational endpoints.
 `ProvisionableDeviceRuntime` resolves the optional `IProvisionableDeviceSecurity`
-provider and gates `SetRegistrarEndpoints` through it. The host invokes
-`RequireRegistrarAsync` on its other registrar operations; registration alone
-does not install these gates into an existing device. SecurityAdmin on an
+provider and gates `SetRegistrarEndpoints` through it.
+`AddProvisionableDeviceSecurity` also registers that same state owner as
+`IPushConfigurationAuthorization`. Standard server hosting installs it on
+`ServerConfigurationOptions.PushAuthorization` before creating the configuration
+address space. `CreateSigningRequest`, `UpdateCertificate`, self-signed
+certificate creation, certificate deletion, `ApplyChanges`, `CancelChanges` and
+security reset await this policy after their existing channel and SecurityAdmin
+checks. TrustList write-open, chunk writes, `CloseAndUpdate`, certificate
+addition and removal use the same policy; a later denial does not consume an
+existing write handle. Closing a handle without applying it remains available.
+
+Direct hosts set `ServerConfigurationOptions.PushAuthorization` to the state
+owner when constructing their `ConfigurationNodeManager`. A custom policy can
+implement `IPushConfigurationAuthorization` without referencing the onboarding
+library. `TrustList.SetWriteAuthorization` supplies the corresponding awaited
+write policy for custom TrustList hosts; it replaces the constructor's write
+callback, so that policy must also enforce its required channel and role checks.
+The setter removes synchronous mutation callbacks rather than blocking on an
+asynchronous decision. Existing hosts with no policy retain their original
+access checks. SecurityAdmin on an
 encrypted authenticated session is required for `InstallAsync`. The state
 adapter has one exclusive scope owner and the same complete-publication and
 durability prerequisites as the client receipt adapter. It does not provide
 distributed coordination.
 
-The standard `CreateSigningRequest`, `UpdateCertificate`, TrustList and
-`ApplyChanges` handlers are not yet routed through this device security
-transition. Registering the installer alone therefore does not implement
-connected push onboarding or establish registrar ownership for changes made
-through those unbound handlers. The pre-startup defaults snapshot remains
+The standard push handlers now enforce registrar ownership, but their committed
+certificate and TrustList transaction is not yet recorded as the installed
+device security transition. Registrar ownership therefore remains pinned in
+`Configuring` after a standard transaction rather than changing to validation
+against installed trust. This registration does not yet complete connected push
+onboarding. The pre-startup defaults snapshot remains
 available for security reset even if a standard handler later replaces the
 application certificate.
 

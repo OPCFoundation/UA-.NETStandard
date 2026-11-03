@@ -243,6 +243,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Replaces write authorization with an awaited policy before write handles, bytes or mutations change.
+        /// Configure before dispatch begins. Synchronous write callbacks are removed rather than blocking on policy.
+        /// The callback must enforce the required channel and role checks in addition to its host policy.
+        /// </summary>
+        public void SetWriteAuthorization(
+            Func<ISystemContext, CertificateStoreIdentifier, CancellationToken, ValueTask> authorizeWrite)
+        {
+            m_authorizeWriteAsync = authorizeWrite ?? throw new ArgumentNullException(nameof(authorizeWrite));
+            m_node.Open!.OnCall = null;
+            m_node.Write!.OnCall = null;
+            m_node.CloseAndUpdate!.OnCall = null;
+            m_node.AddCertificate!.OnCall = null;
+            m_node.RemoveCertificate!.OnCall = null;
+        }
+
+        /// <summary>
         /// Wires an optional trust-material change notifier for the legacy
         /// non-transactional (immediate-apply) hosting mode. When set, the
         /// immediate-apply branches of <c>CloseAndUpdate</c>,
@@ -858,7 +874,7 @@ namespace Opc.Ua.Server
             }
             else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
             {
-                HasSecureWriteAccess(context);
+                await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
                 // Per OPC UA Part 12 §7.10.2, opening a TrustList for
                 // writing participates in owner-Session validation: a
                 // different Session's active transaction rejects this
@@ -1107,7 +1123,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Writes supplied bytes to the open TrustList stream after validating the handle and owning session.
         /// </summary>
-        private ValueTask<WriteMethodStateResult> WriteAsync(
+        private async ValueTask<WriteMethodStateResult> WriteAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1115,29 +1131,29 @@ namespace Opc.Ua.Server
             ByteString data,
             CancellationToken cancellationToken)
         {
-            HasSecureWriteAccess(context);
+            await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
 
             lock (m_lock)
             {
                 ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
-                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    return new WriteMethodStateResult
                     {
                         ServiceResult = handleResult
-                    });
+                    };
                 }
 
                 // OPC 10000-20 §4.2.5: Bad_InvalidState when the file was not
                 // opened for writing.
                 if (!handle!.ForWrite)
                 {
-                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    return new WriteMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadInvalidState,
                             "The TrustList was not opened for writing.")
-                    });
+                    };
                 }
 
                 // Overflow-safe cumulative bound: TotalBytesProcessed is a
@@ -1147,13 +1163,13 @@ namespace Opc.Ua.Server
                 // (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
                 if (handle.TotalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
                 {
-                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    return new WriteMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
                             StatusCodes.BadRequestTooLarge,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_effectiveMaxTrustListSize)
-                    });
+                    };
                 }
 
                 handle.Stream.Write(data.ToArray(), 0, data.Length);
@@ -1161,10 +1177,10 @@ namespace Opc.Ua.Server
                 RestartActivityTimerNoLock(handle, context);
             }
 
-            return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+            return new WriteMethodStateResult
             {
                 ServiceResult = ServiceResult.Good
-            });
+            };
         }
 
         /// <summary>
@@ -1276,7 +1292,7 @@ namespace Opc.Ua.Server
                 method.NodeId,
                 inputParameters,
                 m_logger);
-            HasSecureWriteAccess(context);
+            await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
             if (m_coordinator != null)
@@ -1721,7 +1737,7 @@ namespace Opc.Ua.Server
                 method.NodeId,
                 inputParameters,
                 m_logger);
-            HasSecureWriteAccess(context);
+            await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
@@ -1964,7 +1980,7 @@ namespace Opc.Ua.Server
                 inputParameters,
                 m_logger);
 
-            HasSecureWriteAccess(context);
+            await HasSecureWriteAccessAsync(context, cancellationToken).ConfigureAwait(false);
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
             ServiceResult openState = GetOpenStateResult(context);
@@ -2783,8 +2799,16 @@ namespace Opc.Ua.Server
             return default;
         }
 
-        private void HasSecureWriteAccess(ISystemContext context)
+        /// <summary>
+        /// Awaits configured write policy without falling back after a denial.
+        /// </summary>
+        private ValueTask HasSecureWriteAccessAsync(ISystemContext context, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (m_authorizeWriteAsync != null)
+            {
+                return m_authorizeWriteAsync(context, m_trustedStore, cancellationToken);
+            }
             if (m_writeAccess != null)
             {
                 m_writeAccess.Invoke(context, m_trustedStore);
@@ -2793,6 +2817,7 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
+            return default;
         }
 
         /// <summary>
@@ -2806,6 +2831,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Optional replacement policy configured before dispatch begins.</summary>
         private Func<ISystemContext, CertificateStoreIdentifier, CancellationToken, ValueTask>? m_authorizeReadAsync;
+
+        /// <summary>Optional replacement write policy configured before dispatch begins.</summary>
+        private Func<ISystemContext, CertificateStoreIdentifier, CancellationToken, ValueTask>? m_authorizeWriteAsync;
 
         private readonly SecureAccess m_writeAccess;
         private readonly Dictionary<uint, OpenHandle> m_handles = [];
