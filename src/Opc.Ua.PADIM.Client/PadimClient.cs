@@ -371,12 +371,13 @@ namespace Opc.Ua.PADIM.Client
             {
                 if (required.TryGetType(id, out IType? expected))
                 {
-                    bool incompatibleId = factory.TryGetType(id, out IType? actual) &&
-                        (actual.Type != expected.Type ||
-                            (actual is IEncodeableType) != (expected is IEncodeableType));
+                    bool incompatibleId =
+                        (factory.TryGetEncodeableType(id, out IEncodeableType? actualStructure) &&
+                            !IsCompatibleType(expected, actualStructure)) ||
+                        (factory.TryGetEnumeratedType(id, out IEnumeratedType? actualEnumeration) &&
+                            !IsCompatibleType(expected, actualEnumeration));
                     bool incompatibleXml = factory.TryGetType(expected.XmlName, out IType? actualXml) &&
-                        (actualXml.Type != expected.Type ||
-                            (actualXml is IEncodeableType) != (expected is IEncodeableType));
+                        !IsCompatibleType(expected, actualXml);
                     if (incompatibleId || incompatibleXml)
                     {
                         throw new InvalidOperationException(
@@ -410,6 +411,19 @@ namespace Opc.Ua.PADIM.Client
                 throw new InvalidOperationException(
                     $"The session factory has a missing or incompatible PA-DIM mapping '{id}' after registration.");
             }
+        }
+
+        /// <summary>
+        /// Checks both the declared system type and the required activator capability.
+        /// </summary>
+        private static bool IsCompatibleType(IType expected, IType actual)
+        {
+            return actual.Type == expected.Type && (expected switch
+            {
+                IEncodeableType => actual is IEncodeableType,
+                IEnumeratedType => actual is IEnumeratedType,
+                _ => false
+            });
         }
 
         /// <summary>The per-discovery and per-browse node bound.</summary>

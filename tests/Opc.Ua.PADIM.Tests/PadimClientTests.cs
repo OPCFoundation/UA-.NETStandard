@@ -306,6 +306,64 @@ namespace Opc.Ua.PADIM.Tests
         }
 
         /// <summary>
+        /// A matching system type does not make a non-enum XML mapping a compatible enum activator.
+        /// </summary>
+        [Test]
+        public void ConstructionRejectsLegacyEnumXmlMappingWithoutEnumerationCapability()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            backing.Builder.AddOpcUaPADIM().Commit();
+            Assert.That(backing.TryGetEnumeratedType(
+                DataTypeIds.PatDictionaryEnum, out IEnumeratedType? generated), Is.True);
+            var incompatible = new Mock<IBuiltInType>();
+            incompatible.SetupGet(value => value.Type).Returns(typeof(PatDictionaryEnum));
+            incompatible.SetupGet(value => value.XmlName).Returns(generated!.XmlName);
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            IType? xmlMapping = incompatible.Object;
+            legacy.Setup(value => value.TryGetType(generated!.XmlName, out xmlMapping)).Returns(true);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            InvalidOperationException? error = Assert.Throws<InvalidOperationException>(() =>
+                new PadimClient(session.Object, telemetry));
+
+            Assert.That(error!.Message, Does.Contain("incompatible PA-DIM mapping"));
+            Assert.That(legacy.Object.TryGetType(generated!.XmlName, out IType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(incompatible.Object));
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// A compatible structure registration does not hide an enum registration at the same identifier.
+        /// </summary>
+        [Test]
+        public void ConstructionRejectsLegacyIdentifierWithBothActivatorKinds()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IEncodeableFactory backing = ServiceMessageContext.CreateEmpty(telemetry).Factory;
+            backing.Builder.AddOpcUaPADIM().Commit();
+            var incompatible = new Mock<IEnumeratedType>();
+            incompatible.SetupGet(value => value.Type).Returns(typeof(ChemicalSubstance));
+            incompatible.SetupGet(value => value.XmlName).Returns(
+                new System.Xml.XmlQualifiedName("CallerEnum", "urn:padim:caller"));
+            backing.Builder.AddEnumeratedType(
+                ObjectIds.ChemicalSubstance_Encoding_DefaultBinary, incompatible.Object).Commit();
+            Mock<IEncodeableFactory> legacy = CreateLegacyFactory(backing);
+            Mock<ISession> session = CreateSession(legacy.Object);
+
+            Assert.Throws<InvalidOperationException>(() => new PadimClient(session.Object, telemetry));
+
+            Assert.That(backing.TryGetEncodeableType(
+                ObjectIds.ChemicalSubstance_Encoding_DefaultBinary, out IEncodeableType? structure), Is.True);
+            Assert.That(structure!.Type, Is.EqualTo(typeof(ChemicalSubstance)));
+            Assert.That(backing.TryGetEnumeratedType(
+                ObjectIds.ChemicalSubstance_Encoding_DefaultBinary, out IEnumeratedType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(incompatible.Object));
+            Mock.Get(legacy.Object.Builder).VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Rejects an opposite-kind binary identifier or XML-name collision without replacing it.
         /// </summary>
         [TestCase(false)]
