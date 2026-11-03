@@ -533,8 +533,9 @@ services.AddDeviceRegistrarPush(capacity: 32);
 `AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
 process-local. A durable deployment must also retain accepted work or arrange
-for an explicit retry after restart. Device-side credential activation,
-endpoint transition and security reset still require a connected installer.
+for an explicit retry after restart. The device-side installer below supplies
+local credential activation and reset; standard push-method integration and
+connected recovery evidence remain incomplete.
 
 The processor also serializes direct calls through installed-certificate proof,
 so a second call cannot replace the first attempt's pending device key or trust
@@ -755,8 +756,8 @@ Register these services with
 ticket and persistent registrar-store providers. The owning node manager binds
 an existing `ProvisionableDeviceState` through `BindToRuntime`; singleton binding rejects separate
 `ApplicationConfiguration` components. This registration does not expose a
-device resource. Shared Part 22 Resources integration, endpoint credential
-switching and connected device recovery/reset remain incomplete.
+device resource. Shared Part 22 Resources integration and connected device
+recovery/reset remain incomplete.
 
 `ProvisionableDeviceSecurity` supplies device-side installation and reset
 orchestration with an explicit `IProvisionableDeviceSecurityInstaller`. Its
@@ -770,9 +771,41 @@ restriction: another registrar accepted by installed trust may manage the
 configured device, as specified by
 [Part 21 §7.3](https://reference.opcfoundation.org/specs/OPC-10000-21/v1.05.04/7.3).
 
-The installer owns the existing private key, certificate-store updates, software
-gate, and switch to DCA-certificate endpoints. It must tolerate replay of the
-same installation. Configure these platform operations explicitly:
+`ProvisionableDeviceSecurityInstaller` retains the initial certificate and
+private key in a separate identity store before changing trust or application
+credentials. It captures the original TrustList once in the selected secret
+store and binds that checkpoint to the application, stores and certificate
+group. A reset reloads the retained identity key and restores that TrustList; it
+does not call a software installer or remove installed software.
+
+The installer claims only a pending key matching the issued certificate, or
+reuses the matching active or retained identity key. Failed installation restores
+a claimed key without replacing a newer request; both installation and
+restoration errors are reported. After updating the certificate manager it calls
+`IServerApplicationCertificateActivator`, whose standard-server implementation
+updates endpoint descriptions and transport listeners and propagates activation
+errors. The old application certificate is removed only after activation
+completes. This is a local activation acknowledgement, not evidence that a
+remote client has connected with the new certificate.
+
+Select the application slot, identity store and existing pending-key provider:
+
+```csharp
+serverBuilder.AddProvisionableDeviceSecurity(
+    "device-security", dcaApplicationUri,
+    new ProvisionableDeviceSecurityInstallerOptions
+    {
+        ApplicationCertificate = configuredApplicationSlot,
+        DeviceIdentityStorePath = deviceIdentityStorePath,
+        DeviceIdentityStoreType = CertificateStoreType.Directory,
+        CertificateGroupId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup
+    });
+```
+
+The secret store must persist complete values across restart, and the identity
+store must retain private keys independently of application-certificate rotation.
+The host supplies passwords when those stores require them. A custom platform
+can instead register its own installer:
 
 ```csharp
 services.AddSingleton<IProvisionableDeviceSecurityInstaller>(deviceSecurityInstaller);
@@ -794,6 +827,12 @@ encrypted authenticated session is required for `InstallAsync`. The state
 adapter has one exclusive scope owner and the same complete-publication and
 durability prerequisites as the client receipt adapter. It does not provide
 distributed coordination.
+
+The standard `CreateSigningRequest`, `UpdateCertificate`, TrustList and
+`ApplyChanges` handlers are not yet routed through this device security
+transition. Registering the installer alone therefore does not implement
+connected push onboarding or preserve device defaults for changes made through
+those unbound handlers.
 
 The same security instance is registered as `IServerConfigurationResetProvider`,
 so the existing configuration node manager retains ownership of network

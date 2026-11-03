@@ -51,7 +51,14 @@ namespace-stable model addresses. It checks the actual installed peer and
 retains cleanup failures without changing global certificate trust. Hosts still
 supply `IDeviceRegistrarPushEnrollmentProvider`, together with the shared
 lifecycle and GDS issuance store. The package does not yet supply the durable
-enrollment adapter or a device-side credential/reset installer.
+enrollment adapter.
+
+`ProvisionableDeviceSecurityInstaller` supplies local application-certificate
+installation, explicit endpoint activation and reset through a separate retained
+device-identity key and captured TrustList defaults. The selected secret and
+certificate stores own restart durability. Standard push configuration methods
+are not yet routed through that device security transition, so this registration
+alone does not complete connected device provisioning.
 
 Singleton application scope is retained in the shared lifecycle and enforced
 for subsequent managed-application registration and certificate access.

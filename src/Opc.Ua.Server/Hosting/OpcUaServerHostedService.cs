@@ -263,6 +263,7 @@ namespace Opc.Ua.Server.Hosting
                 m_services.GetService<ServerComplexTypeOptions>();
 
             m_server = m_serverFactory.CreateServer(m_telemetry, m_timeProvider);
+            m_services.GetService<ServerApplicationCertificateActivator>()?.Attach(m_server);
             m_nodeManagerLifecycle.Attach(m_server.NodeManagerLifecycle);
             if (m_server is not DependencyInjectionStandardServer)
             {

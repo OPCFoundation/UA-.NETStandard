@@ -54,7 +54,7 @@ namespace Opc.Ua.Server
     /// so the shutdown does not block their thread.
     /// </remarks>
     public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource
+        IRequestParkingPolicySource, IServerApplicationCertificateActivator
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -146,6 +146,43 @@ namespace Opc.Ua.Server
         /// time / duration calculations and timer scheduling.
         /// </summary>
         protected TimeProvider TimeProvider { get; }
+
+        /// <inheritdoc/>
+        public ValueTask ActivateAsync(
+            NodeId certificateType,
+            string expectedThumbprint,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (certificateType.IsNull || string.IsNullOrWhiteSpace(expectedThumbprint))
+            {
+                throw new ArgumentException("A certificate type and thumbprint are required.");
+            }
+
+            if (CertificateManager is not ICertificateRegistry registry ||
+                CertificateManager is not ICertificateValidatorEx validator)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "The server certificate manager cannot activate application certificates.");
+            }
+
+            using CertificateEntry? entry = registry.AcquireApplicationCertificateByType(certificateType);
+            if (entry == null ||
+                !string.Equals(entry.Certificate.Thumbprint, expectedThumbprint, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The requested application certificate is not the active certificate-manager entry.");
+            }
+
+            // Unlike the observer notification path, this explicit activation path propagates listener
+            // failures to its caller. The listener contract is synchronous: a completed call has applied
+            // the new registry reference and endpoint certificate before this method returns.
+            RefreshCertificateReferences(validator, registry);
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.CompletedTask;
+        }
 
         /// <summary>
         /// Gets or sets the optional redundant server-set provider consulted by

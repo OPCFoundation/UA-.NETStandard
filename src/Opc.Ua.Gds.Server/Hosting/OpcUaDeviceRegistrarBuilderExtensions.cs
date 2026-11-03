@@ -221,6 +221,30 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Adds the certificate-store-backed device installer and the provisionable-device security state machine.
+        /// </summary>
+        /// <param name="builder">The OPC UA server builder.</param>
+        /// <param name="scope">The exclusive durable-state scope for this device.</param>
+        /// <param name="applicationUri">The device application URI.</param>
+        /// <param name="installerOptions">
+        /// The application certificate slot, certificate group, and separate immutable identity store.
+        /// </param>
+        /// <returns>The same builder.</returns>
+        public static IOpcUaServerBuilder AddProvisionableDeviceSecurity(
+            this IOpcUaServerBuilder builder,
+            string scope,
+            string applicationUri,
+            ProvisionableDeviceSecurityInstallerOptions installerOptions)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddProvisionableDeviceSecurity(scope, applicationUri, installerOptions);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers one security state machine and exposes that same instance to the server's standard reset path.
         /// Custom reset providers must be incorporated by the installer rather than registered alongside this adapter.
         /// </summary>
@@ -266,6 +290,49 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IServerPreStartupTask>(provider => new DeviceSecurityStartupTask(
                 () => provider.GetRequiredService<IProvisionableDeviceSecurity>()));
             return services;
+        }
+
+        /// <summary>
+        /// Registers the concrete certificate-store-backed installer and device security state machine.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="scope">The exclusive durable-state scope for this device.</param>
+        /// <param name="applicationUri">The device application URI.</param>
+        /// <param name="installerOptions">
+        /// The application certificate slot, certificate group, and separate immutable identity store.
+        /// </param>
+        /// <returns>The same service collection.</returns>
+        public static IServiceCollection AddProvisionableDeviceSecurity(
+            this IServiceCollection services,
+            string scope,
+            string applicationUri,
+            ProvisionableDeviceSecurityInstallerOptions installerOptions)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (installerOptions == null)
+            {
+                throw new ArgumentNullException(nameof(installerOptions));
+            }
+            services.AddSingleton(installerOptions);
+            services.TryAddSingleton<ICertificateStoreResolver>(provider =>
+                provider.GetRequiredService<ICertificateManager>() as ICertificateStoreResolver
+                ?? throw new InvalidOperationException(
+                    "The configured certificate manager does not expose a certificate store resolver."));
+            services.AddSingleton<IProvisionableDeviceSecurityInstaller>(provider =>
+                new ProvisionableDeviceSecurityInstaller(
+                    provider.GetRequiredService<ISecretStore>(),
+                    scope,
+                    applicationUri,
+                    provider.GetRequiredService<ICertificateManager>(),
+                    provider.GetRequiredService<ICertificateStoreResolver>(),
+                    provider.GetRequiredService<IPendingCertificateKeyStore>(),
+                    provider.GetRequiredService<IServerApplicationCertificateActivator>(),
+                    provider.GetRequiredService<ProvisionableDeviceSecurityInstallerOptions>(),
+                    provider.GetRequiredService<ITelemetryContext>()));
+            return services.AddProvisionableDeviceSecurity(scope, applicationUri);
         }
 
         /// <summary>
