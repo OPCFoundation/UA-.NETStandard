@@ -239,7 +239,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             EncodeableFactory selected = factory.Fork();
             var id = new ExpandedNodeId(10321);
             IEncodeableType structure = CreateStructure("SelectedSubstance");
-            using (EncodeableFactory.ViewOwner owner = factory.SetViewSelector(() => selected))
+            EncodeableFactory.ViewOwner owner = factory.SetViewSelector(() => selected);
+            try
             {
                 factory.Builder.AddEncodeableType(id, structure).CommitIfAbsent();
 
@@ -247,6 +248,10 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(actual, Is.SameAs(structure));
                 selected = new EncodeableFactory();
                 Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
+            }
+            finally
+            {
+                owner.Release(selected);
             }
             Assert.That(factory.TryGetEncodeableType(id, out _), Is.False);
         }
