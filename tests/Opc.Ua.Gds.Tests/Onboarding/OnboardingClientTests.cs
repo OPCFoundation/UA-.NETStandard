@@ -241,6 +241,72 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         [TestCase(false)]
         [TestCase(true)]
+        public async Task LegacyTicketOverloadsPreserveNullAndEmptyArrays(bool remove)
+        {
+            Mock<ISession> session = CreateSessionMock(out _);
+            var observed = new List<ArrayOf<string>>();
+            SetupCall(session, request =>
+            {
+                Assert.That(request.InputArguments[0].TryGetValue(out ArrayOf<string> sent), Is.True);
+                observed.Add(sent);
+                return Good(Variant.From(ArrayOf<StatusCode>.Empty));
+            });
+            var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
+            Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>> invoke =
+                LegacyTicketCall(client, remove);
+
+            ArrayOf<StatusCode> nullResult = await invoke(ArrayOf<ByteString>.Null, CancellationToken.None)
+                .ConfigureAwait(false);
+            ArrayOf<StatusCode> emptyResult = await invoke(ArrayOf<ByteString>.Empty, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(observed, Has.Count.EqualTo(2));
+            Assert.That(observed[0].IsNull, Is.True);
+            Assert.That(observed[1].IsNull, Is.False);
+            Assert.That(observed[1].Count, Is.Zero);
+            Assert.That(nullResult.IsNull, Is.False);
+            Assert.That(nullResult.Count, Is.Zero);
+            Assert.That(emptyResult.IsNull, Is.False);
+            Assert.That(emptyResult.Count, Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LegacyTicketOverloadsPreserveNullElementsAndPerTicketResults(bool remove)
+        {
+            Mock<ISession> session = CreateSessionMock(out _);
+            CallMethodRequest? observed = null;
+            ArrayOf<StatusCode> expected =
+            [
+                StatusCodes.Good, StatusCodes.BadTicketInvalid, StatusCodes.BadTicketInvalid, StatusCodes.BadEntryExists
+            ];
+            SetupCall(session, request =>
+            {
+                observed = request;
+                return Good(Variant.From(expected));
+            });
+            var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
+            ArrayOf<ByteString> tickets =
+            [
+                ByteString.From("before"u8), default, ByteString.Empty, ByteString.From("after"u8)
+            ];
+
+            ArrayOf<StatusCode> statuses = await LegacyTicketCall(client, remove)(
+                tickets, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.InputArguments[0].TryGetValue(out ArrayOf<string> sent), Is.True);
+            Assert.That(sent.IsNull, Is.False);
+            Assert.That(sent.Count, Is.EqualTo(4));
+            Assert.That(sent[0], Is.EqualTo("before"));
+            Assert.That(sent[1], Is.Null);
+            Assert.That(sent[2], Is.EqualTo(string.Empty));
+            Assert.That(sent[3], Is.EqualTo("after"));
+            Assert.That(statuses, Is.EqualTo(expected));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public async Task LegacyTicketOverloadsRejectInvalidUtf8BeforeDispatch(bool remove)
         {
             Mock<ISession> session = CreateSessionMock(out _);

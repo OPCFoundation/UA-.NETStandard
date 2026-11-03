@@ -119,11 +119,18 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         private static ArrayOf<string> DecodeTickets(ArrayOf<ByteString> tickets)
         {
+            if (tickets.IsNull)
+            {
+                return ArrayOf<string>.Null;
+            }
             var utf8 = new UTF8Encoding(false, true);
             var decoded = new string[tickets.Count];
             for (int i = 0; i < tickets.Count; i++)
             {
-                decoded[i] = utf8.GetString(tickets[i].ToArray());
+                if (!tickets[i].IsNull)
+                {
+                    decoded[i] = utf8.GetString(tickets[i].ToArray());
+                }
             }
             return decoded;
         }
