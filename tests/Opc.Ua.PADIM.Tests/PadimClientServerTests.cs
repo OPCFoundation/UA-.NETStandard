@@ -588,7 +588,8 @@ namespace Opc.Ua.PADIM.Tests
 
                 PadimPublishedSample patMeasurand = samples.Samples.Single(
                     sample => sample.BrowseName.Name == "PatMeasurandDescription" &&
-                        sample.Binding.Variable.Parent?.Parent?.NodeId ==
+                        sample.Binding.Variable.Parent is BaseInstanceState parent &&
+                        parent.Parent?.NodeId ==
                             expectedSignals["FacetMeasurementPat"].NodeId);
                 Assert.That(patMeasurand.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
                 Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure<ChemicalSubstance>(
