@@ -2637,36 +2637,15 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            using Certificate certificate = Certificate.FromRawData(result.Certificate);
-
             if (DeviceRegistrarCertificateAuthorization is { } onboarding)
             {
                 await onboarding.RecordCertificateIssuedAsync(
                     context, application, result.Certificate, cancellationToken).ConfigureAwait(false);
             }
 
-            // store new app certificate
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(
-                m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath!);
-            using (ICertificateStore store = certificateStoreIdentifier.OpenStore(Server.Telemetry))
-            {
-                if (store != null)
-                {
-                    await store.AddAsync(certificate, null, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            m_database.SetApplicationCertificate(
-                applicationId,
-                m_certTypeMap[certificateTypeNodeId],
-                result.Certificate);
-
-            m_database.SetApplicationTrustLists(
-                applicationId,
-                m_certTypeMap[certificateTypeNodeId],
-                certificateGroup.Configuration.TrustedListPath);
-
-            m_request.AcceptRequest(requestId, result.Certificate);
+            await PublishCertificateIssuanceAsync(
+                applicationId, requestId, certificateGroup, certificateTypeNodeId, result.Certificate,
+                cancellationToken).ConfigureAwait(false);
 
             // FinishRequest has only applicationId/requestId inputs. Never place private-key output in audit.
             ArrayOf<Variant> inputArguments = [applicationId, requestId];

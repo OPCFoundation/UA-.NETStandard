@@ -26,6 +26,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -618,6 +619,219 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
 
             Assert.That(actual, Is.SameAs(failure));
+        }
+
+        /// <summary>
+        /// Push enrollment uses the same approval queue, issuer and immutable receipt after provider restart.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(2)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public async Task PushEnrollmentRecoversInterruptedTransitionsWithoutIssuingAgain(int failedJournalWrite)
+        {
+            string path = Path.Combine(
+                Path.DirectorySeparatorChar == '\\' ? @"D:\temp" : Path.GetTempPath(), Path.GetRandomFileName());
+            try
+            {
+                var database = new LinqApplicationsDatabase();
+                var secrets = new InMemorySecretStore();
+                var journal = new Mock<ISecretStore>(MockBehavior.Strict);
+                journal.SetupGet(value => value.StoreType).Returns(secrets.StoreType);
+                journal.Setup(value => value.GetAsync(It.IsAny<SecretIdentifier>(), It.IsAny<CancellationToken>()))
+                    .Returns<SecretIdentifier, CancellationToken>((id, ct) => secrets.GetAsync(id, ct));
+                int journalWrites = 0;
+                journal.Setup(value => value.SetAsync(
+                    It.IsAny<SecretIdentifier>(), It.IsAny<ReadOnlyMemory<byte>>(), It.IsAny<CancellationToken>()))
+                    .Returns<SecretIdentifier, ReadOnlyMemory<byte>, CancellationToken>(async (id, bytes, ct) =>
+                    {
+                        if (++journalWrites == failedJournalWrite)
+                        {
+                            throw new IOException("The enrollment checkpoint was not published.");
+                        }
+                        await secrets.SetAsync(id, bytes, ct).ConfigureAwait(false);
+                    });
+                var lifecycle = new MemoryDeviceRegistrarLifecycle();
+                using Certificate issued = CertificateBuilder.Create("CN=Push Enrollment").SetRSAKeySize(2048)
+                    .CreateForRSA();
+                ByteString certificate = ByteString.From(issued.RawData.AsSpan());
+                Mock<ICertificateGroup> group = CreateCertificateGroup(path, certificate);
+                using var receipts = new SecretStoreCertificateRequestIssuanceStore(
+                    secrets, ReferenceServer.CurrentInstance.NamespaceUris, "push-receipts");
+                using ApplicationsNodeManager manager = CreateConfiguredManager(
+                    database, group.Object, path, Mock.Of<IDeviceRegistrarCertificateAuthorization>(), receipts);
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                database.NamespaceIndex = manager.ApplicationsNamespaceIndex;
+                NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("PushEnrollment"));
+                var identity = new OnboardingIdentitySelection(
+                    certificate, new Opc.Ua.Onboarding.DeviceIdentityTicketType(),
+                    "urn:device:push-enrollment", "retained-ticket", string.Empty);
+                await lifecycle.RecordCandidateAsync(
+                    identity.ProductInstanceUri, applicationId, certificate, false).ConfigureAwait(false);
+                ByteString csr = ByteString.From(new byte[] { 1, 2, 3 });
+                DeviceRegistrarPushEnrollment? first = null;
+                using (var provider = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                    manager, journal.Object, "push", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry))
+                {
+                    if (failedJournalWrite != 0)
+                    {
+                        await Assert.ThrowsAsync<IOException>(async () =>
+                            await provider.GetOrCreateAsync(identity, applicationId,
+                                _ => new ValueTask<ByteString>(csr)).ConfigureAwait(false));
+                    }
+                    else
+                    {
+                        first = await provider.GetOrCreateAsync(identity, applicationId,
+                            _ => new ValueTask<ByteString>(csr)).ConfigureAwait(false);
+                    }
+                }
+                using var restored = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                    manager, secrets, "push", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                    Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry);
+                if (failedJournalWrite is 2 or 4)
+                {
+                    Assert.That((await restored.FindRequestAsync(identity.ProductInstanceUri, applicationId)
+                        .ConfigureAwait(false)).IsNull, Is.True);
+                    NodeId recoveredRequest = failedJournalWrite == 4 ?
+                        new NodeId(database.CertificateRequests.Single().RequestId, manager.ApplicationsNamespaceIndex) :
+                        NodeId.Null;
+                    if (failedJournalWrite == 4)
+                    {
+                        NodeId unrelated = database.StartSigningRequest(
+                            applicationId, "DefaultApplicationGroup", "RsaSha256ApplicationCertificateType",
+                            ByteString.From(new byte[] { 9 }), "AnotherRequester");
+                        ServiceResultException? mismatch = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            await restored.RecoverAsync(identity, applicationId, csr, unrelated).ConfigureAwait(false));
+                        Assert.That(mismatch!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                    }
+                    await restored.RecoverAsync(identity, applicationId, csr, recoveredRequest).ConfigureAwait(false);
+                }
+                DeviceRegistrarPushEnrollment repeated = await restored.GetOrCreateAsync(identity, applicationId,
+                    _ => throw new InvalidOperationException("The device must not create another key."))
+                    .ConfigureAwait(false);
+                DeviceRegistrarPushEnrollment? found = await restored.FindAsync(identity.ProductInstanceUri, applicationId)
+                    .ConfigureAwait(false);
+
+                if (first != null)
+                {
+                    Assert.That(repeated.RequestId, Is.EqualTo(first.RequestId));
+                }
+                Assert.That(repeated.CertificateRequest, Is.EqualTo(csr));
+                Assert.That(await restored.FindRequestAsync(identity.ProductInstanceUri, applicationId)
+                    .ConfigureAwait(false), Is.EqualTo(repeated.RequestId));
+                Assert.That(repeated.CertificateGroupId, Is.EqualTo("DefaultApplicationGroup"));
+                Assert.That(repeated.TrustList.SpecifiedLists, Is.EqualTo((uint)TrustListMasks.All));
+                Assert.That(database.ReadRequest(applicationId, repeated.RequestId,
+                    out _, out _, out _, out _, out _, out _, out _), Is.EqualTo(CertificateRequestState.Accepted));
+                Assert.That(found!.CertificateRequest, Is.EqualTo(csr));
+                Assert.That(found.Identity.EncodedTicket, Is.EqualTo("retained-ticket"));
+                ServiceResultException? completed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await restored.RecoverAsync(identity, applicationId, csr, repeated.RequestId).ConfigureAwait(false));
+                Assert.That(completed!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                group.Verify(value => value.SigningRequestAsync(
+                    It.IsAny<ApplicationRecordDataType>(), It.IsAny<NodeId>(), It.IsAny<string[]>(),
+                    csr, It.IsAny<CancellationToken>()), Times.Once);
+                CertificateRequestIssuance receipt = await receipts.GetOrCreateAsync(applicationId, repeated.RequestId,
+                    _ => throw new InvalidOperationException("The issuance must already exist.")).ConfigureAwait(false);
+                Assert.That(receipt.Certificate, Is.EqualTo(certificate));
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// An uncertain device CSR response is never retried automatically after journal reconstruction.
+        /// </summary>
+        [Test]
+        public async Task PushEnrollmentDoesNotRepeatUncertainCsrAfterRestart()
+        {
+            var database = new LinqApplicationsDatabase();
+            using ApplicationsNodeManager manager = CreateManager(database, Mock.Of<ICertificateRequest>());
+            NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("UncertainPushCsr"));
+            var secrets = new InMemorySecretStore();
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            ByteString selected = ByteString.From(new byte[] { 1 });
+            var identity = new OnboardingIdentitySelection(
+                selected, new Opc.Ua.Onboarding.DeviceIdentityTicketType(),
+                "urn:device:uncertain-push", "signed-ticket", string.Empty);
+            await lifecycle.RecordCandidateAsync(identity.ProductInstanceUri, applicationId, selected, false)
+                .ConfigureAwait(false);
+            var failure = new IOException("The CSR response was lost.");
+            using (var first = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                manager, secrets, "uncertain", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry))
+            {
+                IOException? error = await Assert.ThrowsAsync<IOException>(async () =>
+                    await first.GetOrCreateAsync(identity, applicationId, _ => throw failure).ConfigureAwait(false));
+                Assert.That(error, Is.SameAs(failure));
+            }
+            using var restored = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                manager, secrets, "uncertain", ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry);
+            int calls = 0;
+
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restored.GetOrCreateAsync(identity, applicationId, _ =>
+                {
+                    calls++;
+                    return new ValueTask<ByteString>(selected);
+                }).ConfigureAwait(false));
+
+            Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(calls, Is.Zero);
+            Assert.That(await restored.FindAsync(identity.ProductInstanceUri, applicationId).ConfigureAwait(false),
+                Is.Null);
+            var substituted = new OnboardingIdentitySelection(
+                selected, identity.MatchingTicket, identity.ProductInstanceUri, "replacement-ticket", string.Empty);
+            ServiceResultException? substitution = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await restored.GetOrCreateAsync(substituted, applicationId,
+                    _ => throw new InvalidOperationException("The substituted ticket must not create a key."))
+                    .ConfigureAwait(false));
+            Assert.That(substitution!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// Software approval is checked before journal publication, CSR creation or certificate-queue access.
+        /// </summary>
+        [Test]
+        public async Task PushEnrollmentRejectsSoftwareBlockedCandidateBeforeCreatingCsr()
+        {
+            var database = new LinqApplicationsDatabase();
+            var requests = new Mock<ICertificateRequest>(MockBehavior.Strict);
+            using ApplicationsNodeManager manager = CreateManager(database, requests.Object);
+            NodeId applicationId = database.RegisterApplication(CreateTestApplicationRecord("BlockedPush"));
+            var lifecycle = new MemoryDeviceRegistrarLifecycle();
+            ByteString selected = ByteString.From(new byte[] { 1 });
+            var identity = new OnboardingIdentitySelection(
+                selected, new Opc.Ua.Onboarding.DeviceIdentityTicketType(),
+                "urn:device:blocked-push", "signed-ticket", string.Empty);
+            await lifecycle.RecordCandidateAsync(identity.ProductInstanceUri, applicationId, selected, true)
+                .ConfigureAwait(false);
+            using var provider = new SecretStoreDeviceRegistrarPushEnrollmentProvider(
+                manager, new InMemorySecretStore(), "blocked",
+                ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+                Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType, lifecycle, lifecycle, Telemetry);
+            int calls = 0;
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.GetOrCreateAsync(identity, applicationId, _ =>
+                {
+                    calls++;
+                    return new ValueTask<ByteString>(selected);
+                }).ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
+            Assert.That(calls, Is.Zero);
+            Assert.That(await provider.FindAsync(identity.ProductInstanceUri, applicationId).ConfigureAwait(false),
+                Is.Null);
+            requests.VerifyNoOtherCalls();
         }
 
         /// <summary>

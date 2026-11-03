@@ -288,6 +288,8 @@ namespace Opc.Ua.Gds.Server.Hosting
                 m_services.GetService<GdsDeviceRegistrarRegistration>();
             m_server.DeviceRegistrarCertificateAuthorization = registrar?.CertificateAuthorization;
             m_server.CertificateRequestIssuanceStore = m_services.GetService<ICertificateRequestIssuanceStore>();
+            m_server.DeviceRegistrarPushEnrollments =
+                m_services.GetService<SecretStoreDeviceRegistrarPushEnrollmentProvider>();
             m_server.DeviceRegistrarFactory = registrar?.Factory;
 
             if (m_services.GetService<ITransportBindingRegistry>() is { } transportBindings)
@@ -723,6 +725,11 @@ namespace Opc.Ua.Gds.Server.Hosting
             public ICertificateRequestIssuanceStore? CertificateRequestIssuanceStore { get; set; }
 
             /// <summary>
+            /// Gets or sets the enrollment journal bound only to this GDS's actual application node manager.
+            /// </summary>
+            public SecretStoreDeviceRegistrarPushEnrollmentProvider? DeviceRegistrarPushEnrollments { get; set; }
+
+            /// <summary>
             /// Gets or sets the standard registrar namespace factory configured by AddDeviceRegistrar.
             /// </summary>
             public DeviceRegistrarNodeManagerFactory? DeviceRegistrarFactory { get; set; }
@@ -786,6 +793,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                     DeviceRegistrarCertificateAuthorization = DeviceRegistrarCertificateAuthorization,
                     CertificateRequestIssuanceStore = CertificateRequestIssuanceStore
                 };
+                DeviceRegistrarPushEnrollments?.Bind(applications);
 
                 if (m_accessTokenProvider != null)
                 {

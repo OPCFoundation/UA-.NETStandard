@@ -48,10 +48,16 @@ requires a new channel proving the installed credential before promotion.
 `AddDeviceRegistrarPushConnections` supplies fresh authenticated sessions through
 the existing session factory, with host-selected endpoints, credentials and
 namespace-stable model addresses. It checks the actual installed peer and
-retains cleanup failures without changing global certificate trust. Hosts still
-supply `IDeviceRegistrarPushEnrollmentProvider`, together with the shared
-lifecycle and GDS issuance store. The package does not yet supply the durable
-enrollment adapter.
+retains cleanup failures without changing global certificate trust.
+`AddDeviceRegistrarPushEnrollments` binds a secret-store enrollment journal to
+the actual hosted GDS, reusing its authority, approval queue and issuance receipt
+store. It retains original CSR and request evidence, resumes accepted issuance
+through its receipt and requires explicit original-evidence recovery after an
+uncertain key-creation or queue-insertion outcome. `FindRequestAsync` exposes
+retained requests for administrative approval. Hosts must select storage that
+survives restart and ensure one provider owns each journal scope; the default
+in-memory secret store does not meet that durability requirement. Custom hosts
+can still supply `IDeviceRegistrarPushEnrollmentProvider`.
 
 `ProvisionableDeviceSecurityInstaller` supplies local application-certificate
 installation, explicit endpoint activation and reset through a separate retained

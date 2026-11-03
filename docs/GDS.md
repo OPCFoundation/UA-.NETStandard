@@ -504,14 +504,38 @@ manufacturer or device trust before connecting; signed-ticket admission remains
 the processor's separate authorization step. Disposing a connection closes only
 its freshly created session. Close and disposal failures are retained.
 
-The host still supplies `IDeviceRegistrarPushEnrollmentProvider`.
-The enrollment provider must retain the validated identity,
-CSR and request correlation across restart and use the existing GDS request,
-approval and issuance services. The processor reads the exact
-`ICertificateRequestIssuanceStore` receipt; it does not create an authority or
-forge a device-authenticated pull request. Missing approved issuance rejects the
-attempt before trust or certificate upload. The library does not yet supply
-this enrollment adapter, so this is not a ready-to-run push registrar.
+`AddDeviceRegistrarPushEnrollments` selects
+`SecretStoreDeviceRegistrarPushEnrollmentProvider` on the GDS builder and binds
+it to that host's actual `ApplicationsNodeManager`. It retains the validated
+signed ticket envelopes, device-generated CSR and namespace-URI request
+identifiers through the explicitly selected `ISecretStore`. The provider uses
+the existing GDS authority, approval queue and immutable issuance receipt store;
+it does not create another authority or fabricate a device-authenticated pull
+request. Local certificate requests and deliveries use the GDS audit reporter.
+
+The host must configure the shared lifecycle and issuance receipt store before
+starting the GDS. Exactly one provider instance may own a journal scope across
+all processes, and the secret store must publish each complete value durably
+before returning. `InMemorySecretStore` cannot provide restart durability.
+Software approval and DCA ownership are checked before CSR creation, request
+submission and issuance publication. Automatic certificate-request approval
+follows the existing GDS setting; it does not approve device software.
+
+The provider records an uncertain transition before asking the device to create
+a CSR or inserting a certificate request. If the operation succeeds but its
+following journal write fails, a subsequent attempt stops instead of generating
+another key or submitting another request. A trusted host can use `RecoverAsync`
+with independently recovered original CSR evidence. Recovery after queue
+insertion also requires the original unaccepted request identifier, whose CSR,
+group and type must match the journal. Recovery cannot replace a completed
+enrollment or clear an uncertain transition to start another request.
+
+`FindRequestAsync` exposes a retained request identifier for administrative
+approval. It returns a null `NodeId` before request retention; an uncertain
+insertion must be resolved from the original GDS request database. A retained
+request resumes through the same receipt even when GDS accepted it before the
+final enrollment journal write failed. If an accepted request has no retained
+receipt, processing stops without issuing another certificate.
 
 Enrollment evidence retains the original device-generated CSR. Before uploading
 trust or promoting an installed peer, the processor verifies its signature,
@@ -521,14 +545,21 @@ identifier and group/type labels cannot substitute for that key comparison.
 Missing or substituted signing evidence rejects recovery without changing the
 pending credential or requesting another device key.
 
-Select both providers and the shared lifecycle and issuance store before
-registering the processor:
+On an existing `IGdsServerBuilder` named `gds`, select the existing authority and
+certificate type, then register the connection provider and processor:
 
 ```csharp
+gds.AddDeviceRegistrarPushEnrollments(
+    "registrar-push",
+    Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
+    ObjectTypeIds.RsaSha256ApplicationCertificateType);
 services.AddDeviceRegistrarPushConnections(configuration, selectTarget);
-services.AddSingleton<IDeviceRegistrarPushEnrollmentProvider>(enrollments);
 services.AddDeviceRegistrarPush(capacity: 32);
 ```
+
+Direct hosts can construct `SecretStoreDeviceRegistrarPushEnrollmentProvider`
+with their initialized `ApplicationsNodeManager` and register that instance as
+`IDeviceRegistrarPushEnrollmentProvider`.
 
 `AddDeviceRegistrarPush` selects the bounded host-owned queue and one processor;
 register it before `AddDeviceRegistrarRuntime`. Queue acceptance remains
@@ -912,7 +943,7 @@ has passed.
 | §§5.1-5.3, 7.1: exact device/composite identity and private-key proof | `OnboardingIdentitySelector`, scoped identity trust, actual-channel registrar authorization, `OnboardingPushIdentityValidator` | `OnboardingIdentitySelectorTests`, `OnboardingIdentityTrustProviderTests`, `DeviceRegistrarRuntimeTests`, `OnboardingPushIdentityValidatorTests`; discovery alone never proves possession |
 | §6.4: source-dependent ticket authority trust | `OnboardingTicketValidator`, `OnboardingTicketTrustProvider` | `OnboardingTicketValidatorTests`, `OnboardingTicketTrustProviderTests`; online authority-revocation services are not supplied by these adapters |
 | §7.2 and Part 12 §§7.9.5, 7.9.8: request retry and certificate recovery | issuance receipts, client receipts, `IPullDcaSigningRecoveryProvider`, sample signing journal with one fresh retained key per request | issuance-store, receipt-store, pull-workflow and `OnboardingSigningJournalTests` fixtures; remote execution and connected response-loss evidence remain required |
-| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, generated-client push processor, fresh-session connection adapter and retained singleton scope | `DeviceRegistrarPushProcessorTests`, `SessionDeviceRegistrarPushConnectionProviderTests` and lifecycle fixtures authored; durable enrollment, credential endpoint transition and multi-application provisioning remain incomplete; no executed push integration evidence |
+| §7.3: push provisioning, first registrar and installed trust | device security transition provider, actual-peer push validation, generated-client push processor, fresh-session connection adapter, secret-store enrollment journal and retained singleton scope | `DeviceRegistrarPushProcessorTests`, `SessionDeviceRegistrarPushConnectionProviderTests`, `ApplicationsNodeManagerOnboardingTests` and lifecycle fixtures authored; standard device push-method routing and multi-application provisioning remain incomplete; no executed push integration evidence |
 | §7.4: alternate authentication/FDO | OPC UA ticket/identity authentication is implemented; no FDO protocol or external-authentication handoff is supplied | §7.4 describes an alternate authentication path, not a prerequisite for ticket-based pull/push; no FDO interoperability evidence |
 | §§8.1-8.2: signed JSON tickets and String-subtype `EncodedTicket` | `OnboardingTicketWriter`, ticket validator, standard model and strict-UTF-8 compatibility wrappers | writer, validator, onboarding-client and stack-generation fixtures; vendor-specific unprotected metadata is not interpreted and cannot extend signing-certificate validity |
 | §§9.2.2-9.2.8: registrar methods and application ownership | registrar runtime, async bindings, shared GDS database and certificate authorization | `DeviceRegistrarRuntimeTests`, `ProvideIdentitiesRuntimeTests`, `ApplicationsNodeManagerOnboardingTests`; database/lifecycle publication is not a distributed transaction |
