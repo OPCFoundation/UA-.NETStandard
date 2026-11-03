@@ -427,29 +427,36 @@ namespace Opc.Ua.Client.Network
             {
                 if (continuationPoints.Count > 0)
                 {
-                    ArrayOf<ByteString> points = ArrayOf.Wrapped(continuationPoints.ToArray());
-                    try
+                    await ReleaseBrowseContinuationPointsAsync(continuationPoints).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases browse continuations and reports cleanup failures without replacing the browse outcome.
+        /// </summary>
+        private async ValueTask ReleaseBrowseContinuationPointsAsync(List<ByteString> continuationPoints)
+        {
+            ArrayOf<ByteString> points = ArrayOf.Wrapped(continuationPoints.ToArray());
+            try
+            {
+                BrowseNextResponse release = await Session.BrowseNextAsync(
+                    null, true, points, CancellationToken.None).ConfigureAwait(false);
+                ValidateService(release.ResponseHeader);
+                ClientBase.ValidateResponse(release.Results, points);
+                ClientBase.ValidateDiagnosticInfos(release.DiagnosticInfos, points);
+                for (int index = 0; index < release.Results.Count; index++)
+                {
+                    if (StatusCode.IsBad(release.Results[index].StatusCode))
                     {
-                        BrowseNextResponse release = await Session.BrowseNextAsync(
-                            null, true, points, CancellationToken.None)
-                            .ConfigureAwait(false);
-                        ValidateService(release.ResponseHeader);
-                        ClientBase.ValidateResponse(release.Results, points);
-                        ClientBase.ValidateDiagnosticInfos(release.DiagnosticInfos, points);
-                        for (int index = 0; index < release.Results.Count; index++)
-                        {
-                            if (StatusCode.IsBad(release.Results[index].StatusCode))
-                            {
-                                throw new ServiceResultException(release.Results[index].StatusCode);
-                            }
-                        }
-                    }
-                    catch (Exception exception) when (exception is not OutOfMemoryException)
-                    {
-                        NetworkModelClientLog.ContinuationReleaseFailed(
-                            Telemetry.CreateLogger<NetworkModelClient>(), exception);
+                        throw new ServiceResultException(release.Results[index].StatusCode);
                     }
                 }
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                NetworkModelClientLog.ContinuationReleaseFailed(
+                    Telemetry.CreateLogger<NetworkModelClient>(), exception);
             }
         }
 
