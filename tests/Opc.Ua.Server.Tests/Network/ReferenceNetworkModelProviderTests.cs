@@ -251,7 +251,7 @@ namespace Opc.Ua.Server.Tests.Network
             ];
             var snapshot = EmptySnapshot() with
             {
-                Revision = -1,
+                Revision = 0,
                 Lldp = new NetworkLldpSnapshot(
                     ChassisIdSubtype.MacAddress, "00:00:00:00:00:01", "switch", "reference")
                 {
@@ -336,8 +336,7 @@ namespace Opc.Ua.Server.Tests.Network
 
             provider.Publish(SnapshotWithTable(canEdit: true));
             provider.Publish(SnapshotWithTable(
-                canEdit: true,
-                entries: [CreateEntry("urn:test:priority", "BestEffort", 0, 0)]));
+                true, CreateEntry("urn:test:priority", "BestEffort", 0, 0)) with { Revision = 1 });
 
             Assert.That(await updates.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(updates.Current.Revision, Is.EqualTo(2));
@@ -426,6 +425,77 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
             Assert.That(snapshot.Revision, Is.EqualTo(1));
             Assert.That(snapshot.MappingTables[0].Entries.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Rejects an equal-timestamp acquisition read before an accepted mapping edit.
+        /// </summary>
+        [Test]
+        public async Task PublishRejectsEqualTimestampAcquisitionCapturedBeforeEditAsync()
+        {
+            var provider = new ReferenceNetworkModelProvider(SnapshotWithTable(canEdit: true));
+            NetworkModelSnapshot stale = await provider.ReadAsync().ConfigureAwait(false);
+
+            StatusCode result = await provider.EditPriorityMappingAsync(
+                "table-1", CreateEntry("urn:test:priority", "Control", 1, 1), delete: false)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
+            Assert.That(() => provider.Publish(stale), Throws.ArgumentException);
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(current.Revision, Is.EqualTo(1));
+            Assert.That(current.MappingTables[0].Entries, Has.Count.EqualTo(1));
+            Assert.That(current.MappingTables[0].Entries[0].PriorityLabel, Is.EqualTo("Control"));
+            Assert.That(current.Timestamp, Is.EqualTo(stale.Timestamp));
+        }
+
+        /// <summary>
+        /// Rejects a pre-edit acquisition even when its timestamp is later than current state.
+        /// </summary>
+        [Test]
+        public async Task PublishRejectsNewerTimestampAcquisitionCapturedBeforeEditAsync()
+        {
+            var provider = new ReferenceNetworkModelProvider(SnapshotWithTable(canEdit: true));
+            NetworkModelSnapshot stale = await provider.ReadAsync().ConfigureAwait(false);
+            stale = stale with { Timestamp = stale.Timestamp.AddSeconds(1) };
+
+            StatusCode result = await provider.EditPriorityMappingAsync(
+                "table-1", CreateEntry("urn:test:priority", "Control", 1, 1), delete: false)
+                .ConfigureAwait(false);
+
+            Assert.That(result, Is.EqualTo(StatusCodes.Good));
+            Assert.That(stale.Timestamp, Is.GreaterThan(UnixEpoch));
+            Assert.That(() => provider.Publish(stale), Throws.ArgumentException);
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+            Assert.That(current.Revision, Is.EqualTo(1));
+            Assert.That(current.MappingTables[0].Entries, Has.Count.EqualTo(1));
+            Assert.That(current.MappingTables[0].Entries[0].PriorityLabel, Is.EqualTo("Control"));
+            Assert.That(current.Timestamp, Is.EqualTo(UnixEpoch));
+        }
+
+        /// <summary>
+        /// Replaces the complete acquisition when based on the current provider revision.
+        /// </summary>
+        [Test]
+        public async Task PublishAtCurrentRevisionReplacesTheCompleteAcquisitionAsync()
+        {
+            var provider = new ReferenceNetworkModelProvider(
+                SnapshotWithTable(true, CreateEntry("urn:old", "Old", 0, 0)));
+            await provider.EditPriorityMappingAsync(
+                "table-1", CreateEntry("urn:edit", "Edited", 1, 1), delete: false).ConfigureAwait(false);
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
+            NetworkMappingTableSnapshot[] tables = current.MappingTables.Span.ToArray();
+            tables[0] = tables[0] with { Entries = [] };
+
+            provider.Publish(current with
+            {
+                Timestamp = current.Timestamp.AddSeconds(1),
+                MappingTables = ArrayOf.Wrapped(tables)
+            });
+            NetworkModelSnapshot published = await provider.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(published.Revision, Is.EqualTo(2));
+            Assert.That(published.MappingTables[0].Entries, Has.Count.EqualTo(0));
         }
 
         /// <summary>
@@ -566,8 +636,9 @@ namespace Opc.Ua.Server.Tests.Network
             var provider = new ReferenceNetworkModelProvider(EmptySnapshot() with { Revision = 100 });
             Assert.That((await provider.ReadAsync().ConfigureAwait(false)).Revision, Is.Zero);
             provider.Publish(EmptySnapshot() with { Timestamp = UnixEpoch.AddSeconds(1) });
+            NetworkModelSnapshot current = await provider.ReadAsync().ConfigureAwait(false);
 
-            Assert.That(() => provider.Publish(EmptySnapshot()), Throws.ArgumentException);
+            Assert.That(() => provider.Publish(current with { Timestamp = UnixEpoch }), Throws.ArgumentException);
             NetworkModelSnapshot snapshot = await provider.ReadAsync().ConfigureAwait(false);
 
             Assert.That(snapshot.Revision, Is.EqualTo(1));

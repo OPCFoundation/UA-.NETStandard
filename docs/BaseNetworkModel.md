@@ -104,10 +104,15 @@ Mapping and lower-layer relationships remain browsable in both directions as
 acquisitions change.
 
 The reference provider copies mutable generated structures and backing arrays
-on input and output. It assigns increasing revisions during its own lifetime,
-resets the revision on construction, and rejects an acquisition timestamp
-earlier than its current timestamp. Mapping edits retain the latest acquisition
-timestamp because they do not represent a new hardware acquisition.
+on input and output. Each read and watch item carries the current revision.
+`Publish` accepts a complete replacement only when its revision matches the
+provider's current revision; it checks that condition under the same lock used
+for mapping edits. A publish or accepted edit advances the revision, so an
+acquisition read before either change cannot replace the resulting state, even
+when its timestamp is equal or later. A current-revision publish still replaces
+the complete acquisition rather than merging it. The provider also rejects a
+timestamp earlier than its current acquisition timestamp. Mapping edits retain
+that timestamp because they do not represent a new hardware acquisition.
 
 Supply UTC acquisition timestamps and meaningful quality. A failed acquisition
 must carry a bad status, rather than `Good` values copied from a healthy default.
@@ -174,9 +179,12 @@ Discovery matches standard types, vendor subtypes and `HasInterface`
 references. It resolves namespace URIs through the connected session, rather
 than assuming an instance namespace index. Mapping lookup follows
 `HasLowerLayerInterface` only when the current interface has no direct
-`UsesPriorityMappingTable` reference. Aggregated lower layers can yield several
-tables; cycles, remote targets and ambiguous direct mappings produce errors.
-Traversal and browse-result limits bound malformed graphs.
+`UsesPriorityMappingTable` reference. A referenced table must expose exactly
+one `HasTypeDefinition` derived from `PriorityMappingTableType`; a missing or
+unrelated type definition produces `BadTypeDefinitionInvalid`. Aggregated lower
+layers can yield several tables; cycles, remote targets and ambiguous direct
+mappings produce errors. Traversal and browse-result limits bound malformed
+graphs.
 
 `ReadInterfaceAsync`, `ReadStreamAsync`, `ReadMappingTableAsync` and
 `ReadParametersAsync` retain value quality and acquisition timestamps. Check

@@ -151,6 +151,8 @@ namespace Opc.Ua.Client.Tests.Network
         public async Task DirectMappingStopsLowerLayerFallbackAsync()
         {
             SetBrowse(s_interface, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+            SetBrowse(s_table, ReferenceTypeIds.HasTypeDefinition,
+                Reference(ObjectTypeIds.PriorityMappingTableType));
             SetBrowse(s_interface, ReferenceTypeIds.HasLowerLayerInterface, Reference(s_interface));
 
             ArrayOf<NodeId> result = await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false);
@@ -174,9 +176,57 @@ namespace Opc.Ua.Client.Tests.Network
             SetBrowse(s_interface, ReferenceTypeIds.HasLowerLayerInterface, Reference(lower), Reference(second));
             SetBrowse(lower, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
             SetBrowse(second, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+            SetBrowse(s_table, ReferenceTypeIds.HasTypeDefinition,
+                Reference(ObjectTypeIds.PriorityMappingTableType));
 
             Assert.That((await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false))
                 .ToArray(), Is.EqualTo(new[] { s_table }));
+        }
+
+        /// <summary>
+        /// Accepts a mapping table whose concrete type derives from the standard table type.
+        /// </summary>
+        [Test]
+        public async Task MappingTargetAcceptsVendorSubtypeOfPriorityMappingTableTypeAsync()
+        {
+            NodeId vendorType = new("VendorPriorityTableType", 2);
+            SetBrowse(s_interface, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+            SetBrowse(s_table, ReferenceTypeIds.HasTypeDefinition, Reference(vendorType));
+            SetBrowse(vendorType, ReferenceTypeIds.HasSubtype,
+                BrowseDirection.Inverse, Reference(ObjectTypeIds.PriorityMappingTableType));
+
+            ArrayOf<NodeId> result = await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false);
+
+            Assert.That(result.ToArray(), Is.EqualTo(new[] { s_table }));
+        }
+
+        /// <summary>
+        /// Rejects a mapping target without a HasTypeDefinition reference.
+        /// </summary>
+        [Test]
+        public async Task MappingTargetWithoutTypeDefinitionIsRejected()
+        {
+            SetBrowse(s_interface, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+
+            await Assert.ThatAsync(
+                async () => await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadTypeDefinitionInvalid)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Rejects an object whose type is unrelated to the standard mapping-table type.
+        /// </summary>
+        [Test]
+        public async Task MappingTargetWithIncompatibleTypeDefinitionIsRejected()
+        {
+            SetBrowse(s_interface, ReferenceTypeIds.UsesPriorityMappingTable, Reference(s_table));
+            SetBrowse(s_table, ReferenceTypeIds.HasTypeDefinition, Reference(ObjectTypeIds.FolderType));
+
+            await Assert.ThatAsync(
+                async () => await m_client.GetEffectiveMappingTablesAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadTypeDefinitionInvalid)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -362,6 +412,119 @@ namespace Opc.Ua.Client.Tests.Network
 
             m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
                 It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
+        /// Releases the continuation returned before initial-page diagnostics fail validation.
+        /// </summary>
+        [Test]
+        public async Task BrowseContinuationIsReleasedWhenInitialDiagnosticsAreMalformed()
+        {
+            ByteString point = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = point }],
+                    DiagnosticInfos = [new DiagnosticInfo(), new DiagnosticInfo()]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
+        /// Releases the continuation returned by BrowseNext when its diagnostics fail validation.
+        /// </summary>
+        [Test]
+        public async Task BrowseContinuationIsReleasedWhenNextPageDiagnosticsAreMalformed()
+        {
+            ByteString firstPoint = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            ByteString nextPoint = ByteString.From(new byte[] { 4, 5, 6 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = firstPoint }]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult { ContinuationPoint = nextPoint }],
+                    DiagnosticInfos = [new DiagnosticInfo(), new DiagnosticInfo()]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == nextPoint),
+                CancellationToken.None), Times.Once);
+        }
+
+        /// <summary>
+        /// Releases every continuation point in an initial response with extra results.
+        /// </summary>
+        [Test]
+        public async Task BrowseReleasesContinuationsFromMalformedExtraResults()
+        {
+            ByteString firstPoint = ByteString.From(new byte[] { 1, 2, 3 }.AsSpan());
+            ByteString extraPoint = ByteString.From(new byte[] { 4, 5, 6 }.AsSpan());
+            m_session.Setup(session => session.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new BrowseResult { ContinuationPoint = firstPoint },
+                        new BrowseResult { ContinuationPoint = extraPoint }
+                    ]
+                });
+            m_session.Setup(session => session.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), true, It.IsAny<ArrayOf<ByteString>>(), CancellationToken.None))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new BrowseResult()]
+                });
+
+            await Assert.ThatAsync(async () => await m_client.BrowseObjectsAsync(s_interface).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
+
+            m_session.Verify(session => session.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points =>
+                    points.Count == 2 && points[0] == firstPoint && points[1] == extraPoint),
                 CancellationToken.None), Times.Once);
         }
 

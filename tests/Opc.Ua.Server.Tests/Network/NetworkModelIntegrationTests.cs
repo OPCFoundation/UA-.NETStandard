@@ -228,7 +228,11 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That((await m_client.GetEffectiveMappingTablesAsync(vlan, cancellationToken)
                 .ConfigureAwait(false)).Count, Is.Zero);
 
-            m_provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(2) });
+            m_provider.Publish(snapshot with
+            {
+                Revision = snapshot.Revision + 1,
+                Timestamp = snapshot.Timestamp.AddSeconds(2)
+            });
             await WaitForAsync(async () =>
             {
                 BrowseResponse restored = await m_session.BrowseAsync(
@@ -529,7 +533,11 @@ namespace Opc.Ua.Server.Tests.Network
                 .ConfigureAwait(false)).PhysicalAddress.DataValue.StatusCode,
                 Is.EqualTo(StatusCodes.BadNotSupported));
 
-            m_provider.Publish(snapshot with { Timestamp = timestamp.AddSeconds(1) });
+            m_provider.Publish(snapshot with
+            {
+                Revision = snapshot.Revision + 1,
+                Timestamp = timestamp.AddSeconds(1)
+            });
             do
             {
                 changed = await PublishAsync(subscription.SubscriptionId, cancellationToken).ConfigureAwait(false);
@@ -543,6 +551,7 @@ namespace Opc.Ua.Server.Tests.Network
 
             m_provider.Publish(snapshot with
             {
+                Revision = snapshot.Revision + 2,
                 Timestamp = timestamp.AddSeconds(2),
                 StatusCode = StatusCodes.BadCommunicationError
             });
@@ -645,6 +654,7 @@ namespace Opc.Ua.Server.Tests.Network
             m_providerBoundary.WatchTransform = null;
             m_provider.Publish(current with
             {
+                Revision = current.Revision + 1,
                 Timestamp = nextTimestamp.AddSeconds(1),
                 Interfaces = ArrayOf.Wrapped(interfaces)
             });
@@ -696,6 +706,7 @@ namespace Opc.Ua.Server.Tests.Network
             m_providerBoundary.WatchTransform = value => value with { Revision = snapshot.Revision + 1 };
             m_provider.Publish(snapshot with
             {
+                Revision = snapshot.Revision + 1,
                 Timestamp = snapshot.Timestamp.AddSeconds(2),
                 Interfaces = ArrayOf.Wrapped(interfaces)
             });
@@ -743,7 +754,11 @@ namespace Opc.Ua.Server.Tests.Network
             Assert.That(retained.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(retained.Timestamp, Is.EqualTo(initial.Speed.DataValue.SourceTimestamp));
 
-            m_provider.Publish(snapshot with { Timestamp = snapshot.Timestamp.AddSeconds(2) });
+            m_provider.Publish(snapshot with
+            {
+                Revision = snapshot.Revision + 1,
+                Timestamp = snapshot.Timestamp.AddSeconds(2)
+            });
             m_providerBoundary.FailWatch = false;
             await WaitForAsync(async () =>
                 (await m_client.ReadInterfaceAsync(id, cancellationToken).ConfigureAwait(false))
@@ -888,6 +903,7 @@ namespace Opc.Ua.Server.Tests.Network
                 ?? throw new InvalidOperationException("The scenario requires an LLDP acquisition.");
             m_provider.Publish(snapshot with
             {
+                Revision = snapshot.Revision + 1,
                 Timestamp = snapshot.Timestamp.AddSeconds(1),
                 Lldp = lldp with
                 {

@@ -102,8 +102,8 @@ namespace Opc.Ua.Server.Network
         }
 
         /// <summary>
-        /// Replaces the simulated acquisition. The caller supplies acquisition time and quality.
-        /// Revision is assigned by the provider so stale snapshots cannot replace newer state.
+        /// Replaces the simulated acquisition when the snapshot is based on the current provider revision.
+        /// The provider assigns the next revision after accepting the replacement.
         /// </summary>
         public void Publish(NetworkModelSnapshot snapshot)
         {
@@ -116,6 +116,11 @@ namespace Opc.Ua.Server.Network
             ValidateSnapshot(copy);
             lock (m_gate)
             {
+                if (copy.Revision != m_snapshot.Revision)
+                {
+                    throw new ArgumentException(
+                        "A snapshot must be based on the current provider revision.", nameof(snapshot));
+                }
                 if (copy.Timestamp < m_snapshot.Timestamp)
                 {
                     throw new ArgumentException(

@@ -70,7 +70,8 @@ namespace Opc.Ua.Server.Network
     public sealed record NetworkModelSnapshot
     {
         /// <summary>
-        /// Provider generation, increasing after each change.
+        /// Provider generation, increasing after each change. A reference-provider publication must
+        /// carry the revision observed from the current acquisition.
         /// </summary>
         public long Revision { get; init; }
 

@@ -125,8 +125,20 @@ namespace Opc.Ua.Client.Network
                 if (tables.Count == 1)
                 {
                     NodeId table = LocalNodeId(tables[0].NodeId);
-                    await BrowseAsync(table, ReferenceTypeIds.HasTypeDefinition,
+                    ArrayOf<ReferenceDescription> typeDefinitions = await BrowseAsync(
+                        table, ReferenceTypeIds.HasTypeDefinition,
                         BrowseDirection.Forward, NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
+                    if (typeDefinitions.Count != 1 ||
+                        !await MatchesTypeAsync(
+                            LocalNodeId(typeDefinitions[0].NodeId),
+                            ObjectTypeIds.PriorityMappingTableType,
+                            NodeId.Null,
+                            cancellationToken).ConfigureAwait(false))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadTypeDefinitionInvalid,
+                            "A referenced mapping table must have one type definition derived from " +
+                            "PriorityMappingTableType.");
+                    }
                     result.Add(table);
                     continue;
                 }
@@ -363,17 +375,17 @@ namespace Opc.Ua.Client.Network
                 }
             ];
             var references = new List<ReferenceDescription>();
-            ByteString point = default;
+            var continuationPoints = new List<ByteString>();
             bool failed = false;
             try
             {
                 BrowseResponse response = await Session.BrowseAsync(
                     null, null, 0, requests, cancellationToken).ConfigureAwait(false);
+                RetainContinuationPoints(response.Results, continuationPoints);
                 ValidateService(response.ResponseHeader);
                 ClientBase.ValidateResponse(response.Results, requests);
                 ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
                 BrowseResult result = response.Results[0];
-                point = result.ContinuationPoint;
                 int pages = 0;
                 while (true)
                 {
@@ -395,6 +407,7 @@ namespace Opc.Ua.Client.Network
                     {
                         references.Add(result.References[index]);
                     }
+                    ByteString point = result.ContinuationPoint;
                     if (point.IsNull || point.Length == 0)
                     {
                         return ArrayOf.Wrapped(references.ToArray());
@@ -402,11 +415,12 @@ namespace Opc.Ua.Client.Network
                     ArrayOf<ByteString> points = [point];
                     BrowseNextResponse next = await Session.BrowseNextAsync(
                         null, false, points, cancellationToken).ConfigureAwait(false);
+                    continuationPoints.Clear();
+                    RetainContinuationPoints(next.Results, continuationPoints);
                     ValidateService(next.ResponseHeader);
                     ClientBase.ValidateResponse(next.Results, points);
                     ClientBase.ValidateDiagnosticInfos(next.DiagnosticInfos, points);
                     result = next.Results[0];
-                    point = result.ContinuationPoint;
                 }
             }
             catch
@@ -416,11 +430,12 @@ namespace Opc.Ua.Client.Network
             }
             finally
             {
-                if (!point.IsNull && point.Length != 0)
+                if (continuationPoints.Count > 0)
                 {
                     try
                     {
-                        await Session.BrowseNextAsync(null, true, [point], CancellationToken.None)
+                        await Session.BrowseNextAsync(
+                            null, true, ArrayOf.Wrapped(continuationPoints.ToArray()), CancellationToken.None)
                             .ConfigureAwait(false);
                     }
                     catch (Exception exception) when (failed)
@@ -428,6 +443,27 @@ namespace Opc.Ua.Client.Network
                         NetworkModelClientLog.ContinuationReleaseFailed(
                             Telemetry.CreateLogger<NetworkModelClient>(), exception);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retains every continuation point returned, including those in malformed extra results.
+        /// </summary>
+        private static void RetainContinuationPoints(
+            ArrayOf<BrowseResult> results,
+            List<ByteString> continuationPoints)
+        {
+            for (int index = 0; index < results.Count; index++)
+            {
+                if (results[index] is not BrowseResult result)
+                {
+                    continue;
+                }
+                ByteString point = result.ContinuationPoint;
+                if (!point.IsNull && point.Length != 0)
+                {
+                    continuationPoints.Add(point);
                 }
             }
         }
