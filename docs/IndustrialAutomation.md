@@ -294,4 +294,6 @@ rating to Full. IA support is **Partial**. OPC 10000-200 §6.2.1.1 admits
 statistics of any kind, but the statistics binding rejects a decoded structure
 with `BadNotSupported` when its binary copy differs from the original. This
 happens, for example, when a structure nested in the value has a type that is
-not registered with the encodeable factory.
+not registered with the encodeable factory. The
+[published-specification matrix](Profiles.md#published-specification-support-matrix)
+records the same reason.
