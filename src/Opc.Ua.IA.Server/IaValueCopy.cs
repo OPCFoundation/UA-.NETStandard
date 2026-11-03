@@ -325,6 +325,7 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Copies the element storage of an array.
         /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
         private static ArrayOf<T> Detach<T>(ArrayOf<T> value)
         {
             return ArrayOf.Create(value.Span);
@@ -333,6 +334,7 @@ namespace Opc.Ua.IA.Server
         /// <summary>
         /// Copies the element storage of a matrix and keeps its dimensions.
         /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
         private static MatrixOf<T> Detach<T>(MatrixOf<T> value)
         {
             return ArrayOf.Create(value.Span).ToMatrix(value.Dimensions);
