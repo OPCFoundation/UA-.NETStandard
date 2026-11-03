@@ -118,8 +118,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 CancellationToken cancellationToken = default)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return new ValueTask<IAsyncNodeManager>(Task.FromResult<IAsyncNodeManager>(
-                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider)));
+#pragma warning disable CA2000 // Ownership transfers to the server; TODO: teach the analyzer ValueTask ownership.
+                return new ValueTask<IAsyncNodeManager>(
+                    new DefaultManagedApplicationsNodeManager(server, configuration, m_provider));
+#pragma warning restore CA2000
             }
 
             /// <summary>The host-owned runtime provider.</summary>
