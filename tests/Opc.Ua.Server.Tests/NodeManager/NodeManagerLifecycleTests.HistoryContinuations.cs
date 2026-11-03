@@ -1017,6 +1017,174 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task ResumedEventHistoryWithholdsEventsFromDeniedForeignSourceAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var data = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
+            var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            var other = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            owner.Manager.HistoryProvider = CreatePagedEventHistoryProbe(data);
+            BaseObjectState notifier = RequireLifecycleValue(owner.Manager.Find(
+                new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0])) as BaseObjectState);
+            notifier.EventNotifier |= EventNotifiers.HistoryRead;
+            data.Register(notifier.NodeId);
+            var foreignSource = new NodeId(kRootNodeId, other.NamespaceIndex);
+            RequireLifecycleValue(other.Manager.Find(foreignSource)).RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_Anonymous,
+                    Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                }
+            ];
+            ByteString firstId = new("denied-foreign-first"u8.ToArray());
+            ByteString secondId = new("denied-foreign-second"u8.ToArray());
+            await InsertHistoryEventsAsync(data, notifier,
+                [
+                    CreateHistoryEvent(firstId, "first", s_historyTime, notifier.NodeId),
+                    CreateHistoryEvent(secondId, "second", s_historyTime.AddSeconds(1), foreignSource)
+                ], timeout.Token).ConfigureAwait(false);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                HistoryReadResult first = await ReadEventIdPageAsync(
+                    session, notifier.NodeId, ByteString.Empty, timeout.Token).ConfigureAwait(false);
+                Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIds(first), Is.EqualTo(new[] { firstId }));
+                Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+                HistoryReadResult resumed = await ReadEventIdPageAsync(
+                    session, notifier.NodeId, first.ContinuationPoint, timeout.Token).ConfigureAwait(false);
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIdsOrEmpty(resumed), Is.Empty,
+                    "a live foreign SourceNode that denies ReceiveEvents must not expose its event");
+                Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
+            }
+            finally
+            {
+                await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
+        public async Task ResumedEventHistoryKeepsRetainedOwnerDenialOverPermissiveReplacementAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var data = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
+            var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
+            owner.Manager.HistoryProvider = CreatePagedEventHistoryProbe(data);
+            BaseObjectState notifier = RequireLifecycleValue(owner.Manager.Find(
+                new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0])) as BaseObjectState);
+            notifier.EventNotifier |= EventNotifiers.HistoryRead;
+            data.Register(notifier.NodeId);
+            ByteString firstId = new("retained-denial-first"u8.ToArray());
+            ByteString secondId = new("retained-denial-second"u8.ToArray());
+            await InsertHistoryEventsAsync(data, notifier,
+                [
+                    CreateHistoryEvent(firstId, "first", s_historyTime, notifier.NodeId),
+                    CreateHistoryEvent(secondId, "second", s_historyTime.AddSeconds(1), notifier.NodeId)
+                ], timeout.Token).ConfigureAwait(false);
+            await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
+            await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
+            using Opc.Ua.Client.ISession session = await client.ConnectAsync(
+                new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
+                .ConfigureAwait(false);
+            try
+            {
+                HistoryReadResult first = await ReadEventIdPageAsync(
+                    session, notifier.NodeId, ByteString.Empty, timeout.Token).ConfigureAwait(false);
+                Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIds(first), Is.EqualTo(new[] { firstId }));
+                Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
+                notifier.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read |
+                            PermissionType.ReadHistory)
+                    }
+                ];
+                var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+                await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [
+                        NodeManagerBatchChange.Replace(owner.Registration,
+                            CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), false)
+                    ], null, timeout.Token).ConfigureAwait(false))
+                {
+                    NodeManagerBatchResult replaced = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(replaced.CleanupFailure, Is.Null);
+                }
+                HistoryReadResult resumed = await ReadEventIdPageAsync(
+                    session, notifier.NodeId, first.ContinuationPoint, timeout.Token).ConfigureAwait(false);
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(ReadEventIdsOrEmpty(resumed), Is.Empty,
+                    "a retained owner that denies ReceiveEvents must not defer to a permissive live replacement");
+                Assert.That(resumed.ContinuationPoint.IsEmpty, Is.True);
+                await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                await session.CloseAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        private async Task InsertHistoryEventsAsync(
+            InMemoryHistorianProvider data,
+            BaseObjectState notifier,
+            ArrayOf<HistorianEventRecord> events,
+            CancellationToken cancellationToken)
+        {
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
+            var context = new HistorianOperationContext(
+                new ServerSystemContext(m_server.CurrentInstance, operation), operation, notifier,
+                HistoryUpdateType.Insert);
+            await data.InsertEventsAsync(context, notifier.NodeId, events, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async Task<HistoryReadResult> ReadEventIdPageAsync(
+            Opc.Ua.Client.ISession session,
+            NodeId notifier,
+            ByteString continuationPoint,
+            CancellationToken cancellationToken)
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.EventId, Attributes.Value);
+            HistoryReadResponse response = await session.HistoryReadAsync(
+                null,
+                new ExtensionObject(new ReadEventDetails
+                {
+                    StartTime = s_historyTime.AddSeconds(-1),
+                    EndTime = s_historyTime.AddSeconds(2),
+                    NumValuesPerNode = 1,
+                    Filter = filter
+                }),
+                TimestampsToReturn.Both,
+                false,
+                [new HistoryReadValueId { NodeId = notifier, ContinuationPoint = continuationPoint }],
+                cancellationToken).ConfigureAwait(false);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            return response.Results[0];
+        }
+
+        private static List<ByteString> ReadEventIdsOrEmpty(HistoryReadResult result)
+        {
+            return result.HistoryData.IsNull ? [] : ReadEventIds(result);
+        }
+
         private static List<ByteString> ReadEventIds(HistoryReadResult result)
         {
             Assert.That(result.HistoryData.TryGetValue(out HistoryEvent? history), Is.True);
