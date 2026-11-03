@@ -195,8 +195,8 @@ namespace Opc.Ua
             target.m_writeMask = m_writeMask;
             target.m_userWriteMask = m_userWriteMask;
 
-            target.RolePermissions = RolePermissions;
-            target.UserRolePermissions = UserRolePermissions;
+            // the copy is new: storing the permissions does not change those of any node.
+            target.InitializeRolePermissions(RolePermissions, UserRolePermissions);
             target.AccessRestrictions = AccessRestrictions;
 
             if (GetReferenceKeys() is { } references)
@@ -6850,6 +6850,32 @@ namespace Opc.Ua
             {
                 data.RolePermissions = value;
                 Interlocked.Increment(ref s_rolePermissionsVersion);
+            }
+        }
+
+        /// <summary>
+        /// Stores the role permissions of a node that was just created, such as a copy or an
+        /// event field, without moving <see cref="RolePermissionsVersion"/>.
+        /// </summary>
+        /// <remarks>
+        /// No permission check has seen the new node yet, so no cached verdict depends on its
+        /// permissions; the permissions it copies changed the version when they were set on
+        /// their own node. Moving the version here would retire every cached verdict of the
+        /// server each time an event or a snapshot is created.
+        /// </remarks>
+        /// <param name="rolePermissions">The role permissions.</param>
+        /// <param name="userRolePermissions">The user role permissions.</param>
+        internal void InitializeRolePermissions(
+            ArrayOf<RolePermissionType> rolePermissions,
+            ArrayOf<RolePermissionType> userRolePermissions)
+        {
+            NodeStateSecurityData? data = rolePermissions.IsNull && userRolePermissions.IsNull
+                ? Volatile.Read(ref m_securityData)
+                : GetOrCreateSecurityData();
+            if (data != null)
+            {
+                data.RolePermissions = rolePermissions;
+                data.UserRolePermissions = userRolePermissions;
             }
         }
 
