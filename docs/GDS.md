@@ -642,10 +642,13 @@ defines `timeoutHint` as a hint to the server, not a completion barrier, so the
 processor never proceeds to another application on that lease after an
 uncertain staging or apply result. `CancelChanges` runs without the caller's
 cancellation token and has an independent five-second deadline, including when
-the transport has no operation timeout. If the device does not reply before
-that deadline, the processor retains the original failure and the cancellation
-cleanup timeout together, then disposes the lease. A lease disposal failure is
-also retained. `Bad_NothingToDo` adds no cleanup error to the original failure.
+the transport has no operation timeout. Transports must honor cancellation for
+this deadline to release the pending call. With such a transport, a device
+that does not reply before the deadline produces a cancellation cleanup error;
+the processor retains it with the original failure, then disposes the lease.
+A custom transport that ignores cancellation can still prevent that await
+from completing; the token does not forcibly abort it. A lease disposal failure
+is also retained. `Bad_NothingToDo` adds no cleanup error to the original failure.
 The processor accepts a `TimeProvider` for cleanup deadlines; fluent hosting
 uses the registered clock when available and otherwise uses the system clock.
 

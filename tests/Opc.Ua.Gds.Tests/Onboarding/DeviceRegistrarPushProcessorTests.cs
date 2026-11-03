@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(int.MaxValue, true)]
         public async Task NonrespondingCancellationExpiresAndDisposesLease(int operationTimeout, bool failDisposal)
         {
-            await using var harness = new Harness(m_bootstrap, m_issued);
+            await using var harness = new Harness(m_bootstrap, m_issued, resolveFromServices: true);
             harness.Initial.Channel.SetupGet(channel => channel.OperationTimeout).Returns(operationTimeout);
             harness.Initial.InnerSession.OperationTimeout = operationTimeout;
             var primary = new ServiceResultException(StatusCodes.BadTimeout);
@@ -1539,7 +1539,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             /// <summary>
             /// Creates one bootstrap generation, one installed-proof generation, and a correlated issued receipt.
             /// </summary>
-            public Harness(Certificate bootstrap, Certificate issued, bool scopeCapability = true)
+            public Harness(
+                Certificate bootstrap,
+                Certificate issued,
+                bool scopeCapability = true,
+                bool resolveFromServices = false)
             {
                 Bootstrap = ByteString.From(bootstrap.RawData.AsSpan());
                 Issued = ByteString.From(issued.RawData.AsSpan());
@@ -1679,12 +1683,36 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                                     ? ByteString.From([.. Issued.ToArray(), 0])
                                     : Issued,
                                 EnrollmentMutation == "private-key" ? m_csr : default, [Issued])));
-                Processor = new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
-                    new OnboardingPushIdentityValidator(Identities.Object, Initial.Telemetry),
-                    policy.Object, database.Object, Lifecycle,
-                    scopeCapability ? Lifecycle :
-                        new Mock<IDeviceRegistrarCertificateLifecycle>(MockBehavior.Strict).Object,
-                    issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime);
+                var validator = new OnboardingPushIdentityValidator(Identities.Object, Initial.Telemetry);
+                IDeviceRegistrarCertificateLifecycle certificates = scopeCapability ? Lifecycle :
+                    new Mock<IDeviceRegistrarCertificateLifecycle>(MockBehavior.Strict).Object;
+                if (resolveFromServices)
+                {
+                    var services = new ServiceCollection();
+                    services.AddSingleton(connections.Object);
+                    services.AddSingleton(Enrollments.Object);
+                    services.AddSingleton(Identities.Object);
+                    services.AddSingleton(validator);
+                    services.AddSingleton(policy.Object);
+                    services.AddSingleton(database.Object);
+                    services.AddSingleton<IDeviceRegistrarIdentityLifecycle>(Lifecycle);
+                    services.AddSingleton(certificates);
+                    services.AddSingleton(issuances);
+                    services.AddSingleton<IDeviceRegistrarLifecycle>(Lifecycle);
+                    services.AddSingleton(Authorization.Object);
+                    services.AddSingleton(Initial.Telemetry);
+                    services.AddSingleton<TimeProvider>(CleanupTime);
+                    services.AddDeviceRegistrarPush();
+                    m_services = services.BuildServiceProvider();
+                    Processor = (DeviceRegistrarPushProcessor)m_services
+                        .GetRequiredService<IDeviceRegistrarPushProcessor>();
+                }
+                else
+                {
+                    Processor = new DeviceRegistrarPushProcessor(connections.Object, Enrollments.Object,
+                        validator, policy.Object, database.Object, Lifecycle, certificates,
+                        issuances, Lifecycle, Authorization.Object, Initial.Telemetry, CleanupTime);
+                }
             }
 
             /// <summary>
@@ -1975,6 +2003,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public async ValueTask DisposeAsync()
             {
                 Processor.Dispose();
+                if (m_services != null)
+                {
+                    await m_services.DisposeAsync().ConfigureAwait(false);
+                }
                 await Initial.DisposeAsync().ConfigureAwait(false);
                 await Update.DisposeAsync().ConfigureAwait(false);
                 await Proof.DisposeAsync().ConfigureAwait(false);
@@ -2367,6 +2399,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             /// <summary>The strict retained-issuance boundary shared by the DCA and managed applications.</summary>
             private readonly Mock<ICertificateRequestIssuanceStore> m_issuances = new(MockBehavior.Strict);
+
+            /// <summary>Optional owning container for fluent-resolution deadline tests.</summary>
+            private readonly ServiceProvider? m_services;
 
             /// <summary>Shared records registered for managed applications, keyed by ApplicationUri.</summary>
             private readonly Dictionary<string, ApplicationRecordDataType> m_managedRecords = [];

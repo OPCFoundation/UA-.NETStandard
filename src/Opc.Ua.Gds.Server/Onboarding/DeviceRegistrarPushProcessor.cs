@@ -879,7 +879,7 @@ namespace Opc.Ua.Gds.Server.Onboarding
         {
             try
             {
-                // Cleanup must finish even with an infinite transport timeout or a cancelled caller.
+                // Bound cleanup independently; the transport must honor cancellation to release this await.
                 using CancellationTokenSource cleanup =
                     m_timeProvider.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
                 await configuration.CancelChangesAsync(cleanup.Token).ConfigureAwait(false);
