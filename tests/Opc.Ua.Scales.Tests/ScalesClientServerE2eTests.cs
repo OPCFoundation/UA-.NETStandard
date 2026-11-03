@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Scales.Tests
             ScaleHandle scale, NodeId recipe, bool startAttempted)
         {
             RecipeState? activeRecipe = scale.Recipes!.ActiveRecipe;
-            if (startAttempted && activeRecipe?.NodeId == recipe)
+            if (startAttempted && activeRecipe != null && activeRecipe.NodeId == recipe)
             {
                 await m_client.ProcessRecipeAsync(scale.NodeId, BrowseNames.AbortRecipe, recipe);
             }
