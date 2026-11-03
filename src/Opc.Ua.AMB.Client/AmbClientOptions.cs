@@ -83,20 +83,20 @@ namespace Opc.Ua.AMB.Client
             {
                 throw new ArgumentOutOfRangeException(nameof(MaximumBrowsePages));
             }
-
-            /// <summary>
-            /// Resolves an application-owned session by its server ApplicationUri.
-            /// </summary>
-            public interface IAmbSessionResolver
-            {
-                /// <summary>
-                /// Borrows an existing session without transferring ownership to AMB.
-                /// </summary>
-                /// <param name="serverUri">The target server's ApplicationUri, not an endpoint URL.</param>
-                /// <param name="cancellationToken">The cancellation token.</param>
-                /// <returns>The borrowed session, or null when none is available.</returns>
-                ValueTask<ISession?> ResolveAsync(string serverUri, CancellationToken cancellationToken = default);
-            }
         }
+    }
+
+    /// <summary>
+    /// Resolves an application-owned session by its server ApplicationUri.
+    /// </summary>
+    public interface IAmbSessionResolver
+    {
+        /// <summary>
+        /// Borrows an existing session without transferring ownership to AMB.
+        /// </summary>
+        /// <param name="serverUri">The target server's ApplicationUri, not an endpoint URL.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The borrowed session, or null when none is available.</returns>
+        ValueTask<ISession?> ResolveAsync(string serverUri, CancellationToken cancellationToken = default);
     }
 }

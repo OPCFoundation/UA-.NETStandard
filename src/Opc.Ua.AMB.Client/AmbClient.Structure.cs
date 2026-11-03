@@ -361,14 +361,7 @@ namespace Opc.Ua.AMB.Client
                 yield break;
             }
             BrowseBudget budget = CreateBrowseBudget();
-            ArrayOf<NodeId> known = m_options is null
-                ? await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false)
-                : await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false);
-            var assets = new HashSet<NodeId>();
-            foreach (NodeId node in known)
-            {
-                assets.Add(node);
-            }
+            HashSet<NodeId> assets = await DiscoverAssetSetAsync(budget, cancellationToken).ConfigureAwait(false);
 
             var seen = new HashSet<NodeId> { asset };
             var clients = new Dictionary<string, AmbClient>(StringComparer.Ordinal);
@@ -414,13 +407,8 @@ namespace Opc.Ua.AMB.Client
                     }
                     if (!knownByClient.TryGetValue(targetClient, out HashSet<NodeId>? targetAssets))
                     {
-                        ArrayOf<NodeId> remoteAssets = await targetClient.DiscoverByBrowsingAsync(
+                        targetAssets = await targetClient.DiscoverAssetSetAsync(
                             budget, cancellationToken).ConfigureAwait(false);
-                        targetAssets = [];
-                        foreach (NodeId remoteAsset in remoteAssets)
-                        {
-                            targetAssets.Add(remoteAsset);
-                        }
                         knownByClient.Add(targetClient, targetAssets);
                     }
                     if (targetAssets.Contains(target))
@@ -430,6 +418,24 @@ namespace Opc.Ua.AMB.Client
                     pending.Enqueue((targetClient, target, depth + 1));
                 }
             }
+        }
+
+        /// <summary>
+        /// Captures the server's alias-listed asset identities within the operation's budget.
+        /// </summary>
+        private async ValueTask<HashSet<NodeId>> DiscoverAssetSetAsync(
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
+        {
+            ArrayOf<NodeId> known = m_options is null
+                ? await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false)
+                : await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false);
+            var assets = new HashSet<NodeId>();
+            foreach (NodeId node in known)
+            {
+                assets.Add(node);
+            }
+            return assets;
         }
 
         /// <summary>
@@ -546,14 +552,7 @@ namespace Opc.Ua.AMB.Client
             ReadRelationTargetsAsync(NodeId asset, CancellationToken cancellationToken)
         {
             BrowseBudget budget = CreateBrowseBudget();
-            ArrayOf<NodeId> known = m_options is null
-                ? await DiscoverAssetsAsync(cancellationToken).ConfigureAwait(false)
-                : await DiscoverByBrowsingAsync(budget, cancellationToken).ConfigureAwait(false);
-            var assets = new HashSet<NodeId>();
-            foreach (NodeId node in known)
-            {
-                assets.Add(node);
-            }
+            HashSet<NodeId> assets = await DiscoverAssetSetAsync(budget, cancellationToken).ConfigureAwait(false);
 
             var relations = new List<(NodeId ReferenceTypeId, bool IsInverse, AmbClient Client, NodeId Node)>();
             var clients = new Dictionary<string, AmbClient>(StringComparer.Ordinal);
@@ -571,13 +570,8 @@ namespace Opc.Ua.AMB.Client
                     this, reference.NodeId, clients, cancellationToken).ConfigureAwait(false);
                 if (!knownByClient.TryGetValue(client, out HashSet<NodeId>? targetAssets))
                 {
-                    ArrayOf<NodeId> remoteAssets = await client.DiscoverByBrowsingAsync(
+                    targetAssets = await client.DiscoverAssetSetAsync(
                         budget, cancellationToken).ConfigureAwait(false);
-                    targetAssets = [];
-                    foreach (NodeId remoteAsset in remoteAssets)
-                    {
-                        targetAssets.Add(remoteAsset);
-                    }
                     knownByClient.Add(client, targetAssets);
                 }
                 var relation = (reference.ReferenceTypeId, !reference.IsForward, client, target);

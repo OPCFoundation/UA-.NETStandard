@@ -72,13 +72,6 @@ namespace Opc.Ua.AMB
         public const string DigitalLocation = "DigitalLocation";
 
         /// <summary>
-        /// The read-only list of vendor-supplied software patch identifiers
-        /// for an asset that does not provide the <c>SoftwareUpdate</c>
-        /// AddIn (§10.2).
-        /// </summary>
-        public const string PatchIdentifiers = "PatchIdentifiers";
-
-        /// <summary>
         /// The alias name used in <c>AssetsByAssetId</c> for an asset whose
         /// <c>AssetId</c> is null or empty (§8.2.3). Each such asset gets an
         /// alias object of its own.

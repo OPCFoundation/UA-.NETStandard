@@ -43,7 +43,10 @@ namespace Opc.Ua.AMB.Server.Assets
     /// <summary>
     /// What an application asked for when it registered an asset.
     /// </summary>
-    internal sealed class AssetBuilder : IAssetBuilder
+    internal sealed class AssetBuilder :
+        IAssetBuilder,
+        IAssetHistoryBuilder,
+        IAssetVersionInformationBuilder
     {
         /// <summary>
         /// Gets whether the <c>AssetId</c> is configurable.

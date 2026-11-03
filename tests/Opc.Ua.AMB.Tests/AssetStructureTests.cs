@@ -222,7 +222,7 @@ namespace Opc.Ua.AMB.Tests
             await using AmbHostedServer serverScope = server;
             BaseVariableState patchIdentifiers = (BaseVariableState)device.FindChildWithQualifiedName(
                 server.Manager.SystemContext,
-                Amb(server, AmbBrowseNames.PatchIdentifiers))!;
+                Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers))!;
 
             DataValue value = await server.ReadAsync(patchIdentifiers.NodeId).ConfigureAwait(false);
             ArrayOf<string> changedIdentifiers = ["changed"];
@@ -233,6 +233,9 @@ namespace Opc.Ua.AMB.Tests
             {
                 Assert.That(patchIdentifiers.DataType, Is.EqualTo(Ua.DataTypeIds.String));
                 Assert.That(patchIdentifiers.ValueRank, Is.EqualTo(ValueRanks.OneDimension));
+                Assert.That(
+                    server.Server.NamespaceUris.GetString(patchIdentifiers.BrowseName.NamespaceIndex),
+                    Is.EqualTo(Opc.Ua.Di.Namespaces.OpcUaDi));
                 Assert.That(patchIdentifiers.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
                 Assert.That(patchIdentifiers.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
                 Assert.That(value.WrappedValue.TryGetValue(out ArrayOf<string> actual), Is.True);
@@ -254,8 +257,146 @@ namespace Opc.Ua.AMB.Tests
             Assert.That(
                 device.FindChildWithQualifiedName(
                     server.Manager.SystemContext,
-                    Amb(server, AmbBrowseNames.PatchIdentifiers)),
+                    Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers)),
                 Is.Null);
+        }
+
+        [Test]
+        public async Task PatchIdentifiersUpdateBesideSoftwareRevisionInIdentificationAsync()
+        {
+            BaseObjectState? machine = null;
+            PropertyState? existingPatchIdentifiers = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(PatchIdentifiersUpdateBesideSoftwareRevisionInIdentificationAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureAssetManagement(async context =>
+                    {
+                        INodeBuilder<BaseObjectState> node = AssetRegistrationTests.CreateMachine(
+                            context,
+                            "urn:acme:press:grouped");
+                        machine = node.Node;
+                        ushort diNamespaceIndex = (ushort)context.Manager.Server.NamespaceUris
+                            .GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
+                        var identification = (BaseObjectState)machine.FindChild(
+                            context.Manager.SystemContext,
+                            new QualifiedName("Identification", diNamespaceIndex))!;
+                        PropertyState revision = identification.AddProperty<string, VariantBuilder>(
+                            Opc.Ua.Di.BrowseNames.SoftwareRevision,
+                            Ua.DataTypeIds.String,
+                            ValueRanks.Scalar);
+                        revision.BrowseName = new QualifiedName(
+                            Opc.Ua.Di.BrowseNames.SoftwareRevision,
+                            diNamespaceIndex);
+                        revision.NodeId = context.Manager.New(context.Manager.SystemContext, revision);
+                        revision.WrappedValue = Variant.From("fixture-software-revision");
+                        context.Manager.AddNode(revision);
+                        existingPatchIdentifiers = AddDiArrayProperty(
+                            context,
+                            identification,
+                            diNamespaceIndex,
+                            ["existing-patch"]);
+                        await context.Assets.RegisterAssetAsync(
+                            node,
+                            asset => asset.WithVersionInformation(
+                                hardwareRevision: null,
+                                softwareRevision: null,
+                                revisionCounter: null,
+                                patchIdentifiers: ["fixture-only-patch"]),
+                            context.CancellationToken).ConfigureAwait(false);
+                    })).ConfigureAwait(false);
+
+            BaseObjectState asset = machine!;
+            BaseObjectState group = (BaseObjectState)asset.FindChild(
+                server.Manager.SystemContext,
+                Di(server, "Identification"))!;
+            BaseVariableState patchIdentifiers = (BaseVariableState)group.FindChildWithQualifiedName(
+                server.Manager.SystemContext,
+                Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers))!;
+            ArrayOf<string> expected = ["fixture-only-patch"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(patchIdentifiers.Parent, Is.SameAs(group));
+                Assert.That(patchIdentifiers, Is.SameAs(existingPatchIdentifiers));
+                Assert.That(
+                    server.Server.NamespaceUris.GetString(patchIdentifiers.BrowseName.NamespaceIndex),
+                    Is.EqualTo(Opc.Ua.Di.Namespaces.OpcUaDi));
+                Assert.That(
+                    patchIdentifiers.WrappedValue.TryGetValue(out ArrayOf<string> values),
+                    Is.True);
+                Assert.That(values, Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
+        public async Task PatchIdentifiersMoveBesideGroupedSoftwareRevisionWhenInitiallyOnAssetAsync()
+        {
+            BaseObjectState? machine = null;
+            PropertyState? existingPatchIdentifiers = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(PatchIdentifiersMoveBesideGroupedSoftwareRevisionWhenInitiallyOnAssetAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureAssetManagement(async context =>
+                    {
+                        INodeBuilder<BaseObjectState> node = AssetRegistrationTests.CreateMachine(
+                            context,
+                            "urn:acme:press:wrong-level");
+                        machine = node.Node;
+                        ushort diNamespaceIndex = (ushort)context.Manager.Server.NamespaceUris
+                            .GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
+                        existingPatchIdentifiers = AddDiArrayProperty(
+                            context,
+                            machine,
+                            diNamespaceIndex,
+                            ["existing-patch"]);
+                        var identification = (BaseObjectState)machine.FindChild(
+                            context.Manager.SystemContext,
+                            new QualifiedName("Identification", diNamespaceIndex))!;
+                        PropertyState revision = identification.AddProperty<string, VariantBuilder>(
+                            Opc.Ua.Di.BrowseNames.SoftwareRevision,
+                            Ua.DataTypeIds.String,
+                            ValueRanks.Scalar);
+                        revision.BrowseName = new QualifiedName(
+                            Opc.Ua.Di.BrowseNames.SoftwareRevision,
+                            diNamespaceIndex);
+                        revision.NodeId = context.Manager.New(context.Manager.SystemContext, revision);
+                        revision.WrappedValue = Variant.From("fixture-software-revision");
+                        context.Manager.AddNode(revision);
+                        await context.Assets.RegisterAssetAsync(
+                            node,
+                            asset => asset.WithVersionInformation(
+                                hardwareRevision: null,
+                                softwareRevision: null,
+                                revisionCounter: null,
+                                patchIdentifiers: ["fixture-only-patch"]),
+                            context.CancellationToken).ConfigureAwait(false);
+                    })).ConfigureAwait(false);
+
+            BaseObjectState asset = machine!;
+            BaseObjectState group = (BaseObjectState)asset.FindChild(
+                server.Manager.SystemContext,
+                Di(server, "Identification"))!;
+            BaseVariableState patchIdentifiers = (BaseVariableState)group.FindChildWithQualifiedName(
+                server.Manager.SystemContext,
+                Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers))!;
+            ArrayOf<string> expected = ["fixture-only-patch"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(asset.FindChildWithQualifiedName(
+                    server.Manager.SystemContext,
+                    Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers)), Is.Null);
+                Assert.That(patchIdentifiers.Parent, Is.SameAs(group));
+                Assert.That(patchIdentifiers, Is.SameAs(existingPatchIdentifiers));
+                Assert.That(
+                    patchIdentifiers.WrappedValue.TryGetValue(out ArrayOf<string> values),
+                    Is.True);
+                Assert.That(values, Is.EqualTo(expected));
+            });
         }
 
         [Test]
@@ -284,12 +425,72 @@ namespace Opc.Ua.AMB.Tests
                                 patchIdentifiers: ["fixture-only-patch"]))
                             .ConfigureAwait(false);
                     })).ConfigureAwait(false);
+            BaseObjectState softwareUpdate = (BaseObjectState)device!.FindChildWithQualifiedName(
+                server.Manager.SystemContext,
+                Di(server, "SoftwareUpdate"))!;
+            var children = new List<BaseInstanceState>();
+            device.GetChildren(server.Manager.SystemContext, children);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    softwareUpdate.ReferenceTypeId,
+                    Is.EqualTo(Ua.ReferenceTypeIds.HasAddIn));
+                Assert.That(softwareUpdate.Parent, Is.SameAs(device));
+                Assert.That(children, Does.Contain(softwareUpdate));
+                Assert.That(
+                    device.FindChildWithQualifiedName(
+                        server.Manager.SystemContext,
+                        Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers)),
+                    Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task SameNamedRegularChildDoesNotCountAsSoftwareUpdateAddInAsync()
+        {
+            DeviceState? device = null;
+            await using AmbHostedServer server = await AmbHostedServer.StartAsync(
+                nameof(SameNamedRegularChildDoesNotCountAsSoftwareUpdateAddInAsync),
+                builder => builder
+                    .AddOpcUaDi()
+                    .AddAssetManagement()
+                    .ConfigureDevicesFor<DiNodeManager>(async context =>
+                    {
+                        IDeviceBuilder<DeviceState> sensor = await AssetRegistrationTests.CreateDeviceAsync(
+                            context,
+                            "Sensor",
+                            "urn:acme:sensor").ConfigureAwait(false);
+                        var ordinaryChild = new BaseObjectState(sensor.Device)
+                        {
+                            SymbolicName = "SoftwareUpdate",
+                            BrowseName = new QualifiedName(
+                                "SoftwareUpdate",
+                                (ushort)context.Manager.Server.NamespaceUris.GetIndex(
+                                    Opc.Ua.Di.Namespaces.OpcUaDi)),
+                            DisplayName = new LocalizedText("SoftwareUpdate"),
+                            TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType,
+                            ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent
+                        };
+                        ordinaryChild.NodeId = context.Manager.New(context.Manager.SystemContext, ordinaryChild);
+                        sensor.Device.AddChild(ordinaryChild);
+                        context.Manager.AddNode(ordinaryChild);
+                        device = sensor.Device;
+                        await sensor.RegisterAsAssetAsync(
+                            context.GetRequiredService<IAssetManagement>(),
+                            asset => asset.WithVersionInformation(
+                                hardwareRevision: null,
+                                softwareRevision: "fixture-software-revision",
+                                revisionCounter: null,
+                                patchIdentifiers: ["fixture-only-patch"]))
+                            .ConfigureAwait(false);
+                    })).ConfigureAwait(false);
 
             Assert.That(
                 device!.FindChildWithQualifiedName(
                     server.Manager.SystemContext,
-                    Amb(server, AmbBrowseNames.PatchIdentifiers)),
-                Is.Null);
+                    Di(server, Opc.Ua.Di.BrowseNames.PatchIdentifiers)),
+                Is.Not.Null);
         }
 
         [Test]
@@ -802,6 +1003,22 @@ namespace Opc.Ua.AMB.Tests
             });
         }
 
+        [Test]
+        public void ExistingAssetBuilderImplementationsDoNotNeedTheOptionalCapability()
+        {
+            IAssetBuilder builder = new LegacyAssetBuilder();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(builder, Is.Not.Null);
+                Assert.That(builder, Is.Not.InstanceOf<IAssetHistoryBuilder>());
+                Assert.That(builder, Is.Not.InstanceOf<IAssetVersionInformationBuilder>());
+                Assert.Throws<NotSupportedException>(
+                    () => builder.WithVersionInformation(null, "revision", null, []));
+                Assert.Throws<NotSupportedException>(() => builder.WithHistory(null));
+            });
+        }
+
         private static async Task<NodeId> ChildAsync(AmbHostedServer server, NodeId parent, string name)
         {
             IReadOnlyList<ReferenceDescription> children = await server
@@ -813,6 +1030,37 @@ namespace Opc.Ua.AMB.Tests
         private static QualifiedName Amb(AmbHostedServer server, string name)
         {
             return new QualifiedName(name, server.Manager.AmbNamespaceIndex);
+        }
+
+        private static QualifiedName Di(AmbHostedServer server, string name)
+        {
+            ushort namespaceIndex = (ushort)server.Server.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
+            return new QualifiedName(name, namespaceIndex);
+        }
+
+        private static PropertyState AddDiArrayProperty(
+            IAssetManagementSetupContext context,
+            BaseObjectState parent,
+            ushort namespaceIndex,
+            ArrayOf<string> value)
+        {
+            var property = new PropertyState(parent)
+            {
+                SymbolicName = Opc.Ua.Di.BrowseNames.PatchIdentifiers,
+                BrowseName = new QualifiedName(Opc.Ua.Di.BrowseNames.PatchIdentifiers, namespaceIndex),
+                DisplayName = new LocalizedText(Opc.Ua.Di.BrowseNames.PatchIdentifiers),
+                TypeDefinitionId = Ua.VariableTypeIds.PropertyType,
+                ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty,
+                DataType = Ua.DataTypeIds.String,
+                ValueRank = ValueRanks.OneDimension,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                WrappedValue = Variant.From(value)
+            };
+            property.NodeId = context.Manager.New(context.Manager.SystemContext, property);
+            parent.AddChild(property);
+            context.Manager.AddNode(property);
+            return property;
         }
 
         private static NodeId Child(AmbHostedServer server, NodeState parent, QualifiedName name)
@@ -923,6 +1171,77 @@ namespace Opc.Ua.AMB.Tests
             hours.NodeId = context.Manager.New(context.Manager.SystemContext, hours);
             hours.WrappedValue = Variant.From(3_600_000d);
             context.Manager.AddNode(counters);
+        }
+
+        /// <summary>
+        /// An implementation using only the original <see cref="IAssetBuilder"/> members.
+        /// </summary>
+        private sealed class LegacyAssetBuilder : IAssetBuilder
+        {
+            /// <inheritdoc/>
+            public IAssetBuilder WithConfigurableAssetId(string? defaultAssetId = null) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithDeviceHealth(
+                DeviceHealthEnumeration initial = DeviceHealthEnumeration.NORMAL,
+                bool deriveFromAlarms = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithHealthAlarm(
+                string name,
+                AssetHealthAlarmKind kind,
+                AmbConditionClass conditionClass) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithMaintenance(
+                string name,
+                AmbConditionClass conditionClass,
+                Action<MaintenanceActivityDetails>? configure = null,
+                Func<MaintenanceStateKind, CancellationToken, ValueTask>? onStateChangedAsync = null) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithDocumentationLinks(Action<IDocumentationLinksBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithVersionInformation(
+                string? hardwareRevision = null,
+                string? softwareRevision = null,
+                int? revisionCounter = null) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithLocation(
+                AssetLocationKind kind,
+                string? value = null,
+                bool writable = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithLocalTime(
+                short offset,
+                bool daylightSavingInOffset = false,
+                bool writable = false) => throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder LocatedIn(AssetLocationKind kind, string path) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder ClassifiedAs(ExpandedNodeId dictionaryEntry) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithRequirements(Action<IAssetEntriesBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder WithCapabilities(Action<IAssetEntriesBuilder> configure) =>
+                throw new NotSupportedException();
+
+            /// <inheritdoc/>
+            public IAssetBuilder RelatesTo(NodeId referenceTypeId, NodeId target) =>
+                throw new NotSupportedException();
         }
 
         private static NodeId FunctionalGroup(IAssetManagementSetupContext context)

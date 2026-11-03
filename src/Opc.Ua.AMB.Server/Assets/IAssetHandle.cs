@@ -152,12 +152,6 @@ namespace Opc.Ua.AMB.Server.Assets
         IAssetBuilder WithConfigurableAssetId(string? defaultAssetId = null);
 
         /// <summary>
-        /// Overrides the registry's history configuration for this asset.
-        /// Null disables AMB history; existing owner-provided history is left unchanged.
-        /// </summary>
-        IAssetBuilder WithHistory(AssetHistoryOptions? history);
-
-        /// <summary>
         /// Gives the asset the OPC 10000-100 <c>DeviceHealth</c> variable
         /// (OPC 10000-110 §9.2, "AMB Asset Health Status Base").
         /// </summary>
@@ -294,35 +288,6 @@ namespace Opc.Ua.AMB.Server.Assets
             int? revisionCounter = null);
 
         /// <summary>
-        /// Gives the asset its version information and, when there is no
-        /// <c>SoftwareUpdate</c> AddIn, the vendor-supplied
-        /// <c>PatchIdentifiers</c> list (OPC 10000-110 §10.2).
-        /// </summary>
-        /// <remarks>
-        /// Patch identifiers are not inferred or synthesized. The application
-        /// supplies the vendor's list, including an empty list when that is
-        /// the vendor data. The AMB Property is created only when the asset
-        /// has a <c>SoftwareRevision</c>.
-        /// </remarks>
-        /// <param name="hardwareRevision">The hardware revision, or null to leave it.</param>
-        /// <param name="softwareRevision">The software revision, or null to leave it.</param>
-        /// <param name="revisionCounter">
-        /// The revision counter, or null to keep an existing one; a created one
-        /// starts at 0.
-        /// </param>
-        /// <param name="patchIdentifiers">
-        /// The vendor-supplied patch identifiers to publish as the read-only
-        /// AMB <c>2:PatchIdentifiers</c> array when the asset has a software
-        /// revision and no <c>SoftwareUpdate</c> AddIn.
-        /// </param>
-        /// <returns>The same builder, for chaining.</returns>
-        IAssetBuilder WithVersionInformation(
-            string? hardwareRevision,
-            string? softwareRevision,
-            int? revisionCounter,
-            ArrayOf<string> patchIdentifiers);
-
-        /// <summary>
         /// Gives the asset the <c>HierarchicalLocation</c>,
         /// <c>OperationalLocation</c> or <c>DigitalLocation</c> Property in
         /// the AMB namespace (OPC 10000-110 §13.3.2, §13.4.2, §13.5).
@@ -403,5 +368,47 @@ namespace Opc.Ua.AMB.Server.Assets
         /// <returns>The same builder, for chaining.</returns>
         /// <exception cref="ArgumentException">An argument is null.</exception>
         IAssetBuilder RelatesTo(NodeId referenceTypeId, NodeId target);
+    }
+
+    /// <summary>
+    /// Optional capability for asset builders that accept vendor-supplied
+    /// patch identifiers with version information.
+    /// </summary>
+    public interface IAssetVersionInformationBuilder
+    {
+        /// <summary>
+        /// Adds version information and the vendor's patch identifiers.
+        /// </summary>
+        /// <param name="hardwareRevision">The hardware revision, or null to leave it.</param>
+        /// <param name="softwareRevision">The software revision, or null to leave it.</param>
+        /// <param name="revisionCounter">
+        /// The revision counter, or null to keep an existing one; a created one
+        /// starts at 0.
+        /// </param>
+        /// <param name="patchIdentifiers">
+        /// The vendor-supplied identifiers to publish in the read-only
+        /// <c>2:PatchIdentifiers</c> Property.
+        /// </param>
+        /// <returns>The same builder, for chaining.</returns>
+        IAssetBuilder WithVersionInformation(
+            string? hardwareRevision,
+            string? softwareRevision,
+            int? revisionCounter,
+            ArrayOf<string> patchIdentifiers);
+    }
+
+    /// <summary>
+    /// Optional capability for asset builders that override AMB history
+    /// configuration.
+    /// </summary>
+    public interface IAssetHistoryBuilder
+    {
+        /// <summary>
+        /// Overrides the registry's history configuration for this asset.
+        /// Null disables AMB history; existing owner-provided history is left unchanged.
+        /// </summary>
+        /// <param name="history">The history configuration, or null to disable AMB history.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        IAssetBuilder WithHistory(AssetHistoryOptions? history);
     }
 }

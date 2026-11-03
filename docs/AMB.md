@@ -229,7 +229,7 @@ assets registered later as well.
 | `WithMaintenance(name, class, details, onStateChanged)` | a maintenance condition with its state machine | 12 |
 | `WithHistory(options)` | a per-asset history override; `null` disables AMB capture for this asset | 9.6, 12 |
 | `WithDocumentationLinks(links)` | the DocumentationLinks AddIn | 10.5 |
-| `WithVersionInformation(hardware, software, counter)` | revisions and `RevisionCounter`; the four-argument overload also accepts vendor-supplied patch identifiers | 10.2 |
+| `WithVersionInformation(hardware, software, counter)` | revisions and `RevisionCounter`; the four-argument extension also accepts vendor-supplied patch identifiers | 10.2 |
 | `WithLocation(kind, value, writable)` | `HierarchicalLocation`, `OperationalLocation` or `DigitalLocation` | 13.3.2, 13.4.2, 13.5 |
 | `WithLocalTime(offset, daylightSaving, writable)` | `0:LocalTime` | 13.2 |
 | `LocatedIn(kind, "A/B/C")` | membership in a location hierarchy | 13.3.3, 13.4.3 |
@@ -375,6 +375,9 @@ or maintenance activities. On the asset builder,
 `WithHistory(new AssetHistoryOptions(provider, kinds))` overrides the registry
 setting; `WithHistory(null)` disables AMB capture for that asset without
 changing history its owner installed.
+The `WithHistory` extension requires the optional `IAssetHistoryBuilder`
+capability. Existing `IAssetBuilder` implementations remain valid; builders
+without that capability reject the call with `NotSupportedException`.
 The same options work with direct `new AssetManagement(options)` construction.
 For a provider resolved from DI, use
 `AddAssetManagement((services, options) => options.UseHistory(
@@ -562,15 +565,22 @@ that the device does not provide them and do not count as version
 information. Asking for version information starts a counter of -1 at 0.
 
 The four-argument `WithVersionInformation(hardware, software, counter, patches)`
-overload accepts an `ArrayOf<string>` of application-supplied patch identifiers.
+extension accepts an `ArrayOf<string>` of application-supplied patch identifiers.
 When the SoftwareUpdate AddIn is absent, a configured list is published as the
-read-only AMB `2:PatchIdentifiers` Property alongside SoftwareRevision (§10.2).
+read-only DI `2:PatchIdentifiers` Property beside the actual SoftwareRevision
+Property, including inside the DI Identification group (§10.2). Here namespace
+prefix `2` denotes the imported DI model, not the AMB namespace.
 The list follows OPC 10000-100 §8.4.7.5: its entries identify vendor-supplied
 patches, not values inferred from a revision string. An explicitly empty array
 publishes an empty list; a default array leaves the Property unchanged.
 When neither SoftwareRevision nor the AddIn exists, a configured list is rejected with
 `BadConfigurationError`. When the SoftwareUpdate AddIn exists, AMB does not
 add this alternative Property or change the AddIn's patch information.
+The AddIn check requires a `HasAddIn` relationship; a regular child named
+SoftwareUpdate does not suppress patch publication.
+The extension uses the optional `IAssetVersionInformationBuilder` capability,
+so existing `IAssetBuilder` implementations do not need a new member. A builder
+without that capability rejects the four-argument call with `NotSupportedException`.
 
 Requirements and capabilities are folders in the AMB namespace whose entries
 may reference entries of external dictionaries such as IEC CDD or ECLASS;

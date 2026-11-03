@@ -120,6 +120,19 @@ namespace Opc.Ua.AMB.Tests
             DataValue alive = await remoteConnection.Session.ReadValueAsync(
                 Ua.VariableIds.Server_NamespaceArray, CancellationToken.None).ConfigureAwait(false);
             Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good), "the borrowed remote session remains usable");
+            var unresolved = new List<ExpandedNodeId>();
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await foreach (ExpandedNodeId sub in rootConnection.Client
+                    .EnumerateSubAssetsAsync(local.Pump!.NodeId).ConfigureAwait(false))
+                {
+                    unresolved.Add(sub);
+                }
+            }).ConfigureAwait(false) ??
+                throw new AssertionException("Expected an unresolved remote candidate failure.");
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
+                "the original constructor must also reject unverified remote candidates");
+            Assert.That(unresolved.All(node => node.ServerIndex == 0), Is.True);
         }
 
         private const string PumpUri = "urn:acme:pump:1";
