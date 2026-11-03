@@ -292,7 +292,7 @@ namespace Opc.Ua.PADIM.Tests
             {
                 try
                 {
-                    foreach (PadimDeviceKind kind in Enum.GetValues(typeof(PadimDeviceKind)))
+                    foreach (PadimDeviceKind kind in PadimRuntimeTests.GetEnumValues<PadimDeviceKind>())
                     {
                         var builder = await context.Manager.CreatePadimDeviceAsync(
                             new QualifiedName($"FacetDevice{kind}", context.Manager.InstanceNamespaceIndex), kind);
@@ -317,7 +317,7 @@ namespace Opc.Ua.PADIM.Tests
 
                     PadimDevice catalog = deviceStates[PadimDeviceKind.Device];
                     catalog.WithAdministration(administration.Object, writer.Object, authorizer.Object);
-                    foreach (PadimSignalKind kind in Enum.GetValues(typeof(PadimSignalKind)))
+                    foreach (PadimSignalKind kind in PadimRuntimeTests.GetEnumValues<PadimSignalKind>())
                     {
                         string browseName = $"FacetSignal{kind}";
                         SignalState signal = await catalog.AddSignalAsync(
@@ -366,7 +366,7 @@ namespace Opc.Ua.PADIM.Tests
                         }
                     }
 
-                    foreach (PadimMeasurementKind kind in Enum.GetValues(typeof(PadimMeasurementKind)))
+                    foreach (PadimMeasurementKind kind in PadimRuntimeTests.GetEnumValues<PadimMeasurementKind>())
                     {
                         string browseName = $"FacetMeasurement{kind}";
                         AnalogSignalObjectState signal = await catalog.AddMeasurementAsync(
@@ -468,7 +468,7 @@ namespace Opc.Ua.PADIM.Tests
                 Assert.That(unitReadback.WrappedValue.TryGetValue(out ArrayOf<QualifiedName> advertisedUnits), Is.True);
                 Assert.That(
                     advertisedUnits.ToList().Where(unit =>
-                        unit.Name.StartsWith("PA-DIM ", StringComparison.Ordinal)),
+                        unit.Name?.StartsWith("PA-DIM ", StringComparison.Ordinal) == true),
                     Is.EquivalentTo(expectedPadimUnits),
                     "The live ConformanceUnits variable contains the configured PA-DIM units.");
                 ArrayOf<PadimEntry> discoveredDevices = await client.DiscoverDevicesAsync(timeout.Token);
@@ -585,7 +585,7 @@ namespace Opc.Ua.PADIM.Tests
                     sample => sample.BrowseName.Name == "PatMeasurandDescription");
                 Assert.That(patMeasurand.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
                 Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure(
-                    out ChemicalSubstance patSubstance), Is.True);
+                    out ChemicalSubstance? patSubstance), Is.True);
                 Assert.That(patSubstance!.PatDictionary, Is.EqualTo(PatDictionaryEnum.CAS));
                 PadimPublishedSample patMatrix = samples.Samples.Single(
                     sample => sample.BrowseName.Name == "PatMatrixDescription");
@@ -663,8 +663,8 @@ namespace Opc.Ua.PADIM.Tests
                 samples.Bind(device, signal.TwoStateDiscreteSignal!);
                 await device.RegisterAsync(timeout.Token);
                 await device.RefreshAsync(timeout.Token);
-                string[] expectedProfiles = device.ServerProfiles.ToArray();
-                QualifiedName[] expectedUnits = device.ConformanceUnits.ToArray();
+                string[] expectedProfiles = device.ServerProfiles.Span.ToArray();
+                QualifiedName[] expectedUnits = device.ConformanceUnits.Span.ToArray();
                 Assert.That(expectedProfiles,
                     Does.Contain("http://opcfoundation.org/UA-Profile/PADIM/Server/TwoStateDiscreteSignal"));
                 Assert.That(expectedUnits, Does.Contain(unit));
@@ -699,7 +699,8 @@ namespace Opc.Ua.PADIM.Tests
                             "http://opcfoundation.org/UA-Profile/PADIM/Server/", StringComparison.Ordinal)),
                             Is.EquivalentTo(profiles));
                         Assert.That(liveUnits.ToList().Where(value =>
-                            value.Name.StartsWith("PA-DIM ", StringComparison.Ordinal)), Is.EquivalentTo(units));
+                            value.Name?.StartsWith("PA-DIM ", StringComparison.Ordinal) == true),
+                            Is.EquivalentTo(units));
                         Assert.That(catalog.IsSupported(unit), Is.EqualTo(supported));
                     });
                 }

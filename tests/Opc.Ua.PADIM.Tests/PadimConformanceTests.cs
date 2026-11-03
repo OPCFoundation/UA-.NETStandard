@@ -709,10 +709,11 @@ namespace Opc.Ua.PADIM.Tests
         public async Task RegisteredPrimaryCannotBypassUnregisteredSignalAncestor()
         {
             PadimDevice device = await CreateDeviceAsync("UnregisteredSignalRequirements");
+            device.State.AddSignalSet_no_(device.Context);
             AnalogSignalObjectState signal = device.Context.CreateInstanceOfAnalogSignalType(
-                device.State.SignalSet!, Name("LateSignal"));
+                device.State.SignalSet_no_!, Name("LateSignal"));
             signal.NodeId = new NodeId("LateSignalAncestor", device.Manager.InstanceNamespaceIndex);
-            device.State.SignalSet!.AddChild(signal);
+            device.State.SignalSet_no_!.AddChild(signal);
             TemperatureMeasurementVariableState primary =
                 device.Context.CreateInstanceOfTemperatureMeasurementVariableType(signal, ModelName("AnalogSignal"));
             signal.CreateOrReplaceAnalogSignal(device.Context, primary);
@@ -821,7 +822,7 @@ namespace Opc.Ua.PADIM.Tests
         /// Enumerates every declared family on modern and legacy test targets.
         /// </summary>
         /// <typeparam name="TEnum">The family enumeration.</typeparam>
-        private static TEnum[] GetEnumValues<TEnum>()
+        internal static TEnum[] GetEnumValues<TEnum>()
             where TEnum : struct, Enum
         {
 #if NET6_0_OR_GREATER
