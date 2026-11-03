@@ -440,7 +440,9 @@ namespace Opc.Ua.Scales.Server.Runtime
             wait.Timeout = timeout > 0 ? TimeSpan.FromMilliseconds(timeout) : null;
             if (element is AnalogConditionSleepState analog)
             {
-                wait.Target = analog.TargetThresholdValue is { } analogTarget ? analogTarget.WrappedValue : Variant.Null;
+                wait.Target = analog.TargetThresholdValue is { } analogTarget
+                    ? analogTarget.WrappedValue
+                    : Variant.Null;
                 wait.Mode = (int)(analog.ConditionMode?.Value ?? (EqualityAndRelationalOperator)(-1));
                 BaseVariableState? units = analog.TargetThresholdValue?.FindChild(
                     m_owner.Services.Context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
