@@ -502,7 +502,7 @@ namespace Opc.Ua.LADS.Server
                     }
                     if (acknowledgmentCancelled)
                     {
-                        completionAcknowledgment?.TrySetCanceled();
+                        completionAcknowledgment?.TrySetCanceled(CancellationToken.None);
                     }
                     else
                     {
