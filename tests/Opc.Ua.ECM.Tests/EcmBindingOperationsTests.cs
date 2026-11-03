@@ -181,5 +181,126 @@ namespace Opc.Ua.ECM.Tests
                 return 5;
             }
         }
+
+        /// <summary>
+        /// Work still queued when admission closes is canceled even when the active callback releases the slot
+        /// before shutdown requests cancellation, while the admitted active callback completes normally.
+        /// </summary>
+        [Test]
+        public async Task QueuedOperationReleasedAfterAdmissionClosesBeforeCancellationNeverRuns()
+        {
+            var operations = new EcmBindingOperations();
+            var activeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseActive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int queuedInvocations = 0;
+            bool stopTokenSetAtRelease = true;
+            bool stopTokenSetAfterQueued = true;
+            bool queuedCanceledBeforeCancellation = false;
+            int activeResult = 0;
+            Task<int> active = operations.ExecuteAsync<int>(ActiveAsync, CancellationToken.None).AsTask();
+            await activeEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Task<int> queued = operations.ExecuteAsync<int>(QueuedAsync, CancellationToken.None).AsTask();
+            Assert.That(queued.IsCompleted, Is.False);
+            operations.BeforeStopCancellation = async () =>
+            {
+                stopTokenSetAtRelease = operations.StoppingToken.IsCancellationRequested;
+                releaseActive.TrySetResult(true);
+                activeResult = await active.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                try
+                {
+                    await queued.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    queuedCanceledBeforeCancellation = true;
+                }
+                stopTokenSetAfterQueued = operations.StoppingToken.IsCancellationRequested;
+            };
+
+            await operations.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+
+            Assert.That(stopTokenSetAtRelease, Is.False);
+            Assert.That(stopTokenSetAfterQueued, Is.False);
+            Assert.That(activeResult, Is.EqualTo(7));
+            Assert.That(queuedCanceledBeforeCancellation, Is.True);
+            await Assert.CatchAsync<OperationCanceledException>(async () => await queued.ConfigureAwait(false));
+            Assert.That(Volatile.Read(ref queuedInvocations), Is.Zero);
+
+            async ValueTask<int> ActiveAsync(CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                activeEntered.TrySetResult(true);
+                await releaseActive.Task.ConfigureAwait(false);
+                return 7;
+            }
+
+            ValueTask<int> QueuedAsync(CancellationToken token)
+            {
+                Interlocked.Increment(ref queuedInvocations);
+                token.ThrowIfCancellationRequested();
+                return new ValueTask<int>(8);
+            }
+        }
+
+        /// <summary>
+        /// Work still queued at shutdown is canceled when the active callback releases the slot after the stop
+        /// token is set but before shutdown signals the queued waiter's linked token.
+        /// </summary>
+        [Test]
+        public async Task QueuedOperationReleasedWhileShutdownSignalsTokensNeverRuns()
+        {
+            var operations = new EcmBindingOperations();
+            var activeEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseActive = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int queuedInvocations = 0;
+            bool stopTokenSetAtRelease = false;
+            bool queuedFinishedInWindow = false;
+            Task<int> active = operations.ExecuteAsync<int>(ActiveAsync, CancellationToken.None).AsTask();
+            await activeEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            using var queuedCompleted = new ManualResetEventSlim(false);
+
+            // The queued operation and this registration are created on the same thread without an intervening
+            // await, so cancellation runs this later registration before it signals the queued linked token.
+            Task<int> queued = operations.ExecuteAsync<int>(QueuedAsync, CancellationToken.None).AsTask();
+            Assert.That(queued.IsCompleted, Is.False);
+            _ = queued.ContinueWith(
+                _ => queuedCompleted.Set(),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            using (operations.StoppingToken.Register(() =>
+            {
+                stopTokenSetAtRelease = operations.StoppingToken.IsCancellationRequested;
+                releaseActive.TrySetResult(true);
+
+                // Cancellation callbacks are synchronous, so this barrier holds shutdown inside Cancel until the
+                // queued waiter has acquired the released slot and finished.
+                queuedFinishedInWindow = queuedCompleted.Wait(TimeSpan.FromSeconds(30));
+            }))
+            {
+                await operations.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(40));
+            }
+
+            Assert.That(stopTokenSetAtRelease, Is.True);
+            Assert.That(queuedFinishedInWindow, Is.True);
+            Assert.That(await active.WaitAsync(TimeSpan.FromSeconds(10)), Is.EqualTo(7));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await queued.ConfigureAwait(false));
+            Assert.That(Volatile.Read(ref queuedInvocations), Is.Zero);
+
+            async ValueTask<int> ActiveAsync(CancellationToken token)
+            {
+                token.ThrowIfCancellationRequested();
+                activeEntered.TrySetResult(true);
+                await releaseActive.Task.ConfigureAwait(false);
+                return 7;
+            }
+
+            ValueTask<int> QueuedAsync(CancellationToken token)
+            {
+                Interlocked.Increment(ref queuedInvocations);
+                token.ThrowIfCancellationRequested();
+                return new ValueTask<int>(8);
+            }
+        }
     }
 }

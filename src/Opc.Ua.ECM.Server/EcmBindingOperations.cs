@@ -47,6 +47,16 @@ namespace Opc.Ua.ECM.Server
         }
 
         /// <summary>
+        /// Gets or sets a test hook that runs after admission closes and before shutdown requests cancellation.
+        /// </summary>
+        internal Func<ValueTask>? BeforeStopCancellation { get; set; }
+
+        /// <summary>
+        /// Gets the token that shutdown cancels, so tests can observe cancellation ordering.
+        /// </summary>
+        internal CancellationToken StoppingToken => m_stoppingToken;
+
+        /// <summary>
         /// Drains operations and releases resources when no graph callbacks need removal.
         /// </summary>
         public ValueTask DisposeAsync()
@@ -77,8 +87,17 @@ namespace Opc.Ua.ECM.Server
                 await m_commands.WaitAsync(pending.Token).ConfigureAwait(false);
                 try
                 {
-                    // Release can hand the slot to a queued waiter while shutdown is still signalling linked tokens.
-                    m_stoppingToken.ThrowIfCancellationRequested();
+                    bool closedWhileQueued;
+                    lock (m_lifetimeGate)
+                    {
+                        // Release can grant the slot after admission closed but before shutdown cancels the
+                        // queued waiter's linked token, so queued work rechecks admission after acquisition.
+                        closedWhileQueued = m_closing;
+                    }
+                    if (closedWhileQueued)
+                    {
+                        throw new OperationCanceledException(m_stoppingToken);
+                    }
                     pending.Token.ThrowIfCancellationRequested();
                     return await callback(pending.Token).ConfigureAwait(false);
                 }
@@ -151,19 +170,29 @@ namespace Opc.Ua.ECM.Server
         {
             try
             {
-                m_stopping.Cancel();
+                if (BeforeStopCancellation is { } beforeStopCancellation)
+                {
+                    await beforeStopCancellation().ConfigureAwait(false);
+                }
             }
             finally
             {
-                await m_operationsDrained.Task.ConfigureAwait(false);
                 try
                 {
-                    removeCallbacks();
+                    m_stopping.Cancel();
                 }
                 finally
                 {
-                    m_commands.Dispose();
-                    m_stopping.Dispose();
+                    await m_operationsDrained.Task.ConfigureAwait(false);
+                    try
+                    {
+                        removeCallbacks();
+                    }
+                    finally
+                    {
+                        m_commands.Dispose();
+                        m_stopping.Dispose();
+                    }
                 }
             }
         }
