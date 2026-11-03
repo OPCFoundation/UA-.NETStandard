@@ -134,7 +134,7 @@ namespace ScalesSample
             recipes.ObserveConditionSource(2, edge);
             foreach (RecipeElementState element in recipes.ConditionWaitsRequiringIntervention)
             {
-                LogIntervention(element.BrowseName.Name);
+                m_logger.LogIntervention(element.BrowseName.Name);
                 ServiceResult completed = recipes.CompleteElement(element);
                 if (ServiceResult.IsBad(completed))
                 {
@@ -197,11 +197,22 @@ namespace ScalesSample
         [LoggerMessage(Level = LogLevel.Information, Message = "Rejected a package of {Weight:F4} kg.")]
         private partial void LogRejected(double weight);
 
-        [LoggerMessage(Level = LogLevel.Warning,
-            Message = "Recipe element {Element} timed out; the simulated operator explicitly completes it.")]
-        private partial void LogIntervention(string? element);
-
         private readonly PackingLine m_line;
         private readonly ILogger<ScaleSimulation> m_logger;
+    }
+
+    /// <summary>
+    /// Source-generated logging for the scale simulation.
+    /// </summary>
+    internal static partial class ScaleSimulationLog
+    {
+        /// <summary>
+        /// Reports a condition timeout before the simulated operator completes the element.
+        /// </summary>
+        [LoggerMessage(
+            EventId = global::Opc.Ua.ScalesServerEventIds.ScaleSimulation + 0,
+            Level = LogLevel.Warning,
+            Message = "Recipe element {Element} timed out; the simulated operator explicitly completes it.")]
+        public static partial void LogIntervention(this ILogger logger, string? element);
     }
 }
