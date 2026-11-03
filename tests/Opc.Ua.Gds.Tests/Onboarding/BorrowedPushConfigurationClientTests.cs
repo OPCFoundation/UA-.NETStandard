@@ -73,8 +73,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             client.AdminCredentials = new UserIdentity();
             ByteString nonce = ByteString.From(new byte[] { 4, 5, 6 });
             ByteString certificate = ByteString.From(new byte[] { 7, 8, 9 });
-            var group = new NodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
-            var type = new NodeId(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            NodeId group = Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
+            NodeId type = Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
 
             ByteString csr = await client.CreateSigningRequestAsync(
                 group, type, "CN=Device", false, nonce).ConfigureAwait(false);
@@ -85,21 +85,21 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(csr, Is.EqualTo(s_csr));
             Assert.That(apply, Is.True);
             List<CallMethodRequest> calls = Calls(fixture);
-            Assert.That(calls.Count, Is.EqualTo(3));
+            Assert.That(calls, Has.Count.EqualTo(3));
             Assert.That(calls[0].MethodId,
-                Is.EqualTo(new NodeId(Ua.MethodIds.ServerConfigurationType_CreateSigningRequest)));
+                Is.EqualTo(Ua.MethodIds.ServerConfigurationType_CreateSigningRequest));
             Assert.That(calls[0].InputArguments, Is.EqualTo(new Variant[]
             {
                 Variant.From(group), Variant.From(type), Variant.From("CN=Device"),
                 Variant.From(false), Variant.From(nonce)
             }));
             Assert.That(calls[1].MethodId,
-                Is.EqualTo(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+                Is.EqualTo(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             Assert.That(calls[1].InputArguments[2].TryGetValue(out ByteString sent), Is.True);
             Assert.That(sent, Is.EqualTo(certificate));
-            Assert.That(calls[2].MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.ServerConfigurationType_ApplyChanges)));
+            Assert.That(calls[2].MethodId, Is.EqualTo(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
             await client.DisposeAsync().ConfigureAwait(false);
-            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session")));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
             Assert.That(outer.Invalidated.IsCompleted, Is.False);
             Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
         }
@@ -145,7 +145,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error, Is.SameAs(closeError));
             Assert.That(reads, Is.EqualTo(2));
-            Assert.That(Calls(fixture).Count, Is.EqualTo(4));
+            Assert.That(Calls(fixture), Has.Count.EqualTo(4));
         }
 
         /// <summary>
@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(disconnect!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(endpoint!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(fixture.Requests, Is.Empty);
-            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session")));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
         }
 
         /// <summary>
@@ -210,14 +210,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(apply, Is.True);
             List<CallMethodRequest> calls = Calls(fixture);
-            Assert.That(calls.Count, Is.EqualTo(3));
-            Assert.That(calls[0].MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.FileType_Open)));
-            Assert.That(calls[1].MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.FileType_Write)));
-            Assert.That(calls[2].MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.TrustListType_CloseAndUpdate)));
+            Assert.That(calls, Has.Count.EqualTo(3));
+            Assert.That(calls[0].MethodId, Is.EqualTo(Ua.MethodIds.FileType_Open));
+            Assert.That(calls[1].MethodId, Is.EqualTo(Ua.MethodIds.FileType_Write));
+            Assert.That(calls[2].MethodId, Is.EqualTo(Ua.MethodIds.TrustListType_CloseAndUpdate));
             foreach (CallMethodRequest call in calls)
             {
                 Assert.That(call.ObjectId, Is.EqualTo(new NodeId(
-                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList)));
+                    Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList));
             }
             Assert.That(calls[1].InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(42u));
@@ -323,9 +323,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             Assert.That(cleanupTokenUsable, Is.True);
             List<CallMethodRequest> calls = Calls(fixture);
-            Assert.That(calls.Count, Is.EqualTo(operation == "commit" ? 4 : 3));
+            Assert.That(calls, Has.Count.EqualTo(operation == "commit" ? 4 : 3));
             CallMethodRequest close = calls[calls.Count - 1];
-            Assert.That(close.MethodId, Is.EqualTo(new NodeId(Ua.MethodIds.FileType_Close)));
+            Assert.That(close.MethodId, Is.EqualTo(Ua.MethodIds.FileType_Close));
             Assert.That(close.InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(42u));
             Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
@@ -411,7 +411,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await client.ApplyChangesAsync().ConfigureAwait(false));
 
             Assert.That(fixture.Requests, Is.Empty);
-            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session")));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
         }
 
         /// <summary>
@@ -436,7 +436,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(owned, Is.Not.SameAs(borrowed));
             Assert.That(provider.GetRequiredService<IServerPushConfigurationClient>(), Is.SameAs(owned));
             await borrowed.ApplyChangesAsync().ConfigureAwait(false);
-            Assert.That(Calls(fixture).Count, Is.EqualTo(1));
+            Assert.That(Calls(fixture), Has.Count.EqualTo(1));
             Assert.That(owned.Session, Is.Null);
         }
 
@@ -448,7 +448,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var calls = new List<CallMethodRequest>();
             foreach (IServiceRequest request in fixture.Requests)
             {
-                Assert.That(request.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token")));
+                Assert.That(request.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token", 0)));
                 if (request is CallRequest call)
                 {
                     calls.Add(call.MethodsToCall[0]);

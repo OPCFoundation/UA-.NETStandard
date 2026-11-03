@@ -177,11 +177,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 ServiceResultException? full = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await scheduler.EnqueueAsync(Application("third")).ConfigureAwait(false));
                 Assert.That(full!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
-                Assert.That(received.Count, Is.EqualTo(1));
+                Assert.That(received, Has.Count.EqualTo(1));
                 release.TrySetResult(true);
                 await completed.Task.WaitAsync(k_deadline).ConfigureAwait(false);
                 ApplicationDescription[] calls = received.ToArray();
-                Assert.That(calls.Select(call => call.ApplicationUri), Is.EqualTo(new[] { "urn:first", "urn:second" }));
+                Assert.That(calls.Select(call => call.ApplicationUri), Is.EqualTo(s_expectedAcceptedApplicationUris));
                 Assert.That(calls[1].DiscoveryUrls[0], Is.EqualTo("opc.tcp://second:4840"));
                 Assert.That(calls[1], Is.Not.SameAs(queued));
             }
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var telemetry = new Mock<ITelemetryContext>(MockBehavior.Strict);
             telemetry.SetupGet(value => value.LoggerFactory).Returns(logs);
             var completed = Signal();
-            var calls = new ConcurrentQueue<string>();
+            var calls = new ConcurrentQueue<string?>();
             Exception failure = scenario == "cancellation"
                 ? new OperationCanceledException()
                 : new ServiceResultException(StatusCodes.BadSecurityChecksFailed);
@@ -232,7 +232,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 await scheduler.StopAsync(CancellationToken.None).WaitAsync(k_deadline).ConfigureAwait(false);
             }
-            Assert.That(calls.ToArray(), Is.EqualTo(new[] { "urn:rejected", "urn:accepted" }));
+            Assert.That(calls.ToArray(), Is.EqualTo(s_expectedProcessedApplicationUris));
             var failures = logs.Events.Where(entry => entry.Event.Id == 101).ToArray();
             Assert.That(failures, Has.Length.EqualTo(1));
             Assert.That(failures[0].Level, Is.EqualTo(LogLevel.Error));
@@ -471,13 +471,6 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private sealed class Processor : IDeviceRegistrarPushProcessor
         {
             /// <summary>
-            /// Creates the processor through DI or direct construction.
-            /// </summary>
-            public Processor()
-            {
-            }
-
-            /// <summary>
             /// Gets or sets the script for one attempt.
             /// </summary>
             public Func<ApplicationDescription, CancellationToken, ValueTask> Handler { get; set; }
@@ -544,5 +537,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>A failure guard only; test ordering is controlled by explicit signals, not delays.</summary>
         private static readonly TimeSpan k_deadline = TimeSpan.FromSeconds(10);
+        /// <summary>
+        /// The registrar URIs accepted and processed by the queue-capacity test.
+        /// </summary>
+        private static readonly string[] s_expectedAcceptedApplicationUris = ["urn:first", "urn:second"];
+        /// <summary>
+        /// The registrar URIs processed when the first handler invocation fails.
+        /// </summary>
+        private static readonly string[] s_expectedProcessedApplicationUris = ["urn:rejected", "urn:accepted"];
     }
 }

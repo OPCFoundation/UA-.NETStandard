@@ -133,7 +133,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             try
             {
                 hosted = provider.GetServices<IHostedService>()
-                    .Single(static service => service is OpcUaServerHostedService);
+                    .Single(static service => service.GetType().Name == "OpcUaServerHostedService");
                 await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
                 using var firstClient = new ClientFixture(telemetry: telemetry);
                 using var secondClient = new ClientFixture(telemetry: telemetry);
@@ -280,7 +280,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         root, applicationUri, url, password, secrets, observed);
                     await using ServiceProvider provider = services.BuildServiceProvider();
                     IHostedService hosted = provider.GetServices<IHostedService>()
-                        .Single(static service => service is OpcUaServerHostedService);
+                        .Single(static service => service.GetType().Name == "OpcUaServerHostedService");
                     try
                     {
                         await hosted.StartAsync(CancellationToken.None).ConfigureAwait(false);
@@ -568,7 +568,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             using CertificateCollection chain = DefaultCertificateFactory.Instance.ParseChainBlob(
                 session.TransportChannel.ServerChannelCertificate.AsMemory());
-            Assert.That(chain.Count, Is.GreaterThan(0));
+            Assert.That(chain, Has.Count.GreaterThan(0));
             return ByteString.From(chain[0].RawData.AsSpan());
         }
 

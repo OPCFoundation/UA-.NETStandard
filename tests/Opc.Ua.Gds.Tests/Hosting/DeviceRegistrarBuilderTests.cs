@@ -134,7 +134,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.Throws<ArgumentNullException>(() => gds.AddSecretStoreCertificateRequestIssuanceStore(null!, "gds"));
             Assert.Throws<ArgumentNullException>(() =>
                 gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, null!));
-            Assert.Throws<ArgumentException>(() => gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, ""));
+            Assert.Throws<ArgumentException>(() =>
+                gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, string.Empty));
             gds.AddSecretStoreCertificateRequestIssuanceStore(secrets, "gds");
             ServiceDescriptor[] before = services.ToArray();
 
@@ -165,7 +166,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lifecycle.FindDeviceAsync("urn:test:device").ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             files.VerifyNoOtherCalls();
         }
 
@@ -267,7 +268,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.Throws<ArgumentNullException>(() =>
                 services.AddSecretStoreCertificateRequestIssuanceStore(secrets, namespaces, null!));
             Assert.Throws<ArgumentException>(() =>
-                services.AddSecretStoreCertificateRequestIssuanceStore(secrets, namespaces, ""));
+                services.AddSecretStoreCertificateRequestIssuanceStore(secrets, namespaces, string.Empty));
             services.AddSingleton(new Mock<ICertificateRequestIssuanceStore>().Object);
             Assert.Throws<InvalidOperationException>(() =>
                 services.AddSecretStoreCertificateRequestIssuanceStore(secrets, namespaces, "gds"));
@@ -331,8 +332,8 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Is.SameAs(provider.GetRequiredService<DeviceRegistrarAuthorization>()));
             Assert.That(provider.GetRequiredService<IDeviceRegistrarCertificateAuthorization>(),
                 Is.SameAs(provider.GetRequiredService<DeviceRegistrarAuthorization>()));
-            Assert.That(provider.GetRequiredService<IDeviceRegistrarRuntime>(),
-                Is.SameAs(provider.GetRequiredService<IDeviceRegistrarRuntime>()));
+            IDeviceRegistrarRuntime runtime = provider.GetRequiredService<IDeviceRegistrarRuntime>();
+            Assert.That(provider.GetRequiredService<IDeviceRegistrarRuntime>(), Is.SameAs(runtime));
             OnboardingPushIdentityValidator pushIdentity =
                 provider.GetRequiredService<OnboardingPushIdentityValidator>();
             Assert.That(provider.GetRequiredService<OnboardingPushIdentityValidator>(), Is.SameAs(pushIdentity));
@@ -544,13 +545,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
             var application = new ApplicationRecordDataType { ApplicationUri = "urn:application:test" };
             var context = new SystemContext(NUnitTelemetryContext.Create());
             NodeId actual = await provider.GetRequiredService<IDeviceRegistrarRuntime>()
-                .RegisterManagedApplicationAsync(context, application, "").ConfigureAwait(false);
+                .RegisterManagedApplicationAsync(context, application, string.Empty).ConfigureAwait(false);
             Assert.That(actual, Is.EqualTo(applicationId));
             authorization.Verify(a => a.RequireApplicationAsync(
-                "urn:device:test", application, "", It.IsAny<CancellationToken>()), Times.Once);
+                "urn:device:test", application, string.Empty, It.IsAny<CancellationToken>()), Times.Once);
             database.Verify(d => d.RegisterApplication(application), Times.Once);
             lifecycle.Verify(l => l.AssociateApplicationAsync(
-                "urn:device:test", applicationId, "", It.IsAny<CancellationToken>()), Times.Once);
+                "urn:device:test", applicationId, string.Empty, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]

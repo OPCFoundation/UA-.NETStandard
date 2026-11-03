@@ -122,7 +122,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task AuthorityReadsRequireEncryptedChannelAndRegistrarAdmin(
             bool admin, MessageSecurityMode mode)
         {
-            uint expected = admin ? StatusCodes.BadSecurityModeInsufficient : StatusCodes.BadUserAccessDenied;
+            StatusCode expected = admin ? StatusCodes.BadSecurityModeInsufficient : StatusCodes.BadUserAccessDenied;
             var harness = new Harness(admin, mode);
             using var binding = harness.Bind();
             TrustListState node = harness.Administration.TicketAuthorities!;
@@ -213,7 +213,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 var identity = new Mock<IUserIdentity>();
                 identity.SetupGet(i => i.GrantedRoleIds).Returns(admin ? [RegistrarRole] : []);
                 var session = new Mock<Opc.Ua.Server.ISession>();
-                session.SetupGet(s => s.Id).Returns(new NodeId("authority-session"));
+                session.SetupGet(s => s.Id).Returns(new NodeId("authority-session", 0));
                 session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
                 var channel = new SecureChannelContext(
                     "authority-channel",

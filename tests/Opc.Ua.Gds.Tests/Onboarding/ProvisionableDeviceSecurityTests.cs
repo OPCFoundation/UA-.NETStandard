@@ -1134,13 +1134,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Returns(failure == "role" ? [] :
                     new NodeId[] { Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin }.ToArrayOf());
             var session = new Mock<Opc.Ua.Server.ISession>();
-            session.SetupGet(s => s.Id).Returns(failure == "session" ? NodeId.Null : new NodeId("device-session"));
+            session.SetupGet(s => s.Id).Returns(failure == "session" ? NodeId.Null : new NodeId("device-session", 0));
             session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
             var channel = new SecureChannelContext("device-channel", new EndpointDescription
             {
                 SecurityMode = failure == "encryption" ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt,
                 SecurityPolicyUri = SecurityPolicies.Basic256Sha256
-            }, RequestEncoding.Binary, failure == "peer" ? ByteString.Empty : Encoded(peer));
+            }, RequestEncoding.Binary, failure == "peer" ? [] : Encoded(peer).ToArray());
             return new SessionSystemContext(new OperationContext(
                 new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object),
                 NUnitTelemetryContext.Create())
@@ -1157,8 +1157,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create("CN=Provisionable Device Test")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(2))
-                .SetRSAKeySize(2048)
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
                 .CreateForRSA();
         }
 

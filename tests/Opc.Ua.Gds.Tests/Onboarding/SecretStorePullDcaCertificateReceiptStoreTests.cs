@@ -159,7 +159,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Id(difference == "request" ? "other" : "request"), Profile(), _ =>
                 {
                     receives++;
-                    return new ValueTask<PullDcaCertificateReceipt>(new(ByteString.From(new byte[] { 9 }), []));
+                    return new ValueTask<PullDcaCertificateReceipt>(
+                        new PullDcaCertificateReceipt(ByteString.From(new byte[] { 9 }), []));
                 }).ConfigureAwait(false);
 
             Assert.That(receives, Is.EqualTo(1));

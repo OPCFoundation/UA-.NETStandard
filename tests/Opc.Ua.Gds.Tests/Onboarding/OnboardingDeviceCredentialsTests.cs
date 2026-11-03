@@ -34,6 +34,7 @@ using OnboardingClientSample;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using ObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
 namespace Opc.Ua.Gds.Tests.Onboarding
@@ -97,7 +98,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_configuration.CertificateManager = null!;
             Assert.That(() => new OnboardingDeviceCredentials(m_configuration, m_telemetry),
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                    .EqualTo(new StatusCode(StatusCodes.BadConfigurationError)));
+                    .EqualTo(StatusCodes.BadConfigurationError));
         }
 
         /// <summary>
@@ -201,7 +202,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 request.GetCertificationRequestInfo(), signature, HashAlgorithmName.SHA256,
                 RSASignaturePadding.Pkcs1), Is.True);
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_credentials.CreateSigningRequestAsync(new NodeId("other-device"), s_profile)
+                await m_credentials.CreateSigningRequestAsync(new NodeId("other-device", 0), s_profile)
                     .ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             m_manager.Verify(m => m.AcquireApplicationCertificateByType(
@@ -218,7 +219,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_credentials.CreateSigningRequestAsync(
                     nullApplication ? NodeId.Null : s_applicationId,
-                    nullApplication ? s_profile : s_profile with { CertificateTypeId = new NodeId("unsupported") })
+                    nullApplication ? s_profile : s_profile with { CertificateTypeId = new NodeId("unsupported", 0) })
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
@@ -234,14 +235,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             SetupActiveKey();
             await m_credentials.RestoreSigningRequestAsync(s_applicationId, s_profile, Encoded(m_identity))
                 .ConfigureAwait(false);
-            var changed = s_profile with { CertificateGroupId = new NodeId("other-group") };
+            var changed = s_profile with { CertificateGroupId = new NodeId("other-group", 0) };
 
             ServiceResultException? mismatch = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_credentials.CreateSigningRequestAsync(s_applicationId, changed).ConfigureAwait(false));
             Assert.That(mismatch!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             var restored = new PullDcaCredentials(default, [], CompleteTrustList());
             await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_credentials.InstallAsync(new NodeId("other-application"), restored).ConfigureAwait(false));
+                await m_credentials.InstallAsync(new NodeId("other-application", 0), restored).ConfigureAwait(false));
             using Certificate wrongUri = CreateIdentity("urn:other:application");
             ServiceResultException? certificateError = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_credentials.InstallAsync(s_applicationId,
@@ -288,7 +289,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_credentials.InstallAsync(
-                    requestStarted ? new NodeId("other-device") : s_applicationId, received).ConfigureAwait(false));
+                    requestStarted ? new NodeId("other-device", 0) : s_applicationId, received).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             VerifyNoInstallation();
@@ -412,7 +413,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             received.TrustedCertificates = [Encoded(authority)];
             var failure = new InvalidOperationException("Simulated installation failure.");
             var store = new Mock<ICertificateStore>(MockBehavior.Strict);
-            store.Setup(s => s.Open(m_identifier.StorePath, false));
+            string storePath = m_identifier.StorePath ??
+                throw new AssertionException("The application certificate store must have a path.");
+            store.Setup(s => s.Open(storePath, false));
             store.Setup(s => s.Dispose());
             store.Setup(s => s.AddAsync(It.IsAny<Certificate>(), password, cancellation.Token))
                 .Callback<Certificate, char[]?, CancellationToken>((certificate, actualPassword, _) =>
@@ -440,7 +443,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Callback<TrustListIdentifier, TrustListData, TrustListMasks, CancellationToken>(
                     (_, trust, _, _) =>
                     {
-                        Assert.That(trust.TrustedCertificates.Count, Is.EqualTo(1));
+                        Assert.That(trust.TrustedCertificates, Has.Count.EqualTo(1));
                         Assert.That(trust.TrustedCertificates[0].RawData, Is.EqualTo(authority.RawData));
                         effects.Add("trust-list");
                     })
@@ -556,8 +559,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create("CN=Sample DCA")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(2))
-                .SetRSAKeySize(2048)
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
                 .CreateForRSA();
         }
 
@@ -581,11 +584,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private const string kApplicationUri = "urn:sample:onboarding:dca";
 
         /// <summary>The registrar-assigned DCA application identifier.</summary>
-        private static readonly NodeId s_applicationId = new("sample-dca");
+        private static readonly NodeId s_applicationId = new("sample-dca", 0);
 
         /// <summary>The sample's supported credential profile.</summary>
         private static readonly PullDcaCertificateProfile s_profile = new(
-            new NodeId("default-group"), ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            new NodeId("default-group", 0), ObjectTypeIds.RsaSha256ApplicationCertificateType);
 
         /// <summary>The fixture-owned private identity.</summary>
         private Certificate m_identity = null!;

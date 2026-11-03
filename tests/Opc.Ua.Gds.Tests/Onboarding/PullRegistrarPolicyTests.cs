@@ -77,8 +77,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? managers = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await policy.GetManagersAsync(product).ConfigureAwait(false));
 
-            Assert.That(admission!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
-            Assert.That(managers!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadUserAccessDenied)));
+            Assert.That(admission!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(managers!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
         /// <summary>
@@ -88,14 +88,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task PullOnlyModeRejectsPushAndManagedApplications()
         {
             var policy = new PullRegistrarPolicy(kProduct, kApplication);
-            Assert.That(await policy.CanManageAsync(kProduct, new ApplicationRecordDataType(), "")
+            Assert.That(await policy.CanManageAsync(kProduct, new ApplicationRecordDataType(), string.Empty)
                 .ConfigureAwait(false), Is.False);
             Assert.That((await policy.GetManagersAsync(kProduct).ConfigureAwait(false)).IsEmpty, Is.True);
 
             ServiceResultException? push = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await policy.EnqueueAsync(new ApplicationDescription()).ConfigureAwait(false));
 
-            Assert.That(push!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadNotSupported)));
+            Assert.That(push!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await policy.EvaluateAsync(Selection(kProduct), cancellation.Token).ConfigureAwait(false));
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await policy.CanManageAsync(kProduct, new ApplicationRecordDataType(), "", cancellation.Token)
+                await policy.CanManageAsync(kProduct, new ApplicationRecordDataType(), string.Empty, cancellation.Token)
                     .ConfigureAwait(false));
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await policy.GetManagersAsync(kProduct, cancellation.Token).ConfigureAwait(false));

@@ -119,7 +119,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var reporter = new Mock<IDeviceRegistrarAuditReporter>(MockBehavior.Strict);
             var context = new SystemContext(NUnitTelemetryContext.Create());
-            OnboardingIdentitySelection identity = CreateSelection("signed-ticket", "");
+            OnboardingIdentitySelection identity = CreateSelection("signed-ticket", string.Empty);
             var failure = new ServiceResultException(StatusCodes.BadCommunicationError);
             reporter.Setup(value => value.ReportIdentityAcceptedAsync(
                 context, identity, CancellationToken.None)).Throws(failure);
@@ -177,14 +177,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task IdentityAcceptanceRejectsIncompleteEvidenceOrDisabledAuditing(
             bool auditing, string envelope)
         {
-            uint expected = auditing ? StatusCodes.BadConfigurationError : StatusCodes.BadInvalidState;
+            StatusCode expected = auditing ? StatusCodes.BadConfigurationError : StatusCodes.BadInvalidState;
             (SessionSystemContext context, ArrayOf<NodeState> nodes) = CreateModel();
             var server = new Mock<IServerInternal>();
             server.SetupGet(s => s.Auditing).Returns(auditing);
             var reporter = new DeviceRegistrarAuditReporter(server.Object, context, nodes);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await reporter.ReportIdentityAcceptedAsync(context, CreateSelection(envelope, ""))
+                await reporter.ReportIdentityAcceptedAsync(context, CreateSelection(envelope, string.Empty))
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(expected));
@@ -237,12 +237,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     }
                 ]
             };
-            ArrayOf<NodeState> extended = nodes.ToArray().Concat(new NodeState[] { customType }).ToArray().ToArrayOf();
+            NodeState[] modelNodes = nodes.ToArray() ?? throw new AssertionException("Missing model nodes.");
+            NodeState[] extendedNodes = [.. modelNodes, customType];
+            ArrayOf<NodeState> extended = extendedNodes.ToArrayOf();
             _ = new DeviceRegistrarAuditReporter(new Mock<IServerInternal>().Object, context, extended);
-            BaseObjectTypeState[] restricted = extended.ToArray().OfType<BaseObjectTypeState>()
+            BaseObjectTypeState[] restricted = extendedNodes.OfType<BaseObjectTypeState>()
                 .Where(t => t.NodeId == baseId || t.SuperTypeId == baseId ||
                     t.NodeId == customType.NodeId).ToArray();
-            Assert.That(restricted.Length, Is.GreaterThanOrEqualTo(4));
+            Assert.That(restricted, Has.Length.GreaterThanOrEqualTo(4));
             foreach (BaseObjectTypeState type in restricted)
             {
                 Assert.That(type.RolePermissions.Count, Is.EqualTo(1));
@@ -260,13 +262,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// The supported event dispatcher delivers whole registration events only to SecurityAdmin sessions,
         /// including native identity/software events and custom descendants, and still enforces the source ACL.
         /// </summary>
-        [TestCase(0)]
-        [TestCase(1)]
-        [TestCase(2)]
-        [TestCase(3)]
-        [TestCase(4)]
+        [Test]
         public async Task RegistrationEventsReachOnlyAuthorizedSessionsThroughNativeEventAuthorization(
-            int kind, [Values(true, false)] bool sourceAllowsAdmin)
+            [Values(0, 1, 2, 3, 4)] int kind, [Values(true, false)] bool sourceAllowsAdmin)
         {
             (SessionSystemContext context, ArrayOf<NodeState> model) = CreateModel();
             NodeId baseId = ExpandedNodeId.ToNodeId(
@@ -286,8 +284,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 NodeId = new NodeId("custom-registration-descendant", onboardingIndex),
                 SuperTypeId = customType.NodeId
             };
-            ArrayOf<NodeState> nodes = model.ToArray()
-                .Concat(new NodeState[] { customType, descendantType }).ToArrayOf();
+            NodeState[] modelNodes = model.ToArray() ?? throw new AssertionException("Missing model nodes.");
+            ArrayOf<NodeState> nodes = [.. modelNodes, customType, descendantType];
             var source = new BaseObjectState(null)
             {
                 NodeId = Opc.Ua.ObjectIds.Server,
@@ -413,7 +411,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Opc.Ua.Onboarding.ObjectTypeIds.DeviceSoftwareUpdatedAuditEventType
             ];
             NodeId removedId = ExpandedNodeId.ToNodeId(required[missing], context.NamespaceUris);
-            NodeState[] remaining = nodes.ToArray().Where(node => node.NodeId != removedId).ToArray();
+            NodeState[] modelNodes = nodes.ToArray() ?? throw new AssertionException("Missing model nodes.");
+            NodeState[] remaining = modelNodes.Where(node => node.NodeId != removedId).ToArray();
             BaseObjectTypeState[] types = remaining.OfType<BaseObjectTypeState>().ToArray();
             ArrayOf<RolePermissionType>[] before = types.Select(type => type.RolePermissions).ToArray();
 
@@ -466,7 +465,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var reporter = new DeviceRegistrarAuditReporter(server.Object, context, nodes);
             NodeId softwareId = ExpandedNodeId.ToNodeId(
                 Opc.Ua.Onboarding.ObjectTypeIds.DeviceSoftwareUpdatedAuditEventType, context.NamespaceUris);
-            BaseObjectTypeState softwareType = nodes.ToArray().OfType<BaseObjectTypeState>()
+            NodeState[] modelNodes = nodes.ToArray() ?? throw new AssertionException("Missing model nodes.");
+            BaseObjectTypeState softwareType = modelNodes.OfType<BaseObjectTypeState>()
                 .Single(t => t.NodeId == softwareId);
             softwareType.RolePermissions =
             [
@@ -481,7 +481,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (identityAcceptance)
                 {
                     await reporter.ReportIdentityAcceptedAsync(
-                        context, CreateSelection("signed-ticket", "")).ConfigureAwait(false);
+                        context, CreateSelection("signed-ticket", string.Empty)).ConfigureAwait(false);
                 }
                 else
                 {
@@ -523,7 +523,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (identityAcceptance)
                 {
                     await reporter.ReportIdentityAcceptedAsync(
-                        context, CreateSelection("signed-ticket", ""), cancellation.Token).ConfigureAwait(false);
+                        context, CreateSelection("signed-ticket", string.Empty), cancellation.Token)
+                        .ConfigureAwait(false);
                 }
                 else
                 {

@@ -58,8 +58,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? removal = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await store.RemoveAsync(application, request).ConfigureAwait(false));
 
-            Assert.That(creation!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
-            Assert.That(removal!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(creation!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(removal!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             secrets.VerifyNoOtherCalls();
         }
 
@@ -344,11 +344,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.Throws<ArgumentNullException>(() =>
                 new CertificateRequestIssuance(null!, "type", certificate, default, []));
             Assert.Throws<ArgumentException>(() =>
-                new CertificateRequestIssuance("", "type", certificate, default, []));
+                new CertificateRequestIssuance(string.Empty, "type", certificate, default, []));
             Assert.Throws<ArgumentNullException>(() =>
                 new CertificateRequestIssuance("group", null!, certificate, default, []));
             Assert.Throws<ArgumentException>(() =>
-                new CertificateRequestIssuance("group", "", certificate, default, []));
+                new CertificateRequestIssuance("group", string.Empty, certificate, default, []));
             Assert.Throws<ArgumentException>(() =>
                 new CertificateRequestIssuance("group", "type", default, default, []));
             Assert.Throws<ArgumentException>(() =>
@@ -464,7 +464,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.Throws<ArgumentNullException>(() =>
                 new SecretStoreCertificateRequestIssuanceStore(secrets, namespaces, null!));
             Assert.Throws<ArgumentException>(() =>
-                new SecretStoreCertificateRequestIssuanceStore(secrets, namespaces, ""));
+                new SecretStoreCertificateRequestIssuanceStore(secrets, namespaces, string.Empty));
             using var store = new SecretStoreCertificateRequestIssuanceStore(secrets, namespaces, "gds");
             await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await store.GetOrCreateAsync(new NodeId("app", 1), new NodeId("request", 1), null!)

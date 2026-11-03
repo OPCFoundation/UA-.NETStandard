@@ -52,6 +52,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     public sealed class OnboardingClientTests
     {
         private static readonly NodeId kRegistrarId = new("Reg", 2);
+        private static readonly ArrayOf<string> s_expectedJsonTickets = ["{\"payload\":\"test\"}"];
 
         [Test]
         public void ConstructorRejectsNullSession()
@@ -229,14 +230,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
             ArrayOf<ByteString> tickets = [ByteString.From("{\"payload\":\"test\"}"u8)];
 
-            ArrayOf<StatusCode> statuses = remove
-                ? await client.UnregisterTicketsAsync(tickets).ConfigureAwait(false)
-                : await client.RegisterTicketsAsync(tickets).ConfigureAwait(false);
+            ArrayOf<StatusCode> statuses = await LegacyTicketCall(client, remove)(
+                tickets, CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(statuses, Is.EqualTo(new StatusCode[] { StatusCodes.Good }.ToArrayOf()));
             Assert.That(observed, Is.Not.Null);
             Assert.That(observed!.InputArguments[0].TryGetValue(out ArrayOf<string> sent), Is.True);
-            Assert.That(sent, Is.EqualTo(new string[] { "{\"payload\":\"test\"}" }.ToArrayOf()));
+            Assert.That(sent, Is.EqualTo(s_expectedJsonTickets));
         }
 
         [TestCase(false)]
@@ -247,19 +247,29 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var client = new OnboardingClient(session.Object, kRegistrarId, CreateTelemetry());
             session.Invocations.Clear();
             ArrayOf<ByteString> tickets = [ByteString.From(new byte[] { 0xC3, 0x28 })];
+            Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>> invoke =
+                LegacyTicketCall(client, remove);
 
             await Assert.ThrowsAsync<DecoderFallbackException>(async () =>
-            {
-                if (remove)
-                {
-                    await client.UnregisterTicketsAsync(tickets).ConfigureAwait(false);
-                }
-                else
-                {
-                    await client.RegisterTicketsAsync(tickets).ConfigureAwait(false);
-                }
-            });
+                await invoke(tickets, CancellationToken.None).ConfigureAwait(false));
             session.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Resolves the exact compatibility overload without disabling obsolete-use diagnostics for the tests.
+        /// </summary>
+        private static Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>> LegacyTicketCall(
+            OnboardingClient client,
+            bool remove)
+        {
+            string methodName = remove
+                ? nameof(OnboardingClient.UnregisterTicketsAsync)
+                : nameof(OnboardingClient.RegisterTicketsAsync);
+            var method = typeof(OnboardingClient).GetMethod(methodName, s_legacyTicketSignature) ??
+                throw new AssertionException("The legacy byte-ticket overload is missing.");
+            return (Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>>)
+                method.CreateDelegate(
+                    typeof(Func<ArrayOf<ByteString>, CancellationToken, ValueTask<ArrayOf<StatusCode>>>), client);
         }
 
         private static Mock<ISession> CreateSessionMock(
@@ -570,5 +580,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             return null;
         }
+
+        /// <summary>The exact retained byte-ticket signature, separate from the corrected string API.</summary>
+        private static readonly Type[] s_legacyTicketSignature =
+            [typeof(ArrayOf<ByteString>), typeof(CancellationToken)];
     }
 }

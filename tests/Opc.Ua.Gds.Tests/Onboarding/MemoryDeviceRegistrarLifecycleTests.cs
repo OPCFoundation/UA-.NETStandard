@@ -59,7 +59,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? permission = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
             ServiceResultException? mutation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await lifecycle.AssociateApplicationAsync(Device, new NodeId("other", 2), "").ConfigureAwait(false));
+                await lifecycle.AssociateApplicationAsync(
+                    Device, new NodeId("other", 2), string.Empty).ConfigureAwait(false));
 
             Assert.That(permission!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That(mutation!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
@@ -81,7 +82,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var managedId = new NodeId("managed", 2);
             await lifecycle.RegisterDeviceAsync(Device, applicationId, Certificate).ConfigureAwait(false);
             await lifecycle.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false);
-            await lifecycle.AssociateApplicationAsync(Device, managedId, "").ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(Device, managedId, string.Empty).ConfigureAwait(false);
             await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -259,9 +260,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await lifecycle.RegisterDeviceAsync(Device, new NodeId("dca", 2), Certificate).ConfigureAwait(false);
             await lifecycle.RegisterDeviceAsync(
                 "urn:device:other", new NodeId("other", 2), ByteString.From(new byte[] { 9 })).ConfigureAwait(false);
-            await lifecycle.AssociateApplicationAsync(Device, appId, "").ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(Device, appId, string.Empty).ConfigureAwait(false);
             ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await lifecycle.AssociateApplicationAsync("urn:device:other", appId, "").ConfigureAwait(false));
+                await lifecycle.AssociateApplicationAsync(
+                    "urn:device:other", appId, string.Empty).ConfigureAwait(false));
             Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             DeviceRegistrarDevice? other = await lifecycle.FindDeviceAsync("urn:device:other").ConfigureAwait(false);
             Assert.That(other!.Applications.IsEmpty, Is.True);
@@ -424,7 +426,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var lifecycle = new MemoryDeviceRegistrarLifecycle();
             ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await lifecycle.AssociateApplicationAsync(Device, new NodeId("app", 2), "").ConfigureAwait(false));
+                await lifecycle.AssociateApplicationAsync(
+                    Device, new NodeId("app", 2), string.Empty).ConfigureAwait(false));
             Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -445,7 +448,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     Device, false, "required", cancellation.Token).ConfigureAwait(false));
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await lifecycle.AssociateApplicationAsync(
-                    Device, new NodeId("app", 2), "", cancellation.Token).ConfigureAwait(false));
+                    Device, new NodeId("app", 2), string.Empty, cancellation.Token).ConfigureAwait(false));
             DeviceRegistrarDevice? state = await lifecycle.FindDeviceAsync(Device).ConfigureAwait(false);
             Assert.That(state!.DcaCertificate, Is.EqualTo(Certificate));
             Assert.That(state.SoftwareStatus, Is.True);

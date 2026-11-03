@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             await installer.InstallAsync(Credentials(m_identity)).ConfigureAwait(false);
 
-            Assert.That(m_events, Is.EqualTo(new[] { "identity", "trust", "application", "registry", "activate" }));
+            Assert.That(m_events, Is.EqualTo(s_expectedInstalledEvents));
             m_identityStore.Verify(s => s.AddAsync(
                 It.Is<Certificate>(certificate =>
                     certificate.Thumbprint == m_identity.Thumbprint && certificate.HasPrivateKey),
@@ -279,7 +279,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             int count = services.Count;
             Assert.That(() => services.AddProvisionableDeviceSoftwareUpdatePolicy(_ => policy.Object),
                 Throws.InvalidOperationException);
-            Assert.That(services.Count, Is.EqualTo(count));
+            Assert.That(services, Has.Count.EqualTo(count));
             services.AddProvisionableDeviceSecurity("device", kApplicationUri, CreateOptions());
             using ServiceProvider provider = services.BuildServiceProvider();
             IProvisionableDeviceSecurityInstaller installer = provider
@@ -500,13 +500,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             m_events.Clear();
             ProvisionableDeviceSecurityInstallerOptions options = CreateOptions();
-            options.CertificateGroupId = new NodeId("other-group");
+            options.CertificateGroupId = new NodeId("other-group", 0);
             using var replacement = CreateInstaller(options: options);
 
             await Assert.ThrowsAsync<System.IO.InvalidDataException>(async () =>
                 await replacement.ResetToServerDefaultsAsync().ConfigureAwait(false));
 
-            Assert.That(m_events, Is.EqualTo(new[] { "load-identity" }));
+            Assert.That(m_events, Is.EqualTo(s_expectedResetEvents));
             Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
         }
 
@@ -516,7 +516,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task InstallRejectsCertificateTypeMismatchBeforeStoreMutation()
         {
-            using var installer = CreateInstaller(ObjectTypeIds.EccNistP256ApplicationCertificateType);
+            using var installer = CreateInstaller(Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await installer.InstallAsync(Credentials(m_identity)).ConfigureAwait(false));
@@ -597,7 +597,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(error!.Message, Is.EqualTo("Endpoint activation failed."));
             Assert.That(
                 m_events,
-                Is.EqualTo(new[] { "identity", "claim", "trust", "application", "registry", "restore" }));
+                Is.EqualTo(s_expectedRestoreEvents));
             m_pendingKeys.Verify(s => s.TryRestoreAsync(
                 It.IsAny<PendingCertificateKeyContext>(),
                 It.IsAny<Certificate>(),
@@ -632,7 +632,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await installer.InstallAsync(Credentials(rotatedCertificate)).ConfigureAwait(false);
             Assert.That(
                 m_events,
-                Is.EqualTo(new[] { "identity", "claim", "trust", "application", "registry", "activate" }));
+                Is.EqualTo(s_expectedRotationEvents));
             Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(rotatedCertificate.Thumbprint));
             Assert.That(m_storeCertificates["identity"].Single().Thumbprint, Is.EqualTo(m_identity.Thumbprint));
             m_events.Clear();
@@ -640,7 +640,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(
                 m_events,
-                Is.EqualTo(new[] { "load-identity", "trust", "application", "registry", "activate" }));
+                Is.EqualTo(s_expectedActivationEvents));
             Assert.That(m_activeCertificate.Thumbprint, Is.EqualTo(m_identity.Thumbprint));
             Assert.That(m_storeCertificates["identity"].Single().Thumbprint, Is.EqualTo(m_identity.Thumbprint));
             Assert.That(m_storeCertificates["application"].Select(c => c.Thumbprint),
@@ -697,7 +697,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await installer.InstallAsync(Credentials(m_identity)).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-            Assert.That(m_events, Is.EqualTo(new[] { "identity", "claim", "restore" }));
+            Assert.That(m_events, Is.EqualTo(s_expectedFailedRestoreEvents));
             m_pendingKeys.Verify(s => s.TryRestoreAsync(
                 It.IsAny<PendingCertificateKeyContext>(),
                 It.Is<Certificate>(certificate =>
@@ -779,7 +779,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             options.ApplicationCertificate!.StorePath = "mutated-application-store";
             options.ApplicationCertificate.StoreType = "mutated-application-type";
-            options.ApplicationCertificate.CertificateType = ObjectTypeIds.EccNistP256ApplicationCertificateType;
+            options.ApplicationCertificate.CertificateType =
+                Opc.Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType;
             options.DeviceIdentityStorePath = "mutated-identity-store";
             options.DeviceIdentityStoreType = "mutated-identity-type";
             options.CertificateGroupId = new NodeId(99999u);
@@ -795,7 +796,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.Is<PendingCertificateKeyContext>(context =>
                     context.BaseStore.StorePath == kApplicationStorePath &&
                     context.CertificateGroupId ==
-                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup),
+                        Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup),
                 It.IsAny<Certificate>(),
                 It.IsAny<CancellationToken>()), Times.Once);
             m_stores.Verify(s => s.OpenCertificateStore(
@@ -931,7 +932,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 },
                 DeviceIdentityStorePath = kIdentityStorePath,
                 DeviceIdentityStoreType = kStoreType,
-                CertificateGroupId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup
+                CertificateGroupId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup
             };
         }
 
@@ -958,10 +959,39 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return CertificateBuilder.Create("CN=Provisionable Device Installer Test")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(2))
-                .SetRSAKeySize(2048)
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
                 .CreateForRSA();
         }
+
+        /// <summary>
+        /// The installer event order for a successful initial installation.
+        /// </summary>
+        private static readonly string[] s_expectedInstalledEvents =
+            ["identity", "trust", "application", "registry", "activate"];
+        /// <summary>
+        /// The event order for resetting server-managed defaults.
+        /// </summary>
+        private static readonly string[] s_expectedResetEvents = ["load-identity"];
+        /// <summary>
+        /// The event order for restoring a pending certificate.
+        /// </summary>
+        private static readonly string[] s_expectedRestoreEvents =
+            ["identity", "claim", "trust", "application", "registry", "restore"];
+        /// <summary>
+        /// The event order for rotating the application certificate.
+        /// </summary>
+        private static readonly string[] s_expectedRotationEvents =
+            ["identity", "claim", "trust", "application", "registry", "activate"];
+        /// <summary>
+        /// The event order for activating an existing application certificate.
+        /// </summary>
+        private static readonly string[] s_expectedActivationEvents =
+            ["load-identity", "trust", "application", "registry", "activate"];
+        /// <summary>
+        /// The event order retained when pending-key restoration fails.
+        /// </summary>
+        private static readonly string[] s_expectedFailedRestoreEvents = ["identity", "claim", "restore"];
 
         /// <summary>The application URI authorized by these tests.</summary>
         private const string kApplicationUri = "urn:device:installer";

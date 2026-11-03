@@ -112,7 +112,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Returns(default(ValueTask));
             await harness.Runtime.UpdateSoftwareStatusAsync(
                 CreateContext(softwareAdmin: true), Device, status, "2.0").ConfigureAwait(false);
-            Assert.That(order, Is.EqualTo(new[] { "stored", "audited" }));
+            string[] expectedOrder = ["stored", "audited"];
+            Assert.That(order, Is.EqualTo(expectedOrder));
         }
 
         [Test]
@@ -171,7 +172,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var harness = new Harness();
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.UpdateSoftwareStatusAsync(
-                    CreateContext(softwareAdmin: true), Device, true, "").ConfigureAwait(false));
+                    CreateContext(softwareAdmin: true), Device, true, string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             harness.Lifecycle.VerifyNoOtherCalls();
         }
@@ -228,7 +229,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 harness.Database.Verify(d => d.RegisterApplication(
                     It.IsAny<ApplicationRecordDataType>()), Times.Once);
                 harness.Applications.Verify(a => a.CanManageAsync(
-                    Device, It.IsAny<ApplicationRecordDataType>(), "", It.IsAny<CancellationToken>()), Times.Once);
+                    Device, It.IsAny<ApplicationRecordDataType>(), string.Empty, It.IsAny<CancellationToken>()),
+                Times.Once);
             }
         }
 
@@ -326,7 +328,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             identity.SetupGet(i => i.TokenType).Returns(UserTokenType.UserName);
             var context = new SessionSystemContext(NUnitTelemetryContext.Create())
             {
-                SessionId = new NodeId("session"),
+                SessionId = new NodeId("session", 0),
                 UserIdentity = identity.Object
             };
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -462,7 +464,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ApplicationRecordDataType application = CreateApplication();
             ApplicationRecordDataType registered = CreateApplication();
             registered.ApplicationId = ApplicationId;
-            harness.Database.SetupSequence(d => d.FindApplications(application.ApplicationUri))
+            harness.Database.SetupSequence(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri)))
                 .Returns(Array.Empty<ApplicationRecordDataType>())
                 .Returns(new[] { registered });
             harness.Database.Setup(d => d.UpdateApplication(
@@ -470,9 +473,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Returns(ApplicationId);
             SessionSystemContext context = CreateContext();
             NodeId first = await harness.Runtime.RegisterManagedApplicationAsync(
-                context, application, "").ConfigureAwait(false);
+                context, application, string.Empty).ConfigureAwait(false);
             NodeId second = await harness.Runtime.RegisterManagedApplicationAsync(
-                context, application, "").ConfigureAwait(false);
+                context, application, string.Empty).ConfigureAwait(false);
             Assert.That(first, Is.EqualTo(ApplicationId));
             Assert.That(second, Is.EqualTo(first));
             Assert.That(application.ApplicationId.IsNull, Is.True, "Do not mutate the caller's input.");
@@ -481,7 +484,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 It.Is<ApplicationRecordDataType>(a => a.ApplicationId == ApplicationId &&
                     a.ApplicationUri == application.ApplicationUri)), Times.Once);
             harness.Applications.Verify(a => a.CanManageAsync(
-                Device, application, "", It.IsAny<CancellationToken>()), Times.Exactly(2));
+                Device, application, string.Empty, It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         [Test]
@@ -492,17 +495,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ApplicationRecordDataType denied = CreateApplication();
             denied.ApplicationUri = "urn:other-device:application";
             harness.Applications.Setup(a => a.CanManageAsync(
-                Device, denied, "", It.IsAny<CancellationToken>())).ReturnsAsync(false);
+                Device, denied, string.Empty, It.IsAny<CancellationToken>())).ReturnsAsync(false);
             await harness.Runtime.RegisterManagedApplicationAsync(
-                CreateContext(), allowed, "").ConfigureAwait(false);
+                CreateContext(), allowed, string.Empty).ConfigureAwait(false);
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), denied, "").ConfigureAwait(false));
+                    CreateContext(), denied, string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
-            harness.Database.Verify(d => d.FindApplications(denied.ApplicationUri), Times.Never);
+            harness.Database.Verify(d => d.FindApplications(
+                It.Is<string>(uri => uri == denied.ApplicationUri)), Times.Never);
             harness.Database.Verify(d => d.RegisterApplication(denied), Times.Never);
             harness.Lifecycle.Verify(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", It.IsAny<CancellationToken>()), Times.Once);
+                Device, ApplicationId, string.Empty, It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
@@ -511,16 +515,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var harness = new Harness();
             ApplicationRecordDataType application = CreateApplication();
             harness.Applications.SetupSequence(a => a.CanManageAsync(
-                Device, application, "", It.IsAny<CancellationToken>()))
+                Device, application, string.Empty, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true)
                 .ReturnsAsync(false);
             await harness.Runtime.RegisterManagedApplicationAsync(
-                CreateContext(), application, "").ConfigureAwait(false);
+                CreateContext(), application, string.Empty).ConfigureAwait(false);
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
-            harness.Database.Verify(d => d.FindApplications(application.ApplicationUri), Times.Once);
+            harness.Database.Verify(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri)), Times.Once);
             harness.Database.Verify(d => d.RegisterApplication(application), Times.Once);
             harness.Database.Verify(d => d.UpdateApplication(It.IsAny<ApplicationRecordDataType>()), Times.Never);
         }
@@ -532,24 +537,25 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ApplicationRecordDataType application = CreateApplication();
             ApplicationRecordDataType registered = CreateApplication();
             registered.ApplicationId = ApplicationId;
-            harness.Database.SetupSequence(d => d.FindApplications(application.ApplicationUri))
+            harness.Database.SetupSequence(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri)))
                 .Returns(Array.Empty<ApplicationRecordDataType>())
                 .Returns(new[] { registered });
             harness.Database.Setup(d => d.UpdateApplication(It.IsAny<ApplicationRecordDataType>()))
                 .Returns(ApplicationId);
             harness.Lifecycle.SetupSequence(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", It.IsAny<CancellationToken>()))
+                Device, ApplicationId, string.Empty, It.IsAny<CancellationToken>()))
                 .Throws(new InvalidOperationException("Relation store unavailable."))
                 .Returns(default(ValueTask));
             await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
             NodeId retried = await harness.Runtime.RegisterManagedApplicationAsync(
-                CreateContext(), application, "").ConfigureAwait(false);
+                CreateContext(), application, string.Empty).ConfigureAwait(false);
             Assert.That(retried, Is.EqualTo(ApplicationId));
             harness.Database.Verify(d => d.RegisterApplication(application), Times.Once);
             harness.Lifecycle.Verify(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", It.IsAny<CancellationToken>()), Times.Exactly(2));
+                Device, ApplicationId, string.Empty, It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         /// <summary>
@@ -562,18 +568,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ApplicationRecordDataType application = CreateApplication();
             ApplicationRecordDataType registered = CreateApplication();
             registered.ApplicationId = ApplicationId;
-            harness.Database.Setup(d => d.FindApplications(application.ApplicationUri)).Returns([registered]);
+            harness.Database.Setup(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri))).Returns([registered]);
             harness.Lifecycle.Setup(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", It.IsAny<CancellationToken>()))
+                Device, ApplicationId, string.Empty, It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadRequestNotAllowed));
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             harness.Lifecycle.Verify(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", It.IsAny<CancellationToken>()), Times.Once);
+                Device, ApplicationId, string.Empty, It.IsAny<CancellationToken>()), Times.Once);
             harness.Database.Verify(d => d.UpdateApplication(It.IsAny<ApplicationRecordDataType>()), Times.Never);
             harness.Database.Verify(d => d.RegisterApplication(It.IsAny<ApplicationRecordDataType>()), Times.Never);
         }
@@ -589,15 +596,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ApplicationRecordDataType application = CreateApplication();
             ApplicationRecordDataType registered = CreateApplication();
             registered.ApplicationId = ApplicationId;
-            harness.Database.Setup(d => d.FindApplications(application.ApplicationUri)).Returns([registered]);
+            harness.Database.Setup(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri))).Returns([registered]);
             harness.Lifecycle.Setup(l => l.AssociateApplicationAsync(
-                Device, ApplicationId, "", cancellation.Token))
+                Device, ApplicationId, string.Empty, cancellation.Token))
                 .Callback(cancellation.Cancel)
                 .Returns(default(ValueTask));
 
             OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "", cancellation.Token).ConfigureAwait(false));
+                    CreateContext(), application, string.Empty, cancellation.Token).ConfigureAwait(false));
 
             Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
             harness.Database.Verify(d => d.UpdateApplication(It.IsAny<ApplicationRecordDataType>()), Times.Never);
@@ -616,12 +624,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             application.ApplicationNames = [];
             ApplicationRecordDataType registered = CreateApplication();
             registered.ApplicationId = ApplicationId;
-            harness.Database.Setup(d => d.FindApplications(application.ApplicationUri))
+            harness.Database.Setup(d => d.FindApplications(
+                It.Is<string>(uri => uri == application.ApplicationUri)))
                 .Returns(existing ? [registered] : []);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             harness.Lifecycle.Verify(l => l.AssociateApplicationAsync(
@@ -655,7 +664,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             application.ApplicationId = new NodeId("unrelated", 2);
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             harness.Database.Verify(d => d.RegisterApplication(It.IsAny<ApplicationRecordDataType>()), Times.Never);
         }
@@ -670,7 +679,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 ApplicationRecordDataType registered = CreateApplication();
                 registered.ApplicationId = ApplicationId;
-                harness.Database.Setup(d => d.FindApplications(application.ApplicationUri))
+                harness.Database.Setup(d => d.FindApplications(
+                    It.Is<string>(uri => uri == application.ApplicationUri)))
                     .Returns(new[] { registered });
                 harness.Database.Setup(d => d.UpdateApplication(It.IsAny<ApplicationRecordDataType>()))
                     .Throws(new ArgumentException("Invalid registration data."));
@@ -682,7 +692,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.RegisterManagedApplicationAsync(
-                    CreateContext(), application, "").ConfigureAwait(false));
+                    CreateContext(), application, string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             harness.Lifecycle.Verify(l => l.AssociateApplicationAsync(
                 It.IsAny<string>(), It.IsAny<NodeId>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
@@ -817,7 +827,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(actualManagers, Is.EqualTo(expected));
             ServiceResult registration = await CallAsync(
                 registrar.RegisterManagedApplication!, context,
-                [Variant.FromStructure(CreateApplication()), ""], outputs).ConfigureAwait(false);
+                [Variant.FromStructure(CreateApplication()), string.Empty], outputs).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(registration), Is.True);
             Assert.That(outputs[0].TryGetValue(out NodeId actualId), Is.True);
             Assert.That(actualId, Is.EqualTo(ApplicationId));
@@ -840,7 +850,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task GeneratedBindingRejectsMalformedWireArguments(
             string methodName, int inputCount, string failure)
         {
-            uint expected = failure switch
+            StatusCode expected = failure switch
             {
                 "missing" => StatusCodes.BadArgumentsMissing,
                 "extra" => StatusCodes.BadTooManyArguments,
@@ -880,7 +890,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             else
             {
                 method = registrar.RegisterManagedApplication!;
-                inputs = [Variant.FromStructure(CreateApplication()), ""];
+                inputs = [Variant.FromStructure(CreateApplication()), string.Empty];
             }
             ServiceResult result = await CallAsync(method, context, inputs, []).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
@@ -916,7 +926,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 new Mock<IDeviceRegistrarAuditReporter>().Object);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await runtime.RegisterManagedApplicationAsync(CreateContext(), CreateApplication(), "")
+                await runtime.RegisterManagedApplicationAsync(CreateContext(), CreateApplication(), string.Empty)
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -938,7 +948,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var authorization = new DeviceRegistrarAuthorization(lifecycle.Object, policy.Object);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await authorization.RequireApplicationAsync(Device, CreateApplication(), "").ConfigureAwait(false));
+                await authorization.RequireApplicationAsync(
+                    Device, CreateApplication(), string.Empty).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             policy.VerifyNoOtherCalls();
@@ -957,7 +968,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ByteString selected = ByteString.From(new byte[] { 4, 5, 6 });
             ByteString installed = ByteString.From(new byte[] { 1, 2, 3 });
             await lifecycle.RecordCandidateAsync(Device, dcaId, selected, false).ConfigureAwait(false);
-            await lifecycle.AssociateApplicationAsync(Device, managedId, "").ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(Device, managedId, string.Empty).ConfigureAwait(false);
             await lifecycle.RestrictToDcaApplicationAsync(Device).ConfigureAwait(false);
             await lifecycle.RecordIssuedDcaCertificateAsync(Device, dcaId, installed).ConfigureAwait(false);
             var database = new Mock<IApplicationsDatabase>(MockBehavior.Strict);
@@ -979,11 +990,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(confirmed.IsSingletonRestricted, Is.True);
             await authorization.RequireDcaCertificateIssuanceAsync(context, dcaId).ConfigureAwait(false);
             ServiceResultException? registration = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await runtime.RegisterManagedApplicationAsync(context, CreateApplication(), "").ConfigureAwait(false));
+                await runtime.RegisterManagedApplicationAsync(
+                    context, CreateApplication(), string.Empty).ConfigureAwait(false));
             var managed = CreateApplication();
             managed.ApplicationId = managedId;
             ServiceResultException? issuance = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await authorization.RequireManagedCertificateIssuanceAsync(context, managed, "")
+                await authorization.RequireManagedCertificateIssuanceAsync(context, managed, string.Empty)
                     .ConfigureAwait(false));
             ServiceResultException? certificateAccess = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await authorization.AuthorizeApplicationAsync(context, managed).ConfigureAwait(false));
@@ -1022,7 +1034,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     break;
                 default:
                     await harness.Runtime.RegisterManagedApplicationAsync(
-                        context, CreateApplication(), "", cancellationToken).ConfigureAwait(false);
+                        context, CreateApplication(), string.Empty, cancellationToken).ConfigureAwait(false);
                     break;
             }
         }
@@ -1033,7 +1045,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ArrayOf<Variant> inputs,
             List<Variant> outputs)
         {
-            return method.OnCallMethod2Async!(context, method, new NodeId("registrar"), inputs, outputs, default);
+            return method.OnCallMethod2Async!(context, method, new NodeId("registrar", 0), inputs, outputs, default);
         }
 
         private static SessionSystemContext CreateContext(
@@ -1065,7 +1077,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             identity.SetupGet(i => i.TokenType).Returns(anonymous ? UserTokenType.Anonymous : UserTokenType.UserName);
             identity.SetupGet(i => i.GrantedRoleIds).Returns(roles.ToArray().ToArrayOf());
             var session = new Mock<Opc.Ua.Server.ISession>();
-            session.SetupGet(s => s.Id).Returns(missingSessionId ? NodeId.Null : new NodeId("session"));
+            session.SetupGet(s => s.Id).Returns(missingSessionId ? NodeId.Null : new NodeId("session", 0));
             session.SetupGet(s => s.EffectiveIdentity).Returns(missingUser ? null! : identity.Object);
             var channel = new SecureChannelContext(
                 "channel",

@@ -148,18 +148,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(device.DcaCertificate, Is.EqualTo(harness.Issued));
             Assert.That(device.PendingDcaCertificate.IsEmpty, Is.True);
             Assert.That(harness.CsrCalls, Is.EqualTo(1));
-            Assert.That(harness.CallMethods, Does.Contain(new NodeId(Ua.MethodIds.FileType_Open)));
-            Assert.That(harness.CallMethods, Does.Contain(new NodeId(Ua.MethodIds.FileType_Write)));
-            Assert.That(harness.CallMethods, Does.Contain(new NodeId(Ua.MethodIds.TrustListType_CloseAndUpdate)));
+            Assert.That(harness.CallMethods, Does.Contain(Ua.MethodIds.FileType_Open));
+            Assert.That(harness.CallMethods, Does.Contain(Ua.MethodIds.FileType_Write));
+            Assert.That(harness.CallMethods, Does.Contain(Ua.MethodIds.TrustListType_CloseAndUpdate));
             Assert.That(harness.CallMethods,
-                Does.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+                Does.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             Assert.That(harness.CallMethods[harness.CallMethods.Count - 2],
-                Is.EqualTo(new NodeId(Ua.MethodIds.ServerConfigurationType_ApplyChanges)));
+                Is.EqualTo(Ua.MethodIds.ServerConfigurationType_ApplyChanges));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(3));
             Assert.That(harness.ApplyCalls, Is.EqualTo(2));
-            Assert.That(harness.CallMethods.IndexOf(new NodeId(Ua.MethodIds.ServerConfigurationType_ApplyChanges)),
+            Assert.That(harness.CallMethods.IndexOf(Ua.MethodIds.ServerConfigurationType_ApplyChanges),
                 Is.LessThan(harness.CallMethods.IndexOf(
-                    new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate))));
+                    Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
             Assert.That(harness.Initial.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             Assert.That(harness.Proof.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             harness.Identities.Verify(selector => selector.SelectAsync(
@@ -202,7 +202,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
                 It.IsAny<OnboardingIdentitySelection>(), It.IsAny<NodeId>(),
                 It.IsAny<Func<CancellationToken, ValueTask<ByteString>>>(), It.IsAny<CancellationToken>()),
@@ -249,7 +249,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             Assert.That((await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false))!.IsSingletonRestricted, Is.True);
         }
@@ -273,7 +273,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Lifecycle.AssociateApplicationAsync(
-                    Harness.Product, new NodeId("later-managed", 1), "").ConfigureAwait(false));
+                    Harness.Product, new NodeId("later-managed", 1), string.Empty).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That((await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false))!.IsSingletonRestricted, Is.True);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
             Assert.That((await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false))!.PendingDcaCertificate.IsEmpty, Is.True);
@@ -313,7 +313,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
         }
 
@@ -332,7 +332,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(1));
         }
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(harness.CsrCalls, Is.EqualTo(1));
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(2));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(2));
             DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(device!.PendingDcaCertificate.IsEmpty, Is.True);
@@ -428,7 +428,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(harness.CsrCalls, Is.EqualTo(1));
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(2));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(2));
             DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(device!.PendingDcaCertificate.IsEmpty, Is.True);
@@ -457,7 +457,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await harness.Processor.ProcessAsync(harness.Application).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(2));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(2));
             DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(device!.PendingDcaCertificate.IsEmpty, Is.True);
@@ -481,9 +481,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.InnerExceptions, Is.EqualTo(new Exception[] { transfer, cleanup }));
             Assert.That(harness.CallMethods[harness.CallMethods.Count - 1],
-                Is.EqualTo(new NodeId(Ua.MethodIds.FileType_Close)));
+                Is.EqualTo(Ua.MethodIds.FileType_Close));
             Assert.That(harness.CallMethods,
-                Does.Not.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             DeviceRegistrarDevice? device = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(device!.PendingDcaCertificate, Is.EqualTo(harness.Issued));
@@ -530,7 +530,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(harness.ApplyCalls, Is.EqualTo(1));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
             Assert.That(harness.CallMethods,
-                Does.Not.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
@@ -555,7 +555,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(harness.ApplyCalls, Is.EqualTo(1));
             Assert.That(harness.LeasesDisposed, Is.EqualTo(2));
             Assert.That(harness.CallMethods,
-                Does.Not.Contain(new NodeId(Ua.MethodIds.ServerConfigurationType_UpdateCertificate)));
+                Does.Not.Contain(Ua.MethodIds.ServerConfigurationType_UpdateCertificate));
             DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
@@ -581,7 +581,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(device!.DcaCertificate, Is.EqualTo(harness.Issued));
             Assert.That(device.PendingDcaCertificate.IsEmpty, Is.True);
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(2));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(2));
             harness.Identities.VerifyNoOtherCalls();
             harness.Enrollments.Verify(provider => provider.GetOrCreateAsync(
                 It.IsAny<OnboardingIdentitySelection>(), It.IsAny<NodeId>(),
@@ -609,7 +609,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(harness.CsrCalls, Is.Zero);
-            Assert.That(harness.CallMethods.Count, Is.EqualTo(1));
+            Assert.That(harness.CallMethods, Has.Count.EqualTo(1));
             DeviceRegistrarDevice? state = await harness.Lifecycle.FindDeviceAsync(Harness.Product)
                 .ConfigureAwait(false);
             Assert.That(state!.DcaCertificate.IsEmpty, Is.True);
@@ -1065,11 +1065,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 lease.SetupGet(value => value.ProvisionableDeviceId).Returns(s_deviceId);
                 lease.SetupGet(value => value.IsSingletonId).Returns(new NodeId("singleton", 1));
                 lease.SetupGet(value => value.ServerConfigurationId)
-                    .Returns(new NodeId(Ua.ObjectIds.ServerConfiguration));
+                    .Returns(Ua.ObjectIds.ServerConfiguration);
                 lease.SetupGet(value => value.CertificateGroupId)
-                    .Returns(new NodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup));
+                    .Returns(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
                 lease.SetupGet(value => value.CertificateTypeId)
-                    .Returns(new NodeId(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
+                    .Returns(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 lease.SetupGet(value => value.TrustListId).Returns(new NodeId("trust-list", 1));
                 lease.Setup(value => value.DisposeAsync()).Returns(() =>
                 {
@@ -1092,10 +1092,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 {
                     return new BrowseResponse { Results = [new BrowseResult { References = [] }] };
                 }
-                Assert.That(request.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token")));
+                Assert.That(request.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token", 0)));
                 if (request is ReadRequest)
                 {
-                    return new ReadResponse { Results = [new DataValue { WrappedValue = Variant.From(Singleton) }] };
+                    return new ReadResponse { Results = [new DataValue(Variant.From(Singleton))] };
                 }
                 if (request is not CallRequest call)
                 {

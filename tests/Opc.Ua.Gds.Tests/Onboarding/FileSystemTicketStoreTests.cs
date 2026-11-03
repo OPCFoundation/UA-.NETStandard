@@ -102,7 +102,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(record!.EncodedTicket, Is.EqualTo(new byte[] { 2, 3 }));
                 Assert.That(record.Metadata.Kind, Is.EqualTo(TicketKind.CompositeIdentity));
                 Assert.That(record.Metadata.ProductInstanceUri, Is.EqualTo("urn:device:replacement"));
-                Assert.That((await CollectAsync(restarted).ConfigureAwait(false)).Count, Is.EqualTo(1));
+                Assert.That(await CollectAsync(restarted).ConfigureAwait(false), Has.Count.EqualTo(1));
                 Assert.That(await restarted.RemoveAsync("one").ConfigureAwait(false), Is.True);
                 Assert.That(await restarted.RemoveAsync("one").ConfigureAwait(false), Is.False);
             }
@@ -127,8 +127,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That((await store.GetAsync("One").ConfigureAwait(false))!.EncodedTicket,
                 Is.EqualTo(new byte[] { 2 }));
             Assert.That(await store.GetAsync("ONE").ConfigureAwait(false), Is.Null);
+            string[] expectedIds = ["One", "one"];
             Assert.That((await CollectAsync(store).ConfigureAwait(false)).Select(record => record.TicketId),
-                Is.EqualTo(new[] { "One", "one" }));
+                Is.EqualTo(expectedIds));
         }
 
         /// <summary>
@@ -162,7 +163,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .Select(index => index.ToString("D2", System.Globalization.CultureInfo.InvariantCulture))));
             Assert.That((await store.GetAsync("00").ConfigureAwait(false))!.EncodedTicket,
                 Is.EqualTo(new byte[] { 0 }));
-            Assert.That((await CollectAsync(store).ConfigureAwait(false)).Count, Is.EqualTo(19));
+            Assert.That(await CollectAsync(store).ConfigureAwait(false), Has.Count.EqualTo(19));
         }
 
         /// <summary>
@@ -266,14 +267,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             using var files = new VirtualFileSystem();
             using var store = new FileSystemTicketStore(kPath, files);
-            int overhead = Checkpoint("").Length - 1;
+            int overhead = Checkpoint(string.Empty).Length - 1;
             byte[] payload = new byte[16 * 1024 * 1024 - overhead];
             await store.AddAsync("one", payload, Metadata()).ConfigureAwait(false);
-            Assert.That(files.Get(kPath).Length, Is.EqualTo(16 * 1024 * 1024));
+            Assert.That(files.Get(kPath), Has.Length.EqualTo(16 * 1024 * 1024));
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await store.AddAsync("one", new byte[payload.Length + 1], Metadata()).ConfigureAwait(false));
-            Assert.That((await store.GetAsync("one").ConfigureAwait(false))!.EncodedTicket.Length,
-                Is.EqualTo(payload.Length));
+            Assert.That((await store.GetAsync("one").ConfigureAwait(false))!.EncodedTicket,
+                Has.Length.EqualTo(payload.Length));
             Assert.That(files.Files, Is.EquivalentTo(new[] { kPath }));
         }
 
@@ -284,9 +285,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task RecordCapacityRejectsOneAdditionalTicketWithoutLosingExistingRecords()
         {
             using var files = new VirtualFileSystem();
-            files.Add(kPath, Checkpoint("", 10000));
+            files.Add(kPath, Checkpoint(string.Empty, 10000));
             using var store = new FileSystemTicketStore(kPath, files);
-            Assert.That((await CollectAsync(store).ConfigureAwait(false)).Count, Is.EqualTo(10000));
+            Assert.That(await CollectAsync(store).ConfigureAwait(false), Has.Count.EqualTo(10000));
             byte[] before = files.Get(kPath).ToArray();
             await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await store.AddAsync("overflow", [2], Metadata()).ConfigureAwait(false));
@@ -294,7 +295,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(await store.GetAsync("overflow").ConfigureAwait(false), Is.Null);
             Assert.That(await store.RemoveAsync("00000").ConfigureAwait(false), Is.True);
             await store.AddAsync("overflow", [2], Metadata()).ConfigureAwait(false);
-            Assert.That((await CollectAsync(store).ConfigureAwait(false)).Count, Is.EqualTo(10000));
+            Assert.That(await CollectAsync(store).ConfigureAwait(false), Has.Count.EqualTo(10000));
             Assert.That((await store.GetAsync("overflow").ConfigureAwait(false))!.EncodedTicket,
                 Is.EqualTo(new byte[] { 2 }));
             Assert.That(files.Files, Is.EquivalentTo(new[] { kPath }));
@@ -382,7 +383,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(() => new FileSystemTicketStore(" "), Throws.ArgumentException);
             using var store = new FileSystemTicketStore(kPath, files.Object);
             await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await store.AddAsync("", [1], Metadata()).ConfigureAwait(false));
+                await store.AddAsync(string.Empty, [1], Metadata()).ConfigureAwait(false));
             await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await store.AddAsync("one", null!, Metadata()).ConfigureAwait(false));
             await Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -401,7 +402,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Materializes a ticket enumeration without retaining its serialization gate.
         /// </summary>
-        private static async Task<List<TicketRecord>> CollectAsync(ITicketStore store)
+        private static async Task<List<TicketRecord>> CollectAsync(FileSystemTicketStore store)
         {
             var records = new List<TicketRecord>();
             await foreach (TicketRecord record in store.ListAsync().ConfigureAwait(false))
@@ -446,7 +447,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         string id = count == 1 ? "one" :
                             i.ToString("D5", System.Globalization.CultureInfo.InvariantCulture);
-                        WriteText(writer, corruption == "empty-id" ? "" : id);
+                        WriteText(writer, corruption == "empty-id" ? string.Empty : id);
                     }
                     writer.Write(corruption == "length" ? int.MaxValue : 1);
                     writer.Write((byte)1);

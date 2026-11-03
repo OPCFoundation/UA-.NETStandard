@@ -67,13 +67,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             PullDcaResult result = await fixture.Create().RunAsync(kRegistrar, request, progress)
                 .ConfigureAwait(false);
 
-            Assert.That(fixture.Calls, Is.EqualTo(new[]
-            {
-                "connect", "provide", "identity", "reconnect", "software",
-                "csr:dca", "start:dca", "finish:dca", "trust:dca", "install:dca",
-                "reconnect", "managers", "register", "csr:managed", "start:managed",
-                "finish:managed", "trust:managed", "install:managed"
-            }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_fullWorkflowCalls));
             Assert.That(fixture.Host.ActivatedIdentity, Is.EqualTo(kIdentity));
             Assert.That(fixture.Host.SoftwareIdentity, Is.SameAs(result.Identity));
             Assert.That(fixture.Host.SoftwareManager, Is.SameAs(manager));
@@ -91,7 +85,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
             Assert.That(result.ManagedApplications[0].ApplicationId, Is.EqualTo(kManagedId));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId, kManagedId }));
-            Assert.That(progress.Items.Last().Stage, Is.EqualTo(PullDcaStage.Completed));
+            Assert.That(progress.Items[^1].Stage, Is.EqualTo(PullDcaStage.Completed));
             PullDcaProgress pending = progress.Items.First(p => p.Stage == PullDcaStage.FinishingCertificate);
             Assert.That(pending.ApplicationId, Is.EqualTo(kDcaId));
             Assert.That(pending.RequestId, Is.EqualTo(kRequestId));
@@ -170,7 +164,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(fixture.Connection.Offer!.Identities[0], Is.EqualTo(kIdentity));
             Assert.That(fixture.Connection.Offer.Issuers[0], Is.EqualTo(kIssuer));
-            Assert.That(fixture.Connection.Offer.Tickets, Is.EqualTo(new[] { "ticket" }.ToArrayOf()));
+            Assert.That(fixture.Connection.Offer.Tickets, Is.EqualTo(s_expectedTickets));
             PullDcaManagedApplication registered = fixture.Connection.RegisteredApplication!;
             Assert.That(registered.Application.ApplicationId, Is.EqualTo(kManagedId));
             Assert.That(registered.Application.ApplicationUri, Is.EqualTo("urn:managed:application"));
@@ -179,8 +173,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(registered.Application.ApplicationNames,
                 Is.EqualTo(new[] { new LocalizedText("Managed application") }.ToArrayOf()));
             Assert.That(registered.Application.DiscoveryUrls,
-                Is.EqualTo(new[] { "opc.tcp://managed:4840" }.ToArrayOf()));
-            Assert.That(registered.Application.ServerCapabilities, Is.EqualTo(new[] { "DA" }.ToArrayOf()));
+                Is.EqualTo(s_expectedDiscoveryUrls));
+            Assert.That(registered.Application.ServerCapabilities, Is.EqualTo(s_expectedCapabilities));
             Assert.That(registered.ProtocolUri, Is.EqualTo("urn:opcua"));
             Assert.That(result.ManagedApplications.Count, Is.EqualTo(1));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId, kManagedId }));
@@ -199,7 +193,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "provide", "identity", "reconnect" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_identityCalls));
         }
 
         [TestCase("identity")]
@@ -227,7 +221,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await fixture.Create().RunAsync(kRegistrar, request, progress).ConfigureAwait(false));
 
             Assert.That(error!.Message, Is.EqualTo("host failure"));
-            Assert.That(fixture.Calls.Last(), Is.EqualTo(failingOperation));
+            Assert.That(fixture.Calls[^1], Is.EqualTo(failingOperation));
             Assert.That(fixture.Calls.Count(c => c == failingOperation), Is.EqualTo(1));
             Assert.That(progress.Items.Any(p => p.Stage == PullDcaStage.Completed), Is.False);
         }
@@ -249,7 +243,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "provide" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_provideCalls));
         }
 
         [TestCase(false)]
@@ -479,7 +473,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
 
             Assert.That(fixture.Calls,
-                Is.EqualTo(new[] { "connect", "finish:dca", "trust:dca", "install:dca" }));
+                Is.EqualTo(s_finishAndInstallCalls));
             Assert.That(credentials.Certificate, Is.EqualTo(kCertificate));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId, kRequestId }));
@@ -508,7 +502,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(pending!.ApplicationId, Is.EqualTo(kDcaId));
             Assert.That(pending.RequestId, Is.EqualTo(kRequestId));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "finish:dca", "finish:dca" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_pendingFinishCalls));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
         }
 
@@ -543,7 +537,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     kRegistrar, kDcaId, kRequestId, CreateRequest().DcaCertificateProfile, progress)
                     .ConfigureAwait(false));
             Assert.That(failure!.Message, Is.EqualTo("host failure"));
-            Assert.That(fixture.Calls.Last(), Is.EqualTo(operation));
+            Assert.That(fixture.Calls[^1], Is.EqualTo(operation));
             Assert.That(fixture.Calls, Does.Not.Contain("csr:dca"));
             Assert.That(fixture.Calls, Does.Not.Contain("start:dca"));
             Assert.That(progress.Items.Any(p => p.Stage == PullDcaStage.Completed), Is.False);
@@ -579,7 +573,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
 
             Assert.That(result.Certificate, Is.EqualTo(kCertificate));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "trust:dca", "install:dca" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_installCalls));
             Assert.That(fixture.Connection.FinishedRequestIds, Is.EqualTo(new[] { kRequestId }));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
         }
@@ -609,7 +603,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false));
 
             Assert.That(error, Is.SameAs(failure));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "finish:dca" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_finishCalls));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
         }
 
@@ -633,7 +627,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_connectCalls));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
         }
 
@@ -647,7 +641,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await fixture.Create().RunAsync(kRegistrar, CreateRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
-            Assert.That(fixture.Calls.Last(), Is.EqualTo("csr:dca"));
+            Assert.That(fixture.Calls[^1], Is.EqualTo("csr:dca"));
             Assert.That(fixture.Calls, Does.Not.Contain("start:dca"));
         }
 
@@ -706,11 +700,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .CompleteCertificateRequestAsync(kRegistrar, kDcaId, kRequestId, kProfile).ConfigureAwait(false);
 
             Assert.That(result.Certificate, Is.EqualTo(kCertificate));
-            Assert.That(fixture.Calls, Is.EqualTo(new[]
-            {
-                "connect", "finish:dca", "certificates:dca", "trust:dca", "validate-recovery",
-                "trust:dca", "install:dca"
-            }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_recoveryCalls));
             Assert.That(fixture.Host.InstalledIds, Is.EqualTo(new[] { kDcaId }));
             recovery.VerifyAll();
         }
@@ -729,7 +719,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "connect", "finish:dca" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_finishCalls));
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
         }
 
@@ -755,7 +745,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     fixture.Connection.AssignedCertificates = [default];
                     break;
                 case "type":
-                    fixture.Connection.AssignedTypes = [new NodeId("other-type")];
+                    fixture.Connection.AssignedTypes = [new NodeId("other-type", 0)];
                     break;
                 case "duplicate":
                     fixture.Connection.AssignedTypes = [kProfile.CertificateTypeId, kProfile.CertificateTypeId];
@@ -916,7 +906,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
 
             Assert.That(registrars[0], Is.SameAs(kRegistrar));
-            Assert.That(fixture.Calls, Is.EqualTo(new[] { "discover" }));
+            Assert.That(fixture.Calls, Is.EqualTo(s_discoveryCalls));
             Assert.That(fixture.Host.DiscoveryToken.CanBeCanceled, Is.True);
         }
 
@@ -932,7 +922,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await fixture.Create(options).RunAsync(kRegistrar, CreateRequest(), progress).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
 
-            Assert.That(fixture.Calls, Is.SubsetOf(new[] { "connect", "provide" }));
+            Assert.That(fixture.Calls, Is.SubsetOf(s_provideCalls));
             Assert.That(progress.Items.Any(p => p.Stage == PullDcaStage.Completed), Is.False);
             Assert.That(fixture.Host.InstalledIds, Is.Empty);
         }
@@ -1135,7 +1125,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             public PullDcaIdentityOffer? Offer { get; private set; }
             public PullDcaManagedApplication? RegisteredApplication { get; private set; }
             public TrustListDataType TrustList { get; } = new();
-            public ArrayOf<ManagerDescription> Managers { get; } = [new ManagerDescription { Name = "manager" }];
+            public ArrayOf<ManagerDescription> Managers { get; } =
+                [new ManagerDescription { Name = new LocalizedText("manager") }];
             public int PendingResponses { get; set; }
             public bool EmptyPendingResponse { get; set; }
             public StatusCode CertificateError { get; set; } = StatusCodes.Good;
@@ -1207,7 +1198,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         throw new ServiceResultException(StatusCodes.BadNothingToDo);
                     }
                     return new ValueTask<(ByteString, ArrayOf<ByteString>)>(
-                        (ByteString.Null, ArrayOf<ByteString>.Null));
+                        (default, ArrayOf<ByteString>.Null));
                 }
                 return new ValueTask<(ByteString, ArrayOf<ByteString>)>((kCertificate, new[] { kIssuer }.ToArrayOf()));
             }
@@ -1297,6 +1288,30 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             private readonly Fixture m_fixture;
         }
 
+        private static readonly string[] s_fullWorkflowCalls =
+        [
+            "connect", "provide", "identity", "reconnect", "software",
+            "csr:dca", "start:dca", "finish:dca", "trust:dca", "install:dca",
+            "reconnect", "managers", "register", "csr:managed", "start:managed",
+            "finish:managed", "trust:managed", "install:managed"
+        ];
+        private static readonly string[] s_identityCalls = ["connect", "provide", "identity", "reconnect"];
+        private static readonly string[] s_provideCalls = ["connect", "provide"];
+        private static readonly string[] s_finishAndInstallCalls =
+            ["connect", "finish:dca", "trust:dca", "install:dca"];
+        private static readonly string[] s_pendingFinishCalls = ["connect", "finish:dca", "finish:dca"];
+        private static readonly string[] s_installCalls = ["connect", "trust:dca", "install:dca"];
+        private static readonly string[] s_finishCalls = ["connect", "finish:dca"];
+        private static readonly string[] s_connectCalls = ["connect"];
+        private static readonly string[] s_recoveryCalls =
+        [
+            "connect", "finish:dca", "certificates:dca", "trust:dca", "validate-recovery",
+            "trust:dca", "install:dca"
+        ];
+        private static readonly string[] s_discoveryCalls = ["discover"];
+        private static readonly ArrayOf<string> s_expectedTickets = ["ticket"];
+        private static readonly ArrayOf<string> s_expectedDiscoveryUrls = ["opc.tcp://managed:4840"];
+        private static readonly ArrayOf<string> s_expectedCapabilities = ["DA"];
         private static readonly PullDcaRegistrar kRegistrar = new(
             new Uri("opc.tcp://registrar:4840"), new NodeId("registrar", 2), new NodeId("directory", 2));
         private static readonly NodeId kDcaId = new("dca", 2);
@@ -1346,7 +1361,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     2 => Good(Variant.FromStructure(managers)),
                     3 => Good(applicationId),
                     4 => Good(requestId),
-                    5 => Good(certificate, ByteString.Null, Variant.From(issuers)),
+                    5 => Good(certificate, default(ByteString), Variant.From(issuers)),
                     _ => Good(Variant.From(new[] { kProfile.CertificateTypeId }.ToArrayOf()), Variant.From(issuers))
                 };
             });
@@ -1461,7 +1476,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Opc.Ua.MethodIds.FileType_Close
             }));
             Assert.That(requests.Skip(1).All(r => r.ObjectId == trustListId), Is.True);
-            Assert.That(requests.Last().InputArguments[0].TryGetValue(out uint handle), Is.True);
+            Assert.That(requests[^1].InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(42u));
             session.Verify(s => s.Dispose(), Times.Never);
         }
@@ -1493,14 +1508,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await adapter.ReadTrustListAsync(
                     new NodeId("app", 2), kProfile.CertificateGroupId, CancellationToken.None).ConfigureAwait(false));
 
-            Assert.That(error!.InnerExceptions.Count, Is.EqualTo(2));
+            Assert.That(error!.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(error.InnerExceptions[0], Is.TypeOf<ServiceResultException>());
             Assert.That(((ServiceResultException)error.InnerExceptions[0]).StatusCode,
                 Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(error.InnerExceptions[1], Is.TypeOf<ServiceResultException>());
             Assert.That(((ServiceResultException)error.InnerExceptions[1]).StatusCode,
                 Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(requests.Last().MethodId, Is.EqualTo(new NodeId(Opc.Ua.MethodIds.FileType_Close)));
+            Assert.That(requests[^1].MethodId, Is.EqualTo(Opc.Ua.MethodIds.FileType_Close));
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
@@ -1561,13 +1576,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                         .ConfigureAwait(false));
                 Assert.That(error, Is.SameAs(transfer));
             }
-            Assert.That(requests.Count, Is.EqualTo(4));
-            Assert.That(requests[3].MethodId, Is.EqualTo(new NodeId(Opc.Ua.MethodIds.FileType_Close)));
+            Assert.That(requests, Has.Count.EqualTo(4));
+            Assert.That(requests[3].MethodId, Is.EqualTo(Opc.Ua.MethodIds.FileType_Close));
             session.Verify(s => s.Dispose(), Times.Never);
         }
 
         private static Mock<ISession> CreateSession(
-            IServiceMessageContext context,
+            ServiceMessageContext context,
             Func<CallMethodRequest, CallMethodResult> handler)
         {
             var session = new Mock<ISession>(MockBehavior.Strict);
@@ -1589,7 +1604,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             return new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = outputs };
         }
 
-        private static NodeId Resolve(ExpandedNodeId methodId, IServiceMessageContext context)
+        private static NodeId Resolve(ExpandedNodeId methodId, ServiceMessageContext context)
         {
             return ExpandedNodeId.ToNodeId(methodId, context.NamespaceUris);
         }

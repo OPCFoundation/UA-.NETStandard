@@ -34,6 +34,7 @@ using OnboardingClientSample;
 using Opc.Ua.Gds.Client;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+using ObjectTypeIds = Opc.Ua.ObjectTypeIds;
 using ManagerDescription = Opc.Ua.Onboarding.ManagerDescription;
 using ValidationOptions = Opc.Ua.Security.Certificates.CertificateValidationOptions;
 
@@ -66,8 +67,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             m_identity = CertificateBuilder.Create("CN=Sample DCA")
                 .SetNotBefore(DateTime.UtcNow.AddDays(-1))
                 .SetLifeTime(TimeSpan.FromDays(2))
-                .SetRSAKeySize(2048)
                 .AddExtension(new X509SubjectAltNameExtension(kApplicationUri, ["localhost"]))
+                .SetRSAKeySize(2048)
                 .CreateForRSA();
             m_authority = CertificateBuilder.Create("CN=Sample Registrar CA")
                 .SetCAConstraint()
@@ -242,8 +243,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     foreign, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile, recovered)
                     .ConfigureAwait(false));
 
-            Assert.That(restore!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
-            Assert.That(recovery!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(restore!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(recovery!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -278,7 +279,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     other.Registrar, other.ApplicationId, other.RequestId, other.Profile,
                     CreateCredentials(Issue(csr, kApplicationUri))).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -300,8 +301,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? install = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await credentials.InstallAsync(m_binding.ApplicationId, stale).ConfigureAwait(false));
 
-            Assert.That(recovery!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
-            Assert.That(install!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(recovery!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(install!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -322,7 +323,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile,
                     CreateCredentials(Issue(earlier, kApplicationUri))).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -340,7 +341,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile,
                     CreateCredentials(Issue(csr, "urn:sample:other"))).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadCertificateUriInvalid)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -374,8 +375,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile, received)
                     .ConfigureAwait(false));
 
-            uint expected = incomplete ? StatusCodes.BadSecurityChecksFailed : StatusCodes.BadCertificateUntrusted;
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(expected)));
+            StatusCode expected = incomplete
+                ? StatusCodes.BadSecurityChecksFailed : StatusCodes.BadCertificateUntrusted;
+            Assert.That(error!.StatusCode, Is.EqualTo(expected));
             await AssertStartedWithoutInstallationAsync(credentials).ConfigureAwait(false);
         }
 
@@ -434,9 +436,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile,
                     CreateCredentials(Issue(prepared, kApplicationUri))).ConfigureAwait(false));
 
-            Assert.That(restore!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
-            Assert.That(repeat!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
-            Assert.That(recovery!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(restore!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(repeat!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(recovery!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(await restarted.GetSigningRequestStateAsync().ConfigureAwait(false),
                 Is.EqualTo(OnboardingSigningRequestState.Prepared));
 
@@ -465,7 +467,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await credentials.OnSigningRequestStartedAsync(
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile, other)
                     .ConfigureAwait(false));
-            Assert.That(mismatch!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(mismatch!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(await credentials.GetSigningRequestStateAsync().ConfigureAwait(false),
                 Is.EqualTo(OnboardingSigningRequestState.Prepared));
 
@@ -478,7 +480,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     new NodeId("second-request", m_binding.RequestId.NamespaceIndex), m_binding.Profile, csr)
                     .ConfigureAwait(false));
 
-            Assert.That(rebind!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
+            Assert.That(rebind!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             OnboardingJournaledSigningRequest restored = await CreateJournaled(m_namespaces)
                 .RestoreJournaledSigningRequestAsync(m_binding.Registrar).ConfigureAwait(false);
             Assert.That(restored.RequestId, Is.EqualTo(m_binding.RequestId));
@@ -506,8 +508,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     m_binding.Registrar, m_binding.ApplicationId, m_binding.RequestId, m_binding.Profile,
                     CreateCredentials(Issue(csr, kApplicationUri))).ConfigureAwait(false));
 
-            Assert.That(restore!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
-            Assert.That(recovery!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
+            Assert.That(restore!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(recovery!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(m_validatedChains, Is.Empty);
             Assert.That(m_installed, Is.Empty);
         }
@@ -557,7 +559,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await other.GetSigningRequestStateAsync().ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             await AssertStartedWithoutInstallationAsync(CreateJournaled(m_namespaces)).ConfigureAwait(false);
         }
 
@@ -591,7 +593,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             foreach (ServiceResultException? error in errors)
             {
-                Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadConfigurationError)));
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             }
             Assert.That(File.Exists(m_journalPath), Is.False);
             Assert.That(m_validatedChains, Is.Empty);
@@ -603,23 +605,24 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [Test]
         public async Task UseSigningJournalRejectsUnsafeConfigurationAsync()
         {
-            var shared = new CertificateStoreIdentifier(
-                m_identifier.StorePath, CertificateStoreType.Directory, false);
+            string storePath = m_identifier.StorePath ??
+                throw new AssertionException("The application certificate store must have a path.");
+            var shared = new CertificateStoreIdentifier(storePath, CertificateStoreType.Directory, false);
             var credentials = new OnboardingDeviceCredentials(m_configuration, m_telemetry);
             Assert.That(() => credentials.UseSigningJournal(m_journalPath, shared, m_namespaces),
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                    .EqualTo(new StatusCode(StatusCodes.BadConfigurationError)));
+                    .EqualTo(StatusCodes.BadConfigurationError));
 
             credentials.UseSigningJournal(m_journalPath, m_keyStore, m_namespaces);
             Assert.That(() => credentials.UseSigningJournal(m_journalPath, m_keyStore, m_namespaces),
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                    .EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
+                    .EqualTo(StatusCodes.BadInvalidState));
 
             var legacy = new OnboardingDeviceCredentials(m_configuration, m_telemetry);
             await legacy.CreateSigningRequestAsync(m_binding.ApplicationId, m_binding.Profile).ConfigureAwait(false);
             Assert.That(() => legacy.UseSigningJournal(m_journalPath, m_keyStore, m_namespaces),
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                    .EqualTo(new StatusCode(StatusCodes.BadInvalidState)));
+                    .EqualTo(StatusCodes.BadInvalidState));
             Assert.That(File.Exists(m_journalPath), Is.False);
         }
 
@@ -664,7 +667,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await CreateWorkflow(first, CreateJournaled(m_namespaces))
                     .RunAsync(m_binding.Registrar, CreateRequest()).ConfigureAwait(false));
 
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadSecurityChecksFailed)));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(first.Starts, Is.EqualTo(1));
             Assert.That(m_installed, Is.Empty);
             OnboardingDeviceCredentials restarted = CreateJournaled(m_namespaces);
@@ -829,7 +832,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             using ICertificateStore store = OpenKeyStore();
             using CertificateCollection keys = await store.EnumerateAsync().ConfigureAwait(false);
-            Assert.That(keys.Count, Is.EqualTo(1));
+            Assert.That(keys, Has.Count.EqualTo(1));
             Certificate? retained = await store.LoadPrivateKeyAsync(
                 keys[0].Thumbprint, null, null, ObjectTypeIds.RsaSha256ApplicationCertificateType, null)
                 .ConfigureAwait(false);

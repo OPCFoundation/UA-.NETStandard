@@ -216,7 +216,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var session = new Mock<ISession>(MockBehavior.Strict);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await Validator(identities).ValidateAsync(session.Object, new NodeId("device"))
+                await Validator(identities).ValidateAsync(session.Object, new NodeId("device", 0))
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -255,7 +255,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 if (request is CallRequest call)
                 {
                     calls++;
-                    Assert.That(call.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token")));
+                    Assert.That(call.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId("original-token", 0)));
                     Assert.That(call.MethodsToCall[0].ObjectId, Is.EqualTo(deviceId));
                 }
             }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await admitted.DisposeAsync().ConfigureAwait(false);
             Assert.That(admitted.Invalidated.IsCompleted, Is.True);
             Assert.Throws<ObjectDisposedException>(() => _ = admitted.Session);
-            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session")));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("original-session", 0)));
             Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             identities.VerifyAll();
             identities.Verify(selector => selector.SelectAsync(
@@ -316,7 +316,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(error!.StatusCode, Is.EqualTo(mutation == "downgrade"
                 ? StatusCodes.BadSecurityModeInsufficient : StatusCodes.BadSessionIdInvalid));
-            Assert.That(fixture.Requests.Count, Is.EqualTo(admittedRequestCount));
+            Assert.That(fixture.Requests, Has.Count.EqualTo(admittedRequestCount));
             replacement.VerifyNoOtherCalls();
         }
 
@@ -342,7 +342,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     .ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
-            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("replacement-session")));
+            Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(new NodeId("replacement-session", 0)));
             Assert.That(fixture.Requests.Exists(request => request is CloseSessionRequest), Is.False);
             identities.VerifyAll();
         }
@@ -358,7 +358,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             OnboardingPushIdentityValidator validator = Validator(identities);
 
             await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await validator.CaptureAsync(null!, new NodeId("push-device")).ConfigureAwait(false));
+                await validator.CaptureAsync(null!, new NodeId("push-device", 0)).ConfigureAwait(false));
             await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await validator.CaptureAsync(session.Object, NodeId.Null).ConfigureAwait(false));
 
@@ -379,7 +379,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await Validator(identities).CaptureAsync(
-                    session.Object, new NodeId("push-device"), cancellation.Token).ConfigureAwait(false));
+                    session.Object, new NodeId("push-device", 0), cancellation.Token).ConfigureAwait(false));
 
             session.VerifyNoOtherCalls();
             identities.VerifyNoOtherCalls();

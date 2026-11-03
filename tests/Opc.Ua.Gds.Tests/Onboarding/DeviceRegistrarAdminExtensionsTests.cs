@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             };
 
             Assert.Throws<ServiceResultException>(
-                () => bare.BindToTicketStore(new MemoryTicketStore()));
+                () => bare.BindToTicketStore(new MemoryTicketStore(), AcceptTickets()));
         }
 
         [Test]
@@ -66,10 +66,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             (_, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             Assert.Throws<ArgumentNullException>(
-                () => registrar.BindToTicketStore(null!));
+                () => registrar.BindToTicketStore(null!, AcceptTickets()));
             BaseObjectState? nullState = null;
             Assert.Throws<ArgumentNullException>(
-                () => nullState!.BindToTicketStore(new MemoryTicketStore()));
+                () => nullState!.BindToTicketStore(new MemoryTicketStore(), AcceptTickets()));
         }
 
         [Test]
@@ -208,16 +208,13 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadEntryExists));
             registrar.BindToTicketStore(store.Object, AcceptTickets());
+            ArrayOf<string> tickets = ["ticket"];
 
             (_, _, List<Variant> outputs) = await CallAsync(
                 registrar.RegisterTickets!,
                 context,
                 registrar.NodeId,
-                Variant.From(
-                    new string[]
-                    {
-                        "ticket"
-                    }.ToArrayOf()))
+                Variant.From(tickets))
                 .ConfigureAwait(false);
 
             Assert.That(
@@ -294,17 +291,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             List<Variant> outputs = [Variant.Null];
+            ArrayOf<string> tickets = ["ticket"];
 
             await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await registrar.RegisterTickets!.OnCallMethod2Async!(
                     context,
                     registrar.RegisterTickets,
                     registrar.NodeId,
-                    [Variant.From(
-                        new string[]
-                        {
-                            "ticket"
-                        }.ToArrayOf())],
+                    [Variant.From(tickets)],
                     outputs,
                     cts.Token).ConfigureAwait(false));
         }
@@ -318,9 +312,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             registrar.BindToTicketStore(store.Object, AcceptTickets());
             context.UserIdentity = null;
             MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
+            ArrayOf<string> tickets = ["ticket"];
 
             (ServiceResult denied, _, _) = await CallAsync(
-                method, context, registrar.NodeId, Variant.From(new string[] { "ticket" }.ToArrayOf()))
+                method, context, registrar.NodeId, Variant.From(tickets))
                 .ConfigureAwait(false);
 
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -335,11 +330,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             (SessionSystemContext context, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new Mock<ITicketStore>(MockBehavior.Strict);
-            registrar.BindToTicketStore(store.Object);
+            var method = typeof(DeviceRegistrarAdminExtensions).GetMethod(
+                nameof(DeviceRegistrarAdminExtensions.BindToTicketStore), s_legacyBindingSignature) ??
+                throw new AssertionException("The legacy unvalidated binding overload is missing.");
+            var bind = (Action<BaseObjectState, ITicketStore>)method.CreateDelegate(
+                typeof(Action<BaseObjectState, ITicketStore>));
+            bind(registrar, store.Object);
+            ArrayOf<string> tickets = ["ticket"];
 
             (ServiceResult result, _, _) = await CallAsync(
                 registrar.RegisterTickets!, context, registrar.NodeId,
-                Variant.From(new string[] { "ticket" }.ToArrayOf())).ConfigureAwait(false);
+                Variant.From(tickets)).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             store.VerifyNoOtherCalls();
@@ -358,10 +359,11 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 "invalid", OnboardingTicketSource.OutOfBand, It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadTicketInvalid));
             registrar.BindToTicketStore(store, validator.Object);
+            ArrayOf<string> tickets = ["before", "invalid", "after"];
 
             (ServiceResult result, _, List<Variant> outputs) = await CallAsync(
                 registrar.RegisterTickets!, context, registrar.NodeId,
-                Variant.From(new string[] { "before", "invalid", "after" }.ToArrayOf())).ConfigureAwait(false);
+                Variant.From(tickets)).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(outputs[0].TryGetValue(out ArrayOf<StatusCode> statuses), Is.True);
@@ -374,7 +376,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 Assert.That(record.Metadata.ManufacturerName, Is.EqualTo("Test manufacturer"));
                 serials.Add(record.Metadata.SerialNumber);
             }
-            Assert.That(serials, Is.EquivalentTo(new[] { "before", "after" }));
+            string[] expectedSerials = ["before", "after"];
+            Assert.That(serials, Is.EquivalentTo(expectedSerials));
         }
 
         /// <summary>
@@ -389,9 +392,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             registrar.BindToTicketStore(store, AcceptTickets());
             if (remove)
             {
+                ArrayOf<string> registeredTickets = ["before", "after"];
                 _ = await CallAsync(
                     registrar.RegisterTickets!, context, registrar.NodeId,
-                    Variant.From(new string[] { "before", "after" }.ToArrayOf())).ConfigureAwait(false);
+                    Variant.From(registeredTickets)).ConfigureAwait(false);
             }
             MethodState method = remove ? registrar.UnregisterTickets! : registrar.RegisterTickets!;
             ArrayOf<string> tickets = ["before", null!, "after"];
@@ -485,6 +489,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
             return (result, argumentErrors, outputs);
         }
+
+        /// <summary>The legacy binding intentionally omits the required ticket validator.</summary>
+        private static readonly Type[] s_legacyBindingSignature = [typeof(BaseObjectState), typeof(ITicketStore)];
     }
 
     internal static class AsyncEnumerableTestExtensions

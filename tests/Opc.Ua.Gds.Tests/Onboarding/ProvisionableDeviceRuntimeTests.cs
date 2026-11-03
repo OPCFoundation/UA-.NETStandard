@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             ArrayOf<string> result = await runtime.RequestTicketsAsync().ConfigureAwait(false);
 
-            Assert.That(result.ToArray(), Is.EqualTo(new[] { "signed-envelope-first", "signed-envelope-second" }));
+            Assert.That(result.ToArray(), Is.EqualTo(s_expectedSignedEnvelopeIds));
             Assert.That(runtime.IsSingleton, Is.True);
             tickets.VerifyAll();
             tickets.Verify(t => t.ListAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase("signature")]
         public async Task RequestTicketsRejectsMissingCorruptOrUntrustedConfiguredTicket(string failure)
         {
-            uint status = failure switch
+            StatusCode status = failure switch
             {
                 "missing" => StatusCodes.BadConfigurationError,
                 "utf8" or "signature" => StatusCodes.BadTicketInvalid,
@@ -169,7 +169,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(3)]
         public async Task SetRegistrarEndpointsRequiresRoleEncryptedChannelPeerAndSession(int failure)
         {
-            uint status = failure switch
+            StatusCode status = failure switch
             {
                 0 or 3 => StatusCodes.BadUserAccessDenied,
                 1 => StatusCodes.BadSecurityModeInsufficient,
@@ -199,8 +199,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public async Task SecurityGateCannotMutateProposedRegistrarCandidates()
         {
             ApplicationDescription candidate = Registrar();
-            string originalUri = candidate.ApplicationUri;
-            ArrayOf<string> originalUrls = candidate.DiscoveryUrls.ToArray();
+            string? originalUri = candidate.ApplicationUri;
+            ArrayOf<string> originalUrls = candidate.DiscoveryUrls;
             var security = new Mock<IProvisionableDeviceSecurity>(MockBehavior.Strict);
             security.Setup(s => s.RequireRegistrarAsync(
                     It.IsAny<ISystemContext>(), It.IsAny<CancellationToken>()))
@@ -250,7 +250,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
             Assert.That(captured[0], Is.Not.SameAs(registrar));
             Assert.That(captured[0].ApplicationUri, Is.EqualTo("urn:registrar:one"));
-            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(new[] { "opc.tcp://registrar:4840" }));
+            Assert.That(captured[0].DiscoveryUrls.ToArray(), Is.EqualTo(s_expectedRegistrarDiscoveryUrls));
             await runtime.SetRegistrarEndpointsAsync(Context(), []).ConfigureAwait(false);
             Assert.That(captured.Count, Is.Zero);
             store.Verify(s => s.ReplaceAsync(
@@ -397,9 +397,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var runtime = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
             runtime.SetupGet(r => r.IsSingleton).Returns(true);
             runtime.Setup(r => r.RequestTicketsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new string[] { "signed-ticket" }.ToArrayOf());
+                .ReturnsAsync((ArrayOf<string>)["signed-ticket"]);
             var device = new ProvisionableDeviceState(null);
-            device.IsSingleton = new PropertyState<bool>(device);
+            device.IsSingleton = PropertyState<bool>.With<VariantBuilder>(device);
             device.RequestTickets = new RequestTicketsMethodState(device);
             device.BindToRuntime(Context(), runtime.Object);
             var outputs = new List<Variant> { default };
@@ -411,7 +411,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(device.IsSingleton.Value, Is.True);
             Assert.That(outputs[0].TryGetValue(out ArrayOf<string> tickets), Is.True);
-            Assert.That(tickets.ToArray(), Is.EqualTo(new[] { "signed-ticket" }));
+            Assert.That(tickets.ToArray(), Is.EqualTo(s_expectedSingleTicket));
             device.AddChild(new ApplicationConfigurationState(device));
             ServiceResultException? invalid = Assert.Throws<ServiceResultException>(() =>
                 device.BindToRuntime(Context(), runtime.Object));
@@ -433,7 +433,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     v.Count == 1 && v[0].ApplicationUri == "urn:registrar:one"), It.IsAny<CancellationToken>()))
                 .Returns(default(ValueTask));
             var device = new ProvisionableDeviceState(null);
-            device.IsSingleton = new PropertyState<bool>(device);
+            device.IsSingleton = PropertyState<bool>.With<VariantBuilder>(device);
             device.RequestTickets = new RequestTicketsMethodState(device);
             device.SetRegistrarEndpoints = new SetRegistrarEndpointsMethodState(device);
             device.BindToRuntime(context, runtime.Object);
@@ -445,7 +445,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(method.RolePermissions.Count, Is.EqualTo(1));
             Assert.That(method.RolePermissions[0].RoleId,
-                Is.EqualTo(new NodeId(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin)));
+                Is.EqualTo(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin));
             Assert.That(method.RolePermissions[0].Permissions,
                 Is.EqualTo((uint)(PermissionType.Browse | PermissionType.Call)));
             runtime.Verify(r => r.SetRegistrarEndpointsAsync(
@@ -460,7 +460,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(2)]
         public async Task GeneratedSetRegistrarEndpointsRejectsMalformedInputs(int count)
         {
-            uint status = count switch
+            StatusCode status = count switch
             {
                 0 => StatusCodes.BadArgumentsMissing,
                 1 => StatusCodes.BadTypeMismatch,
@@ -470,7 +470,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var runtime = new Mock<IProvisionableDeviceRuntime>(MockBehavior.Strict);
             runtime.SetupGet(r => r.IsSingleton).Returns(false);
             var device = new ProvisionableDeviceState(null);
-            device.IsSingleton = new PropertyState<bool>(device);
+            device.IsSingleton = PropertyState<bool>.With<VariantBuilder>(device);
             device.RequestTickets = new RequestTicketsMethodState(device);
             device.SetRegistrarEndpoints = new SetRegistrarEndpointsMethodState(device);
             device.BindToRuntime(Context(), runtime.Object);
@@ -492,7 +492,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static TicketRecord Record(string id, byte[] bytes)
         {
             return new TicketRecord(id, bytes,
-                new TicketMetadata(TicketKind.DeviceIdentity, "", "", "", "urn:device:one"),
+                new TicketMetadata(
+                    TicketKind.DeviceIdentity,
+                    string.Empty,
+                    string.Empty,
+                    string.Empty,
+                    "urn:device:one"),
                 new DateTimeOffset(2020, 1, 1, 0, 0, 0, TimeSpan.Zero));
         }
 
@@ -523,7 +528,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             identity.SetupGet(i => i.GrantedRoleIds).Returns(administrator
                 ? new NodeId[] { Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin }.ToArrayOf() : []);
             var session = new Mock<Opc.Ua.Server.ISession>();
-            session.SetupGet(s => s.Id).Returns(sessionId ? new NodeId("device-session") : NodeId.Null);
+            session.SetupGet(s => s.Id).Returns(sessionId ? new NodeId("device-session", 0) : NodeId.Null);
             session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
             var channel = new SecureChannelContext(
                 "device-channel", new EndpointDescription
@@ -538,5 +543,19 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 NamespaceUris = new NamespaceTable()
             };
         }
+
+        /// <summary>
+        /// The signed envelope identifiers returned from the device ticket store.
+        /// </summary>
+        private static readonly string[] s_expectedSignedEnvelopeIds =
+            ["signed-envelope-first", "signed-envelope-second"];
+        /// <summary>
+        /// The discovery URL expected on the copied registrar description.
+        /// </summary>
+        private static readonly string[] s_expectedRegistrarDiscoveryUrls = ["opc.tcp://registrar:4840"];
+        /// <summary>
+        /// The ticket identifier returned by the generated request-tickets method.
+        /// </summary>
+        private static readonly string[] s_expectedSingleTicket = ["signed-ticket"];
     }
 }

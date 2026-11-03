@@ -168,20 +168,22 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 ApplicationId = new NodeId("managed", 2),
                 ApplicationUri = "urn:managed:application"
             };
-            await lifecycle.AssociateApplicationAsync(Device, application.ApplicationId, "").ConfigureAwait(false);
+            await lifecycle.AssociateApplicationAsync(
+                Device, application.ApplicationId, string.Empty).ConfigureAwait(false);
             var policy = new Mock<IDeviceRegistrarApplicationAuthorization>();
             policy.SetupSequence(p => p.CanManageAsync(
-                Device, application, "", It.IsAny<CancellationToken>()))
+                Device, application, string.Empty, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true).ReturnsAsync(false);
             var authorization = new DeviceRegistrarAuthorization(lifecycle, policy.Object);
             SessionSystemContext context = CreateContext(SelectedCertificate);
-            await authorization.RequireManagedCertificateIssuanceAsync(context, application, "").ConfigureAwait(false);
+            await authorization.RequireManagedCertificateIssuanceAsync(
+                context, application, string.Empty).ConfigureAwait(false);
             ServiceResultException? revoked = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await authorization.RequireManagedCertificateIssuanceAsync(
-                    context, application, "").ConfigureAwait(false));
+                    context, application, string.Empty).ConfigureAwait(false));
             Assert.That(revoked!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             policy.Verify(p => p.CanManageAsync(
-                Device, application, "", It.IsAny<CancellationToken>()), Times.Exactly(2));
+                Device, application, string.Empty, It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
 
         /// <summary>
@@ -272,7 +274,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 CreateContext(SelectedCertificate)).ConfigureAwait(false);
             Assert.That(relations.ToArray(), Is.EqualTo(new[]
             {
-                new DeviceRegistrarApplicationBinding(Device, SharedId, true, ""),
+                new DeviceRegistrarApplicationBinding(Device, SharedId, true, string.Empty),
                 new DeviceRegistrarApplicationBinding(Device, appId, false, "urn:protocol:expected")
             }));
             await lifecycle.UpdateSoftwareStatusAsync(Device, false, "rejected").ConfigureAwait(false);
@@ -370,7 +372,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             bool missingSession,
             bool missingCertificate)
         {
-            uint expectedStatus = missingSession
+            StatusCode expectedStatus = missingSession
                 ? StatusCodes.BadUserAccessDenied
                 : StatusCodes.BadSecurityModeInsufficient;
             var lifecycle = new MemoryDeviceRegistrarLifecycle();
@@ -401,7 +403,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 CreateContext(OtherCertificate), [SelectedCertificate], [], []).ConfigureAwait(false);
             await harness.Lifecycle.UpdateSoftwareStatusAsync(Device, true, "installed").ConfigureAwait(false);
             var managedId = new NodeId("managed", 2);
-            await harness.Lifecycle.AssociateApplicationAsync(Device, managedId, "").ConfigureAwait(false);
+            await harness.Lifecycle.AssociateApplicationAsync(Device, managedId, string.Empty).ConfigureAwait(false);
             DeviceRegistrarIdentityResult second = await harness.Runtime.ProvideIdentitiesAsync(
                 CreateContext(OtherCertificate), [SelectedCertificate], [], []).ConfigureAwait(false);
             Assert.That(first.ApplicationId, Is.EqualTo(second.ApplicationId));
@@ -432,7 +434,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 ApplicationId = SharedId,
                 ApplicationUri = harness.Application.ApplicationUri
             };
-            harness.Database.Setup(d => d.FindApplications(harness.Application.ApplicationUri)).Returns([registered]);
+            harness.Database.Setup(d => d.FindApplications(
+                It.Is<string>(uri => uri == harness.Application.ApplicationUri)))
+                .Returns([registered]);
 
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Runtime.ProvideIdentitiesAsync(
@@ -751,24 +755,26 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             registrar.BindToRuntime(harness.Runtime);
             MethodState method = registrar.ProvideIdentities!;
             var outputs = new List<Variant> { default, default, default, default };
+            ArrayOf<string> tickets = ["signed-ticket"];
             ServiceResult result = await method.OnCallMethod2Async!(
                 context, method, registrar.NodeId,
                 [
                     Variant.From(new ByteString[] { SelectedCertificate }.ToArrayOf()),
                     Variant.From(ArrayOf<ByteString>.Empty),
-                    Variant.From(new string[] { "signed-ticket" }.ToArrayOf())
+                    Variant.From(tickets)
                 ], outputs, default).ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(outputs[0].TryGetValue(out ByteString certificate), Is.True);
             Assert.That(certificate, Is.EqualTo(SelectedCertificate));
-            Assert.That(outputs[1].TryGetStructure(out BaseTicketType? ticket), Is.True);
+            Assert.That(outputs[1].TryGetStructure<BaseTicketType>(out BaseTicketType? ticket), Is.True);
             Assert.That(ticket, Is.TypeOf<DeviceIdentityTicketType>());
             Assert.That(outputs[2].TryGetValue(out NodeId applicationId), Is.True);
             Assert.That(applicationId, Is.EqualTo(SharedId));
             if (update)
             {
-                Assert.That(outputs[3].TryGetStructure(out ManagerDescription? manager), Is.True);
-                Assert.That(manager!.PurposeUri, Is.EqualTo(harness.Manager!.PurposeUri));
+                Assert.That(outputs[3].TryGetStructure<ManagerDescription>(out ManagerDescription? manager), Is.True);
+                ManagerDescription selectedManager = manager ?? throw new AssertionException("Missing manager.");
+                Assert.That(selectedManager.PurposeUri, Is.EqualTo(harness.Manager!.PurposeUri));
             }
             else
             {
@@ -782,7 +788,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         [TestCase(3, 4)]
         public async Task GeneratedBindingRejectsMalformedIdentityArguments(int count, int outputCount)
         {
-            uint expected = count switch
+            StatusCode expected = count switch
             {
                 0 => StatusCodes.BadArgumentsMissing,
                 4 => StatusCodes.BadTooManyArguments,
@@ -859,7 +865,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(i => i.TokenType).Returns(UserTokenType.Anonymous);
             var session = new Mock<Opc.Ua.Server.ISession>();
-            session.SetupGet(s => s.Id).Returns(missingSession ? NodeId.Null : new NodeId("session"));
+            session.SetupGet(s => s.Id).Returns(missingSession ? NodeId.Null : new NodeId("session", 0));
             session.SetupGet(s => s.EffectiveIdentity).Returns(identity.Object);
             var channel = new SecureChannelContext(
                 "channel", new EndpointDescription

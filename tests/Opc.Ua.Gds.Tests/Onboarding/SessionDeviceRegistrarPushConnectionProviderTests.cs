@@ -107,7 +107,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(connection.ProvisionableDeviceId, Is.EqualTo(new NodeId("device", 1)));
             Assert.That(connection.CertificateGroupId, Is.EqualTo(new NodeId("group", 1)));
             Assert.That(connection.CertificateTypeId,
-                Is.EqualTo(new NodeId(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)));
+                Is.EqualTo(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType));
             Assert.That(connection.OfferedEndpoint, Is.Not.SameAs(target.Endpoint.Description));
             Assert.That(connection.OfferedEndpoint.ServerCertificate.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
             factory.Verify(value => value.CreateAsync(
@@ -117,8 +117,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             await connection.DisposeAsync().ConfigureAwait(false);
             int calls = context.Requests.Count;
             await connection.DisposeAsync().ConfigureAwait(false);
-            Assert.That(context.Requests.Count, Is.EqualTo(calls));
-            Assert.That(context.Requests.OfType<CloseSessionRequest>().Count(), Is.EqualTo(1));
+            Assert.That(context.Requests, Has.Count.EqualTo(calls));
+            Assert.That(context.Requests.OfType<CloseSessionRequest>(), Has.Count.EqualTo(1));
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await provider.ConnectAsync(Application(), scenario == "peer" ?
                     ByteString.From(new byte[] { 7, 8, 9 }) : ByteString.Empty).ConfigureAwait(false));
 
-            uint expected = scenario is "peer" or "missing-peer" ? StatusCodes.BadCertificateInvalid :
+            StatusCode expected = scenario is "peer" or "missing-peer" ? StatusCodes.BadCertificateInvalid :
                 scenario == "actual-application" ? StatusCodes.BadSecurityChecksFailed :
                 scenario == "unknown-namespace" ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadNodeIdInvalid;
             Assert.That(error!.StatusCode, Is.EqualTo(expected));
@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         {
             var session = new Mock<ISession>(MockBehavior.Strict);
             session.Setup(value => value.CloseAsync(5000, true, It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new StatusCode(StatusCodes.BadCommunicationError));
+                .ReturnsAsync(StatusCodes.BadCommunicationError);
             var disposal = new IOException("dispose failure");
             session.Setup(value => value.DisposeAsync()).Throws(disposal);
             await using var context = new SessionRequestContextTestContext(
@@ -222,7 +222,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 await provider.ConnectAsync(Application(), ByteString.Empty).ConfigureAwait(false));
 
             Exception[] failures = error!.Flatten().InnerExceptions.ToArray();
-            Assert.That(failures.Length, Is.EqualTo(3));
+            Assert.That(failures, Has.Length.EqualTo(3));
             Assert.That(failures.OfType<ServiceResultException>().Select(value => value.StatusCode),
                 Is.EquivalentTo(new StatusCode[] { StatusCodes.BadNotSupported, StatusCodes.BadCommunicationError }));
             Assert.That(failures, Does.Contain(disposal));
@@ -405,7 +405,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         private static DeviceRegistrarPushTarget Target(SessionRequestContextTestContext context)
         {
             return new DeviceRegistrarPushTarget(
-                new ConfiguredEndpoint(null, CoreUtils.Clone(context.Channel.Object.EndpointDescription)!),
+                new ConfiguredEndpoint(
+                    null,
+                    CoreUtils.Clone(context.Channel.Object.EndpointDescription)!,
+                    EndpointConfiguration.Create()),
                 new UserIdentity(),
                 ExpandedNodeId.Parse("nsu=urn:request-context:original;s=device"),
                 ExpandedNodeId.Parse("nsu=urn:request-context:original;s=singleton"),

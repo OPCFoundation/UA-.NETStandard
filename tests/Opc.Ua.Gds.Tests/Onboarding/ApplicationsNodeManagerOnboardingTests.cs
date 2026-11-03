@@ -562,9 +562,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
             gate.Setup(g => g.GetChannelApplicationsAsync(context, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ArrayOf<DeviceRegistrarApplicationBinding>(
-                [
+                new DeviceRegistrarApplicationBinding[]
+                {
                     new DeviceRegistrarApplicationBinding("urn:device:test", applicationId, false, "urn:protocol:test")
-                ]));
+                }));
             gate.Setup(g => g.AuthorizeApplicationAsync(
                 context, It.Is<ApplicationRecordDataType>(a => a.ApplicationId == applicationId),
                 It.IsAny<CancellationToken>())).ReturnsAsync(true);
@@ -605,9 +606,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var gate = new Mock<IDeviceRegistrarCertificateAuthorization>(MockBehavior.Strict);
             gate.Setup(g => g.GetChannelApplicationsAsync(context, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ArrayOf<DeviceRegistrarApplicationBinding>(
-                [
+                new DeviceRegistrarApplicationBinding[]
+                {
                     new DeviceRegistrarApplicationBinding("urn:device:test", applicationId, false, "urn:protocol:test")
-                ]));
+                }));
             var failure = new ServiceResultException(StatusCodes.BadRequestNotAllowed);
             gate.Setup(g => g.AuthorizeApplicationAsync(
                 context, It.IsAny<ApplicationRecordDataType>(), It.IsAny<CancellationToken>())).ThrowsAsync(failure);

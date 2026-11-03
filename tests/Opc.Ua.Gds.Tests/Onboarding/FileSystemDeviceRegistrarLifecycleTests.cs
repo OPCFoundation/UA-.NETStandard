@@ -74,7 +74,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? permission = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await confirmed.RequireManagedApplicationAllowedAsync(Device).ConfigureAwait(false));
             ServiceResultException? mutation = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await confirmed.AssociateApplicationAsync(Device, new NodeId("forbidden", 1), "")
+                await confirmed.AssociateApplicationAsync(Device, new NodeId("forbidden", 1), string.Empty)
                     .ConfigureAwait(false));
             Assert.That(permission!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
             Assert.That(mutation!.StatusCode, Is.EqualTo(StatusCodes.BadRequestNotAllowed));
@@ -173,8 +173,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             ServiceResultException? write = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lifecycle.RecordCandidateAsync(Device, applicationId, Identity, true).ConfigureAwait(false));
 
-            Assert.That(read!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
-            Assert.That(write!.StatusCode, Is.EqualTo(new StatusCode(StatusCodes.BadServerHalted)));
+            Assert.That(read!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(write!.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             Assert.That(files.Files, Is.Empty);
             lifecycle.BindNamespaceTable(namespaces);
             await lifecycle.RecordCandidateAsync(Device, applicationId, Identity, true).ConfigureAwait(false);
@@ -246,7 +246,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             DeviceRegistrarApplicationBinding? dcaBinding = await restarted.FindApplicationAsync(
                 new NodeId("dca", newIndex)).ConfigureAwait(false);
             Assert.That(dcaBinding, Is.EqualTo(new DeviceRegistrarApplicationBinding(
-                Device, new NodeId("dca", newIndex), true, "")));
+                Device, new NodeId("dca", newIndex), true, string.Empty)));
             DeviceRegistrarIdentityCandidate? candidate = await restarted.FindCandidateByCertificateAsync(Identity)
                 .ConfigureAwait(false);
             Assert.That(candidate!.ApplicationId, Is.EqualTo(state.DcaApplicationId));
@@ -512,7 +512,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             switch (corruption)
             {
                 case "missingDevice":
-                    devices = "";
+                    devices = string.Empty;
                     break;
                 case "duplicateCandidate":
                     candidates += "," + candidate;
@@ -521,45 +521,50 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     devices += "," + device;
                     break;
                 case "duplicateApplication":
-                    devices = device.Replace(application, application + "," + application);
+                    devices = device.Replace(application, application + "," + application, StringComparison.Ordinal);
                     break;
                 case "mismatchedDca":
-                    devices = device.Replace("i=101", "i=999");
+                    devices = device.Replace("i=101", "i=999", StringComparison.Ordinal);
                     break;
                 case "crossDeviceApplication":
-                    candidates += "," + candidate.Replace("device:7", "device:8")
-                        .Replace("i=101", "i=102").Replace("AQID", "BAUG");
-                    devices += "," + device.Replace("device:7", "device:8")
-                        .Replace("i=101", "i=102").Replace(application, "");
+                    candidates += "," + candidate.Replace("device:7", "device:8", StringComparison.Ordinal)
+                        .Replace("i=101", "i=102", StringComparison.Ordinal)
+                        .Replace("AQID", "BAUG", StringComparison.Ordinal);
+                    devices += "," + device.Replace("device:7", "device:8", StringComparison.Ordinal)
+                        .Replace("i=101", "i=102", StringComparison.Ordinal)
+                        .Replace(application, string.Empty, StringComparison.Ordinal);
                     break;
                 case "unstableNamespace":
-                    candidates = candidate.Replace("i=101", "ns=2;i=101");
+                    candidates = candidate.Replace("i=101", "ns=2;i=101", StringComparison.Ordinal);
                     break;
                 case "emptyIdentity":
-                    candidates = candidate.Replace("AQID", "");
+                    candidates = candidate.Replace("AQID", string.Empty, StringComparison.Ordinal);
                     break;
                 case "pendingEqualsActive":
                     devices = device.Replace("\"certificate\":\"\"",
-                        "\"certificate\":\"BwgJ\",\"pendingCertificate\":\"BwgJ\"");
+                        "\"certificate\":\"BwgJ\",\"pendingCertificate\":\"BwgJ\"", StringComparison.Ordinal);
                     break;
                 case "pendingInvalidBase64":
                     devices = device.Replace("\"certificate\":\"\"",
-                        "\"certificate\":\"\",\"pendingCertificate\":\"not-base64\"");
+                        "\"certificate\":\"\",\"pendingCertificate\":\"not-base64\"", StringComparison.Ordinal);
                     break;
                 case "pendingOwnedByAnotherIdentity":
-                    candidates += "," + candidate.Replace("device:7", "device:8")
-                        .Replace("i=101", "i=103").Replace("AQID", "BAUG");
+                    candidates += "," + candidate.Replace("device:7", "device:8", StringComparison.Ordinal)
+                        .Replace("i=101", "i=103", StringComparison.Ordinal)
+                        .Replace("AQID", "BAUG", StringComparison.Ordinal);
                     devices = device.Replace("\"certificate\":\"\"",
-                        "\"certificate\":\"\",\"pendingCertificate\":\"BAUG\"");
-                    devices += "," + device.Replace("device:7", "device:8")
-                        .Replace("i=101", "i=103").Replace(application, "");
+                        "\"certificate\":\"\",\"pendingCertificate\":\"BAUG\"", StringComparison.Ordinal);
+                    devices += "," + device.Replace("device:7", "device:8", StringComparison.Ordinal)
+                        .Replace("i=101", "i=103", StringComparison.Ordinal)
+                        .Replace(application, string.Empty, StringComparison.Ordinal);
                     break;
                 case "pendingOwnedByAnotherActiveCredential":
                     devices = device.Replace("\"certificate\":\"\"",
-                        "\"certificate\":\"\",\"pendingCertificate\":\"BAUG\"");
-                    devices += "," + device.Replace("device:7", "device:8")
-                        .Replace("i=101", "i=103").Replace(application, "")
-                        .Replace("\"certificate\":\"\"", "\"certificate\":\"BAUG\"");
+                        "\"certificate\":\"\",\"pendingCertificate\":\"BAUG\"", StringComparison.Ordinal);
+                    devices += "," + device.Replace("device:7", "device:8", StringComparison.Ordinal)
+                        .Replace("i=101", "i=103", StringComparison.Ordinal)
+                        .Replace(application, string.Empty, StringComparison.Ordinal)
+                        .Replace("\"certificate\":\"\"", "\"certificate\":\"BAUG\"", StringComparison.Ordinal);
                     break;
             }
             string checkpoint = "{\"version\":1,\"candidates\":[" + candidates + "],\"devices\":[" + devices + "]}";
@@ -599,14 +604,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             provider.Setup(f => f.Replace(It.IsAny<string>(), Path))
                 .Callback((string source, string destination) => files.Replace(source, destination));
             using var store = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, provider.Object);
-            Task first = store.AssociateApplicationAsync(Device, new NodeId("app-0", 1), "").AsTask();
+            Task first = store.AssociateApplicationAsync(Device, new NodeId("app-0", 1), string.Empty).AsTask();
             Task[] pending = [];
             try
             {
                 await Task.WhenAny(entered.Task, first, Task.Delay(TimeSpan.FromSeconds(30))).ConfigureAwait(false);
                 Assert.That(entered.Task.IsCompleted, Is.True, "The first operation did not enter checkpoint loading.");
                 pending = Enumerable.Range(1, 11).Select(async index =>
-                    await store.AssociateApplicationAsync(Device, new NodeId("app-" + index, 1), "")
+                    await store.AssociateApplicationAsync(Device, new NodeId("app-" + index, 1), string.Empty)
                         .ConfigureAwait(false)).ToArray();
                 Assert.That(first.IsCompleted, Is.False);
                 Assert.That(pending.All(task => !task.IsCompleted), Is.True);
@@ -619,7 +624,9 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
             DeviceRegistrarDevice? device = await store.FindDeviceAsync(Device).ConfigureAwait(false);
             Assert.That(device!.Applications.Count, Is.EqualTo(12));
-            Assert.That(device.Applications.ToArray().Select(a => a.ApplicationId),
+            DeviceRegistrarApplication[] applications = device.Applications.ToArray() ??
+                throw new AssertionException("Missing device applications.");
+            Assert.That(applications.Select(a => a.ApplicationId),
                 Is.EquivalentTo(Enumerable.Range(0, 12).Select(index => new NodeId("app-" + index, 1))));
         }
 
@@ -634,7 +641,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             using (var first = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, files))
             {
                 await first.RecordCandidateAsync(Device, new NodeId("dca", 1), Identity, false).ConfigureAwait(false);
-                await first.AssociateApplicationAsync(Device, new NodeId("managed", 1), "").ConfigureAwait(false);
+                await first.AssociateApplicationAsync(
+                    Device, new NodeId("managed", 1), string.Empty).ConfigureAwait(false);
             }
             using var restarted = new FileSystemDeviceRegistrarLifecycle(Path, namespaces, files);
             byte[] before = files.Get(Path).ToArray();
@@ -664,7 +672,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             DeviceRegistrarDevice? first = await store.FindDeviceAsync(Device).ConfigureAwait(false);
             identity[0] = 99;
             dca[0] = 99;
-            await store.AssociateApplicationAsync(Device, new NodeId("managed", 1), "").ConfigureAwait(false);
+            await store.AssociateApplicationAsync(Device, new NodeId("managed", 1), string.Empty).ConfigureAwait(false);
             DeviceRegistrarDevice? current = await store.FindDeviceAsync(Device).ConfigureAwait(false);
             Assert.That(first!.Applications.Count, Is.Zero);
             Assert.That(current!.Applications.Count, Is.EqualTo(1));
@@ -752,12 +760,12 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public void ConstructorAndFluentRegistrationRejectInvalidArguments()
         {
             NamespaceTable namespaces = NamespacesWithApplications(false);
-            Assert.Throws<ArgumentException>(() => new FileSystemDeviceRegistrarLifecycle("", namespaces));
+            Assert.Throws<ArgumentException>(() => new FileSystemDeviceRegistrarLifecycle(string.Empty, namespaces));
             Assert.Throws<ArgumentNullException>(() => new FileSystemDeviceRegistrarLifecycle(Path, null!));
             Assert.Throws<ArgumentNullException>(() =>
                 OpcUaDeviceRegistrarBuilderExtensions.AddFileSystemDeviceRegistrarLifecycle(null!, Path, namespaces));
             Assert.Throws<ArgumentException>(() =>
-                new ServiceCollection().AddFileSystemDeviceRegistrarLifecycle("", namespaces));
+                new ServiceCollection().AddFileSystemDeviceRegistrarLifecycle(string.Empty, namespaces));
             Assert.Throws<ArgumentNullException>(() =>
                 new ServiceCollection().AddFileSystemDeviceRegistrarLifecycle(Path, null!));
         }
@@ -826,6 +834,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             }
 
             /// <inheritdoc/>
+#if NETFRAMEWORK
             public override async Task<int> ReadAsync(
                 byte[] buffer,
                 int offset,
@@ -837,6 +846,17 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 cancellationToken.ThrowIfCancellationRequested();
                 return await base.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
             }
+#else
+            public override async ValueTask<int> ReadAsync(
+                Memory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                m_entered.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                return await base.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+            }
+#endif
 
             /// <summary>Signals that the first lifecycle operation owns the gate.</summary>
             private readonly TaskCompletionSource<bool> m_entered;

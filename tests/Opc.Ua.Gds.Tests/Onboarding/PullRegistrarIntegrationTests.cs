@@ -67,7 +67,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
     [Category("GdsHosting")]
     [FixtureLifeCycle(LifeCycle.InstancePerTestCase)]
     [NonParallelizable]
-    public sealed class PullRegistrarIntegrationTests
+    public sealed class PullRegistrarIntegrationTests : IAsyncDisposable
     {
         /// <summary>
         /// Starts the existing GDS host and client fixtures on an allocated port with isolated directory stores.
@@ -88,7 +88,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                 .ConfigureAwait(false);
             await m_signer.LoadClientConfigurationAsync(Path.Combine(m_root, "signer"), "PullTicketSigner")
                 .ConfigureAwait(false);
-            m_product = m_device.Config.ApplicationUri;
+            m_product = m_device.Config.ApplicationUri ??
+                throw new AssertionException("The selected device must have an application URI.");
             m_identity = GetIdentity(m_device);
             m_otherIdentity = GetIdentity(m_other);
             Assert.That(m_device.Config.ApplicationUri, Is.EqualTo(m_other.Config.ApplicationUri));
@@ -172,8 +173,18 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// Closes sessions before stopping the host and removing the private-key stores.
         /// </summary>
         [TearDown]
-        public async Task TearDownAsync()
+        public Task TearDownAsync()
         {
+            return DisposeAsync().AsTask();
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
             var errors = new List<Exception>();
             await CleanupAsync(errors, () => CloseSessionAsync(m_session)).ConfigureAwait(false);
             await CleanupAsync(errors, () => CloseSessionAsync(m_otherSession)).ConfigureAwait(false);
@@ -271,10 +282,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             {
                 using JsonDocument envelope = JsonDocument.Parse(ticket);
                 string payload = envelope.RootElement.GetProperty("payload").GetString()!;
-                ticket = ticket.Replace(payload, "dGFtcGVyZWQ");
+                ticket = ticket.Replace(payload, "dGFtcGVyZWQ", StringComparison.Ordinal);
             }
             ArrayOf<string> tickets = failure == "missing" ? [] : [ticket];
-            uint expected = failure == "missing" ? StatusCodes.BadTicketRequired :
+            StatusCode expected = failure == "missing" ? StatusCodes.BadTicketRequired :
                 failure == "identity" ? StatusCodes.BadCertificateInvalid : StatusCodes.BadNotFound;
 
             await AssertStatusAsync(expected, async () =>
@@ -492,7 +503,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             var writer = new OnboardingTicketWriter(
                 signer.Config.CertificateManager!.CertificateProvider, context);
             CertificateIdentifier identifier = signer.Config.SecurityConfiguration.ApplicationCertificates
-                .First(value => value.CertificateType == CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
+                .ToList().First(value =>
+                    value.CertificateType == CoreObjectTypeIds.RsaSha256ApplicationCertificateType);
             return await writer.WriteAsync(new DeviceIdentityTicketType
             {
                 ManufacturerName = "Integration manufacturer",
@@ -506,10 +518,10 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         /// <summary>
         /// Verifies the method's exact wire status without accepting unrelated transport or decoding failures.
         /// </summary>
-        private static async Task AssertStatusAsync(uint expected, Func<Task> action)
+        private static async Task AssertStatusAsync(StatusCode expected, Func<Task> action)
         {
             ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(action);
-            Assert.That(error!.StatusCode, Is.EqualTo(new StatusCode(expected)));
+            Assert.That(error!.StatusCode, Is.EqualTo(expected));
         }
 
         /// <summary>The isolated certificate-store root.</summary>
@@ -559,5 +571,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
 
         /// <summary>The existing GDS hosted service.</summary>
         private GdsServerHostedService m_host = null!;
+
+        /// <summary>Prevents repeated disposal after NUnit teardown.</summary>
+        private int m_disposed;
     }
 }

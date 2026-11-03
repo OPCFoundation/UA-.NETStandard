@@ -180,7 +180,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
                     {
                         throw new IOException("cleanup failed");
                     }
-                    LocalFileSystem.Instance.Delete(path);
+                    LocalFileSystem.Instance.Delete(path, isDirectory: false);
                 });
             using (var failing = new PushRegistrarCheckpointFiles(m_directory, fileSystem.Object))
             {

@@ -49,7 +49,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         public void ConstructorAndRegistrationRejectMissingConfiguration()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            Assert.That(() => new FileSystemProvisionableDeviceRegistrarStore("", telemetry),
+            Assert.That(() => new FileSystemProvisionableDeviceRegistrarStore(string.Empty, telemetry),
                 Throws.ArgumentException.With.Property("ParamName").EqualTo("path"));
             Assert.That(() => new FileSystemProvisionableDeviceRegistrarStore(kPath, null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("telemetry"));
@@ -85,8 +85,8 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             Assert.That(restored[0].ApplicationType, Is.EqualTo(ApplicationType.Server));
             Assert.That(restored[0].GatewayServerUri, Is.EqualTo("urn:gateway"));
             Assert.That(restored[0].DiscoveryProfileUri, Is.EqualTo("urn:discovery"));
-            Assert.That(restored[0].DiscoveryUrls.ToArray(),
-                Is.EqualTo(new[] { "opc.tcp://registrar:4840", "opc.tcp://registrar:4841" }));
+            string[] expectedUrls = ["opc.tcp://registrar:4840", "opc.tcp://registrar:4841"];
+            Assert.That(restored[0].DiscoveryUrls.ToArray(), Is.EqualTo(expectedUrls));
             restored[0].ApplicationUri = "urn:modified-read";
             Assert.That((await restarted.ReadAsync().ConfigureAwait(false))[0].ApplicationUri,
                 Is.EqualTo("urn:registrar:one"));
