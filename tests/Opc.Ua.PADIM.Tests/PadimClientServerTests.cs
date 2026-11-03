@@ -339,6 +339,11 @@ namespace Opc.Ua.PADIM.Tests
                         {
                             BindRequiredChild(catalog, primary, childName, dataType, samples);
                         }
+                        if (primary is PatMeasurementVariableState pat)
+                        {
+                            pat.AddPatMeasurandDescription(catalog.Context);
+                            samples.Bind(catalog, pat.PatMeasurandDescription!);
+                        }
 
                         expectedSignals.Add(browseName,
                             (signal.NodeId, PublishedSignalTypeName(kind)));
@@ -582,7 +587,9 @@ namespace Opc.Ua.PADIM.Tests
                 }
 
                 PadimPublishedSample patMeasurand = samples.Samples.Single(
-                    sample => sample.BrowseName.Name == "PatMeasurandDescription");
+                    sample => sample.BrowseName.Name == "PatMeasurandDescription" &&
+                        sample.Binding.Variable.Parent?.Parent?.NodeId ==
+                            expectedSignals["FacetMeasurementPat"].NodeId);
                 Assert.That(patMeasurand.Sample.WrappedValue.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Scalar));
                 Assert.That(patMeasurand.Sample.WrappedValue.TryGetStructure<ChemicalSubstance>(
                     out ChemicalSubstance? patSubstance), Is.True);
@@ -645,8 +652,6 @@ namespace Opc.Ua.PADIM.Tests
                 {
                     device = await configured.Task.ConfigureAwait(false);
                 }
-                Assert.That(device.Manager.Server, Is.InstanceOf<ServerInternalData>());
-                ConformanceUnitsManager catalog = ((ServerInternalData)device.Manager.Server).ConformanceUnitsManager;
                 var unit = new QualifiedName("PA-DIM TwoStateDiscreteVariable");
                 using var fixture = new ClientFixture(telemetry)
                 {
@@ -654,6 +659,9 @@ namespace Opc.Ua.PADIM.Tests
                 };
                 await fixture.LoadClientConfigurationAsync(Path.Combine(root, "client-pki"));
                 using ISession session = await fixture.ConnectAsync(new Uri(endpoint), SecurityPolicies.None);
+                Assert.That(device.Manager.Server, Is.InstanceOf<ServerInternalData>());
+                ConformanceUnitsManager catalog = ((ServerInternalData)device.Manager.Server).ConformanceUnitsManager;
+                Assert.That(catalog, Is.Not.Null, "The connected host has completed conformance-manager startup.");
                 await AssertPublicationAsync([], [], false);
 
                 var samples = new PadimPublishedSampleSet();
