@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing NodeManager lifecycle components](#testing-nodemanager-lifecycle-components)
   - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
@@ -207,6 +208,34 @@ sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
 disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
+
+### Testing NodeManager lifecycle components
+
+Lifecycle tests are in `tests\Opc.Ua.Server.Tests\NodeManager`, under the
+`Opc.Ua.Server.Tests.NodeManager` namespace. Choose a fixture by the behavior
+you need to exercise:
+
+| Fixture | Scope |
+| --- | --- |
+| `ChangePreparerTests` | Private metadata and candidate ownership |
+| `NodeManagerGenerationTests` | Admission, retirement, quiescence and deferred-event delivery |
+| `StripedCounterTests` | Balanced entries and cross-thread exits |
+| `NodeManagerRegistrationTests` | Registration metadata and namespace copying |
+| `NodeManagerLifecycleCompatibilityTests` | Convenience-adapter retry and failure behavior |
+| `NodeManagerLifecycleTests` | Hosted publication, concurrent candidate claims and startup behavior |
+
+The first five fixtures run without a server. Use them for isolated component
+behavior; use `NodeManagerLifecycleTests` when the test needs real routing,
+publication or server startup. To run the server-free selection:
+
+```powershell
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net10.0 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj -f net48 --filter "FullyQualifiedName~ChangePreparerTests|FullyQualifiedName~NodeManagerGenerationTests|FullyQualifiedName~StripedCounterTests|FullyQualifiedName~NodeManagerRegistrationTests|FullyQualifiedName~NodeManagerLifecycleCompatibilityTests"
+```
+
+Use fully qualified fixture or method names to select a narrower regression.
+The `Server` and `NodeManagerLifecycle` categories include both component and
+hosted lifecycle tests.
 
 ### Testing UaLens
 

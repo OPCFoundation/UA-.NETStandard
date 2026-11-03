@@ -46,11 +46,8 @@ namespace Opc.Ua.Server
                 NodeManagerGeneration generation = slot.Current ??
                     throw new InvalidOperationException("A system role has no initial generation.");
                 var registration = new NodeManagerRegistration(slot.Id, generation.Number, generation.NodeManager);
-                var prepared = new PreparedNodeManager(generation.NodeManager, [])
-                {
-                    Generation = generation,
-                    Published = true
-                };
+                var prepared = new PreparedNodeManager(generation.NodeManager, [], generation);
+                prepared.Publish();
                 lock (m_registrationLock)
                 {
                     m_registrations.Add(registration.Id, new RegistrationState(registration, prepared)

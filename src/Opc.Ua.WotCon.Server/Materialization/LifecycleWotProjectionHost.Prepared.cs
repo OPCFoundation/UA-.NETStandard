@@ -67,7 +67,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public IWotProjectionPublicationCapture CapturePublication()
         {
             return m_lifecycle.SupportsPublicationIsolation
-                ? new PublicationCapture(this, m_lifecycle.CapturePublication())
+                ? new PublicationCapture(this, m_lifecycle.CaptureChanges())
                 : throw new NotSupportedException("The lifecycle cannot isolate a publication invocation.");
         }
 
@@ -88,30 +88,40 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private async ValueTask<IWotPreparedProjectionPublication> PrepareCoreAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
-            INodeManagerPublication? publication,
-            CancellationToken cancellationToken)
+            ILifecycleWriter? publication,
+            CancellationToken cancellationToken,
+            bool ownsWriter = false)
         {
             if (!m_lifecycle.SupportsPreparedPublication)
             {
                 throw new NotSupportedException("The lifecycle cannot prepare an aggregate projection publication.");
             }
+            if (publication is null)
+            {
+                ILifecycleWriter writer = await m_lifecycle.BeginAsync(cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                try
+                {
+                    return await PrepareCoreAsync(changes, views, writer, cancellationToken, ownsWriter: true)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    await writer.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+            }
             PreparedChanges candidate = CreatePreparedChanges(changes, views);
-            IPreparedNodeManagerBatch? batch = publication is null
-                ? await m_lifecycle.PrepareAsync(candidate.Changes, cancellationToken)
-                    .ConfigureAwait(false)
-                : await publication.PrepareAsync(candidate.Changes, cancellationToken).ConfigureAwait(false);
+            IPreparedChanges batch = await publication.PrepareAsync(candidate.Changes, cancellationToken)
+                .ConfigureAwait(false);
             try
             {
-                PreparedPublication preparedPublication = BindPreparedPublication(candidate, views, batch);
-                batch = null;
-                return preparedPublication;
+                return BindPreparedPublication(candidate, views, batch, ownsWriter ? publication : null);
             }
-            finally
+            catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                if (batch is not null)
-                {
-                    await batch.DisposeAsync().ConfigureAwait(false);
-                }
+                await batch.DisposeAsync().ConfigureAwait(false);
+                throw;
             }
         }
 
@@ -119,7 +129,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotProjectionChange> changes,
             Func<IWotPreparedProjectionPublication, CancellationToken, ValueTask> inspectAsync,
             IWotPreparedViewPublication? views,
-            INodeManagerPublication publication,
+            ILifecycleWriter publication,
             CancellationToken cancellationToken)
         {
             _ = inspectAsync ?? throw new ArgumentNullException(nameof(inspectAsync));
@@ -136,7 +146,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private static PreparedPublication BindPreparedPublication(
-            PreparedChanges candidate, IWotPreparedViewPublication? views, IPreparedNodeManagerBatch batch)
+            PreparedChanges candidate, IWotPreparedViewPublication? views, IPreparedChanges batch,
+            ILifecycleWriter? ownedWriter = null)
         {
             var handles = new List<WotProjectionHandle>(candidate.Documents.Count);
             for (int i = 0; i < candidate.Documents.Count; i++)
@@ -148,13 +159,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             WotPreparedViewGraphState? graph = BindPreparedViews(candidate, views, batch.Registrations);
             return new PreparedPublication(
-                batch, handles.ToArrayOf(), graph, candidate.RuntimePublications, candidate.SourceImage?.NamespaceUris);
+                batch, handles.ToArrayOf(), graph, candidate.RuntimePublications,
+                candidate.SourceImage?.NamespaceUris, ownedWriter);
         }
 
         private PreparedChanges CreatePreparedChanges(
             ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views)
         {
-            var lifecycleChanges = new List<NodeManagerBatchChange>();
+            var lifecycleChanges = new List<LifecycleChange>();
             var documents = new List<WotProjectionDocument>();
             var runtimePublications = new List<WotProjectionRuntimePublication>();
             var sourceImage = new WotPreparedSourceImage();
@@ -169,6 +181,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         throw new ArgumentException("A projection belongs to another host.", nameof(changes));
                     }
                     current = registration.Registration;
+                    RequireCurrent(current);
                     sourceImage.Exclude(current.NodeManager);
                 }
                 NodeManagerMonitoredItemTransitionMode transitionMode =
@@ -177,16 +190,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         : NodeManagerMonitoredItemTransitionMode.Migrate;
                 if (change.Document is null)
                 {
-                    lifecycleChanges.Add(NodeManagerBatchChange.Remove(
-                        current ?? throw new ArgumentException("Retirement has no current owner.", nameof(changes))));
+                    lifecycleChanges.Add(LifecycleChange.Remove(
+                        (current ?? throw new ArgumentException(
+                            "Retirement has no current owner.", nameof(changes))).Slot));
                     continue;
                 }
                 RuntimeNodeSetOptions options = BuildOptions(change.Document);
                 runtimePublications.Add(new WotProjectionRuntimePublication(options));
                 IAsyncNodeManagerFactory factory = sourceImage.Capture(new RuntimeNodeSetNodeManagerFactory(options));
                 lifecycleChanges.Add(current is null
-                    ? NodeManagerBatchChange.Add(factory)
-                    : NodeManagerBatchChange.Replace(current, factory, transitionMode));
+                    ? LifecycleChange.Add(factory)
+                    : LifecycleChange.Replace(current.Slot, factory, transitionMode));
                 documents.Add(change.Document);
             }
             if (views is IWotPreparedViewSourceConsumer consumer)
@@ -195,7 +209,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (views is not null)
             {
-                foreach (NodeManagerBatchChange change in views.Changes)
+                foreach (LifecycleChange change in views.Changes)
                 {
                     lifecycleChanges.Add(change);
                 }
@@ -230,13 +244,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed record PreparedChanges(
-            ArrayOf<NodeManagerBatchChange> Changes,
+            ArrayOf<LifecycleChange> Changes,
             ArrayOf<WotProjectionDocument> Documents,
             ArrayOf<WotProjectionRuntimePublication> RuntimePublications,
             WotPreparedSourceImage? SourceImage);
 
         private sealed class PublicationCapture(
-            LifecycleWotProjectionHost owner, INodeManagerPublicationCapture capture) : IWotProjectionPublicationCapture
+            LifecycleWotProjectionHost owner, ILifecycleCapture capture) : IWotProjectionPublicationCapture
         {
             /// <summary>
             /// Begins a publication invocation for the executing request on the captured source-owner revisions.
@@ -247,14 +261,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IOperationContext? callerContext,
                 CancellationToken cancellationToken)
             {
-                INodeManagerPublication invocation = await capture.BeginAsync(cancellationToken)
+                ILifecycleWriter invocation = await capture.BeginAsync(cancellationToken)
                     .ConfigureAwait(false);
                 return new PublicationInvocation(owner, invocation);
             }
         }
 
         private sealed class PublicationInvocation(
-            LifecycleWotProjectionHost owner, INodeManagerPublication publication) : IWotProjectionValidationPublication
+            LifecycleWotProjectionHost owner, ILifecycleWriter publication) : IWotProjectionValidationPublication
         {
             /// <summary>
             /// Gets the is current for <c>PublicationInvocation</c>.
@@ -284,7 +298,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ArrayOf<INodeManagerReadImage> images,
                 CancellationToken cancellationToken = default)
             {
-                IPreparedNodeManagerBatch batch = await publication.PrepareReadImagesAsync(images, cancellationToken)
+                IPreparedChanges batch = await publication.PrepareReadImagesAsync(images, cancellationToken)
                     .ConfigureAwait(false);
                 return new PreparedPublication(batch, [], null, []);
             }
@@ -312,11 +326,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed class PreparedPublication(
-            IPreparedNodeManagerBatch batch,
+            IPreparedChanges batch,
             ArrayOf<WotProjectionHandle> projections,
             WotPreparedViewGraphState? graph,
             ArrayOf<WotProjectionRuntimePublication> runtimePublications,
-            NamespaceTable? namespaceUris = null)
+            NamespaceTable? namespaceUris = null,
+            ILifecycleWriter? ownedWriter = null)
             : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
         {
             /// <inheritdoc/>
@@ -344,7 +359,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
             {
-                batch.BindReadImages(images);
+                if (images.IsNull)
+                {
+                    throw new ArgumentNullException(nameof(images));
+                }
+                lock (m_binding)
+                {
+                    if (m_imagesBound)
+                    {
+                        throw new InvalidOperationException("Read images can only be bound once before consumption.");
+                    }
+                    m_imagesBound = true;
+                    for (int i = 0; i < images.Count; i++)
+                    {
+                        batch.SetMetadata(images[i]);
+                    }
+                }
             }
 
             /// <summary>
@@ -359,7 +389,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 CancellationToken cancellationToken = default)
             {
                 _ = publishCommittedState ?? throw new ArgumentNullException(nameof(publishCommittedState));
-                NodeManagerBatchResult result = await batch.CommitAsync(
+                lock (m_binding)
+                {
+                    m_imagesBound = true;
+                }
+                LifecycleResult result = await batch.CommitAsync(
                     decideAsync,
                     () =>
                     {
@@ -373,10 +407,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 CleanupFailure = result.CleanupFailure;
             }
 
-            public ValueTask DisposeAsync()
+            public async ValueTask DisposeAsync()
             {
-                return batch.DisposeAsync();
+                lock (m_binding)
+                {
+                    m_imagesBound = true;
+                }
+                try
+                {
+                    await batch.DisposeAsync().ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (ownedWriter is not null)
+                    {
+                        await ownedWriter.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
             }
+
+            /// <summary>Serializes image binding with consumption.</summary>
+            private readonly Lock m_binding = new();
+
+            /// <summary>Whether image binding is complete or the publication has been consumed.</summary>
+            private bool m_imagesBound;
         }
     }
 }

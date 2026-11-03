@@ -179,56 +179,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        /// <summary>
-        /// The internal <see cref="NodeManagerRegistration"/> constructor must record the
-        /// exact <c>Id</c>, <c>Generation</c>, and <c>NodeManager</c> passed to it, and must
-        /// copy the NodeManager's namespace URIs defensively at construction time: mutating
-        /// the source list afterwards must not affect the registration.
-        /// </summary>
-        [Test]
-        public void NodeManagerRegistrationCopiesNamespaceUris()
-        {
-            var sourceNamespaces = new List<string> { "urn:test:one", "urn:test:two" };
-            var nodeManagerMock = new Mock<IAsyncNodeManager>();
-            nodeManagerMock.Setup(m => m.NamespaceUris).Returns(() => sourceNamespaces);
-            IAsyncNodeManager nodeManager = nodeManagerMock.Object;
-
-            var id = Guid.NewGuid();
-            // A fresh manager's published identity is generation 1; the handle must match it.
-            const long generation = 1;
-            var registration = new NodeManagerRegistration(id, generation, nodeManager);
-
-            // Mutate the source list after construction: the registration must be unaffected.
-            sourceNamespaces.Add("urn:test:three");
-            sourceNamespaces[0] = "urn:test:mutated";
-
-            Assert.That(registration.Id, Is.EqualTo(id));
-            Assert.That(registration.Generation, Is.EqualTo(generation));
-            Assert.That(registration.NodeManager, Is.SameAs(nodeManager));
-            Assert.That(registration.NamespaceUris.Count, Is.EqualTo(2));
-            Assert.That(registration.NamespaceUris[0], Is.EqualTo("urn:test:one"));
-            Assert.That(registration.NamespaceUris[1], Is.EqualTo("urn:test:two"));
-        }
-
-        /// <summary>
-        /// A custom-routed NodeManager may return a null namespace list. The
-        /// lifecycle handle must preserve that shape rather than rejecting a
-        /// manager the master routing layer accepts.
-        /// </summary>
-        [Test]
-        public void NodeManagerRegistrationAllowsNullNamespaceUris()
-        {
-            var nodeManager = new Mock<IAsyncNodeManager>();
-            nodeManager.Setup(manager => manager.NamespaceUris).Returns((IEnumerable<string>)null!);
-
-            var registration = new NodeManagerRegistration(
-                Guid.NewGuid(),
-                1,
-                nodeManager.Object);
-
-            Assert.That(registration.NamespaceUris.IsNull, Is.True);
-        }
-
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task EmptyRetiredGenerationDrainDoesNotBlockShutdownAsync()
@@ -385,6 +335,187 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     failPublication = false;
                     await RemoveAndRetireAsync(lifecycle, current, timeout.Token).ConfigureAwait(false);
                     candidateDisposal.Verify(value => value.Dispose(), Times.Once);
+                }
+            }
+            finally
+            {
+                nodeManagerProperty.SetValue(server, master);
+            }
+        }
+
+        /// <summary>
+        /// A host failure after committing reference changes must leave additions and observer notifications
+        /// retryable.
+        /// </summary>
+        [Test]
+        public async Task CommittedReferenceHostFailureRetainsAdditionsAndObserversForRetryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string ownerUri = kModelNamespaceUri + ":ReferencePublicationRetryOwner";
+            const string unsupportedUri = kModelNamespaceUri + ":ReferencePublicationRetryUnsupported";
+            const string candidateUri = kModelNamespaceUri + ":ReferencePublicationRetryCandidate";
+
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            bool failPublication = false;
+            bool failAddReferences = true;
+            bool failObserverNotification = true;
+            var failure = new InvalidOperationException("The host failed after committing reference changes.");
+            Mock<IMasterNodeManager> proxy = CreatePostSwapPublicationFailureHost(
+                master, () => failPublication, notifyBeforeFailure: true, failure);
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(
+                nameof(ServerInternalData.NodeManager)) ??
+                throw new AssertionException("The bound master NodeManager property was not found.");
+            nodeManagerProperty.SetValue(server, proxy.Object);
+
+            try
+            {
+                using var lifecycle = new NodeManagerLifecycle(m_server);
+                TrackingLifecycleNodeManager? owner = null;
+                NodeManagerRegistration ownerRegistration = await lifecycle.AddAsync(
+                    CreateTrackingNodeManagementFactory(kGeneration1Value, manager => owner = manager, ownerUri),
+                    timeout.Token).ConfigureAwait(false);
+                IServerInternal serverInternal = m_server.CurrentInstance;
+                ushort ownerNamespaceIndex = (ushort)serverInternal.NamespaceUris.GetIndex(ownerUri);
+                var ownerRootId = new NodeId(kRootNodeId, ownerNamespaceIndex);
+                NodeState ownerRoot = RequireLifecycleValue(owner!.Find(ownerRootId));
+
+                var unsupportedManager = CreateLifecycleNodeManager(unsupportedUri);
+                var unsupportedFactory = new Mock<IAsyncNodeManagerFactory>();
+                unsupportedFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(unsupportedManager.Object);
+                NodeManagerRegistration unsupportedRegistration = await lifecycle.AddAsync(
+                    unsupportedFactory.Object, timeout.Token).ConfigureAwait(false);
+
+                ushort candidateNamespaceIndex = (ushort)serverInternal.NamespaceUris.GetIndexOrAppend(candidateUri);
+                var candidateRootId = new NodeId(kRootNodeId, candidateNamespaceIndex);
+                var unsupportedSourceId = new NodeId(9904, ownerNamespaceIndex);
+                unsupportedManager
+                    .Setup(manager => manager.GetManagerHandleAsync(
+                        unsupportedSourceId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<object>(new object()));
+
+                var candidate = CreateLifecycleNodeManager(candidateUri);
+                candidate.Setup(manager => manager.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                    It.IsAny<CancellationToken>()))
+                    .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>((references, _) =>
+                    {
+                        MasterNodeManager.CreateExternalReference(
+                            references,
+                            ownerRootId,
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            candidateRootId);
+                        MasterNodeManager.CreateExternalReference(
+                            references,
+                            unsupportedSourceId,
+                            ReferenceTypeIds.HasComponent,
+                            false,
+                            candidateRootId);
+                    })
+                    .Returns(default(ValueTask));
+
+                IDictionary<NodeId, IList<IReference>>? deliveredAdditions = null;
+                int addReferencesAttempts = 0;
+                unsupportedManager
+                    .Setup(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<IDictionary<NodeId, IList<IReference>>, CancellationToken>(
+                        (additions, _) =>
+                        {
+                            deliveredAdditions = additions;
+                            addReferencesAttempts++;
+                        })
+                    .Returns(() => failAddReferences
+                        ? new ValueTask(Task.FromException(new InvalidOperationException(
+                            "Reference additions are temporarily unavailable.")))
+                        : default);
+
+                var candidateFactory = new Mock<IAsyncNodeManagerFactory>();
+                candidateFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(candidate.Object);
+
+                int referenceNotificationAttempts = 0;
+                int successfulReferenceNotifications = 0;
+                NodeStateReferenceAdded? previousObserver = ownerRoot.OnReferenceAdded;
+                ownerRoot.OnReferenceAdded = (_, _, _, _) =>
+                {
+                    referenceNotificationAttempts++;
+                    if (failObserverNotification)
+                    {
+                        throw new InvalidOperationException(
+                            "The reference observer is temporarily unavailable.");
+                    }
+                    successfulReferenceNotifications++;
+                };
+                try
+                {
+                    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [NodeManagerBatchChange.Add(candidateFactory.Object)], timeout.Token)
+                        .ConfigureAwait(false);
+                    failPublication = true;
+                    NodeManagerBatchResult result = await prepared.CommitAsync(
+                        _ => default, timeout.Token).ConfigureAwait(false);
+                    NodeManagerRegistration candidateRegistration = result.Registrations[0];
+
+                    Assert.That(result.CleanupFailure?.ToString(), Does.Contain(failure.Message));
+                    Assert.That(lifecycle.Registrations.Find(
+                        registration => registration.Id == candidateRegistration.Id),
+                        Is.SameAs(candidateRegistration));
+                    Assert.That(ownerRoot.ReferenceExists(
+                        ReferenceTypeIds.HasComponent, false, candidateRootId), Is.True,
+                        "A committed reference must not be rolled back after the host throws.");
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(1));
+                    Assert.That(successfulReferenceNotifications, Is.Zero);
+                    Assert.That(addReferencesAttempts, Is.EqualTo(1));
+                    Assert.That(result.Issues.ToList().Any(issue =>
+                        issue.Stage == NodeManagerReconciliationStage.References && issue.IsRetryable), Is.True);
+
+                    failPublication = false;
+                    failAddReferences = false;
+                    failObserverNotification = false;
+                    await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+
+                    Assert.That(deliveredAdditions, Is.Not.Null);
+                    Assert.That(deliveredAdditions, Has.Count.EqualTo(1));
+                    Assert.That(deliveredAdditions.ContainsKey(unsupportedSourceId), Is.True);
+                    IReference delivered = deliveredAdditions[unsupportedSourceId].Single();
+                    Assert.That(delivered.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
+                    Assert.That(delivered.IsInverse, Is.False);
+                    Assert.That(delivered.TargetId, Is.EqualTo(candidateRootId));
+                    Assert.That(addReferencesAttempts, Is.EqualTo(2));
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(2));
+                    Assert.That(successfulReferenceNotifications, Is.EqualTo(1));
+                    Assert.That(result.Issues.ToList().Any(issue =>
+                        issue.Stage == NodeManagerReconciliationStage.References), Is.False);
+                    unsupportedManager.Verify(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+                    await result.RetryReconciliationAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(referenceNotificationAttempts, Is.EqualTo(2),
+                        "A completed observer notification is not replayed by a repeated retry.");
+                    unsupportedManager.Verify(manager => manager.AddReferencesAsync(
+                        It.IsAny<IDictionary<NodeId, IList<IReference>>>(),
+                        It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+                    ownerRoot.OnReferenceAdded = previousObserver;
+                    await RemoveAndRetireAsync(lifecycle, candidateRegistration, timeout.Token).ConfigureAwait(false);
+                    await RemoveAndRetireAsync(
+                        lifecycle, unsupportedRegistration, timeout.Token).ConfigureAwait(false);
+                    await RemoveAndRetireAsync(lifecycle, ownerRegistration, timeout.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    ownerRoot.OnReferenceAdded = previousObserver;
                 }
             }
             finally
@@ -6348,6 +6479,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Host guards reject invalid publication and preserve a single private abort, including after failure.
+        /// </summary>
         [Test]
         public async Task DynamicHostGuardsRejectInvalidArgumentsAndStateAsync()
         {
@@ -6356,12 +6490,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:HostGuards");
             var prepared = new PreparedNodeManager(
                 candidate.Object,
-                []);
+                [],
+                NodeManagerGenerationRegistry.CreateAddition(candidate.Object));
+            prepared.Generation.Gate.Abort();
 
             ArgumentNullException exception =
                 await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await host
-                        .PrepareAsync(null!)
+                        .PrepareAsync(null!, prepared.Generation, null)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
@@ -6392,7 +6528,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using INodeManagerBatchAdmission admission = await batchHost.AcquireCommitAdmissionAsync(
                 null, CancellationToken.None).ConfigureAwait(false);
             int decisions = 0;
-            var context = new NodeManagerBatchContext(
+            var commit = new Mock<INodeManagerPublicationCommit>();
+            commit.SetupGet(value => value.HasDecision).Returns(true);
+            commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>())).Returns(() =>
+            {
+                decisions++;
+                return default;
+            });
+            commit.Setup(value => value.Publish())
+                .Callback(() => Assert.Fail("An unprepared candidate must not be published."));
+            var context = new NodeManagerPublicationPlan(
                 Candidates: [prepared],
                 Removed: [],
                 TypeTree: preparation.TypeTree,
@@ -6402,23 +6547,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 OriginalFactory: preparation.OriginalFactory,
                 FactoryRevision: preparation.FactoryRevision,
                 ReadImages: [],
-                DecideAsync: _ =>
-                {
-                    decisions++;
-                    return default;
-                },
-                ViewPublished: () => Assert.Fail("An unprepared candidate must not be published."),
-                Published: () =>
-                {
-                    Assert.Fail("An unprepared candidate must not complete publication.");
-                    return default;
-                },
-                ReconcileBindingsAsync: () => default,
-                DeferReferenceRemoval: (_, _) => Assert.Fail("An unprepared candidate must not retire references."),
-                ReportCleanupFailure: _ => Assert.Fail("An unprepared candidate must fail before commit."),
+                Commit: commit.Object,
+                CaptureCommittedReferences: _ => Assert.Fail(
+                    "An unprepared candidate must not capture committed references."),
                 Preparation: preparation,
                 CancellationToken: CancellationToken.None,
-                Reconciliation: null!,
                 Admission: admission);
             await Assert.ThatAsync(async () => await batchHost.CommitBatchAsync(context).ConfigureAwait(false),
                 Throws.InvalidOperationException.With.Message.Contains("no prepared generation")).ConfigureAwait(false);
@@ -6426,7 +6559,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(decisions, Is.Zero);
                 Assert.That(prepared.Published, Is.False);
-                Assert.That(prepared.Generation, Is.Null);
+                Assert.That(prepared.Generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
             }
 
             Mock<IAsyncNodeManager> unowned = CreateLifecycleNodeManager(
@@ -6448,10 +6581,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Times.Once);
 
             await host.AbortAsync(prepared).ConfigureAwait(false);
+            await host.AbortAsync(prepared).ConfigureAwait(false);
             candidate.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
                     CancellationToken.None),
                 Times.Once);
+
+            Mock<IAsyncNodeManager> failingCandidate = CreateLifecycleNodeManager(
+                "urn:opcfoundation.org:Tests:NodeManagerLifecycle:FailedAbort");
+            failingCandidate.Setup(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("Private destruction failed."));
+            var failedPreparation = new PreparedNodeManager(
+                failingCandidate.Object, [], NodeManagerGenerationRegistry.CreateAddition(failingCandidate.Object));
+            await Assert.ThatAsync(() => host.AbortAsync(failedPreparation).AsTask(),
+                Throws.InvalidOperationException.With.Message.EqualTo("Private destruction failed.")).ConfigureAwait(false);
+            await host.AbortAsync(failedPreparation).ConfigureAwait(false);
+            failingCandidate.Verify(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(failedPreparation.Generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
 
             Mock<IAsyncNodeManager> owned = CreateLifecycleNodeManager(
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:Owned");
@@ -6466,7 +6612,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .NodeManagerLifecycle
                 .AddAsync(factory.Object, null)
                 .ConfigureAwait(false);
-            var duplicate = new PreparedNodeManager(owned.Object, []);
+            var duplicate = new PreparedNodeManager(owned.Object, [], registration.Identity);
             Assert.That(
                 async () => await host
                     .AbortAsync(duplicate)
@@ -6474,9 +6620,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.InvalidOperationException.With.Message.Contains(
                     "cannot be aborted"));
             owned.Verify(manager => manager.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
-            duplicate.Published = true;
+            duplicate.Publish();
             await Assert.ThatAsync(() => host.AbortAsync(duplicate).AsTask(),
-                Throws.InvalidOperationException.With.Message.Contains("already been published")).ConfigureAwait(false);
+                Throws.InvalidOperationException.With.Message.Contains("cannot be aborted")).ConfigureAwait(false);
 
             await m_server.NodeManagerLifecycle
                 .RemoveAsync(registration, null)
@@ -7027,8 +7173,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             proxy.SetupGet(value => value.CoreNodeManager).Returns(master.CoreNodeManager);
             dynamicProxy.SetupGet(value => value.GenerationReconciler).Returns(host.GenerationReconciler);
             dynamicProxy.Setup(value => value.PrepareAsync(
-                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
-                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.PrepareAsync(manager, ct));
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<NodeManagerGeneration>(),
+                It.IsAny<IAsyncNodeManager?>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, NodeManagerGeneration, IAsyncNodeManager?, CancellationToken>(
+                    host.PrepareAsync);
             dynamicProxy.Setup(value => value.AbortAsync(
                 It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
                 .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.AbortAsync(prepared, ct));
@@ -7070,22 +7218,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 });
             batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
                 .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
-            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerBatchContext>()))
-                .Returns<NodeManagerBatchContext>(context =>
+            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerPublicationPlan>()))
+                .Returns<NodeManagerPublicationPlan>(async context =>
                 {
-                    return batchHost.CommitBatchAsync(shouldFail()
-                        ? context with
+                    bool fail = shouldFail();
+                    if (fail && !notifyBeforeFailure)
                     {
-                        Published = async () =>
+                        var commit = new Mock<INodeManagerPublicationCommit>();
+                        commit.SetupGet(value => value.HasDecision).Returns(() => context.Commit.HasDecision);
+                        commit.Setup(value => value.DecideAsync(It.IsAny<CancellationToken>()))
+                            .Returns<CancellationToken>(context.Commit.DecideAsync);
+                        commit.Setup(value => value.Publish()).Callback(() =>
                         {
-                            if (notifyBeforeFailure)
-                            {
-                                await context.Published().ConfigureAwait(false);
-                            }
+                            context.Commit.Publish();
                             throw failure;
-                        }
+                        });
+                        return await batchHost.CommitBatchAsync(
+                            context with { Commit = commit.Object }).ConfigureAwait(false);
                     }
-                        : context);
+                    PublishedReferenceChanges? references = await batchHost.CommitBatchAsync(context)
+                        .ConfigureAwait(false);
+                    if (fail)
+                    {
+                        throw failure;
+                    }
+                    return references;
                 });
             return proxy;
         }

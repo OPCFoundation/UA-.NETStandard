@@ -510,17 +510,57 @@ namespace Opc.Ua.Server
         /// Detaches staging metadata and disposes a reclaimed manager.
         /// </summary>
         /// <param name="nodeManager">The manager to dispose.</param>
+        /// <param name="cleanup">The completed disposal stages retained across retries.</param>
         /// <returns>The asynchronous disposal.</returns>
-        private static async ValueTask DisposeNodeManagerAsync(IAsyncNodeManager nodeManager)
+        private async ValueTask DisposeNodeManagerAsync(
+            IAsyncNodeManager nodeManager,
+            RetirementCleanupState cleanup)
         {
             ChangePreparer.Detach(nodeManager);
-            if (nodeManager is IAsyncDisposable asyncDisposable)
+            Exception? managerFailure = null;
+            if (!cleanup.ManagerDisposed)
             {
-                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    if (nodeManager is IAsyncDisposable asyncDisposable)
+                    {
+                        await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else if (nodeManager is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+                    cleanup.ManagerDisposed = true;
+                    RecordShutdownCleanupProgress();
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    managerFailure = failure;
+                }
             }
-            else if (nodeManager is IDisposable disposable)
+            try
             {
-                disposable.Dispose();
+                if (!cleanup.StagingDisposed)
+                {
+                    await ChangePreparer.DisposeAsync(nodeManager).ConfigureAwait(false);
+                    cleanup.StagingDisposed = true;
+                    RecordShutdownCleanupProgress();
+                }
+            }
+            catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+            {
+                if (managerFailure is not null)
+                {
+                    throw new AggregateException(
+                        "NodeManager and candidate historian cleanup both failed.",
+                        managerFailure,
+                        cleanupFailure);
+                }
+                throw;
+            }
+            if (managerFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(managerFailure).Throw();
             }
         }
 
@@ -642,7 +682,7 @@ namespace Opc.Ua.Server
             if (!cleanup.Disposed)
             {
                 host.ReleaseRetiringEventGeneration(retired.Generation);
-                await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
+                await DisposeNodeManagerAsync(retired.NodeManager, cleanup).ConfigureAwait(false);
                 cleanup.Disposed = true;
                 RecordShutdownCleanupProgress();
             }
@@ -855,6 +895,16 @@ namespace Opc.Ua.Server
             /// Gets or sets whether destroyed external references have been removed.
             /// </summary>
             public bool DestroyedExternalReferencesRemoved { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the manager's disposal callback has completed.
+            /// </summary>
+            public bool ManagerDisposed { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether candidate historian resource cleanup has completed.
+            /// </summary>
+            public bool StagingDisposed { get; set; }
 
             /// <summary>
             /// Gets or sets whether disposal has completed.

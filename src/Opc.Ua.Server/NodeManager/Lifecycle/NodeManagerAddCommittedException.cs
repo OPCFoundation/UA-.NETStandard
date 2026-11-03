@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "A committed add exception is meaningful only with its authoritative registration.")]
-    public sealed class NodeManagerAddCommittedException : InvalidOperationException
+    public sealed class NodeManagerAddCommittedException : InvalidOperationException, INodeManagerCommittedFailure
     {
         /// <summary>
         /// Initializes an exception for an add whose registration already became authoritative.
@@ -76,6 +76,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative change-set result.
+        /// </summary>
+        /// <param name="registration">The committed registration.</param>
+        /// <param name="result">The authoritative result.</param>
+        /// <param name="message">The post-commit failure message.</param>
+        /// <param name="innerException">The failure raised after publication.</param>
+        public NodeManagerAddCommittedException(
+            NodeManagerRegistration registration,
+            LifecycleResult result,
+            string message,
+            Exception innerException)
+            : this(registration, new NodeManagerBatchResult(result), message, innerException)
+        {
+        }
+
+        /// <summary>
         /// Gets the committed registration that remains the active NodeManager generation.
         /// </summary>
         public NodeManagerRegistration Registration { get; }
@@ -84,5 +100,8 @@ namespace Opc.Ua.Server
         /// Gets the committed transaction, or null for exceptions constructed with the legacy constructor.
         /// </summary>
         public NodeManagerBatchResult? Result { get; }
+
+        /// <inheritdoc/>
+        public LifecycleResult? CommittedResult => Result?.CommittedResult;
     }
 }

@@ -39,7 +39,7 @@ namespace Opc.Ua
     public partial class TypeTable
     {
         /// <summary>
-        /// Copies the type graph without sharing mutable hierarchy or encoding storage.
+        /// Captures an isolated view that copies the type graph when first mutated.
         /// </summary>
         /// <param name="source">The type table.</param>
         /// <param name="revision">The captured source revision.</param>
@@ -53,58 +53,66 @@ namespace Opc.Ua
             {
                 source = this;
                 revision = m_revision;
-                var snapshot = new TypeTable(namespaceUris ?? m_namespaceUris)
+                var storage = new Storage();
+                storage.ShareGraphFrom(m_storage);
+                return new TypeTable(namespaceUris ?? m_namespaceUris)
                 {
                     m_captureSource = new WeakReference<TypeTable>(this),
-                    m_captureRevision = m_revision
+                    m_captureRevision = m_revision,
+                    m_storage = storage
                 };
-                var copies = new Dictionary<TypeInfo, TypeInfo>();
-                var pending = new Queue<TypeInfo>();
-                foreach (KeyValuePair<NodeId, TypeInfo> entry in m_nodes)
-                {
-                    snapshot.m_nodes.Add(entry.Key, Copy(entry.Value));
-                }
-                foreach (KeyValuePair<NodeId, TypeInfo> entry in m_encodings)
-                {
-                    snapshot.m_encodings.Add(entry.Key, Copy(entry.Value));
-                }
-                foreach (KeyValuePair<QualifiedName, TypeInfo> entry in m_referenceTypes)
-                {
-                    snapshot.m_referenceTypes.Add(entry.Key, Copy(entry.Value));
-                }
-                while (pending.Count != 0)
-                {
-                    TypeInfo original = pending.Dequeue();
-                    TypeInfo copy = copies[original];
-                    copy.SuperType = original.SuperType is null ? null : Copy(original.SuperType);
-                    if (original.SubTypes is not null)
-                    {
-                        copy.SubTypes = [];
-                        foreach (KeyValuePair<NodeId, TypeInfo> child in original.SubTypes)
-                        {
-                            copy.SubTypes.Add(child.Key, Copy(child.Value));
-                        }
-                    }
-                }
-                return snapshot;
+            }
+        }
 
-                TypeInfo Copy(TypeInfo original)
+        private static RegistrationGraph CopyGraph(RegistrationGraph source)
+        {
+            var graph = new RegistrationGraph();
+            var copies = new Dictionary<TypeInfo, TypeInfo>();
+            var pending = new Queue<TypeInfo>();
+            foreach (KeyValuePair<NodeId, TypeInfo> entry in source.Nodes)
+            {
+                graph.Nodes.Add(entry.Key, Copy(entry.Value));
+            }
+            foreach (KeyValuePair<NodeId, TypeInfo> entry in source.Encodings)
+            {
+                graph.Encodings.Add(entry.Key, Copy(entry.Value));
+            }
+            foreach (KeyValuePair<QualifiedName, TypeInfo> entry in source.References)
+            {
+                graph.References.Add(entry.Key, Copy(entry.Value));
+            }
+            while (pending.Count != 0)
+            {
+                TypeInfo original = pending.Dequeue();
+                TypeInfo copy = copies[original];
+                copy.SuperType = original.SuperType is null ? null : Copy(original.SuperType);
+                if (original.SubTypes is not null)
                 {
-                    if (copies.TryGetValue(original, out TypeInfo? existing))
+                    copy.SubTypes = [];
+                    foreach (KeyValuePair<NodeId, TypeInfo> child in original.SubTypes)
                     {
-                        return existing;
+                        copy.SubTypes.Add(child.Key, Copy(child.Value));
                     }
-                    var copy = new TypeInfo
-                    {
-                        NodeId = original.NodeId,
-                        BrowseName = original.BrowseName,
-                        Deleted = original.Deleted,
-                        Encodings = original.Encodings is null ? null : [.. original.Encodings]
-                    };
-                    copies.Add(original, copy);
-                    pending.Enqueue(original);
-                    return copy;
                 }
+            }
+            return graph;
+
+            TypeInfo Copy(TypeInfo original)
+            {
+                if (copies.TryGetValue(original, out TypeInfo? existing))
+                {
+                    return existing;
+                }
+                var copy = new TypeInfo
+                {
+                    NodeId = original.NodeId,
+                    BrowseName = original.BrowseName,
+                    Deleted = original.Deleted,
+                    Encodings = original.Encodings is null ? null : [.. original.Encodings]
+                };
+                copies.Add(original, copy);
+                pending.Enqueue(original);
+                return copy;
             }
         }
 
@@ -137,6 +145,7 @@ namespace Opc.Ua
                 return merged;
             }
             TypeTable proposed = additions.CaptureSnapshot(out _, out _);
+            merged.EnsureWritableGraph();
             foreach (KeyValuePair<NodeId, TypeInfo> entry in proposed.m_nodes)
             {
                 TypeInfo candidate = entry.Value;
@@ -233,6 +242,7 @@ namespace Opc.Ua
                     target.Encodings = [.. target.Encodings, encoding.Key];
                 }
             }
+            merged.m_storage.MarkGraphShared();
             return merged;
         }
 
@@ -296,6 +306,11 @@ namespace Opc.Ua
             }
         }
 
+        private void EnsureWritableGraph()
+        {
+            m_storage.EnsureWritableGraph();
+        }
+
         /// <summary>Weak provenance avoids retaining earlier serving graphs through prepared copies.</summary>
         private WeakReference<TypeTable>? m_captureSource;
 
@@ -337,9 +352,81 @@ namespace Opc.Ua
         /// </summary>
         private sealed class Storage
         {
+            /// <summary>
+            /// Initializes an empty registration graph.
+            /// </summary>
+            internal Storage()
+            {
+                m_graph = new RegistrationGraph();
+            }
+
+            /// <summary>
+            /// Shares a graph with another storage handle until either handle mutates it.
+            /// </summary>
+            /// <param name="source">The storage handle to share registrations with.</param>
+            internal void ShareGraphFrom(Storage source)
+            {
+                m_graph = source.m_graph;
+                m_graph.MarkShared();
+            }
+
+            /// <summary>
+            /// Detaches from a graph that may be read by another handle.
+            /// </summary>
+            internal void EnsureWritableGraph()
+            {
+                if (m_graph.IsShared)
+                {
+                    m_graph = CopyGraph(m_graph);
+                }
+            }
+
+            /// <summary>
+            /// Marks the graph immutable until all writer handles detach.
+            /// </summary>
+            internal void MarkGraphShared()
+            {
+                m_graph.MarkShared();
+            }
+
             /// <summary>Serializes access through every bound handle.</summary>
             internal readonly Lock Gate = new();
 
+            /// <summary>Indexes registered reference names.</summary>
+            internal SortedDictionary<QualifiedName, TypeInfo> References
+            {
+                get => m_graph.References;
+                set => m_graph.References = value;
+            }
+
+            /// <summary>Indexes registered types.</summary>
+            internal NodeIdDictionary<TypeInfo> Nodes
+            {
+                get => m_graph.Nodes;
+                set => m_graph.Nodes = value;
+            }
+
+            /// <summary>Indexes data type encoding ownership.</summary>
+            internal NodeIdDictionary<TypeInfo> Encodings
+            {
+                get => m_graph.Encodings;
+                set => m_graph.Encodings = value;
+            }
+
+            private RegistrationGraph m_graph;
+
+            /// <summary>Identifies the current canonical graph revision.</summary>
+            internal long Revision;
+
+            /// <summary>Rejects writes reserved by an undecided publication.</summary>
+            internal bool PublicationPending;
+        }
+
+        /// <summary>
+        /// Holds mutable type registrations that become immutable while shared by snapshots.
+        /// </summary>
+        private sealed class RegistrationGraph
+        {
             /// <summary>Indexes registered reference names.</summary>
             internal SortedDictionary<QualifiedName, TypeInfo> References = [];
 
@@ -349,11 +436,16 @@ namespace Opc.Ua
             /// <summary>Indexes data type encoding ownership.</summary>
             internal NodeIdDictionary<TypeInfo> Encodings = [];
 
-            /// <summary>Identifies the current canonical graph revision.</summary>
-            internal long Revision;
+            /// <summary>Indicates that a snapshot may still read this graph.</summary>
+            internal bool IsShared => Volatile.Read(ref m_shared) != 0;
 
-            /// <summary>Rejects writes reserved by an undecided publication.</summary>
-            internal bool PublicationPending;
+            /// <summary>Marks the graph immutable until a writer detaches it.</summary>
+            internal void MarkShared()
+            {
+                Interlocked.Exchange(ref m_shared, 1);
+            }
+
+            private int m_shared;
         }
 
         /// <summary>
@@ -371,9 +463,7 @@ namespace Opc.Ua
                 TypeTable current = m_owner ?? throw new ObjectDisposedException(nameof(Publication));
                 lock (current.m_lock)
                 {
-                    current.m_storage.Nodes = merged.m_nodes;
-                    current.m_storage.Encodings = merged.m_encodings;
-                    current.m_storage.References = merged.m_referenceTypes;
+                    current.m_storage.ShareGraphFrom(merged.m_storage);
                     current.m_revision++;
                 }
             }

@@ -65,6 +65,37 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Starts discovery registration after the initial NodeManager readiness callbacks have completed.
+        /// </summary>
+        private void StartRegistrationAfterReadiness()
+        {
+            lock (m_registrationLock)
+            {
+                if (m_registrationInfo is null)
+                {
+                    throw new InvalidOperationException("Server registration information is not initialized.");
+                }
+
+                m_registrationInfo.IsOnline = true;
+                if (m_maxRegistrationInterval <= 0)
+                {
+                    return;
+                }
+
+                m_registrationTimer?.Dispose();
+                m_registrationTimer = null;
+                m_registrationStopped = false;
+                m_registrationCts = new CancellationTokenSource();
+                m_logger.ServerRegistrationTimerStarted();
+                m_registrationTimer = TimeProvider.CreateTimer(
+                    OnRegisterServer,
+                    ++m_registrationGeneration,
+                    TimeSpan.FromMilliseconds(m_minRegistrationInterval),
+                    Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        /// <summary>
         /// Initializes a new instance of <see cref="StandardServer"/>
         /// with an explicit <see cref="TimeProvider"/> so the server's
         /// timers and duration calculations can be mocked in tests.
@@ -4542,7 +4573,7 @@ namespace Opc.Ua.Server
                     m_registrationInfo.ProductUri = serverDescription.ProductUri;
                     m_registrationInfo.ServerType = serverDescription.ApplicationType;
                     m_registrationInfo.GatewayServerUri = null;
-                    m_registrationInfo.IsOnline = true;
+                    m_registrationInfo.IsOnline = false;
                     m_registrationInfo.SemaphoreFilePath = null;
 
                     // add all discovery urls.
@@ -4592,21 +4623,6 @@ namespace Opc.Ua.Server
                     m_minRegistrationInterval = 1000;
                     m_lastRegistrationInterval = m_minRegistrationInterval;
 
-                    // start registration timer.
-                    m_registrationTimer?.Dispose();
-                    m_registrationTimer = null;
-
-                    if (m_maxRegistrationInterval > 0)
-                    {
-                        m_registrationStopped = false;
-                        m_registrationCts = new CancellationTokenSource();
-                        m_logger.ServerRegistrationTimerStarted();
-                        m_registrationTimer = TimeProvider.CreateTimer(
-                            OnRegisterServer,
-                            ++m_registrationGeneration,
-                            TimeSpan.FromMilliseconds(m_minRegistrationInterval),
-                            Timeout.InfiniteTimeSpan);
-                    }
                 }
             }
             catch (OperationCanceledException cancellation)
@@ -4656,6 +4672,7 @@ namespace Opc.Ua.Server
                 }
                 // Application setup servers enter NoConfiguration (OPC 10000-12 G.2).
                 SetServerState(StartupServerState);
+                StartRegistrationAfterReadiness();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {

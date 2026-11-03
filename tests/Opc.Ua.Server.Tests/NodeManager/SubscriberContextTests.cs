@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Identity;
@@ -41,6 +44,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public sealed class SubscriberContextTests
     {
+        /// <summary>
+        /// Each operation diagnostics mask retains its own stable context, including sessionless sampling.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SamplingDiagnosticsContextsAreStableAndDistinct(bool sessionless)
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem item = subscriber.CreateItem();
+            if (sessionless)
+            {
+                subscriber.ActiveSession = null;
+            }
+            OperationContext first = MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationAll);
+            OperationContext second = MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationInnerStatusCode);
+
+            Assert.That(first, Is.Not.SameAs(second));
+            Assert.That(first.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.OperationAll));
+            Assert.That(second.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.OperationInnerStatusCode));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationAll), Is.SameAs(first));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(
+                item, DiagnosticsMasks.OperationInnerStatusCode), Is.SameAs(second));
+        }
+
         /// <summary>
         /// Items of one session share one context, and its system context copy per template.
         /// </summary>
@@ -61,6 +91,86 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(context.ChannelContext?.EndpointDescription, Is.SameAs(subscriber.Endpoint));
                 Assert.That(context.GetSystemContext(template), Is.SameAs(
                     MonitoredReadAuthorization.GetSubscriberContext(second).GetSystemContext(template)));
+            }
+        }
+
+        /// <summary>
+        /// Concurrent items sharing one subscriber context reuse copies for a manager set larger
+        /// than the former request-cache bound.
+        /// </summary>
+        [Test]
+        public void ConcurrentItemsReuseLargeTemplateSetThroughSharedSubscriberContext()
+        {
+            const int templateCount = 24;
+            var subscriber = new Subscriber();
+            IMonitoredItem first = subscriber.CreateItem();
+            IMonitoredItem second = subscriber.CreateItem();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                OperationContext sharedContext = MonitoredReadAuthorization.GetSubscriberContext(first);
+                var templates = new ServerSystemContext[templateCount];
+                for (int index = 0; index < templateCount; index++)
+                {
+                    templates[index] = new ServerSystemContext(server.Object) { SystemHandle = index };
+                }
+
+                var copies = new ServerSystemContext?[templateCount];
+                int mismatches = 0;
+                Parallel.For(0, templateCount * 1000, iteration =>
+                {
+                    IMonitoredItem item = iteration % 2 == 0 ? first : second;
+                    OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(item);
+                    int index = iteration % templateCount;
+                    ServerSystemContext copy = context.GetSystemContext(templates[index]);
+                    ServerSystemContext? firstCopy = System.Threading.Interlocked.CompareExchange(
+                        ref copies[index],
+                        copy,
+                        null);
+                    if (!ReferenceEquals(context, sharedContext) ||
+                        (firstCopy != null && !ReferenceEquals(firstCopy, copy)))
+                    {
+                        System.Threading.Interlocked.Increment(ref mismatches);
+                    }
+                });
+
+                Assert.That(mismatches, Is.Zero);
+                Assert.That(copies, Has.All.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// A live shared subscriber context does not retain a retired first manager or its copy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SharedContextDoesNotPinRetiredFirstManager(bool sessionless)
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem item = subscriber.CreateItem();
+            if (sessionless)
+            {
+                subscriber.ActiveSession = null;
+            }
+            OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(item);
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                (WeakReference Template, WeakReference Copy, WeakReference Owner) references =
+                    CreateRetiredTemplateReferences(context, server.Object);
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                Assert.That(references.Template.IsAlive, Is.False);
+                Assert.That(references.Copy.IsAlive, Is.False);
+                Assert.That(references.Owner.IsAlive, Is.False);
+                GC.KeepAlive(context);
+                GC.KeepAlive(item);
+                GC.KeepAlive(subscriber);
             }
         }
 
@@ -98,6 +208,45 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(after.UserIdentity, Is.SameAs(subscriber.Identity));
             Assert.That(after.ChannelContext?.EndpointDescription, Is.SameAs(subscriber.Endpoint));
             Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(after));
+
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var template = new ServerSystemContext(server.Object);
+                ServerSystemContext beforeCopy = before.GetSystemContext(template);
+                ServerSystemContext afterCopy = after.GetSystemContext(template);
+
+                Assert.That(afterCopy, Is.Not.SameAs(beforeCopy));
+                Assert.That(afterCopy.OperationContext, Is.SameAs(after));
+            }
+        }
+
+        /// <summary>
+        /// A locale-only session update refreshes the shared operation context and then reuses it.
+        /// </summary>
+        [Test]
+        public void ChangedPreferredLocalesReplaceAndReuseSubscriberContext()
+        {
+            var subscriber = new Subscriber
+            {
+                PreferredLocales = ["en-US", "fr-FR"]
+            };
+            IMonitoredItem item = subscriber.CreateItem();
+            OperationContext before = MonitoredReadAuthorization.GetSubscriberContext(item);
+
+            subscriber.PreferredLocales = ["de-DE", "fr-FR"];
+
+            OperationContext after = MonitoredReadAuthorization.GetSubscriberContext(item);
+
+            Assert.That(after, Is.Not.SameAs(before));
+            Assert.That(after.PreferredLocales.Count, Is.EqualTo(2));
+            Assert.That(after.PreferredLocales[0], Is.EqualTo("de-DE"));
+            Assert.That(after.PreferredLocales[1], Is.EqualTo("fr-FR"));
+            Assert.That(after.UserIdentity, Is.SameAs(before.UserIdentity));
+            Assert.That(
+                after.ChannelContext?.EndpointDescription,
+                Is.SameAs(before.ChannelContext?.EndpointDescription));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(after));
         }
 
         /// <summary>
@@ -119,6 +268,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(MonitoredReadAuthorization.GetSubscriberContext(item), Is.SameAs(sessionlessContext));
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static (WeakReference Template, WeakReference Copy, WeakReference Owner)
+            CreateRetiredTemplateReferences(OperationContext context, IServerInternal server)
+        {
+            var owner = new object();
+            var template = new ServerSystemContext(server) { SystemHandle = owner };
+            ServerSystemContext copy = context.GetSystemContext(template);
+            Assert.That(copy.SystemHandle, Is.SameAs(owner));
+            return (new WeakReference(template), new WeakReference(copy), new WeakReference(owner));
+        }
+
         /// <summary>
         /// A modeled custom session whose identity, identity refresh generation and endpoint can change.
         /// </summary>
@@ -130,6 +290,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Session.SetupGet(value => value.SecureChannelId).Returns(() => SecureChannelId);
                 Session.SetupGet(value => value.EffectiveIdentity).Returns(() => Identity);
                 Session.SetupGet(value => value.EndpointDescription).Returns(() => Endpoint);
+                Session.SetupGet(value => value.PreferredLocales).Returns(() => PreferredLocales);
                 Session.Setup(value => value.CaptureIdentityRefreshSnapshot())
                     .Returns(() => new IdentityRefreshSnapshot(Identity, Generation));
             }
@@ -141,6 +302,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public long Generation { get; set; }
 
             public string SecureChannelId { get; set; } = "initial-channel";
+
+            public string[] PreferredLocales { get; set; } = [];
 
             public ISession? ActiveSession { get; set; }
 

@@ -1009,7 +1009,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot snapshot = harness.Registry.Current;
             var factory = new BlockingSourceFactory();
             var views = new Mock<IWotPreparedViewPublication>();
-            ArrayOf<NodeManagerBatchChange> changes = [NodeManagerBatchChange.Add(factory)];
+            ArrayOf<LifecycleChange> changes = [LifecycleChange.Add(factory)];
             views.SetupGet(value => value.Changes).Returns(changes);
 
             await Assert.ThatAsync(async () =>

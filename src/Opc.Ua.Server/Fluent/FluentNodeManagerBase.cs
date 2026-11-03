@@ -975,6 +975,7 @@ namespace Opc.Ua.Server.Fluent
         /// <see cref="INodeManagerReadinessNotification"/> and forward it to
         /// <see cref="CompletePublishedConfigurationAsync"/>.
         /// Steps for the same original builder run in registration order; register them all before readiness starts.
+        /// Registration fails during configuration when the manager does not participate in readiness.
         /// </remarks>
         protected void DeferConfigurationUntilReady(
             INodeManagerBuilder builder,
@@ -985,6 +986,7 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(configure));
             }
             NodeManagerBuilder attached = ResolveAttachedBuilder(builder, "published configuration");
+            EnsureReadinessParticipant(attached, "published configuration");
             if (m_publishedConfiguration is { } pending)
             {
                 pending.Add(attached, configure);
@@ -1014,10 +1016,24 @@ namespace Opc.Ua.Server.Fluent
                 throw new ArgumentNullException(nameof(configure));
             }
             NodeManagerBuilder attached = ResolveAttachedBuilder(builder, "published authoring");
+            EnsureReadinessParticipant(attached, "published authoring");
             string namespaceUri = attached.Context.NamespaceUris.GetString(attached.DefaultNamespaceIndex)
                 ?? throw new InvalidOperationException("The authoring builder has no default namespace.");
             var pass = new PublishedAuthoringPass(this, namespaceUri, configure);
             DeferConfigurationUntilReady(attached, pass.RunAsync);
+        }
+
+        private static void EnsureReadinessParticipant(NodeManagerBuilder builder, string feature)
+        {
+            if (!NodeManagerReadiness.IsParticipant(builder.NodeManager))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "{0} requires {1} to implement INodeManagerReadinessNotification.OnServerReadyAsync and " +
+                    "forward it to CompletePublishedConfigurationAsync.",
+                    feature,
+                    builder.NodeManager.GetType().FullName ?? "(unknown)");
+            }
         }
 
         /// <summary>

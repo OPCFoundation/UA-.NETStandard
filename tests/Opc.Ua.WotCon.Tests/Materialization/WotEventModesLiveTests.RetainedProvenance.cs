@@ -209,31 +209,81 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .Returns(() => lifecycle.SupportsPreparedPublication);
             observed.SetupGet(owner => owner.SupportsPublicationIsolation)
                 .Returns(() => lifecycle.SupportsPublicationIsolation);
-            observed.Setup(owner => owner.CapturePublication()).Returns(lifecycle.CapturePublication);
+            observed.Setup(owner => owner.CapturePublication())
+                .Returns(() => ObservePublicationCapture(lifecycle.CapturePublication(), committed));
             observed.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
                 .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken token) =>
                 {
                     IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(changes, token)
                         .ConfigureAwait(false);
-                    var batch = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
-                    batch.SetupGet(owner => owner.Registrations).Returns(() => prepared.Registrations);
-                    batch.SetupGet(owner => owner.IsCommitted).Returns(() => prepared.IsCommitted);
-                    batch.Setup(owner => owner.BindReadImages(It.IsAny<ArrayOf<INodeManagerReadImage>>()))
-                        .Callback<ArrayOf<INodeManagerReadImage>>(prepared.BindReadImages);
-                    batch.Setup(owner => owner.CommitAsync(
-                        It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
-                        .Returns((Func<CancellationToken, ValueTask> decide, CancellationToken cancellation) =>
-                            ObserveCommitAsync(prepared.CommitAsync(decide, cancellation), committed));
-                    batch.Setup(owner => owner.CommitAsync(
-                        It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
-                        It.IsAny<CancellationToken>()))
-                        .Returns((Func<CancellationToken, ValueTask> decide, Action publish,
-                            CancellationToken cancellation) =>
-                            ObserveCommitAsync(prepared.CommitAsync(decide, publish, cancellation), committed));
-                    batch.Setup(owner => owner.DisposeAsync()).Returns(() => prepared.DisposeAsync());
-                    return batch.Object;
+                    return ObservePreparedBatch(prepared, committed);
                 });
+            return observed.Object;
+        }
+
+        /// <summary>
+        /// Observes the captured-publication path used by slot-based lifecycle callers.
+        /// </summary>
+        private static INodeManagerPublicationCapture ObservePublicationCapture(
+            INodeManagerPublicationCapture capture,
+            Action<NodeManagerBatchResult> committed)
+        {
+            var observed = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            observed.Setup(owner => owner.BeginAsync(It.IsAny<CancellationToken>()))
+                .Returns(async (CancellationToken cancellationToken) =>
+                {
+                    INodeManagerPublication publication =
+                        await capture.BeginAsync(cancellationToken).ConfigureAwait(false);
+                    return ObservePublication(publication, committed);
+                });
+            return observed.Object;
+        }
+
+        /// <summary>
+        /// Observes prepared units created through captured publication evidence.
+        /// </summary>
+        private static INodeManagerPublication ObservePublication(
+            INodeManagerPublication publication,
+            Action<NodeManagerBatchResult> committed)
+        {
+            var observed = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            observed.SetupGet(owner => owner.IsCurrent).Returns(() => publication.IsCurrent);
+            observed.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ArrayOf<NodeManagerBatchChange> changes, CancellationToken cancellationToken) =>
+                {
+                    IPreparedNodeManagerBatch prepared = await publication.PrepareAsync(changes, cancellationToken)
+                        .ConfigureAwait(false);
+                    return ObservePreparedBatch(prepared, committed);
+                });
+            observed.Setup(owner => owner.DisposeAsync()).Returns(() => publication.DisposeAsync());
+            return observed.Object;
+        }
+
+        /// <summary>
+        /// Records the real retirement task while preserving prepared ownership and publication.
+        /// </summary>
+        private static IPreparedNodeManagerBatch ObservePreparedBatch(
+            IPreparedNodeManagerBatch prepared,
+            Action<NodeManagerBatchResult> committed)
+        {
+            var observed = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            observed.SetupGet(owner => owner.Registrations).Returns(() => prepared.Registrations);
+            observed.SetupGet(owner => owner.IsCommitted).Returns(() => prepared.IsCommitted);
+            observed.Setup(owner => owner.BindReadImages(It.IsAny<ArrayOf<INodeManagerReadImage>>()))
+                .Callback<ArrayOf<INodeManagerReadImage>>(prepared.BindReadImages);
+            observed.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns((Func<CancellationToken, ValueTask> decide, CancellationToken cancellation) =>
+                    ObserveCommitAsync(prepared.CommitAsync(decide, cancellation), committed));
+            observed.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<Action>(),
+                It.IsAny<CancellationToken>()))
+                .Returns((Func<CancellationToken, ValueTask> decide, Action publish,
+                    CancellationToken cancellation) =>
+                    ObserveCommitAsync(prepared.CommitAsync(decide, publish, cancellation), committed));
+            observed.Setup(owner => owner.DisposeAsync()).Returns(() => prepared.DisposeAsync());
             return observed.Object;
         }
 

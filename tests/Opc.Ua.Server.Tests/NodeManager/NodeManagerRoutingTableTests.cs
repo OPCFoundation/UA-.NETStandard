@@ -51,6 +51,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static readonly int[] ConcurrentNamespaceIndexes = [9];
         private static readonly int[] BatchNamespaceIndexes = [2];
 
+        /// <summary>
+        /// Prepared routing preserves captured requests and reveals only the candidates assigned to the unit.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         public void PreparedBatchRevealsOnlyItsCandidatesInThePublishedImage(bool replace)
@@ -65,10 +68,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager unrelated = CreateManager();
             table.RegisterNamespace(2, candidate, visible: false);
             table.RegisterNamespace(3, unrelated, visible: false);
-            var prepared = new PreparedNodeManager(candidate, [])
-            {
-                ReplacedNodeManager = replace ? original : null
-            };
+            NodeManagerGeneration generation = replace
+                ? NodeManagerGenerationRegistry.CreateReplacement(table.GetGeneration(original), candidate)
+                : NodeManagerGenerationRegistry.CreateAddition(candidate);
+            var prepared = new PreparedNodeManager(candidate, [], generation, replace ? original : null);
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                 [prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());

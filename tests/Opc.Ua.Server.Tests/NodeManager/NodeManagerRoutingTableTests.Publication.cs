@@ -109,10 +109,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             table.Add(hidden.Object, [3], visible: false);
             NodeManagerGeneration hiddenGeneration = table.GetGeneration(hidden.Object);
             NodeManagerGeneration? originalGeneration = replace ? table.GetGeneration(original) : null;
-            var prepared = new PreparedNodeManager(candidate, [])
-            {
-                ReplacedNodeManager = replace ? original : null
-            };
+            NodeManagerGeneration generation = replace
+                ? NodeManagerGenerationRegistry.CreateReplacement(table.GetGeneration(original), candidate)
+                : NodeManagerGenerationRegistry.CreateAddition(candidate);
+            var prepared = new PreparedNodeManager(candidate, [], generation, replace ? original : null);
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                 [prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
@@ -157,7 +157,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     return null!;
                 });
-                var prepared = new PreparedNodeManager(manager.Object, []);
+                var prepared = new PreparedNodeManager(manager.Object, [],
+                    NodeManagerGenerationRegistry.CreateAddition(manager.Object));
                 using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [prepared], [], _ => BatchNamespaceIndexes,
                     preparation.OriginalTypes, preparation.OriginalFactory);

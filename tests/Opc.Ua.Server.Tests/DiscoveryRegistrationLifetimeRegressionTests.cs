@@ -126,6 +126,47 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that initial discovery registration cannot start before NodeManager readiness completes.
+        /// </summary>
+        [Test]
+        public async Task InitialReadinessCompletesBeforeDiscoveryRegistrationStartsAsync()
+        {
+            var readiness = new ReadinessGate();
+            await using var harness = new RegistrationHarness(succeeds: true, readiness: readiness);
+            Task? startup = null;
+            try
+            {
+                LdsServer lds = await harness.Discovery.StartAsync().ConfigureAwait(false);
+                EndpointDescription endpoint = lds.GetEndpoints().ToArray()!.First(value =>
+                    value.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
+                    value.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+                await harness.Application.LoadConfigurationAsync().ConfigureAwait(false);
+                ServerConfiguration configuration = harness.Application.Config.ServerConfiguration!;
+                configuration.MaxRegistrationInterval = 60_000;
+                configuration.RegistrationEndpoint = endpoint;
+
+                startup = harness.Application.StartAsync();
+                await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                Assert.That(GetRegistrationTimer(harness.Server), Is.Null);
+                Assert.That(harness.RegistrationCalls, Is.Zero);
+
+                readiness.Release.TrySetResult(true);
+                await startup.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+
+                Assert.That(GetRegistrationTimer(harness.Server), Is.Not.Null);
+            }
+            finally
+            {
+                readiness.Release.TrySetResult(true);
+                if (startup is not null)
+                {
+                    await startup.ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads the server's current registration timer to check replacement and shutdown state.
         /// </summary>
         private static ManualTimer? GetRegistrationTimer(StandardServer server)
@@ -198,7 +239,7 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Creates a discovery store whose registration can be held and then completed or failed.
             /// </summary>
-            private RegistrationHarness(bool succeeds)
+            public RegistrationHarness(bool succeeds, ReadinessGate? readiness = null)
             {
                 m_store = new RegisteredServerStore();
                 var store = new Mock<IRegisteredServerStore>();
@@ -224,8 +265,16 @@ namespace Opc.Ua.Server.Tests
                 {
                     AutoAccept = true
                 };
-                m_application = new ServerFixture<StandardServer>(
-                    telemetry => new StandardServer(telemetry, new ManualClock()))
+                m_application = new ServerFixture<StandardServer>(telemetry =>
+                {
+                    var server = new StandardServer(telemetry, new ManualClock());
+                    m_server = server;
+                    if (readiness is not null)
+                    {
+                        server.AddNodeManager(new ReadinessNodeManagerFactory(readiness));
+                    }
+                    return server;
+                })
                 {
                     AutoAccept = true
                 };
@@ -234,7 +283,18 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Gets the application server whose registration lifetime is under test.
             /// </summary>
-            public StandardServer Server => m_application.Server;
+            public StandardServer Server => m_server ??
+                throw new InvalidOperationException("The application server has not been created.");
+
+            /// <summary>
+            /// Gets the discovery fixture used by the application server.
+            /// </summary>
+            public ServerFixture<LdsServer> Discovery => m_discovery;
+
+            /// <summary>
+            /// Gets the application fixture whose registration lifetime is under test.
+            /// </summary>
+            public ServerFixture<StandardServer> Application => m_application;
 
             /// <summary>
             /// Gets the signal raised when registration reaches the discovery store.
@@ -333,6 +393,80 @@ namespace Opc.Ua.Server.Tests
             /// Counts requests reaching the controlled discovery store.
             /// </summary>
             private int m_registrationCalls;
+
+            /// <summary>
+            /// Retains the application server while its startup readiness callback is pending.
+            /// </summary>
+            private StandardServer? m_server;
+        }
+
+        /// <summary>
+        /// Holds the initial readiness callback until the test releases it.
+        /// </summary>
+        private sealed class ReadinessGate
+        {
+            /// <summary>
+            /// Gets the signal raised when initial server readiness reaches the manager.
+            /// </summary>
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the signal that completes the readiness callback.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// Creates a NodeManager whose readiness callback is controlled by a test gate.
+        /// </summary>
+        private sealed class ReadinessNodeManagerFactory(ReadinessGate readiness) : IAsyncNodeManagerFactory
+        {
+            /// <inheritdoc/>
+            public ArrayOf<string> NamespacesUris => ["urn:tests:discovery-readiness"];
+
+            /// <inheritdoc/>
+            public ValueTask<IAsyncNodeManager> CreateAsync(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<IAsyncNodeManager>(new ReadinessNodeManager(
+                    server,
+                    configuration,
+                    readiness));
+            }
+        }
+
+        /// <summary>
+        /// Blocks initial NodeManager readiness while preserving the default address-space behavior.
+        /// </summary>
+        private sealed class ReadinessNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
+        {
+            /// <summary>
+            /// Initializes the controlled manager.
+            /// </summary>
+            public ReadinessNodeManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration,
+                ReadinessGate readiness)
+                : base(server, configuration, "urn:tests:discovery-readiness")
+            {
+                m_readiness = readiness;
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                m_readiness.Entered.TrySetResult(true);
+                await m_readiness.Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Controls completion of the initial readiness callback.
+            /// </summary>
+            private readonly ReadinessGate m_readiness;
         }
 
         /// <summary>

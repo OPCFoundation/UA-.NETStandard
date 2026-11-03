@@ -175,11 +175,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return m_manager;
             }
             var factory = new ViewNodeManagerFactory();
-            IPreparedNodeManagerBatch prepared = await m_lifecycle
-                .PrepareAsync([NodeManagerBatchChange.Add(factory)], cancellationToken)
+            IPreparedChanges prepared = await m_lifecycle
+                .PrepareAsync([LifecycleChange.Add(factory)], cancellationToken)
                 .ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
-            NodeManagerBatchResult result = await prepared
+            LifecycleResult result = await prepared
                 .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
             m_registration = result.Registrations[0];
             m_manager = factory.Created ?? throw new InvalidOperationException(

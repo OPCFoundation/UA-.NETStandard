@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
         "Design",
         "CA1032:Implement standard exception constructors",
         Justification = "A committed removal exception requires its authoritative registration and result.")]
-    public sealed class NodeManagerRemovalCommittedException : InvalidOperationException
+    public sealed class NodeManagerRemovalCommittedException : InvalidOperationException, INodeManagerCommittedFailure
     {
         /// <summary>
         /// Initializes an exception for a removal whose publication already became authoritative.
@@ -62,6 +62,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Initializes an exception carrying the authoritative change-set result.
+        /// </summary>
+        /// <param name="registration">The removed registration.</param>
+        /// <param name="result">The authoritative result and retirement task.</param>
+        /// <param name="innerException">The post-publication failure.</param>
+        public NodeManagerRemovalCommittedException(
+            NodeManagerRegistration registration,
+            LifecycleResult result,
+            Exception innerException)
+            : this(registration, new NodeManagerBatchResult(result), innerException)
+        {
+        }
+
+        /// <summary>
         /// Gets the registration removed from the published view.
         /// </summary>
         public NodeManagerRegistration Registration { get; }
@@ -70,5 +84,8 @@ namespace Opc.Ua.Server
         /// Gets the committed result and retirement task.
         /// </summary>
         public NodeManagerBatchResult Result { get; }
+
+        /// <inheritdoc/>
+        public LifecycleResult CommittedResult => Result.CommittedResult;
     }
 }

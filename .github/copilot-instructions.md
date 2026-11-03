@@ -117,6 +117,12 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Audit and Redaction**: Use the audit APIs for security events. Classify sensitive log parameters (addresses, application and user identities, paths, exception texts) with the `Opc.Ua.Redaction` data classification attributes
 
 ### Testing Standards
+- Keep server-free lifecycle component tests in their direct fixtures under
+  `tests/Opc.Ua.Server.Tests/NodeManager`; use `NodeManagerLifecycleTests` for
+  behavior that requires a real server. Preserve the `Server` and
+  `NodeManagerLifecycle` categories when relocating cases. Fully qualified
+  test filters must name the fixture that owns the case. See
+  `docs/DeveloperGuide.md#testing-nodemanager-lifecycle-components` for fixture scopes.
 - Use NUnit or TUNIT framework (match existing test projects)
   - DO NOT mix Nunit and TUNIT in the same project.
   - DO Use NUnit asserts methods (Assert.That).  Use the TUNIT assertions when using TUNIT. 

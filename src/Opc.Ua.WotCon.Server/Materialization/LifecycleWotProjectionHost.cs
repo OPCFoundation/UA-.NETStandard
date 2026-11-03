@@ -127,10 +127,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
-                IPreparedNodeManagerBatch prepared = await m_lifecycle
-                    .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], cancellationToken)
+                ILifecycleWriter writer = await m_lifecycle.BeginAsync(
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await using var writerLifetime = writer.ConfigureAwait(false);
+                RequireCurrent(wrapper.Registration);
+                IPreparedChanges prepared = await writer
+                    .PrepareAsync([LifecycleChange.Remove(wrapper.Registration.Slot)], cancellationToken)
                     .ConfigureAwait(false);
-                NodeManagerBatchResult result;
+                LifecycleResult result;
                 await using (prepared.ConfigureAwait(false))
                 {
                     result = await prepared.CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
@@ -141,7 +145,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 try
                 {
-                    await result.Retirement.ConfigureAwait(false);
+                    await result.Retired.ConfigureAwait(false);
                 }
                 catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
                 {
@@ -163,14 +167,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             RuntimeNodeSetOptions options = BuildOptions(document);
             var publication = new WotProjectionRuntimePublication(options);
             var factory = new RuntimeNodeSetNodeManagerFactory(options);
-            NodeManagerBatchChange change = current is null
-                ? NodeManagerBatchChange.Add(factory)
-                : NodeManagerBatchChange.Replace(current, factory, transitionMode);
-            IPreparedNodeManagerBatch prepared =
-                await m_lifecycle.PrepareAsync([change], cancellationToken).ConfigureAwait(false);
+            ILifecycleWriter writer = await m_lifecycle.BeginAsync(
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            await using var writerLifetime = writer.ConfigureAwait(false);
+            if (current is not null)
+            {
+                RequireCurrent(current);
+            }
+            LifecycleChange change = current is null
+                ? LifecycleChange.Add(factory)
+                : LifecycleChange.Replace(current.Slot, factory, transitionMode);
+            IPreparedChanges prepared =
+                await writer.PrepareAsync([change], cancellationToken).ConfigureAwait(false);
             await using var preparedLifetime = prepared.ConfigureAwait(false);
             NodeManagerRegistration candidate = prepared.Registrations[0];
-            NodeManagerBatchResult result = await prepared.CommitAsync(
+            LifecycleResult result = await prepared.CommitAsync(
                 static _ => default,
                 () => publication.Publish(candidate.Generation),
                 cancellationToken).ConfigureAwait(false);
@@ -192,6 +203,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 [],
                 0,
                 warning);
+        }
+
+        /// <summary>
+        /// Rejects stale exact-generation handles before preparing on captured writer evidence.
+        /// </summary>
+        /// <param name="registration">The exact owner retained by the WoT handle.</param>
+        private static void RequireCurrent(NodeManagerRegistration registration)
+        {
+            if (!registration.Slot.TryGetCurrent(out NodeManagerSlotSnapshot current) ||
+                !ReferenceEquals(current.NodeManager, registration.NodeManager))
+            {
+                throw new InvalidOperationException("The projection handle no longer identifies the current owner.");
+            }
         }
 
         private RuntimeNodeSetOptions BuildOptions(WotProjectionDocument document)

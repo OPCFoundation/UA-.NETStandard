@@ -64,7 +64,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var failure = new InvalidOperationException("candidate rejected");
             ArrayOf<NodeManagerBatchChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
-            lifecycle.Setup(owner => owner.PrepareAsync(
+            var publication = SetupPublication(lifecycle, cancellation.Token);
+            publication.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
                 .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);
@@ -113,7 +114,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ArrayOf<NodeManagerBatchChange> captured = default;
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
             lifecycle.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
-            lifecycle.Setup(owner => owner.PrepareAsync(
+            var publication = SetupPublication(lifecycle, cancellation.Token);
+            publication.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
                 .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
                 .Throws(failure);
@@ -171,6 +173,57 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             capture.Verify(owner => owner.BeginAsync(cancellation.Token), Times.Once);
             invocation.Verify(owner => owner.DisposeAsync(), Times.Once);
             invocation.VerifyAll();
+        }
+
+        /// <summary>
+        /// Slot-based publication must not reinterpret a retained WoT handle as the newer generation.
+        /// </summary>
+        [TestCase("Shadow")]
+        [TestCase("Immediate")]
+        [TestCase("Remove")]
+        [TestCase("Prepared")]
+        public async Task StaleProjectionHandleCannotMutateNewerSlotGenerationAsync(string operation)
+        {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            var document = new WotProjectionDocument("stale",
+            [
+                new WotProjectionSource("stale", ["urn:wot:stale-handle"], Encoding.UTF8.GetBytes("""
+                    <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                      <NamespaceUris><Uri>urn:wot:stale-handle</Uri></NamespaceUris>
+                      <UAObject NodeId="ns=1;i=1" BrowseName="1:Root"><DisplayName>Root</DisplayName></UAObject>
+                    </UANodeSet>
+                    """))
+            ]);
+            WotProjectionHandle first = await runtime.Host.AddAsync(document).ConfigureAwait(false);
+            WotProjectionHandle second = await runtime.Host.ShadowReloadAsync(first, document).ConfigureAwait(false);
+            long revision = runtime.Lifecycle.Revision;
+            await Assert.ThatAsync(async () =>
+            {
+                switch (operation)
+                {
+                    case "Shadow":
+                        await runtime.Host.ShadowReloadAsync(first, document).ConfigureAwait(false);
+                        break;
+                    case "Immediate":
+                        await runtime.Host.ImmediateReloadAsync(first, document).ConfigureAwait(false);
+                        break;
+                    case "Remove":
+                        await runtime.Host.RemoveAsync(first).ConfigureAwait(false);
+                        break;
+                    default:
+                        await using (await runtime.Host.PrepareAsync(
+                            [WotProjectionChange.Replace(first, document)], null, null, CancellationToken.None)
+                            .ConfigureAwait(false))
+                        {
+                        }
+                        break;
+                }
+            }, Throws.InvalidOperationException).ConfigureAwait(false);
+            Assert.That(runtime.Lifecycle.Revision, Is.EqualTo(revision));
+            Assert.That(runtime.Lifecycle.Registrations.Contains(value => value.Generation == second.Generation &&
+                value.Id == second.Registration!.Id), Is.True);
+            await runtime.Host.RemoveAsync(second).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -299,6 +352,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.That(options.ConfigureAsync, Is.Null,
                 "Without a runtime factory the host must preserve the pre-existing (data-only) behavior.");
+        }
+
+        /// <summary>
+        /// Supplies the provider boundary behind the consumer's captured change-set writer.
+        /// </summary>
+        /// <param name="lifecycle">The lifecycle provider mock.</param>
+        /// <param name="cancellationToken">The expected admission token.</param>
+        /// <returns>The provider invocation used by the writer.</returns>
+        private static Mock<INodeManagerPublication> SetupPublication(
+            Mock<INodeManagerLifecycle> lifecycle, CancellationToken cancellationToken)
+        {
+            var publication = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            publication.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var capture = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            capture.Setup(owner => owner.BeginAsync(cancellationToken)).ReturnsAsync(publication.Object);
+            lifecycle.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
+            return publication;
         }
 
         private static RuntimeNodeSetOptions InvokeBuildOptions(

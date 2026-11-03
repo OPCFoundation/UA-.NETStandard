@@ -40,6 +40,11 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Initializing managers in a custom host](#initializing-managers-in-a-custom-host)
   - [Registration generations](#registration-generations)
   - [Runtime registration](#runtime-registration)
+    - [Lifecycle change sets](#lifecycle-change-sets)
+    - [Preparation, decision and abort](#preparation-decision-and-abort)
+    - [Capturing inputs and validating candidates](#capturing-inputs-and-validating-candidates)
+    - [Publishing typed metadata](#publishing-typed-metadata)
+    - [Historian registration ownership](#historian-registration-ownership)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
     - [Reload modes](#reload-modes)
     - [MonitoredItems](#monitoreditems)
@@ -484,6 +489,26 @@ is also revalidated at least once per second, which bounds the delay for
 permissions a node manager computes without such a change, for example through
 `OnReadRolePermissions`.
 
+Periodic sampling also retains a successful exact-source read verdict alongside
+the role verdict. Reuse requires the same manager, node, attribute, owner context,
+identity-refresh generation, permission epoch, endpoint, secure channel,
+transport, security mode and access restrictions. A namespace metadata replacement
+or a namespace-default permission change invalidates the verdict. Failed
+exact-source checks are not cached; permission callbacks, dynamic namespace
+defaults and registered Value read policies still run on each sample. Generation
+admission and the current-source queue check remain mandatory even on a cache hit.
+
+Sampling uses the shared subscriber context with the group's operation diagnostics
+mask and its stable per-manager system-context copy. Sessionless items retain
+their own identity-keyed context instead of sharing a prior session's grant.
+Different diagnostics masks use separate bounded slots; a context change
+invalidates the sampled verdict, and the weak template table does not retain
+retired managers.
+Identity, endpoint, secure-channel and preferred-locale changes replace the
+cached subscriber context. If a session rebinds its channel while a read or
+authorization callback is suspended, the sampling pass rejects the stale
+channel context instead of queuing its value.
+
 For an asynchronous, caller-specific Value read policy, register
 `AsyncCustomNodeManager.RegisterValueReadAuthorization(node, authorize)` and keep
 its disposable registration for the binding's lifetime. The policy runs at
@@ -866,10 +891,24 @@ sync adapters forward the callback. Readiness runs:
 A manager added by a readiness callback gets its own callback through its transaction, not a second one
 as an initial manager.
 
-Historian builders, provider registrations, and alias-name contributors belong in readiness rather
-than private preparation. A staged candidate cannot access those serving registries. The reference
-model loads its nodes privately, then registers and seeds its historian during its awaited readiness
-callback and refreshes the server capability rollup. GDS alias aggregation likewise starts after
+`StandardServer` registers online with the Local Discovery Server (LDS) only
+after initial reconciliation and all initial readiness callbacks succeed.
+A readiness failure stops startup before the registration timer starts.
+Shutdown sends an offline update only if the server registered online.
+Readiness retries for dynamic registrations do not change the whole server's
+LDS status.
+
+`DeferConfigurationUntilReady` and `DeferPublishedAuthoringUntilReady` require
+a manager that implements `INodeManagerReadinessNotification` and forwards its
+callback to `CompletePublishedConfigurationAsync`. Configuration rejects a
+manager without that participation before its address space is published.
+
+Historian bindings created during preparation belong to a candidate-owned overlay,
+not the serving registry. They become visible after readiness succeeds; see
+[historian registration ownership](#historian-registration-ownership).
+Alias-name contributors and other serving-service registrations belong in readiness.
+The reference model loads its nodes privately, then registers and seeds its historian
+during its awaited readiness callback and refreshes the server capability rollup. GDS alias aggregation likewise starts after
 publication. Its source reads and periodic worker are canceled and joined before address-space
 removal releases their registry contribution, cancellation source, or semaphore.
 The reference sample seeds its tag aliases after the application namespace is published and awaits
@@ -904,8 +943,9 @@ their materialization before accepting clients, so discovery by browsing sees th
 - A readiness failure after publication leaves the registration live and is reported in the committed
   result's `CleanupFailure`. Its `Registrations`, `Revision`, and `Slots` remain authoritative;
   do not retry an addition as a new registration. Because its readiness never completed, the
-  generation stays unreadable to external clients; remove the registration to recover, since a reload
-  of it is rejected. A startup failure is reported after
+  generation stays unreadable to external clients. Retry unfinished readiness
+  through `result.RetryReconciliationAsync`, or remove the registration.
+  Reload is rejected until readiness succeeds. A startup failure is reported after
   `StandardServer` shuts everything down.
 - Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
   the host runs outside the lifecycle operation, so it can await those removals during runtime
@@ -984,51 +1024,37 @@ server, or use `StandardServer.NodeManagerLifecycle` when constructing the serve
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 {
-    public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
+    public async ValueTask<LifecycleResult> LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Add(factory)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = result.Registrations[0];
-        // This is authoritative even when post-publication readiness or binding failed.
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerAddCommittedException(
-                m_registration, result, "The model is live but reconciliation failed.", failure);
-        }
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Add(factory)], ct);
+        m_slot = result.Registrations[0].Slot;
+        return result;
     }
 
-    public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
+    public ValueTask<LifecycleResult> ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Replace(m_registration!, replacement,
-                NodeManagerMonitoredItemTransitionMode.Migrate)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = result.Registrations[0];
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerReloadCommittedException(
-                m_registration, result, "The replacement is live but reconciliation failed.", failure);
-        }
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        return lifecycle.ApplyAsync([LifecycleChange.Reload(slot, replacement)], ct);
     }
 
-    public async ValueTask RemoveAsync(CancellationToken ct)
+    public async ValueTask<LifecycleResult> RemoveAsync(CancellationToken ct)
     {
-        NodeManagerRegistration current = m_registration!;
-        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-            [NodeManagerBatchChange.Remove(current)], ct);
-        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
-        m_registration = null;
-        if (result.CleanupFailure is { } failure)
-        {
-            throw new NodeManagerRemovalCommittedException(current, result, failure);
-        }
-        // Await result.Retirement here only if this caller needs generation cleanup to finish.
+        NodeManagerSlot slot = m_slot ?? throw new InvalidOperationException("No model is loaded.");
+        LifecycleResult result = await lifecycle.ApplyAsync([LifecycleChange.Remove(slot)], ct);
+        m_slot = null;
+        return result;
     }
 
-    private NodeManagerRegistration? m_registration;
+    private NodeManagerSlot? m_slot;
 }
 ```
+
+The caller retains the returned `LifecycleResult` even when reconciliation reports issues:
+the model is already live or unpublished. Inspect `Issues` and use
+`RetryReconciliationAsync` for unfinished callbacks, rather than replaying the change.
+Use [lifecycle change sets](#lifecycle-change-sets) to combine changes, or
+[explicit preparation](#preparation-decision-and-abort) when publication must
+follow a durable application decision.
 
 Each committed addition returns an immutable `NodeManagerRegistration`; replacement returns the next generation and
 invalidates the previous handle. `Registrations` also lists application NodeManagers composed
@@ -1057,9 +1083,9 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 `INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
 for requests that pinned a retired generation. `CommitAsync` returns after publication and reconciliation,
 without waiting for in-flight generation admissions to drain.
-Use the batch API's `NodeManagerBatchResult.Retirement` task when the caller needs explicit retirement
+Use `LifecycleResult.Retired` (or the compatibility `NodeManagerBatchResult.Retirement`) when the caller needs retirement
 completion. A post-commit `CleanupFailure` does not undo a removal: its registration is already
-unpublished, and `Retirement` carries the eventual retirement outcome. Do not await retirement from
+unpublished, and the retirement task carries the eventual cleanup outcome. Do not await retirement from
 the callback or request whose own view or generation admission must drain.
 
 Service, Method, event-source, session, and hosted-service callbacks use the same context-free
@@ -1079,6 +1105,172 @@ A lifecycle operation validates the replacement address space before its client-
 rolls back on preparation failure. Failures after publication, including readiness, can leave a live
 registration, so do not treat them as pre-commit rollback.
 
+#### Lifecycle change sets
+
+Import `Opc.Ua.Server` to use `LifecycleChange` and the lifecycle extension
+methods. Additions create a stable `NodeManagerSlot`; reloads and removals
+target that slot. Preparation selects its current generation once. If another
+publication changes the captured view, commit rejects the prepared unit rather
+than silently targeting a newer generation.
+
+`ApplyAsync` prepares and commits a change set with an in-memory decision.
+A mixed batch publishes one routing revision:
+
+```csharp
+LifecycleResult result = await lifecycle.ApplyAsync(
+    [
+        LifecycleChange.Remove(obsoleteSlot),
+        LifecycleChange.Add(newFactory),
+        LifecycleChange.Reload(existingSlot, replacement)
+    ], cancellationToken);
+```
+
+`Registrations` lists additions and replacements in change order; removals
+have no new registration. Duplicate targets, foreign or removed slots, and
+protected system slots are rejected before factories run. `Reload` and
+`Replace` name the same operation. Their default transition mode is `Migrate`;
+see [reload modes](#reload-modes) for monitored-item behavior.
+
+Use an `IAsyncNodeManagerFactory` for candidates. An existing synchronous
+factory can use `factory.AsAsync()`; creation in that adapter stays synchronous
+and does not block on asynchronous work.
+
+#### Preparation, decision and abort
+
+Use `ILifecycleWriter` and `IPreparedChanges` when the application must persist
+a decision or publish prepared in-memory state:
+
+```csharp
+await using ILifecycleWriter writer =
+    await lifecycle.BeginAsync(expectedRevision, cancellationToken);
+await using IPreparedChanges prepared = await writer.PrepareAsync(
+    [LifecycleChange.Reload(slot, replacement)], cancellationToken);
+
+LifecycleResult result = await prepared.CommitAsync(
+    decideAsync: token => store.DecideAsync(token),
+    publishCommittedState: () => application.PublishPreparedState(),
+    cancellationToken: cancellationToken);
+```
+
+The application supplies `store` and `application` in this example.
+The decision callback persists the external decision; the publication callback
+applies already-prepared in-memory state without another durable I/O operation.
+
+```mermaid
+flowchart LR
+    P["Prepare private candidates"] --> V["Validate and reserve publication"]
+    V --> D["Persist decision"]
+    D --> C["Publish routes and metadata"]
+    C --> R["Reconcile and await readiness"]
+    C --> T["Drain retired generations"]
+    R --> S["Return committed result"]
+    T --> X["Complete Retired task"]
+    P --> A["Abort and dispose unpublished candidates"]
+    V --> A
+```
+
+`BeginAsync` checks the optional expected routing revision and retains routing,
+type and factory revision evidence. Factories run without reserving the mutation
+writer. Successful sequential units advance the writer's evidence to their own
+revision; an unrelated publication makes it stale. A stale writer rejects
+preparation before invoking factories.
+
+Dispose every uncommitted prepared unit, including after cancellation, decision
+failure or a stale commit. A stale unit is consumed before the decision.
+`ApplyAsync` and explicit prepared transactions do not rebase or retry.
+The decision callback runs once and cannot re-enter lifecycle mutation.
+If its external outcome is uncertain, resolve that uncertainty before starting
+another transaction.
+
+The routing swap commits the transaction. A later callback failure cannot
+abort it. Retain `LifecycleResult` and retry unfinished
+[reconciliation](#retrying-committed-reconciliation), not the change set.
+`PublishedSlots` retains exact generation snapshots for that publication;
+`Slots` contains stable handles whose current contents can change later.
+`Retired` completes independently after retired generations drain and cleanup
+finishes. `RetirementStatus` distinguishes pending, completed,
+completed-with-failure and canceled retirement.
+
+#### Capturing inputs and validating candidates
+
+Capture revisions before acquiring application inputs when both must share the
+same publication boundary:
+
+```csharp
+ILifecycleCapture capture = lifecycle.CaptureChanges();
+using var inputs = await application.AcquireInputsAsync(cancellationToken);
+await using ILifecycleWriter writer = await capture.BeginAsync(cancellationToken);
+await using IPreparedChanges prepared =
+    await writer.PrepareAsync(application.CreateChanges(inputs), cancellationToken);
+LifecycleResult result = await prepared.CommitAsync(cancellationToken: cancellationToken);
+```
+
+Beginning a capture does not refresh its evidence. A routing, type or factory
+revision change makes the writer stale, so preparation fails before factories run.
+
+For a dry run, call `writer.ValidateAsync(changes, inspectAsync, ct)`. The
+inspection callback receives a noncommittable `IPreparedChanges`: it can inspect
+candidate registrations and bind metadata. The lifecycle validates the resulting
+routing and reference image, then disposes candidates even if inspection or
+validation fails. Validation does not publish namespaces, run readiness or
+advance the writer's evidence. Preparing and disposing an ordinary unit does
+not perform this validation.
+
+#### Publishing typed metadata
+
+Bind immutable `INodeManagerReadImage` metadata before consuming the prepared unit:
+
+```csharp
+NodeManagerRegistration candidate = prepared.Registrations[0];
+INodeManagerReadImage image = application.CreateReadImage(candidate.NodeManager);
+prepared.SetMetadata(candidate.Slot, image);
+```
+
+The image's `Owner` must be the exact candidate or unchanged live manager for
+that slot in the resulting routing image. Each slot can be bound once. Foreign,
+removed and replaced predecessor owners are rejected before the decision.
+`prepared.SetMetadata(image)` resolves the owner's existing slot.
+
+This permits a stable registry manager's metadata to publish atomically with
+source and View replacements without replacing the registry manager itself.
+Until publication, readers retain the preceding routes and metadata.
+[WoT Connectivity](WotCon.md#ownership-and-publication) uses this contract for
+source projections and canonical Views.
+
+For metadata-only publication, call `writer.PrepareReadImagesAsync(images, ct)`
+and commit the returned unit. Those images are bound during preparation and
+cannot be changed through `SetMetadata`.
+
+#### Historian registration ownership
+
+`StagingServer.HistorianRegistry` records NodeId, namespace and default
+bindings in a candidate-owned overlay. Resolution combines staged and serving
+bindings by scope: an exact NodeId takes precedence over a namespace binding,
+which takes precedence over the default. Repeated registrations at the same
+scope within a candidate use the last binding.
+
+A manager that stages historian state must implement
+`INodeManagerReadinessNotification`; preparation rejects it otherwise.
+After readiness succeeds and the candidate is confirmed current, its complete
+binding set replaces that owner's serving bindings. A failed readiness callback
+leaves the serving registry unchanged, and retry publishes the bindings once.
+
+Routing publication withdraws retiring generations' bindings before new routes
+become visible. Their local overlays remain available to already-admitted work
+until cleanup. Retirement removes only that owner's bindings; other generations
+and direct server registrations remain. Published providers stay owned by the
+serving registry until shutdown. Abort and retirement dispose candidate capture
+handlers and providers that were never published, including providers displaced
+or unregistered within the candidate before readiness. A provider already owned
+by the serving registry is borrowed; aborting a candidate does not dispose it,
+even if its serving bindings have been removed.
+
+`UnregisterForNode`, `UnregisterForNamespace` and `ClearDefault` on the serving
+registry remove matching direct and generation-owned bindings for that scope.
+They do not change other scopes or retained candidate overlays, dispose a
+published provider, or release the registry's shutdown ownership.
+A later candidate publication can register the scope again.
+
 ### Node manager lifecycle impact on clients
 
 #### Reload modes
@@ -1091,8 +1283,8 @@ subscriptions:
 
 | Mode | Existing MonitoredItems | Choose it when |
 | --- | --- | --- |
-| `NodeManagerBatchChange.Replace(..., Migrate)` | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
-| `NodeManagerBatchChange.Replace(..., Invalidate)` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
+| `LifecycleChange.Reload(..., Migrate)` | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
+| `LifecycleChange.Reload(..., Invalidate)` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
 Neither transition retains a generation for existing items or future continuation requests.
 Requests already pinned to the old routing view may finish under ordinary request lifetime
@@ -1289,6 +1481,11 @@ the serving capabilities. The server retains ownership of the catalog.
 Publication merges compatible additions into the shared metadata tables and rebinds the candidate's
 cached handles to their canonical storage. Those handles also observe subsequent compatible additions.
 Metadata is not pinned per request; application-value images and routing generations still are.
+Type-table captures share a registration graph until their first mutation,
+which copies the type, encoding and reference-name indexes and their connected
+hierarchy. This keeps candidate writes private without copying every graph at
+capture. The first write still incurs that copy; see
+[type registration snapshot measurements](Benchmarks.md#type-registration-snapshots).
 Writes to the reserved serving metadata fail with `InvalidOperationException` during the decision callback.
 Retiring or aborting a staged manager first detaches its metadata handles, so its deletion callbacks
 cannot remove another generation's registrations. Published metadata remains additive for the lifetime
@@ -1317,9 +1514,10 @@ support aborted candidates and repeated construction. Use an explicit prepared b
 application code must control reconstruction. Only conflicts from that batch's own routing
 checks permit retry; a nested explicit batch's failure remains an error of the callback that
 invoked it. Factory failures, registration ownership changes and failed aborts remain errors.
-The extensions never retry after their decision begins or the batch commits. Retries have no
-fixed attempt limit; continuous competing publications can delay completion, so pass a
-cancellation token to bound the operation.
+The extensions never retry after their decision begins or the batch commits.
+They permit at most three attempts. Pass a cancellation token to bound waits
+within those attempts. Slot-based change sets and explicit prepared units do
+not perform these convenience-adapter retries.
 
 Commit also releases the writer while discovering monitored-item transitions. The current
 generation remains admitted until discovery ends and the writer revalidates the captured view.
@@ -1330,9 +1528,9 @@ gate. Reference edits capture each source's version before later owner callbacks
 publication revalidates the view, contribution map, and source versions before deciding.
 
 ```csharp
-await using IPreparedNodeManagerBatch batch = await batchLifecycle.PrepareAsync(
-    [NodeManagerBatchChange.Add(factory)], ct);
-NodeManagerBatchResult result = await batch.CommitAsync(
+await using IPreparedChanges prepared = await lifecycle.PrepareAsync(
+    [LifecycleChange.Add(factory)], ct);
+LifecycleResult result = await prepared.CommitAsync(
     async token => await store.SaveDecisionAsync(token), ct);
 ```
 
@@ -1348,9 +1546,9 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
 - `CommitAsync` returns after publication and reconciliation without waiting for physical deletion,
   disposal, or requests pinned to a retired generation. This also applies when the retired generation
   is already quiescent. Preparing another transaction never joins a retirement callback.
-  `result.Retirement` completes when all generations retired by
+  `result.Retired` completes when all generations retired by
   that batch have been cleaned up, or faults if asynchronous cleanup fails; use it when the caller
-  must await teardown. `result.Retired` counts generations already cleaned up when the result was
+  must await teardown. `result.RetiredCount` counts generations already cleaned up when the result was
   created. `result.Revision` identifies the published routing view, and `result.Slots` contains the
   stable application slots in that view. `INodeManagerLifecycle.Revision` and `Slots` expose the
   corresponding information for the current view. A nested lifecycle change during reconciliation
@@ -1367,11 +1565,11 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
 
 #### Retrying committed reconciliation
 
-`NodeManagerBatchResult.Issues` reports the current failed reconciliation stages. Retry the
+`LifecycleResult.Issues` reports the current failed reconciliation stages. Retry the
 committed result, not the prepared transaction or durable decision:
 
 ```csharp
-NodeManagerBatchResult result = await prepared.CommitAsync(
+LifecycleResult result = await prepared.CommitAsync(
     PersistDecisionAsync, PublishPreparedApplicationState, ct);
 if (result.Issues.Count != 0)
 {
@@ -1385,7 +1583,7 @@ foreach (NodeManagerReconciliationIssue issue in result.Issues)
 ```
 
 Retries never decide again, replace a view, change `Revision` or `Slots`, or replace the
-`Retirement` task. `CleanupFailure` retains the original commit's failure even after a successful
+`Retired` task. `CleanupFailure` retains the original commit's failure even after a successful
 retry; inspect `Issues` for current status. Concurrent retry callers join one attempt. Canceling a
 caller's token cancels its wait only; already admitted work runs with an uncancelable token.
 
@@ -1400,7 +1598,7 @@ Application state publication additionally requires its original routing revisio
 unit supersedes an unfinished application callback, even if its original managers remain live.
 `IsRetryable` distinguishes callbacks this result can retry from cleanup owned elsewhere.
 Legacy monitored-item handoff failures remain explicit issues, but are not replayed against a retiring
-source. Retirement failures fault `Retirement` and are logged by the reclaimer; they are not folded into
+source. Retirement failures fault `Retired` and are logged by the reclaimer; they are not folded into
 the returned reconciliation snapshot. A later preparation schedules retryable quiescent cleanup without
 waiting for it. Shutdown joins any remaining cleanup.
 
@@ -1467,7 +1665,7 @@ and is logged, even when a later operation or shutdown successfully retries the 
 Shutdown joins admitted cleanup; canceling its wait does not cancel an already running cleanup callback.
 
 Closed Sessions and deleted MonitoredItems are not restored. Exceptions and bad subscription
-results after publication are reported in `NodeManagerBatchResult.CleanupFailure`; they do not turn
+results after publication are reported in `LifecycleResult.CleanupFailure`; they do not turn
 a committed decision into an abort or block readiness and retirement.
 
 #### Prepared external references

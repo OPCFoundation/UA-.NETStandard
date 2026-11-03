@@ -453,7 +453,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable table,
             IAsyncNodeManager candidate)
         {
-            var prepared = new PreparedNodeManager(candidate, []);
+            var prepared = new PreparedNodeManager(candidate, [], NodeManagerGenerationRegistry.CreateAddition(candidate));
             return table.PrepareBatch([prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
         }
